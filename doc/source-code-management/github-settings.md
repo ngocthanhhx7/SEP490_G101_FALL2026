@@ -20,6 +20,8 @@ Chưa yêu cầu status check cụ thể vì baseline chưa có runtime hoặc p
 
 `.github/CODEOWNERS` chỉ định `@ngocthanhhx7` cho toàn repository để đề nghị Leader review. Không bật bắt buộc code-owner approval chỉ từ Leader, vì PR do Leader tạo vẫn phải được một thành viên khác review.
 
+`.github/` là cấu hình dùng chung cho repository: mẫu PR/Issue, CODEOWNERS và workflow khi được triển khai. Thư mục này được quản lý trong Git. Các cấu hình IDE/công cụ cá nhân như `.vscode/`, `.idea/`, `.vs/` và thư mục AI cục bộ bị loại trừ ở mọi cấp thư mục. Branch protection quản lý trong GitHub Settings, độc lập với các tệp này.
+
 Quy định nhóm yêu cầu Leader merge cuối cùng. Với repository cá nhân, branch protection cơ bản không giới hạn người push/merge bằng danh sách user như repository thuộc organization. Vì vậy, cấu hình approval bảo đảm có review, còn việc chỉ Leader merge vẫn là quy định vận hành của nhóm. Nếu cần cưỡng chế quyền merge riêng, Leader phải thiết kế quyền/ruleset phù hợp hoặc chuyển sang organization và kiểm tra lại khả năng tài khoản.
 
 Thêm tài khoản GitHub của thành viên làm collaborator khi Leader có thông tin chính xác. Không tự suy đoán username từ họ tên hoặc email trong báo cáo. Approval hợp lệ cần quyền theo cấu hình repository.

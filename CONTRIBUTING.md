@@ -25,6 +25,8 @@ git push -u origin feature/123-pet-profile
 
 Đường dẫn và issue trong ví dụ chỉ minh họa; stage đúng tệp đã sửa. Không commit `.env`, credential, dữ liệu khách hàng, `node_modules` hoặc kết quả build.
 
+Trước khi commit, kiểm tra `git diff --cached --name-only`: chỉ đưa vào mã nguồn, tài nguyên cần thiết, tài liệu và cấu hình dùng chung của dự án. Không version `.vscode/`, `.idea/`, `.vs/`, tệp workspace hoặc cấu hình AI cục bộ ở bất kỳ cấp thư mục nào. Không dùng `git add -f` để bỏ qua `.gitignore`. Tệp đã được Git theo dõi cần được bỏ khỏi index; chỉ thêm ignore rule không tự gỡ tệp đã track. `.github/` chứa cấu hình review/workflow dùng chung của repository và được giữ trong Git.
+
 ## Quy định cần đọc
 
 - [Gitflow và xử lý release/hotfix](doc/source-code-management/branching-strategy.md)

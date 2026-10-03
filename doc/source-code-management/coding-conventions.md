@@ -36,3 +36,7 @@ Khi có runtime, PR khởi tạo phải thêm cấu hình lint/format phù hợp
 ## Môi trường và dependency
 
 Không commit `.env`, secret, database dump, thư viện đã cài hoặc kết quả build. Khi bổ sung một biến môi trường, cập nhật `.env.example` bằng giá trị mẫu an toàn và mô tả mục đích trong README thành phần. Lockfile phải được commit cùng manifest; mỗi thành phần chỉ dùng package manager đã được nhóm chọn.
+
+Không version `.vscode/`, `.idea/`, `.vs/`, các tệp `*.code-workspace` hoặc cấu hình AI cục bộ như `.codex/`, `.claude/`, `.gemini/`. Quy tắc ignore áp dụng ở mọi cấp thư mục. Các tệp cấu hình dùng chung của dự án như `.gitignore`, `.editorconfig`, `.gitattributes`, `.github/` và manifest/lockfile được quản lý cùng mã nguồn.
+
+Trước mỗi commit, kiểm tra danh sách đã stage bằng `git diff --cached --name-only`. Không dùng `git add -f` để đưa tệp đã ignore vào repository. Nếu một cấu hình cục bộ đã được track, dùng `git rm --cached` cho đúng tệp/thư mục để gỡ khỏi Git mà vẫn giữ bản cục bộ.
