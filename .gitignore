@@ -1,0 +1,74 @@
+# Dependencies and package-manager caches
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/cache/
+.yarn/unplugged/
+.pnp.*
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+.envrc
+.direnv/
+.npmrc
+!.npmrc.example
+
+# Build, cache, coverage and test output
+dist/
+build/
+coverage/
+.nyc_output/
+.cache/
+.parcel-cache/
+.vite/
+.next/
+.vercel/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Runtime data
+logs/
+*.log
+*.pid
+backend/uploads/
+backend/storage/
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+~$*
+
+# Temporary working files
+tmp/
+temp/
+.tmp/
+
+# Local AI sessions, credentials and generated working artifacts
+/.codex/
+/.claude/
+/.gemini/
+/.agy/
+/.antigravity/
+/.agents/
+/outputs/
+
+# Local backups and database exports
+*.bak
+*.backup
+*.dump
+*.bson
+*.sql.gz
