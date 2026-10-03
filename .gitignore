@@ -45,8 +45,20 @@ backend/storage/
 .DS_Store
 Thumbs.db
 Desktop.ini
+# Ignore tool directories at every depth, including frontend/ and backend/.
 .idea/
 .vscode/
+.vs/
+.fleet/
+.history/
+.settings/
+*.code-workspace
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.project
+.classpath
 *.swp
 *.swo
 *~
@@ -58,13 +70,18 @@ temp/
 .tmp/
 
 # Local AI sessions, credentials and generated working artifacts
-/.codex/
-/.claude/
-/.gemini/
-/.agy/
-/.antigravity/
-/.agents/
+.codex/
+.claude/
+.gemini/
+.agy/
+.antigravity/
+.agents/
 /outputs/
+
+# Generated Python and notebook caches
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
 
 # Local backups and database exports
 *.bak
