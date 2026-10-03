@@ -7,6 +7,8 @@ Thư mục giao diện React của Paw World Care. Đây là khung thư mục, c
 | Đường dẫn | Nội dung |
 | --- | --- |
 | `public/` | Tài nguyên tĩnh được phục vụ trực tiếp; không chứa thông tin bí mật |
+| `public/assets/` | Bộ ảnh, logo và icon dùng chung; truy cập qua đường dẫn `/assets/...` |
+| `public/fonts/` | Font dùng chung; truy cập qua đường dẫn `/fonts/...` |
 | `src/app/` | Entry point, root component và providers khi khởi tạo ứng dụng |
 | `src/assets/images/`, `icons/`, `fonts/` | Tài nguyên được import từ mã nguồn |
 | `src/components/ui/` | Thành phần giao diện dùng chung như Button, Input |
