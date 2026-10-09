@@ -1,0 +1,26 @@
+{
+  "name": "paw-world-care-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --import ./tests/setup-env.js ./tests/unit/registration-utils.test.js && node --import ./tests/setup-env.js ./tests/integration/registration-ac.test.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "libphonenumber-js": "^1.12.15",
+    "mongoose": "^8.19.1",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.0.16",
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "^10.2.3"
+  }
+}

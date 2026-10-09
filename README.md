@@ -8,19 +8,46 @@ Paw World Care hỗ trợ đặt lịch chăm sóc chó/mèo, quản lý từng 
 
 ## Trạng thái
 
-Repository đang ở bước khởi tạo cấu trúc và quy ước làm việc. Chưa có ứng dụng chạy được, dependency, cấu hình build, kiểm thử tự động hay deployment. Các thư mục trống được giữ bằng `.gitkeep`; xóa tệp này khi thư mục có nội dung thực tế.
+Repository đang phát triển các luồng đăng ký/đăng nhập OTP cho Customer và nộp đơn Pet Sitter. Backend có REST API Node.js/Express, MongoDB replica set và bộ unit/integration test; frontend React/Vite có các màn đăng ký, OTP và trang chủ. Production deployment chưa được cấu hình.
 
-## Công nghệ theo kế hoạch
+## Công nghệ
 
 | Thành phần | Công nghệ |
 | --- | --- |
 | Frontend | React |
-| Backend | Node.js, Express |
-| Database | MongoDB 7+ / MongoDB Atlas; Mongoose |
-| Kiểm thử dự kiến | Jest, Supertest, React Testing Library |
+| Backend | Node.js >=22, ES modules, Express 5, Mongoose 8 |
+| Database | MongoDB 7+ / MongoDB Atlas; replica set bắt buộc cho transaction |
+| Kiểm thử backend | Node.js test runner; `mongodb-memory-server` replica set cho integration test |
+| Kiểm thử frontend | React Testing Library (dự kiến) |
 | Triển khai dự kiến | Vercel cho frontend; Render / AWS cho backend |
 
-Phiên bản runtime, build tool và dependency sẽ được chốt trong PR khởi tạo ứng dụng và ghi vào README tương ứng cùng lockfile.
+Backend dùng npm, có `package.json` và `package-lock.json`. Xem `backend/README.md` để chạy MongoDB local, tạo `.env` và khởi động server.
+
+## Chạy branch tính năng local
+
+Yêu cầu Node.js `>=22`. Từ thư mục repository, mở hai terminal:
+
+```powershell
+# Terminal 1: MongoDB replica set và backend
+docker compose -f backend/docker-compose.yml up -d
+if (-not (Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }
+Set-Location backend
+npm ci
+npm run dev
+```
+
+```powershell
+# Terminal 2: frontend
+Set-Location frontend
+npm ci
+npm run dev
+```
+
+Backend dùng mock OTP provider khi `OTP_EMAIL_PROVIDER` và `OTP_SMS_PROVIDER` trong `.env` giữ giá trị `mock`. Không commit `backend/.env`; chỉ chuyển sang Gmail/eSMS sau khi đã điền credentials trong file local. Chi tiết biến môi trường và cấu hình provider ở [backend README](backend/README.md).
+
+## Đưa branch lên GitHub
+
+Tính năng được phát triển trên `feature/*`: commit thay đổi, push branch lên `origin`, rồi mở Pull Request với base `develop`. Cần ít nhất một thành viên khác tác giả approve; Project Leader review và merge cuối cùng. Không push trực tiếp vào `develop`/`main` và không triển khai branch tính năng trực tiếp lên production. Hiện repository chưa có cấu hình production deployment; việc deploy sẽ cần cấu hình riêng sau khi PR được merge, gồm MongoDB replica set và các biến môi trường secrets trên môi trường đích.
 
 ## Cấu trúc
 
