@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 const OTP_LENGTH = 6;
 
-export default function OtpField() {
+export default function OtpField({ onEditEmail }) {
   const [digits, setDigits] = useState(
     Array(OTP_LENGTH).fill("")
   );
@@ -46,6 +46,11 @@ export default function OtpField() {
   const handleResend = (event) => {
     event.preventDefault();
     setResendCountdown(60);
+  };
+
+  const handleEditEmail = (event) => {
+    event.preventDefault();
+    onEditEmail();
   };
 
   return (
@@ -93,6 +98,7 @@ export default function OtpField() {
         <a
           className="font-extrabold text-[#F26722] underline-offset-3 hover:underline"
           href="#enter-email"
+          onClick={handleEditEmail}
         >
           Nhập lại Email
         </a>

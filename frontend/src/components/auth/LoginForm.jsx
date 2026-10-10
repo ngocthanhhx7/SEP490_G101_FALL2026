@@ -6,6 +6,7 @@ import OtpButton from "./OtpButton";
 
 export default function LoginForm() {
   const [otpSent, setOtpSent] = useState(false);
+  const [email, setEmail] = useState("");
 
   return (
     <main className="flex h-[513px] w-[356px] max-w-full flex-col rounded-[18px] border border-[#168BFF] bg-white px-[34px] pt-[43px] pb-[31px] text-center shadow-[0_10px_30px_rgba(91,57,115,0.07)]">
@@ -20,7 +21,11 @@ export default function LoginForm() {
           if (!otpSent) setOtpSent(true);
         }}
       >
-        {otpSent ? <OtpField /> : <EmailField />}
+        {otpSent ? (
+          <OtpField onEditEmail={() => setOtpSent(false)} />
+        ) : (
+          <EmailField value={email} onChange={setEmail} />
+        )}
 
         <div className="mt-5">
           {otpSent ? <SubmitButton /> : <OtpButton />}
