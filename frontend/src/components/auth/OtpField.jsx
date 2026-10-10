@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const OTP_LENGTH = 6;
 
@@ -6,6 +6,7 @@ export default function OtpField() {
   const [digits, setDigits] = useState(
     Array(OTP_LENGTH).fill("")
   );
+  const inputRefs = useRef([]);
 
   const handleChange = (index, value) => {
     const digit = value.replace(/\D/g, "").slice(-1);
@@ -15,6 +16,10 @@ export default function OtpField() {
         itemIndex === index ? digit : item
       )
     );
+
+    if (digit && index < OTP_LENGTH - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
   };
 
   return (
@@ -25,6 +30,9 @@ export default function OtpField() {
         {digits.map((digit, index) => (
           <input
             key={index}
+            ref={(element) => {
+              inputRefs.current[index] = element;
+            }}
             aria-label={`Chữ số OTP ${index + 1}`}
             className="h-12 w-full min-w-0 rounded-[9px] border border-transparent bg-[#D9F1E7] px-0 text-center text-[18px] font-semibold text-[#25292D] outline-none transition-[border-color,box-shadow] focus:border-[#168BFF] focus:shadow-[0_0_0_3px_rgba(22,139,255,0.14)]"
             type="text"
