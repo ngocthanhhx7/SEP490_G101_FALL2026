@@ -1,5 +1,5 @@
 import { useState } from "react";
-import OtpForm from "./OtpForm";
+import OtpField from "./OtpField";
 import SubmitButton from "./SubmitButton";
 import EmailField from "./EmailField";
 import OtpButton from "./OtpButton";
@@ -20,7 +20,7 @@ export default function LoginForm() {
           if (!otpSent) setOtpSent(true);
         }}
       >
-        {otpSent ? <OtpForm /> : <EmailField />}
+        {otpSent ? <OtpField /> : <EmailField />}
 
         <div className="mt-5">
           {otpSent ? <SubmitButton /> : <OtpButton />}
