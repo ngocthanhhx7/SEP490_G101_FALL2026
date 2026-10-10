@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const OTP_LENGTH = 6;
 
@@ -6,7 +6,18 @@ export default function OtpField() {
   const [digits, setDigits] = useState(
     Array(OTP_LENGTH).fill("")
   );
+  const [resendCountdown, setResendCountdown] = useState(0);
   const inputRefs = useRef([]);
+
+  useEffect(() => {
+    if (resendCountdown === 0) return undefined;
+
+    const timer = setInterval(() => {
+      setResendCountdown((current) => Math.max(current - 1, 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [resendCountdown]);
 
   const handleChange = (index, value) => {
     const digit = value.replace(/\D/g, "").slice(-1);
@@ -30,6 +41,11 @@ export default function OtpField() {
     ) {
       inputRefs.current[index - 1]?.focus();
     }
+  };
+
+  const handleResend = (event) => {
+    event.preventDefault();
+    setResendCountdown(60);
   };
 
   return (
@@ -62,12 +78,17 @@ export default function OtpField() {
       </p>
       <p className="mt-1 text-[11px] font-semibold text-[#676C72]">
         Không nhận được mã?{" "}
-        <a
-          className="font-extrabold text-[#F26722] underline-offset-3 hover:underline"
-          href="#resend-otp"
-        >
-          Gửi lại OTP
-        </a>
+        {resendCountdown > 0 ? (
+          <span aria-live="polite">Gửi lại sau {resendCountdown}s</span>
+        ) : (
+          <a
+            className="font-extrabold text-[#F26722] underline-offset-3 hover:underline"
+            href="#resend-otp"
+            onClick={handleResend}
+          >
+            Gửi lại OTP
+          </a>
+        )}
         <span className="px-1 text-[#A2A5A8]">|</span>
         <a
           className="font-extrabold text-[#F26722] underline-offset-3 hover:underline"
