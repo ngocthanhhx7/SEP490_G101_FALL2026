@@ -68,6 +68,13 @@ export default function OtpField() {
         >
           Gửi lại OTP
         </a>
+        <span className="px-1 text-[#A2A5A8]">|</span>
+        <a
+          className="font-extrabold text-[#F26722] underline-offset-3 hover:underline"
+          href="#enter-email"
+        >
+          Nhập lại Email
+        </a>
       </p>
     </fieldset>
   );
