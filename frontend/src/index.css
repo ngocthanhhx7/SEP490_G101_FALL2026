@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "FC-DK-Cool-Crayon";
+  src: url("/fonts/FC-DK-Cool-Crayon.otf") format("opentype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.font-crayon {
+  font-family: "FC-DK-Cool-Crayon", sans-serif;
+}
