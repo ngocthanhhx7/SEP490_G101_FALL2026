@@ -8,7 +8,7 @@ const stateStyles = {
     "cursor-not-allowed bg-[#E9E1C8] text-[#999382] shadow-none",
 };
 
-export default function PrimaryButton({ state = "default" }) {
+export default function OtpButton({ state = "default" }) {
   return (
     <button
       className={`h-12 w-full rounded-full text-[12px] font-extrabold tracking-[0.12em] text-[#29291F] transition-[transform,background-color,box-shadow] ${stateStyles[state]}`}
@@ -20,3 +20,4 @@ export default function PrimaryButton({ state = "default" }) {
     </button>
   );
 }
+
