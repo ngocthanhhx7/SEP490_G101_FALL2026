@@ -9,7 +9,7 @@ export default function EmailField({ value, onChange, error }) {
         className="h-12 w-full rounded-[9px] border border-transparent bg-[#D9F1E7] px-4 text-[14px] font-semibold text-[#25292D] outline-none transition-[border-color,box-shadow] placeholder:text-[#6B7772] placeholder:opacity-100 focus:border-[#168BFF] focus:shadow-[0_0_0_3px_rgba(22,139,255,0.14)]"
         name="email"
         type="email"
-        aria-invalid={error}
+        aria-invalid={Boolean(error)}
         aria-describedby={error ? "email-error" : undefined}
         value={value}
         onChange={(event) => onChange(event.target.value)}

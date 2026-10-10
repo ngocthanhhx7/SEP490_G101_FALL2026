@@ -4,20 +4,27 @@ import SubmitButton from "./SubmitButton";
 import EmailField from "./EmailField";
 import OtpButton from "./OtpButton";
 
+const GMAIL_PATTERN = /^[^\s@]+@gmail\.com$/i;
+
 export default function LoginForm() {
   const [otpSent, setOtpSent] = useState(false);
   const [email, setEmail] = useState("");
-  const [emailError, setEmailError] = useState(false);
+  const [emailError, setEmailError] = useState("");
 
   const handleEmailChange = (value) => {
     setEmail(value);
-    if (value.trim()) setEmailError(false);
+    if (value.trim()) setEmailError("");
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
     if (!email.trim()) {
-      setEmailError(true);
+      setEmailError("Vui lòng nhập email.");
+      return;
+    }
+
+    if (!GMAIL_PATTERN.test(email.trim())) {
+      setEmailError("Email phải có định dạng địa chỉ@gmail.com.");
       return;
     }
 
