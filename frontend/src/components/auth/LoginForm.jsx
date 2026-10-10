@@ -8,7 +8,7 @@ export default function LoginForm() {
   const [otpSent, setOtpSent] = useState(false);
 
   return (
-    <main className="flex h-[483px] w-[356px] max-w-full flex-col rounded-[18px] border border-[#168BFF] bg-white px-[34px] pt-[43px] pb-[31px] text-center shadow-[0_10px_30px_rgba(91,57,115,0.07)]">
+    <main className="flex h-[513px] w-[356px] max-w-full flex-col rounded-[18px] border border-[#168BFF] bg-white px-[34px] pt-[43px] pb-[31px] text-center shadow-[0_10px_30px_rgba(91,57,115,0.07)]">
       <h1 className="font-['Patrick_Hand'] text-[42px] leading-[1.05] font-normal tracking-[-0.02em] text-[#1F2328]">
         Chào mừng trở lại
       </h1>
