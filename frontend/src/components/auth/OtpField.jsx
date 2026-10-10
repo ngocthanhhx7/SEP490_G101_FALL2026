@@ -60,6 +60,15 @@ export default function OtpField() {
       <p className="mt-2 text-[11px] font-semibold text-[#676C72]">
         Mã OTP đã được gửi đến email của bạn.
       </p>
+      <p className="mt-1 text-[11px] font-semibold text-[#676C72]">
+        Không nhận được mã?{" "}
+        <a
+          className="font-extrabold text-[#F26722] underline-offset-3 hover:underline"
+          href="#resend-otp"
+        >
+          Gửi lại OTP
+        </a>
+      </p>
     </fieldset>
   );
 }
