@@ -22,6 +22,16 @@ export default function OtpField() {
     }
   };
 
+  const handleKeyDown = (index, event) => {
+    if (
+      event.key === "Backspace" &&
+      !digits[index] &&
+      index > 0
+    ) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
   return (
     <fieldset className="w-full border-0 p-0 text-left">
       <legend className="text-[11px] leading-none font-extrabold tracking-[0.12em] text-[#24272B]">NHẬP MÃ OTP</legend>
@@ -39,6 +49,7 @@ export default function OtpField() {
             inputMode="numeric"
             maxLength={1}
             value={digit}
+            onKeyDown={(event) => handleKeyDown(index, event)}
             onChange={(event) =>
               handleChange(index, event.target.value)
             }
