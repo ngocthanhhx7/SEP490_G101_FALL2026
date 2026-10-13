@@ -19,7 +19,7 @@ export default function EmailField({ value, onChange, error }) {
       />
       {error && (
         <span id="email-error" className="text-left text-[11px] font-semibold text-[#D93025]">
-          Vui lòng nhập email.
+          {error}
         </span>
       )}
     </label>

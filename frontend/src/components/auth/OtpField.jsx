@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from "react";
 
 const OTP_LENGTH = 6;
 
-export default function OtpField({ onEditEmail }) {
-  const [digits, setDigits] = useState(
-    Array(OTP_LENGTH).fill("")
-  );
+export default function OtpField({ otp, error, disabled, onOtpChange, onResend, onEditEmail }) {
+  const digits = Array.from({ length: OTP_LENGTH }, (_, index) => otp[index] || "");
   const [resendCountdown, setResendCountdown] = useState(0);
   const inputRefs = useRef([]);
 
@@ -22,11 +20,7 @@ export default function OtpField({ onEditEmail }) {
   const handleChange = (index, value) => {
     const digit = value.replace(/\D/g, "").slice(-1);
 
-    setDigits((current) =>
-      current.map((item, itemIndex) =>
-        itemIndex === index ? digit : item
-      )
-    );
+    onOtpChange(`${otp.slice(0, index)}${digit}${otp.slice(index + 1)}`.slice(0, OTP_LENGTH));
 
     if (digit && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
@@ -43,9 +37,10 @@ export default function OtpField({ onEditEmail }) {
     }
   };
 
-  const handleResend = (event) => {
+  const handleResend = async (event) => {
     event.preventDefault();
-    setResendCountdown(60);
+    if (resendCountdown > 0 || disabled) return;
+    if (await onResend()) setResendCountdown(60);
   };
 
   const handleEditEmail = (event) => {
@@ -70,6 +65,7 @@ export default function OtpField({ onEditEmail }) {
             inputMode="numeric"
             maxLength={1}
             value={digit}
+            disabled={disabled}
             onKeyDown={(event) => handleKeyDown(index, event)}
             onChange={(event) =>
               handleChange(index, event.target.value)
@@ -81,6 +77,7 @@ export default function OtpField({ onEditEmail }) {
       <p className="mt-2 text-[11px] font-semibold text-[#676C72]">
         Mã OTP đã được gửi đến email của bạn.
       </p>
+      {error && <p className="mt-2 text-[11px] font-semibold text-[#D93025]" role="alert">{error}</p>}
       <p className="mt-1 text-[11px] font-semibold text-[#676C72]">
         Không nhận được mã?{" "}
         {resendCountdown > 0 ? (

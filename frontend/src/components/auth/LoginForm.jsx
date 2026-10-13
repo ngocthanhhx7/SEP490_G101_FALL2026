@@ -3,6 +3,7 @@ import OtpField from "./OtpField";
 import SubmitButton from "./SubmitButton";
 import EmailField from "./EmailField";
 import OtpButton from "./OtpButton";
+import { requestLoginOtp, resendLoginOtp, verifyLoginOtp } from "../../services/auth-api";
 
 const GMAIL_PATTERN = /^[^\s@]+@gmail\.com$/i;
 
@@ -10,13 +11,17 @@ export default function LoginForm() {
   const [otpSent, setOtpSent] = useState(false);
   const [email, setEmail] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otp, setOtp] = useState("");
 
   const handleEmailChange = (value) => {
     setEmail(value);
     if (value.trim()) setEmailError("");
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!email.trim()) {
       setEmailError("Vui lòng nhập email.");
@@ -28,7 +33,45 @@ export default function LoginForm() {
       return;
     }
 
-    setOtpSent(true);
+    setBusy(true);
+    setEmailError("");
+    try {
+      await requestLoginOtp(email.trim());
+      setOtpSent(true);
+      setMessage("Mã OTP đã được gửi đến email của bạn.");
+    } catch (error) {
+      setEmailError(error.message || "Không thể gửi OTP.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleVerify = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setOtpError("");
+    setMessage("");
+    try {
+      const result = await verifyLoginOtp(email.trim(), otp);
+      setMessage(result.message || "Đăng nhập thành công.");
+    } catch (error) {
+      setOtp("");
+      setOtpError(error.message || "OTP không đúng.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      await resendLoginOtp(email.trim());
+      setOtpError("");
+      setMessage("Mã OTP mới đã được gửi.");
+      return true;
+    } catch (error) {
+      setOtpError(error.message || "Không thể gửi lại OTP.");
+      return false;
+    }
   };
 
   return (
@@ -40,10 +83,10 @@ export default function LoginForm() {
       <form
         className="mt-[38px] flex flex-1 flex-col"
         noValidate
-        onSubmit={handleSubmit}
+        onSubmit={otpSent ? handleVerify : handleSubmit}
       >
         {otpSent ? (
-          <OtpField onEditEmail={() => setOtpSent(false)} />
+          <OtpField otp={otp} error={otpError} disabled={busy} onOtpChange={setOtp} onResend={handleResend} onEditEmail={() => { setOtpSent(false); setOtp(""); setMessage(""); }} />
         ) : (
           <EmailField
             value={email}
@@ -53,7 +96,8 @@ export default function LoginForm() {
         )}
 
         <div className="mt-5">
-          {otpSent ? <SubmitButton /> : <OtpButton />}
+          {otpSent ? <SubmitButton disabled={busy || otp.length !== 6} /> : <OtpButton state={busy ? "disabled" : "default"} />}
+          {message && <p className="mt-3 text-[12px] font-semibold text-[#168BFF]" role="status">{message}</p>}
         </div>
 
         <div className="mt-[27px]">
