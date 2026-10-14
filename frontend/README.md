@@ -25,7 +25,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/layouts | Basic landmark layout, skip link and route focus; P48 supplies final role shells/avatar |
 | src/pages/public | Foundation landing, P07 Customer registration and P16 Sitter application form; P34 still owns public route registration |
 | src/pages/admin | P10 account directory and redacted details, P16 application list/review and Sitter status controls; P34 still owns Admin route registration |
-| src/pages/account | Signed-in user's own session identity; verified profile/contact edits remain a separate flow |
+| src/pages/account | Signed-in user's own session identity and WBS-004 account settings; verified contact edits remain owner-scoped, masked and OTP-protected; P34 owns route registration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
