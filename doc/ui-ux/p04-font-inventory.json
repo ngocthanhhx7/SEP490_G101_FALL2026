@@ -1,0 +1,121 @@
+[
+  {
+    "file": "FC-DK-Cool-Crayon.otf",
+    "weight": 400,
+    "style": "normal",
+    "variable": false,
+    "format": "opentype"
+  },
+  {
+    "file": "Nunito-Black.ttf",
+    "weight": 900,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-BlackItalic.ttf",
+    "weight": 900,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-Bold.ttf",
+    "weight": 700,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-BoldItalic.ttf",
+    "weight": 700,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-ExtraBold.ttf",
+    "weight": 800,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-ExtraBoldItalic.ttf",
+    "weight": 800,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-ExtraLight.ttf",
+    "weight": 250,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-ExtraLightItalic.ttf",
+    "weight": 250,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-Italic.ttf",
+    "weight": 400,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-Light.ttf",
+    "weight": 300,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-LightItalic.ttf",
+    "weight": 300,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-Medium.ttf",
+    "weight": 500,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-MediumItalic.ttf",
+    "weight": 500,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-Regular.ttf",
+    "weight": 400,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-SemiBold.ttf",
+    "weight": 600,
+    "style": "normal",
+    "variable": false,
+    "format": "truetype"
+  },
+  {
+    "file": "Nunito-SemiBoldItalic.ttf",
+    "weight": 600,
+    "style": "italic",
+    "variable": false,
+    "format": "truetype"
+  }
+]

@@ -1,0 +1,131 @@
+{
+  "formula": "WCAG sRGB relative luminance, (Llighter+0.05)/(Ldarker+0.05)",
+  "pairs": [
+    {
+      "foreground": "ink",
+      "background": "cream",
+      "ratio": 11.566,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "ink",
+      "background": "surface",
+      "ratio": 11.967,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "ink",
+      "background": "sun",
+      "ratio": 7.883,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "ink",
+      "background": "sun-hover",
+      "ratio": 8.777,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "ink",
+      "background": "lavender",
+      "ratio": 5.091,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "ink-muted",
+      "background": "surface",
+      "ratio": 6.74,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "ink-muted",
+      "background": "cream",
+      "ratio": 6.514,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "error",
+      "background": "error-surface",
+      "ratio": 6.605,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "error",
+      "background": "surface",
+      "ratio": 7.305,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "success",
+      "background": "success-surface",
+      "ratio": 6.501,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "warning",
+      "background": "warning-surface",
+      "ratio": 6.893,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "disabled-ink",
+      "background": "disabled-surface",
+      "ratio": 5.394,
+      "minimum": 4.5,
+      "pass": true
+    },
+    {
+      "foreground": "border",
+      "background": "surface",
+      "ratio": 5.073,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "border",
+      "background": "cream",
+      "ratio": 4.903,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "focus",
+      "background": "surface",
+      "ratio": 11.967,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "focus",
+      "background": "cream",
+      "ratio": 11.566,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "focus",
+      "background": "sun",
+      "ratio": 7.883,
+      "minimum": 3,
+      "pass": true
+    },
+    {
+      "foreground": "focus",
+      "background": "lavender-soft",
+      "ratio": 11.041,
+      "minimum": 3,
+      "pass": true
+    }
+  ]
+}

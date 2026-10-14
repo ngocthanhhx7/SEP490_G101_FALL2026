@@ -1,0 +1,57 @@
+/* Import src/styles/index.css once at the application entry. */
+.pwc-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--pwc-space-2);
+  min-height: var(--pwc-target); max-width: 100%; padding: var(--pwc-space-2) var(--pwc-space-4);
+  border: 2px solid var(--pwc-ink); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-sun); color: var(--pwc-ink); font-weight: 700;
+  line-height: var(--pwc-leading); white-space: normal; overflow-wrap: anywhere; cursor: pointer;
+}
+.pwc-button--primary:hover:not(:disabled) { background: var(--pwc-sun-hover); }
+.pwc-button--secondary { background: var(--pwc-surface); }
+.pwc-button--ghost { background: transparent; border-color: transparent; }
+.pwc-button--secondary:hover:not(:disabled), .pwc-button--ghost:hover:not(:disabled) { background: var(--pwc-lavender-soft); border-color: var(--pwc-ink); }
+.pwc-button--danger { background: var(--pwc-error); border-color: var(--pwc-error); color: var(--pwc-surface); }
+.pwc-button--danger:hover:not(:disabled) { outline: 2px solid var(--pwc-error); outline-offset: 2px; }
+.pwc-button:disabled { background: var(--pwc-disabled-surface); color: var(--pwc-disabled-ink); border-color: var(--pwc-border); cursor: not-allowed; }
+.pwc-field { display: grid; gap: var(--pwc-space-2); min-width: 0; }
+.pwc-label { font-weight: 700; }
+.pwc-hint, .pwc-field-error { margin: 0; font-size: var(--pwc-text-small); }
+.pwc-hint { color: var(--pwc-ink-muted); }
+.pwc-field-error { color: var(--pwc-error); }
+.pwc-control {
+  display: block; width: 100%; min-width: 0; min-height: var(--pwc-target);
+  padding: var(--pwc-space-2) var(--pwc-space-3); border: 2px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-control); background: var(--pwc-surface); color: var(--pwc-ink);
+}
+.pwc-control::placeholder { color: var(--pwc-ink-muted); opacity: 1; }
+.pwc-control[aria-invalid='true'] { border-color: var(--pwc-error); }
+.pwc-control:disabled { color: var(--pwc-disabled-ink); background: var(--pwc-disabled-surface); opacity: 1; }
+.pwc-control[readonly] { background: var(--pwc-lavender-soft); }
+.pwc-notice {
+  padding: var(--pwc-space-4); border: 2px solid var(--pwc-border); border-radius: var(--pwc-radius-panel);
+  color: var(--pwc-ink); background: var(--pwc-lavender-soft); overflow-wrap: anywhere;
+}
+.pwc-notice h3 { margin: 0 0 var(--pwc-space-2); font-family: var(--pwc-font-body); font-size: var(--pwc-text-body); font-weight: 700; }
+.pwc-notice p { margin: 0; }
+.pwc-notice-action { margin-top: var(--pwc-space-3); }
+.pwc-notice--error, .pwc-notice--forbidden { color: var(--pwc-error); border-color: var(--pwc-error); background: var(--pwc-error-surface); }
+.pwc-notice--success { color: var(--pwc-success); border-color: var(--pwc-success); background: var(--pwc-success-surface); }
+.pwc-notice--warning, .pwc-notice--pending { color: var(--pwc-warning); border-color: var(--pwc-warning); background: var(--pwc-warning-surface); }
+.pwc-dialog {
+  width: min(var(--pwc-dialog-width), calc(100% - 2rem)); max-height: calc(100dvh - 2rem);
+  padding: var(--pwc-space-6); margin: auto; overflow: auto; border: 2px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); color: var(--pwc-ink);
+  overflow-wrap: anywhere;
+}
+.pwc-dialog::backdrop { background: rgb(31 20 56 / 60%); }
+.pwc-dialog-header { display: flex; flex-wrap: wrap; gap: var(--pwc-space-3); align-items: flex-start; justify-content: space-between; }
+.pwc-dialog-header h2 { margin: 0; font-size: var(--pwc-text-large); font-weight: 700; flex: 1; min-width: 8rem; }
+.pwc-dialog-content { margin-block: var(--pwc-space-4); }
+.pwc-dialog-footer { display: flex; flex-wrap: wrap; gap: var(--pwc-space-3); justify-content: flex-end; }
+.pwc-logo { display: block; width: 12rem; max-width: 100%; height: auto; }
+.pwc-logo--vertical { width: 8rem; }
+.pwc-icon { display: inline-block; width: var(--pwc-icon); height: var(--pwc-icon); flex-shrink: 0; }
+@media (forced-colors: active) {
+  .pwc-button, .pwc-control, .pwc-notice, .pwc-dialog { border-color: ButtonText; }
+  .pwc-button:disabled, .pwc-control:disabled { color: GrayText; border-color: GrayText; }
+}

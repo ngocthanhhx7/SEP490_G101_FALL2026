@@ -27,7 +27,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client and session adapter port |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
-| src/components, src/styles | Reserved for P04 shared components/tokens; P03 does not populate these |
+| src/components/ui, src/styles | P04 brand tokens/fonts and native shared controls; root adoption through P34 |
 | public/assets, public/fonts | Existing brand resources preserved; logo, Nunito Regular and Crayon Regular used |
 | tests/unit | HTTP errors, CSRF, timeout, cancellation and resource races |
 | tests/integration | Synthetic adapter UI/router tests; no real backend or provider |
@@ -48,3 +48,7 @@ Routes `/`, `/sign-in` and unknown routes stay public. `/account` is a protected
 Jest 30.5.2 with React Testing Library 16.3.3 and jsdom; Babel 7.29.7 transforms ESM/JSX tests. ESLint 10.12.0 checks syntax and selected correctness rules (not a type checker). A scoped override makes @istanbuljs/load-nyc-config use js-yaml 4.3.2 instead of vulnerable sprintf-js transitives; its yaml.load interface and YAML config loading were checked. No npm audit fix --force or runtime downgrade.
 
 See [P03 handoff](../doc/ui-ux/p03-frontend-foundation-handoff.md) for actual checks and gates. UI is PROVISIONAL, Figma not supplied. Auth/OTP/CSRF/backend integration is INTEGRATION_PENDING. Public catalog, full policies, role dashboards, shared design system and PWA belong to later packages. No secrets or frontend environment variables are required; do not put server/provider credentials in browser configuration.
+
+## Brand components
+
+P04 adds [tokens and usage](../doc/ui-ux/p04-brand-design-system.md), shared UI components and a separate manual fixture. The P03 root entry is unchanged; P34 receives the proposed CSS integration patch. The fixture is not a production route or provider check.
