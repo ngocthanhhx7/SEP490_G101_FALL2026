@@ -1,6 +1,6 @@
 # Đối chiếu Rover và HouseBuddy — P49-A
 
-**Trạng thái:** đã chuẩn bị phần rà soát nguồn; AGY teamwork và Exa chưa chạy. Tài liệu ghi lại các quan sát có nguồn và giữ rõ các yêu cầu còn mở. Đây là đầu vào nghiên cứu, không phải hợp đồng PWC đã duyệt hay bằng chứng PWC đã triển khai luồng này.
+**Trạng thái:** đã hoàn tất tìm/đọc nguồn qua Exa và phân tích AGY teamwork; P00 đã tích hợp vào develop. Tài liệu ghi lại các quan sát có nguồn và giữ rõ các yêu cầu còn mở. Đây là đầu vào nghiên cứu, không phải hợp đồng PWC đã duyệt hay bằng chứng PWC đã triển khai luồng này.
 
 **Ngày rà soát:** 14/10/2026, Asia/Ho_Chi_Minh.
 
@@ -11,11 +11,12 @@
 - Kiểm tra checkout Paw World Care để tìm luồng booking và care evidence hiện có. frontend/src và backend/src chỉ có tệp giữ chỗ; chưa có runtime hay luồng PWC để xác minh.
 - Không chạy ứng dụng, model, database hoặc service nào. Không chạy build/test HouseBuddy.
 
-### Các bước nghiên cứu chưa đạt
+### Xác minh bổ sung ngày 14/10/2026
 
-- Không có Exa/9Router search tool hoặc endpoint 9Router được cấu hình trong phiên này. ID các bài Rover lấy từ tài liệu P49 được cung cấp; nội dung sau đó được mở qua API bài viết công khai chính thức của Rover.
-- Không chạy AGY /teamwork-preview. AGY CLI 1.3.5 có liệt kê Gemini 3.8 Flash High nhưng không liệt kê model custom chatgpt đang dùng trong phiên. Không dispatch subagent qua model khác; chưa xác minh có subagent AGY nào được giao việc và không gán nhận định nào dưới đây cho AGY.
-- PR #3, dependency P00, vẫn mở lúc chuẩn bị báo cáo. Hãy xem kết quả là bàn giao nghiên cứu cho đến khi P00 được tích hợp và Project Leader xác nhận baseline yêu cầu liên quan.
+- Exa tìm kiếm các nguồn Help Center chính thức, sau đó fetch đủ năm URL trong bảng dưới. Nội dung đọc lại nhất quán với báo cáo: hai bên chấp nhận booking, Customer xác nhận sửa đổi, Cards không bắt buộc phổ quát và walking map không live tracking. Kết quả search/fetch lưu cục bộ, không đưa raw nội dung nguồn vào Git.
+- AGY CLI 1.3.5 chạy `/teamwork-preview` với model `gemini-3.8-flash-high`, effort `high`; log init ghi slash command expanded, event `invoke_subagent` DONE cho vai trò Teamwork Lead và result SUCCESS. AGY phân tích trích lược công khai đã được cung cấp, không tự duyệt web; không chứng minh mọi worker nội bộ chạy cùng model hoặc nhiều reviewer độc lập.
+- Review lại đầu ra AGY: loại các citation gắn sai article ID, phí hủy sát giờ 30%/100%, expiry đề xuất 2h, ràng buộc đổi lịch 1h, payout tự chạy cuối tuần, preauthorization/card-on-file và tuyên bố ảnh chứng minh hiện diện. Đây không phải yêu cầu PWC đã được duyệt. Checklist theo baseline SRS phải hoàn thành hoặc có lý do bỏ qua; không hạ thành tùy chọn do đề xuất AGY.
+- P00 [PR #3](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/3) đã merged vào develop, merge commit `417fe9fc572f82b9782a184fc4c6cb23cfaad734`. Đối chiếu lại P00: FIN-01–08, quyền media/retention, timeout/fallback vẫn còn mở; hoàn tất nghiên cứu không tự chốt hợp đồng sản phẩm.
 
 ## Quan sát nguồn Rover
 
@@ -65,9 +66,9 @@ Các quan sát này mô tả sản phẩm Rover tại thời điểm đọc. Ch�
 
 ### Trạng thái bàn giao
 
-- **Nguồn đã mở:** 5 endpoint bài viết Rover chính thức; ghi tiêu đề và ngày cập nhật phía trên.
-- **HouseBuddy:** đã đọc tĩnh một số tệp source/config; không chạy runtime hoặc test.
-- **AGY:** chưa chạy; chưa xác minh subagent dispatch.
-- **Exa:** chưa chạy; search service không khả dụng.
-- **Dependency P00:** PR #3 còn mở tại thời điểm bàn giao.
-- **Bước tiếp theo:** sau khi P00 được tích hợp, Project Leader xác nhận baseline PWC và hoàn tất các gate AGY/Exa trước khi đánh dấu P49-A đã xác minh hoặc dùng đề xuất này làm hợp đồng triển khai.
+- **Nguồn đã mở:** 5 endpoint Rover chính thức ở lượt đầu; lượt bổ sung Exa search rồi fetch đủ 5 trang chuẩn.
+- **HouseBuddy:** đọc tĩnh lại các đoạn dispatch, cancellation, AI fallback/synthetic labels và PWA configuration; không chạy runtime, model hoặc test.
+- **AGY:** teamwork slash command được mở rộng, subagent Teamwork Lead được dispatch; kết quả được kiểm tra/lọc lại bằng nguồn, không coi đề xuất là quyết định PWC.
+- **P00:** đã tích hợp develop qua PR #3; baseline yêu cầu giữ các quyết định tài chính và quyền riêng tư còn mở.
+- **Kiểm tra tài liệu:** links/paths/whitespace và nội dung nguồn; unit/integration/build N/A vì không thay ứng dụng.
+- **Bước tiếp theo:** P01/P51 chốt contracts trước code. Booking/evidence, provider, race, PWA/offline và quyền API chưa được xác minh trên ứng dụng; merge báo cáo nghiên cứu không là chứng nhận các luồng sản phẩm đã chạy.
