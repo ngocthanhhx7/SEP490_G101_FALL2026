@@ -1,6 +1,6 @@
 # Backend — Paw World Care
 
-Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và handler, nhưng REGISTER handler injection và route/session frontend wiring còn pending. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
+Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và runtime REGISTER handler. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
 
 ## Chạy và kiểm tra
 
@@ -12,7 +12,7 @@ npm run test:unit
 npm run test:integration
 ```
 
-GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Auth routes chỉ mount khi được bật tường minh; REGISTER hiện fails closed nếu runtime chưa inject P07 handler. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration dùng MongoDB replica set riêng, không đụng DB hiện có của user.
+GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Auth routes chỉ mount khi được bật tường minh; REGISTER uses the transactional P07 handler when auth is enabled. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration dùng MongoDB replica set riêng, không đụng DB hiện có của user.
 
 ## Trách nhiệm
 

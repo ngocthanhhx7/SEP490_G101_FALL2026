@@ -134,6 +134,23 @@ describe('real isolated MongoDB 8.0.34 replica-set smoke', () => {
         .set({ Cookie: cookie, Host: '127.0.0.1', Origin: 'http://127.0.0.1', 'X-CSRF-Token': csrfToken })
         .expect(204);
       await request(authRuntime.server).get('/api/v1/me').set('Cookie', cookie).expect(401);
+
+      const registrationContact = 'runtime-registration@example.test';
+      const registrationChallenge = await request(authRuntime.server).post('/api/v1/otp-challenges')
+        .send({ channel: 'EMAIL', contact: registrationContact, purpose: 'REGISTER' }).expect(202);
+      expect(delivered).toMatchObject({ channel: 'EMAIL', purpose: 'REGISTER', to: registrationContact });
+      const registration = await request(authRuntime.server).post('/api/v1/otp-verifications')
+        .send({ challengeId: registrationChallenge.body.data.challengeId, channel: 'EMAIL',
+          contact: registrationContact, purpose: 'REGISTER', code: delivered.code,
+          displayName: 'Runtime Registration Customer' }).expect(200);
+      expect(registration.body.data).toMatchObject({
+        verified: true,
+        authenticated: true,
+        user: { displayName: 'Runtime Registration Customer', roles: ['CUSTOMER'] }
+      });
+      const registrationCookie = registration.headers['set-cookie'][0].split(';', 1)[0];
+      await request(authRuntime.server).get('/api/v1/me').set('Cookie', registrationCookie).expect(200)
+        .expect(({ body }) => expect(body.data.user).toEqual(registration.body.data.user));
     } finally {
       await authRuntime.stop();
     }

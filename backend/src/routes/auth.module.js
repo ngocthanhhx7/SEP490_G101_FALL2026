@@ -1,4 +1,5 @@
 import { createContactCrypto } from '../services/contact-crypto.service.js';
+import { createCustomerRegistrationHandler } from '../services/customer-registration.service.js';
 import { createOtpService } from '../services/otp-verification.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { createAccountSettingsService } from '../services/account-settings.service.js';
@@ -18,11 +19,17 @@ export function authenticationModule({ config, connection, ports, logger = () =>
     encryptionKey: config.auth.contactEncryptionKey
   });
   const accountSettingsService = createAccountSettingsService({ connection, contactCrypto });
+  const registerHandler = createCustomerRegistrationHandler({
+    connection,
+    sessionService,
+    contactCrypto
+  });
   const otpService = createOtpService({
     connection,
     contactDelivery: ports.contactDelivery,
     sessionService,
     contactCrypto,
+    verificationHandlers: { REGISTER: registerHandler },
     otpSecret: config.auth.otpSecret,
     logger
   });
