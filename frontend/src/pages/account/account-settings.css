@@ -1,0 +1,34 @@
+.account-settings { display: grid; gap: var(--pwc-space-6); max-width: 52rem; margin-inline: auto; }
+.account-settings-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-2); color: var(--pwc-ink-muted); }
+.account-settings-breadcrumb a { min-height: var(--pwc-target); display: inline-flex; align-items: center; color: inherit; }
+.account-settings-breadcrumb strong { color: var(--pwc-ink); }
+.account-settings-heading { display: grid; gap: var(--pwc-space-2); }
+.account-settings-heading h1 { margin: 0; font-family: var(--pwc-font-display); font-size: var(--pwc-text-heading); font-weight: 400; line-height: 1.15; }
+.account-settings-heading p, .account-settings-caption { margin: 0; color: var(--pwc-ink-muted); line-height: var(--pwc-leading); }
+.account-settings-eyebrow { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); font-weight: 800; letter-spacing: .06em; }
+.account-settings-card { display: grid; gap: var(--pwc-space-4); min-width: 0; padding: clamp(1rem, 4vw, 1.5rem); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); box-shadow: 0 8px 28px rgb(63 42 107 / 8%); }
+.account-settings-card-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--pwc-space-3); }
+.account-settings-card-heading h2 { margin: var(--pwc-space-1) 0 0; font-size: var(--pwc-text-large); }
+.account-settings-readonly { padding: var(--pwc-space-1) var(--pwc-space-3); border-radius: 999px; background: var(--pwc-lavender-soft); color: var(--pwc-ink); font-size: var(--pwc-text-small); font-weight: 700; }
+.account-settings-identity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pwc-space-4); }
+.account-settings-roles { display: grid; align-content: start; gap: var(--pwc-space-2); min-width: 0; }
+.account-settings-label { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); font-weight: 700; }
+.account-settings-roles p { margin: 0; min-height: var(--pwc-target); display: flex; align-items: center; overflow-wrap: anywhere; }
+.account-settings-state { margin: 0; color: var(--pwc-ink-muted); }
+.account-settings-contact-list { display: grid; gap: var(--pwc-space-3); }
+.account-settings-contact { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--pwc-space-3); min-width: 0; padding: var(--pwc-space-4); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); }
+.account-settings-contact-copy { display: grid; gap: var(--pwc-space-1); min-width: 0; }
+.account-settings-contact-copy strong { overflow-wrap: anywhere; }
+.account-settings-verified { display: inline-flex; align-items: center; gap: var(--pwc-space-2); color: var(--pwc-success); font-size: var(--pwc-text-small); font-weight: 700; }
+.account-settings-verified > span { width: .55rem; height: .55rem; border-radius: 50%; background: currentColor; }
+.account-settings-unlinked { color: var(--pwc-ink-muted); }
+.account-settings-form { display: grid; gap: var(--pwc-space-4); min-width: 0; padding: var(--pwc-space-4); border-radius: var(--pwc-radius-control); background: var(--pwc-lavender-soft); }
+.account-settings-form h3, .account-settings-form p { margin: 0; }
+.account-settings-actions { display: flex; flex-wrap: wrap; gap: var(--pwc-space-3); }
+.account-settings-retry { margin-top: var(--pwc-space-3); }
+@media (max-width: 40rem) {
+  .account-settings-identity { grid-template-columns: minmax(0, 1fr); }
+  .account-settings-contact { align-items: stretch; }
+  .account-settings-contact > button { width: 100%; }
+  .account-settings-actions > button { flex: 1 1 100%; }
+}
