@@ -5,7 +5,7 @@ import { HomePage } from '../pages/public/HomePage.jsx';
 import { ServiceAreasPage } from '../pages/public/ServiceAreasPage.jsx';
 import { ServiceDetailsPage } from '../pages/public/ServiceDetailsPage.jsx';
 import { ServiceListPage } from '../pages/public/ServiceListPage.jsx';
-import { SignInPendingPage } from '../pages/public/SignInPendingPage.jsx';
+import { SignInPage } from '../pages/public/SignInPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
 import { AccountPage } from '../pages/account/AccountPage.jsx';
 import { RequireSession } from './RequireSession.jsx';
@@ -73,7 +73,7 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
       <Route path="services" element={<ServiceListPage />} />
       <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
       <Route path="service-areas" element={<ServiceAreasPage />} />
-      <Route path="sign-in" element={<SignInPendingPage />} />
+      <Route path="sign-in" element={<SignInPage />} />
     </Route>
     <Route element={<FoundationLayout />}>
       <Route path="register" element={<CustomerRegistrationPage />} />

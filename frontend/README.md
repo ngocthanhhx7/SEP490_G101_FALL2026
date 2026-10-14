@@ -1,4 +1,4 @@
-# Frontend
+﻿# Frontend
 
 P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.21.0, npm 11.19.0, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
 
@@ -23,9 +23,9 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/app | Entry, root error boundary, providers and P03/P04 shared CSS integration |
 | src/routes | Root registration, P13 public routes, P10 Admin-only account route and RequireSession UX gate; P34 owns the shared integration routes |
 | src/layouts | P13 public page shell plus the foundation landmark layout; P48 supplies final role shells/avatar |
-| src/pages/public | P13 public home, service list/details/areas, P07 Customer registration and P16 Sitter application form |
+| src/pages/public | P13 public home, service list/details/areas, P07 Customer registration, P16 Sitter application form and WBS-002 sign-in |
 | src/pages/admin | P10 account directory and redacted details, P16 application list/review and Sitter status controls; P34 still owns Admin route registration |
-| src/pages/account | Signed-in user's own session identity; verified profile/contact edits remain a separate flow |
+| src/pages/account | Signed-in user's own session identity and WBS-004 account settings; verified contact edits remain owner-scoped, masked and OTP-protected; P34 owns route registration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
@@ -52,7 +52,7 @@ Routes `/`, `/services`, `/services/:serviceId`, `/service-areas`, `/sign-in`, `
 
 Jest 30.5.2 with React Testing Library 16.3.3 and jsdom; Babel 7.29.7 transforms ESM/JSX tests. ESLint 10.12.0 checks syntax and selected correctness rules (not a type checker). A scoped override makes @istanbuljs/load-nyc-config use js-yaml 4.3.2 instead of vulnerable sprintf-js transitives; its yaml.load interface and YAML config loading were checked. No npm audit fix --force or runtime downgrade.
 
-See [P03 handoff](../doc/ui-ux/p03-frontend-foundation-handoff.md), [P13 handoff](../doc/ui-ux/p13-public-pages-handoff.md), [P34-A integration status](../doc/testing/p34-a-integration-status.md) and [P07 handoff](../doc/deployment/p07-customer-registration-handoff.md). P03 foundation UI remains provisional; P07 adapts the supplied registration reference to a responsive screen. P13 public routes use the catalog adapters and explicitly pending states; P34 registers the P07 page and merged Admin/service/application/address/availability pages with role guards. The `/me` adapter is not yet connected to the app provider. OTP login, CSRF recovery/logout and live provider integration remain pending. Full policy history, role dashboards and PWA belong to later packages. No secrets or frontend environment variables are required; do not put server/provider credentials in browser configuration.
+See [P03 handoff](../doc/ui-ux/p03-frontend-foundation-handoff.md), [P13 handoff](../doc/ui-ux/p13-public-pages-handoff.md), [P34-A integration status](../doc/testing/p34-a-integration-status.md) and [P07 handoff](../doc/deployment/p07-customer-registration-handoff.md). P03 foundation UI remains provisional; P07 adapts the supplied registration reference to a responsive screen. P13 public routes use the catalog adapters and explicitly pending states; P34 registers the P07 page and merged Admin/service/application/address/availability pages with role guards. The browser entry injects the `/me` adapter, while OTP login, CSRF recovery/logout and live provider integration remain subject to their backend/provider gates. Full policy history, role dashboards and PWA belong to later packages. No secrets or frontend environment variables are required; do not put server/provider credentials in browser configuration.
 
 ## Brand components
 
