@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { AppError, metadata } from '../utils/app-error.js';
+import { normalizeCustomerDisplayName } from '../services/customer-registration.service.js';
 
 const CHALLENGE_KEYS = new Set(['channel', 'contact', 'purpose']);
 const VERIFICATION_KEYS = new Set(['challengeId', 'channel', 'contact', 'purpose', 'code']);
+const REGISTRATION_VERIFICATION_KEYS = new Set([...VERIFICATION_KEYS, 'displayName', 'policyVersions']);
 
 function hasOnlyKeys(body, keys) {
   return body && typeof body === 'object' && !Array.isArray(body)
@@ -14,13 +16,14 @@ function respond(res, req, status, data) {
   res.status(status).json({ data, meta: metadata(req) });
 }
 
-export function authModule({ otpService, sessionService, requireAuthenticated, requireCsrf,
+export function authModule({ otpService, sessionService, accountSettingsService, requireAuthenticated, requireCsrf,
   secureCookies = true } = {}) {
   if (typeof otpService?.begin !== 'function' || typeof otpService?.verify !== 'function'
     || typeof sessionService?.authenticate !== 'function' || typeof sessionService?.verifyCsrf !== 'function'
     || typeof sessionService?.getCurrentUser !== 'function'
     || typeof sessionService?.setCookie !== 'function' || typeof sessionService?.clearCookie !== 'function'
     || typeof sessionService?.revoke !== 'function' || typeof requireAuthenticated !== 'function'
+    || typeof accountSettingsService?.listVerifiedContacts !== 'function'
     || typeof requireCsrf !== 'function' || typeof secureCookies !== 'boolean') {
     throw new TypeError('OTP, session and authentication middleware dependencies are required');
   }
@@ -31,7 +34,8 @@ export function authModule({ otpService, sessionService, requireAuthenticated, r
   router.get('/me', authenticated, async (req, res) => {
     const user = await sessionService.getCurrentUser(req.auth);
     if (!user) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
-    return respond(res, req, 200, { user });
+    const contacts = await accountSettingsService.listVerifiedContacts(req.auth);
+    return respond(res, req, 200, { user, contacts });
   });
 
   router.post('/otp-challenges', async (req, res) => {
@@ -47,11 +51,22 @@ export function authModule({ otpService, sessionService, requireAuthenticated, r
   });
 
   router.post('/otp-verifications', async (req, res) => {
-    if (!hasOnlyKeys(req.body, VERIFICATION_KEYS) || req.body.purpose !== 'REGISTER') {
+    if (!hasOnlyKeys(req.body, REGISTRATION_VERIFICATION_KEYS) || req.body.purpose !== 'REGISTER') {
       return respond(res, req, 422, { code: 'VALIDATION_FAILED', message: 'OTP verification request is invalid' });
     }
-    const result = await otpService.verify(req.body);
-    return respond(res, req, 200, { verified: result.status === 'VERIFIED' });
+    const displayName = normalizeCustomerDisplayName(req.body.displayName);
+    const result = await otpService.verify({ ...req.body, displayName });
+    if (result.status !== 'VERIFIED' || result.authenticated !== true || !result.session) {
+      throw new AppError(503, 'REGISTRATION_UNAVAILABLE', 'Customer registration could not be completed');
+    }
+    sessionService.setCookie(res, result.session, { secure: secureCookies });
+    return respond(res, req, 200, {
+      verified: true,
+      authenticated: true,
+      user: result.session.user,
+      csrfToken: result.session.csrfToken,
+      expiresAt: new Date(result.session.expiresAt).toISOString()
+    });
   });
 
   router.post('/sessions', async (req, res) => {
