@@ -1,0 +1,49 @@
+.admin-service-prices {
+  min-height: 100dvh; padding: clamp(1rem, 3vw, 2.5rem); color: var(--pwc-ink);
+  background: #f7f5fa; font-family: var(--pwc-font-body);
+}
+.admin-service-prices *, .admin-service-prices *::before, .admin-service-prices *::after { box-sizing: border-box; }
+.admin-service-prices h1, .admin-service-prices h2, .admin-service-prices h3, .admin-service-prices p { margin: 0; }
+.admin-service-prices button, .admin-service-prices input { font: inherit; }
+.admin-service-prices :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+.admin-service-prices-skip {
+  position: fixed; z-index: 2; inset-block-start: .5rem; inset-inline-start: .5rem; padding: .75rem 1rem;
+  color: var(--pwc-cream); background: var(--pwc-ink); border-radius: var(--pwc-radius-control); transform: translateY(-180%);
+}
+.admin-service-prices-skip:focus { transform: translateY(0); }
+.admin-price-header, .admin-price-layout { max-width: 82rem; margin-inline: auto; }
+.admin-price-header { padding: 1rem 0 1.5rem; border-bottom: 1px solid #ded7e8; }
+.admin-price-header h1 { margin: .25rem 0; font-family: var(--pwc-font-display); font-size: clamp(2rem, 5vw, 3rem); }
+.admin-price-logo { display: block; width: min(11rem, 62vw); height: auto; margin-bottom: .75rem; }
+.admin-price-header > p:nth-of-type(2) { max-width: 48rem; color: var(--pwc-ink-muted); line-height: 1.5; }
+.admin-price-eyebrow { color: var(--pwc-ink-muted); font-size: .75rem; font-weight: 800; letter-spacing: .06em; }
+.admin-price-provisional { display: inline-block; margin-top: .75rem; padding: .4rem .65rem; color: #705100; background: var(--pwc-warning-surface); border-radius: 999px; font-size: .75rem; font-weight: 800; }
+.admin-price-layout { display: grid; grid-template-columns: minmax(15rem, .75fr) minmax(0, 1.5fr); align-items: start; gap: 1rem; margin-top: 1rem; }
+.admin-price-service-list, .admin-price-detail {
+  min-width: 0; padding: clamp(1rem, 2vw, 1.5rem); background: #fff; border: 1px solid #e4deeb;
+  border-radius: var(--pwc-radius-panel); box-shadow: 0 10px 30px rgb(63 42 107 / 5%);
+}
+.admin-price-section-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.admin-price-service-items { display: grid; gap: .5rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.admin-price-service-items button {
+  display: grid; width: 100%; min-height: 3.5rem; gap: .15rem; padding: .7rem; color: inherit; background: #fff;
+  border: 1px solid #e4deeb; border-radius: var(--pwc-radius-control); text-align: left; cursor: pointer;
+}
+.admin-price-service-items button:hover, .admin-price-service-items button[aria-pressed=true] { background: var(--pwc-lavender-soft); border-color: var(--pwc-lavender); }
+.admin-price-service-items small { color: var(--pwc-ink-muted); }
+.admin-price-detail h2 { margin-bottom: .5rem; font-size: 1.4rem; overflow-wrap: anywhere; }
+.admin-price-contract { padding: .85rem; color: var(--pwc-ink-muted); background: var(--pwc-lavender-soft); border-radius: .75rem; line-height: 1.5; }
+.admin-price-contract strong { color: var(--pwc-ink); }
+.admin-price-history { display: grid; gap: .6rem; margin: 1rem 0; padding: 0; list-style: none; }
+.admin-price-history li { display: grid; gap: .35rem; padding: .85rem; background: #fbfaff; border: 1px solid #e4deeb; border-radius: .75rem; }
+.admin-price-history li > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.admin-price-history li strong { font-size: 1.15rem; }
+.admin-price-history small { color: var(--pwc-ink-muted); }
+.admin-price-form { display: grid; gap: 1rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #e4deeb; }
+.admin-price-form h3 { font-size: 1.15rem; }
+.admin-service-prices .pwc-button { min-height: var(--pwc-target); }
+@media (max-width: 720px) { .admin-price-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 420px) {
+  .admin-service-prices { padding: .75rem; }
+  .admin-price-layout { gap: .75rem; }
+}
