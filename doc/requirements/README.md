@@ -15,3 +15,9 @@ Các tệp `doc/implementation-prompts/` có sẵn trước P00 vẫn là công 
 
 P50-A — Dog/cat intake requirements and field dictionary:
 - [Từ điển trường hồ sơ chó/mèo P50-A v1.0](p50-dog-cat-pet-profile-field-dictionary-v1.md) — draft for P01/P15; no schema or implementation claim.
+
+P51-A — Financial cancellation and settlement contracts:
+
+- [Hợp đồng tài chính và quyết định P51 v1.0](p51-financial-contract-v1.md): phương án đã được người dùng duyệt và chi tiết còn mở, trạng thái, tiền và quyền.
+- [Bàn giao P51](p51-handoff.md): phạm vi, dependency, checks tài liệu và gate implementation.
+- [API/events/acceptance](../api/p51-financial-api-v1.md) và [data/ledger](../database/p51-financial-ledger-v1.md): đề xuất kỹ thuật cho P01, chưa có runtime.
