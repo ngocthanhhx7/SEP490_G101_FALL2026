@@ -16,13 +16,14 @@ function respond(res, req, status, data) {
   res.status(status).json({ data, meta: metadata(req) });
 }
 
-export function authModule({ otpService, sessionService, requireAuthenticated, requireCsrf,
+export function authModule({ otpService, sessionService, accountSettingsService, requireAuthenticated, requireCsrf,
   secureCookies = true } = {}) {
   if (typeof otpService?.begin !== 'function' || typeof otpService?.verify !== 'function'
     || typeof sessionService?.authenticate !== 'function' || typeof sessionService?.verifyCsrf !== 'function'
     || typeof sessionService?.getCurrentUser !== 'function'
     || typeof sessionService?.setCookie !== 'function' || typeof sessionService?.clearCookie !== 'function'
     || typeof sessionService?.revoke !== 'function' || typeof requireAuthenticated !== 'function'
+    || typeof accountSettingsService?.listVerifiedContacts !== 'function'
     || typeof requireCsrf !== 'function' || typeof secureCookies !== 'boolean') {
     throw new TypeError('OTP, session and authentication middleware dependencies are required');
   }
@@ -33,7 +34,8 @@ export function authModule({ otpService, sessionService, requireAuthenticated, r
   router.get('/me', authenticated, async (req, res) => {
     const user = await sessionService.getCurrentUser(req.auth);
     if (!user) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
-    return respond(res, req, 200, { user });
+    const contacts = await accountSettingsService.listVerifiedContacts(req.auth);
+    return respond(res, req, 200, { user, contacts });
   });
 
   router.post('/otp-challenges', async (req, res) => {

@@ -40,6 +40,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   clockNow = Date.now() + 24 * 60 * 60 * 1000;
   await Promise.all(Object.values(models).map(model => model.deleteMany({})));
+  await connection.collection('account_contact_audit_events').deleteMany({});
   await User.deleteMany({});
 });
 
@@ -150,11 +151,105 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor });
     const oldContact = contactCrypto.lookup('PHONE', '+84912345678');
     expect(await models.Contact.countDocuments({ userId: user._id, channel: 'PHONE', state: 'VERIFIED' })).toBe(1);
+    await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '999999', actor }))
+      .rejects.toMatchObject({ status: 400, code: 'OTP_INVALID_OR_EXPIRED' });
+    expect(await models.Contact.countDocuments({ userId: user._id, channel: 'PHONE', state: 'VERIFIED' })).toBe(1);
     await otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor });
     const contacts = await models.Contact.find({ userId: user._id, channel: 'PHONE' }).select('+canonicalCiphertext +lookupKey').lean();
     expect(contacts.find(contact => contact.state === 'REPLACED').lookupKey).toBe(oldContact.lookupKey);
     const current = contacts.find(contact => contact.state === 'VERIFIED');
     expect(contactCrypto.decrypt(current.canonicalCiphertext)).toBe('+84987654321');
+    const auditEvents = await connection.collection('account_contact_audit_events').find({}).toArray();
+    expect(auditEvents).toHaveLength(1);
+    expect(auditEvents[0]).toMatchObject({
+      eventId: challenge.challengeId,
+      logicalOperationId: challenge.challengeId,
+      correlationId: challenge.challengeId,
+      schemaVersion: 1,
+      type: 'CONTACT_REPLACED',
+      aggregateType: 'CONTACT',
+      actorRef: { userId: user._id },
+      payload: { channel: 'PHONE' }
+    });
+    expect(JSON.stringify(auditEvents[0])).not.toMatch(/\+84912345678|\+84987654321|004201|contactLookup|canonicalCiphertext/);
+  });
+
+  test('records an audit event when linking the second contact channel', async () => {
+    const { user } = await createActiveUser({ channel: 'EMAIL', contact: 'person@example.test' });
+    const { otpService, sessionService } = fixture();
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
+    const actor = { userId: user._id.toString(), sessionId: issued.sessionId };
+    const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor });
+
+    await otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor });
+
+    expect(await models.Contact.countDocuments({ userId: user._id, state: 'VERIFIED' })).toBe(2);
+    const event = await connection.collection('account_contact_audit_events').findOne({ eventId: challenge.challengeId });
+    expect(event).toMatchObject({ type: 'CONTACT_LINKED', payload: { channel: 'PHONE' } });
+  });
+
+  test('links a contact only once when its OTP is verified concurrently', async () => {
+    const { user } = await createActiveUser({ channel: 'EMAIL', contact: 'person@example.test' });
+    const { otpService, sessionService } = fixture();
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
+    const actor = { userId: user._id.toString(), sessionId: issued.sessionId };
+    const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor });
+    const verify = () => otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor });
+
+    const attempts = await Promise.allSettled([verify(), verify()]);
+
+    expect(attempts.filter(attempt => attempt.status === 'fulfilled')).toHaveLength(1);
+    expect(attempts.filter(attempt => attempt.status === 'rejected')).toHaveLength(1);
+    expect(await models.Contact.countDocuments({ userId: user._id, state: 'VERIFIED' })).toBe(2);
+    expect(await connection.collection('account_contact_audit_events').countDocuments({})).toBe(1);
+  });
+
+  test('rejects another account contact without merging or replacing either account', async () => {
+    const { user: firstUser } = await createActiveUser({ channel: 'EMAIL', contact: 'first@example.test' });
+    const { otpService, sessionService, contactDelivery } = fixture();
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(firstUser, session));
+    const actor = { userId: firstUser._id.toString(), sessionId: issued.sessionId };
+    const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor });
+    const { user: secondUser } = await createActiveUser({ channel: 'PHONE', contact: '+84987654321' });
+    await expect(otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor }))
+      .rejects.toMatchObject({ status: 409, code: 'CONTACT_UNAVAILABLE' });
+    expect(contactDelivery.send).toHaveBeenCalledTimes(1);
+
+    await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor }))
+      .rejects.toMatchObject({ status: 409, code: 'CONTACT_UNAVAILABLE' });
+
+    expect(await models.Contact.countDocuments({ userId: firstUser._id, state: 'VERIFIED' })).toBe(1);
+    expect(await models.Contact.countDocuments({ userId: secondUser._id, state: 'VERIFIED' })).toBe(1);
+    expect(await User.countDocuments({})).toBe(2);
+    expect(await connection.collection('account_contact_audit_events').countDocuments({})).toBe(0);
+    expect(await models.OtpChallenge.countDocuments({ challengeId: challenge.challengeId, usedAt: { $ne: null } })).toBe(1);
+  });
+
+  test('expired contact verification leaves the current login method unchanged', async () => {
+    const { user } = await createActiveUser({ channel: 'EMAIL', contact: 'person@example.test' });
+    const { otpService, sessionService } = fixture();
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
+    const actor = { userId: user._id.toString(), sessionId: issued.sessionId };
+    const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor });
+    clockNow += 5 * 60 * 1000;
+
+    await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor }))
+      .rejects.toMatchObject({ status: 400, code: 'OTP_INVALID_OR_EXPIRED' });
+    expect(await models.Contact.countDocuments({ userId: user._id, state: 'VERIFIED' })).toBe(1);
+    expect(await connection.collection('account_contact_audit_events').countDocuments({})).toBe(0);
+  });
+
+  test('provider failure rejects contact enrollment and leaves existing login contact unchanged', async () => {
+    const { user } = await createActiveUser({ channel: 'EMAIL', contact: 'person@example.test' });
+    const { otpService, sessionService } = fixture({ deliveryResult: { status: 'FAILED', code: 'PROVIDER_ERROR' } });
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
+    const actor = { userId: user._id.toString(), sessionId: issued.sessionId };
+
+    await expect(otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor }))
+      .rejects.toMatchObject({ status: 503, code: 'PROVIDER_UNAVAILABLE' });
+    expect(await models.Contact.countDocuments({ userId: user._id, state: 'VERIFIED' })).toBe(1);
+    expect(await connection.collection('account_contact_audit_events').countDocuments({})).toBe(0);
+    expect(await models.OtpChallenge.countDocuments({ purpose: 'CONTACT_CHANGE', usedAt: null })).toBe(0);
   });
 
   test('does not apply a contact change after its initiating session is revoked', async () => {
