@@ -20,12 +20,12 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | --- | --- |
 | src/server.js, runtime.js, app.js | Startup, lifecycle và app factory; validate/connect trước listen |
 | src/config/ | Env validation, Mongoose topology/connect, fail-closed ports, provider composition |
-| src/routes/ | Module registry/health/auth; auth/OTP chỉ mount khi bật tường minh |
+| src/routes/ | Module registry/health/auth; P17 service catalog exports a module for P34 composition; auth/OTP only mount when enabled |
 | src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
 | src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
 | src/controllers/ | HTTP orchestration mỏng |
-| src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration; P11 SMTP, P12 eSMS và dispatcher PHONE → SMS |
-| src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration, P17 catalog/price/settings services; P11 SMTP and P12 eSMS/PHONE dispatch |
+| src/models/ | Minimum User schema for locked fixture, P06 auth records, P17 immutable service/policy/price/setting versions and audit |
 | src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
 | scripts/migrations/ | Placeholder; chưa rollout migration/index production |
@@ -38,3 +38,5 @@ route → middleware/validator → controller → service → model. Role gate k
 Seed chỉ NODE_ENV=development, ALLOW_DEV_ADMIN_SEED=true và database *_dev rồi npm run seed:admin. Mặc định false; không seed Atlas thật chỉ để kiểm tra kết nối. Fixture không active/Contact/password/OTP/session; không đóng AUTH-BOOTSTRAP Admin thật. [Runbook](../doc/deployment/p02-backend-runbook.md), [handoff](../doc/deployment/p02-handoff.md) và [P01 API](../doc/api/p01-api-permission-contract-v1.md) ghi gates và checks.
 
 P11 dùng SMTP theo lựa chọn của user. [Runbook email](../doc/deployment/p11-email-runbook.md) ghi env, kết quả nội bộ, retry và giới hạn delivery. Runtime dùng Nodemailer 10.1.1; `EMAIL_ENABLED=false` giữ provider fail-closed. P12 eSMS vẫn tắt mặc định và P34 ánh xạ `PHONE` sang channel nội bộ `SMS`. Không gọi adapter trực tiếp từ endpoint public hoặc ghi command email/OTP vào log. [Handoff P11](../doc/deployment/p11-handoff.md), [handoff P12](../doc/deployment/p12-handoff.md) và [P34-A status](../doc/testing/p34-a-integration-status.md) ghi các gate còn lại.
+
+P17's service catalog, service price, and system settings modules are exported from their route files for P34 composition. P34 must provide the service existence, price lookup, and catalog visibility ports and register the modules; none changes app.js or the shared route registry. Service, policy, price, and setting changes use immutable effective-dated versions with an actor and audit record. Prices are nonnegative safe integer VND values; fractional values are rejected without a rounding calculation. Catalog visibility defaults to disabled. The catalog exports a booking snapshot for new bookings to copy and never updates existing bookings. Real booking integration remains pending.
