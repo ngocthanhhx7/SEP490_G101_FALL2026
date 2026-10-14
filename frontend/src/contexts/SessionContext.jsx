@@ -15,8 +15,9 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
     Promise.resolve().then(() => adapter.resolve({ signal: controller.signal }))
       .then((result) => {
         if (controller.signal.aborted || generation.current !== current) return;
-        if (result?.status === 'authenticated' && !ROLES.includes(result.user?.role)) {
-          throw new Error('Invalid session role');
+        if (result?.status === 'authenticated') {
+          const roles = Array.isArray(result.user?.roles) ? result.user.roles : [result.user?.role];
+          if (!roles.length || roles.some(role => !ROLES.includes(role))) throw new Error('Invalid session role');
         }
         if (!['guest', 'authenticated', 'pending'].includes(result?.status)) {
           throw new Error('Invalid session result');

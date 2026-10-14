@@ -20,6 +20,7 @@ function appFixture({ authenticated = false } = {}) {
   };
   const sessionService = {
     authenticate: async () => authenticated ? auth : null,
+    getCurrentUser: async () => ({ id: auth.userId, displayName: 'Synthetic Customer', roles: ['CUSTOMER'] }),
     verifyCsrf: async (_actor, token) => token === 'valid-csrf',
     setCookie: (res, issued, { secure }) => res.cookie('pwc_session', issued.token, { httpOnly: true, secure, sameSite: 'lax' }),
     clearCookie: (res, options) => res.clearCookie('pwc_session', options),
@@ -40,7 +41,16 @@ function appFixture({ authenticated = false } = {}) {
   return { server, otpService, sessionService };
 }
 
-describe('P06 auth route module (not registered by P34 runtime)', () => {
+describe('auth route module HTTP contract', () => {
+  test('returns only the authenticated user projection from GET /me', async () => {
+    const { server } = appFixture({ authenticated: true });
+    const response = await request(server).get('/api/v1/me').expect(200);
+    expect(response.body.data.user).toEqual({
+      id: auth.userId, displayName: 'Synthetic Customer', roles: ['CUSTOMER']
+    });
+    expect(JSON.stringify(response.body)).not.toContain('person@example.test');
+  });
+
   test('returns generic OTP challenge metadata and rejects unknown fields', async () => {
     const { server, otpService } = appFixture();
     await request(server).post('/api/v1/otp-challenges').send({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', userId: 'forbidden' })

@@ -1,6 +1,6 @@
 # Backend — Paw World Care
 
-Nền Express/Mongoose ESM đã được khởi tạo P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); exact packages/package-lock.json. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. Chưa có OTP/booking/payment/care/settlement routes hoặc provider accounts.
+Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; UI OTP, đăng ký đầy đủ, booking/payment/care/settlement và provider credentials thật vẫn chưa hoàn tất.
 
 ## Chạy và kiểm tra
 
@@ -19,12 +19,12 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | Đường dẫn | Nội dung |
 | --- | --- |
 | src/server.js, runtime.js, app.js | Startup, lifecycle và app factory; validate/connect trước listen |
-| src/config/ | Env validation, Mongoose topology/connect, fail-closed ports |
-| src/routes/ | Module registry/health; P34 đăng ký business routes sau |
+| src/config/ | Env validation, Mongoose topology/connect, fail-closed ports, provider composition |
+| src/routes/ | Module registry/health/auth; auth/OTP chỉ mount khi bật tường minh |
 | src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
 | src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
 | src/controllers/ | HTTP orchestration mỏng |
-| src/services/ | Health/readiness, unit-of-work, synthetic seed; P11 email templates, bounded SMTP delivery and port injection factory |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed, OTP/session/contact crypto; P11 SMTP, P12 eSMS và dispatcher PHONE → SMS |
 | src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
 | src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
@@ -33,8 +33,8 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | tests/integration/ | Real isolated Mongo smoke: start/ready/transaction/seed/shutdown/outage |
 | tests/fixtures/ | Placeholder; code tests chỉ synthetic |
 
-route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. Default session không xác thực, providers trả503. Chưa có outbox/business locks/financial calculations, không fake payment/saved state.
+route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. `AUTH_ENABLED=false`, `EMAIL_ENABLED=false` và `SMS_ENABLED=false` là mặc định. Khi OTP bật mà thiếu cấu hình provider, contact delivery vẫn fail-closed. Nodemailer chỉ tạo transport sau khi email được bật; không gửi email/SMS trong lúc khởi tạo app. Chưa có outbox bền vững/business locks/financial calculations, không fake payment/saved state.
 
 Seed chỉ NODE_ENV=development, ALLOW_DEV_ADMIN_SEED=true và database *_dev rồi npm run seed:admin. Mặc định false; không seed Atlas thật chỉ để kiểm tra kết nối. Fixture không active/Contact/password/OTP/session; không đóng AUTH-BOOTSTRAP Admin thật. [Runbook](../doc/deployment/p02-backend-runbook.md), [handoff](../doc/deployment/p02-handoff.md) và [P01 API](../doc/api/p01-api-permission-contract-v1.md) ghi gates và checks.
 
-P11 dùng SMTP theo lựa chọn của user. [Runbook email](../doc/deployment/p11-email-runbook.md) mô tả env, kết quả nội bộ, retry và proposal dependency/wiring cho P34. Manifest hiện chưa có Nodemailer; chưa đăng ký provider vào runtime. EMAIL_ENABLED=false giữ provider mặc định503. Không gọi adapter trực tiếp từ endpoint public hoặc ghi command email/OTP vào log. [Handoff P11](../doc/deployment/p11-handoff.md) ghi phần đã kiểm thử và gate tích hợp thật.
+P11 dùng SMTP theo lựa chọn của user. [Runbook email](../doc/deployment/p11-email-runbook.md) ghi env, kết quả nội bộ, retry và giới hạn delivery. Runtime dùng Nodemailer 10.1.1; `EMAIL_ENABLED=false` giữ provider fail-closed. P12 eSMS vẫn tắt mặc định và P34 ánh xạ `PHONE` sang channel nội bộ `SMS`. Không gọi adapter trực tiếp từ endpoint public hoặc ghi command email/OTP vào log. [Handoff P11](../doc/deployment/p11-handoff.md), [handoff P12](../doc/deployment/p12-handoff.md) và [P34-A status](../doc/testing/p34-a-integration-status.md) ghi các gate còn lại.

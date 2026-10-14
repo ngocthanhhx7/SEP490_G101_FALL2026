@@ -9,7 +9,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   const lifecycle = { draining: false };
   let server;
   try {
-    server = createServer(createApp({ ...appOptions, config, connection, lifecycle, logger }));
+    server = createServer(createApp({ ...appOptions, config, connection, lifecycle, logger, env }));
     server.requestTimeout = 15000;
     server.headersTimeout = 10000;
     await new Promise((resolve, reject) => {

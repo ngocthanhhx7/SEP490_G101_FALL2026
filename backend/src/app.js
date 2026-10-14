@@ -5,11 +5,20 @@ import { createPorts } from './config/ports.js';
 import { requestId, notFound, errorHandler } from './middlewares/http.js';
 import { errorPayload } from './utils/app-error.js';
 import { healthModule } from './routes/health.routes.js';
+import { authenticationModule } from './routes/auth.module.js';
 import { registerModules } from './routes/module-registry.js';
+import { createProviderPortOverrides } from './config/provider-ports.js';
 
-export function createApp({ config, connection, lifecycle, portOverrides, moduleFactories = [], logger = () => {} }) {
+export function createApp({ config, connection, lifecycle, portOverrides, moduleFactories = [],
+  logger = () => {}, env = process.env }) {
   const app = express();
-  const ports = createPorts(portOverrides);
+  const basePorts = createPorts();
+  const providerPortOverrides = createProviderPortOverrides({
+    env,
+    fallbackContactDelivery: basePorts.contactDelivery,
+    logger
+  });
+  const ports = createPorts({ ...providerPortOverrides, ...portOverrides });
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxyHops);
   app.use(requestId, helmet());
@@ -21,7 +30,9 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   }));
   app.use(express.json({ limit: '64kb', strict: true }));
   const context = { config, connection, lifecycle, ports };
-  registerModules(app, [healthModule(context), ...moduleFactories.map(factory => factory(context))]);
+  const auth = authenticationModule({ ...context, logger });
+  registerModules(app, [healthModule(context), ...(auth ? [auth] : []),
+    ...moduleFactories.map(factory => factory(context))]);
   app.use(notFound, errorHandler(logger));
   return app;
 }
