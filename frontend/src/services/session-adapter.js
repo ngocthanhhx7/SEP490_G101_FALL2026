@@ -5,30 +5,51 @@ const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
 export function createApiSessionAdapter({ request, getCsrfToken = () => null } = {}) {
   if (request !== undefined && typeof request !== 'function') throw new TypeError('An API request function is required');
   if (typeof getCsrfToken !== 'function') throw new TypeError('A CSRF token provider is required');
-  const getRequest = () => request ?? createApiClient({ getCsrfToken });
+  let csrfToken = null;
+  const readCsrfToken = () => csrfToken ?? getCsrfToken();
+  const getRequest = () => request ?? createApiClient({ getCsrfToken: readCsrfToken });
+  function mapUser(response) {
+    const user = response?.data?.user;
+    if (typeof user?.id !== 'string' || !user.id || typeof user.displayName !== 'string'
+      || !Array.isArray(user.roles) || user.roles.length === 0
+      || user.roles.some(role => !ROLES.has(role))) {
+      throw new ApiError('INVALID_RESPONSE', response?.status ?? 0);
+    }
+    return { id: user.id, displayName: user.displayName, roles: [...new Set(user.roles)] };
+  }
   return Object.freeze({
     async resolve({ signal } = {}) {
       try {
         const response = await getRequest()('/me', { signal });
-        const user = response?.data?.user;
-        if (typeof user?.id !== 'string' || !user.id
-          || typeof user.displayName !== 'string'
-          || !Array.isArray(user.roles) || user.roles.length === 0
-          || user.roles.some(role => !ROLES.has(role))) {
-          throw new ApiError('INVALID_RESPONSE', response?.status ?? 0);
-        }
-        return { status: 'authenticated', user: {
-          id: user.id,
-          displayName: user.displayName,
-          roles: [...new Set(user.roles)]
-        } };
+        return { status: 'authenticated', user: mapUser(response) };
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) return { status: 'guest' };
         throw error;
       }
     },
-    getCsrfToken,
-    async logout() { await getRequest()('/sessions/current', { method: 'DELETE' }); }
+    getCsrfToken: readCsrfToken,
+    async requestLoginOtp({ channel, contact } = {}) {
+      const response = await getRequest()('/otp-challenges', {
+        method: 'POST', body: { channel, contact, purpose: 'LOGIN' }, csrfBootstrap: true
+      });
+      return response.data;
+    },
+    async login({ challengeId, channel, contact, code } = {}) {
+      const response = await getRequest()('/sessions', {
+        method: 'POST', body: { challengeId, channel, contact, purpose: 'LOGIN', code }, csrfBootstrap: true
+      });
+      if (response.data?.authenticated !== true) return { status: 'guest' };
+      const user = mapUser(response);
+      if (typeof response.data.csrfToken !== 'string' || !response.data.csrfToken) {
+        throw new ApiError('INVALID_RESPONSE', response.status);
+      }
+      csrfToken = response.data.csrfToken;
+      return { status: 'authenticated', user };
+    },
+    async logout() {
+      await getRequest()('/sessions/current', { method: 'DELETE' });
+      csrfToken = null;
+    }
   });
 }
 
