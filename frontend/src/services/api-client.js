@@ -9,11 +9,15 @@ export class ApiError extends Error {
   }
 }
 
+export const SESSION_INVALIDATED_EVENT = 'pwc:session-invalidated';
+
 // Same-origin only. P34 must amend the auth ADR before cross-site deployment.
 export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
-  onUnauthorized = () => {}, timeoutMs = 15000 } = {}) {
+  onUnauthorized = () => {
+    if (typeof window !== 'undefined') window.dispatchEvent(new window.Event(SESSION_INVALIDATED_EVENT));
+  }, timeoutMs = 15000 } = {}) {
   return async function request(path, { method = 'GET', body, signal,
-    idempotencyKey, expectedVersion } = {}) {
+    idempotencyKey, expectedVersion, csrfBootstrap = false } = {}) {
     if (!/^\/[a-zA-Z0-9]/.test(path) || /[\\#]/.test(path)
       || path.split(/[/?]/).includes('..') || /%2e|%2f|%5c/i.test(path)) {
       throw new ApiError('INVALID_API_PATH');
@@ -24,7 +28,9 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
     }
     const headers = new Headers({ Accept: 'application/json' });
     if (body !== undefined) headers.set('Content-Type', 'application/json');
-    if (!['GET'].includes(method)) {
+    const bootstrapAllowed = csrfBootstrap && method === 'POST' && ['/otp-challenges', '/sessions'].includes(path);
+    if (csrfBootstrap && !bootstrapAllowed) throw new ApiError('INVALID_CSRF_MODE');
+    if (!['GET'].includes(method) && !bootstrapAllowed) {
       const csrfToken = getCsrfToken();
       if (!csrfToken) throw new ApiError('CSRF_NOT_READY');
       headers.set('X-CSRF-Token', csrfToken);
