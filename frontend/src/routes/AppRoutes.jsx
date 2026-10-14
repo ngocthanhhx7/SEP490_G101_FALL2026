@@ -1,6 +1,10 @@
 import { Route, Routes } from 'react-router-dom';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
-import { FoundationPage } from '../pages/public/FoundationPage.jsx';
+import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
+import { HomePage } from '../pages/public/HomePage.jsx';
+import { ServiceAreasPage } from '../pages/public/ServiceAreasPage.jsx';
+import { ServiceDetailsPage } from '../pages/public/ServiceDetailsPage.jsx';
+import { ServiceListPage } from '../pages/public/ServiceListPage.jsx';
 import { SignInPage } from '../pages/public/SignInPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
 import { AccountPage } from '../pages/account/AccountPage.jsx';
@@ -73,9 +77,14 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
         <Route path="sitter/availability" element={<SitterAvailabilityPage />} />
       </Route>
     </Route>
-    <Route element={<FoundationLayout />}>
-      <Route index element={<FoundationPage />} />
+    <Route element={<PublicSiteLayout />}>
+      <Route index element={<HomePage />} />
+      <Route path="services" element={<ServiceListPage />} />
+      <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
+      <Route path="service-areas" element={<ServiceAreasPage />} />
       <Route path="sign-in" element={<SignInPage />} />
+    </Route>
+    <Route element={<FoundationLayout />}>
       <Route path="register" element={<CustomerRegistrationPage />} />
       <Route path="sitter/apply" element={<SitterApplicationPage />} />
       <Route path="sitter/application-status" element={<ApplicationStatusPage api={applicationStatusApi} />} />
