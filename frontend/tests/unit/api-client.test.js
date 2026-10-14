@@ -26,6 +26,17 @@ test('blocks writes until CSRF is ready', async () => {
   expect(fetchImpl).not.toHaveBeenCalled();
 });
 
+test('allows unauthenticated login bootstrap writes without CSRF', async () => {
+  const fetchImpl = jest.fn().mockResolvedValue(response(202, envelope({ challengeId: 'synthetic' })));
+  await expect(createApiClient({ fetchImpl })('/otp-challenges', {
+    method: 'POST', body: { purpose: 'LOGIN' }, csrfBootstrap: true
+  })).resolves.toMatchObject({ data: { challengeId: 'synthetic' }, pending: true });
+  expect(fetchImpl.mock.calls[0][1].headers.has('X-CSRF-Token')).toBe(false);
+  await expect(createApiClient({ fetchImpl })('/bookings', {
+    method: 'POST', body: {}, csrfBootstrap: true
+  })).rejects.toMatchObject({ code: 'INVALID_CSRF_MODE' });
+});
+
 test('carries CSRF, stable operation key and expected version without automatic replay', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(response(202, envelope({ operationId: 'synthetic' })));
   const result = await createApiClient({ fetchImpl, getCsrfToken: () => 'synthetic-csrf' })

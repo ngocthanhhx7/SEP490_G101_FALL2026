@@ -9,6 +9,7 @@ import { requireCsrf, requireSession } from '../../src/middlewares/session.js';
 import { authModule } from '../../src/routes/auth.routes.js';
 import { connectDatabase } from '../../src/config/database.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
+import { createAccountSettingsService } from '../../src/services/account-settings.service.js';
 import { createCustomerRegistrationHandler } from '../../src/services/customer-registration.service.js';
 import { createOtpService } from '../../src/services/otp-verification.service.js';
 import { createSessionService } from '../../src/services/session.service.js';
@@ -28,12 +29,13 @@ function fixture({ deliveryResult = { status: 'ACCEPTED', code: 'SYNTHETIC_ACCEP
   const sessionService = createSessionService({ connection, User, models,
     tokenSecret: `${secret}-token-secret`, csrfSecret: `${secret}-csrf-secret`, clock: () => clockNow });
   const register = createCustomerRegistrationHandler({ connection, User, models, sessionService, contactCrypto, clock: () => clockNow });
+  const accountSettingsService = createAccountSettingsService({ connection, models, contactCrypto });
   const otpService = createOtpService({ connection, User, models, contactDelivery, sessionService, contactCrypto,
     otpSecret: `${secret}-otp-secret`, clock: () => clockNow, createCode: () => code,
     verificationHandlers: { REGISTER: register } });
   const config = loadConfig({ NODE_ENV: 'test', MONGO_URI: replica.getUri(), MONGO_DB: 'pwc_customer_registration_test' });
   const app = createApp({ config, connection, lifecycle: { draining: false }, moduleFactories: [() => authModule({
-    otpService, sessionService, requireAuthenticated: requireSession(sessionService),
+    otpService, sessionService, accountSettingsService, requireAuthenticated: requireSession(sessionService),
     requireCsrf: requireCsrf(sessionService), secureCookies: false,
   })] });
   return { app, sessionService, contactDelivery, sent };
