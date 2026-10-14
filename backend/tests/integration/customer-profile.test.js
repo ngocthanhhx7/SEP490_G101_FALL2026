@@ -1,3 +1,4 @@
+import { createSessionService } from '../../src/services/session.service.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -130,4 +131,41 @@ describe('P14 customer profile service against isolated MongoDB', () => {
     expect(response.body.error.code).toBe('PROFILE_UNAVAILABLE');
     expect(JSON.stringify(response.body)).not.toContain('invalid');
   });
+});
+
+
+test('actual runtime uses signed session cookie, ownership and CSRF without injected module or synthetic headers', async () => {
+  const tokenSecret = 'synthetic-profile-runtime-token-secret-32';
+  const csrfSecret = 'synthetic-profile-runtime-csrf-secret-32';
+  const config = loadConfig({ NODE_ENV: 'test', MONGO_URI: replica.getUri(), MONGO_DB: 'pwc_customer_profile_test',
+    AUTH_ENABLED: 'true', SESSION_TOKEN_SECRET: tokenSecret, SESSION_CSRF_SECRET: csrfSecret,
+    OTP_HMAC_SECRET: 'synthetic-profile-runtime-otp-secret-32', CONTACT_LOOKUP_SECRET: SECRETS.lookup,
+    CONTACT_ENCRYPTION_KEY: SECRETS.encryption });
+  const runtime = createApp({ config, connection, lifecycle: { draining: false }, env: {} });
+  const sessionService = createSessionService({ connection, tokenSecret, csrfSecret });
+  async function issue(userId) {
+    const user = await User.findById(userId);
+    let issued;
+    await connection.transaction(async session => { issued = await sessionService.issueInTransaction(user, session); });
+    return issued;
+  }
+  const customer = await issue(sessions.get('customer-a').userId);
+  const cookie = `pwc_session=${customer.token}`;
+  await request(runtime).get('/api/v1/me/profile').set(customerRequest()).expect(401);
+  const view = await request(runtime).get('/api/v1/me/profile').set('Cookie', cookie).expect(200);
+  expect(view.body.data.id).toBe(sessions.get('customer-a').userId);
+  expect(view.headers['cache-control']).toBe('private, no-store');
+  expect(JSON.stringify(view.body)).not.toContain('linh@example.test');
+  await request(runtime).patch('/api/v1/me/profile').set('Cookie', cookie)
+    .send({ displayName: 'Runtime Name', expectedVersion: 0 }).expect(403);
+  const save = input => request(runtime).patch('/api/v1/me/profile').set('Cookie', cookie)
+    .set('X-CSRF-Token', customer.csrfToken).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1').send(input);
+  await save({ displayName: 'Runtime Name', expectedVersion: 0, userId: sessions.get('customer-b').userId }).expect(422);
+  await save({ displayName: 'Runtime Name', expectedVersion: 0 }).expect(200);
+  await save({ displayName: 'Stale Update', expectedVersion: 0 }).expect(409);
+  expect((await User.findById(sessions.get('customer-b').userId)).displayName).toBe('Minh Customer');
+  const staff = await issue(sessions.get('staff').userId);
+  await request(runtime).get('/api/v1/me/profile').set('Cookie', `pwc_session=${staff.token}`).expect(403);
+  await User.updateOne({ _id: sessions.get('customer-a').userId }, { $set: { state: 'LOCKED' }, $inc: { authEpoch: 1 } });
+  await request(runtime).get('/api/v1/me/profile').set('Cookie', cookie).expect(401);
 });

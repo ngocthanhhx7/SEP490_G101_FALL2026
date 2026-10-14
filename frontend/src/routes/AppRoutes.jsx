@@ -1,3 +1,4 @@
+import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
 import { Route, Routes } from 'react-router-dom';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
@@ -31,7 +32,7 @@ const navigationByRole = {
     ['Giá dịch vụ', '/admin/service-prices'], ['Cấu hình', '/admin/system-settings'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
   ],
-  CUSTOMER: [['Tài khoản', '/account'], ['Địa chỉ', '/account/addresses']],
+  CUSTOMER: [['Tài khoản', '/account'], ['Hồ sơ', '/account/profile'], ['Địa chỉ', '/account/addresses']],
   PET_SITTER: [['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability']],
   STAFF: [['Tài khoản', '/account']],
 };
@@ -69,6 +70,7 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
     </Route>
     <Route element={<RequireSession roles={['CUSTOMER']} />}>
       <Route element={<Workspace role="CUSTOMER" />}>
+        <Route path="account/profile" element={<CustomerProfilePage />} />
         <Route path="account/addresses" element={<CustomerAddressesPage />} />
       </Route>
     </Route>
