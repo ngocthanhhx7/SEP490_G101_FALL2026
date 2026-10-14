@@ -7,4 +7,8 @@ Cấu trúc repository và quy ước ban đầu được đối chiếu với h
 
 Tài liệu gốc nằm trong khu vực báo cáo của nhóm trên Google Drive. Baseline chỉ ghi nhận nguồn tham chiếu; không công bố lại nội dung đầy đủ hoặc tệp gốc.
 
+## Nghiên cứu sản phẩm tham chiếu
+
+- [Đối chiếu Rover và HouseBuddy (P49-A)](rover-housebuddy-benchmark.md): nguồn Rover chính thức, kiểm tra tĩnh mã HouseBuddy, quy tắc PWC, đề xuất và câu hỏi còn mở.
+
 Quy ước commit sử dụng [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Hướng dẫn bảo vệ nhánh tham chiếu [GitHub protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
