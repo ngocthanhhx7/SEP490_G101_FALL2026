@@ -340,8 +340,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) invalid('expectedVersion is invalid');
     const key = validateIdempotencyKey(idempotencyKey);
     const id = new Types.ObjectId(applicationId);
-    const idempotencyDigest = hash(lookupSecret, `application-review\0${targetState}\0${actor.userId}\0${id}\0${key}`);
-    const payloadDigest = hashPayload(lookupSecret, { action: targetState, expectedVersion });
+    const idempotencyDigest = hash(lookupSecret, `${targetState === 'INTERVIEW' ? 'application-interview' : 'application-review'}\0${actor.userId}\0${id}\0${key}`);
+    const payloadDigest = hashPayload(lookupSecret, { action: targetState === 'INTERVIEW' ? 'START_INTERVIEW' : 'START_REVIEW', expectedVersion });
     const now = clock();
     const existing = await Audit.findOne({ resourceId: id, idempotencyDigest }).select('+idempotencyDigest +payloadDigest').lean();
     if (existing) {
