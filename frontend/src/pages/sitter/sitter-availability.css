@@ -1,0 +1,55 @@
+.sitter-availability {
+  width: min(100%, 56rem);
+  margin-inline: auto;
+  padding: var(--pwc-space-4);
+  display: grid;
+  gap: var(--pwc-space-6);
+  color: var(--pwc-ink);
+}
+.sitter-availability__header { display: grid; gap: var(--pwc-space-2); }
+.sitter-availability__header h1 { margin: 0; font-family: var(--pwc-font-display); font-size: var(--pwc-text-heading); line-height: 1.15; }
+.sitter-availability__header p, .sitter-availability__panel-heading p,
+.sitter-availability__safety p { margin: 0; color: var(--pwc-ink-muted); }
+.sitter-availability__eyebrow { font-weight: 700; color: var(--pwc-ink); }
+.sitter-availability__panel, .sitter-availability__safety {
+  min-width: 0;
+  padding: var(--pwc-space-4);
+  border: 1px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-panel);
+  background: var(--pwc-surface);
+  box-shadow: 0 0.25rem 1rem rgb(63 42 107 / 8%);
+}
+.sitter-availability__panel-heading { display: flex; flex-wrap: wrap; gap: var(--pwc-space-3); justify-content: space-between; align-items: flex-start; margin-bottom: var(--pwc-space-4); }
+.sitter-availability__panel-heading h2, .sitter-availability__safety h2 { margin: 0 0 var(--pwc-space-2); font-size: var(--pwc-text-large); }
+.sitter-availability__panel-heading p { max-width: 42rem; }
+.sitter-availability__version { padding: var(--pwc-space-1) var(--pwc-space-3); border-radius: 999px; background: var(--pwc-lavender-soft); font-size: var(--pwc-text-small); }
+.sitter-availability__window-list { display: grid; gap: var(--pwc-space-3); }
+.sitter-availability__calendar { min-width: 0; padding: var(--pwc-space-4); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); }
+.sitter-availability__calendar-heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--pwc-space-3); margin-bottom: var(--pwc-space-4); }
+.sitter-availability__calendar-heading h2 { margin: 0 0 var(--pwc-space-2); font-size: var(--pwc-text-large); }
+.sitter-availability__calendar-heading p { margin: 0; color: var(--pwc-ink-muted); }
+.sitter-availability__calendar-list { display: grid; gap: var(--pwc-space-2); margin: 0; padding: 0; list-style: none; }
+.sitter-availability__calendar-day { min-width: 0; padding: var(--pwc-space-3); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); overflow-wrap: anywhere; }
+.sitter-availability__calendar-day-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--pwc-space-2); }
+.sitter-availability__calendar-day-heading time { color: var(--pwc-ink); font-weight: 700; }
+.sitter-availability__calendar-state { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.sitter-availability__calendar-state--available { color: var(--pwc-success); font-weight: 700; }
+.sitter-availability__calendar-state--off { color: var(--pwc-warning); font-weight: 700; }
+.sitter-availability__calendar-windows { display: flex; flex-wrap: wrap; gap: var(--pwc-space-2); margin: var(--pwc-space-2) 0 0; padding: 0; color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); list-style: none; }
+.sitter-availability__calendar-windows li { padding: var(--pwc-space-1) var(--pwc-space-2); border-radius: var(--pwc-radius-control); background: var(--pwc-lavender-soft); }
+.sitter-availability__window { display: grid; grid-template-columns: minmax(9rem, 1.2fr) repeat(2, minmax(7rem, 1fr)) auto; align-items: end; gap: var(--pwc-space-3); min-width: 0; padding: var(--pwc-space-3); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); }
+.sitter-availability__window legend { padding-inline: var(--pwc-space-2); font-weight: 700; }
+.sitter-availability__remove { min-height: var(--pwc-target); }
+.sitter-availability__actions { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(12rem, 1fr) auto; align-items: end; gap: var(--pwc-space-3); margin-top: var(--pwc-space-4); }
+.sitter-availability__actions > button { min-height: var(--pwc-target); }
+.sitter-availability__integration-note { margin: var(--pwc-space-3) 0 0; color: var(--pwc-warning); font-size: var(--pwc-text-small); overflow-wrap: anywhere; }
+.sitter-availability__safety { background: var(--pwc-cream); }
+.sitter-availability__safety p + p { margin-top: var(--pwc-space-3); }
+@media (max-width: 42rem) {
+  .sitter-availability { padding: var(--pwc-space-3); gap: var(--pwc-space-4); }
+  .sitter-availability__window { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .sitter-availability__window > :first-of-type { grid-column: 1 / -1; }
+  .sitter-availability__remove { justify-self: start; }
+  .sitter-availability__actions { grid-template-columns: 1fr; }
+  .sitter-availability__actions > button { width: 100%; }
+}
