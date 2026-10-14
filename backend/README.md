@@ -24,7 +24,7 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
 | src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
 | src/controllers/ | HTTP orchestration mỏng |
-| src/services/ | Health/readiness, unit-of-work, synthetic seed |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed; P11 email templates, bounded SMTP delivery and port injection factory |
 | src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
 | src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
@@ -36,3 +36,5 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. Default session không xác thực, providers trả503. Chưa có outbox/business locks/financial calculations, không fake payment/saved state.
 
 Seed chỉ NODE_ENV=development, ALLOW_DEV_ADMIN_SEED=true và database *_dev rồi npm run seed:admin. Mặc định false; không seed Atlas thật chỉ để kiểm tra kết nối. Fixture không active/Contact/password/OTP/session; không đóng AUTH-BOOTSTRAP Admin thật. [Runbook](../doc/deployment/p02-backend-runbook.md), [handoff](../doc/deployment/p02-handoff.md) và [P01 API](../doc/api/p01-api-permission-contract-v1.md) ghi gates và checks.
+
+P11 dùng SMTP theo lựa chọn của user. [Runbook email](../doc/deployment/p11-email-runbook.md) mô tả env, kết quả nội bộ, retry và proposal dependency/wiring cho P34. Manifest hiện chưa có Nodemailer; chưa đăng ký provider vào runtime. EMAIL_ENABLED=false giữ provider mặc định503. Không gọi adapter trực tiếp từ endpoint public hoặc ghi command email/OTP vào log. [Handoff P11](../doc/deployment/p11-handoff.md) ghi phần đã kiểm thử và gate tích hợp thật.
