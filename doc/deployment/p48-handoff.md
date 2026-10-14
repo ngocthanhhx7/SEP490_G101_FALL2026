@@ -8,7 +8,7 @@ Git identity evidence: commit author and committer are Phạm Thành Chung <chun
 
 ## Delivered
 
-- Shared Customer, Pet Sitter, Staff, and Admin dashboard layouts with responsive header, sidebar, skip link, route focus, and explicit loading/pending/error/forbidden/empty states.
+- Shared Customer, Pet Sitter, Staff, and Admin dashboard layouts with responsive header, mobile navigation drawer, sidebar, skip link, route focus, and explicit loading/pending/error/forbidden/empty states.
 - Accessible avatar trigger with initials derived from the real session display name; no avatar image or identity is fabricated.
 - Hover/focus opening, click pin/unpin, outside-pointer and Escape dismissal, route-change dismissal, and focus restoration on Escape.
 - Role-specific account and notification labels. The account link uses the existing /account route. Notifications stay disabled until a real destination is supplied; password-change navigation was not added.
@@ -31,6 +31,6 @@ Git identity evidence: commit author and committer are Phạm Thành Chung <chun
 | npm run lint | PASS |
 | npm run build | PASS: Vite production build |
 | npm audit | PASS: 0 vulnerabilities |
-| Browser viewport review | PASS: Playwright 1.64.1 with Edge at CSS viewports 360x900 and 1280x900; header, horizontal mobile navigation, avatar trigger, and open panel inspected |
+| Browser viewport review | PASS: Playwright 1.64.1 with Edge at CSS viewports 360x900 and 1280x900; header, mobile navigation drawer, avatar trigger, and open panel inspected |
 
-The automated UI tests cover hover-to-panel movement, unpinned leave, pin/unpin, Escape/focus return, outside click, route navigation, touch click behavior, logout success/failure, role gating, pending and empty states, and session-derived initials. The Playwright screenshots use the isolated preview query that opens the menu; screenshot files were kept outside the repository. Tests and preview use synthetic in-memory session DTOs and do not prove backend authentication, API authorization, provider integration, or a physical touch-device experience.
+The automated UI tests cover hover-to-panel movement, unpinned leave, pin/unpin, Escape/focus return, outside click, route navigation, touch click behavior, logout success/failure, role gating, pending and empty states, session-derived initials, and the mobile drawer toggle, inert closed state, backdrop dismissal, and focus return. The Playwright screenshots use the isolated preview query that opens the menu; screenshot files were kept outside the repository. Tests and preview use synthetic in-memory session DTOs and do not prove backend authentication, API authorization, provider integration, or a physical touch-device experience.

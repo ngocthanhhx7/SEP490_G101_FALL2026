@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, useLocation, useOutlet } from 'react-router-dom';
 import { AvatarMenu } from '../components/common/AvatarMenu.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -55,6 +55,14 @@ export function RoleDashboardLayout({
   const location = useLocation();
   const outlet = useOutlet();
   const mainRef = useRef(null);
+  const sidebarRef = useRef(null);
+  const mobileNavToggleRef = useRef(null);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => (
+    typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(max-width: 48rem)').matches
+  ));
   const config = ROLE_CONFIG[role];
   const currentRoles = getRoles(session.user);
   const canEnter = config && config.allows.some((allowedRole) => currentRoles.includes(allowedRole));
@@ -62,6 +70,50 @@ export function RoleDashboardLayout({
   useEffect(() => {
     mainRef.current?.focus();
   }, [location.pathname, session.status]);
+
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mediaQuery = window.matchMedia('(max-width: 48rem)');
+    const handleChange = (event) => setIsMobile(event.matches);
+    setIsMobile(mediaQuery.matches);
+    if (mediaQuery.addEventListener) mediaQuery.addEventListener('change', handleChange);
+    else mediaQuery.addListener?.(handleChange);
+    return () => {
+      if (mediaQuery.removeEventListener) mediaQuery.removeEventListener('change', handleChange);
+      else mediaQuery.removeListener?.(handleChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+    sidebarRef.current?.focus();
+
+    function handlePointerDown(event) {
+      if (!sidebarRef.current?.contains(event.target)
+        && !mobileNavToggleRef.current?.contains(event.target)) {
+        setMobileNavOpen(false);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileNavOpen(false);
+        mobileNavToggleRef.current?.focus();
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [mobileNavOpen]);
 
   if (!config) {
     return <StateScreen state="forbidden" title="Khu vực không khả dụng">
@@ -110,18 +162,37 @@ export function RoleDashboardLayout({
         <BrandLogo />
       </Link>
       <p className="pwc-role-shell__workspace">{config.workspace}</p>
-      <AvatarMenu user={session.user} role={role} onLogout={session.logout}
-        notificationTo={notificationTo} />
+      <div className="pwc-role-shell__header-actions">
+        <button ref={mobileNavToggleRef} className="pwc-role-shell__mobile-nav-toggle"
+          type="button" aria-expanded={mobileNavOpen} aria-controls="pwc-role-sidebar"
+          onClick={() => setMobileNavOpen((open) => !open)}>
+          <span aria-hidden="true">☰</span>
+          {mobileNavOpen ? 'Đóng điều hướng' : 'Mở điều hướng'}
+        </button>
+        <AvatarMenu user={session.user} role={role} onLogout={session.logout}
+          notificationTo={notificationTo} />
+      </div>
     </header>
 
     <div className="pwc-role-shell__body">
-      <aside className="pwc-role-shell__sidebar" aria-label={config.navigation + ' — thanh bên'}>
+      {mobileNavOpen && <button className="pwc-role-shell__drawer-backdrop" type="button"
+        tabIndex={-1} aria-label="Đóng lớp phủ điều hướng"
+        onClick={() => {
+          setMobileNavOpen(false);
+          mobileNavToggleRef.current?.focus();
+        }} />}
+      <aside id="pwc-role-sidebar" ref={sidebarRef} tabIndex={-1}
+        className="pwc-role-shell__sidebar" data-open={mobileNavOpen}
+        inert={isMobile && !mobileNavOpen ? true : undefined}
+        aria-hidden={isMobile && !mobileNavOpen ? 'true' : undefined}
+        aria-label={config.navigation + ' — thanh bên'}>
         <h2 className="pwc-role-shell__sidebar-title">{config.label}</h2>
         {safeNavigationItems.length > 0
           ? <nav className="pwc-role-shell__navigation" aria-label={config.navigation}>
             {safeNavigationItems.map((item) => <NavLink key={item.key ?? item.to}
               to={item.to} end={item.end} className={({ isActive }) =>
-                'pwc-role-shell__nav-link' + (isActive ? ' is-active' : '')}>
+                'pwc-role-shell__nav-link' + (isActive ? ' is-active' : '')}
+              onClick={() => setMobileNavOpen(false)}>
               {item.label}
             </NavLink>)}
           </nav>

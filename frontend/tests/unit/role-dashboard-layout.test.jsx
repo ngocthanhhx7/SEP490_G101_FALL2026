@@ -76,3 +76,40 @@ test('empty route content has an explicit state', async () => {
   });
   expect(await screen.findByText('Chưa có trang trong khu vực này')).toBeVisible();
 });
+
+test('mobile navigation uses a dismissible drawer with focus return', async () => {
+  const previousMatchMedia = window.matchMedia;
+  window.matchMedia = jest.fn().mockReturnValue({
+    matches: true,
+    addEventListener: jest.fn(),
+    removeEventListener: jest.fn(),
+    addListener: jest.fn(),
+    removeListener: jest.fn(),
+  });
+  try {
+    const { container } = renderLayout({
+      result: { status: 'authenticated', user: { id: 'synthetic-user-1', displayName: 'Nguyễn An', roles: ['CUSTOMER'] } },
+      navigationItems: [{ key: 'pets', label: 'Thú cưng', to: '/customer/pets' }],
+    });
+    expect(await screen.findByRole('heading', { name: 'Trang tổng quan' })).toBeVisible();
+
+    const toggle = screen.getByRole('button', { name: 'Mở điều hướng' });
+    const sidebar = container.querySelector('#pwc-role-sidebar');
+    expect(sidebar).toHaveAttribute('inert');
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('complementary')).toHaveAttribute('data-open', 'true');
+    expect(sidebar).not.toHaveAttribute('inert');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng lớp phủ điều hướng' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
+  } finally {
+    window.matchMedia = previousMatchMedia;
+  }
+});
