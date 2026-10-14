@@ -59,9 +59,9 @@ Các tên sau là draft cho P01. Mọi command kiểm tra role, ownership, polic
 | ChangeRequest | Proposed → AwaitingApproval → Applied/Rejected/Expired | Customer chọn slot; approver/deadline chờ FIN-04. Lịch cũ còn hiệu lực đến khi Applied; swap slot, invalidate old offers và chuyển allocation atomic |
 | PaymentIntent | Pending → Paid/Failed/Expired; provider/system | Webhook xác minh signature, amount, currency, reference và intent. Callback muộn/cũ/sai vào reconciliation, không Paid bằng return URL |
 | Bill | Draft → OnHold/Issued → Paid/Adjusted | Postpay bill sau dịch vụ đủ điều kiện; hạn 48h baseline, cách pause/restart hold còn mở. Multi dùng chứng từ khoản đã thu, không phát sinh bill thu lại toàn bộ |
-| Refund | Proposed → Approved/Rejected → TransferPending → Paid/Failed | Staff đề xuất, Admin approve, Admin ghi evidence chuyển ngoài hệ thống; approved giữ reservation refund, không ghi Paid khi chưa chuyển |
+| Refund | Proposed → Approved → TransferPending → Paid/Failed; Proposed → Rejected | Staff đề xuất, Admin approve, Admin ghi evidence chuyển ngoài hệ thống; Rejected không chuyển tiền; approved giữ reservation refund, không ghi Paid khi chưa chuyển |
 | Earning | Accrued → Available → Reserved → Paid | Amount/eligibility theo FIN-07; hold riêng. Reserved thuộc một request; paid có transfer evidence |
-| SettlementRequest | Submitted → Approved/Rejected/Withdrawn → TransferPending → Paid/Failed | Sitter submit/withdraw phần được phép, Admin approve/reject/record. Rejected/Withdrawn giữ quota; chỉ release reservation khi chắc chắn chưa transfer |
+| SettlementRequest | Submitted → Approved → TransferPending → Paid/Failed; Submitted → Rejected/Withdrawn | Sitter submit/withdraw phần được phép, Admin approve/reject/record. Rejected/Withdrawn là terminal, giữ quota, không đi TransferPending; chỉ release reservation khi chắc chắn chưa transfer |
 
 Booking lifecycle được tổng hợp từ các visit đang hoạt động; cancel một visit không làm các visit còn lại Cancelled. Cancel-all là chọn mọi visit chưa thực hiện còn đủ điều kiện, không bao gồm terminal history. Đề xuất batch all-or-nothing: nếu một visit không đủ điều kiện, trả conflict cùng preview mới, không âm thầm bỏ visit đó. P01 cần chốt semantics này trước endpoint thật.
 

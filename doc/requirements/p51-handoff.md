@@ -37,4 +37,6 @@ UI_NOT_IN_SCOPE; Figma NOT_INSPECTED, chưa có frame/screenshot;360px/keyboard/
 
 ## Git và review
 
-Tại thời điểm soạn nội dung, chưa tạo commit/PR/approval/merge; các mốc xuất bản được xác minh sau checks và ghi ở PR cùng bàn giao cuối phiên. Author/committer phải là Nhật qua helper; review thật nội dung head mới nhất bằng phiên Đạt đã xác minh; Thành chỉ merge bản tài liệu sau approval, kiểm tra branch/checks/conversations và dependency. Merge tài liệu có gate còn mở không là phê duyệt chi tiết tiền còn thiếu. Không force push, direct push develop hoặc bypass protection.
+Commit nội dung c1fd1ebc7d9bc564cd744cfc9af7a4865fd3a838 có author/committer Nhật; push và tạo [PR #6](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/6) bằng anhnhat432, base develop. Rà soát trước approval sửa bảng transition để Rejected/Withdrawn không đi TransferPending; làm rõ refund entitlement gốc và pending-eligibility earning bucket. Những chỉnh sửa này là commit tiếp theo, không rewrite lịch sử.
+
+Tại thời điểm cập nhật bàn giao: PR_OPEN, chưa approval/merge. Branch protection thực tế yêu cầu1 approval, dismiss stale, người approve khác last pusher, giải quyết conversations, enforce admins; không có required CI checks cấu hình. Review phải trên head cuối bằng phiên Đạt đã xác minh; Thành chỉ merge sau approval, checks/conversations và dependency. Kết quả Git cuối được ghi ở review/merge history PR và bàn giao cuối phiên. Merge tài liệu có gate còn mở không là phê duyệt chi tiết tiền còn thiếu. Không force push, direct push develop hoặc bypass protection.
