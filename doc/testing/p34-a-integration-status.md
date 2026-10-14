@@ -6,7 +6,7 @@
 - **Reviewer:** Nguyễn Hữu Anh Nhật (`nhat`, `anhnhat432`)
 - **Final merge owner:** Nguyễn Ngọc Thành (`thanh`, `ngocthanhhx7`)
 - **Base:** `develop`
-- **Status:** implementation verified; review pending. Mini-gate only, not the final P34 gate.
+- **Status at this handoff:** implementation verified; PR #15 is open, reviewer requested, and merge is pending. Mini-gate only, not the final P34 gate. Check GitHub for the live review/merge state.
 
 ## Integrated contracts
 
