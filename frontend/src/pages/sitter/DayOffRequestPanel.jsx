@@ -144,7 +144,11 @@ export function DayOffRequestPanel({ api, now = new Date(), idempotencyKeyFactor
     }
   }
 
-  const requests = Array.isArray(resource.data?.requests) ? resource.data.requests : [];
+  const savedRequests = Array.isArray(resource.data?.requests) ? resource.data.requests : [];
+  const confirmedRequest = submission.status === 'accepted' ? submission.result.request : null;
+  const requests = confirmedRequest && !savedRequests.some(request => request.id === confirmedRequest.id)
+    ? [...savedRequests, confirmedRequest]
+    : savedRequests;
 
   if (resource.status === 'loading') {
     return <section className="day-off-request" aria-labelledby="day-off-title">

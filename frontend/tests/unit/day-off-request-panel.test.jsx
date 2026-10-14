@@ -89,6 +89,8 @@ test('submits the current availability version and shows the server-confirmed pe
     startDate: '2026-10-20', endDate: '2026-10-22', expectedVersion: 4, idempotencyKey: 'synthetic-request-key'
   });
   expect(screen.getByText('Yêu cầu gần đây')).toBeVisible();
+  expect(screen.getByText('2026-10-20 đến 2026-10-22')).toBeVisible();
+  expect(screen.getByText('Chờ nhân viên duyệt')).toBeVisible();
 });
 
 test('shows only the number of confirmed visit conflicts, without exposing customer data or visit IDs', async () => {
