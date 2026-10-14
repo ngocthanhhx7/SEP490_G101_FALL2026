@@ -16,10 +16,10 @@
 
 ## Git and review state
 
-- Feature commit: `f0cba2b2c57e68538de73ff44dd5d0e7d0ba99c2`; author and committer are Đặng Văn Hải (`danghaix27@gmail.com`).
+- Feature commits: `f0cba2b2c57e68538de73ff44dd5d0e7d0ba99c2` and `84655accc3b237ad8e9e33a4190a2637839d897c`; author and committer are Đặng Văn Hải (`danghaix27@gmail.com`). The latter closes a fail-open date parsing case for null or missing status dates and adds regression coverage.
 - Push account and PR author: `Haidvhe181849`.
 - PR: [#30 — feat: applicant status and scoped verification](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/30), base `develop`, open, not draft. Use the PR as the source of truth for its latest head SHA.
-- Review request: Nguyễn Hữu Anh Nhật (`anhnhat432`) requested; no review or approval is recorded yet.
+- Review request: Nguyễn Hữu Anh Nhật (`anhnhat432`) requested. The reviewer posted an independent review comment for head `84655ac`; no formal GitHub approval is recorded because integration gates remain open.
 - GitHub check runs: none reported. Commit status: pending with no status entries. PR mergeable state: blocked. The PR is not merged.
 
 ## Scope delivered in this worktree
@@ -47,7 +47,7 @@ The injected service ports are `statusOtp.beginForApplication({ applicationCode,
 
 ## Checks
 
-- `backend`: `npm ci --ignore-scripts` completed; audit reported 0 vulnerabilities; `npm run lint` passed; `npm run test:unit` passed (12 suites, 128 tests).
+- `backend`: `npm ci --ignore-scripts` completed; audit reported 0 vulnerabilities; `npm run lint` passed; `npm run test:unit` passed (12 suites, 129 tests).
 - `frontend`: `npm ci --ignore-scripts` completed; audit reported 0 vulnerabilities; `npm run lint` passed; `npm test -- --runInBand` passed (10 suites, 111 tests); `npm run build` passed.
 - The first frontend test run had four label-query failures; tests were corrected to query the accessible textbox role and the full suite then passed.
 - Route/database/provider, cross-application ownership, replay/race and server throttle checks were not run because the P06/P16/P34 integrations are absent. Unit tests stub those ports and do not claim live verification.
