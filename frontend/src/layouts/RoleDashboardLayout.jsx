@@ -73,7 +73,7 @@ export function RoleDashboardLayout({
 
   useEffect(() => {
     setMobileNavOpen(false);
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, location.hash]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
