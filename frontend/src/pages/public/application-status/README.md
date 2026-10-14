@@ -1,5 +1,5 @@
 # Application status page
 
-This folder owns the public applicant status view and its local responsive styles. The page accepts an injected API with `requestVerification({ applicationCode })` and `verifyAndReadStatus({ applicationCode, challengeId, code })`; P34 owns route registration and API composition. It keeps values in component memory, sends them through request bodies, and only renders the applicant-facing status projection.
+This folder owns the public applicant status view and responsive styles. AppRoutes registers `/sitter/application-status` with the guest POST adapter in `services/application-status-api.js`. The page also accepts an injected API for tests, keeps credentials only in component memory and renders only the narrow verified status projection. The application submission receipt links here without putting its code in the URL.
 
-The screen follows the provisional P04 tokens and shared UI components. No Figma frame was available in this task, and the page is not registered in the application route tree until the OTP and P16 contracts are integrated.
+The screen uses P04 controls and provisional tokens. No final Figma acceptance is claimed. Runtime security and deployment requirements are recorded in `doc/deployment/p46-handoff.md`.
