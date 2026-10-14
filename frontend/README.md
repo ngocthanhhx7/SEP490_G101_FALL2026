@@ -21,12 +21,13 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | Path | Responsibility |
 | --- | --- |
 | src/app | Entry, root error boundary, providers and provisional structural CSS |
-| src/routes | Root registration and RequireSession UX gate; P34 owns future wiring |
-| src/layouts | Basic landmark layout, skip link and route focus; P48 supplies final role shells/avatar |
-| src/pages/public | Foundation landing, OTP integration placeholder; P13/P08 supply real screens |
+| src/routes | Root registration, P13 public routes and RequireSession UX gate; P34 confirms live integration |
+| src/layouts | Public page shell and skip link; P48 supplies final authenticated role shells/avatar |
+| src/pages/public | P13 public home, service list/details/areas; P07 registration and P08 sign-in; catalog/area API integration remains pending |
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client and session adapter port |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
+| src/components/public | Public navigation/footer for guest pages; no authenticated role menu or commerce controls |
 | src/components/ui, src/styles | P04 brand tokens/fonts and native shared controls; root adoption through P34 |
 | public/assets, public/fonts | Existing brand resources preserved; logo, Nunito Regular and Crayon Regular used |
 | tests/unit | HTTP errors, CSRF, timeout, cancellation and resource races |
