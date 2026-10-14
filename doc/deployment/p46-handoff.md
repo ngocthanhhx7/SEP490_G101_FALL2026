@@ -14,6 +14,14 @@
 
 **INTEGRATION_PENDING.** This work adds a public-facing page and a backend service seam. No route is registered and no live OTP or database integration is claimed. The source worktree for P16 currently contains uncommitted files; it was read for contract alignment and left unchanged.
 
+## Git and review state
+
+- Feature commit: `f0cba2b2c57e68538de73ff44dd5d0e7d0ba99c2`; author and committer are Đặng Văn Hải (`danghaix27@gmail.com`).
+- Push account and PR author: `Haidvhe181849`.
+- PR: [#30 — feat: applicant status and scoped verification](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/30), base `develop`, open, not draft, head `f0cba2b2c57e68538de73ff44dd5d0e7d0ba99c2`.
+- Review request: Nguyễn Hữu Anh Nhật (`anhnhat432`) requested; no review or approval is recorded yet.
+- GitHub check runs: none reported. Commit status: pending with no status entries. PR mergeable state: blocked. The PR is not merged.
+
 ## Scope delivered in this worktree
 
 - `backend/src/services/applications/application-status.service.js` requires an application-bound OTP adapter before any status lookup. It rejects malformed or extra request fields, reads only by the application ID returned after OTP verification, exposes a narrow status DTO, and computes the 30-day reapplication deadline from the server-side rejection timestamp.
