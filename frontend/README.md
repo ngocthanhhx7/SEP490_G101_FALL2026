@@ -24,7 +24,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/routes | Root registration and RequireSession UX gate; server remains authoritative for access |
 | src/layouts | Basic landmark layout, skip link and route focus; P48 supplies final role shells/avatar |
 | src/pages/public | Foundation landing and P07 Customer registration screen; P34 still owns public route registration |
-| src/pages/public/policies | P45 public policy draft catalog, guest policy index/version pages and reusable context links; P34 owns app route registration, P01/P17 own policy API/management integration |
+| src/pages/public/policies | P45 approved-only policy index/article UI, guest route elements and context links; P34 owns app route registration, P01/P17 own policy API/management integration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client, `/me` session DTO adapter and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
@@ -32,6 +32,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | public/assets, public/fonts | Existing brand resources preserved; logo, Nunito Regular and Crayon Regular used |
 | tests/unit | HTTP errors, CSRF, timeout, cancellation and resource races |
 | tests/integration | Synthetic adapter UI/router tests; no real backend or provider |
+| tests/fixtures | Synthetic test-only policy drafts; application code must not import these fixtures |
 | tests/e2e | Reserved; no end-to-end test or claim yet |
 
 ## Integration ports

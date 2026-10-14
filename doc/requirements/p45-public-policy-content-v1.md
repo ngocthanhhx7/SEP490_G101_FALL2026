@@ -4,11 +4,11 @@ Date: 14/10/2026, Asia/Ho_Chi_Minh. Scope: WBS-N10 / EXT-POLICY. Contributor and
 
 ## Publication contract
 
-The frontend catalog in `frontend/src/pages/public/policies/policy-catalog.js` contains the public-facing draft copy. Each article exposes its purpose, version `1.0-draft`, proposed date 14/10/2026 and effective-date state `Chưa có hiệu lực — chờ người có thẩm quyền phê duyệt`. The date is not an effective date. A version URL identifies the selected content; this initial catalog has no historical versions to link.
+The 12 synthetic draft articles are isolated in `frontend/tests/fixtures/policy-draft-catalog.js` for review and UI test setup. They are not imported by application code and are not included in the public catalog or article routes. The public catalog is empty until P17 supplies approved, effective versions. No effective date or public version is currently established. The `/draft-v1` links are placeholders that display a generic unpublished state; they do not identify an effective policy version.
 
-The public index supports title/body-keyword search. Article routes are guest-safe React Router elements exported by `publicPolicyRouteElements`; P34 still needs to add them to `AppRoutes` before the wildcard. Registration consent links to fixed Terms, Privacy and OTP version URLs. Booking, account and sitter application pages are not present in the `origin/develop` baseline, so their `PolicyContextLinks` integration remains open for the relevant page owners/P34.
+The public index searches approved title/body keywords when approved articles exist; it shows a publication-pending state while the catalog is empty. Article routes are guest-safe React Router elements exported by `publicPolicyRouteElements`; P34 still needs to add them to `AppRoutes` before the wildcard. Registration consent links to Terms, Privacy and OTP placeholder URLs. Those placeholders do not contain policy copy, so registration consent cannot be treated as complete until approved Terms and Privacy versions are published. Booking, account and sitter application pages are not present in the `origin/develop` baseline, so their `PolicyContextLinks` integration remains open for the relevant page owners/P34.
 
-Content is static synthetic draft data. P17 policy management, P01 schema/DTO/API and P34 route/application integration are not implemented by this work. Do not treat this catalog or its UI tests as proof of current Admin-managed policy, legal approval, provider delivery, payment, authorization or end-to-end behavior.
+Content drafts are test-only synthetic data. P17 policy management, P01 schema/DTO/API and P34 route/application integration are not implemented by this work. Do not treat the test fixture or isolated UI tests as proof of current Admin-managed policy, legal approval, provider delivery, payment, authorization or end-to-end behavior.
 
 ## Article coverage and source status
 
@@ -39,6 +39,6 @@ Content is static synthetic draft data. P17 policy management, P01 schema/DTO/AP
 
 - UI status: PROVISIONAL. P04 token and native-control contracts are reused; no P45 Figma frame was supplied or inspected. Do not claim pixel match.
 - Route/link integration status: INTEGRATION_PENDING until P34 registers public route elements before its wildcard and the relevant booking/account/application owners add context links.
-- Policy source/API status: INTEGRATION_PENDING until P01 DTO/API and P17 policy management are integrated. Do not promote the static draft catalog to an effective policy.
+- Policy source/API/publication status: INTEGRATION_PENDING until P01 DTO/API and P17 policy management are integrated and an authorized owner approves copy and effective dates. Until then, the public article catalog stays empty and draft routes expose no draft copy.
 - Provider/payment/PWA status: pending their existing module contracts; this UI has no provider calls.
 - Checks are recorded in the session handoff/PR after running the configured frontend test, lint and build commands on the affected branch.

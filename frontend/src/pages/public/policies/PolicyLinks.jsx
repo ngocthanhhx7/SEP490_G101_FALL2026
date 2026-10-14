@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { findPolicy, policyHref } from './policy-catalog.js';
+import { policyHref } from './policy-catalog.js';
 import './public-policies.css';
 
 const policyLinksByContext = {
@@ -24,8 +24,7 @@ export function PolicyContextLinks({ context = 'registration' }) {
   const slugs = policyLinksByContext[context] || policyLinksByContext.registration;
   return <nav className="policy-context-links" aria-label="Chính sách liên quan">
     {slugs.map(slug => {
-      const policy = findPolicy(slug);
-      return <Link key={slug} to={policyHref(policy, true)}>{labelOverrides[slug] || policy.title}</Link>;
+      return <Link key={slug} to={policyHref(slug)}>{labelOverrides[slug]}</Link>;
     })}
     <Link to="/policies">Tất cả chính sách</Link>
   </nav>;

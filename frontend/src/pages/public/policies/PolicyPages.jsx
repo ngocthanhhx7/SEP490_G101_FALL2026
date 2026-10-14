@@ -1,40 +1,33 @@
 import { useMemo, useState } from 'react';
 import { Link, Route, useParams } from 'react-router-dom';
-import { findPolicy, policyHref, publicPolicies } from './policy-catalog.js';
+import { findPolicy, isUnpublishedPolicyPath, policyHref, publicPolicies } from './policy-catalog.js';
 import './public-policies.css';
-
-function DraftNotice() {
-  return <aside className="policy-draft-notice" aria-label="Trạng thái rà soát chính sách">
-    <strong>Bản dự thảo — chưa có hiệu lực</strong>
-    <span>Nội dung cần người có thẩm quyền rà soát và phê duyệt. Chưa có xác nhận pháp lý.</span>
-  </aside>;
-}
 
 function PolicyCard({ policy }) {
   return <li className="policy-card">
     <div>
       <p className="policy-card__version">Phiên bản {policy.version}</p>
-      <h2><Link to={policyHref(policy, true)}>{policy.title}</Link></h2>
+      <h2><Link to={policyHref(policy.slug, policy.versionPath)}>{policy.title}</Link></h2>
       <p>{policy.summary}</p>
       <p className="policy-card__purpose"><strong>Mục đích:</strong> {policy.purpose}</p>
     </div>
-    <Link className="policy-card__action" to={policyHref(policy, true)} aria-label={`Đọc ${policy.title}`}>
+    <Link className="policy-card__action" to={policyHref(policy.slug, policy.versionPath)} aria-label={`Đọc ${policy.title}`}>
       Đọc chính sách <span aria-hidden="true">→</span>
     </Link>
   </li>;
 }
 
-export function PolicyIndexPage() {
+export function PolicyIndexPage({ policies = publicPolicies }) {
   const [query, setQuery] = useState('');
   const filteredPolicies = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('vi');
-    if (!normalizedQuery) return publicPolicies;
-    return publicPolicies.filter(policy => {
+    if (!normalizedQuery) return policies;
+    return policies.filter(policy => {
       const bodyText = policy.sections.flatMap(section => [section.heading, ...(section.paragraphs || []), ...(section.items || [])]);
       return [policy.title, policy.summary, policy.purpose, policy.keywords, ...bodyText]
         .join(' ').toLocaleLowerCase('vi').includes(normalizedQuery);
     });
-  }, [query]);
+  }, [policies, query]);
 
   return <section className="public-policies" aria-labelledby="policy-index-title">
     <nav className="policy-breadcrumbs" aria-label="Đường dẫn">
@@ -43,22 +36,27 @@ export function PolicyIndexPage() {
     <header className="policy-page-header">
       <p className="policy-eyebrow">Paw World Care · Thông tin công khai</p>
       <h1 id="policy-index-title">Chính sách &amp; hướng dẫn</h1>
-      <p>Tìm hiểu cách Paw World Care dự kiến vận hành dịch vụ, bảo vệ thông tin và hỗ trợ các bên.</p>
+      <p>Tìm các phiên bản chính sách đã được phê duyệt và đang có hiệu lực.</p>
     </header>
-    <DraftNotice />
-    <div className="policy-search">
-      <label htmlFor="policy-search-input">Tìm chính sách</label>
-      <input id="policy-search-input" type="search" value={query}
-        placeholder="Ví dụ: OTP, hủy lịch, thanh toán"
-        onChange={event => setQuery(event.target.value)} />
-      <p aria-live="polite">{filteredPolicies.length
-        ? `Có ${filteredPolicies.length} chính sách${query.trim() ? ' phù hợp' : ''}.`
-        : 'Không tìm thấy chính sách phù hợp. Hãy thử từ khóa khác.'}</p>
-    </div>
-    {filteredPolicies.length > 0 && <ul className="policy-card-list">
-      {filteredPolicies.map(policy => <PolicyCard key={policy.slug} policy={policy} />)}
-    </ul>}
-    <p className="policy-source-note">Các phiên bản trên là fixture nội dung tĩnh của P45. Chưa đồng bộ với hệ thống quản trị chính sách hoặc API sản phẩm.</p>
+    {policies.length === 0
+      ? <p className="policy-empty-state" role="status">
+        Hiện chưa có chính sách nào được phê duyệt để công khai. Nội dung dự thảo chưa được hiển thị trên trang này.
+      </p>
+      : <>
+        <div className="policy-search">
+          <label htmlFor="policy-search-input">Tìm chính sách</label>
+          <input id="policy-search-input" type="search" value={query}
+            placeholder="Ví dụ: OTP, hủy lịch, thanh toán"
+            onChange={event => setQuery(event.target.value)} />
+          <p aria-live="polite">{filteredPolicies.length
+            ? `Có ${filteredPolicies.length} chính sách${query.trim() ? ' phù hợp' : ''}.`
+            : 'Không tìm thấy chính sách phù hợp. Hãy thử từ khóa khác.'}</p>
+        </div>
+        {filteredPolicies.length > 0 && <ul className="policy-card-list">
+          {filteredPolicies.map(policy => <PolicyCard key={policy.slug} policy={policy} />)}
+        </ul>}
+        <p className="policy-source-note">Chỉ phiên bản đã được phê duyệt mới xuất hiện tại đây.</p>
+      </>}
   </section>;
 }
 
@@ -67,6 +65,15 @@ function PolicyNotFound() {
     <p className="policy-eyebrow">Paw World Care · Chính sách</p>
     <h1 id="policy-not-found-title">Không tìm thấy phiên bản này</h1>
     <p>Đường dẫn chính sách hoặc phiên bản không tồn tại.</p>
+    <Link className="policy-back-link" to="/policies">Xem danh sách chính sách</Link>
+  </section>;
+}
+
+function PolicyUnpublished() {
+  return <section className="public-policies policy-unpublished" aria-labelledby="policy-unpublished-title">
+    <p className="policy-eyebrow">Paw World Care · Chính sách</p>
+    <h1 id="policy-unpublished-title">Chính sách chưa được xuất bản</h1>
+    <p>Chưa có phiên bản được phê duyệt để công khai. Nội dung đang chờ duyệt và chưa có hiệu lực.</p>
     <Link className="policy-back-link" to="/policies">Xem danh sách chính sách</Link>
   </section>;
 }
@@ -90,16 +97,14 @@ function PolicyArticle({ policy, versioned }) {
           <h1 id="policy-article-title">{policy.title}</h1>
           <p>{policy.summary}</p>
         </header>
-        <DraftNotice />
         <dl className="policy-metadata">
           <div><dt>Mục đích</dt><dd>{policy.purpose}</dd></div>
           <div><dt>Phiên bản</dt><dd>{policy.version}</dd></div>
-          <div><dt>Ngày dự thảo</dt><dd>{policy.proposedAt}</dd></div>
           <div><dt>Ngày hiệu lực</dt><dd>{policy.effectiveDate}</dd></div>
         </dl>
         <div className="policy-version-row">
-          <span>{versioned ? 'Đường dẫn phiên bản cố định:' : 'Phiên bản hiện hành trong bản dự thảo:'}</span>
-          <Link to={policyHref(policy, true)} aria-current={versioned ? 'page' : undefined}>
+          <span>{versioned ? 'Đường dẫn phiên bản cố định:' : 'Phiên bản hiện hành:'}</span>
+          <Link to={policyHref(policy.slug, policy.versionPath)} aria-current={versioned ? 'page' : undefined}>
             {policy.version} · mở liên kết phiên bản
           </Link>
         </div>
@@ -110,7 +115,7 @@ function PolicyArticle({ policy, versioned }) {
           </section>)}
         </div>
         <footer className="policy-article-footer">
-          <p>Ngày hiệu lực sẽ được cập nhật sau khi nội dung và phiên bản được phê duyệt.</p>
+          <p>Thông tin trên thuộc phiên bản đã được phê duyệt và đang có hiệu lực.</p>
           <Link className="policy-back-link" to="/policies">← Tất cả chính sách</Link>
         </footer>
       </article>
@@ -124,10 +129,11 @@ function PolicyArticle({ policy, versioned }) {
   </section>;
 }
 
-export function PolicyArticlePage() {
+export function PolicyArticlePage({ policies = publicPolicies }) {
   const { slug, version } = useParams();
-  const policy = findPolicy(slug, version);
-  return policy ? <PolicyArticle policy={policy} versioned={Boolean(version)} /> : <PolicyNotFound />;
+  const policy = findPolicy(slug, version, policies);
+  if (policy) return <PolicyArticle policy={policy} versioned={Boolean(version)} />;
+  return isUnpublishedPolicyPath(slug, version) ? <PolicyUnpublished /> : <PolicyNotFound />;
 }
 
 // P34 owns AppRoutes registration. Insert this route fragment inside its public Routes tree.
