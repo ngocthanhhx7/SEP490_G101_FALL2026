@@ -130,9 +130,6 @@ function normalizeCareFields(careFields) {
     if (field.status === 'KNOWN') {
       if (!hasValue(field.value)) throw new ApiError('KNOWN_FIELD_REQUIRES_VALUE', 422);
       output.value = sanitizeFieldValue(key, field.value);
-      // A Customer can report information, but cannot claim professional verification
-      // or attach a document without the private-media contract.
-      output.source = 'CUSTOMER_REPORTED';
     } else if (field.status === 'NEEDS_CONFIRMATION' && hasValue(field.priorValue)) {
       output.priorValue = sanitizeFieldValue(key, field.priorValue);
     }
@@ -140,6 +137,11 @@ function normalizeCareFields(careFields) {
     normalized[key] = output;
   }
   return normalized;
+}
+
+function generateIdempotencyKey() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  throw new ApiError('IDEMPOTENCY_KEY_UNAVAILABLE');
 }
 
 export function isPetView(value, requestedId) {
@@ -176,7 +178,10 @@ function requirePetView(result, id, { archived = false } = {}) {
   return result;
 }
 
-export function createPetProfileApi({ request, fetchImpl, getCsrfToken, onUnauthorized, timeoutMs } = {}) {
+export function createPetProfileApi({
+  request, fetchImpl, getCsrfToken, onUnauthorized, timeoutMs,
+  createIdempotencyKey = generateIdempotencyKey,
+} = {}) {
   let defaultRequest;
   const send = (...args) => {
     if (request) return request(...args);
@@ -207,6 +212,7 @@ export function createPetProfileApi({ request, fetchImpl, getCsrfToken, onUnauth
       if (Object.keys(normalizedCareFields).length > 0) body.careFields = normalizedCareFields;
       const result = await send(`/pets/${petId}`, {
         method: 'PATCH', body, expectedVersion: version,
+        idempotencyKey: createIdempotencyKey(),
       });
       return requirePetView(result, petId);
     },
@@ -216,6 +222,7 @@ export function createPetProfileApi({ request, fetchImpl, getCsrfToken, onUnauth
       const version = requireExpectedVersion(expectedVersion);
       const result = await send(`/pets/${petId}/archives`, {
         method: 'POST', body: {}, expectedVersion: version,
+        idempotencyKey: createIdempotencyKey(),
       });
       return requirePetView(result, petId, { archived: true });
     },

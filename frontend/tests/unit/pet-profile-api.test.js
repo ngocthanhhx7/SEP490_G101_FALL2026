@@ -46,7 +46,7 @@ test('reads a PetView through the existing same-origin API client', async () => 
   }));
 });
 
-test('sends expectedVersion, only changed care fields and customer source through PATCH', async () => {
+test('sends expectedVersion, only changed care fields and an idempotency key through PATCH', async () => {
   const updated = petView({ version: 8, name: 'Mây nhỏ', careFields: {
     breed: { status: 'KNOWN', value: 'Chó lai', source: 'CUSTOMER_REPORTED' },
     customer_reported_health_notes: { status: 'UNKNOWN' },
@@ -55,7 +55,8 @@ test('sends expectedVersion, only changed care fields and customer source throug
     data: updated, meta: { schemaVersion: 1, entityVersion: 8 },
   }));
   const client = createApiClient({ fetchImpl, getCsrfToken: () => 'test-csrf' });
-  const api = createPetProfileApi({ request: client });
+  const createIdempotencyKey = jest.fn(() => 'pet-update-command-1');
+  const api = createPetProfileApi({ request: client, createIdempotencyKey });
 
   await expect(api.updatePet(PET_ID, {
     name: ' Mây nhỏ ', species: 'DOG', careFields: {
@@ -68,10 +69,12 @@ test('sends expectedVersion, only changed care fields and customer source throug
   expect(path).toBe(`/api/v1/pets/${PET_ID}`);
   expect(request.method).toBe('PATCH');
   expect(request.headers.get('X-CSRF-Token')).toBe('test-csrf');
+  expect(request.headers.get('Idempotency-Key')).toBe('pet-update-command-1');
+  expect(createIdempotencyKey).toHaveBeenCalledTimes(1);
   expect(JSON.parse(request.body)).toEqual({
     name: 'Mây nhỏ', species: 'DOG', expectedVersion: 7,
     careFields: {
-      breed: { status: 'KNOWN', value: 'Chó lai', source: 'CUSTOMER_REPORTED' },
+      breed: { status: 'KNOWN', value: 'Chó lai' },
       customer_reported_health_notes: { status: 'UNKNOWN' },
     },
   });
@@ -93,8 +96,8 @@ test('strips actor, verification and private file metadata nested in field value
 
   expect(request.mock.calls[0][1].body).toEqual({
     name: 'Mây', species: 'DOG', careFields: {
-      vaccination_records: { status: 'KNOWN', source: 'CUSTOMER_REPORTED', value: [{ name: 'Vaccine A', date: '2026-10-12' }] },
-      emergency_contact: { status: 'KNOWN', source: 'CUSTOMER_REPORTED', value: {
+      vaccination_records: { status: 'KNOWN', value: [{ name: 'Vaccine A', date: '2026-10-12' }] },
+      emergency_contact: { status: 'KNOWN', value: {
         name: 'Người liên hệ', relationship: 'Bạn', phone: '0900000000',
       } },
     },
@@ -114,6 +117,24 @@ test('accepts CSRF/session hooks from the future app adapter without storing a b
   expect(request.headers.get('X-CSRF-Token')).toBe('ephemeral-csrf');
   expect(request.body).not.toMatch(/ephemeral-csrf/);
   expect(onUnauthorized).not.toHaveBeenCalled();
+});
+
+test('fails before sending a mutation when secure idempotency key generation is unavailable', async () => {
+  const request = jest.fn();
+  const api = createPetProfileApi({ request });
+  const crypto = globalThis.crypto;
+  const randomUuidDescriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID');
+  Object.defineProperty(crypto, 'randomUUID', { configurable: true, value: undefined });
+
+  try {
+    await expect(api.updatePet(PET_ID, { name: 'Mây', species: 'DOG' }, { expectedVersion: 7 }))
+      .rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_UNAVAILABLE' });
+  } finally {
+    if (randomUuidDescriptor) Object.defineProperty(crypto, 'randomUUID', randomUuidDescriptor);
+    else delete crypto.randomUUID;
+  }
+
+  expect(request).not.toHaveBeenCalled();
 });
 
 test('forwards unauthorized API responses to the injected session invalidation hook', async () => {
@@ -155,15 +176,24 @@ test('passes version conflicts through without retrying or claiming a write', as
 
 test('archives through the P01 command and accepts only an archived PetView acknowledgement', async () => {
   const archived = petView({ state: 'ARCHIVED', version: 8 });
-  const request = jest.fn().mockResolvedValue({ data: archived, status: 200, pending: false });
-  const api = createPetProfileApi({ request });
+  const fetchImpl = jest.fn().mockResolvedValue(response(200, {
+    data: archived, meta: { schemaVersion: 1, entityVersion: 8 },
+  }));
+  const createIdempotencyKey = jest.fn(() => 'pet-archive-command-1');
+  const api = createPetProfileApi({
+    fetchImpl, getCsrfToken: () => 'test-csrf', createIdempotencyKey,
+  });
 
   await expect(api.archivePet(PET_ID, { expectedVersion: 7 })).resolves.toMatchObject({
     data: { state: 'ARCHIVED', version: 8 },
   });
-  expect(request).toHaveBeenCalledWith(`/pets/${PET_ID}/archives`, {
-    method: 'POST', body: {}, expectedVersion: 7,
-  });
+  const [path, request] = fetchImpl.mock.calls[0];
+  expect(path).toBe(`/api/v1/pets/${PET_ID}/archives`);
+  expect(request.method).toBe('POST');
+  expect(request.headers.get('X-CSRF-Token')).toBe('test-csrf');
+  expect(request.headers.get('Idempotency-Key')).toBe('pet-archive-command-1');
+  expect(JSON.parse(request.body)).toEqual({ expectedVersion: 7 });
+  expect(createIdempotencyKey).toHaveBeenCalledTimes(1);
 
   const notArchived = createPetProfileApi({ request: jest.fn().mockResolvedValue({
     data: petView({ version: 8 }), status: 200, pending: false,
