@@ -124,13 +124,16 @@ export function createOtpService({ connection, User, models = identityModels(con
     return Object.freeze({ status: 'PENDING', challengeId, expiresInSeconds: 300, resendAfterSeconds: 60 });
   }
 
-  async function verify({ challengeId, channel, contact, purpose, code, actor } = {}) {
+  async function verify({ challengeId, channel, contact, purpose, code, displayName, actor } = {}) {
     if (typeof challengeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(challengeId)
       || !PURPOSES.has(purpose) || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
       throw new AppError(422, 'VALIDATION_FAILED', 'OTP verification request is invalid');
     }
     if (purpose === 'CONTACT_CHANGE' && (!actor?.sessionId || !actor?.userId)) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    }
+    if (purpose === 'REGISTER' && typeof verificationHandlers.REGISTER !== 'function') {
+      throw new AppError(503, 'REGISTRATION_UNAVAILABLE', 'Customer registration is not configured');
     }
     const { canonicalValue, contactLookup } = lookup(channel, contact);
     const now = clock();
@@ -195,9 +198,13 @@ export function createOtpService({ connection, User, models = identityModels(con
       if (handler && typeof handler !== 'function') throw new TypeError('Invalid OTP verification handler');
       if (handler) {
         const result = await handler({
-          channel, canonicalValue, contactLookup, challengeId, actor, session: mongoSession, now
+          channel, canonicalValue, contactLookup, challengeId, displayName, actor, session: mongoSession, now
         });
-        return { result: Object.freeze({ status: 'VERIFIED', authenticated: false, result }) };
+        if (purpose === 'REGISTER') {
+          if (!result?.session) throw new AppError(503, 'REGISTRATION_UNAVAILABLE', 'Customer registration is not configured');
+          return { result: Object.freeze({ status: 'VERIFIED', authenticated: true, session: result.session }) };
+        }
+        return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
       }
       if (purpose === 'CONTACT_CHANGE') {
         if (!Types.ObjectId.isValid(actor.userId)) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');

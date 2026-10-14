@@ -24,7 +24,7 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
 | src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
 | src/controllers/ | HTTP orchestration mỏng |
-| src/services/ | Health/readiness, unit-of-work, synthetic seed; P11 email templates, bounded SMTP delivery and port injection factory |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed; P06 OTP/session, P07 transactional Customer registration, P11 email templates and bounded SMTP delivery ports |
 | src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
 | src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |

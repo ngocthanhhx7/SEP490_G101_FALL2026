@@ -23,7 +23,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/app | Entry, root error boundary, providers and provisional structural CSS |
 | src/routes | Root registration and RequireSession UX gate; P34 owns future wiring |
 | src/layouts | Basic landmark layout, skip link and route focus; P48 supplies final role shells/avatar |
-| src/pages/public | Foundation landing, OTP integration placeholder; P13/P08 supply real screens |
+| src/pages/public | Foundation landing and P07 Customer registration screen; P34 owns route/runtime registration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client and session adapter port |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
@@ -47,7 +47,7 @@ Routes `/`, `/sign-in` and unknown routes stay public. `/account` is a protected
 
 Jest 30.5.2 with React Testing Library 16.3.3 and jsdom; Babel 7.29.7 transforms ESM/JSX tests. ESLint 10.12.0 checks syntax and selected correctness rules (not a type checker). A scoped override makes @istanbuljs/load-nyc-config use js-yaml 4.3.2 instead of vulnerable sprintf-js transitives; its yaml.load interface and YAML config loading were checked. No npm audit fix --force or runtime downgrade.
 
-See [P03 handoff](../doc/ui-ux/p03-frontend-foundation-handoff.md) for actual checks and gates. UI is PROVISIONAL, Figma not supplied. Auth/OTP/CSRF/backend integration is INTEGRATION_PENDING. Public catalog, full policies, role dashboards, shared design system and PWA belong to later packages. No secrets or frontend environment variables are required; do not put server/provider credentials in browser configuration.
+See [P03 handoff](../doc/ui-ux/p03-frontend-foundation-handoff.md) and [P07 handoff](../doc/deployment/p07-customer-registration-handoff.md) for checks and gates. P07 adapts the supplied registration reference to a responsive screen; P34 still owns route/runtime registration, session adapter wiring and live provider composition. Public catalog, full policies, role dashboards, shared design system and PWA belong to later packages. No secrets or frontend environment variables are required; do not put server/provider credentials in browser configuration.
 
 ## Brand components
 

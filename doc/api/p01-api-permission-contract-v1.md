@@ -44,7 +44,7 @@ Tất cả dưới prefix /api/v1; dấu * chỉ diễn tả family trong tài l
 
 | Route / action | Actor | Resource predicate và quyết định |
 | --- | --- | --- |
-| POST /otp-challenges; POST /otp-verifications; POST /sessions; DELETE /sessions/current | Guest/verified contact owner | Purpose-bound OTP,6digits/5min, resend60s,max5codes/hour;5 failures lock15min; challenge single-use, generic anti-enumeration response; account locked no login |
+| POST /otp-challenges; POST /otp-verifications; POST /sessions; DELETE /sessions/current | Guest/verified contact owner | Purpose-bound OTP,6digits/5min, resend60s,max5codes/hour;5 failures lock15min; challenge single-use; account locked no login. REGISTER atomically provisions Customer/contact/session after verified OTP |
 | GET /me; PATCH /me/profile; POST /me/contact-changes; POST /me/contact-verifications | Session owner | AuthEpoch/expiresAt/OTP đúng purpose; new contact verified trước replace old; AUTH-SECOND-CONTACT timing gate |
 | GET /users; POST /users/{id}/lock-decisions; PATCH /users/{id}/profile | Admin | Quản trị accounts/audit; Staff không nâng role/lock; bootstrap gate, no role từ signup |
 | POST /applications; GET /applications/{id}/tracking | Guest/scoped applicant | Submit không account; tracking cần verified capability, mã hồ sơ không đủ quyền; APPLICANT-ACCESS gate |
@@ -67,6 +67,16 @@ Tất cả dưới prefix /api/v1; dấu * chỉ diễn tả family trong tài l
 | GET /notifications; POST /notifications/{id}/read-receipts | Session owner | Recipient scoped, deep link auth rechecked, no private financial details in public notification/cache |
 | GET/POST /private-media; GET /private-media/{id}/read-capabilities | Resource-authorized actor | Upload binding owner/resource/type, scan/limits, short-lived capability; MEDIA-RETENTION/provider gate; no public sensitive URL |
 | Financial routes (cancel/change/payment/refund/earnings/settlement/payroll) | P51 actors | [P51 API contract](p51-financial-api-v1.md) canonical route baseline; UPPER_SNAKE_CASE states and common envelope from P01, no duplicated implementation |
+
+### Customer registration (`purpose=REGISTER`)
+
+`POST /otp-challenges` accepts `{ channel, contact, purpose: "REGISTER" }` and returns HTTP 202 with `{ challengeId, expiresInSeconds, resendAfterSeconds }`. HTTP 202 means the challenge request was accepted; delivery is usable only when the configured provider accepts it. Do not infer inbox/SMS delivery from this response.
+
+`POST /otp-verifications` accepts exactly `{ challengeId, channel, contact, purpose: "REGISTER", code, displayName }`. `displayName` is trimmed, internal whitespace is collapsed and the resulting value must contain 1–100 characters. Password, role, status, owner ID and other unknown fields are rejected. An invalid/expired/replayed code creates no account.
+
+On valid OTP, one MongoDB transaction consumes the challenge, creates an ACTIVE User with the fixed `CUSTOMER` role, stores the verified contact (encrypted value and keyed lookup), and creates a 30-day session. A verified contact already owned by an account returns `409 CONTACT_ALREADY_LINKED`; the caller should direct the user to OTP sign-in. Transaction failure leaves no partial Customer, Contact or session. REGISTER verification requires the P07 handler to be injected into P06; without it, the endpoint fails closed with `503 REGISTRATION_UNAVAILABLE`.
+
+Success is HTTP 200 in the common envelope: `{ verified: true, authenticated: true, user: { id, displayName, roles: ["CUSTOMER"] }, csrfToken, expiresAt }`. The opaque session credential is issued only in the `pwc_session` HttpOnly, SameSite=Lax cookie (Secure in production); it is never included in the JSON body. `csrfToken` is returned for in-memory use with same-origin unsafe requests and must not be persisted. This endpoint does not accept or store a password.
 
 Boundary codes:400 BAD_REQUEST,401 UNAUTHENTICATED,403 FORBIDDEN,404 RESOURCE_NOT_FOUND,409 VERSION_CONFLICT/INVALID_STATE/DEADLINE_PASSED/IDEMPOTENCY_CONFLICT/SLOT_CONFLICT/CONTACT_ALREADY_LINKED/WEEK_QUOTA_USED/DECISION_REQUIRED,422 VALIDATION_FAILED,429 RATE_LIMITED (retryAfter),503 PROVIDER_UNAVAILABLE.202 COMMAND_PENDING/PAYMENT_RECONCILING/TRANSFER_PENDING is pending acknowledgment, not domain success. Application gates include decisionIds; unknown monetary calculation never0 silently.
 

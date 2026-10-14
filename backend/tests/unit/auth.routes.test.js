@@ -11,10 +11,10 @@ const auth = { userId: 'customer-1', sessionId: 'session-1', state: 'ACTIVE', ro
 function appFixture({ authenticated = false } = {}) {
   const otpService = {
     begin: jest.fn(async () => ({ status: 'PENDING', challengeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', expiresInSeconds: 300, resendAfterSeconds: 60 })),
-    verify: jest.fn(async body => body.purpose === 'LOGIN'
+    verify: jest.fn(async body => ['LOGIN', 'REGISTER'].includes(body.purpose) && body.displayName !== 'not configured'
       ? { status: 'VERIFIED', authenticated: true, session: {
         token: 'opaque-session-secret-never-return-this', csrfToken: 'a'.repeat(43), expiresAt: Date.now() + 60000,
-        user: { id: auth.userId, displayName: 'Synthetic Customer', roles: ['CUSTOMER'] }
+        user: { id: auth.userId, displayName: body.displayName || 'Synthetic Customer', roles: ['CUSTOMER'] }
       } }
       : { status: 'VERIFIED', authenticated: false })
   };
@@ -62,6 +62,24 @@ describe('P06 auth route module (not registered by P34 runtime)', () => {
     expect(response.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
     expect(response.body.data).toMatchObject({ authenticated: true, csrfToken: 'a'.repeat(43) });
     expect(JSON.stringify(response.body)).not.toContain('opaque-session-secret-never-return-this');
+  });
+
+  test('registration requires only the allowlisted fields and atomically returns Customer session metadata', async () => {
+    const { server, otpService } = appFixture();
+    const base = { challengeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', channel: 'EMAIL',
+      contact: 'person@example.test', purpose: 'REGISTER', code: '123456' };
+    await request(server).post('/api/v1/otp-verifications').send(base).expect(422);
+    await request(server).post('/api/v1/otp-verifications').send({ ...base, displayName: 'Sample Customer', password: 'forbidden' }).expect(422);
+    expect(otpService.verify).not.toHaveBeenCalled();
+
+    const response = await request(server).post('/api/v1/otp-verifications')
+      .send({ ...base, displayName: '  Sample   Customer  ' }).expect(200);
+    expect(otpService.verify).toHaveBeenCalledWith({ ...base, displayName: 'Sample Customer' });
+    expect(response.body.data).toMatchObject({ verified: true, authenticated: true,
+      user: { id: auth.userId, displayName: 'Sample Customer', roles: ['CUSTOMER'] }, csrfToken: 'a'.repeat(43) });
+    expect(response.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
+    expect(JSON.stringify(response.body)).not.toContain('opaque-session-secret-never-return-this');
+    expect(JSON.stringify(response.body)).not.toMatch(/password|person@example\.test|123456/i);
   });
 
   test('protects contact changes and logout with same-origin CSRF checks', async () => {
