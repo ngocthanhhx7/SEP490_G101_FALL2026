@@ -24,7 +24,7 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
 | src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
 | src/controllers/ | HTTP orchestration mỏng |
-| src/services/providers/payos/ | payOS provider boundary and isolated webhook receipt processing; signature verification and atomic receipt/state writes use injected ports; route wiring remains separate |
+| src/services/providers/payos/ | payOS provider boundary and isolated webhook receipt processing; signature verification and atomic receipt/state/outbox writes use injected ports; route wiring remains separate |
 | src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration; P11 SMTP, P12 eSMS và dispatcher PHONE → SMS |
 | src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
 | src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
@@ -33,6 +33,12 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | tests/unit/ | Controlled DB/session doubles, config/errors/ports/roles/limiter/registry |
 | tests/integration/ | Real isolated Mongo smoke: start/ready/transaction/seed/shutdown/outage |
 | tests/fixtures/ | Placeholder; code tests chỉ synthetic |
+
+The isolated payOS webhook service accepts the WBS-044 verifier and a repository port. The repository
+port must deduplicate the verified receipt and atomically commit the payment or reconciliation state
+together with one `PaymentVerified` or `PaymentReconciliationRequired` outbox event. A provider
+`transactionDateTime` without an offset is retained as the original string until payOS timezone
+semantics are confirmed; it is not converted using the host timezone.
 
 route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. `AUTH_ENABLED=false`, `EMAIL_ENABLED=false` và `SMS_ENABLED=false` là mặc định. Khi OTP bật mà thiếu cấu hình provider, contact delivery vẫn fail-closed. Nodemailer chỉ tạo transport sau khi email được bật; không gửi email/SMS trong lúc khởi tạo app. Chưa có outbox bền vững/business locks/financial calculations, không fake payment/saved state.
 

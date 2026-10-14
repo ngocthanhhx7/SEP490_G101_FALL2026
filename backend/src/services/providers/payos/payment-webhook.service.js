@@ -105,6 +105,29 @@ function classifyReceipt({ data, orderCode, receipt, intent, receivedAt }) {
   };
 }
 
+function makeOutboxEvent({ receipt, decision }) {
+  const verified = decision.type === 'MARK_PAID';
+  return {
+    eventId: receipt.eventId,
+    logicalOperationId: receipt.eventId,
+    type: verified ? 'PaymentVerified' : 'PaymentReconciliationRequired',
+    aggregateId: decision.intentId ?? null,
+    // The repository uses this precondition for its atomic write and assigns the committed
+    // aggregate version when it serializes the final outbox envelope.
+    expectedAggregateVersion: decision.expectedIntentVersion ?? null,
+    occurredAt: receipt.receivedAt,
+    payload: {
+      schemaVersion: 1,
+      receiptEventId: receipt.eventId,
+      provider: receipt.provider,
+      providerOrderCode: receipt.providerOrderCode,
+      amountVnd: receipt.amountVnd,
+      currency: receipt.currency,
+      ...(verified ? {} : { reason: decision.reason })
+    }
+  };
+}
+
 function formatRepositoryResult(result, decision) {
   if (!isRecord(result)) throw new TypeError('Webhook repository returned an invalid result');
   if (result.status === 'DUPLICATE') return { status: 'DUPLICATE' };
@@ -123,9 +146,12 @@ function formatRepositoryResult(result, decision) {
  *
  * provider.verifyWebhook(body) must use the server-side payOS verifier and return its signed `data`.
  * repository.recordWebhookOutcome(...) must atomically dedupe eventId and persist either the receipt
- * plus conditional payment transition, or a reconciliation record. It must atomically persist the
- * corresponding PaymentVerified or PaymentReconciliationRequired outbox event as well. For MARK_PAID
- * it must recheck the expected version/state, booking state, and expiry in that same transaction.
+ * plus conditional payment transition, or a reconciliation record, and the supplied outboxEvent.
+ * The adapter must turn the event intent into the P01 envelope (including committed aggregate version)
+ * and write PaymentVerified or PaymentReconciliationRequired in that same transaction. For MARK_PAID
+ * it must recheck the expected version/state, booking state, and expiry in that same transaction;
+ * a failed precondition must select `reconciliationEvent`, persist reconciliation and that event,
+ * instead of applying payment. The receipt eventId is the dedupe key for both outcome choices.
  * Lookup results use the normalized fields documented by this port; no database schema is assumed.
  */
 export function createPayosPaymentWebhookService({ provider, repository, clock = () => new Date() } = {}) {
@@ -152,7 +178,14 @@ export function createPayosPaymentWebhookService({ provider, repository, clock =
         ? await repository.findPaymentIntentByProviderReference(orderCode)
         : null;
       const decision = classifyReceipt({ data, orderCode, receipt, intent, receivedAt });
-      const result = await repository.recordWebhookOutcome({ eventId, receipt, decision });
+      const outboxEvent = makeOutboxEvent({ receipt, decision });
+      const reconciliationEvent = decision.type === 'MARK_PAID'
+        ? makeOutboxEvent({ receipt, decision: { ...decision, type: 'RECONCILE', reason: 'INTENT_CHANGED_DURING_WEBHOOK' } })
+        : null;
+      const result = await repository.recordWebhookOutcome({
+        eventId, receipt, decision, outboxEvent,
+        ...(reconciliationEvent ? { reconciliationEvent } : {})
+      });
 
       return formatRepositoryResult(result, decision);
     }

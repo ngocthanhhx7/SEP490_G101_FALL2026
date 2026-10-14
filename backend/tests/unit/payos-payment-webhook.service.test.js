@@ -20,6 +20,7 @@ function createIntent(patch = {}) {
 
 function createRepository({ intent = createIntent(), commitOverride } = {}) {
   const receipts = new Map();
+  const outboxEvents = new Map();
   const intents = new Map(intent ? [[String(intent.providerReference), { ...intent }]] : []);
   const findPaymentIntentByProviderReference = jest.fn(async reference => {
     const value = intents.get(reference);
@@ -31,12 +32,15 @@ function createRepository({ intent = createIntent(), commitOverride } = {}) {
     if (commitOverride) {
       const result = await commitOverride(input);
       receipts.set(input.eventId, result);
+      outboxEvents.set(input.eventId,
+        result.status === 'RECONCILIATION_REQUIRED' ? input.reconciliationEvent : input.outboxEvent);
       return result;
     }
 
     if (input.decision.type === 'RECONCILE') {
       const result = { status: 'RECONCILIATION_REQUIRED', reason: input.decision.reason };
       receipts.set(input.eventId, result);
+      outboxEvents.set(input.eventId, input.outboxEvent);
       return result;
     }
 
@@ -46,6 +50,7 @@ function createRepository({ intent = createIntent(), commitOverride } = {}) {
       || current.version !== input.decision.expectedIntentVersion) {
       const result = { status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_CHANGED_DURING_WEBHOOK' };
       receipts.set(input.eventId, result);
+      outboxEvents.set(input.eventId, input.reconciliationEvent);
       return result;
     }
 
@@ -53,9 +58,10 @@ function createRepository({ intent = createIntent(), commitOverride } = {}) {
     current.version += 1;
     const result = { status: 'APPLIED' };
     receipts.set(input.eventId, result);
+    outboxEvents.set(input.eventId, input.outboxEvent);
     return result;
   });
-  return { findPaymentIntentByProviderReference, recordWebhookOutcome, intents, receipts };
+  return { findPaymentIntentByProviderReference, recordWebhookOutcome, intents, receipts, outboxEvents };
 }
 
 function createService({ signedData = requestBody.data, intent, commitOverride, verifyWebhook } = {}) {
@@ -77,11 +83,26 @@ describe('payOS payment result webhook', () => {
         expectedBookingState: 'AWAITING_PAYMENT', expectedIntentVersion: 3 }),
       receipt: expect.objectContaining({ provider: 'PAYOS', amountVnd: 250000, currency: 'VND',
         providerTransactionReference: 'BANK-TXN-73105',
-        providerTransactionDateTime: '2026-10-14T04:59:20Z' })
+        providerTransactionDateTime: '2026-10-14T04:59:20Z' }),
+      outboxEvent: expect.objectContaining({
+        eventId: expect.any(String), logicalOperationId: expect.any(String), type: 'PaymentVerified',
+        aggregateId: 'intent-synthetic-73105', expectedAggregateVersion: 3,
+        occurredAt: receivedAt.toISOString(), payload: expect.objectContaining({
+          schemaVersion: 1, receiptEventId: expect.any(String), provider: 'PAYOS', providerOrderCode: '73105',
+          amountVnd: 250000, currency: 'VND'
+        })
+      }),
+      reconciliationEvent: expect.objectContaining({
+        eventId: expect.any(String), type: 'PaymentReconciliationRequired', aggregateId: 'intent-synthetic-73105',
+        expectedAggregateVersion: 3, payload: expect.objectContaining({
+          schemaVersion: 1, reason: 'INTENT_CHANGED_DURING_WEBHOOK'
+        })
+      })
     }));
     const recorded = repository.recordWebhookOutcome.mock.calls[0][0];
     expect(recorded.receipt).not.toHaveProperty('signature');
     expect(recorded.receipt).not.toHaveProperty('accountNumber');
+    expect(recorded.outboxEvent.eventId).toBe(recorded.receipt.eventId);
   });
 
   test('preserves timezone-less provider transaction time without using the server timezone', async () => {
@@ -105,6 +126,7 @@ describe('payOS payment result webhook', () => {
     ]);
     expect(repository.recordWebhookOutcome).toHaveBeenCalledTimes(5);
     expect(repository.receipts.size).toBe(1);
+    expect(repository.outboxEvents.size).toBe(1);
     expect(repository.intents.get('73105').state).toBe('PAID');
   });
 
@@ -143,6 +165,9 @@ describe('payOS payment result webhook', () => {
 
     await expect(service.handleWebhook(requestBody)).resolves.toEqual({ status: 'RECONCILIATION_REQUIRED', reason });
     expect(repository.recordWebhookOutcome.mock.calls[0][0].decision).toMatchObject({ type: 'RECONCILE', reason });
+    expect(repository.recordWebhookOutcome.mock.calls[0][0].outboxEvent).toMatchObject({
+      type: 'PaymentReconciliationRequired', payload: expect.objectContaining({ schemaVersion: 1, reason })
+    });
   });
 
   test.each([
@@ -160,12 +185,17 @@ describe('payOS payment result webhook', () => {
   });
 
   test('routes a repository concurrency conflict into reconciliation', async () => {
-    const { service } = createService({
+    const { service, repository } = createService({
       commitOverride: async () => ({ status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_CHANGED_DURING_WEBHOOK' })
     });
 
     await expect(service.handleWebhook(requestBody)).resolves.toEqual({
       status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_CHANGED_DURING_WEBHOOK'
+    });
+    expect(repository.outboxEvents.values().next().value).toMatchObject({
+      type: 'PaymentReconciliationRequired', payload: expect.objectContaining({
+        reason: 'INTENT_CHANGED_DURING_WEBHOOK'
+      })
     });
   });
 
