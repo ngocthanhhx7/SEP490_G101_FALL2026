@@ -7,12 +7,12 @@
 | Assigned reviewer | Nguyễn Hữu Anh Nhật (`nhat`) |
 | Merge owner | Nguyễn Ngọc Thành (`thanh`) |
 | Branch | `feature/wbs-n01-applicant-status-and-scoped-verification` |
-| Base | `origin/develop` at `28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f` |
+| Base | `origin/develop` at `82c862c8cc6410df3938b67154a19e494fb8acef` when this handoff was refreshed |
 | Worktree | `D:\WW\SEP490_G101_FALL2026-p46` |
 
 ## State
 
-**INTEGRATION_PENDING.** This work adds a public-facing page and a backend service seam. No route is registered and no live OTP or database integration is claimed. P34-A's shared auth/provider/root wiring is merged, but its P46 route and guest-flow composition are not present. P16 now has an open application-form PR (#36) with submission/admin code, but it still has no public tracking endpoint or `INTERVIEW` state; its worktree was read for contract alignment and left unchanged.
+**INTEGRATION_PENDING.** This work adds a public-facing page and a backend service seam. No route is registered and no live OTP or database integration is claimed. P34-A's shared auth/provider/root wiring is merged, but its P46 route and guest-flow composition are not present. P16's application-form PR (#36) and application-list PR (#39) are merged into `develop`, but the merged code still has no public tracking endpoint or `INTERVIEW` state; its local worktree was read for contract alignment and left unchanged.
 
 ## Git and review state
 
@@ -31,7 +31,7 @@
 
 ## Contract required to integrate
 
-1. **P16 / P01:** issue a high-entropy opaque application code in the submission receipt; store a keyed digest rather than a plaintext code; define lookup and retention; expose a status-only repository projection. P16's open PR #36 contains submission/admin application code but no public tracking endpoint. Its current state enum is `PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`; `INTERVIEW` is not yet supported.
+1. **P16 / P01:** issue a high-entropy opaque application code in the submission receipt; store a keyed digest rather than a plaintext code; define lookup and retention; expose a status-only repository projection. The merged P16 code contains submission/admin application code but no public tracking endpoint. Its current state enum is `PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`; `INTERVIEW` is not yet supported.
 2. **P06:** add an `APPLICATION_STATUS` OTP purpose bound to the resolved application, with one-time challenge consumption and server-side per-application resend, hourly-send and failed-attempt limits. Unknown codes and valid codes must have indistinguishable responses. Do not reuse contact-only throttling as the application scope.
 3. **P34:** register public same-origin POST routes with no application code or personal data in the URL; inject the status repository and scoped OTP port; define the unauthenticated CSRF/origin policy for this guest flow. Keep application documents Admin-only and do not create a sitter session from status verification.
 4. **P00 decision:** `APPLICANT-ACCESS` / EXT-25 still needs a recorded decision on the access proof and rate-limit policy. The current P46 code fails closed until an adapter meeting that contract is supplied.
