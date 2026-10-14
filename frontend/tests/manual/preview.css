@@ -1,0 +1,9 @@
+.pwc-preview { width: min(100%, var(--pwc-content-width)); padding: var(--pwc-space-4); margin: auto; overflow-wrap: anywhere; }
+.pwc-preview header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--pwc-space-4); }
+.pwc-preview-panel { margin-block: var(--pwc-space-6); padding: var(--pwc-space-4); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); }
+.pwc-preview-panel h2 { margin-top: 0; font-size: var(--pwc-text-large); }
+.pwc-preview-actions { display: flex; flex-wrap: wrap; gap: var(--pwc-space-3); }
+.pwc-preview-form { max-width: 32rem; display: grid; gap: var(--pwc-space-4); }
+.pwc-preview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: var(--pwc-space-4); }
+
+.pwc-preview--fallback, .pwc-preview--fallback h1 { font-family: system-ui, sans-serif; }
