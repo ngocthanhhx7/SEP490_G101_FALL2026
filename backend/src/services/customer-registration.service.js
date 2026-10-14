@@ -18,21 +18,22 @@ function isContactUniqueConflict(error) {
 }
 
 export function createCustomerRegistrationHandler({ connection, User, models = identityModels(connection),
-  sessionService, contactCrypto, clock = Date.now } = {}) {
+  sessionService, contactCrypto, registrationPolicyService, clock = Date.now } = {}) {
   const userStore = User ?? createUserModel(connection);
   if (typeof sessionService?.issueInTransaction !== 'function'
-    || typeof contactCrypto?.encrypt !== 'function' || typeof clock !== 'function'
+    || typeof contactCrypto?.encrypt !== 'function' || typeof registrationPolicyService?.validateAndBuildReceipt !== 'function' || typeof clock !== 'function'
     || typeof models?.Contact?.findOne !== 'function') {
     throw new TypeError('Customer registration dependencies are required');
   }
 
-  return async function registerVerifiedCustomer({ channel, canonicalValue, contactLookup, displayName, session: mongoSession, now = clock() } = {}) {
+  return async function registerVerifiedCustomer({ channel, canonicalValue, contactLookup, displayName, policyVersions, session: mongoSession, now = clock() } = {}) {
     const normalizedName = normalizeCustomerDisplayName(displayName);
     if (!['EMAIL', 'PHONE'].includes(channel) || typeof canonicalValue !== 'string' || !canonicalValue
       || typeof contactLookup !== 'string' || !contactLookup || !mongoSession) {
       throw new AppError(422, 'VALIDATION_FAILED', 'Registration details are invalid');
     }
 
+    const policyConsents = await registrationPolicyService.validateAndBuildReceipt({ policyVersions, session: mongoSession, now });
     const existing = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })
       .session(mongoSession).lean();
     if (existing) {
@@ -48,6 +49,7 @@ export function createCustomerRegistrationHandler({ connection, User, models = i
         authEpoch: 0,
         version: 0,
         synthetic: false,
+        policyConsents,
       }], { session: mongoSession });
       await models.Contact.create([{
         userId: user._id,

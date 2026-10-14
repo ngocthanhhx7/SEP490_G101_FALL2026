@@ -10,6 +10,7 @@ import { seedDevelopmentAdmin } from '../../src/services/admin-seed.service.js';
 import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { identityModels } from '../../src/models/identity.model.js';
+import { publicPolicyVersionModel } from '../../src/models/public-policy-version.model.js';
 import { userModel } from '../../src/models/user.model.js';
 import { userAdminAuditModel } from '../../src/models/user-admin-audit.model.js';
 
@@ -89,6 +90,17 @@ describe('real isolated MongoDB 8.0.34 replica-set smoke', () => {
       });
       const User = userModel(authRuntime.connection);
       const models = identityModels(authRuntime.connection);
+      const PolicyVersion = publicPolicyVersionModel(authRuntime.connection);
+      await PolicyVersion.create([
+        { slug: 'terms', versionId: 'terms-runtime-v1', status: 'APPROVED', title: 'Terms',
+          purpose: 'Registration terms', effectiveAt: new Date('2026-10-01T00:00:00.000Z'),
+          approvedAt: new Date('2026-10-01T00:00:00.000Z'), approvedBy: 'runtime-test',
+          sourceRef: 'runtime-test/terms', contentHash: 'runtime-terms-hash', sections: [] },
+        { slug: 'privacy', versionId: 'privacy-runtime-v1', status: 'APPROVED', title: 'Privacy',
+          purpose: 'Registration privacy', effectiveAt: new Date('2026-10-01T00:00:00.000Z'),
+          approvedAt: new Date('2026-10-01T00:00:00.000Z'), approvedBy: 'runtime-test',
+          sourceRef: 'runtime-test/privacy', contentHash: 'runtime-privacy-hash', sections: [] }
+      ]);
       const user = await User.create({
         displayName: 'Synthetic P34 Customer', roles: ['CUSTOMER'], state: 'ACTIVE',
         authEpoch: 0, version: 0, synthetic: false
@@ -142,7 +154,8 @@ describe('real isolated MongoDB 8.0.34 replica-set smoke', () => {
       const registration = await request(authRuntime.server).post('/api/v1/otp-verifications')
         .send({ challengeId: registrationChallenge.body.data.challengeId, channel: 'EMAIL',
           contact: registrationContact, purpose: 'REGISTER', code: delivered.code,
-          displayName: 'Runtime Registration Customer' }).expect(200);
+          displayName: 'Runtime Registration Customer',
+          policyVersions: { terms: 'terms-runtime-v1', privacy: 'privacy-runtime-v1' } }).expect(200);
       expect(registration.body.data).toMatchObject({
         verified: true,
         authenticated: true,

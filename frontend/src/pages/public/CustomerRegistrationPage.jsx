@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useRegistrationPolicies } from '../../contexts/PublicPolicyContext.jsx';
 import { customerRegistrationApi, normalizeDisplayName, normalizeRegistrationContact } from '../../services/customer-registration-api.js';
+import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 import './customer-registration.css';
 
 const OTP_LIFETIME_SECONDS = 300;
@@ -179,6 +180,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
         contact: normalizedContact,
         code,
         displayName: normalizeDisplayName(displayName),
+        policyVersions: currentPolicies.versions,
       });
       setCompleted(result.user?.displayName || normalizeDisplayName(displayName));
       setChallenge(null);
@@ -285,7 +287,8 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
           <input ref={agreementRef} id="registration-agreement" type="checkbox" checked={agreement} disabled={!policies.ready}
             aria-invalid={Boolean(errors.agreement)} aria-describedby={errors.agreement ? 'registration-agreement-error' : undefined}
             onChange={event => { setAgreement(event.target.checked); setAgreementKey(policies.current().key); clearNotice(); }} />
-          <label htmlFor="registration-agreement">Tôi đồng ý với <Link to="/policies/terms">Điều khoản dịch vụ</Link> và <Link to="/policies/privacy">Chính sách bảo mật</Link> của Paw World Care.</label>
+          <label htmlFor="registration-agreement">Tôi đồng ý với các chính sách áp dụng của Paw World Care.</label>
+          <PolicyContextLinks context="registration" />
           {!policies.ready && <p role="status">Đăng ký sẽ mở khi hai chính sách được phê duyệt và có hiệu lực.</p>}
           {errors.agreement && <span id="registration-agreement-error" className="registration-field-error">{errors.agreement}</span>}
         </div>
