@@ -1,0 +1,27 @@
+import express from 'express';
+import helmet from 'helmet';
+import { rateLimit } from 'express-rate-limit';
+import { createPorts } from './config/ports.js';
+import { requestId, notFound, errorHandler } from './middlewares/http.js';
+import { errorPayload } from './utils/app-error.js';
+import { healthModule } from './routes/health.routes.js';
+import { registerModules } from './routes/module-registry.js';
+
+export function createApp({ config, connection, lifecycle, portOverrides, moduleFactories = [], logger = () => {} }) {
+  const app = express();
+  const ports = createPorts(portOverrides);
+  app.disable('x-powered-by');
+  app.set('trust proxy', config.trustProxyHops);
+  app.use(requestId, helmet());
+  app.use(rateLimit({
+    windowMs: config.rateLimitWindowMs, limit: config.rateLimitMax,
+    standardHeaders: 'draft-8', legacyHeaders: false,
+    skip: req => req.path === '/health',
+    handler: (req, res) => res.status(429).json(errorPayload(req, 'RATE_LIMITED', 'Too many requests'))
+  }));
+  app.use(express.json({ limit: '64kb', strict: true }));
+  const context = { config, connection, lifecycle, ports };
+  registerModules(app, [healthModule(context), ...moduleFactories.map(factory => factory(context))]);
+  app.use(notFound, errorHandler(logger));
+  return app;
+}

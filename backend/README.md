@@ -1,31 +1,38 @@
-# Backend
+# Backend — Paw World Care
 
-Thư mục REST API Node.js/Express của Paw World Care, dự kiến dùng MongoDB và Mongoose. Đây là khung thư mục, chưa có server, kết nối database hoặc dependency.
+Nền Express/Mongoose ESM đã được khởi tạo P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); exact packages/package-lock.json. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. Chưa có OTP/booking/payment/care/settlement routes hoặc provider accounts.
 
-## Trách nhiệm thư mục
+## Chạy và kiểm tra
+
+Từ backend, npm ci --ignore-scripts; điền URI Atlas và MONGO_DB trong .env local rồi npm start (npm run dev cho watch). Config thiếu/sai dừng trước listen. Không commit .env hoặc bất kỳ .env.* ở bất kỳ depth nào; chỉ .env.example chứa placeholders được push. Không force-add env hoặc đưa credential thật vào example.
+
+```powershell
+npm run lint
+npm run test:unit
+npm run test:integration
+```
+
+GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Core chỉ health; routes chưa triển khai404. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration lần đầu tải binary Mongo riêng, không đụng DB hiện có của user.
+
+## Trách nhiệm
 
 | Đường dẫn | Nội dung |
 | --- | --- |
-| `src/config/` | Đọc và kiểm tra cấu hình môi trường; cấu hình database và dịch vụ ngoài |
-| `src/routes/` | Khai báo endpoint, middleware và controller tương ứng |
-| `src/controllers/` | Đọc request, gọi service, trả response |
-| `src/services/` | Quy tắc nghiệp vụ: lịch chăm sóc, phân công, thanh toán, xử lý sự cố |
-| `src/models/` | Mongoose schemas, models và indexes |
-| `src/middlewares/` | Xác thực, phân quyền, xử lý lỗi và middleware dùng chung |
-| `src/validators/` | Kiểm tra dữ liệu đầu vào cho body, params, query |
-| `src/constants/` | Vai trò, trạng thái và hằng số nghiệp vụ |
-| `src/utils/` | Hàm hỗ trợ độc lập |
-| `src/jobs/` | Công việc định kỳ hoặc xử lý nền khi được triển khai |
-| `scripts/seeds/` | Dữ liệu mẫu tổng hợp cho môi trường phát triển/kiểm thử |
-| `scripts/migrations/` | Thay đổi dữ liệu/schema/index có kiểm soát và hướng dẫn chạy |
-| `tests/unit/` | Test service và utility |
-| `tests/integration/` | Test API và tương tác database/dịch vụ ngoài |
-| `tests/fixtures/` | Dữ liệu kiểm thử tổng hợp |
+| src/server.js, runtime.js, app.js | Startup, lifecycle và app factory; validate/connect trước listen |
+| src/config/ | Env validation, Mongoose topology/connect, fail-closed ports |
+| src/routes/ | Module registry/health; P34 đăng ký business routes sau |
+| src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
+| src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
+| src/controllers/ | HTTP orchestration mỏng |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed |
+| src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
+| src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
+| scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
+| scripts/migrations/ | Placeholder; chưa rollout migration/index production |
+| tests/unit/ | Controlled DB/session doubles, config/errors/ports/roles/limiter/registry |
+| tests/integration/ | Real isolated Mongo smoke: start/ready/transaction/seed/shutdown/outage |
+| tests/fixtures/ | Placeholder; code tests chỉ synthetic |
 
-Luồng thông thường: `route → middleware/validator → controller → service → model`.
+route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. Default session không xác thực, providers trả503. Chưa có outbox/business locks/financial calculations, không fake payment/saved state.
 
-Controller giữ mỏng; service chịu trách nhiệm nghiệp vụ. Không đặt toàn bộ thao tác MongoDB và logic phân công/thanh toán trong route. Mỗi endpoint phải kiểm tra quyền ở backend, kể cả khi frontend đã ẩn chức năng.
-
-Khi thêm runtime, PR phải ghi rõ phiên bản Node.js, package manager, manifest, lockfile và các lệnh chạy/lint/test. Tạo `.env.example` cho các biến thực sự được đọc, mô tả cách chuẩn bị database kiểm thử và thêm endpoint kiểm tra sức khỏe khi cần triển khai. Chưa có cấu hình VNPay hay dịch vụ ngoài trong baseline này.
-
-Xem [quy ước code](../doc/source-code-management/coding-conventions.md).
+Seed chỉ NODE_ENV=development, ALLOW_DEV_ADMIN_SEED=true và database *_dev rồi npm run seed:admin. Mặc định false; không seed Atlas thật chỉ để kiểm tra kết nối. Fixture không active/Contact/password/OTP/session; không đóng AUTH-BOOTSTRAP Admin thật. [Runbook](../doc/deployment/p02-backend-runbook.md), [handoff](../doc/deployment/p02-handoff.md) và [P01 API](../doc/api/p01-api-permission-contract-v1.md) ghi gates và checks.
