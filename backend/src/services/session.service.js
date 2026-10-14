@@ -99,6 +99,28 @@ export function createSessionService({ connection, User, models = identityModels
     });
   }
 
+  async function getCurrentUser(auth) {
+    if (!auth?.sessionId || !Types.ObjectId.isValid(auth.userId)) return null;
+    const now = clock();
+    const session = await models.AuthSession.findOne({
+      sessionId: auth.sessionId,
+      userId: new Types.ObjectId(auth.userId),
+      revokedAt: null,
+      expiresAt: { $gt: new Date(now) }
+    }).select('authEpochAtIssue').lean();
+    if (!session) return null;
+
+    const user = await userStore.findById(auth.userId).select('displayName roles state authEpoch synthetic').lean();
+    if (!user || user.state !== 'ACTIVE' || user.synthetic === true
+      || user.authEpoch !== session.authEpochAtIssue || !Array.isArray(user.roles)
+      || user.roles.length === 0 || user.roles.some(role => !ROLES.has(role))) return null;
+    return Object.freeze({
+      id: user._id.toString(),
+      displayName: user.displayName,
+      roles: Object.freeze([...user.roles])
+    });
+  }
+
   async function verifyCsrf(auth, token) {
     if (!auth?.sessionId || typeof token !== 'string' || !/^[A-Za-z0-9_-]{40,128}$/.test(token)) return false;
     const session = await models.AuthSession.findOne({
@@ -136,7 +158,7 @@ export function createSessionService({ connection, User, models = identityModels
   }
 
   return Object.freeze({
-    authenticate, verifyCsrf, issueInTransaction, revoke, revokeUserSessions,
+    authenticate, getCurrentUser, verifyCsrf, issueInTransaction, revoke, revokeUserSessions,
     setCookie, clearCookie, cookieName: SESSION_COOKIE
   });
 }

@@ -13,9 +13,9 @@ Chọn eSMS làm provider nội địa ưu tiên chi phí; đơn giá chưa ch�
 - `backend/src/services/esms-sms.service.js`: config validation và `contactDelivery` override.
 - `backend/tests/unit/*sms*.test.js`, `backend/tests/unit/esms-sms.service.test.js`: fake-provider tests only.
 - `doc/deployment/p12-sms-runbook.md`: chọn dịch vụ, đăng ký, báo giá, cấu hình, trạng thái và nguồn.
-- Runtime/manifest/lockfile/routes chưa đổi; P34 cần compose adapter với P11 theo `channel` trước listen. P06 cần tích hợp private command, resend quota và unknown outcome.
+- Tại thời điểm hoàn tất nhánh P12, runtime/manifest/lockfile/routes chưa đổi. P34-A sau đó compose adapter với P11, đăng ký auth routes khi bật `AUTH_ENABLED`, và ánh xạ `PHONE` sang `SMS`. P06/P34 vẫn chưa có registration provisioning, OTP UI hoặc durable outbox.
 
-Trạng thái: **VERIFIED** cho adapter độc lập và checks dưới đây; **INTEGRATION_PENDING** cho P06/P34 wiring và provider thật; **PR_OPEN** (#12), chưa có approval hoặc merge. Chưa tạo tài khoản, chưa nhận báo giá/credentials, chưa đăng ký Brandname/template, chưa sandbox/send thật. Không có Figma work.
+Trạng thái lịch sử: **VERIFIED** cho adapter độc lập trước tích hợp. PR #12 được Chunggrizzy11 approve trên head `a5d711154ed55e90503a6f37b2e18bb63b098635`, sau đó Project Leader merge ngày 14/10/2026 với merge commit `4bb89190f9b2ff60277c4a53f55dc3cec6ddc03c`. Không tạo tài khoản, chưa nhận báo giá/credentials, chưa đăng ký Brandname/template, chưa sandbox/send thật. Không có Figma work. Trạng thái wiring/P34 hiện tại xem [P34-A integration status](../testing/p34-a-integration-status.md).
 
 ## Checks
 
@@ -31,4 +31,4 @@ Checks thực tế trong worktree P12 trên Node 24.21.0/npm 11.19.0:
 
 ## Git/review
 
-Contributor/author/committer: Nguyễn Ngọc Thành. Push/PR account đã kiểm tra: `ngocthanhhx7`; reviewer được giao: Phạm Thành Chung (`Chunggrizzy11`), được yêu cầu trên PR #12; approval chưa có. Merger: Nguyễn Ngọc Thành sau approval/checks. Commit `7a3caeb660efca901f38d5b5969a999c3df4b52c` trên `feature/wbs-066-sms-otp-integration`, base `develop` tại `28bf288`; PR #12 OPEN. Không giả author/committer/approval.
+Contributor/author/committer: Nguyễn Ngọc Thành. Push/PR account: `ngocthanhhx7`; reviewer được giao: Phạm Thành Chung (`Chunggrizzy11`), đã approve đúng head `a5d711154ed55e90503a6f37b2e18bb63b098635`. Project Leader `ngocthanhhx7` merge PR #12 vào `develop` theo merge commit `4bb89190f9b2ff60277c4a53f55dc3cec6ddc03c`. Commit cuối `a5d711154ed55e90503a6f37b2e18bb63b098635` trên `feature/wbs-066-sms-otp-integration`; PR #12 MERGED. Không giả author/committer/approval.

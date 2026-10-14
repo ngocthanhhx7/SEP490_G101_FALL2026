@@ -22,7 +22,7 @@ Mốc so sánh: Twilio Verify công bố phí nền **$0.05 cho mỗi lần xác
 
 ## Cấu hình backend
 
-Factory `createSmsPortOverrides` chưa được nối vào startup/runtime; P34 phải gọi factory trước khi listen và ghép P11/P12 thành một `contactDelivery` duy nhất. P06 dùng kênh liên hệ `EMAIL`/`PHONE`; integrator phải chuyển `PHONE` thành `SMS` khi gọi adapter này và giữ `EMAIL` cho P11. Không ghi đè adapter này bằng object spread; provider tắt hoặc thiếu phải giữ trạng thái fail-closed của P02.
+Trong P34-A, runtime gọi `createSmsPortOverrides` trước khi listen và ghép P11/P12 thành một `contactDelivery` duy nhất. P06 dùng kênh liên hệ `EMAIL`/`PHONE`; dispatcher đổi `PHONE` thành `SMS` trước khi gọi adapter này và giữ `EMAIL` cho P11. Provider tắt hoặc thiếu giữ trạng thái fail-closed của P02. Xem [P34-A status](../testing/p34-a-integration-status.md); nhánh này chưa cấu hình credentials thật.
 
 | Biến môi trường | Ý nghĩa |
 | --- | --- |
@@ -37,7 +37,7 @@ Khi tắt, factory trả `{}` để giữ provider fail-closed của P02. Khi b�
 
 ## Hợp đồng nội bộ, timeout và trạng thái
 
-Adapter SMS nhận command server-only `{ channel: 'SMS', kind: 'OTP', to, operationId, purpose, code, expiresAt }`. P06 gửi `channel: 'PHONE'` cho số điện thoại, vì đây là loại liên hệ trong contract; P34 phải map `PHONE` thành `SMS` trước khi gọi adapter. `operationId` UUID do server sinh và phải ổn định khi caller reconcile cùng operation. Adapter chuẩn hóa số di động Việt Nam thành E.164 `+84…`, gửi API digits-only `84…`; không chấp nhận quốc gia khác. Nội dung ASCII gồm mã, purpose, hạn 5 phút và cảnh báo không chia sẻ mã.
+Adapter SMS nhận command server-only `{ channel: 'SMS', kind: 'OTP', to, operationId, purpose, code, expiresAt }`. P06 gửi `channel: 'PHONE'` cho số điện thoại, vì đây là loại liên hệ trong contract; P34-A map `PHONE` thành `SMS` trước khi gọi adapter. `operationId` UUID do server sinh và phải ổn định khi caller reconcile cùng operation. Adapter chuẩn hóa số di động Việt Nam thành E.164 `+84…`, gửi API digits-only `84…`; không chấp nhận quốc gia khác. Nội dung ASCII gồm mã, purpose, hạn 5 phút và cảnh báo không chia sẻ mã.
 
 `RequestId` truyền `operationId`; eSMS ghi tài liệu rằng giá trị này chặn request trùng trong 24 giờ. Adapter coalesce các lời gọi đồng thời cùng payload trong process. Payload khác nhưng reuse id trả `OPERATION_CONFLICT`. Mỗi lần thử chỉ gửi một HTTP request. Timeout/mất kết nối sau khi bắt đầu request trả `TIMEOUT` hoặc `PROVIDER_ERROR`, `uncertain=true`, không retry tự động; caller phải giữ trạng thái pending/uncertain và dùng lại cùng operation ID khi reconcile, không phát sinh OTP/send mới chỉ vì chưa nhận response.
 
@@ -58,7 +58,7 @@ SMSID/raw response không trả về caller. Logger chỉ nhận event/status/co
 
 Các unit tests dùng fake `fetch`; không gọi mạng/eSMS. Chúng kiểm tra E.164, template ASCII, leading-zero OTP, input âm, expiry, config, provider rejection, throttling, timeout, operation conflict/idempotency và log không chứa OTP/số/secret. Test fake chỉ chứng minh adapter tạo đúng request; không chứng minh SMS được gửi hay nhận.
 
-**INTEGRATION_PENDING:** chưa có tài khoản/credentials eSMS, báo giá, Brandname/template được duyệt, provider allowlist hoặc sandbox test; P06 chưa gọi contract từ flow OTP và P34 chưa wire cả email/SMS vào runtime. Chưa gửi SMS thật. Sau khi tích hợp, xác minh một số synthetic do nhóm kiểm soát; ghi timestamp/status/code. Nếu cần tra SMSID trong dashboard provider thì giữ trong kênh vận hành giới hạn quyền, không ghi số/OTP/credential vào handoff công khai.
+**INTEGRATION_PENDING:** chưa có tài khoản/credentials eSMS, báo giá, Brandname/template được duyệt, provider allowlist hoặc sandbox test; P34-A đã wire adapter nhưng chưa chạy OTP UI hoặc gửi SMS thật. P06 route hiện quản lý quota/challenge nhưng registration provisioning và durable outbox vẫn chưa có. Sau khi được cấu hình, xác minh một số synthetic do nhóm kiểm soát; ghi timestamp/status/code. Nếu cần tra SMSID trong dashboard provider thì giữ trong kênh vận hành giới hạn quyền, không ghi số/OTP/credential vào handoff công khai.
 
 ## Nguồn nhà cung cấp
 
