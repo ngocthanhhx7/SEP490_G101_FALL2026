@@ -2,17 +2,17 @@
 
 **Scope:** WBS-008 Home Page, WBS-009 Service List, WBS-010 Service Details, WBS-011 Service Areas and Policies; UC-06 through UC-09.
 
-**Status:** INTEGRATION_PENDING. The public screens, adapter and browser routes are implemented against the published DTO contracts available to this session. Live catalog integration has not been verified.
+**Status:** IMPLEMENTED / INTEGRATION_PENDING. The public screens, adapters and browser routes are implemented against the published DTO contracts available to this session. Live catalog integration and physical browser/mobile visual validation have not been verified.
 
 ## Ownership and worktree
 
 - Assigned code contributor/commit author: Phạm Thành Chung.
 - Assigned integration test owner/reviewer: Đoàn Tiến Đạt.
 - Final merge owner: Nguyễn Ngọc Thành.
-- Worktree: C:\Users\nguye\.codex\worktrees\pawworld-home-design\SEP490_G101_FALL2026.
-- Branch: feature/wbs-008-home-page, based at 28bf288 before the local P13 changes.
-- origin/develop was fetched at 28bcf3d; it is 18 commits ahead of this worktree base.
-- Commit identity, remote push account, PR, reviewer approval and merge are not yet verified.
+- Branch: `feature/wbs-008-home-page`, targeting `develop` through [PR #42](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/42).
+- The branch includes the `origin/develop` head `c8c8765` through sync commit `2e2e34b`.
+- P13 implementation commit: `5f89353`; latest branch head at this handoff revision: `2e2e34b`.
+- Commit author/committer and the contributor's GitHub push account were verified for Phạm Thành Chung / @Chunggrizzy11. The assigned reviewer is Đoàn Tiến Đạt / @doantd11; Nguyễn Ngọc Thành / @ngocthanhhx7 is the assigned merger.
 
 ## Screens and route proposal for P34
 
@@ -23,7 +23,7 @@
 | Service details | /services/:serviceId | Find the current published service in GET /api/v1/services |
 | Service areas and policies | /service-areas | GET /api/v1/service-areas and published policy values included in GET /api/v1/services |
 
-P13 registers these routes under PublicSiteLayout in `frontend/src/routes/AppRoutes.jsx` and loads `public-pages.css` from the browser entry in `frontend/src/app/main.jsx`. The current P13 worktree also has pre-existing uncommitted changes in FoundationLayout, foundation.css, SessionContext and App.test.jsx; those files are not part of the P13 route/CSS integration change.
+P13 registers these routes under `PublicSiteLayout` in `frontend/src/routes/AppRoutes.jsx` and loads `public-pages.css` from the browser entry in `frontend/src/app/main.jsx`. The route tree also preserves the current `develop` account, Admin, registration, sitter application and policy routes; P34 owns that shared integration. Untracked pet image folders from the original local worktree have unverified source/license and are not used or included.
 
 ## Contract and integration limits
 
@@ -61,8 +61,9 @@ P13 registers these routes under PublicSiteLayout in `frontend/src/routes/AppRou
 
 ## Checks
 
+- npm ci: passed (frontend, 2026-10-14; zero reported vulnerabilities).
 - npm run lint: passed (frontend, 2026-10-14).
-- npm test -- --runInBand: passed, 9 suites / 103 tests (frontend, 2026-10-14).
+- npm test -- --runInBand: passed, 30 suites / 268 tests on the tree synced with `develop` at `c8c8765` (frontend, 2026-10-14).
 - npm run build: passed (frontend, 2026-10-14).
 - Referenced asset existence and `git diff --check`: passed (2026-10-14).
 - Physical mobile, screen-reader and browser visual validation: pending.
