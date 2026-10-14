@@ -13,6 +13,15 @@ This handoff records the implementation state and its integration gates. It does
 | WBS-N02 Sitter work areas | Pham Thanh Chung / `feature/wbs-n02-sitter-work-areas` | Doan Tien Dat | `SEP490_G101_FALL2026-p18-wbs-n02` | `28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f` (`origin/develop`) |
 
 The original checkout was already dirty on `feature/wbs-006-user-list`; it was preserved and not used for P18 changes. No WBS contributor is inferred from reviewer or merge assignments.
+Git evidence at handoff update (2026-10-14):
+
+| Work item | Implementation commit | Author / committer | Push account | PR / creator | Review request |
+| --- | --- | --- | --- | --- | --- |
+| WBS-022 | `af2afcd81aa801cb28b2f83a4b92a3803a2efb18` (`feat: working hours calendar`) | Ph?m Th?nh Chung / Ph?m Th?nh Chung | `Chunggrizzy11` | [#26](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/26), `Chunggrizzy11` | ?o?n Ti?n ??t (`doantd11`) |
+| WBS-023 | `50d251342d3c8f8b6f9515d0fb6bf5943d00e266` (`feat: day off request`) | ?o?n Ti?n ??t / ?o?n Ti?n ??t | `doantd11` | [#27](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/27), `doantd11` | ??ng V?n H?i (`Haidvhe181849`) |
+| WBS-N02 | `7b76f1c0d61f5dfa0958fdd941bbe8f1b46e303f` (`feat: sitter work areas`) | Ph?m Th?nh Chung / Ph?m Th?nh Chung | `Chunggrizzy11` | [#28](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/28), `Chunggrizzy11` | ?o?n Ti?n ??t (`doantd11`) |
+
+All three PRs target `develop`, are open and non-draft at this check, and have the assigned reviewer requested. No approval, merge, CI status, or branch-protection result is inferred here. The WBS-022 handoff document itself is also committed/pushed under Chung's WBS-022 assignment.
 
 ## Delivered
 
