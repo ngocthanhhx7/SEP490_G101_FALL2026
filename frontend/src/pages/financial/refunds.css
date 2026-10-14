@@ -1,0 +1,64 @@
+.refund-page {
+  display: grid;
+  gap: var(--pwc-space-4);
+  width: min(100% - 2rem, 68rem);
+  margin-inline: auto;
+  padding-block: var(--pwc-space-6);
+  color: var(--pwc-ink);
+}
+
+.refund-page__header { display: grid; gap: var(--pwc-space-2); }
+.refund-page__header h1 { margin: 0; font-size: clamp(1.7rem, 5vw, 2.5rem); }
+.refund-page__header p { margin: 0; max-width: 62ch; }
+.refund-page__eyebrow { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); font-weight: 700; }
+
+.refund-form, .refund-card {
+  display: grid;
+  gap: var(--pwc-space-4);
+  min-width: 0;
+  padding: clamp(1rem, 4vw, 1.5rem);
+  border: 1px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-panel);
+  background: var(--pwc-surface);
+  box-shadow: 0 0.5rem 1.5rem rgb(46 34 69 / 8%);
+}
+
+.refund-form fieldset { display: grid; gap: var(--pwc-space-4); min-width: 0; margin: 0; padding: 0; border: 0; }
+.refund-form legend { margin-bottom: var(--pwc-space-2); font-size: var(--pwc-text-large); font-weight: 700; }
+.refund-field { display: grid; gap: var(--pwc-space-2); min-width: 0; font-weight: 700; }
+.refund-field textarea, .refund-field select {
+  width: 100%; min-width: 0; min-height: var(--pwc-target); padding: var(--pwc-space-2) var(--pwc-space-3);
+  border: 2px solid var(--pwc-border); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface); color: var(--pwc-ink); font: inherit;
+}
+.refund-field textarea { resize: vertical; }
+.refund-field textarea:focus-visible, .refund-field select:focus-visible { outline: 3px solid var(--pwc-focus); outline-offset: 2px; }
+.refund-field select:disabled, .refund-field textarea:disabled { color: var(--pwc-disabled-ink); background: var(--pwc-disabled-surface); }
+
+.refund-list { display: grid; gap: var(--pwc-space-4); min-width: 0; }
+.refund-card { overflow-wrap: anywhere; }
+.refund-card__heading { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--pwc-space-3); }
+.refund-card__heading h2 { margin: 0 0 var(--pwc-space-1); font-size: var(--pwc-text-large); }
+.refund-card__heading p, .refund-card__reason { margin: 0; }
+.refund-card__facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--pwc-space-3); margin: 0; }
+.refund-card__facts div { display: grid; gap: var(--pwc-space-1); }
+.refund-card__facts dt { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.refund-card__facts dd { margin: 0; font-weight: 700; }
+.refund-card__section { display: grid; gap: var(--pwc-space-3); padding-top: var(--pwc-space-4); border-top: 1px solid var(--pwc-border); }
+.refund-card__section h3 { margin: 0; font-size: var(--pwc-text-body); }
+.refund-card__section p { margin: 0; }
+.refund-actions { display: flex; flex-wrap: wrap; gap: var(--pwc-space-3); }
+.refund-status { display: inline-flex; max-width: 100%; padding: var(--pwc-space-1) var(--pwc-space-3); border-radius: 999px; background: var(--pwc-lavender-soft); font-weight: 700; overflow-wrap: anywhere; }
+.refund-status--approved, .refund-status--transfer_pending { background: var(--pwc-warning-surface); color: var(--pwc-warning); }
+.refund-status--paid { background: var(--pwc-success-surface); color: var(--pwc-success); }
+.refund-status--failed, .refund-status--rejected { background: var(--pwc-error-surface); color: var(--pwc-error); }
+
+@media (min-width: 42rem) {
+  .refund-card__facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .refund-transfer-form { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
+  .refund-transfer-form h3, .refund-transfer-form p, .refund-transfer-form button { grid-column: 1 / -1; }
+}
+
+@media (forced-colors: active) {
+  .refund-form, .refund-card, .refund-status { border: 1px solid CanvasText; }
+}
