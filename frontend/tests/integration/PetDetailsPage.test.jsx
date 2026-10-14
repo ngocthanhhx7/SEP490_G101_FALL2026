@@ -128,8 +128,13 @@ test('allows an explicit unknown status and sets old species-only fields to not 
   await screen.findByRole('heading', { name: 'Mây' });
   fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa hồ sơ' })[0]);
   expect(screen.getByRole('combobox', { name: 'Giống · trạng thái' })).toHaveValue('UNKNOWN');
-  expect(screen.getByRole('combobox', { name: 'Giống · trạng thái' })
-    .querySelector('option[value="NOT_APPLICABLE"]')).toBeNull();
+  for (const id of [
+    'pet-breed-status',
+    'pet-vaccination-records-status',
+    'pet-customer-reported-health-notes-status',
+  ]) {
+    expect(document.getElementById(id)?.querySelector('option[value="NOT_APPLICABLE"]')).toBeNull();
+  }
   fireEvent.change(screen.getByRole('combobox', { name: 'Loài' }), { target: { value: 'CAT' } });
   expect(screen.getByText('Khay cát và cách chăm sóc')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));

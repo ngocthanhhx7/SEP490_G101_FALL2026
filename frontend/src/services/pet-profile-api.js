@@ -35,6 +35,10 @@ const STATUS_SET = new Set(PET_FIELD_STATUSES);
 const FIELD_KEY_SET = new Set(PET_FIELD_KEYS);
 const CUSTOMER_EDITABLE_FIELD_KEY_SET = new Set(PET_FIELD_KEYS.filter(key => key !== 'medication_instructions'));
 const FIELD_SOURCE_SET = new Set(['CUSTOMER_REPORTED', 'DOCUMENT_ATTACHED']);
+const SPECIES_NOT_APPLICABLE_FIELDS = Object.freeze({
+  DOG: Object.freeze(['cat_litter_instructions', 'cat_carrier_and_approach']),
+  CAT: Object.freeze(['dog_walk_instructions', 'dog_toileting_cues']),
+});
 
 function requirePetId(id) {
   if (typeof id !== 'string' || !PET_ID_PATTERN.test(id)) {
@@ -115,7 +119,7 @@ function sanitizeFieldValue(key, value) {
   throw new ApiError('INVALID_PET_FIELDS', 400);
 }
 
-function normalizeCareFields(careFields) {
+function normalizeCareFields(careFields, species) {
   if (!careFields || typeof careFields !== 'object' || Array.isArray(careFields)) {
     throw new ApiError('INVALID_PET_FIELDS', 400);
   }
@@ -125,6 +129,9 @@ function normalizeCareFields(careFields) {
     if (!CUSTOMER_EDITABLE_FIELD_KEY_SET.has(key) || !field || typeof field !== 'object' || Array.isArray(field)
       || !STATUS_SET.has(field.status)) {
       throw new ApiError('INVALID_PET_FIELDS', 400);
+    }
+    if (field.status === 'NOT_APPLICABLE' && !SPECIES_NOT_APPLICABLE_FIELDS[species]?.includes(key)) {
+      throw new ApiError('INVALID_PET_FIELD_STATUS', 422);
     }
 
     const output = { status: field.status };
@@ -209,7 +216,7 @@ export function createPetProfileApi({
         throw new ApiError('INVALID_PET_FIELDS', 400);
       }
       const body = { name: name.trim(), species };
-      const normalizedCareFields = normalizeCareFields(careFields);
+      const normalizedCareFields = normalizeCareFields(careFields, species);
       if (Object.keys(normalizedCareFields).length > 0) body.careFields = normalizedCareFields;
       const result = await send(`/pets/${petId}`, {
         method: 'PATCH', body, expectedVersion: version,

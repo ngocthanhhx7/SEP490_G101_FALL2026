@@ -116,6 +116,46 @@ test('does not send medication instructions before the medication-supporting ser
   expect(request).not.toHaveBeenCalled();
 });
 
+test.each(['breed', 'vaccination_records', 'customer_reported_health_notes', 'dog_walk_instructions'])
+  ('rejects NOT_APPLICABLE for %s without a service/species exclusion', async (fieldKey) => {
+    const request = jest.fn();
+    const api = createPetProfileApi({ request });
+
+    await expect(api.updatePet(PET_ID, {
+      name: 'pet', species: 'DOG', careFields: {
+        [fieldKey]: { status: 'NOT_APPLICABLE' },
+      },
+    }, { expectedVersion: 7 })).rejects.toMatchObject({ code: 'INVALID_PET_FIELD_STATUS' });
+    expect(request).not.toHaveBeenCalled();
+  });
+
+test.each([
+  ['DOG', 'cat_litter_instructions'],
+  ['DOG', 'cat_carrier_and_approach'],
+  ['CAT', 'dog_walk_instructions'],
+  ['CAT', 'dog_toileting_cues'],
+])('allows NOT_APPLICABLE for %s field %s when species excludes it', async (species, fieldKey) => {
+  const request = jest.fn().mockResolvedValue({
+    data: petView({ species, version: 8, careFields: { [fieldKey]: { status: 'NOT_APPLICABLE' } } }),
+    status: 200, pending: false,
+  });
+  const api = createPetProfileApi({ request, createIdempotencyKey: () => 'pet-field-status-command-1' });
+
+  await expect(api.updatePet(PET_ID, {
+    name: 'pet', species, careFields: {
+      [fieldKey]: { status: 'NOT_APPLICABLE' },
+    },
+  }, { expectedVersion: 7 })).resolves.toMatchObject({
+    data: { species, careFields: { [fieldKey]: { status: 'NOT_APPLICABLE' } } },
+  });
+  expect(request).toHaveBeenCalledWith(`/pets/${PET_ID}`, {
+    method: 'PATCH',
+    body: { name: 'pet', species, careFields: { [fieldKey]: { status: 'NOT_APPLICABLE' } } },
+    expectedVersion: 7,
+    idempotencyKey: 'pet-field-status-command-1',
+  });
+});
+
 test('accepts CSRF/session hooks from the future app adapter without storing a browser token', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(response(200, {
     data: petView({ name: 'Mây cập nhật', version: 8 }), meta: { schemaVersion: 1 },
