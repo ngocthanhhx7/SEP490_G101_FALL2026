@@ -35,4 +35,13 @@ describe('API session adapter', () => {
     } }, status: 200 }) });
     await expect(adapter.resolve()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   });
+
+  test('delegates CSRF-backed logout to the injected session request', async () => {
+    const request = jest.fn(async () => ({ data: null, status: 204 }));
+    const getCsrfToken = () => 'synthetic-csrf-token';
+    const adapter = createApiSessionAdapter({ request, getCsrfToken });
+    expect(adapter.getCsrfToken()).toBe('synthetic-csrf-token');
+    await adapter.logout();
+    expect(request).toHaveBeenCalledWith('/sessions/current', { method: 'DELETE' });
+  });
 });
