@@ -1,0 +1,42 @@
+.customer-addresses { width: min(100%, var(--pwc-content-width)); margin-inline: auto; padding: var(--pwc-space-6) var(--pwc-space-4) var(--pwc-space-8); }
+.customer-addresses-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--pwc-space-4); margin-bottom: var(--pwc-space-6); }
+.customer-addresses-heading h1 { margin: var(--pwc-space-2) 0; }
+.customer-addresses-heading p { margin: 0; color: var(--pwc-ink-muted); }
+.customer-addresses-eyebrow { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); font-weight: 800; letter-spacing: 0.08em; }
+.customer-addresses-privacy { margin: 0 0 var(--pwc-space-4); color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.customer-addresses-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pwc-space-4); }
+.customer-address-card { display: grid; align-content: start; gap: var(--pwc-space-3); min-width: 0; padding: clamp(1rem, 3vw, 1.5rem); border: 2px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); box-shadow: 0 0.35rem 0 rgb(63 42 107 / 12%); }
+.customer-address-card-heading > div { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-2); }
+.customer-address-label { font-weight: 900; font-size: var(--pwc-text-large); overflow-wrap: anywhere; }
+.customer-address-default { padding: 0.15rem 0.6rem; border-radius: 999px; background: var(--pwc-sun); color: var(--pwc-ink); font-size: var(--pwc-text-small); font-weight: 800; }
+.customer-address-location { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.customer-address-note { min-width: 0; padding: var(--pwc-space-3); border-radius: var(--pwc-radius-control); background: var(--pwc-cream); }
+.customer-address-note strong { display: block; font-size: var(--pwc-text-small); }
+.customer-address-note p { margin: var(--pwc-space-1) 0 0; white-space: pre-line; overflow-wrap: anywhere; }
+.customer-address-actions, .customer-address-dialog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-2); }
+.customer-address-actions { padding-top: var(--pwc-space-2); border-top: 1px solid var(--pwc-border); }
+.customer-address-form { display: grid; gap: var(--pwc-space-4); }
+.customer-address-field { display: grid; gap: var(--pwc-space-2); min-width: 0; }
+.customer-address-field small { color: var(--pwc-ink-muted); }
+.customer-address-field textarea { resize: vertical; }
+.customer-address-dialog-actions { justify-content: flex-end; margin-top: var(--pwc-space-4); }
+.customer-addresses-pagination { display: flex; align-items: center; justify-content: center; gap: var(--pwc-space-4); margin-block: var(--pwc-space-5); }
+.customer-addresses-loading { display: grid; gap: var(--pwc-space-3); max-width: 52rem; }
+.customer-addresses-loading span { display: block; height: 8rem; border-radius: var(--pwc-radius-panel); background: var(--pwc-lavender-soft); animation: customer-addresses-pulse 1.3s ease-in-out infinite alternate; }
+.customer-addresses-loading span:nth-child(2) { width: 88%; }
+.customer-addresses-loading span:nth-child(3) { width: 74%; }
+.customer-addresses .pwc-notice { margin-block: var(--pwc-space-4); }
+.customer-addresses .pwc-notice-action { display: flex; flex-wrap: wrap; gap: var(--pwc-space-2); }
+@keyframes customer-addresses-pulse { to { opacity: 0.55; } }
+@media (max-width: 48rem) {
+  .customer-addresses { padding: var(--pwc-space-4) var(--pwc-space-3) var(--pwc-space-6); }
+  .customer-addresses-heading { align-items: stretch; flex-direction: column; }
+  .customer-addresses-heading > .pwc-button { width: 100%; }
+  .customer-addresses-list { grid-template-columns: minmax(0, 1fr); }
+  .customer-address-actions > .pwc-button { flex: 1 1 8rem; }
+  .customer-address-dialog-actions > .pwc-button { flex: 1 1 9rem; }
+  .customer-addresses-pagination { justify-content: space-between; gap: var(--pwc-space-2); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .customer-addresses-loading span { animation: none; }
+}
