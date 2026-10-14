@@ -9,3 +9,5 @@ P17 contributes three Admin pages in separate WBS branches: the service catalog 
 The service page depends on the P17 catalog API. P34 must register the React route and compose the P17 price and catalog visibility ports. Until then, the page is a component ready for integration, not a reachable production route.
 
 Use P04 shared controls and tokens. This page is provisional because no P17 Figma frame was supplied; it uses the existing Paw World Care fonts and color tokens and must be compared with the approved frame when available.
+
+P22 owns `StaffVisitBoardPage.jsx` and `staff-visit-board.css`: a Staff/Admin operational board with Vietnam calendar filters, bounded cursor pages, a visit detail panel, no-sitter slot proposals and guarded manual assignment commands. It uses the shared P04 controls and the session/API client; Customer/Sitter do not fetch this board. Pending Customer choice and unknown network outcomes remain pending. P34 owns registration in the P48 shell and the real repository wiring. The page is PROVISIONAL without a supplied P22 Figma frame. See [P22 integration handoff](../../../../doc/deployment/p22-visit-board-handoff.md).
