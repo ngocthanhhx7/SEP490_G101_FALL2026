@@ -51,3 +51,27 @@ test('policy metadata must be approved, effective, unexpired and unambiguous', (
   expect(registrationPolicyReadiness([approved[0]], now).ready).toBe(false);
   expect(registrationPolicyReadiness([...approved, { ...approved[0], versionId: 'other' }], now).ready).toBe(false);
 });
+
+test('a newly published version requires consent again instead of reusing the old checkbox', () => {
+  const policies = ['terms', 'privacy'].map(slug => ({ slug, versionId: `${slug}-v1`, status: 'APPROVED',
+    effectiveAt: '2020-01-01T00:00:00Z', approvedAt: '2020-01-01T00:00:00Z' }));
+  const view = show('/register', { registrationPolicies: policies });
+  fireEvent.click(screen.getByRole('checkbox'));
+  expect(screen.getByRole('checkbox')).toBeChecked();
+  view.rerender(<MemoryRouter initialEntries={['/register']}><App sessionAdapter={unresolved}
+    registrationPolicies={[{ ...policies[0], versionId: 'terms-v2' }, policies[1]]} /></MemoryRouter>);
+  expect(screen.getByRole('checkbox')).not.toBeChecked();
+});
+
+test('policy expiry is checked on forced submit even without a metadata refresh', () => {
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-14T00:00:00Z'));
+  try {
+    const policies = ['terms', 'privacy'].map(slug => ({ slug, versionId: `${slug}-v1`, status: 'APPROVED',
+      effectiveAt: '2020-01-01T00:00:00Z', approvedAt: '2020-01-01T00:00:00Z', expiresAt: '2026-10-14T00:01:00Z' }));
+    show('/register', { registrationPolicies: policies });
+    expect(screen.getByRole('checkbox')).toBeEnabled();
+    clock.mockReturnValue(Date.parse('2026-10-14T00:01:00Z'));
+    fireEvent.submit(screen.getByRole('button', { name: /Đăng ký tài khoản Khách hàng/ }).closest('form'));
+    expect(screen.getByRole('alert')).toHaveTextContent('Chính sách chưa sẵn sàng');
+  } finally { clock.mockRestore(); }
+});
