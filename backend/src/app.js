@@ -10,6 +10,7 @@ import { authenticationModule } from './routes/auth.module.js';
 import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
+import { publicPolicyModule } from './routes/public-policy.routes.js';
 
 export function createApp({ config, connection, lifecycle, portOverrides, moduleFactories = [],
   logger = () => {}, env = process.env, clock = Date.now }) {
@@ -35,7 +36,8 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   const auth = authenticationModule({ ...context, logger });
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
-  registerModules(app, [healthModule(context), ...(auth ? [auth] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
+  registerModules(app, [healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
+    ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
     ...moduleFactories.map(factory => factory(context))]);
   app.use(notFound, errorHandler(logger));
   return app;

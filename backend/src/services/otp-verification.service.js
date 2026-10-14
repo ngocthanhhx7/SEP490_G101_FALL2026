@@ -142,7 +142,7 @@ export function createOtpService({ connection, User, models = identityModels(con
     return Object.freeze({ status: 'PENDING', challengeId, expiresInSeconds: 300, resendAfterSeconds: 60 });
   }
 
-  async function verify({ challengeId, channel, contact, purpose, code, displayName, actor, applicationId } = {}) {
+  async function verify({ challengeId, channel, contact, purpose, code, displayName, policyVersions, actor, applicationId } = {}) {
     if (typeof challengeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(challengeId)
       || !PURPOSES.has(purpose) || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
       throw new AppError(422, 'VALIDATION_FAILED', 'OTP verification request is invalid');
@@ -227,7 +227,7 @@ export function createOtpService({ connection, User, models = identityModels(con
       if (handler && typeof handler !== 'function') throw new TypeError('Invalid OTP verification handler');
       if (handler) {
         const result = await handler({
-          channel, canonicalValue, contactLookup, challengeId, displayName, actor, session: mongoSession, now
+          channel, canonicalValue, contactLookup, challengeId, displayName, policyVersions, actor, session: mongoSession, now
         });
         if (purpose === 'REGISTER') {
           if (!result?.session) throw new AppError(503, 'REGISTRATION_UNAVAILABLE', 'Customer registration is not configured');

@@ -87,7 +87,8 @@ describe('auth route module HTTP contract', () => {
   test('registration requires only the allowlisted fields and atomically returns Customer session metadata', async () => {
     const { server, otpService } = appFixture();
     const base = { challengeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', channel: 'EMAIL',
-      contact: 'person@example.test', purpose: 'REGISTER', code: '123456' };
+      contact: 'person@example.test', purpose: 'REGISTER', code: '123456',
+      policyVersions: { terms: 'terms-v1', privacy: 'privacy-v1' } };
     await request(server).post('/api/v1/otp-verifications').send(base).expect(422);
     await request(server).post('/api/v1/otp-verifications').send({ ...base, displayName: 'Sample Customer', password: 'forbidden' }).expect(422);
     expect(otpService.verify).not.toHaveBeenCalled();

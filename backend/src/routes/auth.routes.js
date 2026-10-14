@@ -4,7 +4,7 @@ import { normalizeCustomerDisplayName } from '../services/customer-registration.
 
 const CHALLENGE_KEYS = new Set(['channel', 'contact', 'purpose']);
 const VERIFICATION_KEYS = new Set(['challengeId', 'channel', 'contact', 'purpose', 'code']);
-const REGISTRATION_VERIFICATION_KEYS = new Set([...VERIFICATION_KEYS, 'displayName']);
+const REGISTRATION_VERIFICATION_KEYS = new Set([...VERIFICATION_KEYS, 'displayName', 'policyVersions']);
 
 function hasOnlyKeys(body, keys) {
   return body && typeof body === 'object' && !Array.isArray(body)

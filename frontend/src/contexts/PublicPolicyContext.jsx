@@ -1,10 +1,10 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 
 const EMPTY = Object.freeze([]);
 const PublicPolicyContext = createContext(EMPTY);
 
-// UI readiness only. P45 must bind this to the approved server source; the server
-// must independently validate and persist accepted versions before provisioning.
+// UI readiness only. The server remains the authority and independently validates
+// and persists accepted versions before provisioning.
 export function registrationPolicyReadiness(policies, now = Date.now()) {
   if (!Array.isArray(policies) || !Number.isFinite(now)) return { ready: false, key: '' };
   const versions = {};
@@ -26,11 +26,26 @@ export function registrationPolicyReadiness(policies, now = Date.now()) {
   return { ready: true, versions, key: JSON.stringify(versions) };
 }
 
-export function PublicPolicyProvider({ policies = EMPTY, children }) {
-  return <PublicPolicyContext.Provider value={policies}>{children}</PublicPolicyContext.Provider>;
+export function PublicPolicyProvider({ policies, loadPolicies, children }) {
+  const [catalog, setCatalog] = useState(Array.isArray(policies) ? policies : EMPTY);
+  useEffect(() => {
+    if (Array.isArray(policies)) {
+      setCatalog(policies);
+      return undefined;
+    }
+    if (typeof loadPolicies !== 'function') return undefined;
+    let active = true;
+    loadPolicies().then(next => { if (active && Array.isArray(next)) setCatalog(next); }).catch(() => {});
+    return () => { active = false; };
+  }, [loadPolicies, policies]);
+  return <PublicPolicyContext.Provider value={catalog}>{children}</PublicPolicyContext.Provider>;
 }
 
 export function useRegistrationPolicies() {
   const policies = useContext(PublicPolicyContext);
   return { ...registrationPolicyReadiness(policies), current: () => registrationPolicyReadiness(policies) };
+}
+
+export function usePublicPolicyCatalog() {
+  return useContext(PublicPolicyContext);
 }
