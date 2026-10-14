@@ -27,6 +27,8 @@ describe('P22 HTTP module (export only, unregistered in production)', () => {
     const { app, service } = setup(role);
     const result = await request(app).get('/api/v1/staff/visit-board?limit=20');
     expect(result.status).toBe(200); expect(result.body.meta.schemaVersion).toBe(1);
+    expect(result.headers['cache-control']).toBe('private, no-store');
+    expect(result.headers.vary).toContain('Cookie');
     expect(service.list).toHaveBeenCalledWith(expect.objectContaining({ actor: expect.objectContaining({ roles: [role] }), query: { limit: '20' } }));
   });
   test.each([{}, { Origin: 'https://evil.example.invalid', 'X-CSRF-Token': 'synthetic-csrf' },

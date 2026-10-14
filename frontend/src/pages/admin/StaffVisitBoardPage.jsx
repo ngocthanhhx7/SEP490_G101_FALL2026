@@ -20,9 +20,9 @@ const LABELS = { PENDING_CUSTOMER_CONFIRMATION: 'Chờ Customer xác nhận', CU
 function errorText(error) {
   if (error.status === 403) return 'Quyền vận hành đã thay đổi. Bạn không thể xem hoặc thao tác dữ liệu này.';
   if (error.status === 401) return 'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.';
-  if (error.status === 409) return 'Lịch, eligibility hoặc phiên bản đã thay đổi. Tải lại và kiểm tra trước khi tiếp tục.';
+  if (error.status === 409) return 'Lịch, điều kiện nhận ca hoặc phiên bản đã thay đổi. Tải lại và kiểm tra trước khi tiếp tục.';
   if (error.status === 404 || error.status === 503) return 'Bảng điều phối chưa sẵn sàng. Thử lại khi dịch vụ được kết nối.';
-  if (error.status === 422) return 'Kiểm tra nội dung, khu vực và thời gian đã nhập.';
+  if (error.status === 422 || error.code === 'INVALID_LOCAL_TIME') return 'Kiểm tra nội dung, khu vực và thời gian đã nhập.';
   return 'Chưa nhận được xác nhận từ máy chủ. Tải lại để kiểm tra kết quả trước khi gửi lại.';
 }
 
@@ -79,17 +79,19 @@ export function StaffVisitBoardPage({ apiRequest: suppliedRequest, operationKey 
       const result = await api[action](detail.id, body, operation.current.key);
       if (generation !== actorGeneration.current) return;
       if (result.pending) { setUncertain(true); setFeedback({ state: 'pending', text: 'Yêu cầu đang chờ xác nhận. Chưa thay đổi trạng thái buổi chăm sóc.' }); }
-      else if (action === 'propose' && result.data?.state === 'PENDING_CUSTOMER_CONFIRMATION' && result.data?.visitResolved === false) {
+      else if (action === 'propose' && result.data?.visitId === detail.id
+        && result.data?.state === 'PENDING_CUSTOMER_CONFIRMATION' && result.data?.visitResolved === false) {
         setFeedback({ state: 'pending', text: 'Đã ghi nhận đề xuất. Vẫn chờ Customer chọn và xác nhận; buổi chăm sóc chưa được giải quyết.' });
         operation.current = null; reload();
-      } else if (action === 'assign' && result.data?.state === 'ASSIGNED' && result.data?.version === detail.version + 1) {
+      } else if (action === 'assign' && result.data?.id === detail.id && result.data?.sitterId === body.sitterId
+        && result.data?.state === 'ASSIGNED' && result.data?.version === detail.version + 1) {
         setFeedback({ state: 'success', text: 'Máy chủ đã xác nhận phân công.' }); operation.current = null; reload();
       } else {
         setUncertain(true); setFeedback({ state: 'pending', text: 'Chưa có xác nhận hợp lệ. Tải lại để kiểm tra; không gửi lại tự động.' });
       }
     } catch (error) {
       if (generation !== actorGeneration.current) return;
-      const unknown = ['TIMEOUT', 'NETWORK_ERROR'].includes(error.code);
+      const unknown = ['TIMEOUT', 'NETWORK_ERROR', 'INVALID_RESPONSE'].includes(error.code) || error.status >= 500;
       setUncertain(unknown);
       setFeedback({ state: unknown ? 'pending' : error.status === 403 ? 'forbidden' : 'error', text: errorText(error) });
       if (error.status === 403 || error.status === 401) { setDetail(null); setSelectedId(''); resource.retry(); }
@@ -152,7 +154,7 @@ export function StaffVisitBoardPage({ apiRequest: suppliedRequest, operationKey 
               <Input label="Kết thúc mới (giờ Việt Nam)" type="datetime-local" required value={form.endAt} disabled={pending || uncertain} onChange={event => setForm({ ...form, endAt: event.target.value })} />
               <Button type="submit" disabled={pending || uncertain}>Gửi đề xuất · Chờ Customer</Button>
             </form>}
-            <form onSubmit={event => mutate(event, 'assign')}><h3>Phân công thủ công</h3><p>Máy chủ kiểm tra lại eligibility, xung đột, thanh toán và xác nhận của Customer trước khi lưu.</p>
+            <form onSubmit={event => mutate(event, 'assign')}><h3>Phân công thủ công</h3><p>Máy chủ kiểm tra lại điều kiện nhận ca, xung đột, thanh toán và xác nhận của Customer trước khi lưu.</p>
               <Input label="Mã Sitter" required value={form.sitterId} disabled={pending || uncertain} onChange={event => setForm({ ...form, sitterId: event.target.value })} />
               <Input label="Lý do phân công" required maxLength={1000} value={form.reason} disabled={pending || uncertain} onChange={event => setForm({ ...form, reason: event.target.value })} />
               <Button type="submit" disabled={pending || uncertain}>Kiểm tra và phân công</Button>

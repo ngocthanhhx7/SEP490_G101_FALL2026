@@ -11,7 +11,7 @@ function renderPage(request, role = 'STAFF', status = 'authenticated') {
   const adapter = { resolve: async () => ({ status, user: { id: 'actor-1', roles: [role] } }), getCsrfToken: () => 'synthetic-csrf' };
   return render(<SessionProvider adapter={adapter}><StaffVisitBoardPage apiRequest={request} operationKey={() => 'synthetic-operation-123'} /></SessionProvider>);
 }
-function fixtureRequest(write = async () => ({ data: { state: 'PENDING_CUSTOMER_CONFIRMATION', visitResolved: false }, pending: false })) {
+function fixtureRequest(write = async () => ({ data: { visitId: row.id, state: 'PENDING_CUSTOMER_CONFIRMATION', visitResolved: false }, pending: false })) {
   return jest.fn(async (path, options = {}) => options.method === 'POST' ? write(path, options)
     : path.endsWith('/dispatch') ? { data: detail, pending: false } : list);
 }
@@ -82,8 +82,30 @@ test('manual assignment stale/eligibility conflict keeps error and never claims 
   fireEvent.change(screen.getByLabelText('Mã Sitter', { exact: false }), { target: { value: 'sitter-1' } });
   fireEvent.change(screen.getByLabelText('Lý do phân công', { exact: false }), { target: { value: 'Điều phối' } });
   fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra và phân công' }));
-  expect(await screen.findByText(/Lịch, eligibility hoặc phiên bản đã thay đổi/)).toBeVisible();
+  expect(await screen.findByText(/Lịch, điều kiện nhận ca hoặc phiên bản đã thay đổi/)).toBeVisible();
   expect(screen.queryByText('Máy chủ đã xác nhận phân công.')).not.toBeInTheDocument();
+});
+test.each(['INVALID_RESPONSE', 'TIMEOUT'])('ambiguous write error %s blocks resend', async code => {
+  const request = fixtureRequest(async () => { throw { code }; });
+  renderPage(request); await choose(); fillProposal();
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi đề xuất · Chờ Customer' }));
+  expect(await screen.findByText(/Chưa nhận được xác nhận từ máy chủ/)).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Gửi đề xuất · Chờ Customer' })).toBeDisabled();
+  expect(request.mock.calls.filter(([, options]) => options.method === 'POST')).toHaveLength(1);
+});
+test('acknowledgment for a different visit cannot confirm proposal success', async () => {
+  renderPage(fixtureRequest(async () => ({ data: { visitId: 'other-visit', state: 'PENDING_CUSTOMER_CONFIRMATION', visitResolved: false } })));
+  await choose(); fillProposal(); fireEvent.click(screen.getByRole('button', { name: 'Gửi đề xuất · Chờ Customer' }));
+  expect(await screen.findByText(/Chưa có xác nhận hợp lệ/)).toBeVisible();
+  expect(screen.queryByText(/Đã ghi nhận đề xuất/)).not.toBeInTheDocument();
+});
+test('manual assignment success matches visit, sitter and incremented version', async () => {
+  renderPage(fixtureRequest(async () => ({ data: { id: row.id, sitterId: 'sitter-1', state: 'ASSIGNED', version: 2 } })));
+  await choose();
+  fireEvent.change(screen.getByLabelText('Mã Sitter', { exact: false }), { target: { value: 'sitter-1' } });
+  fireEvent.change(screen.getByLabelText('Lý do phân công', { exact: false }), { target: { value: 'Điều phối' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra và phân công' }));
+  expect(await screen.findByText('Máy chủ đã xác nhận phân công.')).toBeVisible();
 });
 test('Customer response content and timestamp are visible in selected detail', async () => {
   const request = fixtureRequest(); request.mockImplementation(async path => path.endsWith('/dispatch') ? { data: { ...detail,

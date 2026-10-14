@@ -86,6 +86,21 @@ describe('bounded Staff operational board', () => {
     repository.list.mockResolvedValue({ items: [{ ...visit, kind: 'VISIT', areaCode: 'Q2' }], nextCursor: null });
     await expect(service.list({ actor, query })).rejects.toMatchObject({ status: 503 });
   });
+  test('expired session during read cannot receive private rows', async () => {
+    let time = now;
+    const { service, repository } = setup({}, () => time);
+    repository.list.mockImplementation(async () => { time = actor.expiresAt; return { items: [], nextCursor: null }; });
+    await expect(service.list({ actor, query })).rejects.toMatchObject({ status: 401 });
+  });
+  test('repository read receives the current server session for revalidation', async () => {
+    const { service, repository } = setup();
+    await service.list({ actor: { ...actor, sessionId: 'session-current' }, query });
+    expect(repository.list).toHaveBeenCalledWith(expect.objectContaining({ actor: expect.objectContaining({ sessionId: 'session-current' }) }));
+  });
+  test('invalid scope version is provider failure, not a client validation error', async () => {
+    const { service, scopePort } = setup(); scopePort.resolve.mockResolvedValue({ areaCodes: ['Q1'], version: 'bad' });
+    await expect(service.list({ actor, query })).rejects.toMatchObject({ status: 503 });
+  });
 });
 describe('no-sitter remedy audit and Customer confirmation', () => {
   test('pending proposal changes no visit, assigns no sitter, creates one audit/outbox; replay is idempotent', async () => {

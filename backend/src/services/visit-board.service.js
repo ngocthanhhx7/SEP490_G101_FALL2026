@@ -59,7 +59,7 @@ function remedyView(record) {
 
 /** Repository must implement transactional eligibility/day guards and CAS; no in-process mutex is production storage. */
 export function createVisitBoardService({ repository, scopePort, clock = Date.now } = {}) {
-  if (typeof repository?.list !== 'function' || typeof repository?.runGuarded !== 'function'
+  if (typeof repository?.list !== 'function' || typeof repository?.detail !== 'function' || typeof repository?.runGuarded !== 'function'
     || typeof scopePort?.resolve !== 'function') throw new TypeError('Visit board repository and scope ports are required');
   async function safely(work) {
     try { return await work(); } catch (error) { if (error instanceof AppError) throw error; unavailable(); }
@@ -68,7 +68,8 @@ export function createVisitBoardService({ repository, scopePort, clock = Date.no
     staff(actor, clock);
     const grant = await safely(() => scopePort.resolve(actor));
     if (!Array.isArray(grant?.areaCodes) || grant.areaCodes.length > 100
-      || grant.areaCodes.some(area => typeof area !== 'string' || !ID.test(area))) unavailable();
+      || grant.areaCodes.some(area => typeof area !== 'string' || !ID.test(area))
+      || !Number.isSafeInteger(grant.version) || grant.version < 0) unavailable();
     // Admin inherits Staff, but still requires an explicit operational scope from the server.
     if (!grant.areaCodes.length) fail(403, 'FORBIDDEN', 'No operational area is granted');
     return { areaCodes: [...new Set(grant.areaCodes)], scopeVersion: version(grant.version) };
@@ -91,9 +92,10 @@ export function createVisitBoardService({ repository, scopePort, clock = Date.no
     if (query.areaCode && !scope.areaCodes.includes(identifier(query.areaCode))) fail(403, 'FORBIDDEN', 'Area is outside the operational scope');
     const filter = { fromAt, toAt, kind, state: query.state || null, areaCodes: query.areaCode ? [query.areaCode] : scope.areaCodes,
       needsAction: query.needsAction === undefined ? null : [true, 'true'].includes(query.needsAction) };
-    const result = await safely(() => repository.list({ actorId: actor.userId, scope, filter,
+    const result = await safely(() => repository.list({ actor, actorId: actor.userId, scope, filter,
       cursor: query.cursor ?? null, limit, fetchLimit: limit + 1,
       projection: ['id', 'kind', 'state', 'areaCode', 'startAt', 'visitId', 'bookingId', 'version', 'serviceName', 'petCount', 'needsAction', 'remedyState'] }));
+    active(actor, clock);
     if (!Array.isArray(result?.items) || result.items.length > limit
       || (result.nextCursor !== null && (typeof result.nextCursor !== 'string' || !/^[A-Za-z0-9_-]{1,512}$/.test(result.nextCursor)))) unavailable();
     const items = result.items.map(row => {
@@ -114,6 +116,7 @@ export function createVisitBoardService({ repository, scopePort, clock = Date.no
     const scope = await resolveScope(actor);
     identifier(visitId);
     const record = await safely(() => repository.detail({ actor, visitId, scope, remedyLimit: 1 }));
+    active(actor, clock);
     if (!scoped(record, scope)) fail(404, 'RESOURCE_NOT_FOUND', 'Visit not found');
     if (record.remedy && (record.remedy.visitId !== visitId || record.remedy.customerId !== record.customerId)) unavailable();
     return { id: visitId, version: version(record.version), state: record.state,
