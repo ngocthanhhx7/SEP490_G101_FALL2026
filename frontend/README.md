@@ -21,10 +21,11 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | Path | Responsibility |
 | --- | --- |
 | src/app | Entry, root error boundary, providers and P03/P04 shared CSS integration |
-| src/routes | Root registration and RequireSession UX gate; server remains authoritative for access |
+| src/routes | Root registration and RequireSession UX gate; P10 adds an Admin-only account route |
 | src/layouts | Basic landmark layout, skip link and route focus; P48 supplies final role shells/avatar |
 | src/pages/public | Foundation landing, P07 Customer registration and P16 Sitter application form; P34 still owns public route registration |
-| src/pages/admin | P16 application list, review and Sitter status controls; P34 still owns Admin route registration |
+| src/pages/admin | P10 account directory and redacted details, P16 application list/review and Sitter status controls; P34 still owns Admin route registration |
+| src/pages/account | Signed-in user's own session identity; verified profile/contact edits remain a separate flow |
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
@@ -36,7 +37,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 ## Integration ports
 
-`App({ sessionAdapter })` accepts a stable adapter whose `resolve({ signal })` returns `{ status: 'guest' }`, `{ status: 'authenticated', user: { id, displayName, roles } }` or `{ status: 'pending' }`. `createApiSessionAdapter()` maps the same-origin `/api/v1/me` DTO and treats only HTTP 401 as guest. Roles are CUSTOMER, PET_SITTER, STAFF, ADMIN. P34-A supplies the `/me` adapter, but the app still defaults to pending until OTP login and CSRF handoff are wired. P07's screen calls `refresh()` after registration; route registration and cookie-backed app session wiring remain pending. There is no fake login or localStorage token. Use `useSession().invalidate` for 401/logout; stale resolves cannot restore an invalidated session.
+`App({ sessionAdapter })` accepts a stable adapter whose `resolve({ signal })` returns `{ status: 'guest' }`, `{ status: 'authenticated', user: { id, displayName, roles } }` or `{ status: 'pending' }`. `createApiSessionAdapter()` maps the same-origin `/api/v1/me` DTO and treats only HTTP 401 as guest. Roles are CUSTOMER, PET_SITTER, STAFF, ADMIN. P34-A supplies the `/me` adapter, but the app still defaults to pending until OTP login and CSRF handoff are wired. P07's screen calls `refresh()` after registration; REGISTER handler injection and route/session wiring remain pending. There is no fake login or localStorage token. Use `useSession().invalidate` for 401 and `useSession().logout` for CSRF-protected logout; the injected adapter supplies its in-memory CSRF token through `getCsrfToken()`. Stale resolves cannot restore an invalidated session.
 
 `createApiClient({ fetchImpl, getCsrfToken, onUnauthorized, timeoutMs })` calls only `/api/v1` paths at the current origin, with same-origin cookies, no-store and redirect rejection. It validates the v1 success envelope, keeps error code/status/fieldErrors/decisionIds, invalidates on 401 including non-JSON failures, supports 204, distinguishes abort/timeout/network errors and labels 202 pending. Unsafe methods require an in-memory CSRF token from the real server adapter; X-CSRF-Token header name needs backend agreement. Commands pass a stable `idempotencyKey` and optionally `expectedVersion`. No automatic mutation retries: a lost acknowledgement requires reconciliation through the module's operation contract, not a new operation key. Cross-site auth requires a P01 ADR amendment first.
 
@@ -44,7 +45,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 P16's Guest form accepts PDF/JPG/PNG files up to 5 MB each in the browser, but its default upload adapter is unavailable and the form stays disabled until private-media integration is supplied. These checks are usability feedback; the server-side upload provider must validate the actual bytes. Admin status mutations require a real in-memory CSRF token. Sitter suspension is a separate operational status; P21 must enforce it before offer creation. P34 owns route registration.
 
-Routes `/`, `/sign-in` and unknown routes stay public. `/account` is a protected placeholder. RequireSession supports role configuration with Admin inheriting the Staff UX gate. Backend must enforce actual permissions, ownership, session validity and private field projection for every direct API call.
+Routes `/`, `/sign-in` and unknown routes stay public. `/account` is protected and shows only the signed-in user's session projection. RequireSession supports role configuration with Admin inheriting the Staff UX gate. `/admin/users` additionally requires ADMIN and reads account data from `/api/v1/users`; the backend remains authoritative for permissions and private field projection.
 
 ## Validation and limits
 

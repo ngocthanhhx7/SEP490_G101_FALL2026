@@ -31,8 +31,12 @@ test('default adapter shows pending instead of fabricating session', async () =>
 });
 
 test('authenticated session opens account; unknown routes remain public', async () => {
-  const view = renderApp('/account', adapter({ status: 'authenticated', user: { role: 'CUSTOMER' } }));
+  const view = renderApp('/account', adapter({ status: 'authenticated', user: {
+    id: '507f1f77bcf86cd799439001', displayName: 'Nguyễn Admin', roles: ['ADMIN']
+  } }));
   expect(await screen.findByRole('heading', { name: 'Tài khoản' })).toBeVisible();
+  expect(screen.getAllByText('Nguyễn Admin')).toHaveLength(2);
+  expect(screen.getByRole('link', { name: 'Quản lý tài khoản người dùng' })).toHaveAttribute('href', '/admin/users');
   view.unmount();
   renderApp('/missing', { resolve: () => new Promise(() => {}) });
   expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();

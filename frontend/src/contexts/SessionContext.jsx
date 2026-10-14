@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { pendingSessionAdapter } from '../services/session-adapter.js';
 
 const SessionContext = createContext(null);
@@ -8,6 +8,8 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
   const [session, setSession] = useState({ status: 'loading' });
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
+  const adapterRef = useRef(adapter);
+  adapterRef.current = adapter;
   useEffect(() => {
     const current = ++generation.current;
     const controller = new AbortController();
@@ -28,12 +30,25 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
       });
     return () => controller.abort();
   }, [adapter, revision]);
-  const invalidate = () => {
+  const invalidate = useCallback(() => {
     ++generation.current;
     setSession({ status: 'guest' });
-  };
-  return <SessionContext.Provider value={{ ...session, invalidate,
-    refresh: () => setRevision((value) => value + 1) }}>{children}</SessionContext.Provider>;
+  }, []);
+  const refresh = useCallback(() => setRevision((value) => value + 1), []);
+  const getCsrfToken = useCallback(() => adapterRef.current.getCsrfToken?.() ?? null, []);
+  const logout = useCallback(async () => {
+    const logoutAction = adapterRef.current.logout;
+    if (typeof logoutAction !== 'function') {
+      const error = new Error('Logout is not available in this session adapter');
+      error.code = 'LOGOUT_NOT_AVAILABLE';
+      throw error;
+    }
+    await logoutAction();
+    invalidate();
+  }, [invalidate]);
+  const value = useMemo(() => ({ ...session, invalidate, refresh, getCsrfToken, logout }),
+    [session, invalidate, refresh, getCsrfToken, logout]);
+  return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
 export function useSession() {
