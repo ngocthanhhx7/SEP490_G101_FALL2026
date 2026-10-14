@@ -24,7 +24,8 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
 | src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
 | src/controllers/ | HTTP orchestration mỏng |
-| src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 Customer registration, P16 application/review and Sitter status, P17 catalog/price/settings; P11 SMTP and P12 eSMS/PHONE dispatch |
+| src/services/providers/payos/ | payOS provider boundary and isolated webhook receipt processing; signature verification and atomic receipt/state/outbox writes use injected ports; route wiring remains separate |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration, P16 application/review and Sitter status, P17 catalog/price/settings; P11 SMTP, P12 eSMS and PHONE dispatch |
 | src/models/ | P06 User/identity records; P16 Applicant, Sitter status, private documents and audit/quota; P17 immutable service/policy, price and setting versions/audit |
 | src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
@@ -33,7 +34,7 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | tests/integration/ | Isolated Mongo tests for runtime, auth/registration and P16 application lifecycle; providers use explicit test adapters |
 | tests/fixtures/ | Placeholder; code tests chỉ synthetic |
 
-route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. `AUTH_ENABLED=false`, `EMAIL_ENABLED=false` và `SMS_ENABLED=false` là mặc định. Khi OTP bật mà thiếu cấu hình provider, contact delivery vẫn fail-closed. Nodemailer chỉ tạo transport sau khi email được bật; không gửi email/SMS trong lúc khởi tạo app. Chưa có outbox bền vững/business locks/financial calculations, không fake payment/saved state.
+route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. P10 mounts `/api/v1/users` only when authentication is enabled; list/detail/decision routes require Admin and writes require CSRF. Search, role/state filters, signed cursor pagination and masked contact projections run on the server. Lock/unlock increments `authEpoch`, revokes sessions and appends an audit record in the same transaction. `AUTH_ENABLED=false`, `EMAIL_ENABLED=false` and `SMS_ENABLED=false` are defaults. When OTP is enabled without a configured provider, contact delivery remains fail-closed. Nodemailer only creates a transport after email is enabled; app startup does not send email/SMS. There is no durable outbox/business lock/financial calculation, and payment/saved state is not faked.
 
 Seed chỉ NODE_ENV=development, ALLOW_DEV_ADMIN_SEED=true và database *_dev rồi npm run seed:admin. Mặc định false; không seed Atlas thật chỉ để kiểm tra kết nối. Fixture không active/Contact/password/OTP/session; không đóng AUTH-BOOTSTRAP Admin thật. [Runbook](../doc/deployment/p02-backend-runbook.md), [handoff](../doc/deployment/p02-handoff.md) và [P01 API](../doc/api/p01-api-permission-contract-v1.md) ghi gates và checks.
 
