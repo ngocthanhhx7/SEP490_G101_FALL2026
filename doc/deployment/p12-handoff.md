@@ -15,12 +15,20 @@ Chọn eSMS làm provider nội địa ưu tiên chi phí; đơn giá chưa ch�
 - `doc/deployment/p12-sms-runbook.md`: chọn dịch vụ, đăng ký, báo giá, cấu hình, trạng thái và nguồn.
 - Runtime/manifest/lockfile/routes chưa đổi; P34 cần compose adapter với P11 theo `channel` trước listen. P06 cần tích hợp private command, resend quota và unknown outcome.
 
-Trạng thái: **IMPLEMENTED** cho adapter độc lập; **INTEGRATION_PENDING** cho P06/P34 wiring và provider thật. Chưa tạo tài khoản, chưa nhận báo giá/credentials, chưa đăng ký Brandname/template, chưa sandbox/send thật. Không có Figma work.
+Trạng thái: **VERIFIED** cho adapter độc lập và checks dưới đây; **INTEGRATION_PENDING** cho P06/P34 wiring và provider thật; **PR_OPEN** (#12), chưa có approval hoặc merge. Chưa tạo tài khoản, chưa nhận báo giá/credentials, chưa đăng ký Brandname/template, chưa sandbox/send thật. Không có Figma work.
 
 ## Checks
 
-Lệnh/kết quả ghi sau khi chạy trong worktree P12. Provider tests không kết nối eSMS; không xem fake response là SMS delivery.
+Checks thực tế trong worktree P12 trên Node 24.21.0/npm 11.19.0:
+
+- `npm ci --ignore-scripts`: PASS; 469 packages audited, 0 vulnerabilities. npm in ra cảnh báo deprecated `glob@10.5.0` từ dependency nền.
+- `npm run lint`: PASS.
+- `npm run test:unit`: PASS; 92 tests / 6 suites.
+- `npm test`: PASS; 99 tests / 7 suites / 2 projects, gồm integration Mongo cô lập. Jest in ra cảnh báo Node experimental VM Modules.
+- Documentation: `git diff --cached --check` và trailing-whitespace scan PASS; eSMS signup/API/error pages và Twilio pricing page trả HTTP 200 khi kiểm tra.
+- Build: N/A; backend chạy JavaScript trực tiếp và chưa có build script.
+- SMS/eSMS sandbox/production: chưa chạy; các test P12 dùng fake `fetch` và không chứng minh gửi/giao SMS.
 
 ## Git/review
 
-Contributor/author được giao: Nguyễn Ngọc Thành. Reviewer được giao: Phạm Thành Chung, approval phải độc lập và kiểm tra trên head hiện tại. Merger: Nguyễn Ngọc Thành sau approval/checks. Trước commit/push/PR cần xác minh GitHub session owner bằng script repository; không giả author/committer/approval.
+Contributor/author/committer: Nguyễn Ngọc Thành. Push/PR account đã kiểm tra: `ngocthanhhx7`; reviewer được giao: Phạm Thành Chung (`Chunggrizzy11`), được yêu cầu trên PR #12; approval chưa có. Merger: Nguyễn Ngọc Thành sau approval/checks. Commit `7a3caeb660efca901f38d5b5969a999c3df4b52c` trên `feature/wbs-066-sms-otp-integration`, base `develop` tại `28bf288`; PR #12 OPEN. Không giả author/committer/approval.
