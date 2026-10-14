@@ -12,7 +12,7 @@
 
 ## State
 
-**INTEGRATION_PENDING.** This work adds a public-facing page and a backend service seam. No route is registered and no live OTP or database integration is claimed. The source worktree for P16 currently contains uncommitted files; it was read for contract alignment and left unchanged.
+**INTEGRATION_PENDING.** This work adds a public-facing page and a backend service seam. No route is registered and no live OTP or database integration is claimed. P34-A's shared auth/provider/root wiring is merged, but its P46 route and guest-flow composition are not present. P16 now has an open application-form PR (#36) with submission/admin code, but it still has no public tracking endpoint or `INTERVIEW` state; its worktree was read for contract alignment and left unchanged.
 
 ## Git and review state
 
@@ -31,7 +31,7 @@
 
 ## Contract required to integrate
 
-1. **P16 / P01:** issue a high-entropy opaque application code in the submission receipt; store a keyed digest rather than a plaintext code; define lookup and retention; expose a status-only repository projection. The current P16 worktree has no application code or tracking endpoint. Its current state enum is `PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`; `INTERVIEW` is not yet supported.
+1. **P16 / P01:** issue a high-entropy opaque application code in the submission receipt; store a keyed digest rather than a plaintext code; define lookup and retention; expose a status-only repository projection. P16's open PR #36 contains submission/admin application code but no public tracking endpoint. Its current state enum is `PENDING`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`; `INTERVIEW` is not yet supported.
 2. **P06:** add an `APPLICATION_STATUS` OTP purpose bound to the resolved application, with one-time challenge consumption and server-side per-application resend, hourly-send and failed-attempt limits. Unknown codes and valid codes must have indistinguishable responses. Do not reuse contact-only throttling as the application scope.
 3. **P34:** register public same-origin POST routes with no application code or personal data in the URL; inject the status repository and scoped OTP port; define the unauthenticated CSRF/origin policy for this guest flow. Keep application documents Admin-only and do not create a sitter session from status verification.
 4. **P00 decision:** `APPLICANT-ACCESS` / EXT-25 still needs a recorded decision on the access proof and rate-limit policy. The current P46 code fails closed until an adapter meeting that contract is supplied.
@@ -57,5 +57,5 @@ The injected service ports are `statusOtp.beginForApplication({ applicationCode,
 - P00/P01 records the EXT-25 access decision and application-code contract.
 - P16 adds code issuance, interview state if approved, and the status-only repository adapter.
 - P06 implements the application-bound challenge purpose and rate limits.
-- P34 registers and composes the public routes and guest API adapter.
+- P34 registers and composes the public routes and guest API adapter. The shared auth/provider/root wiring from PR #15 is merged, but it did not include the P46 tracking route.
 - Re-run negative, ownership, replay, race, cooldown and deadline checks against the integrated runtime before marking this flow `VERIFIED`.
