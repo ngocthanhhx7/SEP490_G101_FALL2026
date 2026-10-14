@@ -26,7 +26,7 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | src/controllers/ | HTTP orchestration mỏng |
 | src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration; P11 SMTP, P12 eSMS và dispatcher PHONE → SMS |
 | src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
-| src/constants/, src/jobs/ | Domain constants và job ports; payment reminder sweep là worker độc lập, chưa đăng ký lịch chạy hoặc chuyển trạng thái Overdue |
+| src/constants/, src/jobs/ | Domain constants và job ports; payment reminder sweep là worker độc lập, chỉ tính notifier result `status: ACCEPTED` là đã nhắc, chưa đăng ký lịch chạy hoặc chuyển trạng thái Overdue |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
 | scripts/migrations/ | Placeholder; chưa rollout migration/index production |
 | tests/unit/ | Controlled DB/session doubles, config/errors/ports/roles/limiter/registry |

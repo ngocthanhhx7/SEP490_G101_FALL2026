@@ -57,6 +57,9 @@ function resolveClock(clock) {
  * conditions again before notifying. It never changes payment or bill state.
  *
  * The notifier must durably deduplicate by idempotencyKey across process restarts.
+ * A resolved notifier result counts as a reminder only when its status is `ACCEPTED`.
+ * Resolved `FAILED`, `UNCERTAIN`, missing, or unknown statuses are counted as failed so
+ * they do not suppress a later retry; rejected notifier promises are handled the same way.
  * Scheduling, reminder cadence, local-deadline conversion, and OVERDUE transitions are
  * deliberately owned by a later integration once their policies are approved.
  */
@@ -92,8 +95,9 @@ export function createPaymentReminderOverdueJob({ repository, notifier, clock = 
       };
 
       try {
-        await notifier.sendPaymentDueReminder(command);
-        reminded += 1;
+        const result = await notifier.sendPaymentDueReminder(command);
+        if (result?.status === 'ACCEPTED') reminded += 1;
+        else failed += 1;
       } catch {
         // Do not stop other due payments or expose notifier/provider details in the result.
         failed += 1;

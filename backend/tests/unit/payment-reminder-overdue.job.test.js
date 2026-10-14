@@ -11,7 +11,7 @@ const duePayment = (overrides = {}) => ({
   ...overrides
 });
 
-function createJob({ candidates = [duePayment()], notifier = jest.fn(async () => {}),
+function createJob({ candidates = [duePayment()], notifier = jest.fn(async () => ({ status: 'ACCEPTED' })),
   repository = {}, clock = () => new Date(AS_OF) } = {}) {
   const findDueUnpaidPayments = jest.fn(async () => candidates);
   const job = createPaymentReminderOverdueJob({
@@ -58,7 +58,7 @@ describe('payment reminder hourly sweep', () => {
 
   test('coalesces overlapping hourly invocations in one process', async () => {
     let finish;
-    const notifier = jest.fn(() => new Promise(resolve => { finish = resolve; }));
+    const notifier = jest.fn(() => new Promise(resolve => { finish = () => resolve({ status: 'ACCEPTED' }); }));
     const { job, findDueUnpaidPayments } = createJob({ notifier });
     const first = job.runOnce();
     const second = job.runOnce();
@@ -77,9 +77,9 @@ describe('payment reminder hourly sweep', () => {
   test('reuses the same key across separate runs for notifier-side durable deduplication', async () => {
     const deliveredKeys = new Set();
     const delivery = jest.fn(async command => {
-      if (deliveredKeys.has(command.idempotencyKey)) return { duplicate: true };
+      if (deliveredKeys.has(command.idempotencyKey)) return { status: 'ACCEPTED', duplicate: true };
       deliveredKeys.add(command.idempotencyKey);
-      return { delivered: true };
+      return { status: 'ACCEPTED', delivered: true };
     });
     const { job } = createJob({ notifier: delivery });
 
@@ -94,7 +94,7 @@ describe('payment reminder hourly sweep', () => {
   test('continues the sweep after an individual notification failure', async () => {
     const notifier = jest.fn()
       .mockRejectedValueOnce(new Error('synthetic delivery failure'))
-      .mockResolvedValueOnce({ delivered: true });
+      .mockResolvedValueOnce({ status: 'ACCEPTED' });
     const { job } = createJob({ candidates: [
       duePayment(),
       duePayment({ paymentId: 'synthetic-payment-002' })
@@ -102,6 +102,16 @@ describe('payment reminder hourly sweep', () => {
 
     await expect(job.runOnce()).resolves.toEqual({ queried: 2, reminded: 1, skipped: 0, failed: 1 });
     expect(notifier).toHaveBeenCalledTimes(2);
+  });
+
+  test('does not count a resolved FAILED notification as reminded', async () => {
+    const notifier = jest.fn(async () => ({
+      status: 'FAILED', code: 'PROVIDER_UNAVAILABLE', retryable: true, uncertain: false
+    }));
+    const { job } = createJob({ notifier });
+
+    await expect(job.runOnce()).resolves.toEqual({ queried: 1, reminded: 0, skipped: 0, failed: 1 });
+    expect(notifier).toHaveBeenCalledTimes(1);
   });
 
   test('does not expose an overdue state mutation port', () => {
