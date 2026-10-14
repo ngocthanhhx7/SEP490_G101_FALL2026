@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { customerRegistrationApi, normalizeDisplayName, normalizeRegistrationContact } from '../../services/customer-registration-api.js';
+import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 import './customer-registration.css';
 
 const OTP_LIFETIME_SECONDS = 300;
@@ -273,7 +274,8 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
           <input ref={agreementRef} id="registration-agreement" type="checkbox" checked={agreement}
             aria-invalid={Boolean(errors.agreement)} aria-describedby={errors.agreement ? 'registration-agreement-error' : undefined}
             onChange={event => { setAgreement(event.target.checked); clearNotice(); }} />
-          <label htmlFor="registration-agreement">Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của Paw World Care.</label>
+          <label htmlFor="registration-agreement">Tôi đồng ý với các chính sách áp dụng của Paw World Care.</label>
+          <PolicyContextLinks context="registration" />
           {errors.agreement && <span id="registration-agreement-error" className="registration-field-error">{errors.agreement}</span>}
         </div>
 

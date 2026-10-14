@@ -26,6 +26,8 @@ test('renders accessible customer registration fields and OTP-only language', ()
   expect(screen.getByRole('radio', { name: 'Số điện thoại' })).not.toBeChecked();
   expect(screen.getByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' })).toHaveAttribute('autocomplete', 'one-time-code');
   expect(screen.queryByLabelText(/mật khẩu/i)).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms/v1');
+  expect(screen.getByRole('link', { name: 'Chính sách quyền riêng tư' })).toHaveAttribute('href', '/policies/privacy/v1');
 });
 
 test('validates name, contact, OTP and consent before sending or registering', () => {
