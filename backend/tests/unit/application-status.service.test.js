@@ -96,6 +96,19 @@ describe('application status service', () => {
       .rejects.toMatchObject({ status: 503, code: 'APPLICATION_STATUS_UNAVAILABLE' });
   });
 
+  test('fails closed when required status dates are null or missing', async () => {
+    for (const record of [
+      { submittedAt: null },
+      { submittedAt: undefined },
+      { rejectedAt: null },
+      { rejectedAt: undefined }
+    ]) {
+      const { service } = createService({ record });
+      await expect(service.verifyAndReadStatus({ applicationCode: APPLICATION_CODE, challengeId: CHALLENGE_ID, code: '012345' }))
+        .rejects.toMatchObject({ status: 503, code: 'APPLICATION_STATUS_UNAVAILABLE' });
+    }
+  });
+
   test('requires the scoped OTP and repository ports at composition time', () => {
     expect(() => createApplicationStatusService({ applications: {}, statusOtp: {} })).toThrow(TypeError);
   });

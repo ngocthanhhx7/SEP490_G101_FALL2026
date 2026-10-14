@@ -37,6 +37,9 @@ function hasOnlyKeys(value, keys) {
 }
 
 function parseDate(value) {
+  if (value === null || value === undefined
+    || (typeof value !== 'string' && typeof value !== 'number' && !(value instanceof Date))
+    || (typeof value === 'string' && value.trim() === '')) return null;
   const date = value instanceof Date ? value : new Date(value);
   return Number.isFinite(date.getTime()) ? date : null;
 }
