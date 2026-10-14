@@ -16,10 +16,10 @@ Tham chiếu: [P51 financial contract](../requirements/p51-financial-contract-v1
 
 ## Checks đã chạy
 
-- WBS-043: Jest billing `17/17`; ESLint scoped; `git diff --check` đạt.
+- WBS-043: Backend billing Jest `20 suites / 223 tests`; ESLint; `git diff --check` đạt.
 - WBS-044: Jest payOS provider `9/9`; ESLint scoped; `node --check` cho source và test; `git diff --check` đạt. Worktree chưa có `node_modules`, nên Jest dùng runner và dependencies sẵn có từ worktree WBS-043.
 - WBS-045: Jest webhook `25/25`, bao gồm năm lần phát lại callback và timestamp không có timezone; `npm run lint`; `git diff --check` đạt.
-- WBS-064: Jest reminder `7/7`; ESLint scoped; `git diff --check` đạt.
+- WBS-064: Jest reminder `8/8`; ESLint scoped; `git diff --check` đạt.
 - WBS-065: Jest trang unpaid bookings `11/11`; `npm run lint` frontend; `npm run build` đạt; `git diff --check` đạt. UI tests dùng adapter giả, không xác minh API/auth thật.
 - Chưa chạy payOS sandbox hoặc luồng end-to-end tích hợp; chưa có credentials và route/schema/repository triển khai để xác minh.
 
@@ -39,6 +39,6 @@ P01 sở hữu schema, DTO, quyền và API contract. P34 sở hữu route regis
 
 ## Git và bàn giao
 
-Năm worktree ở trên đang có thay đổi cục bộ chưa commit; chưa stage, commit, push, mở PR, approve hay merge. Không có commit SHA hoặc GitHub account action để báo cáo. Mỗi contributor cần xác minh GitHub session riêng trước khi xuất bản thay đổi; reviewer/approval và merge phải theo đúng phân công repository. Checkout gốc `D:\WW\SEP490_G101_FALL2026` có thay đổi P10 chưa commit và được giữ nguyên.
+Năm nhánh đã có PR mở vào `develop` và đang chờ review độc lập theo phân công; approval phải gắn với đúng SHA sau lần push gần nhất và Leader thực hiện merge cuối cùng. Các nhánh đã được đồng bộ với `origin/develop` hiện tại; checkout gốc `D:\WW\SEP490_G101_FALL2026` có thay đổi P10 chưa commit và được giữ nguyên.
 
 Trước tích hợp, P01/P34 cần map các port sang schema/repository/route thật; repository webhook phải dedupe event, kiểm tra state/version/deadline, và ghi `PaymentVerified` hoặc `PaymentReconciliationRequired` vào outbox trong cùng transaction. P01 cần xác nhận timezone của timestamp payOS trước khi chuẩn hoá timestamp gốc đang được giữ. Bill postpay cần kiểm tra lại eligibility/hold và version nguyên tử khi phát hành. Cần quyết định P51 trước khi bật thu tiền, lập due date hoặc thực thi `OVERDUE`; notifier reminder cần dedupe bền qua lần khởi động và xử lý an toàn kết quả gửi không chắc chắn. Sau đó mới chạy negative/permission/race checks xuyên API và xác minh provider sandbox thật.
