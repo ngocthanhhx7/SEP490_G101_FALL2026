@@ -4,6 +4,8 @@
 
 Branch: feature/wbs-n11-role-layouts-and-pinned-avatar-menu, based on the fetched develop head 28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f. Commits 066799f688021c7690200849c080f5d567f2d556 and 5b1d383602efeede27816521be883d18d3216a0b contain the delivered changes. The branch is pushed and PR #37 is open against develop: https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/37. Requested reviewer: Đoàn Tiến Đạt (doantd11). Status: PR_OPEN; review and leader merge are pending.
 
+Git identity evidence: commit author and committer are Phạm Thành Chung <chungthanhpham2112@gmail.com>; push account and PR creator are Chunggrizzy11. Reviewer account is doantd11; merger account is ngocthanhhx7.
+
 ## Delivered
 
 - Shared Customer, Pet Sitter, Staff, and Admin dashboard layouts with responsive header, sidebar, skip link, route focus, and explicit loading/pending/error/forbidden/empty states.
