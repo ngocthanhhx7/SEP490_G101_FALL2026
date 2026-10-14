@@ -2,7 +2,7 @@
 
 14/10/2026, Asia/Saigon. WBS-N11: Role layouts and pinned avatar menu. Assigned contributor/feature owner: Phạm Thành Chung. Assigned reviewer: Đoàn Tiến Đạt. Final merger: Nguyễn Ngọc Thành. These assignments do not record a review, approval, or merge.
 
-Branch: feature/wbs-n11-role-layouts-and-pinned-avatar-menu, based on the fetched develop head 28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f. Delivered commits are 066799f688021c7690200849c080f5d567f2d556, 5b1d383602efeede27816521be883d18d3216a0b, 391fe7cb1f037d11e831cf1582dd12f03c69542e, baa2e1f4dd60f6ba06107a6ab94dd83d0858e265, and 35828f853ed38f05965373a4facdda127f1ef424. The branch is pushed and PR #37 is open against develop: https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/37. Requested reviewer: Đoàn Tiến Đạt (doantd11). Status: PR_OPEN; review and leader merge are pending.
+Branch: feature/wbs-n11-role-layouts-and-pinned-avatar-menu, based on the fetched develop head 28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f. Delivered commits are 066799f688021c7690200849c080f5d567f2d556, 5b1d383602efeede27816521be883d18d3216a0b, 391fe7cb1f037d11e831cf1582dd12f03c69542e, baa2e1f4dd60f6ba06107a6ab94dd83d0858e265, 35828f853ed38f05965373a4facdda127f1ef424, and 8ec59170148b15af7e4a1cf6a857cec282e4e86f. The branch is pushed and PR #37 is open against develop: https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/37. Requested reviewer: Đoàn Tiến Đạt (doantd11). Status: PR_OPEN; review and leader merge are pending.
 
 Git identity evidence: commit author and committer are Phạm Thành Chung <chungthanhpham2112@gmail.com>; push account and PR creator are Chunggrizzy11. Reviewer account is doantd11; merger account is ngocthanhhx7.
 
