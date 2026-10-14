@@ -44,4 +44,28 @@ describe('API session adapter', () => {
     await adapter.logout();
     expect(request).toHaveBeenCalledWith('/sessions/current', { method: 'DELETE' });
   });
+
+  test('requests a login OTP and establishes a session', async () => {
+    const request = jest.fn()
+      .mockResolvedValueOnce({ data: { challengeId: 'challenge-1', resendAfterSeconds: 60 }, status: 202 })
+      .mockResolvedValueOnce({ data: {
+        authenticated: true, csrfToken: 'csrf-1', user: {
+          id: '507f1f77bcf86cd799439011', displayName: 'Synthetic Customer', roles: ['CUSTOMER']
+        }
+      }, status: 200 });
+    const adapter = createApiSessionAdapter({ request });
+    await expect(adapter.requestLoginOtp({ channel: 'EMAIL', contact: 'person@example.test' }))
+      .resolves.toMatchObject({ challengeId: 'challenge-1' });
+    await expect(adapter.login({ challengeId: 'challenge-1', channel: 'EMAIL', contact: 'person@example.test', code: '123456' }))
+      .resolves.toEqual({ status: 'authenticated', user: {
+        id: '507f1f77bcf86cd799439011', displayName: 'Synthetic Customer', roles: ['CUSTOMER']
+      } });
+    expect(request).toHaveBeenNthCalledWith(1, '/otp-challenges', {
+      method: 'POST', body: { channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' }, csrfBootstrap: true
+    });
+    expect(request).toHaveBeenNthCalledWith(2, '/sessions', {
+      method: 'POST', body: { challengeId: 'challenge-1', channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '123456' }, csrfBootstrap: true
+    });
+    expect(adapter.getCsrfToken()).toBe('csrf-1');
+  });
 });
