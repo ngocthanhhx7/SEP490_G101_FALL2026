@@ -35,4 +35,4 @@ Backend uses MongoDB 8.0.34 in an isolated in-memory replica set for integration
 - The frontend app currently uses its pending session adapter. P34 must connect `/me` and the registration response to the app's in-memory session/CSRF flow. The registration screen itself does not persist session or CSRF tokens.
 - Before production, confirm same-site HTTPS and Secure-cookie behavior, provider acceptance/delivery, session resolution, and route accessibility through the composed runtime.
 
-**State:** implemented and checks passed in isolation; application route/runtime and provider integration remain `INTEGRATION_PENDING`. No live provider send, deployment, PR approval or merge is claimed here.
+**State:** P07 implementation and checks passed; application route/runtime and live provider integration remain `INTEGRATION_PENDING`. Review and merge state is tracked on PR #16 and should be checked there. No live provider send or deployment is claimed.
