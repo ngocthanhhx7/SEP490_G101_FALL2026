@@ -2,7 +2,8 @@
 
 | Trường | Giá trị |
 | --- | --- |
-| Trạng thái | `INTEGRATION_PENDING` |
+| Trạng thái | `PR_OPEN`; P34 integration pending |
+| PR | [#19](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/19), open → `develop` |
 | Branch/worktree | `feature/wbs-021-system-settings` / `D:\WW\SEP490_G101_FALL2026-p17-wbs021` |
 | Base | `origin/develop` tại `28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f` |
 | Owner/author được giao | Nguyễn Ngọc Thành |
@@ -40,6 +41,6 @@ P34 cần đăng ký module và chuyển `catalogSettings.isEnabledAt` cho catal
 
 ## Git và bàn giao
 
-Thay đổi đang là working tree chưa commit. Chưa xác minh GitHub account theo contributor, chưa commit/push/mở PR; reviewer, approval và merge chưa diễn ra. Không có author/committer/push account thực tế để báo cáo.
+Commit `83986130e310b4b651ae5b57fff6dd188182dec9` dùng author/committer Nguyễn Ngọc Thành; push và PR creator là `ngocthanhhx7`. Reviewer Phạm Thành Chung đã được yêu cầu; approval đang chờ. Chưa merge.
 
 **Bước tiếp theo:** P34 composition và kiểm tra visibility xuyên suốt catalog/booking; đối chiếu UI với Figma khi frame sẵn sàng.
