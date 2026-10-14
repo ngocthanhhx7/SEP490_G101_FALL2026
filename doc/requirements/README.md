@@ -12,3 +12,6 @@ P00 ngày 14/10/2026 do Nguyễn Ngọc Thành phụ trách theo chỉ định n
 Các bản v1.0 là draft cục bộ để review; DOCX/XLSX gốc trên Drive chưa cập nhật. SRS hiện có change log cuối 09/10, đọc ngày 14/10; yêu cầu người dùng 14/10 là delta riêng. Không gộp các mã UC workbook 08/10 và SRS 09/10 khi chưa qua crosswalk.
 
 Các tệp `doc/implementation-prompts/` có sẵn trước P00 vẫn là công việc chưa commit của người dùng; P00 không ghi đè hoặc stage các tệp này. Bộ P00 chứa bảng kiểm kê và bản bổ khuyết riêng, có thể review độc lập. Việc triển khai module và đồng bộ nguồn chính thức đi theo gói được giao tiếp theo.
+
+P50-A — Dog/cat intake requirements and field dictionary:
+- [Từ điển trường hồ sơ chó/mèo P50-A v1.0](p50-dog-cat-pet-profile-field-dictionary-v1.md) — draft for P01/P15; no schema or implementation claim.
