@@ -72,7 +72,7 @@ export function createBillingService({ bookings, paymentIntents, postpayEligibil
     ['bookings', bookings, ['findOwnedPaymentContext', 'findOwnedVisitBillingContext']],
     ['paymentIntents', paymentIntents, ['replayExistingIntent', 'createOrReplayPending']],
     ['postpayEligibility', postpayEligibility, ['resolve']],
-    ['bills', bills, ['issueIfAbsent']],
+    ['bills', bills, ['replayExistingBill', 'issueIfAbsent']],
   ]) {
     if (!port || methods.some(method => typeof port[method] !== 'function')) {
       throw new TypeError(`Billing service requires the ${name} port`);
@@ -159,6 +159,23 @@ export function createBillingService({ bookings, paymentIntents, postpayEligibil
         visitId,
       });
       if (!context) fail(404, 'RESOURCE_NOT_FOUND', 'Booking was not found');
+
+      // A timeout can happen after the bill transaction commits. Replay the
+      // stored result before checking mutable completion, version, eligibility,
+      // or due-date state. The repository must scope this lookup to owner,
+      // booking, visit, operation, and key, and reject a reused key with a
+      // different request fingerprint.
+      const existingBill = await bills.replayExistingBill({
+        actorId: args.actorId,
+        bookingId: args.bookingId,
+        visitId,
+        idempotencyKey: args.idempotencyKey,
+        expectedVersion: args.expectedVersion,
+      });
+      if (existingBill) {
+        return Object.freeze({ bill: existingBill, paymentMode: PAYMENT_MODES.POSTPAY });
+      }
+
       if (context.version !== args.expectedVersion) {
         fail(409, 'VERSION_CONFLICT', 'Booking changed; reload before issuing a bill');
       }

@@ -3,8 +3,11 @@ import { createBillingService, paymentModeForOriginalVisitCount } from '../../sr
 
 const date = value => new Date(value);
 
-function setup({ bookingContext, visitContext, eligibility, existingIntent = null } = {}) {
-  const calls = { findOwnedPaymentContext: [], findOwnedVisitBillingContext: [], replayIntent: [], createIntent: [], issueBill: [] };
+function setup({ bookingContext, visitContext, eligibility, existingIntent = null, existingBill = null } = {}) {
+  const calls = {
+    findOwnedPaymentContext: [], findOwnedVisitBillingContext: [], replayIntent: [], createIntent: [],
+    replayBill: [], issueBill: [],
+  };
   const ports = {
     bookings: {
       findOwnedPaymentContext: async input => { calls.findOwnedPaymentContext.push(input); return bookingContext; },
@@ -18,6 +21,7 @@ function setup({ bookingContext, visitContext, eligibility, existingIntent = nul
       resolve: async input => ({ ...eligibility, input }),
     },
     bills: {
+      replayExistingBill: async input => { calls.replayBill.push(input); return existingBill; },
       issueIfAbsent: async input => { calls.issueBill.push(input); return { id: 'bill-1', state: 'ISSUED', ...input }; },
     },
     clock: () => date('2026-10-14T03:00:00.000Z'),
@@ -133,6 +137,25 @@ test('one-visit postpay bill is issued only from completed, hold-free server sna
   expect(result.bill).toMatchObject({ state: 'ISSUED', amountVnd: 300000, currency: 'VND' });
   expect(calls.issueBill[0]).toMatchObject({ dueAt: contexts.eligibility.dueAt, holdRefs: [] });
   expect(calls.issueBill[0]).not.toHaveProperty('paymentState');
+});
+
+test('same-key postpay retry returns the stored bill before current version, state, or hold gates', async () => {
+  const existingBill = { id: 'bill-1', state: 'ISSUED', amountVnd: 300000 };
+  const contexts = postpayContexts({
+    visit: { bookingState: 'CLOSED', visitState: 'STAFF_CLOSED', version: 6 },
+    eligibility: { state: 'PENDING', holdRefs: ['case-1'] },
+  });
+  const { service, calls } = setup({ ...contexts, existingBill });
+
+  await expect(service.issuePostpayBill({
+    actorId: 'customer-1', bookingId: 'booking-1', visitId: 'visit-1',
+    expectedVersion: 5, idempotencyKey: 'bill-command-1',
+  })).resolves.toMatchObject({ bill: existingBill, paymentMode: 'POSTPAY' });
+  expect(calls.replayBill[0]).toEqual({
+    actorId: 'customer-1', bookingId: 'booking-1', visitId: 'visit-1',
+    idempotencyKey: 'bill-command-1', expectedVersion: 5,
+  });
+  expect(calls.issueBill).toHaveLength(0);
 });
 
 test('open holds keep the bill unissued', async () => {
