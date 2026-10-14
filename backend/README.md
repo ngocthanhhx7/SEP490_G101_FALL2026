@@ -1,6 +1,6 @@
 # Backend — Paw World Care
 
-Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; UI OTP, đăng ký đầy đủ, booking/payment/care/settlement và provider credentials thật vẫn chưa hoàn tất.
+Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và handler, nhưng REGISTER handler injection và route/session frontend wiring còn pending. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
 
 ## Chạy và kiểm tra
 
@@ -12,7 +12,7 @@ npm run test:unit
 npm run test:integration
 ```
 
-GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Core chỉ health; routes chưa triển khai404. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration lần đầu tải binary Mongo riêng, không đụng DB hiện có của user.
+GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Auth routes chỉ mount khi được bật tường minh; REGISTER hiện fails closed nếu runtime chưa inject P07 handler. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration dùng MongoDB replica set riêng, không đụng DB hiện có của user.
 
 ## Trách nhiệm
 
@@ -24,7 +24,7 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
 | src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
 | src/controllers/ | HTTP orchestration mỏng |
-| src/services/ | Health/readiness, unit-of-work, synthetic seed, OTP/session/contact crypto; P11 SMTP, P12 eSMS và dispatcher PHONE → SMS |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration; P11 SMTP, P12 eSMS và dispatcher PHONE → SMS |
 | src/models/ | Minimum User schema cho locked fixture; P06 bổ sung auth theo P01 |
 | src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
