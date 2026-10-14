@@ -118,9 +118,15 @@ describe('real isolated MongoDB 8.0.34 replica-set smoke', () => {
       });
 
       await request(authRuntime.server).get('/api/v1/me').set('Cookie', cookie).expect(200)
-        .expect(({ body }) => expect(body.data.user).toEqual({
-          id: user._id.toString(), displayName: 'Synthetic P34 Customer', roles: ['CUSTOMER']
-        }));
+        .expect(({ body }) => {
+          expect(body.data.user).toEqual({
+            id: user._id.toString(), displayName: 'Synthetic P34 Customer', roles: ['CUSTOMER']
+          });
+          expect(body.data.contacts).toEqual([expect.objectContaining({
+            channel: 'EMAIL', value: 'p********@example.test', state: 'VERIFIED'
+          })]);
+          expect(JSON.stringify(body)).not.toContain(contact);
+        });
       await request(authRuntime.server).delete('/api/v1/sessions/current')
         .set({ Cookie: cookie, Host: '127.0.0.1', Origin: 'http://127.0.0.1', 'X-CSRF-Token': 'invalid' })
         .expect(403);
