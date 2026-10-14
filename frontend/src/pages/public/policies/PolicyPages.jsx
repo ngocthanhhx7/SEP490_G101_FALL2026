@@ -14,11 +14,11 @@ function PolicyCard({ policy }) {
   return <li className="policy-card">
     <div>
       <p className="policy-card__version">Phiên bản {policy.version}</p>
-      <h2><Link to={policyHref(policy)}>{policy.title}</Link></h2>
+      <h2><Link to={policyHref(policy, true)}>{policy.title}</Link></h2>
       <p>{policy.summary}</p>
       <p className="policy-card__purpose"><strong>Mục đích:</strong> {policy.purpose}</p>
     </div>
-    <Link className="policy-card__action" to={policyHref(policy)} aria-label={`Đọc ${policy.title}`}>
+    <Link className="policy-card__action" to={policyHref(policy, true)} aria-label={`Đọc ${policy.title}`}>
       Đọc chính sách <span aria-hidden="true">→</span>
     </Link>
   </li>;

@@ -15,7 +15,7 @@ test('guest can browse and search all public draft policies', () => {
   expect(screen.getByRole('heading', { name: 'Chính sách & hướng dẫn' })).toBeVisible();
   expect(screen.getByText(/Bản dự thảo — chưa có hiệu lực/)).toBeVisible();
   expect(screen.getAllByRole('listitem')).toHaveLength(publicPolicies.length);
-  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms');
+  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms/v1');
 
   fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm chính sách' }), { target: { value: '30%' } });
   expect(screen.getByRole('link', { name: 'Hủy lịch, đổi lịch và hoàn tiền' })).toBeVisible();
