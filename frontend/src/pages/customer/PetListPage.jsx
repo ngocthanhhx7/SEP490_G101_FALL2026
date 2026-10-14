@@ -34,7 +34,9 @@ function isUnknownOutcome(error) {
   if (['CSRF_NOT_READY', 'IDEMPOTENCY_KEY_UNAVAILABLE', 'INVALID_RESOURCE_ID',
     'EXPECTED_VERSION_REQUIRED', 'IDEMPOTENCY_KEY_REQUIRED'].includes(error?.code)) return false;
   if (['NETWORK_ERROR', 'TIMEOUT'].includes(error?.code)) return true;
-  return Number.isInteger(error?.status) && error.status >= 200 && error.status < 300;
+  const status = error?.status;
+  return Number.isInteger(status)
+    && ((status >= 200 && status < 300) || status === 408 || status === 425 || status === 429 || status >= 500);
 }
 
 function validateDraft(draft) {

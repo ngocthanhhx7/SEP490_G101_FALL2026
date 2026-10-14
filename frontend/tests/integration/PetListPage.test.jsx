@@ -93,6 +93,30 @@ test('keeps a 202 create pending and retries the same command key and payload', 
   expect(await screen.findByRole('status', { name: 'Đã tạo hồ sơ' })).toBeVisible();
 });
 
+test('keeps the same create attempt after an ambiguous HTTP 500 response', async () => {
+  const api = {
+    listPets: jest.fn().mockResolvedValue(listResult([])),
+    createPet: jest.fn()
+      .mockRejectedValueOnce(new ApiError('HTTP_ERROR', 500))
+      .mockResolvedValueOnce({ data: activePet, status: 201, pending: false }),
+  };
+  renderPage(api);
+  fireEvent.click(await screen.findByRole('button', { name: 'Thêm thú cưng đầu tiên' }));
+  fireEvent.change(screen.getByRole('textbox', { name: /Tên thú cưng/ }), { target: { value: 'Milo' } });
+  fireEvent.change(screen.getByRole('combobox', { name: /Loài/ }), { target: { value: 'DOG' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
+
+  expect(await screen.findByRole('status', { name: 'Đang chờ máy chủ xác nhận' })).toBeVisible();
+  expect(api.createPet).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra bằng cùng yêu cầu' }));
+  await waitFor(() => expect(api.createPet).toHaveBeenCalledTimes(2));
+  expect(api.createPet.mock.calls[1][0]).toEqual(api.createPet.mock.calls[0][0]);
+  expect(api.createPet.mock.calls[0][0]).toEqual({
+    name: 'Milo', species: 'DOG', idempotencyKey: 'synthetic-operation-id',
+  });
+  expect(await screen.findByRole('status', { name: 'Đã tạo hồ sơ' })).toBeVisible();
+});
+
 test('asks for confirmation and uses the soft-archive route only after confirmation', async () => {
   const api = {
     listPets: jest.fn()
