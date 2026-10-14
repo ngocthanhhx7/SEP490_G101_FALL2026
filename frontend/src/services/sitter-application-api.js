@@ -80,6 +80,11 @@ export function createSitterApplicationAdminApi({ request = createApiClient({ fe
         method: 'POST', body: { expectedVersion }, idempotencyKey: keyFactory(), signal
       });
     },
+    startInterview({ applicationId, expectedVersion, signal }) {
+      return request(`/applications/${encodeURIComponent(applicationId)}/interview`, {
+        method: 'POST', body: { expectedVersion }, idempotencyKey: keyFactory(), signal
+      });
+    },
     decide({ applicationId, action, reason, interviewNote, expectedVersion, signal }) {
       return request(`/applications/${encodeURIComponent(applicationId)}/decisions`, {
         method: 'POST', body: { action, reason, interviewNote, expectedVersion }, idempotencyKey: keyFactory(), signal

@@ -8,6 +8,7 @@ import { ServiceListPage } from '../pages/public/ServiceListPage.jsx';
 import { SignInPage } from '../pages/public/SignInPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
 import { AccountPage } from '../pages/account/AccountPage.jsx';
+import { AccountSettingsPage } from '../pages/account/AccountSettingsPage.jsx';
 import { RequireSession } from './RequireSession.jsx';
 import { publicPolicyFallbackRoutes } from './PublicPolicyRoutes.jsx';
 import { CustomerRegistrationPage } from '../pages/public/CustomerRegistrationPage.jsx';
@@ -21,6 +22,8 @@ import { CustomerAddressesPage } from '../pages/customer/CustomerAddressesPage.j
 import { SitterAvailabilityPage } from '../pages/sitter/SitterAvailabilityPage.jsx';
 import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
+import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
+import { applicationStatusApi } from '../services/application-status-api.js';
 
 const navigationByRole = {
   ADMIN: [
@@ -32,6 +35,9 @@ const navigationByRole = {
   PET_SITTER: [['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability']],
   STAFF: [['Tài khoản', '/account']],
 };
+Object.values(navigationByRole).forEach((items) => {
+  items.splice(1, 0, ['Cài đặt', '/account/settings']);
+});
 function Workspace({ role }) {
   return <RoleDashboardLayout role={role} navigationItems={(navigationByRole[role] || [])
     .map(([label, to]) => ({ label, to, end: true }))} />;
@@ -56,7 +62,10 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
       </Route>
     </Route>
     <Route element={<RequireSession />}>
-      <Route element={<AccountWorkspace />}><Route path="account" element={<AccountPage />} /></Route>
+      <Route element={<AccountWorkspace />}>
+        <Route path="account" element={<AccountPage />} />
+        <Route path="account/settings" element={<AccountSettingsPage />} />
+      </Route>
     </Route>
     <Route element={<RequireSession roles={['CUSTOMER']} />}>
       <Route element={<Workspace role="CUSTOMER" />}>
@@ -78,6 +87,7 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
     <Route element={<FoundationLayout />}>
       <Route path="register" element={<CustomerRegistrationPage />} />
       <Route path="sitter/apply" element={<SitterApplicationPage />} />
+      <Route path="sitter/application-status" element={<ApplicationStatusPage api={applicationStatusApi} />} />
       {publicPolicyRouteElements}
       <Route path="*" element={<section><h1>Không tìm thấy trang</h1>
         <p>Hãy chọn một liên kết trong thanh điều hướng.</p></section>} />
