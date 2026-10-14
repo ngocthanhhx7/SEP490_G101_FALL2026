@@ -80,9 +80,9 @@ function replayResult(record, requestedPayloadHash) {
 function safeConflictCount(conflicts) {
   if (!conflicts || !Array.isArray(conflicts.items) || conflicts.items.length > MAX_CONFLICTS + 1
     || typeof conflicts.hasMore !== 'boolean') {
-    throw new AppError(503, 'SERVICE_UNAVAILABLE', 'Visit conflict information is unavailable');
+    throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Visit conflict information is unavailable');
   }
-  return Math.min(conflicts.items.length, MAX_CONFLICTS) + (conflicts.hasMore ? 1 : 0);
+  return { count: Math.min(conflicts.items.length, MAX_CONFLICTS + 1), hasMore: conflicts.hasMore };
 }
 
 function validateRepository(repository) {
@@ -148,7 +148,7 @@ export function createDayOffRequestService({ repository, clock = () => new Date(
           throw new AppError(409, 'INVALID_STATE', 'An active day-off request already overlaps these dates');
         }
 
-        const conflictCount = safeConflictCount(await transaction.findConfirmedVisitConflicts({
+        const conflicts = safeConflictCount(await transaction.findConfirmedVisitConflicts({
           sitterId, startDate: dates.startDate, endDate: dates.endDate, limit: MAX_CONFLICTS + 1
         }));
         const result = {
@@ -158,10 +158,10 @@ export function createDayOffRequestService({ repository, clock = () => new Date(
             endDate: dates.endDate,
             availabilityVersion: availability.version
           },
-          conflicts: { count: conflictCount },
+          conflicts,
           availabilityChanged: false,
           requiresStaffReview: true,
-          hasConfirmedVisitConflicts: conflictCount > 0
+          hasConfirmedVisitConflicts: conflicts.count > 0
         };
 
         const created = await transaction.createPendingDayOffRequest({
@@ -173,11 +173,11 @@ export function createDayOffRequestService({ repository, clock = () => new Date(
             endDate: dates.endDate,
             state: 'PENDING'
           },
-          confirmedVisitConflictCount: conflictCount,
+          confirmedVisitConflictCount: conflicts.count,
         });
 
         if (!created || typeof created.requestId !== 'string' || !RESOURCE_ID.test(created.requestId)) {
-          throw new AppError(503, 'SERVICE_UNAVAILABLE', 'The request could not be confirmed');
+          throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'The request could not be confirmed');
         }
         const confirmedResult = {
           ...result,

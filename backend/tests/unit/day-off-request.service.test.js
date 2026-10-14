@@ -109,22 +109,45 @@ describe('day-off request service', () => {
     const repository = new DayOffRepositoryDouble({ visitConflicts: { items: [{ id: 'private-visit-ref' }, { id: 'other-ref' }], hasMore: false } });
     const { service } = createService(repository);
     const result = await request(service);
-    expect(result.conflicts).toEqual({ count: 2 });
+    expect(result.conflicts).toEqual({ count: 2, hasMore: false });
     expect(result.requiresStaffReview).toBe(true);
     expect(result.hasConfirmedVisitConflicts).toBe(true);
     expect(JSON.stringify(result)).not.toMatch(/customer|address|accessNotes/i);
     expect(repository.availability.dayOffDates).toEqual([]);
   });
 
-  test('bounds confirmed-visit conflict reads and reports a saturated count', async () => {
+  test('reports the exact count when the bounded read returns exactly 101 conflicts', async () => {
+    const repository = new DayOffRepositoryDouble({
+      visitConflicts: { items: Array.from({ length: 101 }, (_, index) => ({ id: `visit-${index}` })), hasMore: false },
+    });
+    const { service } = createService(repository);
+    const result = await request(service);
+    expect(result.conflicts).toEqual({ count: 101, hasMore: false });
+    expect(repository.lastConflictQuery.limit).toBe(101);
+  });
+
+  test('bounds confirmed-visit conflict reads and marks a lower-bound count', async () => {
     const repository = new DayOffRepositoryDouble({
       visitConflicts: { items: Array.from({ length: 101 }, (_, index) => ({ id: `visit-${index}`, customerAddress: 'private' })), hasMore: true },
     });
     const { service } = createService(repository);
     const result = await request(service);
-    expect(result.conflicts).toEqual({ count: 101 });
+    expect(result.conflicts).toEqual({ count: 101, hasMore: true });
     expect(JSON.stringify(result)).not.toMatch(/visit-|customerAddress|private/);
     expect(repository.lastConflictQuery.limit).toBe(101);
+  });
+
+  test('uses the P01 provider-unavailable boundary code for incomplete conflict data', async () => {
+    const repository = new DayOffRepositoryDouble({ visitConflicts: { items: [], hasMore: 'unknown' } });
+    const { service } = createService(repository);
+    await expect(request(service)).rejects.toMatchObject({ status: 503, code: 'PROVIDER_UNAVAILABLE' });
+  });
+
+  test('uses the P01 provider-unavailable boundary code when persistence cannot confirm a request', async () => {
+    const repository = new DayOffRepositoryDouble();
+    repository.transaction.createPendingDayOffRequest = async () => null;
+    const { service } = createService(repository);
+    await expect(request(service)).rejects.toMatchObject({ status: 503, code: 'PROVIDER_UNAVAILABLE' });
   });
 
   test.each([

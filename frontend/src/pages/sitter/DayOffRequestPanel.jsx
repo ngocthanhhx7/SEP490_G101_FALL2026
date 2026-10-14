@@ -191,7 +191,7 @@ export function DayOffRequestPanel({ api, now = new Date(), idempotencyKeyFactor
           <p>Yêu cầu đang chờ nhân viên duyệt. Lịch hiện có được giữ nguyên cho đến khi có quyết định.</p>
         </Notice>
         {submission.result.conflicts?.count > 0 && <Notice state="warning" title="Có lịch đã xác nhận trùng ngày">
-          <p>{submission.result.conflicts.count} lịch đã xác nhận cần nhân viên xử lý. Thông tin khách hàng không hiển thị ở đây.</p>
+          <p>{submission.result.conflicts.count}{submission.result.conflicts.hasMore ? '+' : ''} lịch đã xác nhận cần nhân viên xử lý. Thông tin khách hàng không hiển thị ở đây.</p>
         </Notice>}
       </div>
       : submission.status === 'error'

@@ -110,6 +110,19 @@ test('shows only the number of confirmed visit conflicts, without exposing custo
   expect(screen.queryByText('Private home address')).not.toBeInTheDocument();
 });
 
+test('marks a bounded conflict count as a lower bound when more visits exist', async () => {
+  renderPanel({
+    submitDayOffRequest: jest.fn().mockResolvedValue(successResult({
+      conflicts: { count: 101, hasMore: true }
+    }))
+  });
+  await screen.findByText('Chưa có yêu cầu ngày nghỉ');
+  fillValidDates();
+  fireEvent.submit(document.querySelector('form'));
+
+  expect(await screen.findByText('101+ lịch đã xác nhận cần nhân viên xử lý. Thông tin khách hàng không hiển thị ở đây.')).toBeVisible();
+});
+
 test('retries an unacknowledged command with the same idempotency key', async () => {
   const submitDayOffRequest = jest.fn()
     .mockRejectedValueOnce(Object.assign(new Error('network'), { code: 'NETWORK_ERROR', status: 0 }))
