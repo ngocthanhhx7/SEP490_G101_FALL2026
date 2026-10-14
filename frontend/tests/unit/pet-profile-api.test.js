@@ -105,6 +105,17 @@ test('strips actor, verification and private file metadata nested in field value
   expect(JSON.stringify(request.mock.calls[0][1].body)).not.toMatch(/actor-secret|private-object-key|another-customer|PROFESSIONALLY_VERIFIED/);
 });
 
+test('does not send medication instructions before the medication-supporting service is approved', async () => {
+  const request = jest.fn();
+  const api = createPetProfileApi({ request });
+
+  await expect(api.updatePet(PET_ID, {
+    name: 'Mây', species: 'DOG',
+    careFields: { medication_instructions: { status: 'KNOWN', value: 'Thuốc thử nghiệm' } },
+  }, { expectedVersion: 7 })).rejects.toMatchObject({ code: 'INVALID_PET_FIELDS' });
+  expect(request).not.toHaveBeenCalled();
+});
+
 test('accepts CSRF/session hooks from the future app adapter without storing a browser token', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(response(200, {
     data: petView({ name: 'Mây cập nhật', version: 8 }), meta: { schemaVersion: 1 },
@@ -233,7 +244,7 @@ test.each([
   [{ breed: { status: 'SAFE' } }],
   [{ breed: { status: 'KNOWN' } }],
   [{ breed: { status: 'UNKNOWN', value: 'Có thể có rủi ro' } }],
-  [{ breed: { status: 'KNOWN', value: 'Chó lai', source: 'SYSTEM_VERIFIED' } }],
+  [{ breed: { status: 'KNOWN', value: 'Chó lai', source: 'PROFESSIONALLY_VERIFIED' } }],
   [{ microchip_number: { status: 'NOT_PROVIDED' } }],
 ])('rejects a PetView with an invalid dynamic care field projection %j', async (careFields) => {
   const api = createPetProfileApi({ request: jest.fn().mockResolvedValue({

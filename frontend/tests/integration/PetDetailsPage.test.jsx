@@ -49,6 +49,7 @@ test('renders dog-only information, distinct field states and customer-reported 
   expect(screen.getByText('Customer cung cấp')).toBeInTheDocument();
   expect(screen.getByText(/không phải chẩn đoán hoặc xác nhận chuyên môn/i)).toBeInTheDocument();
   expect(screen.getByText(/không có giá trị vaccine nào là điều kiện/i)).toBeInTheDocument();
+  expect(screen.queryByText('Hướng dẫn thuốc do bạn cung cấp')).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: 'PROVISIONAL · INTEGRATION_PENDING' })).toBeInTheDocument();
   expect(screen.getByText(/quy tắc dự kiến theo P01 là sửa hồ sơ không tự đổi/i)).toBeInTheDocument();
   expect(screen.getByText(/màn hình này chưa thể đọc hoặc xác minh snapshot/i)).toBeInTheDocument();
@@ -127,7 +128,8 @@ test('allows an explicit unknown status and sets old species-only fields to not 
   await screen.findByRole('heading', { name: 'Mây' });
   fireEvent.click(screen.getAllByRole('button', { name: 'Chỉnh sửa hồ sơ' })[0]);
   expect(screen.getByRole('combobox', { name: 'Giống · trạng thái' })).toHaveValue('UNKNOWN');
-  expect(screen.queryByRole('option', { name: 'Không áp dụng' })).not.toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Giống · trạng thái' })
+    .querySelector('option[value="NOT_APPLICABLE"]')).toBeNull();
   fireEvent.change(screen.getByRole('combobox', { name: 'Loài' }), { target: { value: 'CAT' } });
   expect(screen.getByText('Khay cát và cách chăm sóc')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));

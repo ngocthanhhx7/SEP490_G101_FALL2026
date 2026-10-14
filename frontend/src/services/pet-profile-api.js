@@ -33,7 +33,8 @@ const PET_STATES = new Set(['ACTIVE', 'ARCHIVED']);
 const PET_SPECIES = new Set(['DOG', 'CAT']);
 const STATUS_SET = new Set(PET_FIELD_STATUSES);
 const FIELD_KEY_SET = new Set(PET_FIELD_KEYS);
-const FIELD_SOURCE_SET = new Set(['CUSTOMER_REPORTED', 'DOCUMENT_ATTACHED', 'PROFESSIONALLY_VERIFIED']);
+const CUSTOMER_EDITABLE_FIELD_KEY_SET = new Set(PET_FIELD_KEYS.filter(key => key !== 'medication_instructions'));
+const FIELD_SOURCE_SET = new Set(['CUSTOMER_REPORTED', 'DOCUMENT_ATTACHED']);
 
 function requirePetId(id) {
   if (typeof id !== 'string' || !PET_ID_PATTERN.test(id)) {
@@ -68,7 +69,7 @@ function sanitizeFieldValue(key, value) {
     'breed', 'identifying_marks', 'handling_preferences', 'feeding_instructions',
     'water_instructions', 'dog_walk_instructions', 'dog_toileting_cues',
     'cat_litter_instructions', 'cat_carrier_and_approach',
-    'customer_reported_health_notes', 'medication_instructions',
+    'customer_reported_health_notes',
   ]);
   if (textFields.has(key)) {
     if (typeof value !== 'string' || !value.trim()) throw new ApiError('INVALID_PET_FIELD_VALUE', 422);
@@ -121,7 +122,7 @@ function normalizeCareFields(careFields) {
 
   const normalized = {};
   for (const [key, field] of Object.entries(careFields)) {
-    if (!FIELD_KEY_SET.has(key) || !field || typeof field !== 'object' || Array.isArray(field)
+    if (!CUSTOMER_EDITABLE_FIELD_KEY_SET.has(key) || !field || typeof field !== 'object' || Array.isArray(field)
       || !STATUS_SET.has(field.status)) {
       throw new ApiError('INVALID_PET_FIELDS', 400);
     }

@@ -38,7 +38,6 @@ const FIELD_INFO = {
   cat_litter_instructions: { label: 'Khay cát và cách chăm sóc', control: 'notes', placeholder: 'Vị trí khay và hướng dẫn của bạn.' },
   cat_carrier_and_approach: { label: 'Lồng vận chuyển và cách tiếp cận', control: 'notes', placeholder: 'Chỉ ghi điều cần thiết cho dịch vụ có vận chuyển.' },
   customer_reported_health_notes: { label: 'Lưu ý sức khỏe do bạn cung cấp', control: 'notes', placeholder: 'Ghi điều bạn muốn người chăm sóc biết.' },
-  medication_instructions: { label: 'Hướng dẫn thuốc do bạn cung cấp', control: 'notes', placeholder: 'Chỉ ghi theo hướng dẫn bạn có; Paw World Care không đề xuất liều dùng.' },
   vaccination_records: { label: 'Thông tin vaccine do bạn cung cấp', control: 'vaccines', placeholder: 'Mỗi dòng: tên vaccine — ngày tiêm YYYY-MM-DD (nếu biết).' },
   emergency_contact: { label: 'Liên hệ dự phòng', control: 'emergency' },
   veterinary_contact: { label: 'Cơ sở thú y bạn chọn', control: 'veterinary' },
@@ -47,7 +46,7 @@ const FIELD_INFO = {
 const COMMON_GROUPS = [
   { title: 'Thông tin cơ bản', fields: ['breed', 'approximate_age', 'identifying_marks'] },
   { title: 'Chăm sóc hằng ngày', fields: ['feeding_instructions', 'water_instructions', 'handling_preferences'] },
-  { title: 'Sức khỏe tùy chọn', fields: ['weight_kg', 'customer_reported_health_notes', 'medication_instructions', 'vaccination_records'] },
+  { title: 'Sức khỏe tùy chọn', fields: ['weight_kg', 'customer_reported_health_notes', 'vaccination_records'] },
   { title: 'Liên hệ riêng tư', fields: ['emergency_contact', 'veterinary_contact'] },
 ];
 
@@ -118,7 +117,6 @@ function displayValue(fieldKey, value) {
 function sourceLabel(source) {
   if (source === 'CUSTOMER_REPORTED') return 'Customer cung cấp';
   if (source === 'DOCUMENT_ATTACHED') return 'Tài liệu Customer đính kèm · chưa được xác minh';
-  if (source === 'PROFESSIONALLY_VERIFIED') return 'Nhãn nguồn cũ; quy trình xác minh chuyên môn chưa được tích hợp';
   return 'Nguồn chưa được ghi nhận';
 }
 
