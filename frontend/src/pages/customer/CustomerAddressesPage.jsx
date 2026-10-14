@@ -102,9 +102,13 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
       finishCommand(result, dialog?.type?.startsWith('edit') ? 'Đã gửi cập nhật địa chỉ.' : 'Đã gửi địa chỉ mới.');
     } catch (error) {
       if (error?.code === 'ADDRESS_BOOKING_CONFIRMATION_REQUIRED') {
-        setDialog(current => ({ ...current, type: 'edit-impact' }));
+        setDialog(current => ({ ...current, sourceType: current.type === 'edit-impact' ? current.sourceType : current.type,
+          type: 'edit-impact' }));
         setFormError('');
       } else {
+        if (dialog?.type === 'edit-impact') {
+          setDialog(current => ({ ...current, type: current.sourceType ?? 'edit' }));
+        }
         setFormError(requestMessage(error));
         if (error?.status === 401) session.invalidate();
       }
@@ -125,8 +129,12 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
       finishCommand(result, 'Đã ẩn địa chỉ khỏi danh sách sử dụng mới.');
     } catch (error) {
       if (error?.code === 'ADDRESS_BOOKING_CONFIRMATION_REQUIRED') {
-        setDialog(current => ({ ...current, type: 'archive-impact' }));
+        setDialog(current => ({ ...current, sourceType: current.type === 'archive-impact' ? current.sourceType : current.type,
+          type: 'archive-impact' }));
       } else {
+        if (dialog?.type === 'archive-impact') {
+          setDialog(current => ({ ...current, type: current.sourceType ?? 'archive' }));
+        }
         setActionError(requestMessage(error));
         if (error?.status === 401) session.invalidate();
       }
@@ -272,7 +280,10 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
       dismissible={!actionPending}>
       <p>Hãy xác nhận để tiếp tục {dialog?.type === 'archive-impact' ? 'ẩn địa chỉ' : 'sửa địa chỉ'}.</p>
       <div className="customer-address-dialog-actions">
-        <Button variant="secondary" disabled={actionPending} onClick={() => setDialog(null)}>Quay lại</Button>
+        <Button variant="secondary" disabled={actionPending}
+          onClick={() => setDialog(current => ({ ...current, type: current.sourceType ?? (current.type === 'edit-impact' ? 'edit' : 'archive') }))}>
+          Quay lại
+        </Button>
         <Button variant="danger" loading={actionPending} loadingLabel="Đang xử lý…"
           onClick={confirmOpenBookingImpact}>Xác nhận và tiếp tục</Button>
       </div>

@@ -113,7 +113,8 @@ test('asks before changing an address used by an open booking and retries with e
   const impactError = Object.assign(new Error('confirm'), { status: 409, code: 'ADDRESS_BOOKING_CONFIRMATION_REQUIRED' });
   const adapter = {
     list: jest.fn().mockResolvedValueOnce(response([address()])).mockResolvedValueOnce(response([updated])),
-    update: jest.fn().mockRejectedValueOnce(impactError).mockResolvedValueOnce({ data: updated, pending: false })
+    update: jest.fn().mockRejectedValueOnce(impactError).mockRejectedValueOnce(impactError)
+      .mockResolvedValueOnce({ data: updated, pending: false })
   };
   renderPage(adapter);
   fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }));
@@ -122,10 +123,15 @@ test('asks before changing an address used by an open booking and retries with e
   fireEvent.click(formDialog.getByRole('button', { name: 'Lưu địa chỉ' }));
   expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng booking đang mở' })).toBeVisible();
   expect(screen.getByText(/booking hiện có tiếp tục dùng snapshot/i)).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+  const editDialogAfterBack = within(screen.getByRole('dialog', { name: 'Sửa địa chỉ' }));
+  expect(editDialogAfterBack.getByLabelText(/Địa chỉ phục vụ/)).toHaveValue('28 Example Street');
+  fireEvent.click(editDialogAfterBack.getByRole('button', { name: 'Lưu địa chỉ' }));
+  expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng booking đang mở' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận và tiếp tục' }));
-  await waitFor(() => expect(adapter.update).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(adapter.update).toHaveBeenCalledTimes(3));
   expect(adapter.update).toHaveBeenNthCalledWith(1, CUSTOMER_ADDRESS, expect.objectContaining({ expectedVersion: 4 }));
-  expect(adapter.update).toHaveBeenNthCalledWith(2, CUSTOMER_ADDRESS,
+  expect(adapter.update).toHaveBeenNthCalledWith(3, CUSTOMER_ADDRESS,
     expect.objectContaining({ expectedVersion: 4, confirmOpenBookingImpact: true }));
   await waitFor(() => expect(document.querySelector('.customer-address-location')).toHaveTextContent('28 Example Street'));
 });
