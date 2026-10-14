@@ -24,7 +24,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/routes | Root registration and RequireSession UX gate; server remains authoritative for access |
 | src/layouts | Basic landmark layout, skip link and route focus; P48 supplies final role shells/avatar |
 | src/pages/public | Foundation landing and P07 Customer registration screen; P34 still owns public route registration |
-| src/pages/account | WBS-004 self account settings and verified contact enrollment; values are owner-scoped/masked and mutations need OTP |
+| src/pages/account | WBS-004 self account settings and verified contact enrollment; values are owner-scoped/masked and mutations need OTP; P34 owns route registration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client, `/me` session DTO adapter and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |

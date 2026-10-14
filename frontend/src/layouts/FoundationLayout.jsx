@@ -13,7 +13,7 @@ export function FoundationLayout() {
         <img src="/assets/logo/ngang.svg" width="190" alt="Paw World Care" />
       </Link>
       <nav aria-label="Điều hướng chính">
-        <Link to="/">Trang chủ</Link><Link to="/account/settings">Tài khoản</Link>
+        <Link to="/">Trang chủ</Link><Link to="/account">Tài khoản</Link>
       </nav>
     </header>
     <main id="main-content" tabIndex={-1} ref={main}><Outlet /></main>

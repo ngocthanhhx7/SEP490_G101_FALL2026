@@ -38,25 +38,6 @@ test('authenticated session opens account; unknown routes remain public', async 
   expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();
 });
 
-test('account settings route stays behind authentication and renders its own masked-contact page', async () => {
-  renderApp('/account/settings', adapter({ status: 'guest' }));
-  expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
-
-  const originalFetch = window.fetch;
-  window.fetch = jest.fn(async () => ({ ok: true, status: 200,
-    json: async () => ({ data: { contacts: [] }, meta: { schemaVersion: 1 } }) }));
-  try {
-    const view = renderApp('/account/settings', adapter({ status: 'authenticated', user: {
-      id: '507f1f77bcf86cd799439011', displayName: 'Synthetic Customer', roles: ['CUSTOMER']
-    } }));
-    expect(await screen.findByRole('heading', { name: 'Cài đặt tài khoản' })).toBeVisible();
-    expect(screen.getAllByRole('link', { name: 'Tài khoản' }).some(link => link.getAttribute('href') === '/account/settings')).toBe(true);
-    view.unmount();
-  } finally {
-    window.fetch = originalFetch;
-  }
-});
-
 test('failed session can retry and fails closed for unknown roles', async () => {
   const resolve = jest.fn().mockRejectedValueOnce(Error()).mockResolvedValueOnce({ status: 'guest' });
   renderApp('/account', { resolve });
