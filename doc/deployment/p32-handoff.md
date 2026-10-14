@@ -37,3 +37,7 @@ Run the configured backend lint, unit tests and integration tests, plus frontend
 ## Git handoff
 
 Assigned contributor/author and PR creator: Nguyễn Ngọc Thành (`thanh`). Assigned reviewer: Phạm Thành Chung (`chung`). Final merger: Nguyễn Ngọc Thành. The reviewer approval remains a separate, real review of the latest PR head; it is not implied by the assignment. Record the actual author/committer identity, GitHub actor, commit SHA, PR URL, review/check results and merge state when known.
+
+Implementation commit: `812e8a68ebcc1c1ab3e4331b4ebf4b85b96af7c3`, authored and committed by Nguyễn Ngọc Thành (`thanh`), pushed by `ngocthanhhx7`.
+PR: [#38](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/38), head `feature/wbs-046-refund-processing`, base `develop`.
+Reviewer request for `Chunggrizzy11` is recorded on the PR. At handoff the PR is open and blocked pending review; no approval or merge has been recorded, and GitHub reports no check runs. Local checks are listed above and passed.
