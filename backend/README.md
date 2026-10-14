@@ -16,6 +16,8 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 
 ## Trách nhiệm
 
+P22 exports a scoped operational board service and [visit board router](src/routes/visit-board.routes.js) for P34 composition. It uses the P21 eligibility evaluator inside the guarded mutation callback. The repository must implement the real transaction/eligibility/day guards, CAS and atomic audit/outbox; synthetic tests do not supply production storage. No global registry/runtime/manifest is changed. See [P22 handoff](../doc/deployment/p22-visit-board-handoff.md) and [integration proposal](../doc/api/p22-visit-board-integration-proposal.md).
+
 | Đường dẫn | Nội dung |
 | --- | --- |
 | src/server.js, runtime.js, app.js | Startup, lifecycle và app factory; validate/connect trước listen |
