@@ -1,5 +1,5 @@
-# Application services
+# Applicant status
 
-This folder contains backend application-specific services that expose narrowly scoped applicant workflows. `application-status.service.js` accepts an application-bound OTP port and a repository that returns an applicant-safe status projection. It never reads or returns identity documents, contact details, or a sitter session.
+`application-status.service.js` validates the narrow status contract. The runtime module at `../../routes/application-status.routes.js` uses indexed application-code digests and the transactional OTP kernel with `APPLICATION_STATUS` scope. General auth endpoints cannot supply that scope.
 
-P06 must provide the application-bound OTP purpose and server-side limits, P16 must issue and resolve opaque application codes and expose a compatible status projection, and P34 must register the public routes and compose these ports. Until those integrations land, the service is an isolated fail-closed seam rather than a live endpoint.
+Secrets are POST bodies only; responses are no-store. Only state, submitted date, rejection reason and the 30-day server deadline are public after OTP verification. No document, internal interview note, contact, user account or session is returned. Unknown codes receive the same challenge shape without sending a message.

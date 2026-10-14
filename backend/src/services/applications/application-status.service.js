@@ -80,7 +80,7 @@ function publicProjection(record, now) {
  * Application status access is deliberately composed from two narrow ports:
  * the OTP port must bind and consume its challenge to this application, while
  * the repository must return only the applicant-facing status projection.
- * Neither port is implemented here; P06/P16/P34 own those integrations.
+ * The runtime adapters are composed by routes/application-status.routes.js.
  */
 export function createApplicationStatusService({ applications, statusOtp, clock = Date.now } = {}) {
   if (typeof applications?.findApplicantStatusById !== 'function'

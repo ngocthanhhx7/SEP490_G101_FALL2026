@@ -22,10 +22,10 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
-  async function startReview() {
+  async function startReview(interview = false) {
     setBusy(true); setNotice(null);
     try {
-      await api.startReview({ applicationId, expectedVersion: resource.data.version });
+      await (interview === true ? api.startInterview : api.startReview)({ applicationId, expectedVersion: resource.data.version });
       resource.retry();
     } catch (error) {
       setNotice({ state: error?.status === 403 ? 'forbidden' : 'error', message: error?.code === 'CSRF_NOT_READY'
@@ -108,8 +108,9 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
             </a>
           </li>)}</ul> : <p>Chưa có tài liệu.</p>}
         </section>
-        {['PENDING', 'UNDER_REVIEW'].includes(resource.data.state) && <section className="sitter-app-review-form" aria-label="Ghi nhận thẩm định">
+        {['PENDING', 'UNDER_REVIEW', 'INTERVIEW'].includes(resource.data.state) && <section className="sitter-app-review-form" aria-label="Ghi nhận thẩm định">
           {resource.data.state === 'PENDING' && <Button variant="secondary" disabled={busy} onClick={startReview}>Bắt đầu thẩm định</Button>}
+          {resource.data.state === 'UNDER_REVIEW' && <Button variant="secondary" disabled={busy} onClick={() => startReview(true)}>Chuyển sang phỏng vấn</Button>}
           <label className="sitter-app-admin__search" htmlFor="sitter-interview-note">
             <span>Ghi chú phỏng vấn nội bộ</span>
             <textarea id="sitter-interview-note" rows="3" maxLength="2000" value={interviewNote}

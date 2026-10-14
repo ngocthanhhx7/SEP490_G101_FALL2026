@@ -7,11 +7,11 @@ import './sitter-applications.css';
 
 const STATES = [
   ['', 'Tất cả trạng thái'], ['PENDING', 'Chờ xem xét'], ['UNDER_REVIEW', 'Đang thẩm định'],
-  ['APPROVED', 'Đã duyệt'], ['REJECTED', 'Đã từ chối']
+  ['INTERVIEW', 'Phỏng vấn'], ['APPROVED', 'Đã duyệt'], ['REJECTED', 'Đã từ chối']
 ];
 
 function StateLabel({ state }) {
-  const labels = { PENDING: 'Chờ xem xét', UNDER_REVIEW: 'Đang thẩm định', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối' };
+  const labels = { PENDING: 'Chờ xem xét', UNDER_REVIEW: 'Đang thẩm định', INTERVIEW: 'Phỏng vấn', APPROVED: 'Đã duyệt', REJECTED: 'Đã từ chối' };
   return <span className={`sitter-app-state sitter-app-state--${state.toLowerCase()}`}>{labels[state] ?? state}</span>;
 }
 

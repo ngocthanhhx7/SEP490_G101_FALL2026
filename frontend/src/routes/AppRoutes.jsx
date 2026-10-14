@@ -17,6 +17,8 @@ import { CustomerAddressesPage } from '../pages/customer/CustomerAddressesPage.j
 import { SitterAvailabilityPage } from '../pages/sitter/SitterAvailabilityPage.jsx';
 import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
+import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
+import { applicationStatusApi } from '../services/application-status-api.js';
 
 const navigationByRole = {
   ADMIN: [
@@ -69,6 +71,7 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
       <Route path="sign-in" element={<SignInPage />} />
       <Route path="register" element={<CustomerRegistrationPage />} />
       <Route path="sitter/apply" element={<SitterApplicationPage />} />
+      <Route path="sitter/application-status" element={<ApplicationStatusPage api={applicationStatusApi} />} />
       {publicPolicyRouteElements}
       <Route path="*" element={<section><h1>Không tìm thấy trang</h1>
         <p>Hãy chọn một liên kết trong thanh điều hướng.</p></section>} />
