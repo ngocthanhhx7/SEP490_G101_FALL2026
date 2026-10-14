@@ -26,9 +26,9 @@ Run in `backend/` with the locked package set:
 | `npm ci --ignore-scripts` | Passed; 0 reported vulnerabilities |
 | `npm run lint` | Passed |
 | `npm run test:unit` | Passed, 5 suites / 79 tests |
-| `npm run test:integration` | Passed, 2 suites / 18 tests on isolated MongoDB 8.0.34 replica set |
+| `npm run test:integration` | Passed, 2 suites / 19 tests on isolated MongoDB 8.0.34 replica set |
 
-Coverage includes code-digest storage, expiry, resend invalidation, cooldown/hourly limits, five-failure lock and recovery, cross-purpose/session rejection, replay, concurrent first send and concurrent verify, contact replacement, session durations/CSRF/logout/account-lock revocation, generic route DTOs and secret-free logs. The delivery port is controlled in tests; this is not a live email/SMS delivery check.
+Coverage includes code-digest storage, expiry, resend invalidation, cooldown/hourly limits, five-failure lock and recovery, cross-purpose/session rejection, replay, concurrent first send and concurrent verify, contact replacement, revocation between challenge and verification, session durations/CSRF/logout/account-lock revocation and authorization denial, generic route DTOs and secret-free logs. The delivery port is controlled in tests; this is not a live email/SMS delivery check.
 
 ## Integration gates and open decisions
 

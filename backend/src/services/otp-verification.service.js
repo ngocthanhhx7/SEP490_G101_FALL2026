@@ -203,6 +203,12 @@ export function createOtpService({ connection, User, models = identityModels(con
         if (!Types.ObjectId.isValid(actor.userId)) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
         const owner = await userStore.findOne({ _id: actor.userId, state: 'ACTIVE' }).session(mongoSession).lean();
         if (!owner || owner.authEpoch === undefined) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+        const activeSession = await models.AuthSession.findOne({
+          sessionId: actor.sessionId, userId: owner._id, revokedAt: null, expiresAt: { $gt: new Date(now) }
+        }).session(mongoSession).lean();
+        if (!activeSession || activeSession.authEpochAtIssue !== owner.authEpoch) {
+          throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+        }
         const existing = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })
           .select('+lookupKey').session(mongoSession).lean();
         if (existing?.userId?.toString() === actor.userId) {

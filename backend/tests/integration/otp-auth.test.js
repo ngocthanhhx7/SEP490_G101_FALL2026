@@ -123,8 +123,9 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
 
   test('binds challenges to purpose and initiating contact-change session, and prevents replay', async () => {
     const { user } = await createActiveUser();
-    const { otpService } = fixture();
-    const owner = { userId: user._id.toString(), sessionId: 'session-a' };
+    const { otpService, sessionService } = fixture();
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
+    const owner = { userId: user._id.toString(), sessionId: issued.sessionId };
     const challenge = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'CONTACT_CHANGE', actor: owner });
     await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201', actor: owner }))
       .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
@@ -138,13 +139,14 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     await otpService.verify({ ...login, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' });
     await expect(otpService.verify({ ...login, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
       .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
-    expect(await models.AuthSession.countDocuments({})).toBe(1);
+    expect(await models.AuthSession.countDocuments({})).toBe(2);
   });
 
   test('replaces a verified contact only after its new contact is verified', async () => {
     const { user } = await createActiveUser({ channel: 'PHONE', contact: '+84912345678' });
-    const { otpService } = fixture();
-    const actor = { userId: user._id.toString(), sessionId: 'session-owner' };
+    const { otpService, sessionService } = fixture();
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
+    const actor = { userId: user._id.toString(), sessionId: issued.sessionId };
     const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor });
     const oldContact = contactCrypto.lookup('PHONE', '+84912345678');
     expect(await models.Contact.countDocuments({ userId: user._id, channel: 'PHONE', state: 'VERIFIED' })).toBe(1);
@@ -153,6 +155,19 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     expect(contacts.find(contact => contact.state === 'REPLACED').lookupKey).toBe(oldContact.lookupKey);
     const current = contacts.find(contact => contact.state === 'VERIFIED');
     expect(contactCrypto.decrypt(current.canonicalCiphertext)).toBe('+84987654321');
+  });
+
+  test('does not apply a contact change after its initiating session is revoked', async () => {
+    const { user } = await createActiveUser({ channel: 'PHONE', contact: '+84912345678' });
+    const { otpService, sessionService } = fixture();
+    const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
+    const actor = { userId: user._id.toString(), sessionId: issued.sessionId };
+    const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor });
+    await models.AuthSession.updateOne({ sessionId: issued.sessionId }, { $set: { revokedAt: new Date(clockNow) } });
+    await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor }))
+      .rejects.toMatchObject({ status: 401, code: 'UNAUTHENTICATED' });
+    expect(await models.Contact.countDocuments({ userId: user._id, channel: 'PHONE', state: 'VERIFIED' })).toBe(1);
+    expect(await models.AuthSession.countDocuments({})).toBe(1);
   });
 
   test('allows only one session when two requests verify the same challenge concurrently', async () => {
@@ -186,6 +201,12 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const nextLogin = await otpService.verify({ ...next, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' });
     const authorize = jest.fn(async () => true);
     const audit = jest.fn(async () => {});
+    await expect(lockUserAndRevokeSessions({ connection, userModel: User, models,
+      userId: user._id.toString(), expectedVersion: 0,
+      actor: { userId: 'admin-1', state: 'ACTIVE', roles: ['ADMIN'] }, reason: 'Synthetic test lock',
+      authorize: async () => false, audit, clock: () => clockNow }))
+      .rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+    expect(await User.findById(user._id).select('state').lean()).toMatchObject({ state: 'ACTIVE' });
     const locked = await lockUserAndRevokeSessions({ connection, userModel: User, models,
       userId: user._id.toString(), expectedVersion: 0,
       actor: { userId: 'admin-1', state: 'ACTIVE', roles: ['ADMIN'] }, reason: 'Synthetic test lock',

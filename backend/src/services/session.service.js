@@ -153,7 +153,10 @@ export async function lockUserAndRevokeSessions({ connection, userModel, models 
     || typeof authorize !== 'function' || typeof audit !== 'function' || typeof clock !== 'function') {
     throw new AppError(422, 'VALIDATION_FAILED', 'Account lock decision is invalid');
   }
-  await authorize({ actor, action: 'DECIDE', resourceType: 'user', resourceId: userId, context: { reason: reason.trim() } });
+  const decision = await authorize({ actor, action: 'DECIDE', resourceType: 'user', resourceId: userId, context: { reason: reason.trim() } });
+  if (decision !== true && decision?.allowed !== true) {
+    throw new AppError(403, 'FORBIDDEN', 'Action is not permitted');
+  }
   return connection.transaction(async mongoSession => {
     const user = await userModel.findOneAndUpdate({
       _id: new Types.ObjectId(userId), state: 'ACTIVE', version: expectedVersion
