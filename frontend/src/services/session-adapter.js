@@ -2,12 +2,14 @@ import { ApiError, createApiClient } from './api-client.js';
 
 const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
 
-export function createApiSessionAdapter({ request } = {}) {
+export function createApiSessionAdapter({ request, getCsrfToken = () => null } = {}) {
   if (request !== undefined && typeof request !== 'function') throw new TypeError('An API request function is required');
+  if (typeof getCsrfToken !== 'function') throw new TypeError('A CSRF token provider is required');
+  const getRequest = () => request ?? createApiClient({ getCsrfToken });
   return Object.freeze({
     async resolve({ signal } = {}) {
       try {
-        const response = await (request ?? createApiClient())('/me', { signal });
+        const response = await getRequest()('/me', { signal });
         const user = response?.data?.user;
         if (typeof user?.id !== 'string' || !user.id
           || typeof user.displayName !== 'string'
@@ -24,7 +26,9 @@ export function createApiSessionAdapter({ request } = {}) {
         if (error instanceof ApiError && error.status === 401) return { status: 'guest' };
         throw error;
       }
-    }
+    },
+    getCsrfToken,
+    async logout() { await getRequest()('/sessions/current', { method: 'DELETE' }); }
   });
 }
 
