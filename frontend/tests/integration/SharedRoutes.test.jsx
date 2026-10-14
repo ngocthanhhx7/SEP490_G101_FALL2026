@@ -23,6 +23,15 @@ test('P45 fragment replaces fallback inside the actual App router and remains pu
   expect(screen.queryByText('Chính sách chưa được xuất bản')).not.toBeInTheDocument();
 });
 
+test('account uses the merged P48 shell with only registered destinations', async () => {
+  show('/account', { sessionAdapter: { resolve: async () => ({ status: 'authenticated',
+    user: { id: 'synthetic-admin', displayName: 'Synthetic Admin', roles: ['ADMIN'] } }) } });
+  const navigation = await screen.findByRole('navigation', { name: 'Điều hướng quản trị' });
+  expect(navigation).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Dịch vụ', exact: true })).toHaveAttribute('href', '/admin/services');
+  expect(screen.queryByRole('navigation', { name: 'Điều hướng chính' })).not.toBeInTheDocument();
+});
+
 test('default registration cannot accept unpublished policies or send registration', () => {
   show('/register');
   expect(screen.getByRole('checkbox')).toBeDisabled();
