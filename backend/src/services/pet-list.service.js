@@ -9,9 +9,25 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const PET_VIEW_SELECT = '_id name species state version createdAt updatedAt';
 const PET_CREATE_FIELDS = new Set(['name', 'species']);
+const IDEMPOTENCY_KEY_MAX_LENGTH = 256;
 
 function validationError(fieldErrors) {
   return new AppError(422, 'VALIDATION_FAILED', 'Pet request is invalid', { fieldErrors });
+}
+
+function normalizeIdempotencyKey(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > IDEMPOTENCY_KEY_MAX_LENGTH) {
+    throw validationError({ idempotencyKey: 'Idempotency key is invalid' });
+  }
+  return value.trim();
+}
+
+function canonicalFingerprint(value) {
+  return JSON.stringify(value);
+}
+
+function commandUnavailable() {
+  throw new AppError(503, 'IDEMPOTENCY_UNAVAILABLE', 'Command replay is not configured');
 }
 
 function assertActiveCustomer(actor) {
@@ -105,7 +121,7 @@ function runLean(query) {
   return query && typeof query.lean === 'function' ? query.lean() : query;
 }
 
-export function createPetListService({ Pet } = {}) {
+export function createPetListService({ Pet, idempotencyStore } = {}) {
   if (typeof Pet?.find !== 'function' || typeof Pet?.create !== 'function'
     || typeof Pet?.findOne !== 'function' || typeof Pet?.findOneAndUpdate !== 'function') {
     throw new TypeError('A Pet model with find, create, findOne and findOneAndUpdate is required');
@@ -136,7 +152,7 @@ export function createPetListService({ Pet } = {}) {
     });
   }
 
-  async function create({ actor, body } = {}) {
+  async function create({ actor, body, idempotencyKey: suppliedKey } = {}) {
     const ownerId = assertActiveCustomer(actor);
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       throw validationError({ body: 'Pet details are required' });
@@ -153,17 +169,29 @@ export function createPetListService({ Pet } = {}) {
     if (!PET_SPECIES.has(body.species)) {
       throw validationError({ species: 'Species must be DOG or CAT' });
     }
-    const pet = await Pet.create({
-      ownerId,
-      name,
-      species: body.species,
-      state: 'ACTIVE',
-      version: 0,
+    const idempotencyKey = normalizeIdempotencyKey(suppliedKey);
+    const execute = async () => {
+      const pet = await Pet.create({
+        ownerId,
+        name,
+        species: body.species,
+        state: 'ACTIVE',
+        version: 0,
+      });
+      return toCustomerPetView(pet);
+    };
+    if (typeof idempotencyStore?.execute !== 'function') return commandUnavailable();
+    return idempotencyStore.execute({
+      actorId: ownerId,
+      operation: 'PET_CREATE',
+      resourceId: 'collection',
+      key: idempotencyKey,
+      fingerprint: canonicalFingerprint({ name, species: body.species }),
+      handler: execute,
     });
-    return toCustomerPetView(pet);
   }
 
-  async function archive({ actor, petId, expectedVersion } = {}) {
+  async function archive({ actor, petId, expectedVersion, idempotencyKey: suppliedKey } = {}) {
     const ownerId = assertActiveCustomer(actor);
     if (typeof petId !== 'string' || !OBJECT_ID_PATTERN.test(petId)) {
       throw validationError({ petId: 'Pet ID is invalid' });
@@ -172,25 +200,37 @@ export function createPetListService({ Pet } = {}) {
       throw validationError({ expectedVersion: 'Expected version is invalid' });
     }
 
-    let query = Pet.findOneAndUpdate(
-      { _id: petId, ownerId, state: 'ACTIVE', version: expectedVersion },
-      { $set: { state: 'ARCHIVED' }, $inc: { version: 1 } },
-      { returnDocument: 'after', runValidators: true },
-    );
-    if (typeof query.select === 'function') query = query.select(PET_VIEW_SELECT);
-    const archived = await runLean(query);
-    if (archived) return toCustomerPetView(archived);
+    const idempotencyKey = normalizeIdempotencyKey(suppliedKey);
+    const execute = async () => {
+      let query = Pet.findOneAndUpdate(
+        { _id: petId, ownerId, state: 'ACTIVE', version: expectedVersion },
+        { $set: { state: 'ARCHIVED' }, $inc: { version: 1 } },
+        { returnDocument: 'after', runValidators: true },
+      );
+      if (typeof query.select === 'function') query = query.select(PET_VIEW_SELECT);
+      const archived = await runLean(query);
+      if (archived) return toCustomerPetView(archived);
 
-    let currentQuery = Pet.findOne({ _id: petId, ownerId });
-    if (typeof currentQuery.select === 'function') currentQuery = currentQuery.select('_id state version');
-    const current = await runLean(currentQuery);
-    if (!current) {
-      throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Pet not found');
-    }
-    if (current.version !== expectedVersion) {
-      throw new AppError(409, 'VERSION_CONFLICT', 'Pet changed before the archive request');
-    }
-    throw new AppError(409, 'INVALID_STATE', 'Only an active pet can be archived');
+      let currentQuery = Pet.findOne({ _id: petId, ownerId });
+      if (typeof currentQuery.select === 'function') currentQuery = currentQuery.select('_id state version');
+      const current = await runLean(currentQuery);
+      if (!current) {
+        throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Pet not found');
+      }
+      if (current.version !== expectedVersion) {
+        throw new AppError(409, 'VERSION_CONFLICT', 'Pet changed before the archive request');
+      }
+      throw new AppError(409, 'INVALID_STATE', 'Only an active pet can be archived');
+    };
+    if (typeof idempotencyStore?.execute !== 'function') return commandUnavailable();
+    return idempotencyStore.execute({
+      actorId: ownerId,
+      operation: 'PET_ARCHIVE',
+      resourceId: petId,
+      key: idempotencyKey,
+      fingerprint: canonicalFingerprint({ petId, expectedVersion }),
+      handler: execute,
+    });
   }
 
   return Object.freeze({ list, create, archive });

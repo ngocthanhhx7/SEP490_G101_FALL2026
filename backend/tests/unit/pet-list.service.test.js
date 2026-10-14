@@ -1,5 +1,6 @@
 import { describe, expect, test } from '@jest/globals';
 import { createPetListService } from '../../src/services/pet-list.service.js';
+import { AppError } from '../../src/utils/app-error.js';
 
 const CUSTOMER_ID = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const OTHER_CUSTOMER_ID = 'bbbbbbbbbbbbbbbbbbbbbbbb';
@@ -130,6 +131,25 @@ function createInMemoryPetModel(initialPets = []) {
   return { Pet, pets, calls };
 }
 
+function createIdempotencyStore() {
+  const records = new Map();
+  return {
+    async execute({ actorId, operation, resourceId, key, fingerprint, handler }) {
+      const recordKey = JSON.stringify([actorId, operation, resourceId, key]);
+      const existing = records.get(recordKey);
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'Idempotency key was used for a different command');
+        }
+        return existing.result;
+      }
+      const result = await handler();
+      records.set(recordKey, { fingerprint, result });
+      return result;
+    },
+  };
+}
+
 const customer = (overrides = {}) => ({
   userId: CUSTOMER_ID,
   state: 'ACTIVE',
@@ -185,9 +205,9 @@ describe('pet list service', () => {
 
   test('creates from allowlisted fields and derives owner from the actor', async () => {
     const { Pet, calls } = createInMemoryPetModel();
-    const service = createPetListService({ Pet });
+    const service = createPetListService({ Pet, idempotencyStore: createIdempotencyStore() });
 
-    const created = await service.create({ actor: customer(), body: { name: '  Milo  ', species: 'DOG' } });
+    const created = await service.create({ actor: customer(), body: { name: '  Milo  ', species: 'DOG' }, idempotencyKey: 'create-valid' });
     expect(calls.create).toEqual([{
       ownerId: CUSTOMER_ID, name: 'Milo', species: 'DOG', state: 'ACTIVE', version: 0,
     }]);
@@ -207,14 +227,35 @@ describe('pet list service', () => {
       .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
   });
 
+  test('replays a create command with the same key and rejects a different payload', async () => {
+    const { Pet, calls } = createInMemoryPetModel();
+    const service = createPetListService({ Pet, idempotencyStore: createIdempotencyStore() });
+
+    const first = await service.create({ actor: customer(), body: { name: 'Milo', species: 'DOG' }, idempotencyKey: 'create-1' });
+    const replay = await service.create({ actor: customer(), body: { name: 'Milo', species: 'DOG' }, idempotencyKey: 'create-1' });
+    expect(replay).toEqual(first);
+    expect(calls.create).toHaveLength(1);
+    await expect(service.create({ actor: customer(), body: { name: 'Luna', species: 'DOG' }, idempotencyKey: 'create-1' }))
+      .rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_CONFLICT' });
+  });
+
+  test('does not execute a keyed command without a replay store', async () => {
+    const { Pet, calls } = createInMemoryPetModel();
+    const service = createPetListService({ Pet });
+
+    await expect(service.create({ actor: customer(), body: { name: 'Milo', species: 'DOG' }, idempotencyKey: 'create-1' }))
+      .rejects.toMatchObject({ status: 503, code: 'IDEMPOTENCY_UNAVAILABLE' });
+    expect(calls.create).toHaveLength(0);
+  });
+
   test('archives with a version compare-and-set and reports stale versions', async () => {
     const { Pet, calls } = createInMemoryPetModel([
       petRecord({ id: PET_IDS[0], version: 4 }),
       petRecord({ id: PET_IDS[1], ownerId: OTHER_CUSTOMER_ID }),
     ]);
-    const service = createPetListService({ Pet });
+    const service = createPetListService({ Pet, idempotencyStore: createIdempotencyStore() });
 
-    const archived = await service.archive({ actor: customer(), petId: PET_IDS[0], expectedVersion: 4 });
+    const archived = await service.archive({ actor: customer(), petId: PET_IDS[0], expectedVersion: 4, idempotencyKey: 'archive-valid' });
     expect(archived).toMatchObject({ id: PET_IDS[0], state: 'ARCHIVED', version: 5 });
     expect(archived).not.toHaveProperty('ownerId');
     expect(calls.findOneAndUpdate[0]).toMatchObject({
@@ -223,12 +264,22 @@ describe('pet list service', () => {
       options: { returnDocument: 'after', runValidators: true },
     });
 
-    await expect(service.archive({ actor: customer(), petId: PET_IDS[0], expectedVersion: 4 }))
+    await expect(service.archive({ actor: customer(), petId: PET_IDS[0], expectedVersion: 4, idempotencyKey: 'archive-stale' }))
       .rejects.toMatchObject({ status: 409, code: 'VERSION_CONFLICT' });
-    await expect(service.archive({ actor: customer(), petId: PET_IDS[1], expectedVersion: 0 }))
+    await expect(service.archive({ actor: customer(), petId: PET_IDS[1], expectedVersion: 0, idempotencyKey: 'archive-other' }))
       .rejects.toMatchObject({ status: 404, code: 'RESOURCE_NOT_FOUND' });
-    await expect(service.archive({ actor: customer(), petId: PET_IDS[2], expectedVersion: 0 }))
+    await expect(service.archive({ actor: customer(), petId: PET_IDS[2], expectedVersion: 0, idempotencyKey: 'archive-missing' }))
       .rejects.toMatchObject({ status: 404, code: 'RESOURCE_NOT_FOUND' });
+  });
+
+  test('replays an archive command with the same key without applying it twice', async () => {
+    const { Pet, calls } = createInMemoryPetModel([petRecord({ id: PET_IDS[0], version: 4 })]);
+    const service = createPetListService({ Pet, idempotencyStore: createIdempotencyStore() });
+
+    const first = await service.archive({ actor: customer(), petId: PET_IDS[0], expectedVersion: 4, idempotencyKey: 'archive-1' });
+    const replay = await service.archive({ actor: customer(), petId: PET_IDS[0], expectedVersion: 4, idempotencyKey: 'archive-1' });
+    expect(replay).toEqual(first);
+    expect(calls.findOneAndUpdate).toHaveLength(1);
   });
 
   test('validates list pagination and archive request values', async () => {
