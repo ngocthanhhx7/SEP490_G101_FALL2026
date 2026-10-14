@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
 import { identityModels } from '../models/identity.model.js';
 import { userModel as createUserModel } from '../models/user.model.js';
+import { createContactChangeAuditService } from './contact-change-audit.service.js';
 import { canonicalizeContact } from './contact-crypto.service.js';
 
 const CODE_LIFETIME_MS = 5 * 60 * 1000;
@@ -42,6 +43,7 @@ export function createOtpService({ connection, User, models = identityModels(con
   verificationHandlers = {}, logger = () => {} }) {
   const hmacKey = secret(otpSecret);
   const userStore = User ?? createUserModel(connection);
+  const contactAudit = createContactChangeAuditService({ connection });
   if (typeof contactDelivery?.send !== 'function' || typeof sessionService?.issueInTransaction !== 'function'
     || typeof contactCrypto?.lookup !== 'function' || typeof contactCrypto?.encrypt !== 'function'
     || typeof clock !== 'function' || typeof createId !== 'function' || typeof createCode !== 'function'
@@ -58,10 +60,16 @@ export function createOtpService({ connection, User, models = identityModels(con
 
   async function begin({ channel, contact, purpose, actor } = {}) {
     if (!PURPOSES.has(purpose)) throw new AppError(422, 'VALIDATION_FAILED', 'OTP request is invalid');
-    if (purpose === 'CONTACT_CHANGE' && (!actor?.sessionId || !actor?.userId)) {
+    if (purpose === 'CONTACT_CHANGE' && (!actor?.sessionId || !Types.ObjectId.isValid(actor?.userId))) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
     const { canonicalValue, contactLookup } = lookup(channel, contact);
+    if (purpose === 'CONTACT_CHANGE') {
+      const linkedElsewhere = await models.Contact.exists({
+        channel, lookupKey: contactLookup, state: 'VERIFIED', userId: { $ne: new Types.ObjectId(actor.userId) }
+      });
+      if (linkedElsewhere) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be started');
+    }
     const now = clock();
     const challengeId = createId();
     const code = createCode();
@@ -120,6 +128,9 @@ export function createOtpService({ connection, User, models = identityModels(con
       await models.OtpChallenge.updateOne({ challengeId, usedAt: null }, {
         $set: { usedAt: new Date(clock()), invalidationReason: 'DELIVERY_FAILED' }
       });
+      if (purpose === 'CONTACT_CHANGE') {
+        throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Contact verification could not be started');
+      }
     }
     return Object.freeze({ status: 'PENDING', challengeId, expiresInSeconds: 300, resendAfterSeconds: 60 });
   }
@@ -221,23 +232,38 @@ export function createOtpService({ connection, User, models = identityModels(con
         if (existing?.userId?.toString() === actor.userId) {
           return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
         }
-        if (existing) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be completed');
+        if (existing) return { failure: 'CONTACT_UNAVAILABLE' };
+        const previousContacts = await models.Contact.find({ userId: owner._id, channel, state: 'VERIFIED' })
+          .select('_id').session(mongoSession).lean();
         await models.Contact.updateMany({ userId: owner._id, channel, state: 'VERIFIED' }, {
           $set: { state: 'REPLACED' }
         }, { session: mongoSession });
-        await models.Contact.create([{
+        const [createdContact] = await models.Contact.create([{
           userId: owner._id, channel, canonicalCiphertext: contactCrypto.encrypt(canonicalValue),
           lookupKey: contactLookup, state: 'VERIFIED', verifiedAt: new Date(now)
         }], { session: mongoSession });
+        await contactAudit.record({
+          eventId: challengeId,
+          actorId: owner._id.toString(),
+          contactId: createdContact._id.toString(),
+          action: previousContacts.length ? 'CONTACT_REPLACED' : 'CONTACT_LINKED',
+          channel,
+          occurredAt: new Date(now),
+          session: mongoSession
+        });
         return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
       }
       return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
     } catch (error) {
       if (purpose === 'CONTACT_CHANGE' && error?.code === 11000) {
+        await models.OtpChallenge.updateOne({ challengeId, usedAt: null }, { $set: { usedAt: new Date(clock()) } });
         throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be completed');
       }
       throw error;
+    }
+    if (outcome.failure === 'CONTACT_UNAVAILABLE') {
+      throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be completed');
     }
     if (outcome.failure === 'RATE_LIMITED') limitedOtp(outcome.retryAfterMs);
     if (outcome.failure) throw invalidOtp();
