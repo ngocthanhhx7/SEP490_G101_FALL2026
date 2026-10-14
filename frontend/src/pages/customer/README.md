@@ -1,10 +1,8 @@
-# Customer pages
-
 This folder contains Customer-owned profile, service-address, pet, and unpaid-booking screens. Each page uses shared P04 controls and a domain adapter from `src/services`; API ownership and role authorization remain server responsibilities.
 
 `CustomerUnpaidBookingsPage` renders the server-projected unpaid-booking list and starts a payment-intent command for multi-visit prepayment through an injected API adapter. Single-visit postpay bills need a separate P01/P34 command. The page does not infer payment success from query parameters or browser return URLs, and fails closed when server clock metadata is unavailable.
 
-P14 adds `CustomerProfilePage` for the Customer's display name and masked verified contact channels. Route and API/DTO wiring remain owned by P01/P34; until those contracts are integrated, callers must inject adapters and pages show integration-pending states. Synthetic adapter tests do not verify authentication, ownership checks, provider behavior, or route registration.
+P14 registers `CustomerProfilePage` at `/account/profile` behind the Customer role guard. It uses the runtime session/CSRF adapter and `/api/v1/me/profile` for display-name updates and masked verified contacts. The backend derives ownership from the current session; version conflicts require reloading before retrying.
 
 Customer-facing pages that manage a Customer's own Paw World Care data belong here. The pet list is WBS-014; pet details and editing belong to WBS-015.
 

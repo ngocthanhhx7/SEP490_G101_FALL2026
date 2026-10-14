@@ -43,7 +43,7 @@ test('default registration cannot accept unpublished policies or send registrati
 });
 
 test.each(['/admin/services', '/admin/service-prices', '/admin/system-settings', '/admin/sitter-applications',
-  '/admin/sitter-applications/id', '/account/addresses', '/sitter/availability'])('merged page %s is guarded before page API access', async path => {
+  '/admin/sitter-applications/id', '/account/profile', '/account/addresses', '/sitter/availability'])('merged page %s is guarded before page API access', async path => {
   show(path, { sessionAdapter: { resolve: async () => ({ status: 'authenticated', user: { role: 'STAFF' } }) } });
   expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
 });
@@ -91,4 +91,22 @@ test('P46 tracking deep link is reachable without waiting for a session or expos
   expect(screen.getByRole('heading', { name: 'Theo dõi hồ sơ ứng tuyển' })).toBeVisible();
   expect(screen.getByRole('textbox', { name: /Mã hồ sơ/ })).toBeVisible();
   expect(screen.queryByText('Không tìm thấy trang')).not.toBeInTheDocument();
+});
+
+
+test('actual Customer profile route loads its runtime API and appears in role navigation', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({
+    meta: { schemaVersion: 1 }, data: { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Runtime Customer',
+      version: 0, contacts: [], createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z' }
+  }) }));
+  try {
+    show('/account/profile', { sessionAdapter: { resolve: async () => ({ status: 'authenticated',
+      user: { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Runtime Customer', roles: ['CUSTOMER'] } }),
+      getCsrfToken: () => 'synthetic-csrf' } });
+    expect(await screen.findByRole('heading', { name: 'Hồ sơ Customer' })).toBeVisible();
+    expect(await screen.findByDisplayValue('Runtime Customer')).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Hồ sơ', exact: true })).toHaveAttribute('href', '/account/profile');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/me/profile', expect.objectContaining({ credentials: 'same-origin' }));
+  } finally { globalThis.fetch = original; }
 });
