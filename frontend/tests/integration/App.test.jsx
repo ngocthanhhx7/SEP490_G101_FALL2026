@@ -1,5 +1,5 @@
 // Synthetic adapter tests: these do not prove backend authentication or RBAC.
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { App } from '../../src/app/App.jsx';
 import { AppErrorBoundary } from '../../src/app/AppErrorBoundary.jsx';
@@ -35,7 +35,7 @@ test('authenticated session opens account; unknown routes remain public', async 
     id: '507f1f77bcf86cd799439001', displayName: 'Nguyễn Admin', roles: ['ADMIN']
   } }));
   expect(await screen.findByRole('heading', { name: 'Tài khoản' })).toBeVisible();
-  expect(screen.getAllByText('Nguyễn Admin')).toHaveLength(2);
+  expect(within(screen.getByRole('main')).getAllByText('Nguyễn Admin')).toHaveLength(2);
   expect(screen.getByRole('link', { name: 'Quản lý tài khoản người dùng' })).toHaveAttribute('href', '/admin/users');
   view.unmount();
   renderApp('/missing', { resolve: () => new Promise(() => {}) });
