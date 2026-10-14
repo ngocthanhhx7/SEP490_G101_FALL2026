@@ -1,0 +1,114 @@
+.sitter-application {
+  width: min(100%, 64rem);
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 3rem) 1rem;
+  color: var(--pwc-ink);
+}
+
+.sitter-application__card {
+  display: grid;
+  gap: var(--pwc-space-6);
+  padding: clamp(1.25rem, 4vw, 3rem);
+  border: 1px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-panel);
+  background: var(--pwc-surface);
+  box-shadow: 0 1rem 2.5rem rgb(63 42 107 / 10%);
+}
+
+.sitter-application__header { display: grid; justify-items: start; gap: var(--pwc-space-3); }
+.sitter-application__header h1,
+.sitter-application__receipt h1 {
+  margin: 0;
+  font-family: var(--pwc-font-display);
+  font-size: var(--pwc-text-heading);
+  line-height: 1.15;
+}
+.sitter-application__header > p,
+.sitter-application__receipt > p { margin: 0; line-height: var(--pwc-leading); }
+.sitter-application__eyebrow {
+  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.sitter-application__form { display: grid; gap: var(--pwc-space-6); }
+.sitter-application__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--pwc-space-4);
+  align-items: start;
+}
+.sitter-application__contact,
+.sitter-application__files {
+  display: grid;
+  gap: var(--pwc-space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--pwc-space-4);
+  border: 1px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-control);
+}
+.sitter-application__contact legend,
+.sitter-application__files legend { padding-inline: var(--pwc-space-2); font-weight: 800; }
+.sitter-application__contact-options { display: flex; flex-wrap: wrap; gap: var(--pwc-space-4); }
+.sitter-application__contact-options label { display: inline-flex; min-height: var(--pwc-target); align-items: center; gap: var(--pwc-space-2); }
+.sitter-application__contact-options input { width: 1.125rem; height: 1.125rem; accent-color: var(--pwc-ink); }
+.sitter-application__field { display: grid; min-width: 0; gap: var(--pwc-space-2); }
+.sitter-application__field > span { font-weight: 700; }
+.sitter-application__field small { color: var(--pwc-ink-muted); font-weight: 400; }
+.sitter-application__field > input:not([type='file']) {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--pwc-target);
+  padding: var(--pwc-space-2) var(--pwc-space-3);
+  border: 2px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface);
+  color: var(--pwc-ink);
+  font: inherit;
+}
+.sitter-application__field > input[aria-invalid='true'] { border-color: var(--pwc-error); }
+.sitter-application__field textarea {
+  width: 100%;
+  min-width: 0;
+  padding: var(--pwc-space-3);
+  border: 2px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface);
+  color: var(--pwc-ink);
+  font: inherit;
+  line-height: var(--pwc-leading);
+  resize: vertical;
+}
+.sitter-application__field textarea[aria-invalid='true'] { border-color: var(--pwc-error); }
+.sitter-application__files > p { margin: 0; color: var(--pwc-ink-muted); }
+.sitter-application__files input[type='file'] {
+  width: 100%;
+  min-height: var(--pwc-target);
+  padding: var(--pwc-space-2);
+  border: 1px dashed var(--pwc-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-lavender-soft);
+  color: var(--pwc-ink);
+  font: inherit;
+}
+.sitter-application__error { color: var(--pwc-error); font-size: var(--pwc-text-small); font-weight: 700; }
+.sitter-application :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+.sitter-application :disabled { cursor: not-allowed; }
+.sitter-application__receipt { max-width: 44rem; margin-inline: auto; }
+
+@media (max-width: 640px) {
+  .sitter-application { padding: 1rem 0; }
+  .sitter-application__card { padding: 1.25rem 1rem; }
+  .sitter-application__grid { grid-template-columns: 1fr; }
+  .sitter-application__contact { order: 0; }
+}
+
+@media (forced-colors: active) {
+  .sitter-application__field textarea,
+  .sitter-application__files input[type='file'],
+  .sitter-application__contact,
+  .sitter-application__files { border-color: CanvasText; }
+}

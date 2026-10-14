@@ -23,9 +23,10 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/app | Entry, root error boundary, providers and P03/P04 shared CSS integration |
 | src/routes | Root registration and RequireSession UX gate; server remains authoritative for access |
 | src/layouts | Basic landmark layout, skip link and route focus; P48 supplies final role shells/avatar |
-| src/pages/public | Foundation landing and P07 Customer registration screen; P34 still owns public route registration |
+| src/pages/public | Foundation landing, P07 Customer registration and P16 Sitter application form; P34 still owns public route registration |
+| src/pages/admin | P16 application list, review and Sitter status controls; P34 still owns Admin route registration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
-| src/services | Same-origin HTTP client, `/me` session DTO adapter and explicit pending adapter |
+| src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
 | src/components/ui, src/styles | P04 brand tokens/fonts and native shared controls; root adoption through P34 |
 | public/assets, public/fonts | Existing brand resources preserved; logo, Nunito Regular and Crayon Regular used |
@@ -40,6 +41,8 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 `createApiClient({ fetchImpl, getCsrfToken, onUnauthorized, timeoutMs })` calls only `/api/v1` paths at the current origin, with same-origin cookies, no-store and redirect rejection. It validates the v1 success envelope, keeps error code/status/fieldErrors/decisionIds, invalidates on 401 including non-JSON failures, supports 204, distinguishes abort/timeout/network errors and labels 202 pending. Unsafe methods require an in-memory CSRF token from the real server adapter; X-CSRF-Token header name needs backend agreement. Commands pass a stable `idempotencyKey` and optionally `expectedVersion`. No automatic mutation retries: a lost acknowledgement requires reconciliation through the module's operation contract, not a new operation key. Cross-site auth requires a P01 ADR amendment first.
 
 `useApiResource(load)` requires a stable loader and exposes loading/empty/success/pending/forbidden/error plus retry. It aborts obsolete requests, clears previous private data on retry and ignores late responses. Use for reads; domain pages own rendering and command reconciliation. No financial decision, deadline or resource authorization is inferred in frontend.
+
+P16's Guest form accepts PDF/JPG/PNG files up to 5 MB each in the browser, but its default upload adapter is unavailable and the form stays disabled until private-media integration is supplied. These checks are usability feedback; the server-side upload provider must validate the actual bytes. Admin status mutations require a real in-memory CSRF token. Sitter suspension is a separate operational status; P21 must enforce it before offer creation. P34 owns route registration.
 
 Routes `/`, `/sign-in` and unknown routes stay public. `/account` is a protected placeholder. RequireSession supports role configuration with Admin inheriting the Staff UX gate. Backend must enforce actual permissions, ownership, session validity and private field projection for every direct API call.
 
