@@ -1,0 +1,19 @@
+.visit-board { max-width: var(--pwc-content-width); margin: auto; padding: var(--pwc-space-6); color: var(--pwc-ink); font-family: var(--pwc-font-body); }
+.visit-board h1 { font-family: var(--pwc-font-display); font-weight: 400; font-size: var(--pwc-text-heading); }
+.visit-board h2 { font-size: var(--pwc-text-large); }
+.visit-board-eyebrow { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.visit-board-skip { position: absolute; left: -10000px; }
+.visit-board-skip:focus { position: static; }
+.visit-board-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--pwc-space-4); margin-block: var(--pwc-space-6); align-items: end; }
+.visit-board-check { min-height: var(--pwc-target); display: flex; align-items: center; gap: var(--pwc-space-2); }
+.visit-board-check input { width: 1.25rem; height: 1.25rem; }
+.visit-board-columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--pwc-space-6); }
+.visit-board-list { list-style: none; padding: 0; display: grid; gap: var(--pwc-space-4); }
+.visit-board article, .visit-board-detail { background: var(--pwc-surface); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); padding: var(--pwc-space-4); overflow-wrap: anywhere; }
+.visit-board-detail { align-self: start; }
+.visit-board-detail form { display: grid; gap: var(--pwc-space-4); margin-block: var(--pwc-space-6); border-top: 1px solid var(--pwc-border); padding-top: var(--pwc-space-4); }
+.visit-board-pending { background: var(--pwc-warning-surface); color: var(--pwc-warning); padding: var(--pwc-space-2); border-radius: var(--pwc-radius-control); }
+.visit-board nav { display: flex; flex-wrap: wrap; gap: var(--pwc-space-4); }
+.visit-board :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+@media (max-width: 800px) { .visit-board-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .visit-board-columns { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) { .visit-board { padding: var(--pwc-space-4); } .visit-board-filters { grid-template-columns: minmax(0, 1fr); } .visit-board button { width: 100%; } }
