@@ -18,7 +18,7 @@
 
 - Feature commit: `f0cba2b2c57e68538de73ff44dd5d0e7d0ba99c2`; author and committer are Đặng Văn Hải (`danghaix27@gmail.com`).
 - Push account and PR author: `Haidvhe181849`.
-- PR: [#30 — feat: applicant status and scoped verification](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/30), base `develop`, open, not draft, head `f0cba2b2c57e68538de73ff44dd5d0e7d0ba99c2`.
+- PR: [#30 — feat: applicant status and scoped verification](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/30), base `develop`, open, not draft. Use the PR as the source of truth for its latest head SHA.
 - Review request: Nguyễn Hữu Anh Nhật (`anhnhat432`) requested; no review or approval is recorded yet.
 - GitHub check runs: none reported. Commit status: pending with no status entries. PR mergeable state: blocked. The PR is not merged.
 
