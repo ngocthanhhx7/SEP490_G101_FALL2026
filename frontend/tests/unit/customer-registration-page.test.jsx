@@ -2,13 +2,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { CustomerRegistrationPage } from '../../src/pages/public/CustomerRegistrationPage.jsx';
+import { PublicPolicyProvider } from '../../src/contexts/PublicPolicyContext.jsx';
+
+const syntheticPolicies = ['terms', 'privacy'].map(slug => ({ slug, versionId: `test-${slug}`, status: 'APPROVED',
+  effectiveAt: '2020-01-01T00:00:00Z', approvedAt: '2020-01-01T00:00:00Z' }));
 
 function renderRegistration(api = {}) {
   const sessionAdapter = { resolve: jest.fn().mockResolvedValue({ status: 'guest' }) };
   const view = render(<MemoryRouter initialEntries={['/register']}>
-    <SessionProvider adapter={sessionAdapter}>
+    <SessionProvider adapter={sessionAdapter}><PublicPolicyProvider policies={syntheticPolicies}>
       <Routes><Route path="/register" element={<CustomerRegistrationPage api={api} />} /></Routes>
-    </SessionProvider>
+    </PublicPolicyProvider></SessionProvider>
   </MemoryRouter>);
   return { ...view, sessionAdapter };
 }
