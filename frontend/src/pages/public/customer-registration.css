@@ -1,0 +1,180 @@
+.customer-registration {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 100vw;
+  min-height: 64rem;
+  margin-block: -2rem;
+  margin-inline: calc(50% - 50vw);
+  padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 4vw, 3.125rem);
+  overflow: hidden;
+  background-color: #e9e2f8;
+  background-image:
+    radial-gradient(circle at 7% 18%, rgb(220 209 242 / 35%) 0 1.35rem, transparent 1.45rem),
+    radial-gradient(circle at 11% 24%, rgb(220 209 242 / 38%) 0 1.8rem, transparent 1.9rem),
+    radial-gradient(circle at 9% 34%, rgb(220 209 242 / 30%) 0 2.5rem, transparent 2.6rem),
+    radial-gradient(circle at 92% 77%, rgb(220 209 242 / 36%) 0 1.4rem, transparent 1.5rem),
+    radial-gradient(circle at 96% 84%, rgb(220 209 242 / 35%) 0 2.2rem, transparent 2.3rem),
+    linear-gradient(180deg, #e9e2f8, #e9e2f8 84%, #e7dbf4);
+}
+
+.customer-registration::before,
+.customer-registration::after {
+  position: absolute;
+  z-index: -1;
+  width: 12rem;
+  height: 12rem;
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: 50%;
+  content: '';
+}
+
+.customer-registration::before { top: 12%; left: -7rem; }
+.customer-registration::after { right: -7rem; bottom: 9%; }
+
+.registration-card {
+  position: relative;
+  width: min(100%, 51.25rem);
+  padding: clamp(1.5rem, 5vw, 3.375rem);
+  border: 1px solid rgb(255 255 255 / 85%);
+  border-radius: clamp(1.5rem, 4vw, 2.5rem);
+  background: #fff;
+  box-shadow: 0 1.25rem 3.75rem rgb(52 25 89 / 12%);
+}
+
+.registration-card--success { text-align: center; }
+
+.registration-tape {
+  position: absolute;
+  width: 8rem;
+  height: 2.7rem;
+  opacity: .7;
+  background: repeating-linear-gradient(135deg, #c1ace6 0 0.75rem, #d5c8ee 0.75rem 1.5rem);
+  pointer-events: none;
+}
+
+.registration-tape--top { top: -1rem; left: -1.1rem; transform: rotate(-17deg); }
+.registration-tape--bottom { right: -1.1rem; bottom: -1rem; transform: rotate(17deg); background-image: repeating-linear-gradient(135deg, #f2c9cc 0 0.75rem, #f7dddd 0.75rem 1.5rem); }
+
+.registration-header { display: grid; justify-items: center; text-align: center; }
+.registration-eyebrow { margin: 0 0 .35rem; color: #ff9600; font-size: .8125rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.registration-header h1,
+.registration-card--success h1 {
+  margin: 0;
+  color: #3f2a6b;
+  font-family: 'FC DK Cool Crayon', 'Nunito', sans-serif;
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 400;
+  line-height: 1.12;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.registration-intro { margin: .75rem 0 1.5rem; color: #63557b; text-align: center; }
+.registration-role { display: inline-flex; min-height: 3rem; align-items: center; gap: .55rem; padding: .5rem 1.5rem; border: 1px solid #e6d4ff; border-radius: 999px; background: #f8f4ff; color: #3f2a6b; font-weight: 800; }
+.registration-form { display: grid; gap: 1.25rem; margin-top: 2rem; }
+.registration-field { display: grid; gap: .55rem; min-width: 0; }
+.registration-field > label,
+.registration-contact-fieldset legend,
+.registration-otp h2 { color: #3f2a6b; font-size: .875rem; font-weight: 800; letter-spacing: .025em; text-transform: uppercase; }
+
+.registration-field input,
+.registration-contact-fieldset > input,
+.registration-otp-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: .8rem 1rem;
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  background: #e3f4ec;
+  color: #3f2a6b;
+  font: inherit;
+}
+
+.registration-field input::placeholder,
+.registration-contact-fieldset > input::placeholder { color: #777b8a; opacity: .8; }
+.registration-field input[aria-invalid='true'],
+.registration-contact-fieldset > input[aria-invalid='true'],
+.registration-otp-row input[aria-invalid='true'] { border-color: #a52232; }
+.registration-contact-fieldset > input[readonly] { cursor: default; }
+
+.registration-contact-fieldset { display: grid; gap: .65rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.registration-contact-fieldset legend { width: 100%; margin-bottom: .25rem; padding: 0; }
+.registration-contact-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .75rem 1.25rem; margin-top: -2rem; }
+.registration-contact-options label { display: inline-flex; min-height: 2.75rem; align-items: center; gap: .4rem; color: #3f2a6b; font-size: .875rem; font-weight: 700; cursor: pointer; }
+.registration-contact-options input,
+.registration-consent input { width: 1.15rem; height: 1.15rem; margin: 0; accent-color: #3f2a6b; }
+.registration-contact-options input:disabled { opacity: .72; }
+
+.registration-otp { display: grid; gap: .75rem; padding: 1.25rem; border: 1px solid #eadbfa; border-radius: 1.125rem; background: #fcf8ff; }
+.registration-otp-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem 1rem; }
+.registration-otp h2 { margin: 0; }
+.registration-countdown { color: #c56b00; font-size: .8125rem; font-weight: 700; white-space: nowrap; }
+.registration-otp-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(10rem, 1fr); gap: .75rem; }
+.registration-otp-row input { border-color: #e6d4ff; background: #fff; text-align: center; letter-spacing: .28em; }
+.registration-otp-row input::placeholder { color: #777b8a; opacity: 1; }
+.registration-send,
+.registration-submit {
+  display: flex;
+  min-width: 0;
+  min-height: 3.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: .6rem;
+  padding: .75rem 1rem;
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  background: #ead8fb;
+  color: #3f2a6b;
+  font: inherit;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+  cursor: pointer;
+}
+
+.registration-send:hover:not(:disabled) { background: #dfc4f7; }
+.registration-send:disabled { color: #63557b; cursor: not-allowed; opacity: .82; }
+.registration-hint { color: #63557b; font-size: .875rem; line-height: 1.55; }
+.registration-field-error { color: #a52232; font-size: .875rem; font-weight: 700; }
+.registration-text-button { justify-self: start; min-height: 2.75rem; padding: .25rem 0; border: 0; background: transparent; color: #3f2a6b; font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+
+.registration-consent { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: .5rem .75rem; color: #63557b; font-size: .875rem; line-height: 1.55; }
+.registration-consent input { margin-top: .18rem; }
+.registration-consent .registration-field-error { grid-column: 2; }
+.registration-notice { display: grid; gap: .3rem; padding: .875rem 1rem; border: 1px solid #786889; border-radius: .875rem; background: #f8f4ff; color: #3f2a6b; overflow-wrap: anywhere; }
+.registration-notice--pending { border-color: #b08321; background: #fff8e0; color: #705100; }
+.registration-notice--error,
+.registration-notice--forbidden { border-color: #a52232; background: #fff0f1; color: #a52232; }
+.registration-notice--success { border-color: #216443; background: #edf8f1; color: #216443; }
+
+.registration-submit { width: 100%; min-height: 3.5rem; border-color: #ffcb2e; border-radius: 1rem; background: #ffcb2e; color: #3f2a6b; box-shadow: 0 .2rem .4rem rgb(47 28 66 / 16%); text-decoration: none; }
+.registration-submit:hover:not(:disabled) { background: #ffda52; }
+.registration-submit:disabled { background: #e9e4ef; border-color: #786889; color: #63557b; cursor: not-allowed; }
+.registration-footer { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f0edf4; color: #63557b; text-align: center; }
+.registration-footer p { margin: 0; }
+.registration-footer a { color: #3f2a6b; font-weight: 800; text-underline-offset: .15em; }
+.registration-card--success .registration-submit { margin-top: 1.25rem; }
+
+.customer-registration :focus-visible { outline: 3px solid #3f2a6b; outline-offset: 3px; }
+.customer-registration button,
+.customer-registration a,
+.customer-registration input { font-family: inherit; }
+
+@media (max-width: 640px) {
+  .customer-registration { min-height: auto; margin-inline: calc(50% - 50vw); padding: 2.5rem 1rem; }
+  .registration-card { padding: 1.5rem 1rem; border-radius: 1.5rem; }
+  .registration-tape { width: 5rem; height: 1.7rem; }
+  .registration-tape--top { top: -.65rem; left: -.5rem; }
+  .registration-tape--bottom { right: -.5rem; bottom: -.65rem; }
+  .registration-contact-options { justify-content: flex-start; margin-top: 0; }
+  .registration-otp { padding: 1rem; }
+  .registration-otp-row { grid-template-columns: 1fr; }
+  .registration-send { min-height: 3rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .customer-registration *, .customer-registration *::before, .customer-registration *::after { scroll-behavior: auto; }
+}

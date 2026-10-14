@@ -13,10 +13,11 @@ function renderApp(path, sessionAdapter) {
 
 test('public route is readable before session resolution and uses brand asset', async () => {
   renderApp('/', { resolve: () => new Promise(() => {}) });
-  expect(screen.getByRole('heading', { name: 'Chăm sóc thú cưng tại nhà' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: /Chăm pet/ })).toBeVisible();
   expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/logo/ngang.svg');
-  expect(screen.getByRole('navigation')).toBeVisible();
+  expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
   expect(screen.getByRole('main')).toHaveFocus();
+  await screen.findByRole('alert');
 });
 
 test('guest is redirected to OTP integration placeholder', async () => {
@@ -31,8 +32,12 @@ test('default adapter shows pending instead of fabricating session', async () =>
 });
 
 test('authenticated session opens account; unknown routes remain public', async () => {
-  const view = renderApp('/account', adapter({ status: 'authenticated', user: { role: 'CUSTOMER' } }));
+  const view = renderApp('/account', adapter({ status: 'authenticated', user: {
+    id: '507f1f77bcf86cd799439001', displayName: 'Nguyễn Admin', roles: ['ADMIN']
+  } }));
   expect(await screen.findByRole('heading', { name: 'Tài khoản' })).toBeVisible();
+  expect(screen.getAllByText('Nguyễn Admin')).toHaveLength(2);
+  expect(screen.getByRole('link', { name: 'Quản lý tài khoản người dùng' })).toHaveAttribute('href', '/admin/users');
   view.unmount();
   renderApp('/missing', { resolve: () => new Promise(() => {}) });
   expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();

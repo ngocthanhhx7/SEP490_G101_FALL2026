@@ -20,14 +20,16 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 | Path | Responsibility |
 | --- | --- |
-| src/app | Entry, root error boundary, providers and provisional structural CSS |
-| src/routes | Root registration, P13 public routes and RequireSession UX gate; P34 confirms live integration |
-| src/layouts | Public page shell and skip link; P48 supplies final authenticated role shells/avatar |
-| src/pages/public | P13 public home, service list/details/areas; P07 registration and P08 sign-in; catalog/area API integration remains pending |
+| src/app | Entry, root error boundary, providers and P03/P04/P13 shared CSS integration |
+| src/routes | Root registration, P13 public routes, P10 Admin-only account route and RequireSession UX gate; P34 validates live integration |
+| src/layouts | Public page shell and skip link; P48 supplies authenticated role shells/avatar |
+| src/pages/public | P13 public home, service list/details/areas; P07 Customer registration and P16 Sitter application form |
+| src/pages/admin | P10 account directory and redacted details, P16 application list/review and Sitter status controls |
+| src/pages/account | Signed-in user's own session identity; verified profile/contact edits remain a separate flow |
 | src/contexts | In-memory session adapter state; no persisted credentials |
-| src/services | Same-origin HTTP client and session adapter port |
+| src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
-| src/components/public | Public navigation/footer for guest pages; no authenticated role menu or commerce controls |
+| src/components/public | P13 public navigation/footer for guest pages; no authenticated role menu or commerce controls |
 | src/components/ui, src/styles | P04 brand tokens/fonts and native shared controls; root adoption through P34 |
 | public/assets, public/fonts | Existing brand resources preserved; logo, Nunito Regular and Crayon Regular used |
 | tests/unit | HTTP errors, CSRF, timeout, cancellation and resource races |
@@ -36,20 +38,22 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 ## Integration ports
 
-`App({ sessionAdapter })` accepts a stable adapter whose `resolve({ signal })` returns `{ status: 'guest' }`, `{ status: 'authenticated', user: { displayName, role } }` or `{ status: 'pending' }`. Adapter roles are CUSTOMER, PET_SITTER, STAFF, ADMIN (internal view model, not an amendment of server DTOs). Default is explicitly pending. P06/P08/P34 must map `/me` responses to this view model, wire cookie session expiry/revocation and supply logout/CSRF flows. There is no fake login or localStorage token. Use `useSession().invalidate` for 401/logout and `refresh` after verified login; stale resolves cannot restore an invalidated session.
+`App({ sessionAdapter })` accepts a stable adapter whose `resolve({ signal })` returns `{ status: 'guest' }`, `{ status: 'authenticated', user: { id, displayName, roles } }` or `{ status: 'pending' }`. `createApiSessionAdapter()` maps the same-origin `/api/v1/me` DTO and treats only HTTP 401 as guest. Roles are CUSTOMER, PET_SITTER, STAFF, ADMIN. P34-A supplies the `/me` adapter, but the app still defaults to pending until OTP login and CSRF handoff are wired. P07's screen calls `refresh()` after registration; REGISTER handler injection and route/session wiring remain pending. There is no fake login or localStorage token. Use `useSession().invalidate` for 401 and `useSession().logout` for CSRF-protected logout; the injected adapter supplies its in-memory CSRF token through `getCsrfToken()`. Stale resolves cannot restore an invalidated session.
 
 `createApiClient({ fetchImpl, getCsrfToken, onUnauthorized, timeoutMs })` calls only `/api/v1` paths at the current origin, with same-origin cookies, no-store and redirect rejection. It validates the v1 success envelope, keeps error code/status/fieldErrors/decisionIds, invalidates on 401 including non-JSON failures, supports 204, distinguishes abort/timeout/network errors and labels 202 pending. Unsafe methods require an in-memory CSRF token from the real server adapter; X-CSRF-Token header name needs backend agreement. Commands pass a stable `idempotencyKey` and optionally `expectedVersion`. No automatic mutation retries: a lost acknowledgement requires reconciliation through the module's operation contract, not a new operation key. Cross-site auth requires a P01 ADR amendment first.
 
 `useApiResource(load)` requires a stable loader and exposes loading/empty/success/pending/forbidden/error plus retry. It aborts obsolete requests, clears previous private data on retry and ignores late responses. Use for reads; domain pages own rendering and command reconciliation. No financial decision, deadline or resource authorization is inferred in frontend.
 
-Routes `/`, `/sign-in` and unknown routes stay public. `/account` is a protected placeholder. RequireSession supports role configuration with Admin inheriting the Staff UX gate. Backend must enforce actual permissions, ownership, session validity and private field projection for every direct API call.
+P16's Guest form accepts PDF/JPG/PNG files up to 5 MB each in the browser, but its default upload adapter is unavailable and the form stays disabled until private-media integration is supplied. These checks are usability feedback; the server-side upload provider must validate the actual bytes. Admin status mutations require a real in-memory CSRF token. Sitter suspension is a separate operational status; P21 must enforce it before offer creation. P34 owns route registration.
+
+Routes `/`, `/services`, `/services/:serviceId`, `/service-areas`, `/sign-in` and unknown routes stay public. `/account` is protected and shows only the signed-in user's session projection. RequireSession supports role configuration with Admin inheriting the Staff UX gate. `/admin/users` additionally requires ADMIN and reads account data from `/api/v1/users`; the backend remains authoritative for permissions and private field projection. P13 catalog and service-area reads use public adapters; live P17/P18 API integration remains pending.
 
 ## Validation and limits
 
 Jest 30.5.2 with React Testing Library 16.3.3 and jsdom; Babel 7.29.7 transforms ESM/JSX tests. ESLint 10.12.0 checks syntax and selected correctness rules (not a type checker). A scoped override makes @istanbuljs/load-nyc-config use js-yaml 4.3.2 instead of vulnerable sprintf-js transitives; its yaml.load interface and YAML config loading were checked. No npm audit fix --force or runtime downgrade.
 
-See [P03 handoff](../doc/ui-ux/p03-frontend-foundation-handoff.md) for actual checks and gates. UI is PROVISIONAL, Figma not supplied. Auth/OTP/CSRF/backend integration is INTEGRATION_PENDING. Public catalog, full policies, role dashboards, shared design system and PWA belong to later packages. No secrets or frontend environment variables are required; do not put server/provider credentials in browser configuration.
+See [P03 handoff](../doc/ui-ux/p03-frontend-foundation-handoff.md), [P13 handoff](../doc/ui-ux/p13-public-pages-handoff.md), [P34-A integration status](../doc/testing/p34-a-integration-status.md) and [P07 handoff](../doc/deployment/p07-customer-registration-handoff.md). P03 foundation UI remains provisional; P07 adapts the supplied registration reference to a responsive screen. The P07 page is not yet registered in the application route tree, and the `/me` adapter is not connected to the app provider. OTP login, CSRF recovery/logout and live provider integration remain pending. P13 public routes are registered; live catalog/service-area APIs, full policy history, role dashboards and PWA retain their later integration gates. No secrets or frontend environment variables are required; do not put server/provider credentials in browser configuration.
 
 ## Brand components
 
-P04 adds [tokens and usage](../doc/ui-ux/p04-brand-design-system.md), shared UI components and a separate manual fixture. The P03 root entry is unchanged; P34 receives the proposed CSS integration patch. The fixture is not a production route or provider check.
+P04 adds [tokens and usage](../doc/ui-ux/p04-brand-design-system.md), shared UI components and a separate manual fixture. The P03 root entry imports P04 styles; the fixture is not a production route or provider check.

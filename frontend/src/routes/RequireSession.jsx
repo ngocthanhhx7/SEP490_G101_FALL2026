@@ -15,8 +15,9 @@ export function RequireSession({ roles }) {
   </section>;
   if (session.status === 'guest') return <Navigate to="/sign-in" replace
     state={{ from: location.pathname + location.search }} />;
-  if (roles && !roles.some((role) => role === session.user.role
-    || (role === 'STAFF' && session.user.role === 'ADMIN'))) {
+  const userRoles = Array.isArray(session.user.roles) ? session.user.roles : [session.user.role];
+  if (roles && !roles.some((role) => userRoles.includes(role)
+    || (role === 'STAFF' && userRoles.includes('ADMIN')))) {
     return <section role="alert"><h1>Không có quyền truy cập</h1>
       <p>Tài khoản hiện tại không có quyền mở khu vực này.</p></section>;
   }
