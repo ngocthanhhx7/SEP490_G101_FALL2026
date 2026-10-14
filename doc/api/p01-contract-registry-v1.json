@@ -145,7 +145,8 @@
         "DISPATCH_PENDING",
         "ACTIVE",
         "COMPLETED",
-        "CANCELLED"
+        "CANCELLED",
+        "CLOSED"
       ],
       "fields": [
         "customerId",

@@ -300,7 +300,8 @@
         "DISPATCH_PENDING",
         "ACTIVE",
         "COMPLETED",
-        "CANCELLED"
+        "CANCELLED",
+        "CLOSED"
       ]
     },
     "VisitState": {
