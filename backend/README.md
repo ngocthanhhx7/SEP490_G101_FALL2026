@@ -26,7 +26,8 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 | src/controllers/ | HTTP orchestration mỏng |
 | src/services/providers/payos/ | payOS provider boundary and isolated webhook receipt processing; signature verification and atomic receipt/state/outbox writes use injected ports; route wiring remains separate |
 | src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration, P16 application/review and Sitter status, P17 catalog/price/settings; P11 SMTP, P12 eSMS and PHONE dispatch |
-| src/models/ | P06 User/identity records; P16 Applicant, Sitter status, private documents and audit/quota; P17 immutable service/policy, price and setting versions/audit || src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
+| src/models/ | P06 User/identity records; P16 Applicant, Sitter status, private documents and audit/quota; P17 immutable service/policy, price and setting versions/audit |
+| src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
 | scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
 | scripts/migrations/ | Placeholder; chưa rollout migration/index production |
 | tests/unit/ | Controlled DB/session doubles, config/errors/ports/roles/limiter/registry |
