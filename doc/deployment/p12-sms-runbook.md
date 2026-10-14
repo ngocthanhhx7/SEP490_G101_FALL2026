@@ -44,6 +44,7 @@ P06/P34 gọi `contactDelivery.send` với command server-only `{ channel: 'SMS'
 | Kết quả | Nghĩa vụ cho caller |
 | --- | --- |
 | `ACCEPTED / ESMS_ACCEPTED` | eSMS nhận request; **không** đồng nghĩa nhà mạng đã giao tới điện thoại |
+| `FAILED / SANDBOX_VALIDATED` | Sandbox xác nhận payload hợp lệ nhưng không phát SMS; không mở session/đánh dấu OTP đã gửi |
 | `INVALID_PHONE` | Input không hợp lệ hoặc eSMS xác nhận định dạng số sai |
 | `CONFIGURATION_EXPIRED` | eSMS báo API key/secret không đúng hoặc đã bị thu hồi; xử lý cấu hình, không retry |
 | `CONFIGURATION_INVALID` | Chưa có bảng giá, Brandname/template/IP/route chưa sẵn sàng; xử lý cấu hình |

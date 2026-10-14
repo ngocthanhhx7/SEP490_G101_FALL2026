@@ -70,9 +70,12 @@ export function createSmsDelivery({ apiKey, secretKey, brandname, sandbox = fals
       }
 
       const payload = await response.json();
-      const result = String(payload?.CodeResult) === '100'
-        ? { status: 'ACCEPTED', code: 'ESMS_ACCEPTED', retryable: false, uncertain: false, attempts: 1 }
-        : mapEsmsCode(payload?.CodeResult);
+      const code = String(payload?.CodeResult);
+      const result = code === '100' && sandbox
+        ? { status: 'FAILED', code: 'SANDBOX_VALIDATED', retryable: false, uncertain: false, attempts: 1 }
+        : code === '100'
+          ? { status: 'ACCEPTED', code: 'ESMS_ACCEPTED', retryable: false, uncertain: false, attempts: 1 }
+          : mapEsmsCode(code);
       return { ...result, attempts: 1 };
     });
     const deadline = new Promise((_, reject) => {

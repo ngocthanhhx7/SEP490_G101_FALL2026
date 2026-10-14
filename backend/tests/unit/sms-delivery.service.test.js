@@ -14,17 +14,24 @@ const create = options => createSmsDelivery({ apiKey: 'synthetic-api-key', secre
 describe('eSMS SMS delivery adapter (fake HTTP provider only)', () => {
   test('sends a single JSON request with E.164 converted to provider digits and operation id as RequestId', async () => {
     const fetchImpl = jest.fn(async () => response('100'));
-    const delivery = create({ fetchImpl, sandbox: true });
+    const delivery = create({ fetchImpl });
     const result = await delivery.send(command());
     expect(result).toEqual({ status: 'ACCEPTED', code: 'ESMS_ACCEPTED', retryable: false, uncertain: false, attempts: 1 });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0][0]).toBe('https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json/');
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
     expect(body).toMatchObject({ Phone: '84901234567', Brandname: 'PawWorld', SmsType: '2',
-      IsUnicode: '0', Sandbox: '1', RequestId: command().operationId });
+      IsUnicode: '0', Sandbox: '0', RequestId: command().operationId });
     expect(body.Content).toContain('012345');
     expect(body).toHaveProperty('ApiKey', 'synthetic-api-key');
     expect(body).toHaveProperty('SecretKey', 'synthetic-secret');
+  });
+
+  test('does not report Sandbox validation as a sent OTP', async () => {
+    const fetchImpl = jest.fn(async () => response('100'));
+    const result = await create({ fetchImpl, sandbox: true }).send(command());
+    expect(result).toEqual({ status: 'FAILED', code: 'SANDBOX_VALIDATED', retryable: false, uncertain: false, attempts: 1 });
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).Sandbox).toBe('1');
   });
 
   test('coalesces concurrent same-operation calls and rejects payload reuse with a different OTP', async () => {

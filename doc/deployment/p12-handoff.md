@@ -23,8 +23,8 @@ Checks thực tế trong worktree P12 trên Node 24.21.0/npm 11.19.0:
 
 - `npm ci --ignore-scripts`: PASS; 469 packages audited, 0 vulnerabilities. npm in ra cảnh báo deprecated `glob@10.5.0` từ dependency nền.
 - `npm run lint`: PASS.
-- `npm run test:unit`: PASS; 92 tests / 6 suites.
-- `npm test`: PASS; 99 tests / 7 suites / 2 projects, gồm integration Mongo cô lập. Jest in ra cảnh báo Node experimental VM Modules.
+- `npm run test:unit`: PASS; 93 tests / 6 suites.
+- `npm test`: PASS; 100 tests / 7 suites / 2 projects, gồm integration Mongo cô lập. Jest in ra cảnh báo Node experimental VM Modules.
 - Documentation: `git diff --cached --check` và trailing-whitespace scan PASS; eSMS signup/API/error pages và Twilio pricing page trả HTTP 200 khi kiểm tra.
 - Build: N/A; backend chạy JavaScript trực tiếp và chưa có build script.
 - SMS/eSMS sandbox/production: chưa chạy; các test P12 dùng fake `fetch` và không chứng minh gửi/giao SMS.
