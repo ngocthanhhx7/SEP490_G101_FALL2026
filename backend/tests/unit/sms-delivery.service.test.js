@@ -19,6 +19,7 @@ describe('eSMS SMS delivery adapter (fake HTTP provider only)', () => {
     expect(result).toEqual({ status: 'ACCEPTED', code: 'ESMS_ACCEPTED', retryable: false, uncertain: false, attempts: 1 });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     expect(fetchImpl.mock.calls[0][0]).toBe('https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json/');
+    expect(fetchImpl.mock.calls[0][1].redirect).toBe('error');
     const body = JSON.parse(fetchImpl.mock.calls[0][1].body);
     expect(body).toMatchObject({ Phone: '84901234567', Brandname: 'PawWorld', SmsType: '2',
       IsUnicode: '0', Sandbox: '0', RequestId: command().operationId });

@@ -59,6 +59,7 @@ export function createSmsDelivery({ apiKey, secretKey, brandname, sandbox = fals
       const response = await fetchImpl(ESMS_SEND_URL, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
+        redirect: 'error',
         body: JSON.stringify(body),
         signal: controller.signal
       });
