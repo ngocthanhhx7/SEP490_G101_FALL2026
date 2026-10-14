@@ -1,7 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { FoundationPage } from '../pages/public/FoundationPage.jsx';
-import { SignInPendingPage } from '../pages/public/SignInPendingPage.jsx';
+import { SignInPage } from '../pages/public/SignInPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
 import { AccountPage } from '../pages/account/AccountPage.jsx';
 import { RequireSession } from './RequireSession.jsx';
@@ -66,7 +66,7 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
     </Route>
     <Route element={<FoundationLayout />}>
       <Route index element={<FoundationPage />} />
-      <Route path="sign-in" element={<SignInPendingPage />} />
+      <Route path="sign-in" element={<SignInPage />} />
       <Route path="register" element={<CustomerRegistrationPage />} />
       <Route path="sitter/apply" element={<SitterApplicationPage />} />
       {publicPolicyRouteElements}
