@@ -8,9 +8,9 @@ function show(path, props = {}) {
   return render(<MemoryRouter initialEntries={[path]}><App sessionAdapter={unresolved} {...props} /></MemoryRouter>);
 }
 
-test.each(['/policies', '/policies/terms', '/policies/privacy/v1'])('public policy deep link %s remains reachable with unresolved session', path => {
+test.each(['/policies', '/policies/terms', '/policies/privacy/draft-v1'])('public policy deep link %s remains reachable with unresolved session', path => {
   show(path);
-  expect(screen.getByRole('status')).toHaveTextContent('Chưa có phiên bản chính sách được phê duyệt');
+  expect(screen.getByText(/Chưa có phiên bản được phê duyệt để công khai|Hiện chưa có chính sách nào được phê duyệt/)).toBeVisible();
   expect(screen.queryByText('Không tìm thấy trang')).not.toBeInTheDocument();
 });
 
@@ -39,7 +39,7 @@ test('default registration cannot accept unpublished policies or send registrati
   expect(screen.getByRole('button', { name: /Đăng ký tài khoản Khách hàng/ })).toBeDisabled();
   fireEvent.submit(screen.getByRole('button', { name: /Đăng ký tài khoản Khách hàng/ }).closest('form'));
   expect(screen.getByRole('alert')).toHaveTextContent('Chính sách chưa sẵn sàng');
-  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms');
+  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms/draft-v1');
 });
 
 test.each(['/admin/services', '/admin/service-prices', '/admin/system-settings', '/admin/sitter-applications',

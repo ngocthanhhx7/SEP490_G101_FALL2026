@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link, Route, useParams } from 'react-router-dom';
 import { findPolicy, isUnpublishedPolicyPath, policyHref, publicPolicies } from './policy-catalog.js';
+import { usePublicPolicyCatalog } from '../../../contexts/PublicPolicyContext.jsx';
 import './public-policies.css';
 
 function PolicyCard({ policy }) {
@@ -18,16 +19,18 @@ function PolicyCard({ policy }) {
 }
 
 export function PolicyIndexPage({ policies = publicPolicies }) {
+  const loadedPolicies = usePublicPolicyCatalog();
+  const resolvedPolicies = policies === publicPolicies && loadedPolicies.length ? loadedPolicies : policies;
   const [query, setQuery] = useState('');
   const filteredPolicies = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('vi');
-    if (!normalizedQuery) return policies;
-    return policies.filter(policy => {
+    if (!normalizedQuery) return resolvedPolicies;
+    return resolvedPolicies.filter(policy => {
       const bodyText = policy.sections.flatMap(section => [section.heading, ...(section.paragraphs || []), ...(section.items || [])]);
       return [policy.title, policy.summary, policy.purpose, policy.keywords, ...bodyText]
         .join(' ').toLocaleLowerCase('vi').includes(normalizedQuery);
     });
-  }, [policies, query]);
+  }, [resolvedPolicies, query]);
 
   return <section className="public-policies" aria-labelledby="policy-index-title">
     <nav className="policy-breadcrumbs" aria-label="Đường dẫn">
@@ -38,7 +41,7 @@ export function PolicyIndexPage({ policies = publicPolicies }) {
       <h1 id="policy-index-title">Chính sách &amp; hướng dẫn</h1>
       <p>Tìm các phiên bản chính sách đã được phê duyệt và đang có hiệu lực.</p>
     </header>
-    {policies.length === 0
+    {resolvedPolicies.length === 0
       ? <p className="policy-empty-state" role="status">
         Hiện chưa có chính sách nào được phê duyệt để công khai. Nội dung dự thảo chưa được hiển thị trên trang này.
       </p>
@@ -130,13 +133,15 @@ function PolicyArticle({ policy, versioned }) {
 }
 
 export function PolicyArticlePage({ policies = publicPolicies }) {
+  const loadedPolicies = usePublicPolicyCatalog();
+  const resolvedPolicies = policies === publicPolicies && loadedPolicies.length ? loadedPolicies : policies;
   const { slug, version } = useParams();
-  const policy = findPolicy(slug, version, policies);
+  const policy = findPolicy(slug, version, resolvedPolicies);
   if (policy) return <PolicyArticle policy={policy} versioned={Boolean(version)} />;
   return isUnpublishedPolicyPath(slug, version) ? <PolicyUnpublished /> : <PolicyNotFound />;
 }
 
-// P34 owns AppRoutes registration. Insert this route fragment inside its public Routes tree.
+// App mounts this fragment inside the public Routes tree. Keep it outside session guards.
 export const publicPolicyRouteElements = <>
     <Route path="/policies" element={<PolicyIndexPage />} />
     <Route path="/policies/:slug" element={<PolicyArticlePage />} />

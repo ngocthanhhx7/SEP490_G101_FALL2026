@@ -180,6 +180,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
         contact: normalizedContact,
         code,
         displayName: normalizeDisplayName(displayName),
+        policyVersions: currentPolicies.versions,
       });
       setCompleted(result.user?.displayName || normalizeDisplayName(displayName));
       setChallenge(null);

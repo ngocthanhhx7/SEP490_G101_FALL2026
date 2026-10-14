@@ -1,5 +1,5 @@
-// Only approved and effective policies may enter this catalog. P17's public
-// policy source is not integrated yet, so guests currently receive no articles.
+// Only approved and effective policies may enter this catalog. The runtime source
+// is loaded from the public policy endpoint; this empty fallback stays fail closed.
 export const publicPolicies = Object.freeze([]);
 
 const pendingPolicySlugs = new Set([

@@ -43,7 +43,7 @@ export function sitterApplicationModule({ config, connection, ports, clock = Dat
     clock
   });
   const sessionService = createSessionService({ connection,
-    tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
+    tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret, clock });
   const admin = [requireSession(sessionService, { clock }), requireRoles('ADMIN')];
   const csrf = requireCsrf(sessionService);
   const router = Router();
