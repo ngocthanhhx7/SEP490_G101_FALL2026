@@ -1,0 +1,49 @@
+.admin-system-settings {
+  min-height: 100dvh; padding: clamp(1rem, 3vw, 2.5rem); color: var(--pwc-ink);
+  background: #f7f5fa; font-family: var(--pwc-font-body);
+}
+.admin-system-settings *, .admin-system-settings *::before, .admin-system-settings *::after { box-sizing: border-box; }
+.admin-system-settings h1, .admin-system-settings h2, .admin-system-settings h3, .admin-system-settings p { margin: 0; }
+.admin-system-settings button, .admin-system-settings input, .admin-system-settings select { font: inherit; }
+.admin-system-settings :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+.admin-settings-skip {
+  position: fixed; z-index: 2; inset-block-start: .5rem; inset-inline-start: .5rem; padding: .75rem 1rem;
+  color: var(--pwc-cream); background: var(--pwc-ink); border-radius: var(--pwc-radius-control); transform: translateY(-180%);
+}
+.admin-settings-skip:focus { transform: translateY(0); }
+.admin-settings-header, .admin-settings-grid { max-width: 82rem; margin-inline: auto; }
+.admin-settings-header { padding: 1rem 0 1.5rem; border-bottom: 1px solid #ded7e8; }
+.admin-settings-header h1 { margin: .25rem 0; font-family: var(--pwc-font-display); font-size: clamp(2rem, 5vw, 3rem); }
+.admin-settings-logo { display: block; width: min(11rem, 62vw); height: auto; margin-bottom: .75rem; }
+.admin-settings-header > p:nth-of-type(2) { color: var(--pwc-ink-muted); line-height: 1.5; }
+.admin-settings-eyebrow { color: var(--pwc-ink-muted); font-size: .75rem; font-weight: 800; letter-spacing: .06em; }
+.admin-settings-provisional { display: inline-block; margin-top: .75rem; padding: .4rem .65rem; color: #705100; background: var(--pwc-warning-surface); border-radius: 999px; font-size: .75rem; font-weight: 800; }
+.admin-settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 1rem; margin-top: 1rem; }
+.admin-settings-card {
+  min-width: 0; padding: clamp(1rem, 2vw, 1.5rem); background: #fff; border: 1px solid #e4deeb;
+  border-radius: var(--pwc-radius-panel); box-shadow: 0 10px 30px rgb(63 42 107 / 5%);
+}
+.admin-settings-card h2 { margin-top: .25rem; font-size: 1.35rem; }
+.admin-settings-card-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.admin-settings-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+.admin-settings-facts div { padding: .75rem; background: #fbfaff; border-radius: .75rem; }
+.admin-settings-facts dt { color: var(--pwc-ink-muted); font-size: .8rem; font-weight: 800; }
+.admin-settings-facts dd { margin: .2rem 0 0; overflow-wrap: anywhere; }
+.admin-settings-help, .admin-settings-effective { margin-top: .75rem; color: var(--pwc-ink-muted); line-height: 1.5; }
+.admin-settings-state { flex: 0 0 auto; padding: .4rem .65rem; border-radius: 999px; font-size: .75rem; font-weight: 800; }
+.admin-settings-state.is-enabled { color: #216443; background: var(--pwc-success-surface); }
+.admin-settings-state.is-disabled { color: #705100; background: var(--pwc-warning-surface); }
+.admin-settings-form { display: grid; gap: 1rem; margin-top: 1rem; }
+.admin-settings-history { grid-column: 1 / -1; }
+.admin-settings-history-list { display: grid; gap: .6rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.admin-settings-history-list li { display: grid; gap: .35rem; padding: .85rem; background: #fbfaff; border: 1px solid #e4deeb; border-radius: .75rem; }
+.admin-settings-history-list li > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; }
+.admin-settings-history-list p { overflow-wrap: anywhere; }
+.admin-settings-history-list small { color: var(--pwc-ink-muted); overflow-wrap: anywhere; }
+.admin-settings-card .pwc-button { min-height: var(--pwc-target); }
+@media (max-width: 720px) { .admin-settings-grid { grid-template-columns: minmax(0, 1fr); } .admin-settings-history { grid-column: auto; } }
+@media (max-width: 420px) {
+  .admin-system-settings { padding: .75rem; }
+  .admin-settings-card-heading { align-items: flex-start; flex-direction: column; }
+  .admin-settings-facts { grid-template-columns: minmax(0, 1fr); }
+}

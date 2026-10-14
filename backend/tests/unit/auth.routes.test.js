@@ -26,6 +26,7 @@ function appFixture({ authenticated = false } = {}) {
     clearCookie: (res, options) => res.clearCookie('pwc_session', options),
     revoke: jest.fn(async () => true)
   };
+  const accountSettingsService = { listVerifiedContacts: jest.fn(async () => []) };
   const requireCsrf = async (req, _res, next) => {
     const origin = req.get('origin');
     const expectedOrigin = `${req.protocol}://${req.get('host')}`;
@@ -36,19 +37,28 @@ function appFixture({ authenticated = false } = {}) {
   };
   const config = loadConfig({ NODE_ENV: 'test', MONGO_URI: 'mongodb://127.0.0.1:27017', MONGO_DB: 'synthetic_test' });
   const server = createApp({ config, connection: { readyState: 0 }, lifecycle: { draining: false }, moduleFactories: [() => authModule({
-    otpService, sessionService, requireAuthenticated: requireSession(sessionService), requireCsrf, secureCookies: false
+    otpService, sessionService, accountSettingsService,
+    requireAuthenticated: requireSession(sessionService), requireCsrf, secureCookies: false
   })] });
-  return { server, otpService, sessionService };
+  return { server, otpService, sessionService, accountSettingsService };
 }
 
 describe('auth route module HTTP contract', () => {
-  test('returns only the authenticated user projection from GET /me', async () => {
-    const { server } = appFixture({ authenticated: true });
+  test('returns the authenticated user and masked verified contacts from GET /me', async () => {
+    const { server, accountSettingsService } = appFixture({ authenticated: true });
+    accountSettingsService.listVerifiedContacts.mockResolvedValue([{
+      id: '64f000000000000000000001', channel: 'EMAIL', value: 'p*****@example.test',
+      state: 'VERIFIED', verifiedAt: '2026-10-14T00:00:00.000Z'
+    }]);
     const response = await request(server).get('/api/v1/me').expect(200);
     expect(response.body.data.user).toEqual({
       id: auth.userId, displayName: 'Synthetic Customer', roles: ['CUSTOMER']
     });
-    expect(JSON.stringify(response.body)).not.toContain('person@example.test');
+    expect(response.body.data.contacts).toEqual([expect.objectContaining({
+      channel: 'EMAIL', value: 'p*****@example.test', state: 'VERIFIED'
+    })]);
+    expect(accountSettingsService.listVerifiedContacts).toHaveBeenCalledWith(auth);
+    expect(JSON.stringify(response.body)).not.toMatch(/person@example\.test|canonicalCiphertext|lookupKey|ownerId/);
   });
 
   test('returns generic OTP challenge metadata and rejects unknown fields', async () => {
@@ -77,7 +87,8 @@ describe('auth route module HTTP contract', () => {
   test('registration requires only the allowlisted fields and atomically returns Customer session metadata', async () => {
     const { server, otpService } = appFixture();
     const base = { challengeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', channel: 'EMAIL',
-      contact: 'person@example.test', purpose: 'REGISTER', code: '123456' };
+      contact: 'person@example.test', purpose: 'REGISTER', code: '123456',
+      policyVersions: { terms: 'terms-v1', privacy: 'privacy-v1' } };
     await request(server).post('/api/v1/otp-verifications').send(base).expect(422);
     await request(server).post('/api/v1/otp-verifications').send({ ...base, displayName: 'Sample Customer', password: 'forbidden' }).expect(422);
     expect(otpService.verify).not.toHaveBeenCalled();

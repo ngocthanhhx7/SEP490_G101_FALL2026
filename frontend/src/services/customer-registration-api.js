@@ -73,9 +73,9 @@ export function createCustomerRegistrationApi({ fetchImpl = (...args) => fetch(.
       }
       return result.data;
     },
-    async verifyAndRegister({ challengeId, channel, contact, code, displayName }) {
+    async verifyAndRegister({ challengeId, channel, contact, code, displayName, policyVersions }) {
       const result = await post('/otp-verifications', {
-        challengeId, channel, contact, purpose: 'REGISTER', code, displayName,
+        challengeId, channel, contact, purpose: 'REGISTER', code, displayName, policyVersions,
       });
       if (result.data?.authenticated !== true || !result.data?.user?.id) {
         throw new RegistrationApiError('REGISTRATION_NOT_COMPLETED', result.status);

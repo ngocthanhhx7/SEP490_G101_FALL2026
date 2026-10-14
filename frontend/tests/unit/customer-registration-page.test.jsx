@@ -2,13 +2,17 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { CustomerRegistrationPage } from '../../src/pages/public/CustomerRegistrationPage.jsx';
+import { PublicPolicyProvider } from '../../src/contexts/PublicPolicyContext.jsx';
+
+const syntheticPolicies = ['terms', 'privacy'].map(slug => ({ slug, versionId: `test-${slug}`, status: 'APPROVED',
+  effectiveAt: '2020-01-01T00:00:00Z', approvedAt: '2020-01-01T00:00:00Z' }));
 
 function renderRegistration(api = {}) {
   const sessionAdapter = { resolve: jest.fn().mockResolvedValue({ status: 'guest' }) };
   const view = render(<MemoryRouter initialEntries={['/register']}>
-    <SessionProvider adapter={sessionAdapter}>
+    <SessionProvider adapter={sessionAdapter}><PublicPolicyProvider policies={syntheticPolicies}>
       <Routes><Route path="/register" element={<CustomerRegistrationPage api={api} />} /></Routes>
-    </SessionProvider>
+    </PublicPolicyProvider></SessionProvider>
   </MemoryRouter>);
   return { ...view, sessionAdapter };
 }
@@ -26,6 +30,8 @@ test('renders accessible customer registration fields and OTP-only language', ()
   expect(screen.getByRole('radio', { name: 'Số điện thoại' })).not.toBeChecked();
   expect(screen.getByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' })).toHaveAttribute('autocomplete', 'one-time-code');
   expect(screen.queryByLabelText(/mật khẩu/i)).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms/test-terms');
+  expect(screen.getByRole('link', { name: 'Chính sách quyền riêng tư' })).toHaveAttribute('href', '/policies/privacy/test-privacy');
 });
 
 test('validates name, contact, OTP and consent before sending or registering', () => {
@@ -62,6 +68,7 @@ test('registers with normalized contact and name only after code and consent', a
   expect(await screen.findByRole('heading', { name: 'Đăng ký thành công!' })).toBeVisible();
   expect(api.verifyAndRegister).toHaveBeenCalledWith({
     challengeId: 'challenge-2', channel: 'EMAIL', contact: 'hello@pawworld.com', code: '012345', displayName: 'Nguyễn Văn A',
+    policyVersions: { terms: 'test-terms', privacy: 'test-privacy' },
   });
   await waitFor(() => expect(sessionAdapter.resolve).toHaveBeenCalledTimes(2));
 });

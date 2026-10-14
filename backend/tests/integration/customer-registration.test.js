@@ -9,12 +9,15 @@ import { requireCsrf, requireSession } from '../../src/middlewares/session.js';
 import { authModule } from '../../src/routes/auth.routes.js';
 import { connectDatabase } from '../../src/config/database.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
+import { createAccountSettingsService } from '../../src/services/account-settings.service.js';
 import { createCustomerRegistrationHandler } from '../../src/services/customer-registration.service.js';
 import { createOtpService } from '../../src/services/otp-verification.service.js';
 import { createSessionService } from '../../src/services/session.service.js';
+import { AppError } from '../../src/utils/app-error.js';
 
 const secret = 'synthetic-customer-registration-test-key';
 const code = '004201';
+const policyVersions = { terms: 'terms-2026-10-01', privacy: 'privacy-2026-10-01' };
 let replica;
 let connection;
 let User;
@@ -27,13 +30,23 @@ function fixture({ deliveryResult = { status: 'ACCEPTED', code: 'SYNTHETIC_ACCEP
   const contactDelivery = { send: jest.fn(async command => { sent.push(command); return deliveryResult; }) };
   const sessionService = createSessionService({ connection, User, models,
     tokenSecret: `${secret}-token-secret`, csrfSecret: `${secret}-csrf-secret`, clock: () => clockNow });
-  const register = createCustomerRegistrationHandler({ connection, User, models, sessionService, contactCrypto, clock: () => clockNow });
+  const registrationPolicyService = { validateAndBuildReceipt: jest.fn(async ({ policyVersions: accepted, now }) => {
+    if (!accepted || accepted.terms !== policyVersions.terms || accepted.privacy !== policyVersions.privacy) {
+      throw new AppError(409, 'POLICY_NOT_AVAILABLE', 'Required policies are not available for consent');
+    }
+    return Object.freeze([
+    { slug: 'terms', versionId: policyVersions.terms, contentHash: 'terms-hash', effectiveAt: new Date('2026-10-01T00:00:00.000Z'), consentedAt: new Date(now), sourceRef: 'test-approved-source' },
+    { slug: 'privacy', versionId: policyVersions.privacy, contentHash: 'privacy-hash', effectiveAt: new Date('2026-10-01T00:00:00.000Z'), consentedAt: new Date(now), sourceRef: 'test-approved-source' },
+    ]);
+  }) };
+  const register = createCustomerRegistrationHandler({ connection, User, models, sessionService, contactCrypto, registrationPolicyService, clock: () => clockNow });
+  const accountSettingsService = createAccountSettingsService({ connection, models, contactCrypto });
   const otpService = createOtpService({ connection, User, models, contactDelivery, sessionService, contactCrypto,
     otpSecret: `${secret}-otp-secret`, clock: () => clockNow, createCode: () => code,
     verificationHandlers: { REGISTER: register } });
   const config = loadConfig({ NODE_ENV: 'test', MONGO_URI: replica.getUri(), MONGO_DB: 'pwc_customer_registration_test' });
   const app = createApp({ config, connection, lifecycle: { draining: false }, moduleFactories: [() => authModule({
-    otpService, sessionService, requireAuthenticated: requireSession(sessionService),
+    otpService, sessionService, accountSettingsService, requireAuthenticated: requireSession(sessionService),
     requireCsrf: requireCsrf(sessionService), secureCookies: false,
   })] });
   return { app, sessionService, contactDelivery, sent };
@@ -53,6 +66,7 @@ function verificationBody(challenge, overrides = {}) {
     purpose: 'REGISTER',
     code,
     displayName: 'Nguyễn Văn A',
+    policyVersions,
     ...overrides,
   };
 }
@@ -100,6 +114,10 @@ describe('P07 Customer registration over P06 OTP with isolated MongoDB', () => {
     const users = await User.find({}).lean();
     expect(users).toHaveLength(1);
     expect(users[0]).toMatchObject({ displayName: 'Nguyễn Văn A', roles: ['CUSTOMER'], state: 'ACTIVE', synthetic: false });
+    expect(users[0].policyConsents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ slug: 'terms', versionId: policyVersions.terms, contentHash: 'terms-hash' }),
+      expect.objectContaining({ slug: 'privacy', versionId: policyVersions.privacy, contentHash: 'privacy-hash' }),
+    ]));
     expect(users[0]).not.toHaveProperty('password');
     expect(await models.Contact.countDocuments({ userId: users[0]._id, channel, state: 'VERIFIED' })).toBe(1);
     const contactRecord = await models.Contact.findOne({ userId: users[0]._id }).select('+canonicalCiphertext +lookupKey').lean();
@@ -124,6 +142,15 @@ describe('P07 Customer registration over P06 OTP with isolated MongoDB', () => {
     clockNow += 5 * 60 * 1000;
     await request(app).post('/api/v1/otp-verifications').send(verificationBody(next)).expect(400);
     expect(await User.countDocuments({})).toBe(0);
+    expect(await models.AuthSession.countDocuments({})).toBe(0);
+  });
+
+  test('missing accepted policy versions fails closed after OTP and creates no account', async () => {
+    const { app } = fixture();
+    const challenge = await startChallenge(app, { contact: 'no-policy@example.test' });
+    await request(app).post('/api/v1/otp-verifications').send(verificationBody(challenge, { policyVersions: null })).expect(409);
+    expect(await User.countDocuments({})).toBe(0);
+    expect(await models.Contact.countDocuments({})).toBe(0);
     expect(await models.AuthSession.countDocuments({})).toBe(0);
   });
 

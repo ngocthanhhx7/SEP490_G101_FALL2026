@@ -1,0 +1,107 @@
+.application-status {
+  min-height: 100vh;
+  padding: clamp(1rem, 5vw, 3rem) 1rem;
+  color: var(--pwc-ink, #3f2a6b);
+  background: var(--pwc-cream, #fffbef);
+  font-family: var(--pwc-font-body, system-ui, sans-serif);
+}
+
+.application-status__panel {
+  width: min(100%, 42rem);
+  margin: 0 auto;
+  padding: clamp(1.25rem, 5vw, 2.5rem);
+  border: 1px solid var(--pwc-border, #786889);
+  border-radius: var(--pwc-radius-panel, 1.25rem);
+  background: var(--pwc-surface, #fff);
+  box-shadow: 0 1rem 2.5rem rgb(63 42 107 / 10%);
+}
+
+.application-status__eyebrow {
+  margin: 0 0 var(--pwc-space-2, 0.5rem);
+  color: var(--pwc-ink-muted, #63557b);
+  font-size: var(--pwc-text-small, 0.875rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.application-status h1 {
+  margin: 0;
+  font-family: var(--pwc-font-display, inherit);
+  font-size: var(--pwc-text-heading, clamp(1.75rem, 5vw, 2.5rem));
+  line-height: 1.2;
+}
+
+.application-status__intro {
+  margin: var(--pwc-space-4, 1rem) 0 var(--pwc-space-6, 1.5rem);
+  line-height: var(--pwc-leading, 1.5);
+}
+
+.application-status__form {
+  display: grid;
+  gap: var(--pwc-space-4, 1rem);
+  margin-top: var(--pwc-space-6, 1.5rem);
+}
+
+.application-status__button {
+  width: 100%;
+  min-height: var(--pwc-target, 2.75rem);
+}
+
+.application-status__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pwc-space-3, 0.75rem);
+  margin-top: var(--pwc-space-4, 1rem);
+}
+
+.application-status__result {
+  display: grid;
+  gap: var(--pwc-space-4, 1rem);
+  margin-top: var(--pwc-space-6, 1.5rem);
+  line-height: var(--pwc-leading, 1.5);
+}
+
+.application-status__result h2,
+.application-status__reason h3 {
+  margin: 0;
+}
+
+.application-status__state {
+  width: fit-content;
+  margin: 0;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--pwc-border, #786889);
+  border-radius: 999px;
+  background: var(--pwc-lavender-soft, #f8f4ff);
+  font-weight: 800;
+}
+
+.application-status__reason {
+  padding: var(--pwc-space-4, 1rem);
+  border-radius: var(--pwc-radius-control, 0.75rem);
+  background: var(--pwc-lavender-soft, #f8f4ff);
+}
+
+.application-status__reason p {
+  margin: var(--pwc-space-2, 0.5rem) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.application-status :focus-visible {
+  outline: var(--pwc-focus-width, 3px) solid var(--pwc-focus, #3f2a6b);
+  outline-offset: var(--pwc-focus-offset, 3px);
+}
+
+@media (max-width: 360px) {
+  .application-status { padding-inline: 0.75rem; }
+  .application-status__panel { padding: 1rem; }
+  .application-status__actions { display: grid; }
+  .application-status__actions button { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .application-status *,
+  .application-status *::before,
+  .application-status *::after { scroll-behavior: auto !important; }
+}

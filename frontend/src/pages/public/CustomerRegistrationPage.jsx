@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { useRegistrationPolicies } from '../../contexts/PublicPolicyContext.jsx';
 import { customerRegistrationApi, normalizeDisplayName, normalizeRegistrationContact } from '../../services/customer-registration-api.js';
+import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 import './customer-registration.css';
 
 const OTP_LIFETIME_SECONDS = 300;
@@ -43,11 +45,13 @@ function validateName(value) {
 
 export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
   const { refresh } = useSession();
+  const policies = useRegistrationPolicies();
   const [displayName, setDisplayName] = useState('');
   const [channel, setChannel] = useState('EMAIL');
   const [contact, setContact] = useState('');
   const [code, setCode] = useState('');
   const [agreement, setAgreement] = useState(false);
+  const [agreementKey, setAgreementKey] = useState('');
   const [challenge, setChallenge] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [busy, setBusy] = useState(false);
@@ -58,6 +62,8 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
   const contactRef = useRef(null);
   const codeRef = useRef(null);
   const agreementRef = useRef(null);
+
+  useEffect(() => { setAgreement(false); }, [policies.key]);
 
   useEffect(() => {
     if (!challenge) return undefined;
@@ -108,6 +114,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
   }
 
   async function requestOtp() {
+    if (!policies.current().ready) return;
     const { nextErrors, normalizedContact } = validateContact();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
@@ -144,10 +151,16 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
 
   async function submitRegistration(event) {
     event.preventDefault();
+    const currentPolicies = policies.current();
+    if (!currentPolicies.ready) {
+      setNotice({ state: 'error', title: 'Chính sách chưa sẵn sàng',
+        message: 'Đăng ký sẽ mở khi Điều khoản dịch vụ và Chính sách quyền riêng tư có hiệu lực.' });
+      return;
+    }
     const { nextErrors, normalizedContact } = validateContact();
     if (!sameChallenge || !challenge) nextErrors.challenge = 'Hãy yêu cầu mã OTP trước khi đăng ký.';
     if (!/^\d{6}$/.test(code)) nextErrors.code = 'Nhập mã OTP gồm đúng 6 chữ số.';
-    if (!agreement) nextErrors.agreement = 'Bạn cần xác nhận đồng ý để tiếp tục.';
+    if (!agreement || agreementKey !== currentPolicies.key) nextErrors.agreement = 'Bạn cần xác nhận đồng ý để tiếp tục.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       setNotice(null);
@@ -167,6 +180,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
         contact: normalizedContact,
         code,
         displayName: normalizeDisplayName(displayName),
+        policyVersions: currentPolicies.versions,
       });
       setCompleted(result.user?.displayName || normalizeDisplayName(displayName));
       setChallenge(null);
@@ -257,8 +271,8 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
               placeholder="•  •  •  •  •  •" aria-label="Mã OTP gồm 6 chữ số"
               aria-invalid={Boolean(errors.code)} aria-describedby={errors.code ? 'registration-code-error' : 'registration-code-hint'}
               onChange={event => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); clearNotice(); }} />
-            <button className="registration-send" type="button" disabled={!canResend} aria-busy={busy}
-              onClick={requestOtp}>{busy ? 'Đang gửi…' : sameChallenge && resendRemaining > 0
+            <button className="registration-send" type="button" aria-busy={busy}
+              onClick={requestOtp} disabled={busy || !canResend || !policies.ready}>{busy ? 'Đang gửi…' : sameChallenge && resendRemaining > 0
                 ? `Gửi lại sau ${formatTimer(resendRemaining)}` : sameChallenge ? 'Gửi lại mã OTP' : 'Gửi mã OTP'}</button>
           </div>
           {errors.code && <span id="registration-code-error" className="registration-field-error">{errors.code}</span>}
@@ -270,10 +284,12 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
         </section>
 
         <div className="registration-consent">
-          <input ref={agreementRef} id="registration-agreement" type="checkbox" checked={agreement}
+          <input ref={agreementRef} id="registration-agreement" type="checkbox" checked={agreement} disabled={!policies.ready}
             aria-invalid={Boolean(errors.agreement)} aria-describedby={errors.agreement ? 'registration-agreement-error' : undefined}
-            onChange={event => { setAgreement(event.target.checked); clearNotice(); }} />
-          <label htmlFor="registration-agreement">Tôi đồng ý với Điều khoản dịch vụ và Chính sách bảo mật của Paw World Care.</label>
+            onChange={event => { setAgreement(event.target.checked); setAgreementKey(policies.current().key); clearNotice(); }} />
+          <label htmlFor="registration-agreement">Tôi đồng ý với các chính sách áp dụng của Paw World Care.</label>
+          <PolicyContextLinks context="registration" />
+          {!policies.ready && <p role="status">Đăng ký sẽ mở khi hai chính sách được phê duyệt và có hiệu lực.</p>}
           {errors.agreement && <span id="registration-agreement-error" className="registration-field-error">{errors.agreement}</span>}
         </div>
 
@@ -282,7 +298,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
           <strong>{notice.title}</strong><span>{notice.message}</span>
         </div>}
 
-        <button className="registration-submit" type="submit" disabled={busy} aria-busy={busy}>
+        <button className="registration-submit" type="submit" disabled={busy || !policies.ready} aria-busy={busy}>
           {busy ? 'Đang xác minh…' : 'Đăng ký tài khoản Khách hàng'} <span aria-hidden="true">→</span>
         </button>
       </form>

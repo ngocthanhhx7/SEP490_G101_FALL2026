@@ -30,9 +30,9 @@ Backend uses MongoDB 8.0.34 in an isolated in-memory replica set for integration
 
 ## Integration gates
 
-- P34-A now mounts the auth module when `AUTH_ENABLED=true` and provides the `/me` API adapter. P34 must still add the page to the frontend route tree, inject the P07 REGISTER handler into the runtime OTP service, and connect the cookie-backed session adapter to the app provider. This package leaves `AppRoutes`, backend runtime composition, manifests and shared runtime configuration untouched.
+- P34-A mounts the auth module when `AUTH_ENABLED=true`; the shared runtime now injects the P07 REGISTER handler into the OTP service, and the merged frontend runtime exposes `/register` with the cookie-backed `/me` session adapter.
 - Runtime must provide the configured contact delivery, contact encryption/lookup keys, OTP secret, session token secret, and CSRF secret from approved runtime configuration. Provider delivery remains pending until P11/P12 are enabled and wired by P34.
-- The frontend app currently uses its pending session adapter. P34 must connect `/me` and the registration response to the app's in-memory session/CSRF flow. The registration screen itself does not persist session or CSRF tokens.
+- The registration screen calls `refresh()` after a successful response, so the app re-reads `/api/v1/me` using the session cookie. The registration screen itself does not persist session or CSRF tokens. OTP sign-in, CSRF recovery/logout and live provider wiring remain separate integration work.
 - Before production, confirm same-site HTTPS and Secure-cookie behavior, provider acceptance/delivery, session resolution, and route accessibility through the composed runtime.
 
-**State:** P07 implementation and checks passed; application route/runtime and live provider integration remain `INTEGRATION_PENDING`. Review and merge state is tracked on PR #16 and should be checked there. No live provider send or deployment is claimed.
+**State:** P07 implementation and runtime integration checks passed; live provider integration remains `INTEGRATION_PENDING`. This follow-up PR records the runtime wiring after the original P07 implementation merge. No live provider send or deployment is claimed.
