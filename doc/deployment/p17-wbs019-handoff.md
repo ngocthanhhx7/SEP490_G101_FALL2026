@@ -2,7 +2,8 @@
 
 | Trường | Giá trị |
 | --- | --- |
-| Trạng thái | `INTEGRATION_PENDING` |
+| Trạng thái | `PR_OPEN`; P34 integration pending |
+| PR | [#21](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/21), open → `develop` |
 | Branch/worktree | `feature/wbs-019-service-management` / `D:\WW\SEP490_G101_FALL2026-p17-wbs019` |
 | Base | `origin/develop` tại `28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f` |
 | Owner/author được giao | Nguyễn Ngọc Thành |
@@ -41,6 +42,6 @@ P34 cần đăng ký module, cung cấp price/catalog-settings ports và thêm R
 
 ## Git và bàn giao
 
-Thay đổi đang là working tree chưa commit. Chưa xác minh GitHub account theo contributor, chưa commit/push/mở PR; reviewer, approval và merge chưa diễn ra. Không có author/committer/push account thực tế để báo cáo.
+Commit `e762522b0a44cdee6f2aef144b5ba2fa1f98ee1e` dùng author/committer Nguyễn Ngọc Thành; push và PR creator là `ngocthanhhx7`. Reviewer Phạm Thành Chung đã được yêu cầu; approval đang chờ. Chưa merge.
 
 **Bước tiếp theo:** P34 composition và kiểm chứng catalog/booking cùng provider thật; đối chiếu UI với Figma khi frame sẵn sàng.
