@@ -16,11 +16,11 @@ Chỉ điền trong backend/.env cục bộ; không commit `.env` hoặc `.env.*
 | EMAIL_TIMEOUT_MS | 100–30000 ms, mặc định10000; deadline mỗi attempt |
 | EMAIL_MAX_ATTEMPTS | 1–3, mặc định2; retry delay1000 ms |
 
-Factory validate env khi được gọi; thiếu/sai báo503 EMAIL_CONFIGURATION_INVALID chỉ kèm tên field. Bật nhưng không inject dependency báo503 EMAIL_TRANSPORT_UNAVAILABLE. Disabled trả overrides rỗng, giữ P02 PROVIDER_UNAVAILABLE503. P34 phải gọi factory trước listen và truyền vào createApp; env chưa tự được nối với runtime P02. Không claim startup đã kiểm tra SMTP khi factory chưa được gọi. Chứng chỉ TLS luôn được kiểm tra; cấm tắt rejectUnauthorized. Không hỗ trợ plaintext port25 hoặc OAuth2 trong gói này.
+Factory validate env khi được gọi; thiếu/sai báo503 EMAIL_CONFIGURATION_INVALID chỉ kèm tên field. Bật nhưng không inject dependency báo503 EMAIL_TRANSPORT_UNAVAILABLE. Disabled trả overrides rỗng, giữ P02 PROVIDER_UNAVAILABLE503. P34-A gọi factory trước listen và ráp port vào runtime; `loadConfig` kiểm tra lỗi cấu hình provider trước khi kết nối DB. Không claim SMTP đã gửi thật. Chứng chỉ TLS luôn được kiểm tra; cấm tắt rejectUnauthorized. Không hỗ trợ plaintext port25 hoặc OAuth2 trong gói này.
 
-## Proposal tích hợp P34 (chưa áp dụng shared manifest/runtime)
+## Tích hợp P34-A
 
-Nodemailer10.1.1 được registry trả về tại thời điểm kiểm tra; integrator đánh giá/audit lại trước khi áp dụng exact manifest và lockfile cùng một commit. P11 không sửa manifest/lockfile hoặc app.js/runtime.js vì ownership P34. Không cài package toàn máy.
+P34-A đã cài Nodemailer 10.1.1 đúng phiên bản exact trong `backend/package.json` và lockfile; `npm audit` tại lúc cập nhật báo 0 vulnerabilities. Adapter được compose với P12 qua một `contactDelivery`, không thay đổi package toàn máy. Xem [P34-A status](../testing/p34-a-integration-status.md); trạng thái này chưa chứng minh gửi SMTP thật.
 
 ```powershell
 # Trong backend của nhánh tích hợp P34:
@@ -39,8 +39,7 @@ const emailOverrides = createEmailPortOverrides({
   createTransport: options => nodemailer.createTransport(options),
   logger: safeEmailLogger
 });
-// Before listen, compose into createApp({ ..., portOverrides: emailOverrides }).
-// P06/P34 must dispatch contactDelivery by channel if adding an SMS adapter.
+// P34-A calls this before listen and composes its contactDelivery with P12 SMS.
 ```
 
 safeEmailLogger do integrator cung cấp chỉ nhận event EMAIL_ATTEMPT, status, code và attempt; không thêm command/error raw vào wrapper. Factory không gọi verify() hoặc gửi email lúc startup. Provider acceptance không chứng minh mailbox delivery.
@@ -71,6 +70,6 @@ Các command đồng thời cùng operationId/payload chia sẻ một promise; k
 
 Unit suite inject createTransport/createAttempt; không import provider thật, không DNS/SMTP/HTTP. Kiểm tra template, input âm, safe errors/logs, retry, expiry, deadline và race. Integration Mongo của P02 dùng database cô lập; không chứng minh SMTP/Atlas.
 
-INTEGRATION_PENDING: P34 dependency/wiring; P06 OTP mapping/auth/quota/outbox; account SMTP, sender verification và sandbox recipient. Khi đã có cấu hình, gửi đúng một thư synthetic được provider cho phép từ luồng riêng, ghi chỉ timestamp/status/code/attempts. Không dùng dữ liệu khách hàng; không in OTP/address/credential. Muốn xác nhận DELIVERED cần evidence từ sandbox/inbox của provider; SMTP_ACCEPTED chưa đủ. Chưa thực hiện sandbox send trong P11 này.
+INTEGRATION_PENDING: credentials SMTP, sender verification và sandbox recipient; hoàn thiện OTP UI/registration/CSRF flow và durable outbox thuộc gói liên quan. P34-A wired adapter trong feature branch nhưng chưa có provider config hay live send evidence. Khi đã được cấp cấu hình, gửi đúng một thư synthetic được provider cho phép từ luồng riêng, ghi chỉ timestamp/status/code/attempts. Không dùng dữ liệu khách hàng; không in OTP/address/credential. Muốn xác nhận DELIVERED cần evidence từ sandbox/inbox của provider; SMTP_ACCEPTED chưa đủ. Chưa thực hiện sandbox send trong P11 này.
 
 Nguồn chính thức: [SMTP options](https://nodemailer.com/smtp), [message configuration](https://nodemailer.com/message), [error reference](https://nodemailer.com/errors). Implementation dùng TLS bắt buộc, timeout, tắt debug/logging và quyền đọc file/URL theo transport docs; không chuyển qua HTTP provider.

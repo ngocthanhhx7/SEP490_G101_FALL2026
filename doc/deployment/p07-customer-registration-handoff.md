@@ -18,19 +18,21 @@ Executed in the feature worktree with locked dependencies:
 
 | Command | Result |
 | --- | --- |
+| `backend/npm ci --ignore-scripts` | Passed; 469 packages installed, 0 audit vulnerabilities |
+| `frontend/npm ci` | Passed; 528 packages installed, 0 audit vulnerabilities |
 | `frontend/npm run lint` | Passed |
-| `frontend/npm test -- --runInBand` | Passed: 8 suites, 103 tests |
+| `frontend/npm test -- --runInBand` | Passed: 9 suites, 106 tests |
 | `frontend/npm run build` | Passed with Vite 8.3.4 |
 | `backend/npm run lint` | Passed |
-| `backend/npm test -- --runInBand` | Passed after correcting the test assertion to allow the intended `csrfToken` field; 12 suites, 137 tests |
+| `backend/npm test -- --runInBand` | Passed: 14 suites, 147 tests, including P34-A and P07 integration coverage |
 
-Backend uses MongoDB 8.0.34 in an isolated in-memory replica set for integration tests. The provider port is synthetic in tests; these checks do not prove live email or SMS delivery. Backend JavaScript has no separate build script.
+Backend uses MongoDB 8.0.34 in an isolated in-memory replica set for integration tests. The provider port is synthetic in tests; these checks do not prove live email or SMS delivery. Backend JavaScript has no separate build script. Checks were rerun after merging the latest `develop` commit and resolving the P34-A overlaps.
 
 ## Integration gates
 
-- P34 owns adding the page to the frontend route tree, mounting the auth module in the backend runtime, and composing the session adapter. This package leaves `AppRoutes`, backend runtime composition, manifests and shared runtime configuration untouched.
-- Runtime must inject the P07 REGISTER handler into P06 OTP service and provide the configured contact delivery, contact encryption/lookup keys, OTP secret, session token secret, and CSRF secret from approved runtime configuration. Provider delivery remains pending until P11/P12 are wired by P34.
-- Frontend `SessionProvider` must resolve the new cookie-backed session after `refresh()` and map the backend `roles` to its internal `role` view model. The registration screen itself does not persist session or CSRF tokens.
+- P34-A now mounts the auth module when `AUTH_ENABLED=true` and provides the `/me` API adapter. P34 must still add the page to the frontend route tree, inject the P07 REGISTER handler into the runtime OTP service, and connect the cookie-backed session adapter to the app provider. This package leaves `AppRoutes`, backend runtime composition, manifests and shared runtime configuration untouched.
+- Runtime must provide the configured contact delivery, contact encryption/lookup keys, OTP secret, session token secret, and CSRF secret from approved runtime configuration. Provider delivery remains pending until P11/P12 are enabled and wired by P34.
+- The frontend app currently uses its pending session adapter. P34 must connect `/me` and the registration response to the app's in-memory session/CSRF flow. The registration screen itself does not persist session or CSRF tokens.
 - Before production, confirm same-site HTTPS and Secure-cookie behavior, provider acceptance/delivery, session resolution, and route accessibility through the composed runtime.
 
 **State:** implemented and checks passed in isolation; application route/runtime and provider integration remain `INTEGRATION_PENDING`. No live provider send, deployment, PR approval or merge is claimed here.

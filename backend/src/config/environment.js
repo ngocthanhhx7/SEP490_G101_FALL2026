@@ -1,3 +1,6 @@
+import { loadEsmsConfig } from '../services/esms-sms.service.js';
+import { loadSmtpConfig } from '../services/smtp-email.service.js';
+
 export class ConfigurationError extends Error {
   constructor(fields) {
     super(`Invalid configuration fields: ${[...new Set(fields)].join(', ')}`);
@@ -25,8 +28,46 @@ export function loadConfig(env = process.env) {
   const seedValue = env.ALLOW_DEV_ADMIN_SEED ?? 'false';
   if (!['true', 'false'].includes(seedValue)) invalid.push('ALLOW_DEV_ADMIN_SEED');
   if (nodeEnv === 'production' && seedValue === 'true') invalid.push('ALLOW_DEV_ADMIN_SEED');
+
+  const authEnabledValue = env.AUTH_ENABLED ?? 'false';
+  if (!['true', 'false'].includes(authEnabledValue)) invalid.push('AUTH_ENABLED');
+  const authEnabled = authEnabledValue === 'true';
+  const authSecrets = {
+    otpSecret: env.OTP_HMAC_SECRET,
+    tokenSecret: env.SESSION_TOKEN_SECRET,
+    csrfSecret: env.SESSION_CSRF_SECRET,
+    contactLookupSecret: env.CONTACT_LOOKUP_SECRET,
+    contactEncryptionKey: env.CONTACT_ENCRYPTION_KEY
+  };
+  if (authEnabled) {
+    for (const [name, value] of Object.entries(authSecrets)) {
+      const bytes = typeof value === 'string' ? Buffer.byteLength(value, 'utf8') : 0;
+      const valid = name === 'contactEncryptionKey' ? bytes === 32 : bytes >= 32;
+      if (!valid) {
+        const fields = {
+          otpSecret: 'OTP_HMAC_SECRET', tokenSecret: 'SESSION_TOKEN_SECRET',
+          csrfSecret: 'SESSION_CSRF_SECRET', contactLookupSecret: 'CONTACT_LOOKUP_SECRET',
+          contactEncryptionKey: 'CONTACT_ENCRYPTION_KEY'
+        };
+        invalid.push(fields[name]);
+      }
+    }
+  }
+
+  for (const loadProviderConfig of [loadSmtpConfig, loadEsmsConfig]) {
+    try { loadProviderConfig(env); }
+    catch (error) {
+      if (Array.isArray(error?.details?.fields)) invalid.push(...error.details.fields);
+      else throw error;
+    }
+  }
+
   const result = {
     nodeEnv, host, mongoUri, database, allowDevAdminSeed: seedValue === 'true',
+    auth: Object.freeze(authEnabled
+      ? { enabled: true, ...authSecrets }
+      : { enabled: false }),
+    secureCookies: nodeEnv === 'production',
     port: integer('PORT', 3000, 0, 65535),
     connectTimeoutMs: integer('MONGO_CONNECT_TIMEOUT_MS', 5000, 100, 30000),
     readinessTimeoutMs: integer('READINESS_TIMEOUT_MS', 1000, 100, 5000),

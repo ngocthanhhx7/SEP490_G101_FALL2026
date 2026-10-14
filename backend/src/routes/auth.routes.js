@@ -20,6 +20,7 @@ export function authModule({ otpService, sessionService, requireAuthenticated, r
   secureCookies = true } = {}) {
   if (typeof otpService?.begin !== 'function' || typeof otpService?.verify !== 'function'
     || typeof sessionService?.authenticate !== 'function' || typeof sessionService?.verifyCsrf !== 'function'
+    || typeof sessionService?.getCurrentUser !== 'function'
     || typeof sessionService?.setCookie !== 'function' || typeof sessionService?.clearCookie !== 'function'
     || typeof sessionService?.revoke !== 'function' || typeof requireAuthenticated !== 'function'
     || typeof requireCsrf !== 'function' || typeof secureCookies !== 'boolean') {
@@ -28,6 +29,12 @@ export function authModule({ otpService, sessionService, requireAuthenticated, r
   const router = Router();
   const authenticated = requireAuthenticated;
   const csrfProtected = requireCsrf;
+
+  router.get('/me', authenticated, async (req, res) => {
+    const user = await sessionService.getCurrentUser(req.auth);
+    if (!user) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    return respond(res, req, 200, { user });
+  });
 
   router.post('/otp-challenges', async (req, res) => {
     if (!hasOnlyKeys(req.body, CHALLENGE_KEYS)) {

@@ -1,6 +1,6 @@
 # P01 — DTO, REST và quyền v1
 
-Ngày14/10/2026. Canonical contract names/states/owners trong [registry](p01-contract-registry-v1.json), primitives trong [JSON Schema](p01-common.schema.json), lifecycle ở [domain contract](../architecture/p01-domain-contract-v1.md). Chưa có endpoints chạy hoặc OpenAPI toàn hệ thống; route catalogue dưới chuẩn hóa cho implementation, không coi JSON Schema là đầy đủ request validation.
+Ngày14/10/2026. Canonical contract names/states/owners trong [registry](p01-contract-registry-v1.json), primitives trong [JSON Schema](p01-common.schema.json), lifecycle ở [domain contract](../architecture/p01-domain-contract-v1.md). P34 có thể mount auth/OTP routes khi được cấu hình; REGISTER cần inject handler P07. Chưa có OpenAPI toàn hệ thống; route catalogue dưới chuẩn hóa cho implementation, không coi JSON Schema là đầy đủ request validation.
 
 ## Common wire contract
 

@@ -8,6 +8,9 @@ import { connectDatabase } from '../../src/config/database.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { seedDevelopmentAdmin } from '../../src/services/admin-seed.service.js';
 import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
+import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
+import { identityModels } from '../../src/models/identity.model.js';
+import { userModel } from '../../src/models/user.model.js';
 
 let replica, runtime;
 const envFor = uri => ({ NODE_ENV: 'test', PORT: '0', MONGO_URI: uri, MONGO_DB: 'pwc_foundation_test', MONGO_CONNECT_TIMEOUT_MS: '3000' });
@@ -24,6 +27,7 @@ describe('real isolated MongoDB 8.0.34 replica-set smoke', () => {
     expect(build.version).toBe('8.0.34');
     await request(runtime.server).get('/health').expect(200);
     await request(runtime.server).get('/ready').expect(200);
+    await request(runtime.server).get('/api/v1/me').expect(404);
   });
   test('unit-of-work rolls back database writes on error and commits success', async () => {
     const collection = runtime.connection.db.collection('synthetic_operations');
@@ -59,6 +63,73 @@ describe('real isolated MongoDB 8.0.34 replica-set smoke', () => {
       await expect(seedDevelopmentAdmin(connection, dev)).rejects.toMatchObject({ code: 'SEED_FIXTURE_CONFLICT' });
     } finally { await connection.close(); }
   });
+  test('P34 auth module wires OTP delivery, cookie session, GET /me and CSRF-protected logout', async () => {
+    let delivered;
+    const secrets = {
+      OTP_HMAC_SECRET: 'o'.repeat(32),
+      SESSION_TOKEN_SECRET: 't'.repeat(32),
+      SESSION_CSRF_SECRET: 'c'.repeat(32),
+      CONTACT_LOOKUP_SECRET: 'l'.repeat(32),
+      CONTACT_ENCRYPTION_KEY: 'e'.repeat(32)
+    };
+    const authRuntime = await startRuntime({
+      env: { ...envFor(replica.getUri()), MONGO_DB: 'pwc_auth_route_test', AUTH_ENABLED: 'true', ...secrets },
+      portOverrides: { contactDelivery: { send: async command => {
+        delivered = command;
+        return { status: 'ACCEPTED', code: 'SYNTHETIC_ACCEPTED' };
+      } } }
+    });
+    try {
+      const contact = 'p34-customer@example.test';
+      const contactCrypto = createContactCrypto({
+        lookupSecret: secrets.CONTACT_LOOKUP_SECRET,
+        encryptionKey: secrets.CONTACT_ENCRYPTION_KEY
+      });
+      const User = userModel(authRuntime.connection);
+      const models = identityModels(authRuntime.connection);
+      const user = await User.create({
+        displayName: 'Synthetic P34 Customer', roles: ['CUSTOMER'], state: 'ACTIVE',
+        authEpoch: 0, version: 0, synthetic: false
+      });
+      const lookup = contactCrypto.lookup('EMAIL', contact);
+      await models.Contact.create({
+        userId: user._id, channel: 'EMAIL', canonicalCiphertext: contactCrypto.encrypt(lookup.canonicalValue),
+        lookupKey: lookup.lookupKey, state: 'VERIFIED', verifiedAt: new Date()
+      });
+
+      await request(authRuntime.server).get('/api/v1/me').expect(401);
+      const challengeResponse = await request(authRuntime.server).post('/api/v1/otp-challenges')
+        .send({ channel: 'EMAIL', contact, purpose: 'LOGIN' }).expect(202);
+      expect(delivered).toMatchObject({ channel: 'EMAIL', kind: 'OTP', to: contact });
+      expect(challengeResponse.body.data.challengeId).toBeTruthy();
+      expect(JSON.stringify(challengeResponse.body)).not.toContain(contact);
+
+      const login = await request(authRuntime.server).post('/api/v1/sessions').send({
+        challengeId: challengeResponse.body.data.challengeId, channel: 'EMAIL',
+        contact, purpose: 'LOGIN', code: delivered.code
+      }).expect(200);
+      const cookie = login.headers['set-cookie'][0].split(';', 1)[0];
+      const csrfToken = login.body.data.csrfToken;
+      expect(login.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
+      expect(login.body.data.user).toEqual({
+        id: user._id.toString(), displayName: 'Synthetic P34 Customer', roles: ['CUSTOMER']
+      });
+
+      await request(authRuntime.server).get('/api/v1/me').set('Cookie', cookie).expect(200)
+        .expect(({ body }) => expect(body.data.user).toEqual({
+          id: user._id.toString(), displayName: 'Synthetic P34 Customer', roles: ['CUSTOMER']
+        }));
+      await request(authRuntime.server).delete('/api/v1/sessions/current')
+        .set({ Cookie: cookie, Host: '127.0.0.1', Origin: 'http://127.0.0.1', 'X-CSRF-Token': 'invalid' })
+        .expect(403);
+      await request(authRuntime.server).delete('/api/v1/sessions/current')
+        .set({ Cookie: cookie, Host: '127.0.0.1', Origin: 'http://127.0.0.1', 'X-CSRF-Token': csrfToken })
+        .expect(204);
+      await request(authRuntime.server).get('/api/v1/me').set('Cookie', cookie).expect(401);
+    } finally {
+      await authRuntime.stop();
+    }
+  }, 30000);
   test('standalone database is refused rather than pretending transactions ready', async () => {
     const standalone = await MongoMemoryServer.create({ binary: { version: '8.0.34' } });
     try {
