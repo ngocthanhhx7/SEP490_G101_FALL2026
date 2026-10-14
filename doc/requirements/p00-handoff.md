@@ -6,7 +6,7 @@ Người chịu trách nhiệm P00 và contributor được chỉ định: Nguy�
 
 Branch: `feature/p00-source-scope-traceability`; workspace `D:/WW/SEP490_G101_FALL2026`; base `origin/develop` sau `git fetch origin develop`: `b0ca49ce474b2408d04059cc89b7f7b3ca85dfd6`. Không tạo worktree khác. Nhánh bắt đầu phiên là `feature/project-implementation-prompts`; HEAD cùng base. Giữ nguyên hai README đã sửa và toàn bộ thư mục prompt chưa commit của người dùng.
 
-Trạng thái: IMPLEMENTED cho draft P00; VERIFIED chỉ cho kiểm kê/đối chiếu và checks tài liệu nêu dưới. Nguồn Drive chưa cập nhật. Các hợp đồng/module/provider chưa VERIFIED; PR_OPEN/MERGED chỉ ghi sau thao tác GitHub thật, không suy ra từ tài liệu.
+Trạng thái: PR_OPEN cho draft P00; VERIFIED chỉ cho kiểm kê/đối chiếu và checks tài liệu nêu dưới. Nguồn Drive chưa cập nhật. Các hợp đồng/module/provider chưa VERIFIED; chưa MERGED.
 
 ## Nguồn và hợp đồng
 
@@ -29,7 +29,7 @@ Tệp tạo: README, `p00-source-crosswalk-v1.md`, `p00-amendments-v1.md`, `p00-
 
 - Parser python-docx/openpyxl đọc trực tiếp nguồn; so tên/mã/effort/owner/deadline và mapping. Kết quả: 66 SRS UC, 66 UC workbook, 70 WBS; 119 pds =115 committed+4 backlog; backlog IDs55/56/62. Manage Account không thành UC mới; checkin/out về WBS37.
 - Script audit cục bộ `.codex/p00-check.py`: PASS trên5 tệp cho tên SRS/WBS từng dòng, coverage/mã provisional, hash source, relative links, column counts, UTF-8/LF/trailing whitespace và phép tính ví dụ FIN. Script là công cụ kiểm kê tạm đã ignore, không là test sản phẩm hoặc cấu hình shared.
-- `git diff --check` trước stage: không lỗi; `git diff --cached --check` và staged list phải kiểm tra trước commit. Chỉ năm tài liệu P00 được đưa vào commit.
+- `git diff --check` trước stage và `git diff --cached --check`: PASS. Staged list đã kiểm tra: chỉ năm tài liệu P00 được đưa vào commit nội dung; bản cập nhật bàn giao chỉ stage tệp này.
 - Unit/integration/build/lint runtime: N/A, frontend/backend chưa có manifest/lockfile/script/app; không có workflow CI cấu hình. Case âm/race/deadline là acceptance requirement, chưa thực thi. UI360px/keyboard/touch chưa test vì không triển khai UI.
 
 ## UI và tích hợp thật
@@ -48,4 +48,6 @@ Leader cần ghi nhận owner module và quyết định còn mở trước code
 
 Author theo chỉ định: Thành; email dùng theo danh tính người dùng cung cấp, không đưa bảng email/cấu hình cục bộ vào repo. Git committer cục bộ hiện là Thành; không thay global/default identity. GitHub API `/user` xác minh tài khoản đang dùng `ngocthanhhx7`. API `/user/emails` trả HTTP404, nên chưa xác minh email author liên kết/verified trên GitHub; không coi đổi email là đổi tài khoản push/PR/review.
 
-Snapshot bàn giao trước commit/PR: chưa có commit P00, chưa PR/approval/merge. Commit và URL PR thực tế được báo trong chat và PR description sau checks. Không tự approve hoặc merge thay thành viên; bản ổn định lên main cần PR riêng, chưa thực hiện trong P00.
+Commit nội dung: `53cbf67411ba65fd142eec4e66344f7598ff2e01` — `docs: reconcile P00 sources scope and traceability`; author và committer là Thành. Đã push nhánh. [PR #3](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/3) vào develop được mở bằng tài khoản `ngocthanhhx7`; API lúc kiểm tra trả state=open, merged=false, reviews=[] trên head commit nội dung.
+
+Bản ghi PR này được commit tiếp theo trên cùng nhánh, không sửa lịch sử commit trước. Bàn giao chat kiểm tra lại reviews/head mới nhất sau push. Chưa có approval độc lập, chưa merge; không tự approve hoặc merge thay thành viên. Bản ổn định lên main cần PR riêng, chưa thực hiện trong P00.
