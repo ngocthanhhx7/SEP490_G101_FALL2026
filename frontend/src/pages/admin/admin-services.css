@@ -1,0 +1,92 @@
+.admin-services {
+  min-height: 100dvh; padding: clamp(1rem, 3vw, 2.5rem); color: var(--pwc-ink);
+  background: #f7f5fa; font-family: var(--pwc-font-body);
+}
+.admin-services *, .admin-services *::before, .admin-services *::after { box-sizing: border-box; }
+.admin-services h1, .admin-services h2, .admin-services h3, .admin-services p { margin: 0; }
+.admin-services button, .admin-services input, .admin-services textarea, .admin-services select { font: inherit; }
+.admin-services :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+.admin-services-skip {
+  position: fixed; z-index: 2; inset-block-start: .5rem; inset-inline-start: .5rem; padding: .75rem 1rem;
+  color: var(--pwc-cream); background: var(--pwc-ink); border-radius: var(--pwc-radius-control); transform: translateY(-180%);
+}
+.admin-services-skip:focus { transform: translateY(0); }
+.admin-services-header, .admin-services-toolbar, .admin-service-detail-heading,
+.admin-services-list-heading, .admin-service-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.admin-services-header {
+  max-width: 84rem; margin: 0 auto; padding: 1.25rem 0 1.5rem; border-bottom: 1px solid #ded7e8;
+}
+.admin-services-header h1 { margin-top: .25rem; font-family: var(--pwc-font-display); font-size: clamp(2rem, 5vw, 3rem); }
+.admin-services-logo { display: block; width: min(11rem, 62vw); height: auto; margin-bottom: .75rem; }
+.admin-services-header p:last-child, .admin-services-toolbar p { color: var(--pwc-ink-muted); }
+.admin-services-eyebrow { color: var(--pwc-ink-muted); font-size: .75rem; font-weight: 800; letter-spacing: .06em; }
+.admin-services-provisional {
+  flex: 0 0 auto; padding: .5rem .75rem; color: #705100; background: var(--pwc-warning-surface);
+  border-radius: 999px; font-size: .75rem; font-weight: 800;
+}
+.admin-services-toolbar { max-width: 84rem; margin: 1rem auto; }
+.admin-services-grid {
+  display: grid; grid-template-columns: minmax(15rem, .75fr) minmax(0, 1.5fr);
+  align-items: start; gap: 1rem; max-width: 84rem; margin: 0 auto;
+}
+.admin-services-list, .admin-service-detail {
+  min-width: 0; padding: clamp(1rem, 2vw, 1.5rem); background: var(--pwc-surface);
+  border: 1px solid #e4deeb; border-radius: var(--pwc-radius-panel); box-shadow: 0 10px 30px rgb(63 42 107 / 5%);
+}
+.admin-services-list-heading, .admin-service-detail-heading { margin-bottom: 1rem; }
+.admin-services-list-heading h2, .admin-service-detail-heading h2 { margin-top: .25rem; font-size: 1.35rem; }
+.admin-services-items { display: grid; gap: .5rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.admin-service-choice {
+  display: flex; width: 100%; min-height: 3.75rem; align-items: center; justify-content: space-between;
+  gap: .75rem; padding: .75rem; color: inherit; background: #fff; border: 1px solid #e4deeb;
+  border-radius: var(--pwc-radius-control); text-align: left; cursor: pointer;
+}
+.admin-service-choice:hover, .admin-service-choice[aria-pressed=true] { background: var(--pwc-lavender-soft); border-color: var(--pwc-lavender); }
+.admin-service-choice-main { display: grid; min-width: 0; gap: .15rem; }
+.admin-service-choice-main strong { overflow-wrap: anywhere; }
+.admin-service-choice-main small { color: var(--pwc-ink-muted); }
+.admin-service-state { flex: 0 0 auto; padding: .25rem .5rem; border-radius: 999px; font-size: .72rem; font-weight: 800; }
+.admin-service-state--active { color: #216443; background: var(--pwc-success-surface); }
+.admin-service-state--draft { color: #705100; background: var(--pwc-warning-surface); }
+.admin-service-state--inactive, .admin-service-state--archived { color: var(--pwc-ink-muted); background: #eeeaf2; }
+.admin-service-summary dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 0; }
+.admin-service-summary dl > div { min-width: 0; padding: .75rem; background: #fbfaff; border-radius: .75rem; }
+.admin-service-summary dt { color: var(--pwc-ink-muted); font-size: .8rem; font-weight: 800; }
+.admin-service-summary dd { margin: .25rem 0 0; overflow-wrap: anywhere; }
+.admin-service-preserve-lines { white-space: pre-wrap; }
+.admin-service-policy { margin-top: 1rem; padding: 1rem; background: var(--pwc-lavender-soft); border-radius: .85rem; }
+.admin-service-policy h3 { margin-bottom: .5rem; }
+.admin-service-policy p { line-height: 1.55; }
+.admin-service-policy small { display: block; margin-top: .75rem; color: var(--pwc-ink-muted); }
+.admin-service-form { display: grid; gap: 1rem; margin-top: 1rem; }
+.admin-service-form .pwc-control, .admin-service-field textarea { width: 100%; }
+.admin-service-field { display: grid; gap: .4rem; font-weight: 700; }
+.admin-service-field textarea {
+  min-height: 6rem; padding: .75rem; color: var(--pwc-ink); background: #fff; border: 1px solid #786889;
+  border-radius: var(--pwc-radius-control); line-height: 1.5; resize: vertical;
+}
+.admin-service-species {
+  display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin: 0; padding: .75rem 1rem;
+  border: 1px solid #ded7e8; border-radius: .75rem;
+}
+.admin-service-species legend { padding-inline: .25rem; font-weight: 800; }
+.admin-service-species label { display: inline-flex; min-height: var(--pwc-target); align-items: center; gap: .5rem; }
+.admin-service-species input { width: 1.2rem; height: 1.2rem; accent-color: var(--pwc-ink); }
+.admin-service-actions { justify-content: flex-start; }
+.admin-policy-form { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid #e4deeb; }
+.admin-policy-form h3 { margin-top: .25rem; font-size: 1.1rem; }
+.admin-service-policy-note { color: var(--pwc-ink-muted); font-size: .9rem; }
+.admin-services .pwc-button { min-height: var(--pwc-target); }
+@media (max-width: 760px) {
+  .admin-services-grid { grid-template-columns: minmax(0, 1fr); }
+  .admin-services-header { align-items: flex-start; flex-direction: column; }
+  .admin-services-provisional { white-space: normal; }
+}
+@media (max-width: 420px) {
+  .admin-services { padding: .75rem; }
+  .admin-services-toolbar, .admin-service-detail-heading, .admin-services-list-heading { align-items: flex-start; flex-direction: column; }
+  .admin-service-summary dl { grid-template-columns: minmax(0, 1fr); }
+  .admin-service-actions { align-items: stretch; flex-direction: column; }
+}
