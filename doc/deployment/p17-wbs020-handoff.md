@@ -2,7 +2,8 @@
 
 | Trường | Giá trị |
 | --- | --- |
-| Trạng thái | `INTEGRATION_PENDING` |
+| Trạng thái | `PR_OPEN`; P34 integration pending |
+| PR | [#20](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/20), open → `develop` |
 | Branch/worktree | `feature/wbs-020-service-price-configuration` / `D:\WW\SEP490_G101_FALL2026-p17-wbs020` |
 | Base | `origin/develop` tại `28bcf3d30ed1d31e693c11d7b5e65b2f4e412b5f` |
 | Owner/author được giao | Đặng Văn Hải |
@@ -40,6 +41,6 @@ P34 cần đăng ký module và nối `serviceExists` với service catalog. P34
 
 ## Git và bàn giao
 
-Thay đổi đang là working tree chưa commit. Chưa xác minh GitHub account của owner, chưa commit/push/mở PR; reviewer, approval và merge chưa diễn ra. Không có author/committer/push account thực tế để báo cáo.
+Commit `5692a531bcba042e87311e490e65027fcf8138f1` dùng author/committer Đặng Văn Hải; push và PR creator là `Haidvhe181849`. Reviewer Nguyễn Hữu Anh Nhật đã được yêu cầu; repository CODEOWNERS cũng yêu cầu Project Leader Nguyễn Ngọc Thành. Approval đang chờ. Chưa merge.
 
 **Bước tiếp theo:** P34 composition và xác minh nối service catalog/booking; đối chiếu UI với Figma khi frame sẵn sàng.
