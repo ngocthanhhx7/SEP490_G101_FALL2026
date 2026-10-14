@@ -22,7 +22,7 @@ Mốc so sánh: Twilio Verify công bố phí nền **$0.05 cho mỗi lần xác
 
 ## Cấu hình backend
 
-Factory `createSmsPortOverrides` chưa được nối vào startup/runtime; P34 phải gọi factory trước khi listen và phối hợp dispatch `contactDelivery` với P11 theo `command.channel`.
+Factory `createSmsPortOverrides` chưa được nối vào startup/runtime; P34 phải gọi factory trước khi listen và ghép P11/P12 thành một `contactDelivery` duy nhất. P06 dùng kênh liên hệ `EMAIL`/`PHONE`; integrator phải chuyển `PHONE` thành `SMS` khi gọi adapter này và giữ `EMAIL` cho P11. Không ghi đè adapter này bằng object spread; provider tắt hoặc thiếu phải giữ trạng thái fail-closed của P02.
 
 | Biến môi trường | Ý nghĩa |
 | --- | --- |
@@ -37,7 +37,7 @@ Khi tắt, factory trả `{}` để giữ provider fail-closed của P02. Khi b�
 
 ## Hợp đồng nội bộ, timeout và trạng thái
 
-P06/P34 gọi `contactDelivery.send` với command server-only `{ channel: 'SMS', kind: 'OTP', to, operationId, purpose, code, expiresAt }`. `operationId` UUID do server sinh và phải ổn định khi caller reconcile cùng operation. Adapter chuẩn hóa số di động Việt Nam thành E.164 `+84…`, gửi API digits-only `84…`; không chấp nhận quốc gia khác. Nội dung ASCII gồm mã, purpose, hạn 5 phút và cảnh báo không chia sẻ mã.
+Adapter SMS nhận command server-only `{ channel: 'SMS', kind: 'OTP', to, operationId, purpose, code, expiresAt }`. P06 gửi `channel: 'PHONE'` cho số điện thoại, vì đây là loại liên hệ trong contract; P34 phải map `PHONE` thành `SMS` trước khi gọi adapter. `operationId` UUID do server sinh và phải ổn định khi caller reconcile cùng operation. Adapter chuẩn hóa số di động Việt Nam thành E.164 `+84…`, gửi API digits-only `84…`; không chấp nhận quốc gia khác. Nội dung ASCII gồm mã, purpose, hạn 5 phút và cảnh báo không chia sẻ mã.
 
 `RequestId` truyền `operationId`; eSMS ghi tài liệu rằng giá trị này chặn request trùng trong 24 giờ. Adapter coalesce các lời gọi đồng thời cùng payload trong process. Payload khác nhưng reuse id trả `OPERATION_CONFLICT`. Mỗi lần thử chỉ gửi một HTTP request. Timeout/mất kết nối sau khi bắt đầu request trả `TIMEOUT` hoặc `PROVIDER_ERROR`, `uncertain=true`, không retry tự động; caller phải giữ trạng thái pending/uncertain và dùng lại cùng operation ID khi reconcile, không phát sinh OTP/send mới chỉ vì chưa nhận response.
 
