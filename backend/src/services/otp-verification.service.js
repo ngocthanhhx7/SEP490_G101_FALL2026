@@ -12,7 +12,7 @@ const HOURLY_WINDOW_MS = 60 * 60 * 1000;
 const MAX_CODES_PER_HOUR = 5;
 const MAX_FAILED_ATTEMPTS = 5;
 const CONTACT_LOCK_MS = 15 * 60 * 1000;
-const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE']);
+const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE', 'APPLICATION_STATUS']);
 
 function secret(value) {
   if (typeof value !== 'string' || Buffer.byteLength(value, 'utf8') < 32) {
@@ -58,12 +58,19 @@ export function createOtpService({ connection, User, models = identityModels(con
   const codeDigest = ({ challengeId, contactLookup, purpose, code }) => createHmac('sha256', hmacKey)
     .update(`otp\0${challengeId}\0${contactLookup}\0${purpose}\0${code}`).digest('hex');
 
-  async function begin({ channel, contact, purpose, actor } = {}) {
+  async function begin({ channel, contact, purpose, actor, applicationId } = {}) {
     if (!PURPOSES.has(purpose)) throw new AppError(422, 'VALIDATION_FAILED', 'OTP request is invalid');
     if (purpose === 'CONTACT_CHANGE' && (!actor?.sessionId || !Types.ObjectId.isValid(actor?.userId))) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
-    const { canonicalValue, contactLookup } = lookup(channel, contact);
+    const identity = lookup(channel, contact);
+    const canonicalValue = identity.canonicalValue;
+    if (purpose === 'APPLICATION_STATUS' && !Types.ObjectId.isValid(applicationId)) {
+      throw new AppError(422, 'VALIDATION_FAILED', 'Application scope is required');
+    }
+    const contactLookup = purpose === 'APPLICATION_STATUS'
+      ? createHmac('sha256', hmacKey).update(`application-status\0${applicationId}\0${identity.contactLookup}`).digest('hex')
+      : identity.contactLookup;
     if (purpose === 'CONTACT_CHANGE') {
       const linkedElsewhere = await models.Contact.exists({
         channel, lookupKey: contactLookup, state: 'VERIFIED', userId: { $ne: new Types.ObjectId(actor.userId) }
@@ -135,7 +142,7 @@ export function createOtpService({ connection, User, models = identityModels(con
     return Object.freeze({ status: 'PENDING', challengeId, expiresInSeconds: 300, resendAfterSeconds: 60 });
   }
 
-  async function verify({ challengeId, channel, contact, purpose, code, displayName, policyVersions, actor } = {}) {
+  async function verify({ challengeId, channel, contact, purpose, code, displayName, policyVersions, actor, applicationId } = {}) {
     if (typeof challengeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(challengeId)
       || !PURPOSES.has(purpose) || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
       throw new AppError(422, 'VALIDATION_FAILED', 'OTP verification request is invalid');
@@ -146,7 +153,14 @@ export function createOtpService({ connection, User, models = identityModels(con
     if (purpose === 'REGISTER' && typeof verificationHandlers.REGISTER !== 'function') {
       throw new AppError(503, 'REGISTRATION_UNAVAILABLE', 'Customer registration is not configured');
     }
-    const { canonicalValue, contactLookup } = lookup(channel, contact);
+    const identity = lookup(channel, contact);
+    const canonicalValue = identity.canonicalValue;
+    if (purpose === 'APPLICATION_STATUS' && !Types.ObjectId.isValid(applicationId)) {
+      throw new AppError(422, 'VALIDATION_FAILED', 'Application scope is required');
+    }
+    const contactLookup = purpose === 'APPLICATION_STATUS'
+      ? createHmac('sha256', hmacKey).update(`application-status\0${applicationId}\0${identity.contactLookup}`).digest('hex')
+      : identity.contactLookup;
     const now = clock();
 
     let outcome;
@@ -194,6 +208,10 @@ export function createOtpService({ connection, User, models = identityModels(con
       await models.OtpThrottle.updateOne({ contactLookup }, {
         $set: { failedCount: 0, lockedUntil: null, expiresAt: new Date(now + HOURLY_WINDOW_MS) }
       }, { upsert: true, session: mongoSession });
+
+      if (purpose === 'APPLICATION_STATUS') {
+        return { result: Object.freeze({ verified: true, applicationId: String(applicationId) }) };
+      }
 
       if (purpose === 'LOGIN') {
         const contactRecord = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })

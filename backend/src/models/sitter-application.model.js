@@ -1,6 +1,6 @@
 import { Schema } from 'mongoose';
 
-const STATES = ['PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED'];
+const STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'];
 
 export function sitterApplicationModels(connection) {
   const documentSchema = new Schema({
@@ -30,6 +30,7 @@ export function sitterApplicationModels(connection) {
     reapplyAt: { type: Date, default: null },
     provisionedUserId: { type: Schema.Types.ObjectId, default: null },
     version: { type: Number, required: true, min: 0, default: 0 },
+    trackingCodeDigest: { type: String, select: false },
     submissionKeyDigest: { type: String, required: true, select: false },
     submissionPayloadDigest: { type: String, required: true, select: false }
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
@@ -37,6 +38,7 @@ export function sitterApplicationModels(connection) {
   applicantSchema.index({ activePendingIdentityKey: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ state: 1, createdAt: -1, _id: -1 });
   applicantSchema.index({ submissionKeyDigest: 1 }, { unique: true });
+  applicantSchema.index({ trackingCodeDigest: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ identityLookupKey: 1, rejectedAt: -1 });
 
   const auditSchema = new Schema({

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useRef, useState } from 'react';
 import { Button, Notice } from '../../components/ui/index.js';
 import { ApiError } from '../../services/api-client.js';
@@ -104,13 +105,13 @@ export function SitterApplicationPage({ api = sitterApplicationApi }) {
         setUploadedDocuments(documents);
       }
       if (!idempotencyKey.current) idempotencyKey.current = api.createIdempotencyKey?.();
-      await api.submit({
+      const result = await api.submit({
         displayName: form.displayName.trim(), contactChannel: form.contactChannel,
         contactValue: form.contactValue.trim(), dateOfBirth: form.dateOfBirth,
         identityNumber: form.identityNumber.trim(), experience: form.experience.trim(),
         requestedServices: lines(form.services), workAreas: lines(form.areas), documents
       }, { key: idempotencyKey.current });
-      setReceipt(true);
+      setReceipt(result);
       setForm({ displayName: '', contactChannel: 'EMAIL', contactValue: '', dateOfBirth: '',
         identityNumber: '', experience: '', services: '', areas: '' });
       setIdentityFile(null);
@@ -132,8 +133,9 @@ export function SitterApplicationPage({ api = sitterApplicationApi }) {
         <h1 id="sitter-application-receipt-title">Đã tiếp nhận hồ sơ</h1>
         <p>Hồ sơ đang chờ Admin xem xét. Việc gửi hồ sơ chưa tạo tài khoản hoặc phiên Sitter.</p>
         <Notice state="pending" title="Theo dõi hồ sơ">
-          Tính năng tra cứu trạng thái và thông báo kết quả đang chờ tích hợp xác minh liên hệ. Hãy giữ lại kênh liên hệ đã dùng.
+          Giữ bí mật mã tra cứu: <strong>{receipt.applicationCode}</strong>. Dùng mã này và OTP gửi về kênh liên hệ đã nộp để tra cứu.
         </Notice>
+        <Link to="/sitter/application-status">Tra cứu trạng thái hồ sơ</Link>
       </div>
     </section>;
   }

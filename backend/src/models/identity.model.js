@@ -17,7 +17,7 @@ export function identityModels(connection) {
     challengeId: { type: String, required: true },
     contactLookup: { type: String, required: true, select: false },
     channel: { type: String, enum: ['EMAIL', 'PHONE'], required: true },
-    purpose: { type: String, enum: ['REGISTER', 'LOGIN', 'CONTACT_CHANGE'], required: true },
+    purpose: { type: String, enum: ['REGISTER', 'LOGIN', 'CONTACT_CHANGE', 'APPLICATION_STATUS'], required: true },
     codeDigest: { type: String, required: true, select: false },
     expiresAt: { type: Date, required: true },
     resendAt: { type: Date, required: true },

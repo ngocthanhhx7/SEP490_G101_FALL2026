@@ -67,6 +67,15 @@ export function sitterApplicationModule({ config, connection, ports, clock = Dat
     return respond(res, req, 200, result);
   });
 
+  router.post('/:applicationId/interview', ...admin, csrf, async (req, res) => {
+    if (!req.body || Object.keys(req.body).some(key => key !== 'expectedVersion')) {
+      throw new AppError(422, 'VALIDATION_FAILED', 'Interview request is invalid');
+    }
+    return respond(res, req, 200, await service.startInterview({ applicationId: req.params.applicationId,
+      expectedVersion: req.body.expectedVersion, idempotencyKey: req.get('idempotency-key'),
+      actor: req.auth, correlationId: req.requestId }));
+  });
+
   router.post('/:applicationId/decisions', ...admin, csrf, async (req, res) => {
     const result = await service.decide({ applicationId: req.params.applicationId, body: req.body,
       idempotencyKey: req.get('idempotency-key'), actor: req.auth, correlationId: req.requestId });

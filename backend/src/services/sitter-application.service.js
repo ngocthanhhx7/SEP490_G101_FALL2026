@@ -6,8 +6,8 @@ import { AppError } from '../utils/app-error.js';
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REAPPLY_DELAY_MS = 30 * DAY_MS;
 const MAX_DOCUMENT_VIEWS_PER_HOUR = 20;
-const ALLOWED_STATES = new Set(['PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED']);
-const ACTIVE_STATES = ['PENDING', 'UNDER_REVIEW'];
+const ALLOWED_STATES = new Set(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED']);
+const ACTIVE_STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW'];
 const PAGE_LIMIT = 50;
 
 function invalid(message = 'Application request is invalid') {
@@ -191,6 +191,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     if (!ageEligible) throw new AppError(422, 'AGE_REQUIREMENT_NOT_MET', 'Applicant must be at least 18 years old');
     const key = validateIdempotencyKey(idempotencyKey);
     const submissionKeyDigest = hash(lookupSecret, `application-submit\0${contact.lookupKey}\0${key}`);
+    const applicationCode = createHmac('sha256', lookupSecret)
+      .update(`application-receipt\0${submissionKeyDigest}`).digest('base64url');
+    const trackingCodeDigest = hash(lookupSecret, `application-tracking\0${applicationCode}`);
     const normalizedPayload = {
       displayName, contactChannel, contactLookupKey: contact.lookupKey, identityLookupKey,
       dateOfBirth: body.dateOfBirth, experience, requestedServices, workAreas,
@@ -203,8 +206,10 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       if (!sameDigest(priorSubmission.submissionPayloadDigest, submissionPayloadDigest)) {
         throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
       }
+      await Applicant.updateOne({ _id: priorSubmission._id, trackingCodeDigest: { $exists: false } },
+        { $set: { trackingCodeDigest } });
       return { id: priorSubmission._id.toString(), state: priorSubmission.state,
-        submittedAt: priorSubmission.createdAt.toISOString(), replayed: true };
+        submittedAt: priorSubmission.createdAt.toISOString(), applicationCode, replayed: true };
     }
 
     const tooEarly = await Applicant.exists({
@@ -236,7 +241,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           activePendingContactKey: contact.lookupKey, activePendingIdentityKey: identityLookupKey,
           ageEligible: true, ageCheckedAt: new Date(now), experience, requestedServices, workAreas,
           privateDocuments: verifiedDocuments, state: 'PENDING', version: 0,
-          submissionKeyDigest, submissionPayloadDigest
+          trackingCodeDigest, submissionKeyDigest, submissionPayloadDigest
         }], { session });
         await Audit.create([{
           actorRoles: [], action: 'APPLICATION_SUBMITTED', resourceId: created._id,
@@ -245,14 +250,16 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         return created;
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
       return { id: application._id.toString(), state: application.state,
-        submittedAt: application.createdAt.toISOString(), replayed: false };
+        submittedAt: application.createdAt.toISOString(), applicationCode, replayed: false };
     } catch (error) {
       const replay = await Applicant.findOne({ submissionKeyDigest }).select('+submissionPayloadDigest').lean();
       if (replay) {
         if (!sameDigest(replay.submissionPayloadDigest, submissionPayloadDigest)) {
           throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
         }
-        return { id: replay._id.toString(), state: replay.state, submittedAt: replay.createdAt.toISOString(), replayed: true };
+        await Applicant.updateOne({ _id: replay._id, trackingCodeDigest: { $exists: false } },
+          { $set: { trackingCodeDigest } });
+        return { id: replay._id.toString(), state: replay.state, submittedAt: replay.createdAt.toISOString(), applicationCode, replayed: true };
       }
       const duplicatePending = await Applicant.exists({ $or: [
         { activePendingContactKey: contact.lookupKey }, { activePendingIdentityKey: identityLookupKey }
@@ -328,13 +335,13 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     return changeToReview({ applicationId, expectedVersion, idempotencyKey, actor, correlationId });
   }
 
-  async function changeToReview({ applicationId, expectedVersion, idempotencyKey, actor, correlationId }) {
+  async function changeToReview({ applicationId, expectedVersion, idempotencyKey, actor, correlationId, targetState = 'UNDER_REVIEW' }) {
     if (!Types.ObjectId.isValid(applicationId)) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) invalid('expectedVersion is invalid');
     const key = validateIdempotencyKey(idempotencyKey);
     const id = new Types.ObjectId(applicationId);
-    const idempotencyDigest = hash(lookupSecret, `application-review\0${actor.userId}\0${id}\0${key}`);
-    const payloadDigest = hashPayload(lookupSecret, { action: 'START_REVIEW', expectedVersion });
+    const idempotencyDigest = hash(lookupSecret, `${targetState === 'INTERVIEW' ? 'application-interview' : 'application-review'}\0${actor.userId}\0${id}\0${key}`);
+    const payloadDigest = hashPayload(lookupSecret, { action: targetState === 'INTERVIEW' ? 'START_INTERVIEW' : 'START_REVIEW', expectedVersion });
     const now = clock();
     const existing = await Audit.findOne({ resourceId: id, idempotencyDigest }).select('+idempotencyDigest +payloadDigest').lean();
     if (existing) {
@@ -343,8 +350,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
     try {
       return await connection.transaction(async session => {
-        const application = await Applicant.findOneAndUpdate({ _id: id, state: 'PENDING', version: expectedVersion },
-          { $set: { state: 'UNDER_REVIEW' }, $inc: { version: 1 } }, { returnDocument: 'after', session });
+        const application = await Applicant.findOneAndUpdate({ _id: id, state: targetState === 'INTERVIEW' ? 'UNDER_REVIEW' : 'PENDING', version: expectedVersion },
+          { $set: { state: targetState }, $inc: { version: 1 } }, { returnDocument: 'after', session });
         if (!application) {
           const found = await Applicant.exists({ _id: id }).session(session);
           if (!found) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
@@ -549,5 +556,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     return { url: capability.url, expiresAt: capability.expiresAt ?? null };
   }
 
-  return Object.freeze({ submit, list, get, startReview, decide, changeSitterStatus, documentReadCapability });
+  async function startInterview(input) {
+    assertAdmin(input.actor);
+    return changeToReview({ ...input, targetState: 'INTERVIEW' });
+  }
+  return Object.freeze({ submit, list, get, startReview, startInterview, decide, changeSitterStatus, documentReadCapability });
 }

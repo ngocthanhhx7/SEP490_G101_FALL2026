@@ -13,10 +13,11 @@ function renderApp(path, sessionAdapter) {
 
 test('public route is readable before session resolution and uses brand asset', async () => {
   renderApp('/', { resolve: () => new Promise(() => {}) });
-  expect(screen.getByRole('heading', { name: 'Chăm sóc thú cưng tại nhà' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: /Chăm pet/ })).toBeVisible();
   expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/logo/ngang.svg');
-  expect(screen.getByRole('navigation')).toBeVisible();
+  expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
   expect(screen.getByRole('main')).toHaveFocus();
+  await screen.findByRole('alert');
 });
 
 test('guest is redirected to OTP integration placeholder', async () => {

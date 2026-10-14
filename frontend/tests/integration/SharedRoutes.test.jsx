@@ -84,3 +84,11 @@ test('policy expiry is checked on forced submit even without a metadata refresh'
     expect(screen.getByRole('alert')).toHaveTextContent('Chính sách chưa sẵn sàng');
   } finally { clock.mockRestore(); }
 });
+
+
+test('P46 tracking deep link is reachable without waiting for a session or exposing credentials in URL', () => {
+  show('/sitter/application-status');
+  expect(screen.getByRole('heading', { name: 'Theo dõi hồ sơ ứng tuyển' })).toBeVisible();
+  expect(screen.getByRole('textbox', { name: /Mã hồ sơ/ })).toBeVisible();
+  expect(screen.queryByText('Không tìm thấy trang')).not.toBeInTheDocument();
+});
