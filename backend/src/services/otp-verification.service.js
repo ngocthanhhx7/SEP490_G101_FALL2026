@@ -142,7 +142,7 @@ export function createOtpService({ connection, User, models = identityModels(con
     return Object.freeze({ status: 'PENDING', challengeId, expiresInSeconds: 300, resendAfterSeconds: 60 });
   }
 
-  async function verify({ challengeId, channel, contact, purpose, code, displayName, policyVersions, actor, applicationId } = {}) {
+  async function verify({ challengeId, channel, contact, purpose, code, displayName, policyVersions, actor, applicationId, rememberDevice = false } = {}) {
     if (typeof challengeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(challengeId)
       || !PURPOSES.has(purpose) || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
       throw new AppError(422, 'VALIDATION_FAILED', 'OTP verification request is invalid');
@@ -219,7 +219,7 @@ export function createOtpService({ connection, User, models = identityModels(con
         if (!contactRecord) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
         const user = await userStore.findById(contactRecord.userId).session(mongoSession);
         if (!user || user.state !== 'ACTIVE' || user.synthetic === true) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
-        const session = await sessionService.issueInTransaction(user, mongoSession);
+        const session = await sessionService.issueInTransaction(user, mongoSession, { rememberDevice });
         return { result: Object.freeze({ status: 'VERIFIED', authenticated: true, session }) };
       }
 

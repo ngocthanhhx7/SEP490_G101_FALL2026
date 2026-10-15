@@ -14,7 +14,7 @@ function getInitials(displayName) {
   return parts.slice(-2).map((part) => Array.from(part)[0]?.toLocaleUpperCase()).join('') || '?';
 }
 
-export function AvatarMenu({ user, role, onLogout, notificationTo }) {
+export function AvatarMenu({ user, role, onLogout, notificationTo, customerNavigation = false, iconOnly = false }) {
   const location = useLocation();
   const rootRef = useRef(null);
   const triggerRef = useRef(null);
@@ -126,7 +126,7 @@ export function AvatarMenu({ user, role, onLogout, notificationTo }) {
     <button ref={triggerRef} className="pwc-avatar-menu__trigger" type="button"
       aria-label={displayName ? 'Tài khoản của ' + displayName : 'Tài khoản'}
       aria-expanded={isOpen} aria-pressed={pinned} aria-controls={panelId} onClick={togglePinned}>
-      <span className="pwc-avatar-menu__avatar" aria-hidden="true">{getInitials(displayName)}</span>
+      {iconOnly ? <svg className="pwc-avatar-menu__user-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="7" r="3.5" /><path d="M4 21v-3c0-3 3.6-5 8-5s8 2 8 5v3H4Z" /></svg> : <span className="pwc-avatar-menu__avatar" aria-hidden="true">{getInitials(displayName)}</span>}
       <span className="pwc-avatar-menu__trigger-name">{accountName}</span>
       <span className="pwc-avatar-menu__chevron" aria-hidden="true">⌄</span>
     </button>
@@ -138,7 +138,13 @@ export function AvatarMenu({ user, role, onLogout, notificationTo }) {
           <span className="pwc-avatar-menu__identity-role">{roleLabels.role}</span>
         </div>
         <nav className="pwc-avatar-menu__links" aria-label="Tùy chọn tài khoản">
-          <Link to="/account" onClick={() => dismiss()}>{roleLabels.account}</Link>
+          {customerNavigation ? <>
+            <div className="pwc-avatar-menu__account-group"><Link to="/account/profile" onClick={() => dismiss()}>Trung tâm tài khoản</Link>
+              <div className="pwc-avatar-menu__account-subnav"><Link to="/account/profile" onClick={() => dismiss()}>Hồ sơ</Link>
+                <Link to="/account/addresses" onClick={() => dismiss()}>Quản lý địa chỉ</Link></div></div>
+            <Link to="/account/pets" onClick={() => dismiss()}>Quản lý hồ sơ các thú cưng</Link>
+            <Link to="/account/bookings" onClick={() => dismiss()}>Đơn hàng</Link>
+          </> : <Link to="/account" onClick={() => dismiss()}>{roleLabels.account}</Link>}
           {notificationTo
             ? <Link to={notificationTo} onClick={() => dismiss()}>{roleLabels.notifications}</Link>
             : <button type="button" disabled aria-describedby={notificationNoteId}>

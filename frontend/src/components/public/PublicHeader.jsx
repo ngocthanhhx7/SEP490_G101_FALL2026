@@ -53,7 +53,9 @@ export function PublicHeader() {
       </nav>
       <div className="pwc-header-actions">
         {session.status === 'authenticated'
-          ? <AvatarMenu user={session.user} role={role} onLogout={session.logout} />
+          ? <AvatarMenu user={session.user} role={role} iconOnly customerNavigation={role === 'CUSTOMER'}
+              notificationTo={role === 'CUSTOMER' ? '/account/notifications' : undefined}
+              onLogout={async () => { await session.logout(); navigate('/', { replace: true }); }} />
           : <><Link className="pwc-auth-login" to="/sign-in" onClick={closeMenu}>Đăng nhập</Link>
               <Link className="pwc-auth-register" to="/register" onClick={closeMenu}>Đăng ký</Link></>}
         <button type="button" className="pwc-search-toggle" ref={searchTrigger} aria-label="Tìm kiếm dịch vụ"
