@@ -55,8 +55,7 @@ export function createDirectedBookingProposalApi({ request, fetchImpl, getCsrfTo
     return defaultRequest(...args);
   };
 
-  async function createProposal({ bookingId, visitId, sitterId, slots, paymentState,
-    paymentRequired, priceSnapshot, petSnapshots, idempotencyKey } = {}) {
+  async function createProposal({ bookingId, visitId, sitterId, slots, idempotencyKey } = {}) {
     const visit = requireIdentifier(visitId, 'visit_id');
     const sitter = requireIdentifier(sitterId, 'sitter_id');
     if (!Array.isArray(slots) || slots.length === 0 || slots.length > 20) throw new ApiError('INVALID_SLOTS', 400);
@@ -66,9 +65,7 @@ export function createDirectedBookingProposalApi({ request, fetchImpl, getCsrfTo
       ? `/visits/${encodeURIComponent(visit)}/directed-proposals`
       : `/bookings/${encodeURIComponent(requireIdentifier(bookingId, 'booking_id'))}/visits/${encodeURIComponent(visit)}/proposals`;
     return proposalResult(await send(path, { method: 'POST', body: {
-      ...(bookingId === undefined || bookingId === null ? {} : { bookingId }), sitterId: sitter, slots: normalized,
-      ...(paymentState === undefined ? {} : { paymentState }), ...(paymentRequired === undefined ? {} : { paymentRequired }),
-      ...(priceSnapshot === undefined ? {} : { priceSnapshot }), ...(petSnapshots === undefined ? {} : { petSnapshots })
+      ...(bookingId === undefined || bookingId === null ? {} : { bookingId }), sitterId: sitter, slots: normalized
     }, idempotencyKey: idempotency }));
   }
 
