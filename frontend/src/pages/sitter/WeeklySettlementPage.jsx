@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { pendingSettlementApi } from '../../services/settlement-api.js';
 import './weekly-settlement.css';
 
-const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
+const money = value => Number.isSafeInteger(value) && value >= 0
+  ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value) : 'Chưa xác định';
 export default function WeeklySettlementPage({ api = pendingSettlementApi }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -43,7 +44,8 @@ export default function WeeklySettlementPage({ api = pendingSettlementApi }) {
     <button type="button" disabled={busy} onClick={() => setRevision(value => value + 1)}>Tải lại</button>
     {data && <>
       <p>Tuần bắt đầu {data.requestWeekKey} (Việt Nam)</p>
-      <dl>{[['accrued', 'Đã ghi nhận'], ['available', 'Khả dụng'], ['reserved', 'Đang giữ'], ['paid', 'Đã trả']].map(([key, label]) =>
+      <dl>{[['accrued', 'Đã ghi nhận'], ['pending', 'Chờ đủ điều kiện'], ['held', 'Tạm giữ'],
+        ['available', 'Khả dụng'], ['reserved', 'Đang giữ'], ['paid', 'Đã trả']].map(([key, label]) =>
         <div key={key}><dt>{label}</dt><dd>{money(data.balances[key])}</dd></div>)}</dl>
       {!!data.decisionIds?.length && <p role="status">Chờ quyết định: {data.decisionIds.join(', ')}</p>}
       <fieldset disabled={busy || data.quotaUsed || !!data.decisionIds?.length}>
@@ -54,7 +56,11 @@ export default function WeeklySettlementPage({ api = pendingSettlementApi }) {
             checked={selected.includes(earning.id)} onChange={event => {
             command.current = null;
             setSelected(ids => event.target.checked ? [...ids, earning.id] : ids.filter(id => id !== earning.id));
-          }} /> {earning.earningPeriodKey}: {money(earning.availableVnd)}
+          }} /> <span>{earning.earningPeriodKey}: khả dụng {money(earning.availableVnd)}
+            {earning.pendingVnd > 0 && ` · chờ đủ điều kiện ${money(earning.pendingVnd)}`}
+            {earning.heldVnd > 0 && ` · tạm giữ ${money(earning.heldVnd)}`}
+            {earning.reservedVnd > 0 && ` · đang giữ ${money(earning.reservedVnd)}`}
+            {earning.paidVnd > 0 && ` · đã trả ${money(earning.paidVnd)}`}</span>
         </label>)}
       </fieldset>
       <button type="button" disabled={busy || !selected.length || data.quotaUsed || !!data.decisionIds?.length} onClick={submit}>Gửi yêu cầu tất toán</button>

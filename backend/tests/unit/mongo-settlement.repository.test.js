@@ -4,6 +4,7 @@ import { createMongoSettlementRepository } from '../../src/services/settlements/
 function chain(value) {
   return {
     sort() { return this; },
+    limit() { return this; },
     lean() { return this; },
     session() { return this; },
     exec: async () => value

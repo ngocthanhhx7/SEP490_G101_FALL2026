@@ -200,8 +200,17 @@ export function settlementModels(connection) {
     recordedAt: { type: Date, required: true, immutable: true }
   }, { versionKey: false, strict: 'throw', bufferCommands: false });
   transferSchemaRoot.index({ requestId: 1, version: 1 }, { unique: true });
-  transferSchemaRoot.index({ reference: 1 }, { unique: true });
-  transferSchemaRoot.index({ evidenceReference: 1 }, { unique: true });
+  transferSchemaRoot.index({ reference: 1 });
+  transferSchemaRoot.index({ evidenceReference: 1 });
+
+  // Ownership is unique across requests; attempts remain append-only so an
+  // UNKNOWN attempt can be reconciled using the same bank/evidence reference.
+  const transferClaimSchema = new Schema({
+    kind: { type: String, enum: ['TRANSFER', 'EVIDENCE'], required: true, immutable: true },
+    reference: { type: String, required: true, maxlength: 160, immutable: true },
+    requestId: { type: String, required: true, maxlength: 128, immutable: true }
+  }, { versionKey: false, strict: 'throw', bufferCommands: false });
+  transferClaimSchema.index({ kind: 1, reference: 1 }, { unique: true });
 
   const evidenceSchema = new Schema({
     evidenceReference: { type: String, required: true, immutable: true, maxlength: 160 },
@@ -224,6 +233,7 @@ export function settlementModels(connection) {
     SettlementEvent: model(connection, 'SettlementEvent', eventSchema),
     SettlementOutbox: model(connection, 'SettlementOutbox', outboxSchema),
     SettlementTransfer: model(connection, 'SettlementTransfer', transferSchemaRoot),
+    SettlementTransferClaim: model(connection, 'SettlementTransferClaim', transferClaimSchema),
     SettlementEvidence: model(connection, 'SettlementEvidence', evidenceSchema)
   });
 }

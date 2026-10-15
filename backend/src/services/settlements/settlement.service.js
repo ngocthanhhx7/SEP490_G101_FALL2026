@@ -92,6 +92,12 @@ export function createSettlementService({ unitOfWork, repository, policy, clock 
       const earningMoneyFields = ['accruedVnd', 'pendingVnd', 'heldVnd', 'availableVnd', 'reservedVnd', 'paidVnd'];
       if (projection.earnings.some(row => earningMoneyFields.some(field => row[field] !== undefined
         && (!Number.isSafeInteger(row[field]) || row[field] < 0)))) fail(503, 'LEDGER_UNAVAILABLE');
+      let decisionIds = [];
+      try { await requireDecision(policy, 'READ_OWN'); }
+      catch (error) {
+        if (error.code !== 'DECISION_REQUIRED') throw error;
+        decisionIds = error.details.decisionIds;
+      }
       return { balances, earnings: projection.earnings.map(row => ({ id: row.id,
         earningPeriodKey: row.earningPeriodKey, availableVnd: row.availableVnd,
         ...(row.visitId ? { visitId: row.visitId } : {}),
@@ -101,7 +107,7 @@ export function createSettlementService({ unitOfWork, repository, policy, clock 
         ...(Number.isSafeInteger(row.reservedVnd) ? { reservedVnd: row.reservedVnd } : {}),
         ...(Number.isSafeInteger(row.paidVnd) ? { paidVnd: row.paidVnd } : {}) })),
       requests: projection.requests.map(publicRequest), quotaUsed: projection.quotaUsed === true,
-      decisionIds: Array.isArray(projection.decisionIds) ? projection.decisionIds : ['FIN-07-ELIG'],
+      decisionIds: [...new Set([...decisionIds, ...(Array.isArray(projection.decisionIds) ? projection.decisionIds : [])])],
       ...week, serverNow: now.toISOString() };
     },
     async submit({ actor, earningIds, idempotencyKey }) {
@@ -112,6 +118,7 @@ export function createSettlementService({ unitOfWork, repository, policy, clock 
       return execute({ actor, operation: 'SETTLEMENT_SUBMIT', idempotencyKey, payload: { earningIds: ids },
         run: async transaction => {
           const versions = await requireDecision(policy, 'SUBMIT', transaction);
+          await repository.assertIndexesReady?.();
           // Clock is sampled within the committing transaction, including retries.
           const submittedAt = new Date(clock()).toISOString();
           const week = vietnamRequestWeek(submittedAt);

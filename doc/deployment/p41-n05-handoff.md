@@ -1,76 +1,69 @@
 # P41 / WBS-N05 — Weekly settlement request and ledger
 
 EXT-SETTLEMENT. Branch `feature/wbs-n05-weekly-settlement-request-and-ledger`.
-Contributor/author/committer and publishing account: Đặng Văn Hải / Haidvhe181849;
-agent-assisted implementation. Assigned reviewer: Nguyễn Hữu Anh Nhật / anhnhat432.
-Leader: Nguyễn Ngọc Thành. Assignment is not approval.
+Contributor/author: Đặng Văn Hải / Haidvhe181849; agent-assisted implementation.
+Assigned independent reviewer: Nguyễn Hữu Anh Nhật / anhnhat432. Leader performs
+final merge after real approval and all gates; assignment is not approval.
 
-## Delivered boundary
+## Delivered runtime boundary
 
-- [Service and transactional port contract](../../backend/src/services/settlements/README.md):
-  Vietnam Monday calendar keys, independent earning identity, atomic quota/reserve/
-  ledger command orchestration, idempotent replay and ownership/role gates.
-- [HTTP module](../../backend/src/routes/settlement-requests.routes.js) uses P06 session,
-  CSRF and role middleware. No body owner/amount/week accepted. P34 registration pending.
-- [Sitter page](../../frontend/src/pages/sitter/WeeklySettlementPage.jsx) and
-  [API adapter](../../frontend/src/services/settlement-api.js): ledger balances,
-  selection/history, empty/error/loading/forbidden/decision-pending and uncertain
-  retry retaining the same key. No successful mock fallback.
-- [Durable Mongo adapter](../../backend/src/services/settlements/mongo-settlement.repository.js)
-  and [schema](../../backend/src/models/settlement.model.js) now enforce unique
-  week/earning/command/evidence keys, conditional reservations, CAS transitions,
-  immutable ledger lines, events, and outbox rows in a replica-set transaction.
-  `settlementRequestRuntimeModule` is provided for P34 registration and fails closed
-  while the unresolved P51 policy decisions remain unresolved.
-- The sitter read projection keeps disjoint pending/held/available/reserved/paid
-  earning buckets, including rows that are not currently requestable; malformed
-  persisted bucket values fail closed. The page disables non-available rows so a
-  pending or held earning cannot be submitted as a new settlement request.
+- [Service and Mongo repository](../../backend/src/services/settlements/README.md)
+  enforce Vietnam Monday calendar weeks, independent earning identity, ownership,
+  safe integer VND, transaction-scoped quota/reservation/ledger/event/outbox and
+  idempotent command results. Rejected requests retain their weekly claim.
+- `createApp` mounts the authenticated [runtime factory](../../backend/src/routes/settlement-runtime.js).
+  GET/POST `/api/v1/settlement-requests` use actual session, sitter role and CSRF gates.
+  The default resolver returns DECISION_REQUIRED before monetary mutations.
+- [Frontend route](../../frontend/src/routes/AppRoutes.jsx) registers
+  `/sitter/settlements` in the protected sitter layout/navigation and supplies the
+  same-origin API adapter with the current session CSRF token. Component default
+  pending adapters are standalone seams, not the application route.
+- The sitter page shows pending/held/available/reserved/paid rows and balances.
+  Non-available rows cannot be selected. Open policy IDs disable submission;
+  uncertain retries within the mounted page retain their logical command key.
+- Reads and money transitions reject inconsistent per-earning ledger buckets.
+  Settlement does not fabricate origin ledger entries from balance fields;
+  upstream producers must supply the immutable earning history.
+- Sitter reads use a single snapshot transaction. Queries fetch at most 1001
+  earnings/requests and 10001 ledger lines to detect the explicit history cap;
+  above 1000 earnings/requests or 10000 ledger lines, SETTLEMENT_HISTORY_LIMIT
+  rejects the whole projection. A paged archival view remains future work.
+- Same-role identity switches remount the page by session user ID, clearing
+  previous private rows/selections and command keys before loading the new scope.
+- Shared FinancialLock writers touch the same earning inside the transaction to
+  serialize against reservation writers. Direct insertion of an unrelated lock
+  document does not provide this concurrency guarantee.
+- Mongo uses autoIndex=false. Explicit [additive provisioning](../../backend/scripts/migrations/settlement-storage.js)
+  creates storage/indexes; the default script mode is a credential-free dry run.
+  `--apply` is limited to authorized non-production environments. Required unique
+  indexes are verified before writes; missing indexes fail closed. Existing old
+  experimental indexes require review; no index/data is dropped automatically.
 
 ## Decisions and dependencies
 
-[P51 v1](../requirements/p51-financial-contract-v1.md) governs this module. Rejection/
-withdrawal retains weekly quota; Approved is not Paid; transfer is recorded outside
-the system. FIN-07-ELIG, FIN-07-POSTPAY and FIN-08-EDIT remain open. Missing policy
-resolver blocks writes; no commission, wallet, automatic payout or debt offset.
-After refund on already paid earnings, retain immutable history and reconciliation
-hold; do not deduct future settlement automatically. P51 must close adjustment rules.
+[P51](../requirements/p51-financial-contract-v1.md) leaves FIN-07-ELIG,
+FIN-07-POSTPAY and FIN-08-EDIT open. No response in this audit supplied the missing
+commission/rate, earning availability/hold/evidence rules, post-payout adjustment
+policy or allowed edit/withdrawal transitions. A request to continue work is not
+approval of invented financial values. All real money mutations remain blocked.
+No wallet, provider payout, future earning deduction or real transfer is performed.
 
-P34 must register the durable runtime factory. P27/P30 supply care/case eligibility,
-P31/P32 supply verified paid/refund allocations. No synthetic fixture establishes
-these integrations. Status: INTEGRATION_PENDING / MONEY_BLOCKED_BY_DECISION.
-The shared app composition hook now ignores a factory's deliberate `null`/
-`undefined` fail-closed result while still rejecting malformed non-null modules.
+P27/P30 must supply care/case eligibility; P31/P32 supply verified paid/refund
+allocations and common locking. P41 does not claim these producers are integrated.
+Status: RUNTIME_ROUTES_REGISTERED / MONEY_BLOCKED_BY_DECISION / UPSTREAM_PENDING.
+The PR remains draft while these gates are open. WBS-N06 adds Admin review and
+manual transfer recording using the same durable aggregate; merge it after N05,
+preserving both default app modules and both frontend routes.
 
-## Evidence
+## Verification scope
 
-Backend targeted Jest: 16 passing cases (Vietnam Sunday/Monday and year boundaries,
-concurrent requests on serialized transactional double, replay across week, foreign/
-held earning, rollback on ledger failure, auth and idempotency collision, full
-bucket projection, and malformed persisted bucket fail-closed checks).
-Frontend targeted Jest: 3 passing cases (pending, decision/quota, timeout key replay).
-Frontend lint and Vite build passed. Build checks the registered application;
-new page JSX is covered by its Jest import, not registered in runtime yet.
-No Mongo concurrency test or end-to-end money/provider verification was performed.
-A local MongoDB 8.0.34 replica-set probe created the indexes, earning, reservation,
-request, ledger/event/outbox records and scoped balances; a duplicate week claim
-returned `null`. This is synthetic adapter evidence, not CI, load, or provider
-verification.
-A local synthetic browser harness verified 360px frame layout without horizontal
-overflow (345px usable content with scrollbar), Space checkbox selection and
-Tab/Enter submit reaching FIXTURE_ONLY error. CSS uses auto-fit panels and 44px controls; device
-touch verification and Figma fidelity remain pending. Existing P04 tokens are
-provisional, not a verified Figma specification.
+Local MongoDB 8.0.34 replica-set tests run with autoIndex=false and explicitly
+provisioned indexes. They cover concurrent devices, same-command replay, weekly
+quota rollback, active case lock, partial ledger rejection, missing unique index,
+real persisted session/CSRF and default runtime DECISION_REQUIRED. These are
+synthetic records and policy fixtures; they do not prove real provider, bank,
+care/refund producer, Figma or physical touch integration. No live environment
+provisioning, external email/SMS or staging/production deployment occurred.
 
-PR must remain draft while these financial and integration gates are open; no
-approval or merge claimed. P34 owns route/manifest changes. WBS-N06 adds Admin
-review/transfer in its own contributor branch, without modifying shared schema.
-
-## Current branch verification (2026-10-15)
-
-- Live head: `7351d95238d2235ee66827cdc87ceb2b3bd143e1`; base `develop`:
-  `f02321e5f82ee7ad522494c0247b94209db6c1a7`.
-- Full backend Jest run on this head: **63 suites / 567 tests passed**.
-- GitHub reports only a Vercel Preview Comments success for this head; no CI
-  workflow result or reviewer approval is inferred. The assigned reviewer remains
-  `anhnhat432`, and the existing review is `COMMENTED` on an older head.
+Final local check counts are reported in the PR audit. Historical head-only
+verification and older COMMENTED reviews do not establish current approval.

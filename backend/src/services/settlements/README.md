@@ -13,9 +13,9 @@ transfer references and evidence references are database constraints. Active
 `FinancialLock` rows are checked for both refund/case/allocation and settlement
 operations, so a stale in-memory caller cannot move a held earning.
 
-Production is still INTEGRATION_PENDING until P34 registers
-`settlementRequestRuntimeModule`, upstream P27/P30/P31/P32 producers create the
-Earning/FinancialLock/Evidence records, and P51 policy decisions are resolved.
+`createApp` registers `settlementRequestRuntimeModule` when auth is enabled.
+Production money operations remain BLOCKED_BY_DECISION until P27/P30/P31/P32
+producers provide Earning/FinancialLock/Evidence records and P51 resolves policy.
 Transactions require the Mongo replica-set topology already enforced by P02;
 serial in-memory tests do not prove Mongo races or production constraints.
 
@@ -37,3 +37,26 @@ rewrite paid entries. Rejected/withdrawn requests consume quota permanently for
 that week; release does not restore quota. Withdrawal/edit commands stay unexposed
 until the corresponding decision is closed. The policy resolver is a trusted
 server port with versioned decisions, never a client-provided flag.
+
+The sitter route `/sitter/settlements` and role navigation use the authenticated
+same-origin API client with session CSRF. Read responses consult the policy port
+and expose open decision IDs; a healthy ledger does not imply an approved policy.
+Per-earning ledger totals must match all persisted buckets and accrued principal.
+Missing/inconsistent lines fail closed rather than show a partial balance.
+All sitter projection queries run in one Mongo snapshot transaction. Until a
+paged historical projection is supplied, reads are explicitly bounded to 1000
+earnings, 1000 requests and 10000 ledger lines per sitter. Exceeding any bound
+returns SETTLEMENT_HISTORY_LIMIT (503), never partial balances or truncated history.
+
+Mongo runtime disables automatic indexes. Explicit additive provisioning is
+`node --env-file-if-exists=.env scripts/migrations/settlement-storage.js --apply`
+from `backend/` in an authorized local/test environment; omit `--apply` for a
+credential-free dry run. The command refuses NODE_ENV=production. It creates
+collections/indexes and never drops or rewrites existing data/indexes. Mutations
+verify required unique indexes and return SETTLEMENT_STORAGE_NOT_READY if absent.
+Any previously created experimental settlement indexes must be reviewed before
+reuse; the command does not silently replace old unique transfer/evidence indexes.
+Transfer reference ownership is unique per request through SettlementTransferClaim;
+separate immutable attempts permit UNKNOWN to CONFIRMED with the same references.
+Lock writers must use `lockEarning` inside a transaction, touching the same earning
+as reservation writers; inserting only a FinancialLock row does not serialize them.
