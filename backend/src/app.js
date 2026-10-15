@@ -1,3 +1,5 @@
+import { contactModule } from './routes/contact.routes.js';
+import { serviceCatalogRuntimeModules } from './routes/service-catalog-runtime.js';
 import { customerProfileRuntimeModule } from './routes/customer-profile.routes.js';
 import { applicationStatusModule } from './routes/application-status.routes.js';
 import express from 'express';
@@ -38,9 +40,12 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
-  registerModules(app, [healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
+  const suppliedModules = moduleFactories.map(factory => factory(context));
+  const catalogModules = serviceCatalogRuntimeModules(context)
+    .filter(module => !suppliedModules.some(supplied => supplied.name === module.name));
+  registerModules(app, [contactModule(context), healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...moduleFactories.map(factory => factory(context))]);
+    ...catalogModules, ...suppliedModules]);
   app.use(notFound, errorHandler(logger));
   return app;
 }

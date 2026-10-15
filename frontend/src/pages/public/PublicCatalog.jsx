@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatCatalogPrice } from './public-catalog-adapter.js';
+import { serviceVisual } from './service-visuals.js';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
 
@@ -39,20 +40,22 @@ export function PublicServiceCards({ services }) {
     {services.map((service) => {
       const species = service.species.map((item) => SPECIES_LABELS[item]).join(', ');
       const price = formatCatalogPrice(service.price);
+      const visual = serviceVisual(service);
       return <article className="pwc-service-card" key={service.id}>
-        <div className="pwc-service-card-mark" aria-hidden="true">
-          <img src="/assets/icon/khac/pets.svg" alt="" width="42" height="42" loading="lazy" />
+        <div className="pwc-service-card-photo">
+          <img src={visual.src} alt={visual.alt} loading="lazy" />
+          <strong className="pwc-service-price-badge">{price || 'Giá chưa được công bố'}</strong>
         </div>
         <div className="pwc-service-card-copy">
           <p className="pwc-eyebrow">{species}</p>
           <h3><Link to={'/services/' + encodeURIComponent(service.id)}>{service.name}</Link></h3>
           <p>{service.description}</p>
-          <p className="pwc-service-scope">{service.scope}</p>
+          <ul className="pwc-service-inclusions">{service.scope.split(/\n+/).map(value => value.trim()).filter(Boolean)
+            .map((value, index) => <li key={index}>{value}</li>)}</ul>
         </div>
         <div className="pwc-service-card-bottom">
-          <strong>{price || 'Giá chưa được công bố'}</strong>
           <Link className="pwc-button pwc-button-secondary" to={'/services/' + encodeURIComponent(service.id)}>
-            Xem dịch vụ
+            Xem chi tiết
           </Link>
         </div>
       </article>;
