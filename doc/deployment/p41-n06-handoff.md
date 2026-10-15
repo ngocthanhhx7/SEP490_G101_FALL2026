@@ -15,6 +15,11 @@ Chunggrizzy11. Leader performs final merge only after real approval and gates.
   [API adapter](../../frontend/src/services/admin-settlement-api.js): loading, empty,
   forbidden, error, decision pending, disabled actions, uncertain command replay,
   paged records and explicit separation of Approved / TransferPending / Paid.
+- The shared [Mongo settlement adapter](../../backend/src/services/settlements/mongo-settlement.repository.js)
+  and [schema](../../backend/src/models/settlement.model.js) now provide durable
+  CAS/state transitions, unique transfer/evidence references, ownership checks,
+  reservation holds, immutable ledger lines, events and outbox rows. The admin
+  runtime factory remains fail-closed until P34 registration and P51 policy closure.
 - No shared schema, app/route registration, manifest or lockfile changes. P34
   supplies authenticated createApiClient with CSRF and an Admin role route/layout.
   WBS-N07 aggregate payroll report/dashboard remains P28 scope.
@@ -28,11 +33,10 @@ request-week quota is retained. Unknown/mismatched transfer holds reservation fo
 reconciliation; no wallet, payout provider, automatic release or future earning
 deduction. Paid correction/refund requires separately approved immutable adjustment.
 
-P01/P34 must implement transactional repository, unique command and transfer refs,
-CAS/state+ledger+audit/outbox, shared earning/allocation locks with P32/P30 and
-policy/eligibility rechecks. WBS-N05 supplies weekly submission, but N06 is an
-independent module export and assumes the same durable aggregate port. P27/P30
-care/case eligibility and P31/P32 money integrations have not been verified here.
+P34 must register both runtime factories and provide policy/eligibility rechecks.
+WBS-N05 supplies weekly submission, but N06 is an independent module export and
+uses the same durable aggregate port. P27/P30 care/case eligibility and P31/P32
+money integrations have not been verified here.
 Status: INTEGRATION_PENDING / MONEY_BLOCKED_BY_DECISION. These are genuine merge
 gates, not a request for routine permission. Keep PR draft, no approval claimed.
 
@@ -47,6 +51,10 @@ gates, not a request for routine permission. Keep PR draft, no approval claimed.
   for registered application; unregistered new page is exercised via Jest import.
 - Transactional doubles do not verify Mongo uniqueness, bank evidence, provider,
   actual payout or integrated care/refund/complaint flow. No CI status inferred.
+- A local MongoDB 8.0.34 replica-set probe synchronized indexes, created an
+  earning and reservation, wrote a settlement request plus ledger/event/outbox,
+  read scoped balances, and confirmed duplicate week claim returns `null`. This
+  is synthetic adapter evidence, not CI, load, provider, or bank verification.
 - P04 shared tokens used. CSS cards/fields fit narrow layouts with 44px controls;
   local synthetic browser harness verified a 360px frame without horizontal
   overflow (345px usable content with scrollbar), labeled reference entry and

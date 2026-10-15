@@ -12,9 +12,18 @@ function text(value, max = 160) {
   return value.trim();
 }
 function project(row) {
-  return { id: row.id, sitterId: row.sitterId, requestWeekKey: row.requestWeekKey,
+  const result = { id: row.id, sitterId: row.sitterId, requestWeekKey: row.requestWeekKey,
     amountVnd: row.amountVnd, currency: 'VND', status: row.status, version: row.version,
     submittedAt: row.submittedAt };
+  if (Array.isArray(row.earningIds)) result.earningIds = [...row.earningIds];
+  if (Array.isArray(row.earningSnapshots)) result.perVisit = row.earningSnapshots.map(snapshot => ({
+    earningId: snapshot.earningId, visitId: snapshot.visitId ?? null,
+    earningPeriodKey: snapshot.earningPeriodKey, amountVnd: snapshot.amountVnd,
+    pendingVnd: snapshot.pendingVnd ?? 0, heldVnd: snapshot.heldVnd ?? 0,
+    availableVnd: snapshot.availableVnd ?? 0, reservedVnd: snapshot.reservedVnd ?? 0,
+    paidVnd: snapshot.paidVnd ?? 0
+  }));
+  return result;
 }
 
 export function createAdminSettlementService({ unitOfWork, repository, policy, clock = () => new Date() }) {
@@ -77,6 +86,10 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
       return command({ ...input, operation: 'SETTLEMENT_DECIDE', payload: { decision, reason },
         mutate: async (row, transaction) => {
           if (row.status !== 'SUBMITTED') fail(409, 'INVALID_STATE');
+          if (decision === 'APPROVE' && typeof repository.assertReservationReady === 'function'
+            && await repository.assertReservationReady({ requestId: row.id, amountVnd: row.amountVnd }, transaction) !== true) {
+            fail(409, 'RESERVATION_CONFLICT');
+          }
           // Port revalidates holds/refund/earning availability even on approval.
           if (decision === 'REJECT' && await repository.releaseReservation({ requestId: row.id,
             expectedStatus: 'SUBMITTED', amountVnd: row.amountVnd }, transaction) !== true) fail(409, 'RESERVATION_CONFLICT');
@@ -108,10 +121,20 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
             || !Number.isFinite(Date.parse(row.submittedAt))
             || Date.parse(paidAt) < Date.parse(row.submittedAt))) fail(422, 'VALIDATION_FAILED');
           const confirmed = outcome === 'CONFIRMED' && input.amountVnd === row.amountVnd;
+          const transferOutcome = confirmed ? 'CONFIRMED' : outcome === 'UNKNOWN' ? 'UNKNOWN' : 'AMOUNT_MISMATCH';
           const transfer = { outcome: confirmed ? 'CONFIRMED' : outcome === 'UNKNOWN' ? 'UNKNOWN' : 'AMOUNT_MISMATCH',
-            reference, evidenceReference, amountVnd: input.amountVnd ?? null, paidAt };
+            reference, evidenceReference, amountVnd: input.amountVnd ?? null, paidAt, recordedBy: input.actor.userId };
+          const evidenceCheck = typeof repository.assertEvidenceOwnership === 'function'
+            ? await repository.assertEvidenceOwnership({ evidenceReference, requestId: row.id,
+              actorId: input.actor.userId }, transaction) : true;
+          if (!evidenceCheck) fail(409, 'EVIDENCE_UNAVAILABLE');
           if (confirmed && await repository.settleReservation({ requestId: row.id,
-            amountVnd: row.amountVnd, reference, evidenceReference }, transaction) !== true) fail(409, 'RESERVATION_CONFLICT');
+            amountVnd: row.amountVnd, reference, evidenceReference, adminId: input.actor.userId,
+            version: input.expectedVersion + 1, paidAt }, transaction) !== true) fail(409, 'RESERVATION_CONFLICT');
+          if (!confirmed && typeof repository.recordTransferAttempt === 'function'
+            && await repository.recordTransferAttempt({ requestId: row.id, version: input.expectedVersion + 1,
+              adminId: input.actor.userId, outcome: transferOutcome, reference, evidenceReference,
+              amountVnd: input.amountVnd ?? null, paidAt }, transaction) !== true) fail(409, 'TRANSFER_REFERENCE_CONFLICT');
           return { patch: { status: confirmed ? 'PAID' : 'TRANSFER_PENDING', transfer },
             event: { type: confirmed ? 'EARNING_PAID' : 'SETTLEMENT_RECONCILIATION_REQUIRED',
               transfer, amountVnd: row.amountVnd,

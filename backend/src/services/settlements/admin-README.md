@@ -1,15 +1,20 @@
 # WBS-N06 Admin settlement review and transfer
 
-Admin service and HTTP module are unregistered exports for P34. P01 supplies the
-same durable settlement aggregate as WBS-N05. Production is INTEGRATION_PENDING.
-This module never invokes a payment provider or performs a bank transfer.
+Admin service and HTTP module remain export-only, while
+`adminSettlementRuntimeModule` composes the durable Mongo adapter for P34. The
+adapter is shared with WBS-N05 and uses the same settlement request aggregate,
+ledger/outbox and financial-lock collections. Production is still
+INTEGRATION_PENDING until P34 registers the module, P51 resolves the policy, and
+the private-media layer records Admin-owned evidence. This module never invokes
+a payment provider or performs a bank transfer.
 
 All command repository calls, state CAS, financial reservation changes, immutable
-ledger and audit/outbox event append plus command result must commit atomically
-through unitOfWork.run. Rollback and transaction retries are mandatory.
-Unique transfer reference constraints prevent allocating one bank evidence to two
-settlements. The policy resolver must revalidate earnings, case/refund holds and
-versions inside the transaction with the same allocation locks as P32/P30.
+ledger and audit/outbox event append plus command result commit atomically through
+`unitOfWork.run`. Rollback and transaction retries are mandatory. Mongo unique
+transfer/evidence references prevent allocating one bank record to two
+settlements; evidence ownership is checked against the Admin actor and request.
+The policy resolver must revalidate earnings, case/refund holds and versions inside
+the transaction with the same allocation locks as P32/P30.
 
 `listPayroll({ cursor, limit: 50 })` returns a bounded page of settlement requests,
 nextCursor and unresolved decisionIds. Public projection excludes bank details,
