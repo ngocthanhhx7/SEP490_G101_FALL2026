@@ -26,6 +26,11 @@ function harness({ visits = [visit()], createOffer = async command => ({ status:
 }
 
 describe('P21 auto assignment job', () => {
+  test('rejects an oversized queue without making any offer writes', async () => {
+    const { job, createOfferAtomically } = harness({ visits: Array.from({ length: 101 }, () => visit()) });
+    await expect(job.runOnce()).rejects.toMatchObject({ code: 'DISPATCH_UNAVAILABLE' });
+    expect(createOfferAtomically).not.toHaveBeenCalled();
+  });
   test('creates a pending offer through the atomic repository port and never assigns directly', async () => {
     const { job, findDispatchableVisits, createOfferAtomically } = harness();
     await expect(job.runOnce()).resolves.toMatchObject({ queried: 1, created: 1, alreadyHandled: 0, skipped: 0, failed: 0 });

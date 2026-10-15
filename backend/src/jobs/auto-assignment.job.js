@@ -65,7 +65,9 @@ export function createAutoAssignmentJob({ repository, dispatchService, clock = (
   async function run() {
     const asOf = asOfInstant(clock());
     const visits = await repository.findDispatchableVisits({ asOf: asOf.toISOString(), limit });
-    if (!Array.isArray(visits)) throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Dispatch queue is unavailable');
+    if (!Array.isArray(visits) || visits.length > limit) {
+      throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Dispatch queue is unavailable');
+    }
 
     let queried = visits.length;
     let created = 0;
