@@ -1,0 +1,9 @@
+.sitter-feedback-page { max-width: 48rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
+.sitter-feedback-page__header { margin-bottom: 1.5rem; }
+.sitter-feedback-page__header p { color: #596579; }
+.sitter-feedback-card { display: grid; gap: 1.25rem; padding: 1.25rem; border: 1px solid #dce3ec; border-radius: 1rem; background: #fff; }
+.sitter-feedback-card fieldset, .sitter-feedback-card label { display: grid; gap: .5rem; border: 0; padding: 0; margin: 0; }
+.sitter-feedback-rating { display: flex; flex-wrap: wrap; gap: .5rem; }
+.sitter-feedback-rating button { min-width: 3rem; min-height: 3rem; border: 1px solid #b8c3d1; border-radius: .6rem; background: #f8fafc; cursor: pointer; }
+.sitter-feedback-rating button[aria-pressed="true"] { border-color: #176b87; background: #d9f1f5; }
+.sitter-feedback-card textarea { width: 100%; min-height: 8rem; resize: vertical; }
