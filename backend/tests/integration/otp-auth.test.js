@@ -338,3 +338,43 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
       .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
   });
 });
+
+test.each([['CUSTOMER',true,30*24],['PET_SITTER',true,30*24],['CUSTOMER',false,12],['ADMIN',true,12]])('remembered session lifetime and cookie options for %s (%s)', async (role, rememberDevice, hours) => {
+  const {user}=await createActiveUser({role});
+  const {sessionService}=fixture();
+  const issued=await connection.transaction(session=>sessionService.issueInTransaction(user,session,{rememberDevice}));
+  expect(issued.expiresAt-clockNow).toBe(hours*60*60*1000);
+  const response={cookie:jest.fn()}; sessionService.setCookie(response,issued,{secure:true,persistent:rememberDevice});
+  const options=response.cookie.mock.calls[0][2];
+  expect(options).toMatchObject({httpOnly:true,secure:true,sameSite:'lax'});
+  if(rememberDevice) expect(options.maxAge).toBe(hours*60*60*1000); else expect(options).not.toHaveProperty('maxAge');
+  const req={headers:{cookie:`pwc_session=${issued.token}`}};
+  const auth=await sessionService.authenticate(req);
+  const csrf=await sessionService.resumeCsrf(req,auth);
+  expect(await sessionService.resumeCsrf(req,auth)).toBe(csrf);
+  expect(await sessionService.verifyCsrf(auth,csrf)).toBe(true);
+  await sessionService.revoke(req);
+  expect(await sessionService.authenticate(req)).toBe(null);
+  await expect(sessionService.resumeCsrf(req,auth)).rejects.toMatchObject({status:401});
+});
+
+test('CSRF resume migrates legacy sessions once and rejects expiry and mismatched cookies', async () => {
+  const { user } = await createActiveUser();
+  const { sessionService } = fixture();
+  const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session, { rememberDevice: false }));
+  const req = { headers: { cookie: `pwc_session=${issued.token}` } };
+  const auth = await sessionService.authenticate(req);
+  await models.AuthSession.updateOne({ sessionId: issued.sessionId }, { $set: { csrfDigest: 'a'.repeat(64) } });
+  const update = jest.spyOn(models.AuthSession, 'updateOne');
+  try {
+    const token = await sessionService.resumeCsrf(req, auth);
+    expect(await sessionService.verifyCsrf(auth, token)).toBe(true);
+    await sessionService.resumeCsrf(req, auth);
+    expect(update).toHaveBeenCalledTimes(1);
+    await expect(sessionService.resumeCsrf({ headers: { cookie: `pwc_session=${'b'.repeat(43)}` } }, auth))
+      .rejects.toMatchObject({ status: 401 });
+    clockNow = issued.expiresAt;
+    expect(await sessionService.authenticate(req)).toBeNull();
+    await expect(sessionService.resumeCsrf(req, auth)).rejects.toMatchObject({ status: 401 });
+  } finally { update.mockRestore(); }
+});
