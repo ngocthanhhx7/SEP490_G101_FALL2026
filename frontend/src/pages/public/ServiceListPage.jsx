@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogEmpty, CatalogState, PublicServiceCards } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from './public-catalog-adapter.js';
+import './service-catalog.css';
 
 function normalizeSearch(value) {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -11,7 +12,9 @@ function normalizeSearch(value) {
 
 export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
   const catalog = useApiResource(loadCatalog);
-  const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+  const query = (params.get('q') ?? '').slice(0, 120);
+  const setQuery = value => { setParams(previous => { const next = new globalThis.URLSearchParams(previous); if (value) next.set('q', value); else next.delete('q'); return next; }, { replace: true }); };
   const [species, setSpecies] = useState('ALL');
   const services = catalog.data?.services || [];
   const filtered = useMemo(() => {
@@ -28,16 +31,15 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
   return <div className="pwc-page pwc-service-list-page">
     <section className="pwc-page-intro" aria-labelledby="pwc-service-list-title">
       <p className="pwc-eyebrow">Paw World Care</p>
-      <h1 id="pwc-service-list-title">Danh mục dịch vụ</h1>
-      <p className="pwc-lead">Tìm lựa chọn đang được công bố cho thú cưng của bạn.</p>
+      <h1 id="pwc-service-list-title">Dịch vụ PawWorld dành cho bé</h1>
+      <p className="pwc-lead">Chọn dịch vụ phù hợp để bé được quan tâm, ngay trong không gian quen thuộc.</p>
     </section>
 
-    {catalog.status === 'success' && catalog.data?.available && catalog.data.services.length > 0
-      && <form className="pwc-catalog-filters" role="search" onSubmit={(event) => event.preventDefault()}>
+    <form className="pwc-catalog-filters" role="search" onSubmit={(event) => event.preventDefault()}>
         <label className="pwc-filter-search">
           <span>Tìm dịch vụ</span>
           <input value={query} onChange={(event) => setQuery(event.target.value)}
-            type="search" autoComplete="off" placeholder="Nhập tên hoặc nhu cầu chăm sóc" />
+            type="search" maxLength={120} autoComplete="off" placeholder="Bạn cần dịch vụ gì cho bé?" />
         </label>
         <label className="pwc-filter-species">
           <span>Đối tượng</span>
@@ -47,7 +49,9 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
             <option value="CAT">Mèo</option>
           </select>
         </label>
-      </form>}
+      </form>
+    {catalog.status === 'success' && catalog.data?.available && services.length > 0
+      && <p className="pwc-service-result-count" role="status">{filtered.length} dịch vụ phù hợp</p>}
 
     {catalog.status !== 'success'
       ? <CatalogState resource={catalog}
@@ -66,6 +70,8 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
               action={<button className="pwc-text-button" type="button"
                 onClick={() => { setQuery(''); setSpecies('ALL'); }}>Xóa bộ lọc</button>} />}
 
-    <p className="pwc-back-link"><Link to="/">Quay lại trang chủ</Link></p>
+    <section className="pwc-catalog-help"><div><h2>Bạn cần tìm dịch vụ phù hợp?</h2>
+      <p>Kiểm tra khu vực phục vụ hoặc gửi lời nhắn để được hỗ trợ về nhu cầu của bé.</p></div>
+      <div><Link to="/service-areas">Khu vực phục vụ</Link><Link to="/contact">Liên hệ PawWorld</Link></div></section>
   </div>;
 }

@@ -1,3 +1,5 @@
+import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
+const guestSession = { resolve: async () => ({ status: 'guest' }) };
 jest.mock('../../src/pages/public/public-pages.css', () => ({}), { virtual: true });
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -28,7 +30,7 @@ function catalog(services = [service], available = true) {
 function renderHome(loadCatalog, initialEntry = '/') {
   return render(<MemoryRouter initialEntries={[initialEntry]}>
     <Routes>
-      <Route element={<PublicSiteLayout />}>
+      <Route element={<SessionProvider adapter={guestSession}><PublicSiteLayout /></SessionProvider>}>
         <Route path="/" element={<HomePage loadCatalog={loadCatalog} />} />
       </Route>
     </Routes>
@@ -40,7 +42,7 @@ test('homepage shows the approved brand, service catalog data and valid public a
   renderHome(loadCatalog);
 
   expect(screen.getByRole('heading', { name: /Chăm pet/ })).toBeVisible();
-  expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/logo/ngang.svg');
+  expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/figma-public/header-Vector.svg');
   expect(screen.getByRole('link', { name: 'Đặt dịch vụ ngay' })).toHaveAttribute('href', '/sign-in');
   expect(screen.getByRole('link', { name: 'Khám phá dịch vụ' })).toHaveAttribute('href', '/services');
   expect(await screen.findByRole('heading', { name: service.name })).toBeVisible();
