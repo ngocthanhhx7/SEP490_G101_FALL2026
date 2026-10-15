@@ -18,8 +18,13 @@ const rows = [
     displayName: 'Alpha sitter', transferRecordedAt: new Date('2026-10-15T02:45:00.000Z') }
 ];
 
-function harness(result = { items: rows, source: [source] }) {
-  const requests = { aggregate: jest.fn(() => ({ toArray: async () => [result] })) };
+function harness(result = { items: rows, source: [source] }, aggregateShape = 'cursor') {
+  const aggregateResult = aggregateShape === 'promise'
+    ? Promise.resolve([result])
+    : aggregateShape === 'exec'
+      ? { exec: async () => [result] }
+      : { toArray: async () => [result] };
+  const requests = { aggregate: jest.fn(() => aggregateResult) };
   return { requests, repository: createMongoPayrollRepository({ requests, cursorSecret: secret }) };
 }
 
@@ -59,6 +64,12 @@ describe('durable P28 payroll Mongo adapter', () => {
     const search = pipeline.find(stage => stage.$match?.['sitter.displayName']);
     expect(search.$match['sitter.displayName'].$regex).toBe('a\\+b');
     expect(JSON.stringify(pipeline)).not.toContain('evidenceReference');
+  });
+
+  test.each(['promise', 'exec'])('supports %s aggregate return shape used by Mongoose adapters', async aggregateShape => {
+    const { repository } = harness(undefined, aggregateShape);
+    await expect(repository.readSnapshot({ scope, query: { limit: 1 } }))
+      .resolves.toMatchObject({ ready: true, items: [{ id: 'request-2' }] });
   });
 
   test.each([

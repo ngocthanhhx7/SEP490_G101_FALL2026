@@ -133,6 +133,20 @@ function sourceVersion(asOf) {
 }
 
 /**
+ * Mongoose connections expose `collection().aggregate()` as a Promise,
+ * whereas the native MongoDB driver returns a cursor (`toArray`) and a
+ * Mongoose model aggregate returns an Aggregate (`exec`). Keep the adapter
+ * usable with the runtime connection and with either test/integration port
+ * without assuming one driver's return shape.
+ */
+async function aggregateRows(store, pipeline, options) {
+  const result = store.aggregate(pipeline, options);
+  if (typeof result?.toArray === 'function') return result.toArray();
+  if (typeof result?.exec === 'function') return result.exec();
+  return result;
+}
+
+/**
  * Durable read adapter for P28 Admin payroll.
  *
  * SettlementRequest is the P41 authoritative request projection. This adapter
@@ -175,7 +189,8 @@ export function createMongoPayrollRepository({ connection, requests,
       source: [{ $group: { _id: null, asOf: { $max: '$updatedAt' },
         policyVersions: { $addToSet: '$policyVersion' }, total: { $sum: 1 } } }]
     } });
-    const [result] = await requestStore.aggregate(stages, { allowDiskUse: false }).toArray();
+    const aggregateResultRows = await aggregateRows(requestStore, stages, { allowDiskUse: false });
+    const [result] = Array.isArray(aggregateResultRows) ? aggregateResultRows : [];
     const source = result?.source?.[0];
     const rawItems = Array.isArray(result?.items) ? result.items : [];
     if (!source || !rawItems.length || !source.asOf) return { ready: false };

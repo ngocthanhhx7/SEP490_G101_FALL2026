@@ -22,7 +22,7 @@ by application modules; missing adapters stay pending rather than producing fake
 
 The shared read/renderer boundary is introduced with WBS-047; each remaining WBS has its
 own service/router/page/adapter/test commit. The branches form a dependency stack rooted
-at develop c95e54ef9667f3036b325f8918c8c12283c0ab26. A combined draft PR is appropriate
+at the synchronized develop base. A combined draft PR is appropriate
 because all entry pages consume the shared boundary. Commits preserve the assigned
 contributors: Chung (047/057/067/068), Thành (054/069/N07), Nhật (058). The consolidated
 PR requires an independent reviewer outside all three contributors; Hải is the first
@@ -36,6 +36,7 @@ Authorship and publication identities are verified using the local helper per ac
 | Backend npm run lint | PASS after runtime registry, settlement enum and identifier-contract changes |
 | Backend npm test -- --selectProjects unit --testMatch '**/tests/unit/**/*.test.js' | 57 suites, 511 tests PASS (including P28) |
 | Backend npm test -- --selectProjects integration --testMatch '**/tests/integration/p28-*.test.js' | 2 suites, 11 tests PASS; real Express, synthetic sessions, no DB/provider |
+| P28 payroll adapter regression | 9 tests PASS, including native Mongo cursor, Mongoose `exec`, and Mongoose connection Promise aggregate return shapes |
 | Frontend npm run lint | PASS |
 | Frontend npm test | 67 suites, 437 tests PASS (the NotificationsPage fix from PR #73 is present in the current base) |
 | P28 frontend tests within that run | 3 suites, 24 tests PASS |
@@ -56,7 +57,7 @@ dates/limits/cursors, pending financial decisions, fractional/negative/unbalance
 amounts, missing transfer evidence, canceled visits, filter/pagination reset, stale read
 races, sign-out cleanup and Vietnam Sunday-to-Monday timestamp rendering. P28 has only
 GET endpoints; mutation idempotency/reservation races remain the responsibility of P41.
-Production cursor signature/DB index/atomic snapshot performance still needs adapter tests.
+Production cursor signature/DB index/atomic snapshot performance still needs live adapter tests; the aggregation return-shape regression is covered without claiming a live database run.
 
 ## UI and remaining gates
 
