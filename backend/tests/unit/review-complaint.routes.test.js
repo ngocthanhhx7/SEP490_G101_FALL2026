@@ -56,4 +56,15 @@ describe('P30 export-only review and complaint routers', () => {
     const response = await csrf(request(app).post(`/api/v1/complaints/${caseId}/decision`)).send({ expectedVersion: 1, summary: 'Cuối' });
     expect(response.status).toBe(403); expect(service.decide).not.toHaveBeenCalled();
   });
+
+  test('Sitter can read complaint list/detail but cannot create a complaint', async () => {
+    const { app, service } = setup('PET_SITTER');
+    const list = await request(app).get('/api/v1/complaints');
+    const detail = await request(app).get(`/api/v1/complaints/${caseId}`);
+    const create = await csrf(request(app).post(`/api/v1/complaints/visits/${visitId}`)).send({ summary: 'x', description: 'y' });
+    expect(list.status).toBe(200); expect(detail.status).toBe(200); expect(create.status).toBe(403);
+    expect(service.list).toHaveBeenCalledWith(expect.objectContaining({ actor: expect.objectContaining({ roles: ['PET_SITTER'] }) }));
+    expect(service.get).toHaveBeenCalledWith(expect.objectContaining({ actor: expect.objectContaining({ roles: ['PET_SITTER'] }), complaintId: caseId }));
+    expect(service.submit).not.toHaveBeenCalled();
+  });
 });
