@@ -48,16 +48,21 @@ describe('P44 bounded candidate batch reader (internal ports, not Mongo integrat
   test.each([
     [fact('unknown')], [fact('a'), fact('a')], [fact('a', { hasConflict: undefined })],
     [null], null
-  ])('rejects malformed or out-of-batch availability: %j', async snapshots => {
+  ].map(snapshots => [snapshots]))('rejects malformed or out-of-batch availability: %j', async snapshots => {
     const h = harness({ snapshots });
     await expect(h.service.suggest({ request })).rejects.toMatchObject({ code: 'DISPATCH_UNAVAILABLE' });
   });
 
   test.each([null, [null], [profile('a'), profile('a')], [profile(' bad')],
-    Array.from({ length: 101 }, (_, i) => profile(`s${i}`))])('rejects invalid profile batches', async profiles => {
+    Array.from({ length: 101 }, (_, i) => profile(`s${i}`))].map(profiles => [profiles]))('rejects invalid profile batches', async profiles => {
     const h = harness({ profiles });
     await expect(h.service.suggest({ request })).rejects.toMatchObject({ code: 'DISPATCH_UNAVAILABLE' });
     expect(h.readAvailabilityBatch).not.toHaveBeenCalled();
+  });
+
+  test('rejects duplicate availability rows even within the allowed batch size', async () => {
+    const h = harness({ profiles: [profile('a'), profile('b')], snapshots: [fact('a'), fact('a')] });
+    await expect(h.service.suggest({ request })).rejects.toMatchObject({ code: 'DISPATCH_UNAVAILABLE' });
   });
 
   test('uses fresh facts after schedule, leave, assignment, cancellation and area changes', async () => {

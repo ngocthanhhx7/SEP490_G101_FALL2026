@@ -76,16 +76,18 @@ not observations of a real ranking provider.
 | --- | --- |
 | `npm ci --ignore-scripts` | PASS, 469 packages, audit reports 0 vulnerabilities |
 | `npm run lint` | PASS |
-| `npm test` | PASS, 56 suites / 541 tests across unit + integration projects |
-| Focused P44 + P21/P22/P24 tests | PASS, 6 suites / 94 tests after sort-key optimization |
+| `npm test` | PASS, 56 suites / 542 tests across unit + integration projects |
+| Focused P44 + P21/P22/P24 tests | PASS, 6 suites / 95 tests on the final test revision |
 | `node scripts/performance/dispatch-benchmark.js` | Completed; synthetic numbers above |
 
 Integration tests use isolated real MongoDB 8.0.34 replica sets for existing
 runtime/auth/catalog/application modules. They do not prove Mongo-backed
 dispatch, booking, dashboard or payroll integration. Jest reports its expected
 experimental VM modules warning. Backend has no build script; UI/Figma is not
-in scope. The complete 56-suite / 541-test run was repeated after the final
-sort-key optimization and passed (36.607 s).
+in scope. Content review found parameterized array cases being spread into
+test arguments; the fixture rows were corrected and a duplicate-fact case
+within the allowed batch size was added. The complete 56-suite / 542-test run
+then passed (32.289 s).
 
 ## Open acceptance gates and next measurements
 
