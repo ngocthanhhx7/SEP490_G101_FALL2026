@@ -3,6 +3,7 @@ import { createCareInstructionsService } from '../../src/services/care/care-inst
 
 const CUSTOMER = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 const SITTER = 'bbbbbbbbbbbbbbbbbbbbbbbb';
+const REPLACEMENT = 'eeeeeeeeeeeeeeeeeeeeeeee';
 const VISIT = 'cccccccccccccccccccccccc';
 const NOW = new Date('2026-10-15T00:00:00.000Z');
 const active = (userId, roles) => ({ userId, roles, state: 'ACTIVE', expiresAt: 4102444800000 });
@@ -24,7 +25,8 @@ function createRepository({ startAt = '2026-10-15T04:00:00.000Z' } = {}) {
       state.care = { version, instructions, actorId, reason, requiresAcknowledgement, updatedAt, acknowledgements: [] };
       return { visitId: VISIT, version, instructions, requiresAcknowledgement, updatedAt };
     },
-    getOfferForSitter: async ({ sitterId }) => sitterId === SITTER ? { state: 'PENDING', deadline: '2026-10-15T06:00:00.000Z' } : null,
+    getOfferForSitter: async ({ sitterId }) => [SITTER, REPLACEMENT].includes(sitterId)
+      ? { state: 'PENDING', deadline: '2026-10-15T06:00:00.000Z' } : null,
     recordCareInstructionAcknowledgement: async ({ sitterId, version, acknowledgedAt }) => {
       state.care.acknowledgements.push({ sitterId, version, acknowledgedAt });
       return { visitId: VISIT, sitterId, version, acknowledged: true, acknowledgedAt };
@@ -75,6 +77,17 @@ test('requires a current instruction acknowledgement before a Sitter can read pr
   expect(state.care.acknowledgements).toHaveLength(1);
   await expect(accessService.getAccessNotes({ actor: active(SITTER, ['PET_SITTER']), visitId: VISIT }))
     .resolves.toMatchObject({ privateAccessNotes: 'Mã cửa tổng hợp' });
+});
+
+test('allows an eligible replacement offer to read instructions before handover', async () => {
+  const { state, repository } = createRepository();
+  state.visit.handoverRequired = true;
+  const service = createCareInstructionsService({ repository, clock: () => NOW });
+  await expect(service.getInstructions({ actor: active(REPLACEMENT, ['PET_SITTER']), visitId: VISIT }))
+    .resolves.toMatchObject({ visitId: VISIT, version: 1, acknowledged: false });
+  await expect(service.acknowledgeInstructions({ actor: active(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
+    instructionVersion: 1, idempotencyKey: 'replacement-ack' }))
+    .resolves.toMatchObject({ sitterId: REPLACEMENT, acknowledged: true });
 });
 
 test('fails closed when acknowledgement persistence is unavailable', async () => {

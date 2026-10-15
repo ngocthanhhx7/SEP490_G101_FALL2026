@@ -176,19 +176,26 @@ export function createCareInstructionsService({ repository, clock = () => new Da
     return visit;
   }
 
-  function authorizeRead(actor, visit) {
+  async function authorizeRead(actor, visit, tx, visitId) {
     const id = actor.userId;
-    if (operational(actor)) return;
-    if (role(actor, 'CUSTOMER') && customerIdOf(visit) === id) return;
-    if (role(actor, 'PET_SITTER') && sitterIdOf(visit) === id) return;
+    if (operational(actor)) return { operational: true };
+    if (role(actor, 'CUSTOMER') && customerIdOf(visit) === id) return { customer: true };
+    if (role(actor, 'PET_SITTER') && sitterIdOf(visit) === id) return { assigned: true };
+    if (role(actor, 'PET_SITTER') && typeof tx.getOfferForSitter === 'function') {
+      const offer = await tx.getOfferForSitter({ visitId, sitterId: id });
+      const expired = offer?.deadline && instant(offer.deadline) <= nowValue(clock);
+      if (offer && !expired && !['EXPIRED', 'REVOKED', 'DECLINED', 'WITHDRAWN'].includes(offer.state)) {
+        return { candidate: true };
+      }
+    }
     fail(404, 'RESOURCE_NOT_FOUND', 'Visit not found');
   }
 
   async function readInstructions({ actor, visitId } = {}) {
     return inTransaction(actor, visitId, async tx => {
       const visit = await getVisit(tx, visitId);
-      authorizeRead(actor, visit);
-      if (role(actor, 'PET_SITTER') && visit.handoverRequired === true && visit.handoverAccepted !== true) {
+      const access = await authorizeRead(actor, visit, tx, visitId);
+      if (access.assigned && visit.handoverRequired === true && visit.handoverAccepted !== true) {
         fail(403, 'HANDOVER_REQUIRED', 'Confirm the visit handover before reading the replacement snapshot');
       }
       const record = typeof tx.getCareInstructions === 'function' ? await tx.getCareInstructions(visitId) : null;
