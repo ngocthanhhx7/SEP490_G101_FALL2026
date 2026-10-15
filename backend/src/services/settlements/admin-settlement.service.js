@@ -57,8 +57,9 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
           ? resolved.decisionIds : ['FIN-07-ELIG', 'FIN-07-POSTPAY', 'FIN-08-EDIT'] });
       }
       const occurredAt = new Date(clock()).toISOString();
+      await repository.assertIndexesReady?.();
       const versions = { policyVersion: resolved.policyVersion, decisionVersion: resolved.decisionVersion };
-      const change = await mutate(row, transaction, occurredAt);
+      const change = await mutate(row, transaction, occurredAt, versions);
       const updated = await repository.compareAndSet(id, expectedVersion, {
         ...change.patch, version: expectedVersion + 1, ...versions }, transaction);
       if (!updated) fail(409, 'VERSION_CONFLICT');
@@ -75,8 +76,12 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
       admin(actor);
       if (cursor !== undefined) text(cursor, 512);
       const page = await repository.listPayroll({ cursor, limit: 50 });
+      const resolved = await policy?.resolve?.({ action: 'READ_PAYROLL' });
+      const decisionIds = resolved?.ready === true && resolved.policyVersion && resolved.decisionVersion
+        && Array.isArray(resolved.decisionIds) && !resolved.decisionIds.length ? []
+        : resolved?.decisionIds?.length ? resolved.decisionIds : ['FIN-07-ELIG', 'FIN-07-POSTPAY', 'FIN-08-EDIT'];
       return { items: page.items.map(project), nextCursor: page.nextCursor ?? null,
-        decisionIds: page.decisionIds ?? ['FIN-07-ELIG', 'FIN-07-POSTPAY', 'FIN-08-EDIT'] };
+        decisionIds: [...new Set([...decisionIds, ...(page.decisionIds ?? [])])] };
     },
     async decide(input) {
       admin(input.actor);
@@ -84,7 +89,7 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
       if (!['APPROVE', 'REJECT'].includes(decision)) fail(422, 'VALIDATION_FAILED');
       const reason = text(input.reason, 500);
       return command({ ...input, operation: 'SETTLEMENT_DECIDE', payload: { decision, reason },
-        mutate: async (row, transaction) => {
+        mutate: async (row, transaction, _occurredAt, versions) => {
           if (row.status !== 'SUBMITTED') fail(409, 'INVALID_STATE');
           if (decision === 'APPROVE' && typeof repository.assertReservationReady === 'function'
             && await repository.assertReservationReady({ requestId: row.id, amountVnd: row.amountVnd }, transaction) !== true) {
@@ -92,7 +97,8 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
           }
           // Port revalidates holds/refund/earning availability even on approval.
           if (decision === 'REJECT' && await repository.releaseReservation({ requestId: row.id,
-            expectedStatus: 'SUBMITTED', amountVnd: row.amountVnd }, transaction) !== true) fail(409, 'RESERVATION_CONFLICT');
+            expectedStatus: 'SUBMITTED', amountVnd: row.amountVnd,
+            actorId: input.actor.userId, ...versions }, transaction) !== true) fail(409, 'RESERVATION_CONFLICT');
           return { patch: { status: decision === 'APPROVE' ? 'APPROVED' : 'REJECTED', decision: { decision, reason } },
             event: { type: decision === 'APPROVE' ? 'SETTLEMENT_APPROVED' : 'EARNING_RESERVATION_RELEASED',
               reason, amountVnd: row.amountVnd,
@@ -115,7 +121,7 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
       }
       return command({ ...input, operation: 'SETTLEMENT_TRANSFER',
         payload: { outcome, reference, evidenceReference, amountVnd: input.amountVnd, paidAt },
-        mutate: async (row, transaction, occurredAt) => {
+        mutate: async (row, transaction, occurredAt, versions) => {
           if (!['APPROVED', 'TRANSFER_PENDING'].includes(row.status)) fail(409, 'INVALID_STATE');
           if (paidAt && (Date.parse(paidAt) > Date.parse(occurredAt)
             || !Number.isFinite(Date.parse(row.submittedAt))
@@ -123,14 +129,15 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
           const confirmed = outcome === 'CONFIRMED' && input.amountVnd === row.amountVnd;
           const transferOutcome = confirmed ? 'CONFIRMED' : outcome === 'UNKNOWN' ? 'UNKNOWN' : 'AMOUNT_MISMATCH';
           const transfer = { outcome: confirmed ? 'CONFIRMED' : outcome === 'UNKNOWN' ? 'UNKNOWN' : 'AMOUNT_MISMATCH',
-            reference, evidenceReference, amountVnd: input.amountVnd ?? null, paidAt, recordedBy: input.actor.userId };
+            reference, evidenceReference, amountVnd: input.amountVnd ?? null, paidAt,
+            recordedBy: input.actor.userId, recordedAt: occurredAt };
           const evidenceCheck = typeof repository.assertEvidenceOwnership === 'function'
             ? await repository.assertEvidenceOwnership({ evidenceReference, requestId: row.id,
               actorId: input.actor.userId }, transaction) : true;
           if (!evidenceCheck) fail(409, 'EVIDENCE_UNAVAILABLE');
           if (confirmed && await repository.settleReservation({ requestId: row.id,
             amountVnd: row.amountVnd, reference, evidenceReference, adminId: input.actor.userId,
-            version: input.expectedVersion + 1, paidAt }, transaction) !== true) fail(409, 'RESERVATION_CONFLICT');
+            version: input.expectedVersion + 1, paidAt, ...versions }, transaction) !== true) fail(409, 'RESERVATION_CONFLICT');
           if (!confirmed && typeof repository.recordTransferAttempt === 'function'
             && await repository.recordTransferAttempt({ requestId: row.id, version: input.expectedVersion + 1,
               adminId: input.actor.userId, outcome: transferOutcome, reference, evidenceReference,

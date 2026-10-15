@@ -27,12 +27,23 @@ import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
 import { applicationStatusApi } from '../services/application-status-api.js';
+import { useMemo } from 'react';
+import AdminSettlementsPage from '../pages/admin/AdminSettlementsPage.jsx';
+import { createAdminSettlementApi } from '../services/admin-settlement-api.js';
+import { createApiClient } from '../services/api-client.js';
+
+function AdminSettlementRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createAdminSettlementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return <AdminSettlementsPage key={user?.id} api={api} />;
+}
 
 const navigationByRole = {
   ADMIN: [
     ['Tài khoản', '/account'], ['Người dùng', '/admin/users'], ['Dịch vụ', '/admin/services'],
     ['Giá dịch vụ', '/admin/service-prices'], ['Cấu hình', '/admin/system-settings'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
+    ['Duyệt tất toán', '/admin/settlements'],
   ],
   CUSTOMER: [['Tài khoản', '/account'], ['Hồ sơ', '/account/profile'], ['Địa chỉ', '/account/addresses']],
   PET_SITTER: [['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability']],
@@ -57,6 +68,7 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
     <Route element={<RequireSession roles={['ADMIN']} />}>
       <Route element={<Workspace role="ADMIN" />}>
         <Route path="admin/users" element={<AdminUsersPage />} />
+        <Route path="admin/settlements" element={<AdminSettlementRoute />} />
         <Route path="admin/services" element={<AdminServicesPage />} />
         <Route path="admin/service-prices" element={<AdminServicePricesPage />} />
         <Route path="admin/system-settings" element={<AdminSystemSettingsPage />} />
