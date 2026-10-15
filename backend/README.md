@@ -1,31 +1,64 @@
-# Backend
+# Backend — Paw World Care
 
-Thư mục REST API Node.js/Express của Paw World Care, dự kiến dùng MongoDB và Mongoose. Đây là khung thư mục, chưa có server, kết nối database hoặc dependency.
+Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và runtime REGISTER handler. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
 
-## Trách nhiệm thư mục
+## Chạy và kiểm tra
+
+Từ backend, npm ci --ignore-scripts; điền URI Atlas và MONGO_DB trong .env local rồi npm start (npm run dev cho watch). Config thiếu/sai dừng trước listen. Không commit .env hoặc bất kỳ .env.* ở bất kỳ depth nào; chỉ .env.example chứa placeholders được push. Không force-add env hoặc đưa credential thật vào example.
+
+```powershell
+npm run lint
+npm run test:unit
+npm run test:integration
+```
+
+GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Auth routes chỉ mount khi được bật tường minh; REGISTER uses the transactional P07 handler when auth is enabled. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration dùng MongoDB replica set riêng, không đụng DB hiện có của user.
+
+## Trách nhiệm
+
+P22 exports a scoped operational board service and [visit board router](src/routes/visit-board.routes.js) for P34 composition. It uses the P21 eligibility evaluator inside the guarded mutation callback. The repository must implement the real transaction/eligibility/day guards, CAS and atomic audit/outbox; synthetic tests do not supply production storage. No global registry/runtime/manifest is changed. See [P22 handoff](../doc/deployment/p22-visit-board-handoff.md) and [integration proposal](../doc/api/p22-visit-board-integration-proposal.md).
 
 | Đường dẫn | Nội dung |
 | --- | --- |
-| `src/config/` | Đọc và kiểm tra cấu hình môi trường; cấu hình database và dịch vụ ngoài |
-| `src/routes/` | Khai báo endpoint, middleware và controller tương ứng |
-| `src/controllers/` | Đọc request, gọi service, trả response |
-| `src/services/` | Quy tắc nghiệp vụ: lịch chăm sóc, phân công, thanh toán, xử lý sự cố |
-| `src/models/` | Mongoose schemas, models và indexes |
-| `src/middlewares/` | Xác thực, phân quyền, xử lý lỗi và middleware dùng chung |
-| `src/validators/` | Kiểm tra dữ liệu đầu vào cho body, params, query |
-| `src/constants/` | Vai trò, trạng thái và hằng số nghiệp vụ |
-| `src/utils/` | Hàm hỗ trợ độc lập |
-| `src/jobs/` | Công việc định kỳ hoặc xử lý nền khi được triển khai |
-| `scripts/seeds/` | Dữ liệu mẫu tổng hợp cho môi trường phát triển/kiểm thử |
-| `scripts/migrations/` | Thay đổi dữ liệu/schema/index có kiểm soát và hướng dẫn chạy |
-| `tests/unit/` | Test service và utility |
-| `tests/integration/` | Test API và tương tác database/dịch vụ ngoài |
-| `tests/fixtures/` | Dữ liệu kiểm thử tổng hợp |
+| src/server.js, runtime.js, app.js | Startup, lifecycle và app factory; validate/connect trước listen |
+| src/config/ | Env validation, Mongoose topology/connect, fail-closed ports, provider composition |
+| src/routes/ | Module registry/health/auth; P16 applications and P17 catalog/price/settings exports await P34 registration; auth/OTP only mount when enabled |
+| src/middlewares/ | Request ID, safe errors, session/role gates; Admin kế thừa Staff, không Customer |
+| src/validators/ | Domain validator entry point; schema/object auth do modules/P01 |
+| src/controllers/ | HTTP orchestration mỏng |
+| src/services/providers/payos/ | payOS provider boundary and isolated webhook receipt processing; signature verification and atomic receipt/state/outbox writes use injected ports; route wiring remains separate |
+| src/services/ | Health/readiness, unit-of-work, synthetic seed, P06 OTP/session/contact crypto, P07 transactional Customer registration, P10 account filters/decisions, P16 application/review and Sitter status, P17 catalog/price/settings; P11 SMTP, P12 eSMS/PHONE dispatch |
+| src/models/ | P06 User/identity records, P10 account decision audit; P16 Applicant, Sitter status, private documents and audit/quota; P17 immutable service/policy, price and setting versions/audit |
+| src/constants/, src/jobs/ | Placeholder cho constants/jobs thực |
+| scripts/seeds/ | Admin LOCKED synthetic, unique/idempotent, không credentials/login |
+| scripts/migrations/ | Placeholder; chưa rollout migration/index production |
+| tests/unit/ | Controlled DB/session doubles, config/errors/ports/roles/limiter/registry |
+| tests/integration/ | Isolated Mongo tests for runtime, auth/registration and P16 application lifecycle; providers use explicit test adapters |
+| tests/fixtures/ | Placeholder; code tests chỉ synthetic |
 
-Luồng thông thường: `route → middleware/validator → controller → service → model`.
+The isolated payOS webhook service accepts the WBS-044 verifier and a repository port. The repository
+port must deduplicate the verified receipt and atomically commit the payment or reconciliation state
+together with one `PaymentVerified` or `PaymentReconciliationRequired` outbox event. A provider
+`transactionDateTime` without an offset is retained as the original string until payOS timezone
+semantics are confirmed; it is not converted using the host timezone.
 
-Controller giữ mỏng; service chịu trách nhiệm nghiệp vụ. Không đặt toàn bộ thao tác MongoDB và logic phân công/thanh toán trong route. Mỗi endpoint phải kiểm tra quyền ở backend, kể cả khi frontend đã ẩn chức năng.
+route → middleware/validator → controller → service → model. Role gate không thay object ownership/serializer/CSRF/authEpoch server. P10 mounts `/api/v1/users` only when authentication is enabled; list/detail/decision routes require Admin and writes require CSRF. Search, role/state filters, signed cursor pagination and masked contact projections run on the server. Lock/unlock increments `authEpoch`, revokes sessions and appends an audit record in the same transaction. `AUTH_ENABLED=false`, `EMAIL_ENABLED=false` and `SMS_ENABLED=false` are defaults. When OTP is enabled without a configured provider, contact delivery remains fail-closed. Nodemailer only creates a transport after email is enabled; app startup does not send email/SMS. There is no durable outbox/business lock/financial calculation, and payment/saved state is not faked.
 
-Khi thêm runtime, PR phải ghi rõ phiên bản Node.js, package manager, manifest, lockfile và các lệnh chạy/lint/test. Tạo `.env.example` cho các biến thực sự được đọc, mô tả cách chuẩn bị database kiểm thử và thêm endpoint kiểm tra sức khỏe khi cần triển khai. Chưa có cấu hình VNPay hay dịch vụ ngoài trong baseline này.
+Seed chỉ NODE_ENV=development, ALLOW_DEV_ADMIN_SEED=true và database *_dev rồi npm run seed:admin. Mặc định false; không seed Atlas thật chỉ để kiểm tra kết nối. Fixture không active/Contact/password/OTP/session; không đóng AUTH-BOOTSTRAP Admin thật. [Runbook](../doc/deployment/p02-backend-runbook.md), [handoff](../doc/deployment/p02-handoff.md) và [P01 API](../doc/api/p01-api-permission-contract-v1.md) ghi gates và checks.
 
-Xem [quy ước code](../doc/source-code-management/coding-conventions.md).
+P16 keeps Sitter operational suspension separate from `User.state`, so suspension preserves authentication and history access. P21 must check `SitterStatus` before creating an offer. The P16 module factory is not registered by `app.js` yet (P34 owns registration); production also needs private-media upload/verification/read-capability adapters and the matching index migration. The current UI's 5 MB/type checks are client-side only; the media provider must enforce them server-side. Admin mutation remains fail-closed until the session adapter supplies CSRF.
+
+P11 dùng SMTP theo lựa chọn của user. [Runbook email](../doc/deployment/p11-email-runbook.md) ghi env, kết quả nội bộ, retry và giới hạn delivery. Runtime dùng Nodemailer 10.1.1; `EMAIL_ENABLED=false` giữ provider fail-closed. P12 eSMS vẫn tắt mặc định và P34 ánh xạ `PHONE` sang channel nội bộ `SMS`. Không gọi adapter trực tiếp từ endpoint public hoặc ghi command email/OTP vào log. [Handoff P11](../doc/deployment/p11-handoff.md), [handoff P12](../doc/deployment/p12-handoff.md) và [P34-A status](../doc/testing/p34-a-integration-status.md) ghi các gate còn lại.
+
+P17's service catalog (WBS-019), service price (WBS-020), and system settings (WBS-021) modules are exported from their route files for P34 composition. P34 must provide the service existence, active-price, and catalog-visibility ports and register the modules; none changes app.js or the shared route registry. Service, policy, price, and setting changes use immutable effective-dated versions with an actor and audit record. Prices are nonnegative safe integer VND values; fractional values are rejected without a rounding calculation. Catalog visibility defaults to disabled. The catalog exports a booking snapshot for new bookings to copy and never updates existing bookings. Real booking integration remains pending.
+
+P42 exports `createDirectedBookingProposalService` from
+`src/services/booking-proposals/directed-booking-proposal.service.js` and the
+Customer-only `createDirectedProposalRouter` from
+`src/routes/directed-proposal.routes.js`. Proposal creation reads availability
+through an injected port and stores a pending Customer confirmation; the
+confirm command uses an expected version, idempotency key, expiry check and an
+atomic repository command before creating a pending sitter offer. The route is
+export-only so P34 can wire the real booking, payment and offer repositories;
+fixtures do not prove that integration. Multi-visit prepay must report a
+verified payment before the offer command is allowed.

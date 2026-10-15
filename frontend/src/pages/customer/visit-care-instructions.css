@@ -1,0 +1,22 @@
+.visit-care { display: grid; gap: var(--pwc-space-5); width: min(100%, 68rem); margin-inline: auto; padding: clamp(1rem, 3vw, 2rem); color: var(--pwc-ink); }
+.visit-care__header { display: grid; gap: var(--pwc-space-2); max-width: 52rem; }
+.visit-care__header h1, .visit-care__card h2 { margin: 0; font-family: var(--pwc-font-display); line-height: 1.2; }
+.visit-care__header h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight: 400; }
+.visit-care__header p { margin: 0; color: var(--pwc-ink-muted); line-height: var(--pwc-leading); }
+.visit-care__eyebrow { margin: 0; color: var(--pwc-ink-muted) !important; font-size: var(--pwc-text-small); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.visit-care__card { display: grid; gap: var(--pwc-space-4); min-width: 0; padding: clamp(1rem, 3vw, 1.5rem); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); box-shadow: 0 .5rem 1.5rem rgb(63 42 107 / 8%); }
+.visit-care__card-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--pwc-space-3); }
+.visit-care__card h2 { font-family: var(--pwc-font-body); font-size: var(--pwc-text-large); }
+.visit-care__updated, .visit-care__hint { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.visit-care__hint { margin: 0; line-height: var(--pwc-leading); }
+.visit-care__form { display: grid; gap: var(--pwc-space-3); }
+.visit-care__form label { font-weight: 800; }
+.visit-care__form textarea, .visit-care__form input { width: 100%; box-sizing: border-box; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); background: var(--pwc-surface); color: var(--pwc-ink); padding: .75rem; font: inherit; }
+.visit-care__form textarea { min-height: 14rem; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .9rem; }
+.visit-care__form textarea:focus-visible, .visit-care__form input:focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+.visit-care__readout { max-width: 100%; margin: 0; padding: var(--pwc-space-3); overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: var(--pwc-radius-control); background: var(--pwc-cream); font: .9rem/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.visit-care__history { display: grid; gap: var(--pwc-space-2); margin: 0; padding: 0; list-style: none; }
+.visit-care__history li { display: grid; gap: .25rem; padding: var(--pwc-space-3); border-left: .2rem solid var(--pwc-lavender); background: var(--pwc-lavender-soft); }
+.visit-care__history span, .visit-care__history small { color: var(--pwc-ink-muted); }
+.visit-care :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+@media (max-width: 40rem) { .visit-care { padding-inline: var(--pwc-space-3); } .visit-care__card-heading { align-items: flex-start; } .visit-care__form > .pwc-button { width: 100%; } }

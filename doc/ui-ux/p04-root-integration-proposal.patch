@@ -1,0 +1,48 @@
+--- a/frontend/src/app/main.jsx
++++ b/frontend/src/app/main.jsx
+@@ -2,6 +2,7 @@
+ import { createRoot } from 'react-dom/client';
+ import { BrowserRouter } from 'react-router-dom';
+ import { App } from './App.jsx';
++import '../styles/index.css';
+ import './foundation.css';
+
+ createRoot(document.getElementById('root')).render(
+--- a/frontend/src/app/foundation.css
++++ b/frontend/src/app/foundation.css
+@@ -1,28 +1,10 @@
+-/* PROVISIONAL structural styles; P04 supplies the final shared design system. */
+-@font-face {
+-  font-family: Nunito;
+-  src: url('/fonts/Nunito-Regular.ttf') format('truetype');
+-  font-weight: 400;
+-  font-display: swap;
+-}
+-@font-face {
+-  font-family: 'FC DK Cool Crayon';
+-  src: url('/fonts/FC-DK-Cool-Crayon.otf') format('opentype');
+-  font-weight: 400;
+-  font-display: swap;
+-}
+-body { margin: 0; font-family: Nunito, sans-serif; color: #252525; background: white; }
+-* { box-sizing: border-box; }
+-h1 { font-family: 'FC DK Cool Crayon', sans-serif; font-weight: 400; line-height: 1.4; }
+-a { color: #3f2a6b; }
+-a, button { min-height: 44px; display: inline-flex; align-items: center; }
+-button { font: inherit; cursor: pointer; padding: 0.5rem 1rem; }
+-:focus-visible { outline: 3px solid #3f2a6b; outline-offset: 3px; }
+-.foundation-shell { max-width: 72rem; margin: auto; padding: 1rem; overflow-wrap: anywhere; }
+-.foundation-header { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; justify-content: space-between; }
++/* Structural P03 layout; brand defaults supplied by P04 styles/index.css. */
++.foundation-shell { max-width: var(--pwc-content-width); margin: auto; padding: var(--pwc-space-4); overflow-wrap: anywhere; }
++.foundation-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-4); justify-content: space-between; }
+ .foundation-header img { max-width: 100%; height: auto; }
+-nav { display: flex; flex-wrap: wrap; gap: 1rem; }
+-main { padding-block: 2rem; min-height: 60vh; }
+-footer { padding-block: 1rem; border-top: 1px solid #ddd; }
++.foundation-header a, .foundation-header nav a, .skip-link { min-height: var(--pwc-target); display: inline-flex; align-items: center; }
++.foundation-header nav { display: flex; flex-wrap: wrap; gap: var(--pwc-space-4); }
++.foundation-shell main { padding-block: var(--pwc-space-8); min-height: 60vh; }
++.foundation-shell footer { padding-block: var(--pwc-space-4); border-top: 1px solid var(--pwc-border); }
+ .skip-link { position: absolute; left: -10000px; }
+ .skip-link:focus { position: static; }

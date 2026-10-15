@@ -1,0 +1,17 @@
+﻿.notifications-page { width: min(100%, 54rem); margin-inline: auto; padding: clamp(1rem, 3vw, 2rem); color: var(--pwc-ink); }
+.notifications-page__header { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--pwc-space-4); margin-bottom: var(--pwc-space-6); }
+.notifications-page__header h1 { margin: 0; font-family: var(--pwc-font-display); font-size: var(--pwc-text-heading); line-height: 1.2; }
+.notifications-page__header p { margin: var(--pwc-space-2) 0 0; color: var(--pwc-ink-muted); }
+.notifications-page__eyebrow { margin: 0 !important; color: var(--pwc-ink-muted) !important; font-size: var(--pwc-text-small); font-weight: 800; letter-spacing: .05em; }
+.notifications-page__list { display: grid; gap: var(--pwc-space-3); margin: 0; padding: 0; list-style: none; }
+.notification-card { display: grid; gap: var(--pwc-space-3); min-width: 0; padding: clamp(1rem, 3vw, 1.5rem); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); box-shadow: 0 .5rem 1.5rem rgb(63 42 107 / 8%); overflow-wrap: anywhere; }
+.notification-card--unread { border-left: .3rem solid var(--pwc-sun); }
+.notification-card__link { display: grid; gap: var(--pwc-space-2); color: inherit; text-decoration: none; }
+.notification-card__heading { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-2); }
+.notification-card h2 { margin: 0; font-size: var(--pwc-text-large); }
+.notification-card p, .notification-card small { margin: 0; color: var(--pwc-ink-muted); line-height: var(--pwc-leading); }
+.notification-card__unread { padding: .2rem .55rem; border-radius: 999px; background: var(--pwc-sun); color: var(--pwc-ink); font-size: var(--pwc-text-small); font-weight: 800; }
+.notification-card > .pwc-button { justify-self: start; }
+.notifications-page__more { display: flex; justify-content: center; margin-top: var(--pwc-space-4); }
+.notifications-page :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+@media (max-width: 42rem) { .notifications-page { padding: var(--pwc-space-4) var(--pwc-space-3) var(--pwc-space-6); } .notifications-page__header > .pwc-button, .notification-card > .pwc-button { width: 100%; } }

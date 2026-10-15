@@ -1,0 +1,47 @@
+/* PROVISIONAL: legacy brand fallback, not a verified Figma specification. */
+:root {
+  color-scheme: light;
+  --pwc-ink: #3f2a6b;
+  --pwc-ink-muted: #63557b;
+  --pwc-cream: #fffbef;
+  --pwc-surface: #ffffff;
+  --pwc-lavender: #b79ce8;
+  --pwc-lavender-soft: #f8f4ff;
+  --pwc-sun: #ffcb2e;
+  --pwc-sun-hover: #ffda52;
+  --pwc-border: #786889;
+  --pwc-error: #a52232;
+  --pwc-error-surface: #fff0f1;
+  --pwc-success: #216443;
+  --pwc-success-surface: #edf8f1;
+  --pwc-warning: #705100;
+  --pwc-warning-surface: #fff8e0;
+  --pwc-disabled-ink: #63557b;
+  --pwc-disabled-surface: #e9e4ef;
+  --pwc-focus: #3f2a6b;
+  --pwc-font-body: 'Nunito', system-ui, sans-serif;
+  --pwc-font-display: 'FC DK Cool Crayon', 'Nunito', sans-serif;
+  --pwc-text-small: 0.875rem;
+  --pwc-text-body: 1rem;
+  --pwc-text-large: 1.25rem;
+  --pwc-text-heading: clamp(1.75rem, 5vw, 2.5rem);
+  --pwc-leading: 1.5;
+  --pwc-space-1: 0.25rem;
+  --pwc-space-2: 0.5rem;
+  --pwc-space-3: 0.75rem;
+  --pwc-space-4: 1rem;
+  --pwc-space-6: 1.5rem;
+  --pwc-space-8: 2rem;
+  --pwc-radius-control: 0.75rem;
+  --pwc-radius-panel: 1.25rem;
+  --pwc-target: 2.75rem;
+  --pwc-icon: 1.25rem;
+  --pwc-content-width: 72rem;
+  --pwc-dialog-width: 32rem;
+  --pwc-focus-width: 3px;
+  --pwc-focus-offset: 3px;
+  --pwc-z-base: 0;
+  --pwc-z-dropdown: 10;
+  --pwc-z-sticky: 20;
+  /* Native modal uses browser top layer, not a competing z-index. */
+}

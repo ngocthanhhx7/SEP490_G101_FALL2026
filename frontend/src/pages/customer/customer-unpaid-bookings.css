@@ -1,0 +1,71 @@
+.customer-unpaid-bookings {
+  width: min(100%, var(--pwc-content-width));
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 2rem);
+  color: var(--pwc-ink);
+}
+
+.customer-unpaid-bookings__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--pwc-space-4);
+  margin-bottom: var(--pwc-space-6);
+}
+
+.customer-unpaid-bookings__header h1 {
+  margin: 0;
+  font-family: var(--pwc-font-display);
+  font-size: var(--pwc-text-heading);
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.customer-unpaid-bookings__header p { margin: var(--pwc-space-2) 0 0; color: var(--pwc-ink-muted); }
+.customer-unpaid-bookings__eyebrow { margin: 0 0 var(--pwc-space-2) !important; color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); font-weight: 700; }
+
+.unpaid-booking-list {
+  display: grid;
+  gap: var(--pwc-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unpaid-booking-card {
+  display: grid;
+  min-width: 0;
+  gap: var(--pwc-space-4);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--pwc-border);
+  border-radius: var(--pwc-radius-panel);
+  background: var(--pwc-surface);
+  box-shadow: 0 .5rem 1.5rem rgb(63 42 107 / 8%);
+  overflow-wrap: anywhere;
+}
+
+.unpaid-booking-card__top { display: flex; flex-wrap: wrap; align-items: start; justify-content: space-between; gap: var(--pwc-space-3); }
+.unpaid-booking-card__top h2 { margin: 0; font-size: var(--pwc-text-large); }
+.unpaid-booking-card__eyebrow { margin: 0 0 var(--pwc-space-1); color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.unpaid-booking-status { display: inline-flex; min-height: var(--pwc-target); align-items: center; padding: var(--pwc-space-2) var(--pwc-space-3); border: 1px solid var(--pwc-warning); border-radius: 999px; background: var(--pwc-warning-surface); color: var(--pwc-warning); font-size: var(--pwc-text-small); font-weight: 700; }
+.unpaid-booking-status--pending { border-color: var(--pwc-warning); }
+
+.unpaid-booking-card__details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--pwc-space-3); margin: 0; }
+.unpaid-booking-card__details div { min-width: 0; }
+.unpaid-booking-card__details dt { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.unpaid-booking-card__details dd { margin: var(--pwc-space-1) 0 0; font-weight: 800; }
+.unpaid-booking-card__prepay { margin: 0; padding: var(--pwc-space-3); border-left: .25rem solid var(--pwc-sun); background: var(--pwc-cream); }
+.unpaid-booking-card__hint { margin: 0; color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.unpaid-booking-card__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+.customer-unpaid-bookings :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+
+@media (max-width: 480px) {
+  .customer-unpaid-bookings { padding-inline: 1rem; }
+  .customer-unpaid-bookings__header { align-items: stretch; }
+  .customer-unpaid-bookings__header > button,
+  .unpaid-booking-card__actions > button { width: 100%; }
+  .unpaid-booking-card__details { grid-template-columns: minmax(0, 1fr); }
+  .unpaid-booking-card__top { align-items: stretch; }
+  .unpaid-booking-status { align-self: start; }
+}

@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  color: var(--pwc-ink);
+  background: var(--pwc-cream);
+  font-family: var(--pwc-font-body);
+  font-size: var(--pwc-text-body);
+  line-height: var(--pwc-leading);
+  font-synthesis: none;
+}
+h1, h2, h3 { text-wrap: balance; overflow-wrap: anywhere; }
+h1 { font-family: var(--pwc-font-display); font-weight: 400; font-size: var(--pwc-text-heading); }
+p { text-wrap: pretty; }
+a { color: var(--pwc-ink); text-underline-offset: 0.2em; }
+button, input, select, textarea { font: inherit; }
+:focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+html:has(dialog[open]) { overflow: hidden; }
+.pwc-numeric { font-variant-numeric: tabular-nums; }

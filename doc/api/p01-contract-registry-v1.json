@@ -1,0 +1,397 @@
+{
+  "schemaVersion": 1,
+  "contractVersion": "1.0.0",
+  "status": "DESIGN_CONTRACT_WITH_OPEN_DECISIONS",
+  "date": "2026-10-14",
+  "contractOwner": "P01-A",
+  "roles": [
+    "GUEST",
+    "CUSTOMER",
+    "PET_SITTER",
+    "STAFF",
+    "ADMIN"
+  ],
+  "timezone": "Asia/Ho_Chi_Minh",
+  "inputTimezoneAliases": [
+    "Asia/Saigon"
+  ],
+  "currency": "VND",
+  "stateConvention": "UPPER_SNAKE_CASE",
+  "commonEntityFields": [
+    "id",
+    "state",
+    "version",
+    "createdAt",
+    "updatedAt"
+  ],
+  "entities": [
+    {
+      "entity": "User",
+      "dto": "UserView",
+      "implementationOwner": "P06-P10",
+      "states": [
+        "ACTIVE",
+        "LOCKED",
+        "SUSPENDED"
+      ],
+      "fields": [
+        "displayName",
+        "roles",
+        "authEpoch"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Contact",
+      "dto": "ContactView",
+      "implementationOwner": "P06-P09",
+      "states": [
+        "UNVERIFIED",
+        "VERIFIED",
+        "REPLACED"
+      ],
+      "fields": [
+        "userId",
+        "channel",
+        "maskedValue",
+        "verifiedAt"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Applicant",
+      "dto": "ApplicantView",
+      "implementationOwner": "P16/P46",
+      "states": [
+        "PENDING",
+        "UNDER_REVIEW",
+        "APPROVED",
+        "REJECTED"
+      ],
+      "fields": [
+        "contactRefs",
+        "reapplyAt",
+        "reviewReason"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Pet",
+      "dto": "PetView",
+      "implementationOwner": "P15/P50",
+      "states": [
+        "ACTIVE",
+        "ARCHIVED"
+      ],
+      "fields": [
+        "ownerId",
+        "name",
+        "species",
+        "careFields",
+        "fieldProvenance"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Availability",
+      "dto": "AvailabilityView",
+      "implementationOwner": "P18",
+      "states": [
+        "ACTIVE",
+        "INACTIVE"
+      ],
+      "fields": [
+        "sitterId",
+        "zone",
+        "workingWindows",
+        "dayOffDates",
+        "areas"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "BookingProposal",
+      "dto": "BookingProposalView",
+      "implementationOwner": "P42",
+      "states": [
+        "DRAFT",
+        "AWAITING_CUSTOMER",
+        "CONFIRMED",
+        "REJECTED",
+        "EXPIRED"
+      ],
+      "fields": [
+        "customerId",
+        "candidateSitterId",
+        "selectedSlots",
+        "availabilityVersion",
+        "quoteVersion"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Booking",
+      "dto": "BookingView",
+      "implementationOwner": "P19/P20",
+      "states": [
+        "DRAFT",
+        "AWAITING_PAYMENT",
+        "DISPATCH_PENDING",
+        "ACTIVE",
+        "COMPLETED",
+        "CANCELLED",
+        "CLOSED"
+      ],
+      "fields": [
+        "customerId",
+        "serviceId",
+        "petIds",
+        "visitIds",
+        "originalVisitCount",
+        "paymentMode",
+        "snapshots"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Visit",
+      "dto": "VisitView",
+      "implementationOwner": "P20/P24/P26/P27",
+      "states": [
+        "SCHEDULED",
+        "ASSIGNED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "STAFF_CLOSED"
+      ],
+      "fields": [
+        "bookingId",
+        "startAt",
+        "endAt",
+        "sitterId",
+        "careSnapshots",
+        "needsAction",
+        "evidenceRefs"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Offer",
+      "dto": "OfferView",
+      "implementationOwner": "P21/P23/P24",
+      "states": [
+        "PENDING",
+        "ACCEPTED",
+        "DECLINED",
+        "EXPIRED",
+        "REVOKED"
+      ],
+      "fields": [
+        "visitId",
+        "sitterId",
+        "deadline",
+        "dispatchSequence"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Case",
+      "dto": "CaseView",
+      "implementationOwner": "P29/P30/P47",
+      "states": [
+        "OPEN",
+        "UNDER_REVIEW",
+        "RESOLVED",
+        "CLOSED"
+      ],
+      "fields": [
+        "kind",
+        "visitId",
+        "involvedActorRefs",
+        "evidenceRefs",
+        "partySummary"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Bill",
+      "dto": "BillView",
+      "implementationOwner": "P31",
+      "states": [
+        "DRAFT",
+        "ON_HOLD",
+        "ISSUED",
+        "PAID",
+        "ADJUSTED"
+      ],
+      "fields": [
+        "bookingId",
+        "allocationRefs",
+        "dueAt",
+        "holdRefs",
+        "payableMoney"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Payment",
+      "dto": "PaymentView",
+      "implementationOwner": "P31",
+      "states": [
+        "PENDING",
+        "VERIFIED",
+        "FAILED",
+        "RECONCILING"
+      ],
+      "fields": [
+        "intentId",
+        "provider",
+        "receiptMoney",
+        "maskedReference"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Refund",
+      "dto": "RefundView",
+      "implementationOwner": "P32",
+      "states": [
+        "PROPOSED",
+        "APPROVED",
+        "REJECTED",
+        "TRANSFER_PENDING",
+        "PAID",
+        "FAILED"
+      ],
+      "fields": [
+        "sourceRefs",
+        "money",
+        "reservationRef",
+        "transferRefs"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "Earning",
+      "dto": "EarningView",
+      "implementationOwner": "P31/P41",
+      "states": [
+        "ACCRUED",
+        "AVAILABLE",
+        "RESERVED",
+        "PAID"
+      ],
+      "fields": [
+        "sitterId",
+        "sourceVisitId",
+        "earningPeriodKey",
+        "pendingVnd",
+        "heldVnd",
+        "availableVnd",
+        "reservedVnd",
+        "paidVnd"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "SettlementRequest",
+      "dto": "SettlementRequestView",
+      "implementationOwner": "P41",
+      "states": [
+        "SUBMITTED",
+        "APPROVED",
+        "REJECTED",
+        "WITHDRAWN",
+        "TRANSFER_PENDING",
+        "PAID",
+        "FAILED"
+      ],
+      "fields": [
+        "sitterId",
+        "requestWeekKey",
+        "earningRefs",
+        "money",
+        "transferRefs"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "ChangeRequest",
+      "dto": "ChangeRequestView",
+      "implementationOwner": "P25",
+      "states": [
+        "PROPOSED",
+        "AWAITING_APPROVAL",
+        "APPLIED",
+        "REJECTED",
+        "EXPIRED"
+      ],
+      "fields": [
+        "customerId",
+        "selectedVisitIds",
+        "newSlots",
+        "originalVersions",
+        "expiresAt"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    },
+    {
+      "entity": "PaymentIntent",
+      "dto": "PaymentIntentView",
+      "implementationOwner": "P31",
+      "states": [
+        "PENDING",
+        "PAID",
+        "FAILED",
+        "EXPIRED"
+      ],
+      "fields": [
+        "bookingId",
+        "quoteVersion",
+        "money",
+        "expiresAt",
+        "paymentLink"
+      ],
+      "projectionPolicy": "p01-api-permission-contract-v1.md",
+      "transitionPolicy": "../architecture/p01-domain-contract-v1.md"
+    }
+  ],
+  "openFinancialDecisions": [
+    "FIN-01-TIME",
+    "FIN-02-ALLOC",
+    "FIN-02-ROUND",
+    "FIN-04",
+    "FIN-05-DELTA",
+    "FIN-06-CAUSE",
+    "FIN-07-ELIG",
+    "FIN-07-POSTPAY",
+    "FIN-08-EDIT"
+  ],
+  "openDomainDecisions": [
+    "AUTH-SECOND-CONTACT",
+    "APPLICANT-ACCESS",
+    "DIRECTED-TIMEOUT",
+    "PET-SERVICE-READINESS",
+    "MEDIA-RETENTION",
+    "SITTER-FEEDBACK",
+    "AUTH-BOOTSTRAP",
+    "DEPLOY-AUTH"
+  ]
+}

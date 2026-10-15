@@ -1,0 +1,408 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:paw-world-care:p01:common:v1",
+  "title": "PWC P01 common DTO definitions",
+  "description": "Design-only value schemas; formats must be asserted by runtime validator. Root oneOf intentionally absent: validate through chosen $defs resource.",
+  "$defs": {
+    "ResourceId": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{24}$",
+      "description": "Server-generated ObjectId wire, authorization still required"
+    },
+    "Version": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "TimestampUtc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "description": "UTC ISO8601; runtime validates calendar/time and expiry"
+    },
+    "CalendarDate": {
+      "type": "string",
+      "format": "date",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "Money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "amountVnd",
+        "currency"
+      ],
+      "properties": {
+        "amountVnd": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "currency": {
+          "const": "VND"
+        }
+      }
+    },
+    "FieldValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "KNOWN",
+            "UNKNOWN",
+            "NOT_PROVIDED",
+            "NOT_APPLICABLE",
+            "NEEDS_CONFIRMATION"
+          ]
+        },
+        "value": {
+          "not": {
+            "type": "null"
+          }
+        },
+        "priorValue": {
+          "not": {
+            "type": "null"
+          }
+        },
+        "source": {
+          "enum": [
+            "CUSTOMER_REPORTED",
+            "DOCUMENT_ATTACHED"
+          ]
+        },
+        "updatedAt": {
+          "$ref": "#/$defs/TimestampUtc"
+        },
+        "updatedBy": {
+          "$ref": "#/$defs/ResourceId"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "KNOWN"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "value",
+              "source"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "value"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "NEEDS_CONFIRMATION"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "priorValue"
+              ]
+            }
+          }
+        }
+      ],
+      "description": "Read DTO provenance server-owned; per-field value types defined by P50/service contract, not arbitrary user input"
+    },
+    "SelectedSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "startAt",
+        "endAt",
+        "zone"
+      ],
+      "properties": {
+        "startAt": {
+          "$ref": "#/$defs/TimestampUtc"
+        },
+        "endAt": {
+          "$ref": "#/$defs/TimestampUtc"
+        },
+        "zone": {
+          "enum": [
+            "Asia/Ho_Chi_Minh",
+            "Asia/Saigon"
+          ]
+        }
+      },
+      "description": "Runtime checks end>start, lead time, counts/day, overlap and travel buffer"
+    },
+    "PetCreate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "species"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "species": {
+          "enum": [
+            "DOG",
+            "CAT"
+          ]
+        },
+        "commandId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "description": "Minimum-create command. Optional profile fields updated through authorized per-field schemas; no ownerId, vaccine gate or verified metadata"
+    },
+    "BookingCreate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "serviceId",
+        "petIds",
+        "addressId",
+        "slots",
+        "quoteVersion"
+      ],
+      "properties": {
+        "serviceId": {
+          "$ref": "#/$defs/ResourceId"
+        },
+        "petIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ResourceId"
+          }
+        },
+        "addressId": {
+          "$ref": "#/$defs/ResourceId"
+        },
+        "slots": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "$ref": "#/$defs/SelectedSlot"
+          }
+        },
+        "quoteVersion": {
+          "$ref": "#/$defs/Version"
+        },
+        "proposalId": {
+          "$ref": "#/$defs/ResourceId"
+        }
+      },
+      "description": "Server computes payment mode/price/owner. Runtime enforces one service, ownership, max30days, 1-2slots/day, >=24h and decisions"
+    },
+    "CancellationCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "visitIds",
+        "previewId",
+        "expectedVersion"
+      ],
+      "properties": {
+        "visitIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/ResourceId"
+          }
+        },
+        "previewId": {
+          "$ref": "#/$defs/ResourceId"
+        },
+        "expectedVersion": {
+          "$ref": "#/$defs/Version"
+        }
+      },
+      "description": "Idempotency-Key header required separately; server computes cause/cutoff/retention, FIN rounding gate"
+    },
+    "UserState": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "LOCKED",
+        "SUSPENDED"
+      ]
+    },
+    "ContactState": {
+      "type": "string",
+      "enum": [
+        "UNVERIFIED",
+        "VERIFIED",
+        "REPLACED"
+      ]
+    },
+    "ApplicantState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "UNDER_REVIEW",
+        "APPROVED",
+        "REJECTED"
+      ]
+    },
+    "PetState": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "ARCHIVED"
+      ]
+    },
+    "AvailabilityState": {
+      "type": "string",
+      "enum": [
+        "ACTIVE",
+        "INACTIVE"
+      ]
+    },
+    "BookingProposalState": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "AWAITING_CUSTOMER",
+        "CONFIRMED",
+        "REJECTED",
+        "EXPIRED"
+      ]
+    },
+    "BookingState": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "AWAITING_PAYMENT",
+        "DISPATCH_PENDING",
+        "ACTIVE",
+        "COMPLETED",
+        "CANCELLED",
+        "CLOSED"
+      ]
+    },
+    "VisitState": {
+      "type": "string",
+      "enum": [
+        "SCHEDULED",
+        "ASSIGNED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "STAFF_CLOSED"
+      ]
+    },
+    "OfferState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "ACCEPTED",
+        "DECLINED",
+        "EXPIRED",
+        "REVOKED"
+      ]
+    },
+    "CaseState": {
+      "type": "string",
+      "enum": [
+        "OPEN",
+        "UNDER_REVIEW",
+        "RESOLVED",
+        "CLOSED"
+      ]
+    },
+    "BillState": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "ON_HOLD",
+        "ISSUED",
+        "PAID",
+        "ADJUSTED"
+      ]
+    },
+    "PaymentState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "VERIFIED",
+        "FAILED",
+        "RECONCILING"
+      ]
+    },
+    "RefundState": {
+      "type": "string",
+      "enum": [
+        "PROPOSED",
+        "APPROVED",
+        "REJECTED",
+        "TRANSFER_PENDING",
+        "PAID",
+        "FAILED"
+      ]
+    },
+    "EarningState": {
+      "type": "string",
+      "enum": [
+        "ACCRUED",
+        "AVAILABLE",
+        "RESERVED",
+        "PAID"
+      ]
+    },
+    "SettlementRequestState": {
+      "type": "string",
+      "enum": [
+        "SUBMITTED",
+        "APPROVED",
+        "REJECTED",
+        "WITHDRAWN",
+        "TRANSFER_PENDING",
+        "PAID",
+        "FAILED"
+      ]
+    },
+    "ChangeRequestState": {
+      "type": "string",
+      "enum": [
+        "PROPOSED",
+        "AWAITING_APPROVAL",
+        "APPLIED",
+        "REJECTED",
+        "EXPIRED"
+      ]
+    },
+    "PaymentIntentState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "PAID",
+        "FAILED",
+        "EXPIRED"
+      ]
+    }
+  }
+}

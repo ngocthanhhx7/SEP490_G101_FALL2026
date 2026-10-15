@@ -1,0 +1,10 @@
+/* Structural P03 layout; brand defaults supplied by P04 styles/index.css. */
+.foundation-shell { max-width: var(--pwc-content-width); margin: auto; padding: var(--pwc-space-4); overflow-wrap: anywhere; }
+.foundation-header { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-4); justify-content: space-between; }
+.foundation-header img { max-width: 100%; height: auto; }
+.foundation-header a, .foundation-header nav a, .skip-link { min-height: var(--pwc-target); display: inline-flex; align-items: center; }
+.foundation-header nav { display: flex; flex-wrap: wrap; gap: var(--pwc-space-4); }
+.foundation-shell main { padding-block: var(--pwc-space-8); min-height: 60vh; }
+.foundation-shell footer { padding-block: var(--pwc-space-4); border-top: 1px solid var(--pwc-border); }
+.skip-link { position: absolute; left: -10000px; }
+.skip-link:focus { position: static; }
