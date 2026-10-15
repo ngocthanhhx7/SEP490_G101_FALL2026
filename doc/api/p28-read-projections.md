@@ -51,8 +51,10 @@ completedAt, explanation, ledgerReference, transferRecordedAt. Source partition 
 sum to accrued; canceled visits are excluded; Paid requires transfer evidence timestamp.
 Only the authoritative P41 snapshot can establish eligibility and policyVersion.
 P41's current `readOwn` DTO (balances/earnings/requests/quota) is not a drop-in
-source for this visit-level projection: it lacks the disjoint held/pending partitions
-and completed-visit/ledger explanation fields required here. P01/P41 must approve and
+source for this visit-level projection: its totals now expose disjoint held/pending
+partitions, but it lacks the completed-visit state/timestamp join and the P28
+paginated atomic snapshot required
+here. P01/P41 must approve and
 implement the read adapter; missing fields must not be inferred or filled with zero.
 No commission, price multiplication or undocumented financial rule is introduced.
 Totals use `totalsScope: PAGE`; they are never advertised as totals for an entire period.
@@ -68,7 +70,9 @@ Approved explicitly does not mean Paid. P28 never creates a payout or settlement
 The payroll adapter reads only the persisted `SettlementRequest` projection and a
 role-scoped `User.displayName` lookup. It uses the request's stored policy and decision
 versions, signs cursors to the Admin scope and filters, and returns `INTEGRATION_PENDING`
-for missing joins, mixed policies or incomplete rows. It does not create indexes, mutate
+for missing joins, mixed policies or incomplete rows. Its Mongo aggregation uses snapshot
+read concern, and the source timestamp includes joined sitter display-name updates.
+It does not create indexes, mutate
 settlements, infer a commission/tax rule, or expose transfer evidence metadata.
 
 UI: the eight pages are mounted inside the existing P48 `RoleDashboardLayout` with
@@ -79,3 +83,23 @@ rendering, and real repositories are required for non-pending responses.
 Open gates: P01 read DTO approval; P20/P24/P27/P30/P31/P41 persistent read adapters;
 FIN-07-ELIG/POSTPAY for financial eligibility, FIN-08-EDIT for related settlement commands;
 P34/P01 source composition; current Figma frames. Existing P04/P48 components are reused.
+
+### Concrete source gaps found during the PR audit
+
+The current integration base contains User/identity, SitterApplication/SitterStatus,
+catalog/settings and public-policy models. It has no persisted Visit, Offer, Bill,
+Case or moderated Rating model. The following gaps cannot be filled by treating an
+absent collection as a ready empty source or by inventing a parallel domain schema.
+
+| Projection | Missing authoritative source or mapping |
+| --- | --- |
+| Admin dashboard | Application states exist, but `needsAction` and visit rows need the operational Visit/Case model and state contract. A partial count cannot satisfy the complete DTO. |
+| Customer dashboard | Owner-scoped Visit schedules and unpaid Bill records, including their period/count semantics. |
+| Sitter dashboard | Assigned Visit and pending Offer records with sitter ownership and stable paging. |
+| Staff dashboard | Unassigned Visit and open Case records with approved operational state/count definitions. |
+| Sitter profile and directory | Approved public profile/bio and moderated Rating aggregates. Application `experience`/`workAreas` exist, but application approval does not establish permission to publish application text; missing reviews cannot be assumed to mean zero. |
+| Earnings | P41 supplies Earning/ledger partitions, but an adapter still needs completed Visit state/time, the approved eligibility policy and an atomic bounded P28 read contract covering every partition. Settlement request-selection/read DTOs are not that projection. |
+
+Payroll alone can consume P41 SettlementRequest and User records directly. Its isolated
+Mongo integration tests verify that read contract with synthetic persisted rows; they
+do not verify the settlement commands, a production collection or any transfer provider.

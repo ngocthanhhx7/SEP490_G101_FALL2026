@@ -8,8 +8,10 @@ versions are mixed, or the persisted decision version is missing. The other proj
 remain unregistered until P01/P34 supply their source adapters. Explicit repository ports
 passed by composition override the durable default.
 Each snapshot must be read atomically from its source (consistent counts and rows),
-with `{ ready, scope, sourceVersion, asOf, metrics, items, nextCursor }`. Scope is echoed
-exactly; repository queries must constrain ownership BEFORE counts, search or pagination.
+with `{ ready, scope, sourceVersion, asOf, metrics, items, nextCursor }`.
+The Mongo payroll reader uses snapshot read concern across requests and user joins;
+its source timestamp includes both request and joined sitter updates.
+Scope is echoed exactly; repository queries must constrain ownership BEFORE counts, search or pagination.
 Query dates are inclusive Vietnam calendar dates; convert to [from 00:00 +07:00,
 day-after-to 00:00 +07:00). Cursors must be opaque, signed, query/scope-bound and use
 stable `(sortKey,id)` ordering; expired/foreign/filter-mismatched cursors are rejected.

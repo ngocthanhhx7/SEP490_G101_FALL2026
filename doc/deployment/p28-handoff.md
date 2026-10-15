@@ -70,9 +70,14 @@ frontend dev script and open `/tests/manual/p28-preview.html`; query `role` and 
 select fixture cases. Physical touch-device checks, all-page desktop visual comparison
 and production end-to-end checks were not performed.
 
-No real Mongo/ledger/provider flow was verified. The payroll adapter has unit coverage
+The PR audit additionally verified the payroll reader against isolated MongoDB 8.0.34
+with synthetic persisted requests and users: joined source timestamps, Vietnam date
+bounds, cursor paging/binding, transfer timestamp projection, private-field omission
+and missing-join fail-closed behavior (2 integration tests). Mongo reads now use snapshot
+read concern. This does not verify production Mongo, the P41 command/ledger flow or a provider.
+The payroll adapter has unit coverage
 for its aggregation projection, literal search, scope-bound cursor and fail-closed
-source validation, but no live P41 collection was available in this worktree. P41's persistent repository, P27 care
+source validation, but no production P41 collection was available in this worktree. P41's persistent repository, P27 care
 projection, P30 rating moderation and P20/P24 operational read adapters need composition.
 FIN-07 eligibility/commission and post-payout details remain open; P28 does not resolve
 them. The runtime read module mounts all eight paths and the frontend role navigation

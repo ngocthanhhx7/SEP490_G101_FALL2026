@@ -186,10 +186,12 @@ export function createMongoPayrollRepository({ connection, requests,
     } });
     stages.push({ $facet: {
       items: [{ $limit: normalized.limit + 1 }],
-      source: [{ $group: { _id: null, asOf: { $max: '$updatedAt' },
+      source: [{ $group: { _id: null, asOf: { $max: { $max: ['$updatedAt', '$sitterUpdatedAt'] } },
         policyVersions: { $addToSet: '$policyVersion' }, total: { $sum: 1 } } }]
     } });
-    const aggregateResultRows = await aggregateRows(requestStore, stages, { allowDiskUse: false });
+    const aggregateResultRows = await aggregateRows(requestStore, stages, {
+      allowDiskUse: false, readConcern: { level: 'snapshot' }
+    });
     const [result] = Array.isArray(aggregateResultRows) ? aggregateResultRows : [];
     const source = result?.source?.[0];
     const rawItems = Array.isArray(result?.items) ? result.items : [];
