@@ -68,8 +68,8 @@ describe('P36 bounded dispatch projection', () => {
     endAt: '2026-10-20T03:00:00.000Z',
   };
 
-  test('keeps a 200-candidate dispatch result bounded and strips private fields', () => {
-    const candidates = Array.from({ length: 200 }, (_, index) => ({
+  test('keeps the maximum 100-candidate dispatch result bounded and strips private fields', () => {
+    const candidates = Array.from({ length: 100 }, (_, index) => ({
       sitterId: `sitter-${String(index).padStart(3, '0')}`,
       approved: true,
       active: true,
@@ -87,7 +87,7 @@ describe('P36 bounded dispatch projection', () => {
 
     const result = rankEligibleCandidates({ request, candidates, limit: 10 });
     expect(result.selected).toHaveLength(10);
-    expect(result.eligibleCount).toBe(200);
+    expect(result.eligibleCount).toBe(100);
     expect(result.excluded).toHaveLength(0);
     expect(JSON.stringify(result)).not.toContain('privatePhone');
     expect(result.selected.every(item => Object.keys(item).every(key => !/private|phone|email|address/i.test(key)))).toBe(true);
