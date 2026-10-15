@@ -62,3 +62,6 @@ atomic repository command before creating a pending sitter offer. The route is
 export-only so P34 can wire the real booking, payment and offer repositories;
 fixtures do not prove that integration. Multi-visit prepay must report a
 verified payment before the offer command is allowed.
+
+
+Public newsletter requests: `POST /api/v1/newsletter/subscriptions` records an encrypted REQUESTED receipt only; it does not verify email ownership or send campaigns. Provision its unique contact index with `node --env-file=.env scripts/migrations/newsletter-indexes.js` before deployment. The endpoint requires configured contact crypto and is rate limited; unavailable configuration fails closed. See `doc/deployment/public-figma-alignment-handoff.md`.

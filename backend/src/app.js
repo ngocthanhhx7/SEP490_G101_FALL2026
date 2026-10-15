@@ -1,3 +1,4 @@
+import { newsletterModule } from './routes/newsletter.routes.js';
 import { customerProfileRuntimeModule } from './routes/customer-profile.routes.js';
 import { applicationStatusModule } from './routes/application-status.routes.js';
 import express from 'express';
@@ -38,7 +39,7 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
-  registerModules(app, [healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
+  registerModules(app, [newsletterModule(context), healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
     ...moduleFactories.map(factory => factory(context))]);
   app.use(notFound, errorHandler(logger));

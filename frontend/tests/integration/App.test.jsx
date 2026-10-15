@@ -14,7 +14,7 @@ function renderApp(path, sessionAdapter) {
 test('public route is readable before session resolution and uses brand asset', async () => {
   renderApp('/', { resolve: () => new Promise(() => {}) });
   expect(screen.getByRole('heading', { name: /Chăm pet/ })).toBeVisible();
-  expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/logo/ngang.svg');
+  expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/figma-public/header-Vector.svg');
   expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
   expect(screen.getByRole('main')).toHaveFocus();
   await screen.findByRole('alert');
