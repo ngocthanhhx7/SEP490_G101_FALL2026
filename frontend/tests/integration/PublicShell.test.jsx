@@ -15,7 +15,7 @@ test('guest header follows the five Figma links and offers login/register withou
   expect(screen.getByRole('link', { name: 'Đăng nhập' })).toHaveAttribute('href', '/sign-in');
   expect(screen.getByRole('link', { name: 'Đăng ký' })).toHaveAttribute('href', '/register');
   expect(screen.getByRole('link', { name: 'Câu truyện' })).toHaveAttribute('href', '/#stories');
-  expect(screen.getByRole('link', { name: 'Về chúng tôi' })).toHaveAttribute('href', '/#about');
+  expect(screen.getByRole('link', { name: 'Về chúng tôi' })).toHaveAttribute('href', '/about');
   expect(screen.queryByRole('button', { name: 'Tài khoản' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở menu' }));
   expect(screen.getByRole('button', { name: 'Đóng menu' })).toHaveAttribute('aria-expanded', 'true');
@@ -39,16 +39,11 @@ test('signed-in header reuses the hover/pinned account menu and hides guest acti
   fireEvent.click(screen.getByRole('button', { name: 'Đăng xuất' }));
   expect(logout).toHaveBeenCalledTimes(1);
 });
-test('footer policy links resolve and newsletter reports actual acknowledgement or failure', async () => {
-  const subscribe = jest.fn().mockResolvedValueOnce({ status: 'REQUESTED' }).mockRejectedValueOnce(new Error('unavailable'));
-  show(<PublicFooter subscribe={subscribe} />);
+test('footer replaces newsletter signup with real policy page links', () => {
+  show(<PublicFooter />);
   expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute('href', '/policies/privacy');
   expect(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', '/policies/terms');
-  const input = screen.getByRole('textbox', { name: 'Email nhận tin' });
-  fireEvent.change(input, { target: { value: 'synthetic@example.test' } });
-  fireEvent.submit(input.closest('form'));
-  expect(await screen.findByRole('status')).toHaveTextContent('Đã tiếp nhận');
-  expect(subscribe).toHaveBeenCalledWith('synthetic@example.test');
-  fireEvent.change(input, { target: { value: 'another@example.test' } }); fireEvent.submit(input.closest('form'));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Chưa thể đăng ký');
+  expect(screen.getByRole('link', { name: 'Tất cả chính sách dịch vụ' })).toHaveAttribute('href', '/policies');
+  expect(screen.getByRole('link', { name: 'Điều khoản sử dụng' })).toHaveAttribute('href', '/policies/terms');
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 });

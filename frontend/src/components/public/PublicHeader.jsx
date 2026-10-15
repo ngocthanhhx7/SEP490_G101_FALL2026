@@ -7,8 +7,8 @@ const links = [
   ['Trang chủ', '/'],
   ['Câu truyện', '/#stories'],
   ['Sản phẩm', '/services'],
-  ['Về chúng tôi', '/#about'],
-  ['Liên hệ', '/#contact'],
+  ['Về chúng tôi', '/about'],
+  ['Liên hệ', '/contact'],
 ];
 
 export function PublicHeader() {
@@ -48,7 +48,8 @@ export function PublicHeader() {
         id="pwc-public-navigation"
         aria-label="Điều hướng chính"
       >
-        {links.map(([label, to]) => <Link key={label} to={to} onClick={closeMenu}>{label}</Link>)}
+        {links.map(([label, to]) => <Link key={label} to={to} onClick={closeMenu}
+          aria-current={location.pathname === to && !location.hash ? 'page' : undefined}>{label}</Link>)}
       </nav>
       <div className="pwc-header-actions">
         {session.status === 'authenticated'

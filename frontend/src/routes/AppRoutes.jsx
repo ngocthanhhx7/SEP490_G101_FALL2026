@@ -3,6 +3,8 @@ import { Route, Routes } from 'react-router-dom';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
 import { HomePage } from '../pages/public/HomePage.jsx';
+import { AboutPage } from '../pages/public/AboutPage.jsx';
+import { ContactPage } from '../pages/public/ContactPage.jsx';
 import { ServiceAreasPage } from '../pages/public/ServiceAreasPage.jsx';
 import { ServiceDetailsPage } from '../pages/public/ServiceDetailsPage.jsx';
 import { ServiceListPage } from '../pages/public/ServiceListPage.jsx';
@@ -81,6 +83,8 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
     </Route>
     <Route element={<PublicSiteLayout />}>
       <Route index element={<HomePage />} />
+      <Route path="about" element={<AboutPage />} />
+      <Route path="contact" element={<ContactPage />} />
       <Route path="services" element={<ServiceListPage />} />
       <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
       <Route path="service-areas" element={<ServiceAreasPage />} />

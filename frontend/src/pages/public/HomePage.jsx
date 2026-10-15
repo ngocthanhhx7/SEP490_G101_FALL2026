@@ -16,9 +16,9 @@ const benefits = [
   ['home-Margin3.svg', 'Theo dõi từng lượt chăm sóc', 'Xem trạng thái, báo cáo sau mỗi lượt với checklist, hình ảnh và ghi chú.', 'cream']
 ];
 const stories = [
-  ['home-Image661.webp', 'Bé Bơ từ ngày ăn Kit của PawWorld lông mượt hẳn ra, lại còn không bao giờ bỏ bữa nữa!', 'Chị Lan & Bơ', 'Quận 7, HCM', 'pink'],
-  ['home-Image662.webp', 'Tiết kiệm được bao nhiêu thời gian đi siêu thị chọn đồ. Ăn vặt cực kỳ chất xúc luôn.', 'Anh Minh & Miu', 'Đống Đa, HN', 'green'],
-  ['home-Image663.webp', 'Thực phẩm đóng gói cực kỳ xinh xắn, sạch sẽ. Nhìn thôi là đã muốn cho con ăn rồi!', 'Bạn Vy & Sữa', 'Thủ Đức, HCM', 'purple']
+  ['home-Image661.webp', 'Những ngày bận rộn, mình mong bé vẫn được đi dạo và có người quan tâm đúng giờ.', 'Chị Lan & Bơ', 'Quận 7, HCM', 'pink'],
+  ['home-Image662.webp', 'Miu thích ở trong không gian quen thuộc. Mình muốn gửi lời dặn riêng cho người chăm sóc.', 'Anh Minh & Miu', 'Đống Đa, HN', 'green'],
+  ['home-Image663.webp', 'Một vài tấm ảnh và ghi chú sau lượt chăm sóc giúp mình yên tâm hơn khi xa bé.', 'Bạn Vy & Sữa', 'Thủ Đức, HCM', 'purple']
 ];
 function Paw({ className = '', file = 'home-Frame2147225474.svg' }) {
   return <img className={'pwc-design-paw ' + className} src={a + file} alt="" loading="lazy" />;
@@ -84,7 +84,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
         <p>PawWorld giúp bạn đặt lịch ghé thăm và chơi cùng bé, dắt chó đi dạo hoặc spa chó mèo ngay tại nhà. Bé được chăm sóc trong không gian quen thuộc, còn bạn dễ dàng chọn dịch vụ phù hợp với lịch trình của mình.</p>
         <div className="pwc-design-about-points"><div><h3>Thân quen</h3><p>Bé ở trong không gian quen thuộc.</p></div>
           <div><h3>Uy tín</h3><p>Xem checklist, ảnh và ghi chú của người chăm sóc.</p></div></div>
-        <Link className="pwc-design-button" to="/service-areas">Tìm hiểu về chúng tôi</Link>
+        <Link className="pwc-design-button" to="/about">Tìm hiểu về chúng tôi</Link>
       </div><Paw file="home-Frame2147225477.svg" />
     </section>
     <section className="pwc-design-stories pwc-design-section" id="stories" aria-labelledby="pwc-stories-title">
