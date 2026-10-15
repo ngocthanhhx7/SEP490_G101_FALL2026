@@ -88,7 +88,9 @@ describe('P21 sitter eligibility and deterministic dispatch', () => {
     expect(result.fallbackUsed).toBe(true);
     expect(result.fallbackReason).toBe('RANKER_UNAVAILABLE');
     expect(result.selected.map(item => item.sitterId)).toEqual(['sitter-a', 'sitter-b']);
-    expect(listCandidates).toHaveBeenCalledWith({ request: expect.objectContaining({ serviceId: 'DOG_WALK' }), limit: 2 });
+    expect(listCandidates).toHaveBeenCalledWith(expect.objectContaining({
+      request: expect.objectContaining({ serviceId: 'DOG_WALK' }), limit: 2
+    }));
   });
 
   test('provider output cannot inject an ineligible or unknown candidate', async () => {
@@ -107,5 +109,70 @@ describe('P21 sitter eligibility and deterministic dispatch', () => {
     } });
     await expect(service.suggest({ request: request() }))
       .rejects.toMatchObject({ status: 503, code: 'DISPATCH_UNAVAILABLE' });
+  });
+
+  test('rejects oversized batches before evaluating or calling a ranker', async () => {
+    const records = Array.from({ length: 101 }, (_, i) => candidate(`sitter-${i}`));
+    expect(() => rankEligibleCandidates({ request: request(), candidates: records }))
+      .toThrow(expect.objectContaining({ code: 'VALIDATION_FAILED' }));
+    const ranker = jest.fn();
+    const service = createSitterDispatchService({ listCandidates: async () => records, ranker });
+    await expect(service.suggest({ request: request() })).rejects.toMatchObject({ code: 'DISPATCH_UNAVAILABLE' });
+    await expect(service.suggest({ request: request(), candidates: records }))
+      .rejects.toMatchObject({ code: 'DISPATCH_UNAVAILABLE' });
+    expect(ranker).not.toHaveBeenCalled();
+  });
+
+  test('bounds hung ranker latency, aborts it and ignores late results', async () => {
+    jest.useFakeTimers();
+    try {
+      let finish, rankerSignal;
+      const service = createSitterDispatchService({ listCandidates: async () => [candidate('b'), candidate('a')],
+        rankerTimeoutMs: 50, ranker: ({ signal }) => {
+          rankerSignal = signal;
+          return new Promise(resolve => { finish = resolve; });
+        } });
+      const pending = service.suggest({ request: request(), limit: 2 });
+      await jest.advanceTimersByTimeAsync(50);
+      const result = await pending;
+      expect(result).toMatchObject({ fallbackUsed: true, fallbackReason: 'RANKER_UNAVAILABLE' });
+      expect(rankerSignal.aborted).toBe(true);
+      expect(result.selected.map(item => item.sitterId)).toEqual(['a', 'b']);
+      finish(['b', 'a']);
+      await Promise.resolve();
+      expect(result.selected.map(item => item.sitterId)).toEqual(['a', 'b']);
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { jest.useRealTimers(); }
+  });
+
+  test('times out hung candidate reads with no fabricated fallback candidates', async () => {
+    jest.useFakeTimers();
+    try {
+      let candidateSignal;
+      const ranker = jest.fn();
+      const service = createSitterDispatchService({ candidateTimeoutMs: 40, ranker,
+        listCandidates: ({ signal }) => { candidateSignal = signal; return new Promise(() => {}); } });
+      const pending = expect(service.suggest({ request: request() }))
+        .rejects.toMatchObject({ code: 'DISPATCH_UNAVAILABLE' });
+      await jest.advanceTimersByTimeAsync(40);
+      await pending;
+      expect(candidateSignal.aborted).toBe(true);
+      expect(ranker).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    } finally { jest.useRealTimers(); }
+  });
+
+  test('accepts exactly 100 candidates and valid provider permutations; validates deadlines', async () => {
+    const records = Array.from({ length: 100 }, (_, i) => candidate(`sitter-${i}`));
+    const service = createSitterDispatchService({ listCandidates: async () => records,
+      ranker: async ({ candidates }) => candidates.map(item => item.sitterId).reverse() });
+    const result = await service.suggest({ request: request(), limit: 100 });
+    expect(result.selected).toHaveLength(100);
+    expect(result.rankingSource).toBe('PROVIDER_ORDER');
+    expect(result.selected.map(item => item.rank)).toEqual(Array.from({ length: 100 }, (_, i) => i + 1));
+    for (const timeout of [0, -1, 1.5, 10001, NaN]) {
+      expect(() => createSitterDispatchService({ listCandidates: jest.fn(), rankerTimeoutMs: timeout })).toThrow(TypeError);
+      expect(() => createSitterDispatchService({ listCandidates: jest.fn(), candidateTimeoutMs: timeout })).toThrow(TypeError);
+    }
   });
 });

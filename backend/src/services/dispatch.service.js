@@ -296,8 +296,8 @@ function rankingKey(decision) {
 }
 
 function compareKeys(left, right) {
-  const a = rankingKey(left);
-  const b = rankingKey(right);
+  const a = left.key;
+  const b = right.key;
   for (let index = 0; index < a.length; index += 1) {
     if (a[index] < b[index]) return -1;
     if (a[index] > b[index]) return 1;
@@ -312,7 +312,9 @@ function compareKeys(left, right) {
 export function rankEligibleCandidates({ request, candidates, limit = DEFAULT_DISPATCH_LIMIT } = {}) {
   const context = request?.serviceId && request?.startAt instanceof Date
     ? request : normalizeDispatchRequest(request);
-  if (!Array.isArray(candidates)) failValidation('Candidate records are unavailable');
+  if (!Array.isArray(candidates) || candidates.length > MAX_DISPATCH_CANDIDATES) {
+    failValidation(`Candidate records must be bounded to ${MAX_DISPATCH_CANDIDATES}`);
+  }
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_DISPATCH_CANDIDATES) {
     failValidation(`Candidate limit must be between 1 and ${MAX_DISPATCH_CANDIDATES}`);
   }
@@ -324,7 +326,7 @@ export function rankEligibleCandidates({ request, candidates, limit = DEFAULT_DI
     const decision = evaluateCandidate(candidate, context);
     if (decision.sitterId && seen.has(decision.sitterId)) continue;
     if (decision.sitterId) seen.add(decision.sitterId);
-    if (decision.eligible) eligible.push(decision);
+    if (decision.eligible) eligible.push({ ...decision, key: rankingKey(decision) });
     else excluded.push(Object.freeze({ sitterId: decision.sitterId ?? null, reasons: [...decision.reasons] }));
   }
   eligible.sort(compareKeys);
@@ -347,9 +349,31 @@ export function rankEligibleCandidates({ request, candidates, limit = DEFAULT_DI
  * bounded, already-authorized projections; the service never receives pet
  * profile or private address data from a caller-facing route.
  */
-export function createSitterDispatchService({ listCandidates, ranker = null } = {}) {
+export function createSitterDispatchService({ listCandidates, ranker = null,
+  candidateTimeoutMs = 1000, rankerTimeoutMs = 500 } = {}) {
   if (typeof listCandidates !== 'function') throw new TypeError('A candidate repository port is required');
   if (ranker !== null && typeof ranker !== 'function') throw new TypeError('ranker must be a function');
+  for (const timeout of [candidateTimeoutMs, rankerTimeoutMs]) {
+    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 10000) {
+      throw new TypeError('Dispatch timeouts must be between 1 and 10000 milliseconds');
+    }
+  }
+
+  async function withinDeadline(work, timeoutMs) {
+    const controller = new globalThis.AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => work(controller.signal)),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error('Dispatch deadline exceeded'));
+            controller.abort();
+          }, timeoutMs);
+        })
+      ]);
+    } finally { clearTimeout(timer); }
+  }
 
   async function suggest({ request, candidates, limit = DEFAULT_DISPATCH_LIMIT } = {}) {
     const context = normalizeDispatchRequest(request);
@@ -359,22 +383,26 @@ export function createSitterDispatchService({ listCandidates, ranker = null } = 
     let records;
     if (candidates === undefined) {
       try {
-        records = await listCandidates({ request: context, limit });
+        records = await withinDeadline(signal => listCandidates({ request: context, limit, signal }), candidateTimeoutMs);
       } catch (error) {
         if (error instanceof AppError) throw error;
         throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Sitter candidates are unavailable');
       }
     } else records = candidates;
-    if (!Array.isArray(records)) throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Sitter candidates are unavailable');
+    if (!Array.isArray(records) || records.length > MAX_DISPATCH_CANDIDATES) {
+      throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Sitter candidates are unavailable');
+    }
     const fallback = () => rankEligibleCandidates({ request: context, candidates: records, limit });
     const base = fallback();
     if (!ranker || base.selected.length === 0) return base;
 
     try {
-      const rankedIds = await ranker({ request: context, candidates: base.selected.map(item => ({ ...item })) });
+      const rankedIds = await withinDeadline(signal => ranker({ request: context,
+        candidates: base.selected.map(item => ({ ...item })), signal }), rankerTimeoutMs);
+      const allowedIds = new Set(base.selected.map(item => item.sitterId));
       if (!Array.isArray(rankedIds) || rankedIds.length !== base.selected.length
         || new Set(rankedIds).size !== rankedIds.length
-        || rankedIds.some(id => typeof id !== 'string' || !base.selected.some(item => item.sitterId === id))) {
+        || rankedIds.some(id => typeof id !== 'string' || !allowedIds.has(id))) {
         return Object.freeze({ ...base, fallbackUsed: true, fallbackReason: 'RANKER_INVALID_RESULT' });
       }
       const positions = new Map(rankedIds.map((id, index) => [id, index]));
