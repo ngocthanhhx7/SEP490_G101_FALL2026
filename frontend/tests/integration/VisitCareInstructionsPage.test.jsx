@@ -11,4 +11,4 @@ test('Customer page shows versioned JSON and does not report save before acknowl
   renderAt(<VisitCareInstructionsPage api={api} />);
   expect(await screen.findByText(/PHIÊN BẢN 2/)).toBeVisible();
   await waitFor(() => expect(screen.getByDisplayValue(/Không dùng cá/)).toBeVisible());
-});\n
+});
