@@ -37,6 +37,8 @@ P34 must register both runtime factories and provide policy/eligibility rechecks
 WBS-N05 supplies weekly submission, but N06 is an independent module export and
 uses the same durable aggregate port. P27/P30 care/case eligibility and P31/P32
 money integrations have not been verified here.
+The shared app composition hook ignores a factory's deliberate `null`/`undefined`
+fail-closed result while still rejecting malformed non-null modules.
 Status: INTEGRATION_PENDING / MONEY_BLOCKED_BY_DECISION. These are genuine merge
 gates, not a request for routine permission. Keep PR draft, no approval claimed.
 
