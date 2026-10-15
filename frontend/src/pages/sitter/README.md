@@ -13,3 +13,14 @@ the Sitter to acknowledge the current care-instruction version and asks the
 server for access notes only in the allowed window. Replacement handover is a
 server command; the page never grants access from a local flag. Route and live
 Visit/Assignment wiring remain `INTEGRATION_PENDING` under P34/P01.
+
+`SitterVisitReviewPage` submits a `SITTER_TO_CUSTOMER` rating through the
+injected `sitter-review-api.js` adapter. It shows server pending, forbidden,
+validation, and policy-decision states and never claims success for an
+unacknowledged response. P34 owns the final route and provider wiring; P01's
+SITTER-FEEDBACK decision still gates the live rating window, visibility, and
+moderation policy.
+
+`SitterComplaintsPage` and `sitter-complaint-api.js` are read-only. The server
+must scope every list/detail result to the Sitter's assigned visit and omit
+Staff private notes; no Sitter complaint creation or Staff command is exposed.
