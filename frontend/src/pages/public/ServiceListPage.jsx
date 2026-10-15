@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogEmpty, CatalogState, PublicServiceCards } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from './public-catalog-adapter.js';
@@ -11,7 +11,9 @@ function normalizeSearch(value) {
 
 export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
   const catalog = useApiResource(loadCatalog);
-  const [query, setQuery] = useState('');
+  const [params, setParams] = useSearchParams();
+  const query = (params.get('q') ?? '').slice(0, 120);
+  const setQuery = value => { setParams(previous => { const next = new globalThis.URLSearchParams(previous); if (value) next.set('q', value); else next.delete('q'); return next; }, { replace: true }); };
   const [species, setSpecies] = useState('ALL');
   const services = catalog.data?.services || [];
   const filtered = useMemo(() => {

@@ -1,5 +1,6 @@
 import { loadEsmsConfig } from '../services/esms-sms.service.js';
 import { loadSmtpConfig } from '../services/smtp-email.service.js';
+import { isMailbox } from '../services/email-template.service.js';
 
 export class ConfigurationError extends Error {
   constructor(fields) {
@@ -32,6 +33,8 @@ export function loadConfig(env = process.env) {
   const authEnabledValue = env.AUTH_ENABLED ?? 'false';
   if (!['true', 'false'].includes(authEnabledValue)) invalid.push('AUTH_ENABLED');
   const authEnabled = authEnabledValue === 'true';
+  const contactInbox = env.CONTACT_INBOX_EMAIL || null;
+  if (contactInbox && !isMailbox(contactInbox)) invalid.push('CONTACT_INBOX_EMAIL');
   const authSecrets = {
     otpSecret: env.OTP_HMAC_SECRET,
     tokenSecret: env.SESSION_TOKEN_SECRET,
@@ -63,7 +66,7 @@ export function loadConfig(env = process.env) {
   }
 
   const result = {
-    nodeEnv, host, mongoUri, database, allowDevAdminSeed: seedValue === 'true',
+    nodeEnv, host, mongoUri, database, contactInbox, allowDevAdminSeed: seedValue === 'true',
     auth: Object.freeze(authEnabled
       ? { enabled: true, ...authSecrets }
       : { enabled: false }),

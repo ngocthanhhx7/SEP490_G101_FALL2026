@@ -1,0 +1,71 @@
+/* Figma 2:2724 composition, adapted to the current at-home care project. */
+.pwc-about-page { background: #fff; color: #211a13; }
+.pwc-about-page h1, .pwc-about-page h2 { font-family: 'FC DK Cool Crayon', Nunito, sans-serif; font-weight: 400; }
+.pwc-about-page h2 { font-size: 48px; line-height: 1.1; margin: 0; }
+.pwc-about-page p, .pwc-about-care li { font-size: 18px; line-height: 28px; }
+.pwc-about-intro { display: grid; grid-template-columns: 1.15fr 1fr; align-items: center; gap: 48px; max-width: 1280px; padding: 80px 50px; margin: auto; }
+.pwc-about-collage { position: relative; min-width: 0; aspect-ratio: 1.17; }
+.pwc-about-photo-main { position: absolute; width: 85%; height: 64%; right: 0; top: 6%; border: 20px solid #bfc4f2; border-radius: 12px; object-fit: cover; transform: rotate(3.86deg); box-shadow: 0 12px 4px #0004; }
+.pwc-about-photo-small { position: absolute; width: 51%; height: 37%; left: 0; top: 55%; border: 20px solid white; border-radius: 12px; object-fit: cover; transform: rotate(1.5deg); box-shadow: 0 12px 4px #0004; }
+.pwc-about-intro-copy { text-align: right; }
+.pwc-about-intro-copy h1 { color: #2c0050; font-size: clamp(54px, 5.6vw, 76px); line-height: 1.08; letter-spacing: -2px; margin: 0 0 40px; }
+.pwc-about-intro-copy p { margin: 18px 0 0; color: #333; }
+.pwc-about-band { position: relative; isolation: isolate; }
+.pwc-about-band > div { display: grid; grid-template-columns: 263px minmax(0,1fr); gap: 60px; max-width: 1280px; margin: auto; padding: 72px 50px; }
+.pwc-about-band h2 { text-align: center; }
+.pwc-about-band p { margin: 0 0 24px; }
+.pwc-about-band p:last-child { margin-bottom: 0; }
+.pwc-about-values { background: #72c99f; }
+.pwc-about-goals { background: #e1e3f8; color: #2c0050; overflow: hidden; }
+.pwc-about-goals > img { position: absolute; inset: 0 0 0 auto; height: 100%; width: 65%; object-fit: cover; object-position: center 40%; opacity: .12; z-index: -1; }
+.pwc-about-team { padding: 80px 0 40px; text-align: center; max-width: 1440px; margin: auto; }
+.pwc-about-team-caption { color: #5c3283; margin: 16px 20px 48px; }
+.pwc-about-team ul { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); list-style: none; margin: 0; padding: 0 36px; background: linear-gradient(#fcf9df 0 330px,transparent 330px); }
+.pwc-about-team li { min-width: 0; }
+.pwc-about-team li > div { height: 330px; display: flex; justify-content: center; align-items: center; }
+.pwc-about-team li img { max-width: none; flex: none; }
+.pwc-about-team h3 { color: #2c0050; font-size: 18px; line-height: 26px; margin: 32px 8px 8px; }
+.pwc-about-team li p { color: #524436; font-size: 14px; line-height: 22px; margin: 0 8px; }
+.pwc-about-care { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 80px; padding: 80px 64px; max-width: 1280px; margin: auto; }
+.pwc-about-care figure { margin: 0; }
+.pwc-about-care figure img { width: 100%; height: 580px; object-fit: cover; border-radius: 32px; transform: rotate(-2deg); }
+.pwc-about-care h2 { color: #2c0050; }
+.pwc-about-care ul { padding-left: 24px; margin-bottom: 32px; }
+.pwc-about-care li { margin: 8px 0; }
+.pwc-about-explore { padding: 48px 50px 80px; text-align: center; max-width: 1280px; margin: auto; }
+.pwc-about-explore nav { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+.pwc-about-explore a { background: #bfc4f2; color: #2c0050; padding: 14px 24px; font-weight: 700; text-decoration: none; }
+.pwc-about-explore a:nth-child(even) { background: #ffcd34; }
+.pwc-public-root .pwc-public-navigation a[aria-current='page'] { color: #9b4900; }
+@media(max-width:1000px) {
+ .pwc-about-intro { padding: 56px 28px; gap: 32px; }
+ .pwc-about-photo-main, .pwc-about-photo-small { border-width: 12px; }
+ .pwc-about-intro-copy h1 { font-size: 56px; }
+ .pwc-about-band > div { grid-template-columns: 200px minmax(0,1fr); gap: 32px; padding: 48px 28px; }
+ .pwc-about-team ul { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; background: #fcf9df; padding: 24px; }
+ .pwc-about-team h3 { margin-top: 16px; }
+ .pwc-about-team li { padding-bottom: 24px; }
+ .pwc-about-care { padding: 56px 28px; gap: 40px; }
+ .pwc-about-care figure img { height: 480px; }
+}
+@media(max-width:640px) {
+ .pwc-about-page h2 { font-size: 34px; }
+ .pwc-about-page p, .pwc-about-care li { font-size: 16px; line-height: 26px; }
+ .pwc-about-intro { grid-template-columns: 1fr; padding: 32px 24px 48px; gap: 24px; }
+ .pwc-about-intro-copy { text-align: left; }
+ .pwc-about-intro-copy h1 { font-size: clamp(44px,12vw,60px); margin-bottom: 24px; letter-spacing: -1px; }
+ .pwc-about-band > div { grid-template-columns: 1fr; padding: 40px 24px; gap: 24px; }
+ .pwc-about-band h2 { text-align: left; }
+ .pwc-about-team { padding: 48px 0 16px; }
+ .pwc-about-team h2 { padding: 0 24px; }
+ .pwc-about-team-caption { margin-bottom: 24px; }
+ .pwc-about-team ul { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; padding: 24px 12px; }
+ .pwc-about-team li:last-child { grid-column: 1 / -1; }
+ .pwc-about-team li > div { height: 300px; }
+ .pwc-about-team h3 { font-size: 16px; line-height: 24px; }
+ .pwc-about-team li p { font-size: 13px; line-height: 20px; }
+ .pwc-about-care { grid-template-columns: 1fr; padding: 40px 24px; gap: 40px; }
+ .pwc-about-care figure img { height: 400px; }
+ .pwc-about-explore { padding: 40px 24px 56px; }
+ .pwc-about-explore nav { flex-direction: column; }
+}
