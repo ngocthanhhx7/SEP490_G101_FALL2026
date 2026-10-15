@@ -2,6 +2,8 @@ import { Link, useParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogEmpty, CatalogState } from './PublicCatalog.jsx';
 import { formatCatalogPrice, formatPolicyDate, loadPublicCatalog } from './public-catalog-adapter.js';
+import { serviceVisual } from './service-visuals.js';
+import './service-catalog.css';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
 
@@ -37,13 +39,12 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
 
   const price = formatCatalogPrice(service.price);
   const effectiveDate = formatPolicyDate(service.policy.effectiveAt);
+  const visual = serviceVisual(service);
 
   return <div className="pwc-page pwc-service-details-page">
     <p className="pwc-back-link"><Link to="/services">Danh mục dịch vụ</Link></p>
     <section className="pwc-service-detail-hero" aria-labelledby="pwc-service-title">
-      <div className="pwc-service-detail-mark" aria-hidden="true">
-        <img src="/assets/icon/khac/pets.svg" alt="" width="54" height="54" />
-      </div>
+      <img className="pwc-service-detail-photo" src={visual.src} alt={visual.alt} />
       <p className="pwc-eyebrow">{service.species.map((item) => SPECIES_LABELS[item]).join(' · ')}</p>
       <h1 id="pwc-service-title">{service.name}</h1>
       <p className="pwc-lead">{service.description}</p>

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogState, CatalogEmpty } from './PublicCatalog.jsx';
 import { formatCatalogPrice, loadPublicCatalog } from './public-catalog-adapter.js';
+import { serviceVisual } from './service-visuals.js';
 
 const a = '/assets/figma-public/';
 const illustrations = [
@@ -11,7 +12,7 @@ const illustrations = [
 ];
 const benefits = [
   ['home-Margin.svg', 'Ghé thăm & chơi cùng bé', 'Cho bé thêm sự quan tâm khi bạn bận hoặc vắng nhà.', 'cream'],
-  ['home-Margin1.svg', 'Spa tại nhà', 'Chăm sóc nhỏ nhẹ ngay tại nhà, không cần đưa bé đến tiệm.', 'mint'],
+  ['home-Margin1.svg', 'Đưa bé đến lịch hẹn thú y', 'Hỗ trợ đưa chó, mèo đến lịch hẹn theo thông tin bạn cung cấp.', 'mint'],
   ['home-Margin2.svg', 'Dắt chó đi dạo', 'Giúp cún vận động và thư giãn với một buổi đi dạo đã đặt lịch.', 'mint'],
   ['home-Margin3.svg', 'Theo dõi từng lượt chăm sóc', 'Xem trạng thái, báo cáo sau mỗi lượt với checklist, hình ảnh và ghi chú.', 'cream']
 ];
@@ -30,7 +31,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
     <section className="pwc-design-hero-wrap" aria-labelledby="pwc-home-title">
       <div className="pwc-design-hero">
         <div className="pwc-design-hero-copy"><h1 id="pwc-home-title">Chăm pet<br />tận nhà,<br />pet khỏe<br />sen vui.</h1>
-          <p>Đặt lịch dắt chó đi dạo, ghé thăm và chơi cùng bé, hoặc spa tại nhà — linh hoạt theo thời gian của bạn.</p>
+          <p>Đặt lịch dắt chó đi dạo, ghé thăm và chơi cùng bé, hoặc đưa bé đến lịch hẹn thú y — linh hoạt theo thời gian của bạn.</p>
           <div className="pwc-design-actions"><Link className="pwc-design-button" to="/sign-in">Đặt dịch vụ ngay</Link>
             <Link className="pwc-design-button pwc-design-button-white" to="/services">Khám phá dịch vụ</Link></div>
         </div>
@@ -54,7 +55,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
     <section className="pwc-design-steps pwc-design-section" aria-labelledby="pwc-steps-title"><Paw /><Paw className="pwc-design-paw-lower" file="home-Frame2147225471.svg" />
       <h2 id="pwc-steps-title">Đặt lịch chăm sóc bé thật dễ dàng</h2>
       <ol>{[
-        ['Chọn dịch vụ & thú cưng', 'Ghé thăm, chơi cùng bé, dắt chó đi dạo hoặc spa tại nhà.'],
+        ['Chọn dịch vụ & thú cưng', 'Ghé thăm, chơi cùng bé, dắt chó đi dạo hoặc đưa bé đến lịch hẹn thú y.'],
         ['Chọn lịch & gửi dặn dò', 'Nhập địa chỉ, thời gian và lưu ý chăm sóc riêng cho bé.'],
         ['Theo dõi & nhận báo cáo', 'Xem trạng thái lượt chăm sóc xem checklist, ảnh và ghi chú sau khi hoàn tất.']
       ].map(([title, text], i) => <li key={title}><span>{i + 1}</span><h3>{title}</h3><p>{text}</p></li>)}</ol>
@@ -62,7 +63,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
     <section className="pwc-design-services pwc-design-section" id="services" aria-labelledby="pwc-services-title">
       <header><div><h2 id="pwc-services-title">Dịch vụ có sẵn</h2><p>Chọn theo nhu cầu đặc biệt của bé yêu.</p></div><Link to="/services">Xem tất cả dịch vụ</Link></header>
       <div className="pwc-design-service-grid">{(services.length ? services.slice(0, 3) : illustrations).map((service, i) => {
-        const visual = service.id ? illustrations[/dắt|walk/i.test(service.name) ? 1 : /thú y|vet/i.test(service.name) ? 2 : 0] : illustrations[i];
+        const visual = service.id ? { image: serviceVisual(service).src.slice(a.length), title: serviceVisual(service).alt } : illustrations[i];
         return <article className="pwc-design-service-card" key={service.id ?? service.title}>
           <img src={a + visual.image} alt={visual.title} loading="lazy" />
           <h3>{service.id ? <Link to={'/services/' + encodeURIComponent(service.id)}>{service.name}</Link> : service.title}</h3>
@@ -81,7 +82,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
       <figure><img src={a + 'home-Image650.webp'} alt="Ba chú mèo nằm trong chiếc hộp ở nhà" loading="lazy" />
         <span><img src={a + 'home-Container4.svg'} alt="" /></span></figure>
       <div><h2 id="pwc-about-title">“Bé ở nhà thân quen,<br />bạn yên tâm chăm lo”</h2>
-        <p>PawWorld giúp bạn đặt lịch ghé thăm và chơi cùng bé, dắt chó đi dạo hoặc spa chó mèo ngay tại nhà. Bé được chăm sóc trong không gian quen thuộc, còn bạn dễ dàng chọn dịch vụ phù hợp với lịch trình của mình.</p>
+        <p>PawWorld giúp bạn đặt lịch ghé thăm và chơi cùng bé, dắt chó đi dạo hoặc đưa thú cưng đến lịch hẹn thú y. Bạn dễ dàng chọn dịch vụ phù hợp với nhu cầu của bé và lịch trình của mình.</p>
         <div className="pwc-design-about-points"><div><h3>Thân quen</h3><p>Bé ở trong không gian quen thuộc.</p></div>
           <div><h3>Uy tín</h3><p>Xem checklist, ảnh và ghi chú của người chăm sóc.</p></div></div>
         <Link className="pwc-design-button" to="/about">Tìm hiểu về chúng tôi</Link>

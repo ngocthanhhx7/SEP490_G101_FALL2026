@@ -36,6 +36,7 @@ function normalizeService(service) {
 
   return Object.freeze({
     id: service.id,
+    ...(typeof service.code === 'string' ? { code: service.code } : {}),
     name: service.name.trim(),
     description: service.description.trim(),
     scope: service.scope.trim(),

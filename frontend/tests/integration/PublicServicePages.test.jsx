@@ -45,6 +45,9 @@ test('service list filters catalog results by Vietnamese search and species', as
   renderAt('/services');
   expect(await screen.findByRole('heading', { name: 'Dắt chó đi dạo' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Ghé thăm mèo tại nhà' })).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Người chăm sóc dắt chó đi dạo' })).toHaveAttribute('src', '/assets/figma-public/home-Image658.webp');
+  expect(screen.getAllByRole('link', { name: 'Xem chi tiết' })[0]).toHaveAttribute('href', '/services/dog-walk-1');
+  expect(screen.getByText(/50\.000.*mỗi lượt/)).toBeVisible();
 
   fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm dịch vụ' }), { target: { value: 'dắt chó' } });
   expect(screen.getByRole('heading', { name: 'Dắt chó đi dạo' })).toBeVisible();
@@ -54,6 +57,14 @@ test('service list filters catalog results by Vietnamese search and species', as
   expect(screen.getByRole('heading', { name: 'Không tìm thấy dịch vụ phù hợp' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
   expect(screen.getByRole('heading', { name: 'Ghé thăm mèo tại nhà' })).toBeVisible();
+});
+
+test('catalog query links filter published results without inventing extra services', async () => {
+  renderAt('/services?q=meo');
+  expect(await screen.findByRole('heading', { name: 'Ghé thăm mèo tại nhà' })).toBeVisible();
+  expect(screen.queryByRole('heading', { name: 'Dắt chó đi dạo' })).not.toBeInTheDocument();
+  expect(screen.getByRole('searchbox', { name: 'Tìm dịch vụ' })).toHaveValue('meo');
+  expect(screen.getByRole('link', { name: 'Liên hệ PawWorld' })).toHaveAttribute('href', '/contact');
 });
 
 test('service detail reads price and policy from the catalog and links to sign in', async () => {

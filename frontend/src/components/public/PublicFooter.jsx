@@ -21,7 +21,7 @@ export function PublicFooter() {
       <nav className="pwc-footer-column" aria-label="Dịch vụ">
         <h2>DỊCH VỤ</h2>
         <Link to="/services?q=dắt chó">Dắt chó đi dạo</Link>
-        <Link to="/services?q=spa">Spa chó mèo tại nhà</Link>
+        <Link to="/services?q=thú y">Đưa thú cưng đến lịch hẹn thú y</Link>
         <Link to="/services?q=chăm sóc">Chăm sóc pet cưng tại nhà</Link>
       </nav>
       <nav className="pwc-footer-column" aria-label="Liên kết hỗ trợ">
