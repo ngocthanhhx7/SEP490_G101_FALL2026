@@ -118,7 +118,7 @@ function validatePrice(price) {
   };
 }
 
-export function createServiceCatalogService({ connection, Service, ServiceVersion, PolicyVersion, Audit,
+export function createServiceCatalogService({ connection, Service, ServiceVersion, PolicyVersion, Audit, Presentation,
   priceProvider, catalogSettings, clock = Date.now }) {
   if (!connection?.transaction || !Service || !ServiceVersion || !PolicyVersion || !Audit
     || typeof priceProvider?.getActivePrice !== 'function'
@@ -238,6 +238,11 @@ export function createServiceCatalogService({ connection, Service, ServiceVersio
     const serviceIds = [...current.values()].map(version => version.serviceId);
     const serviceDetails = await Service.find({ _id: { $in: serviceIds } }).select('code').lean();
     const codes = new Map(serviceDetails.map(service => [service._id.toString(), service.code]));
+    const presentations = Presentation ? await Presentation.find({ serviceId: { $in: serviceIds } }).lean() : [];
+    const detailMap = new Map(presentations.map(item => [item.serviceId.toString(), {
+      preparation: item.preparation, exclusions: item.exclusions,
+      faq: item.faq.map(({ question, answer }) => ({ question, answer }))
+    }]));
     const services = [];
     for (const version of current.values()) {
       if (version.state !== 'ACTIVE') continue;
@@ -249,6 +254,7 @@ export function createServiceCatalogService({ connection, Service, ServiceVersio
         id: version.serviceId.toString(), code: codes.get(version.serviceId.toString()),
         version: version.version, name: version.name, description: version.description,
         scope: version.scope, species: version.species,
+        ...(detailMap.has(version.serviceId.toString()) ? { details: detailMap.get(version.serviceId.toString()) } : {}),
         policy: { version: policy.version, title: policy.title, body: policy.body, effectiveAt: policy.effectiveAt.toISOString() },
         price: validatePrice(price)
       });

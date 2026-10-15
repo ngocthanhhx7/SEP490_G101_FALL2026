@@ -14,6 +14,8 @@ test('guest header follows the five Figma links and offers login/register withou
   show(<PublicHeader />);
   expect(screen.getByRole('link', { name: 'Đăng nhập' })).toHaveAttribute('href', '/sign-in');
   expect(screen.getByRole('link', { name: 'Đăng ký' })).toHaveAttribute('href', '/register');
+  expect(screen.getByRole('link', { name: 'Dịch vụ', exact: true })).toHaveAttribute('href', '/services');
+  expect(screen.queryByRole('link', { name: 'Sản phẩm', exact: true })).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Câu truyện' })).toHaveAttribute('href', '/#stories');
   expect(screen.getByRole('link', { name: 'Về chúng tôi' })).toHaveAttribute('href', '/about');
   expect(screen.queryByRole('button', { name: 'Tài khoản' })).not.toBeInTheDocument();
