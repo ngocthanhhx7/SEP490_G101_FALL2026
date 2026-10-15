@@ -59,7 +59,7 @@ export function createCustomerRegistrationHandler({ connection, User, models = i
         state: 'VERIFIED',
         verifiedAt: new Date(now),
       }], { session: mongoSession });
-      const issuedSession = await sessionService.issueInTransaction(user, mongoSession);
+      const issuedSession = await sessionService.issueInTransaction(user, mongoSession, { rememberDevice: false });
       return Object.freeze({ session: issuedSession });
     } catch (error) {
       if (isContactUniqueConflict(error)) {

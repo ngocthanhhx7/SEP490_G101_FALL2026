@@ -4,6 +4,8 @@ import { Button, Notice } from '../../components/ui/index.js';
 import { ApiError } from '../../services/api-client.js';
 import { sitterApplicationApi } from '../../services/sitter-application-api.js';
 import './sitter-application.css';
+import { useApiResource } from '../../hooks/useApiResource.js';
+import { loadPublicCatalog } from './public-catalog-adapter.js';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SUPPORTING_FILES = 5;
@@ -49,9 +51,10 @@ function validate({ displayName, contactChannel, contactValue, dateOfBirth, iden
   return errors;
 }
 
-export function SitterApplicationPage({ api = sitterApplicationApi }) {
+export function SitterApplicationPage({ api = sitterApplicationApi, initialValues }) {
+  const catalog = useApiResource(loadPublicCatalog);
   const [form, setForm] = useState({ displayName: '', contactChannel: 'EMAIL', contactValue: '',
-    dateOfBirth: '', identityNumber: '', experience: '', services: '', areas: '' });
+    dateOfBirth: '', identityNumber: '', experience: '', services: '', areas: '', ...initialValues });
   const [identityFile, setIdentityFile] = useState(null);
   const [supportingFiles, setSupportingFiles] = useState([]);
   const [uploadedDocuments, setUploadedDocuments] = useState(null);
@@ -140,18 +143,19 @@ export function SitterApplicationPage({ api = sitterApplicationApi }) {
     </section>;
   }
 
-  const apiUnavailable = !api?.uploadDocument;
+  const apiUnavailable = !api?.uploadDocument || api.uploadsAvailable === false;
   return <section className="sitter-application" aria-labelledby="sitter-application-title">
     <div className="sitter-application__card">
       <header className="sitter-application__header">
         <p className="sitter-application__eyebrow">Paw World Care · Cơ hội đồng hành</p>
         <h1 id="sitter-application-title">Ứng tuyển Pet Sitter</h1>
-        <p>Gửi thông tin để đội ngũ xem xét. Bạn không cần tạo tài khoản trước khi nộp.</p>
+        <p>Gửi thông tin để đội ngũ xem xét. Xác thực email trước khi hoàn tất hồ sơ. Chỉ được cấp quyền Pet Sitter sau khi hồ sơ được duyệt.</p>
         <Notice state="info" title="Bảo vệ thông tin của bạn">
           Số định danh chỉ được dùng để phát hiện hồ sơ trùng và không hiển thị trong danh sách Admin. Tệp giấy tờ cần được tải lên kho riêng tư.
         </Notice>
       </header>
 
+      {apiUnavailable && <Notice state="pending" title="Chưa mở tiếp nhận giấy tờ">Bạn có thể xem các thông tin cần chuẩn bị. PawWorld sẽ mở nộp hồ sơ khi kho giấy tờ riêng tư sẵn sàng; hiện chưa thể gửi hồ sơ.</Notice>}
       <form className="sitter-application__form" noValidate onSubmit={submit}>
         <div className="sitter-application__grid">
           <label className="sitter-application__field" htmlFor="sitter-applicant-name">
@@ -167,12 +171,12 @@ export function SitterApplicationPage({ api = sitterApplicationApi }) {
             <div className="sitter-application__contact-options">
               <label><input type="radio" name="contactChannel" value="EMAIL" checked={form.contactChannel === 'EMAIL'}
                 onChange={() => update('contactChannel', 'EMAIL')} /> Email</label>
-              <label><input type="radio" name="contactChannel" value="PHONE" checked={form.contactChannel === 'PHONE'}
-                onChange={() => update('contactChannel', 'PHONE')} /> Điện thoại</label>
+              <label><input type="radio" name="contactChannel" value="PHONE" checked={false}
+                disabled /> SMS — chưa khả dụng</label>
             </div>
             <label className="sitter-application__field" htmlFor="sitter-applicant-contact">
               <span>{form.contactChannel === 'EMAIL' ? 'Email' : 'Số điện thoại'}</span>
-              <input id="sitter-applicant-contact" type={form.contactChannel === 'EMAIL' ? 'email' : 'tel'}
+              <input id="sitter-applicant-contact" type={form.contactChannel === 'EMAIL' ? 'email' : 'tel'} readOnly={Boolean(initialValues?.contactValue)}
                 autoComplete={form.contactChannel === 'EMAIL' ? 'email' : 'tel'}
                 inputMode={form.contactChannel === 'PHONE' ? 'tel' : undefined} required value={form.contactValue}
                 aria-invalid={Boolean(errors.contactValue)} onChange={event => update('contactValue', event.target.value)} />
@@ -203,13 +207,17 @@ export function SitterApplicationPage({ api = sitterApplicationApi }) {
         </label>
 
         <div className="sitter-application__grid">
-          <label className="sitter-application__field">
-            <span>Dịch vụ mong muốn <small>(mỗi dòng một mục)</small></span>
-            <textarea id="sitter-applicant-services" rows="3" maxLength="1000" required
+          <div className="sitter-application__field" role="group" aria-labelledby="sitter-service-label">
+            <label id="sitter-service-label" htmlFor="sitter-applicant-services">Dịch vụ mong muốn <small>(mỗi dòng một mục)</small></label>
+            {catalog.data?.available && catalog.data.services.length > 0 ? <span className="pwc-sitter-service-choices">
+              {catalog.data.services.map(service => <label key={service.id}><input type="checkbox"
+                checked={lines(form.services).includes(service.name)} onChange={event => update('services',
+                  (event.target.checked ? [...lines(form.services), service.name] : lines(form.services).filter(name => name !== service.name)).join('\n'))} />{service.name}</label>)}
+            </span> : <textarea id="sitter-applicant-services" rows="3" maxLength="1000" required
               value={form.services} aria-invalid={Boolean(errors.services)}
-              onChange={event => update('services', event.target.value)} />
+              onChange={event => update('services', event.target.value)} />}
             {errors.services && <span className="sitter-application__error">{errors.services}</span>}
-          </label>
+          </div>
           <label className="sitter-application__field">
             <span>Khu vực mong muốn <small>(quận/huyện hoặc địa bàn)</small></span>
             <textarea id="sitter-applicant-areas" rows="3" maxLength="1000" required

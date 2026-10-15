@@ -43,7 +43,7 @@ function validateName(value) {
   return '';
 }
 
-export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
+export function CustomerRegistrationPage({ api = customerRegistrationApi, intent = 'CUSTOMER', onVerified }) {
   const { refresh } = useSession();
   const policies = useRegistrationPolicies();
   const [displayName, setDisplayName] = useState('');
@@ -58,6 +58,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null);
   const [completed, setCompleted] = useState(null);
+  const [phase, setPhase] = useState('details');
   const nameRef = useRef(null);
   const contactRef = useRef(null);
   const codeRef = useRef(null);
@@ -137,6 +138,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
         resendAt: startedAt + Math.max(result.resendAfterSeconds || RESEND_SECONDS, RESEND_SECONDS) * 1000,
       });
       setNow(startedAt);
+      setPhase('otp');
       setCode('');
       setErrors({});
       setNotice({ state: 'pending', title: 'Đang chờ xác nhận gửi mã',
@@ -187,6 +189,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
       setCode('');
       setErrors({});
       refresh();
+      onVerified?.({ displayName: normalizeDisplayName(displayName), contact: normalizedContact, user: result.user });
     } catch (error) {
       setNotice({ state: error?.code === 'FORBIDDEN' ? 'forbidden' : 'error',
         title: error?.code === 'FORBIDDEN' ? 'Không thể tiếp tục' : 'Chưa hoàn tất đăng ký', message: messageForError(error) });
@@ -197,11 +200,23 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
 
   const contactType = channel === 'EMAIL' ? 'email' : 'tel';
   const contactLabel = channel === 'EMAIL' ? 'Email' : 'Số điện thoại';
+  function continueRegistration(event) {
+    event.preventDefault();
+    if (!policies.current().ready) {
+      setNotice({ state: 'error', title: 'Chính sách chưa sẵn sàng', message: 'Cần Điều khoản và Chính sách quyền riêng tư được phê duyệt, có hiệu lực trước khi đăng ký.' });
+      return;
+    }
+    const { nextErrors } = validateContact();
+    if (!agreement || agreementKey !== policies.current().key) nextErrors.agreement = 'Bạn cần xác nhận đồng ý để tiếp tục.';
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) { focusInvalid(nextErrors); return; }
+    if (policies.current().ready) setPhase('verification');
+  }
 
   if (completed) {
     return <section className="customer-registration" aria-labelledby="registration-success-title">
       <div className="registration-card registration-card--success">
-        <p className="registration-eyebrow">PawWorld · Khách hàng</p>
+        <p className="registration-eyebrow">PawWorld · {intent === 'PET_SITTER' ? 'Ứng tuyển Pet Sitter' : 'Khách hàng'}</p>
         <h1 id="registration-success-title">Đăng ký thành công!</h1>
         <p className="registration-intro">Chào mừng {completed} đến với gia đình PawWorld.</p>
         <div className="registration-notice registration-notice--success" role="status">
@@ -217,15 +232,15 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
       <span className="registration-tape registration-tape--top" aria-hidden="true" />
       <span className="registration-tape registration-tape--bottom" aria-hidden="true" />
       <header className="registration-header">
-        <p className="registration-eyebrow">PawWorld · Khách hàng</p>
+        <p className="registration-eyebrow">PawWorld · {intent === 'PET_SITTER' ? 'Ứng tuyển Pet Sitter' : 'Khách hàng'}</p>
         <h1 id="registration-title">Đăng ký tài khoản mới</h1>
         <p className="registration-intro">Gia nhập đại gia đình chăm sóc thú cưng chu đáo PawWorld 🐾</p>
         <div className="registration-role" aria-label="Loại tài khoản đang đăng ký">
-          <span aria-hidden="true">🐾</span> Khách hàng (Pet Parent)
+          <span aria-hidden="true">🐾</span> {intent === 'PET_SITTER' ? 'Xác minh email trước khi hoàn tất hồ sơ ứng tuyển. Quyền Pet Sitter chỉ được cấp sau khi hồ sơ được duyệt.' : 'Khách hàng (Pet Parent)'}
         </div>
       </header>
 
-      <form className="registration-form" noValidate onSubmit={submitRegistration}>
+      <form className="registration-form" noValidate onSubmit={phase === 'details' ? continueRegistration : phase === 'verification' ? event => { event.preventDefault(); requestOtp(); } : submitRegistration}>
         <div className="registration-field">
           <label htmlFor="registration-name">Họ và tên của bạn</label>
           <input ref={nameRef} id="registration-name" name="displayName" autoComplete="name" required
@@ -236,13 +251,13 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
         </div>
 
         <fieldset className="registration-contact-fieldset">
-          <legend>Phương thức nhận mã OTP</legend>
-          <div className="registration-contact-options">
+          <legend>{phase === 'details' ? 'Email đăng ký' : 'Chọn phương thức xác thực'}</legend>
+          {phase !== 'details' && <div className="registration-contact-options">
             <label><input type="radio" name="channel" value="EMAIL" checked={channel === 'EMAIL'}
               disabled={Boolean(challenge)} onChange={() => changeChannel('EMAIL')} /> Email</label>
-            <label><input type="radio" name="channel" value="PHONE" checked={channel === 'PHONE'}
-              disabled={Boolean(challenge)} onChange={() => changeChannel('PHONE')} /> Số điện thoại</label>
-          </div>
+            <label><input type="radio" name="channel" value="PHONE"
+              disabled checked={false} /> SMS — chưa khả dụng</label>
+          </div>}
           <input ref={contactRef} id="registration-contact" name="contact" type={contactType}
             autoComplete={channel === 'EMAIL' ? 'email' : 'tel'} inputMode={channel === 'PHONE' ? 'tel' : undefined}
             value={contact} readOnly={Boolean(challenge)} placeholder={channel === 'EMAIL' ? 'hello@pawworld.com' : '+84 912 345 678'}
@@ -254,11 +269,11 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
             {channel === 'EMAIL' ? 'Mã sẽ được gửi đến email này.' : 'Nhập số Việt Nam hoặc số quốc tế có mã vùng.'}
           </span>}
           {challenge && <button className="registration-text-button" type="button" onClick={() => {
-            setChallenge(null); setCode(''); clearNotice();
+            setChallenge(null); setCode(''); setPhase('details'); clearNotice();
           }}>Thay đổi thông tin liên hệ</button>}
         </fieldset>
 
-        <section className="registration-otp" aria-labelledby="registration-otp-title">
+        {phase === 'otp' && <section className="registration-otp" aria-labelledby="registration-otp-title">
           <div className="registration-otp-heading">
             <h2 id="registration-otp-title">Mã xác thực OTP (6 chữ số)</h2>
             {sameChallenge && <span className="registration-countdown" aria-label={`Mã còn hiệu lực ${formatTimer(secondsRemaining)}`}>
@@ -281,7 +296,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
           </span>}
           {errors.challenge && <span className="registration-field-error" role="alert">{errors.challenge}</span>}
           {secondsRemaining <= 0 && sameChallenge && <span className="registration-hint">Mã đã hết hạn. Bạn có thể yêu cầu mã mới.</span>}
-        </section>
+        </section>}
 
         <div className="registration-consent">
           <input ref={agreementRef} id="registration-agreement" type="checkbox" checked={agreement} disabled={!policies.ready}
@@ -299,7 +314,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi }) {
         </div>}
 
         <button className="registration-submit" type="submit" disabled={busy || !policies.ready} aria-busy={busy}>
-          {busy ? 'Đang xác minh…' : 'Đăng ký tài khoản Khách hàng'} <span aria-hidden="true">→</span>
+          {busy ? 'Đang xử lý…' : phase === 'details' ? 'Đăng ký' : phase === 'verification' ? 'Gửi mã OTP qua email' : 'Xác thực & hoàn tất đăng ký'} <span aria-hidden="true">→</span>
         </button>
       </form>
 
