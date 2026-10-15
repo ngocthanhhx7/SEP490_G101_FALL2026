@@ -21,6 +21,14 @@ import { SitterApplicationsPage } from '../pages/admin/SitterApplicationsPage.js
 import { SitterApplicationReviewPage } from '../pages/admin/SitterApplicationReviewPage.jsx';
 import { CustomerAddressesPage } from '../pages/customer/CustomerAddressesPage.jsx';
 import { SitterAvailabilityPage } from '../pages/sitter/SitterAvailabilityPage.jsx';
+import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.jsx';
+import { AdminPayrollPage } from '../pages/admin/AdminPayrollPage.jsx';
+import { CustomerDashboardPage } from '../pages/customer/CustomerDashboardPage.jsx';
+import { SitterListPage } from '../pages/customer/SitterListPage.jsx';
+import { SitterDashboardPage } from '../pages/sitter/SitterDashboardPage.jsx';
+import { SitterEarningsPage } from '../pages/sitter/SitterEarningsPage.jsx';
+import { SitterProfilePage } from '../pages/sitter/SitterProfilePage.jsx';
+import { StaffDashboardPage } from '../pages/staff/StaffDashboardPage.jsx';
 import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
@@ -28,13 +36,16 @@ import { applicationStatusApi } from '../services/application-status-api.js';
 
 const navigationByRole = {
   ADMIN: [
+    ['Dashboard', '/admin/dashboard'], ['Payroll', '/admin/payroll'], ['Sitter list', '/admin/sitters'],
     ['Tài khoản', '/account'], ['Người dùng', '/admin/users'], ['Dịch vụ', '/admin/services'],
     ['Giá dịch vụ', '/admin/service-prices'], ['Cấu hình', '/admin/system-settings'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
   ],
-  CUSTOMER: [['Tài khoản', '/account'], ['Hồ sơ', '/account/profile'], ['Địa chỉ', '/account/addresses']],
-  PET_SITTER: [['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability']],
-  STAFF: [['Tài khoản', '/account']],
+  CUSTOMER: [['Dashboard', '/customer'], ['Sitter list', '/sitters'], ['Tài khoản', '/account'],
+    ['Hồ sơ', '/account/profile'], ['Địa chỉ', '/account/addresses']],
+  PET_SITTER: [['Dashboard', '/sitter'], ['Profile', '/sitter/profile'], ['Earnings', '/sitter/earnings'],
+    ['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability']],
+  STAFF: [['Dashboard', '/staff'], ['Sitter list', '/staff/sitters'], ['Tài khoản', '/account']],
 };
 Object.values(navigationByRole).forEach((items) => {
   items.splice(1, 0, ['Cài đặt', '/account/settings']);
@@ -54,6 +65,9 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
   return <Routes>
     <Route element={<RequireSession roles={['ADMIN']} />}>
       <Route element={<Workspace role="ADMIN" />}>
+        <Route path="admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="admin/payroll" element={<AdminPayrollPage />} />
+        <Route path="admin/sitters" element={<SitterListPage />} />
         <Route path="admin/users" element={<AdminUsersPage />} />
         <Route path="admin/services" element={<AdminServicesPage />} />
         <Route path="admin/service-prices" element={<AdminServicePricesPage />} />
@@ -70,13 +84,24 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
     </Route>
     <Route element={<RequireSession roles={['CUSTOMER']} />}>
       <Route element={<Workspace role="CUSTOMER" />}>
+        <Route path="customer" element={<CustomerDashboardPage />} />
+        <Route path="sitters" element={<SitterListPage />} />
         <Route path="account/profile" element={<CustomerProfilePage />} />
         <Route path="account/addresses" element={<CustomerAddressesPage />} />
       </Route>
     </Route>
     <Route element={<RequireSession roles={['PET_SITTER']} />}>
       <Route element={<Workspace role="PET_SITTER" />}>
+        <Route path="sitter" element={<SitterDashboardPage />} />
+        <Route path="sitter/profile" element={<SitterProfilePage />} />
+        <Route path="sitter/earnings" element={<SitterEarningsPage />} />
         <Route path="sitter/availability" element={<SitterAvailabilityPage />} />
+      </Route>
+    </Route>
+    <Route element={<RequireSession roles={['STAFF']} />}>
+      <Route element={<Workspace role="STAFF" />}>
+        <Route path="staff" element={<StaffDashboardPage />} />
+        <Route path="staff/sitters" element={<SitterListPage />} />
       </Route>
     </Route>
     <Route element={<PublicSiteLayout />}>

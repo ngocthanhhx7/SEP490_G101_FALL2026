@@ -1,7 +1,8 @@
 # P28 read projection integration proposal
 
 Status: **INTEGRATION_PENDING**, DTO proposal for P01/P34 review, 15 October 2026.
-No runtime registry, schema, package manifest or global component is changed.
+The P28 runtime read module and frontend role routes are now composed, but source
+repositories remain explicitly pending until the P01/P41/P20 adapters are supplied.
 
 | WBS | Factory service / router prefix | GET under /api/v1 | Allowed roles | Page export |
 | --- | --- | --- | --- | --- |
@@ -19,9 +20,11 @@ Files are `backend/src/services/dashboards/<kind>.service.js` and
 and `createEarningsRouter({ service, sessionPort })`. See the
 [repository port contract](../../backend/src/services/dashboards/README.md) and
 [page composition guide](../../frontend/src/pages/dashboards/README.md).
-P34 must register these routers below the existing `/api/v1` error/session conventions,
-without replacing the independent P41 settlement command router. All responses are
-private/no-store. These exports are currently unmounted in production.
+`dashboardReadRuntimeModule` registers these routers below the existing `/api/v1`
+error/session conventions when authentication is enabled, without replacing the
+independent P41 settlement command router. All responses are private/no-store. A
+missing repository still returns HTTP 202 with null data and `INTEGRATION_PENDING`;
+runtime registration is not evidence that a persistent source is available.
 
 Success uses `{ data: { kind, asOf, sourceVersion, timeZone, metrics, items, nextCursor }, meta }`.
 Metrics are allowlisted `{ key, label, value, currency? }`, integer nonnegative counts/VND.
@@ -59,11 +62,11 @@ are not approved by this proposal. Payroll items expose request id, sitter displ
 state, amountVnd, requestWeekKey and optional transferRecordedAt; bank data is omitted.
 Approved explicitly does not mean Paid. P28 never creates a payout or settlement request.
 
-UI: P34 mounts the eight pages inside existing P48 `RoleDashboardLayout` and supplies
-role-specific navigation. Suggested paths are documented in the page guide. Registration
-must happen with P34's application registry change, not by overwriting its current work.
-Until real repositories and routes are composed, preview fixtures prove rendering only.
+UI: the eight pages are mounted inside the existing P48 `RoleDashboardLayout` with
+role-specific navigation in `frontend/src/routes/AppRoutes.jsx`. The backend runtime
+module and these routes are composition points; preview fixtures still only prove
+rendering, and real repositories are required for non-pending responses.
 
 Open gates: P01 read DTO approval; P20/P24/P27/P30/P31/P41 persistent read adapters;
 FIN-07-ELIG/POSTPAY for financial eligibility, FIN-08-EDIT for related settlement commands;
-P34 route/navigation wiring; current Figma frames. Existing P04/P48 components are reused.
+P34/P01 source composition; current Figma frames. Existing P04/P48 components are reused.

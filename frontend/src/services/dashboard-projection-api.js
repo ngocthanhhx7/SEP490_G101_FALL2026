@@ -2,13 +2,15 @@ import { ApiError, createApiClient } from './api-client.js';
 
 const validDate = value => typeof value === 'string' && /Z$|[+-]\d{2}:\d{2}$/.test(value) && Number.isFinite(Date.parse(value));
 const amount = value => Number.isSafeInteger(value) && value >= 0;
+const identifier = value => typeof value === 'string'
+  && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(value);
 function validRow(row, kind) {
-  if (!row || !/^[a-f0-9]{24}$/.test(row.id ?? '')) return false;
+  if (!row || !identifier(row.id)) return false;
   if (['startsAt', 'completedAt', 'transferRecordedAt'].some(key => row[key] !== undefined && row[key] !== null && !validDate(row[key]))) return false;
   if (['sitter-profile', 'sitter-list'].includes(kind)) return typeof row.displayName === 'string'
     && typeof row.bio === 'string' && Array.isArray(row.areas) && row.areas.every(area => typeof area === 'string')
     && amount(row.reviewCount) && (row.reviewCount === 0 ? row.rating === null : Number.isFinite(row.rating) && row.rating >= 1 && row.rating <= 5);
-  if (kind === 'earnings') return /^[a-f0-9]{24}$/.test(row.visitId ?? '') && validDate(row.completedAt)
+  if (kind === 'earnings') return identifier(row.visitId) && validDate(row.completedAt)
     && ['accrued', 'pending', 'available', 'held', 'reserved', 'paid'].every(key => amount(row[key]))
     && typeof row.explanation === 'string' && typeof row.ledgerReference === 'string';
   if (kind === 'payroll') return amount(row.amountVnd) && typeof row.requestWeekKey === 'string' && typeof row.state === 'string';
@@ -25,7 +27,7 @@ export function createProjectionApi({ path, kind, request, target = false }) {
   return Object.freeze({ async read({ signal, targetId, ...query } = {}) {
     if (Object.keys(query).some(key => !['from', 'to', 'search', 'cursor', 'limit'].includes(key))
       || Object.values(query).some(value => typeof value !== 'string' && typeof value !== 'number')) throw new ApiError('INVALID_FILTER', 422);
-    if (target && !/^[a-f0-9]{24}$/.test(targetId ?? '')) throw new ApiError('INVALID_RESOURCE_ID', 422);
+    if (target && !identifier(targetId)) throw new ApiError('INVALID_RESOURCE_ID', 422);
     const params = new globalThis.URLSearchParams();
     for (const [key, value] of Object.entries(query)) if (value !== '') params.set(key, String(value));
     const result = await send(`${target ? path.replace(':sitterId', targetId) : path}?${params}`, { signal });

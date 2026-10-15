@@ -9,7 +9,7 @@ P01 API permissions, P51 v1 financial contract and P04/P48 brand/layout exports.
 Private implementation prompts and team credential/role maps remain local.
 No Drive reports or diagrams were modified or copied into the repository.
 
-The eight role/page entry points, source projection services, export-only HTTP routers,
+The eight role/page entry points, source projection services, runtime HTTP routers,
 and same-origin API adapters are implemented. Ownership is derived from authenticated
 sessions and checked again for personal visit/earning/profile records. Admin inherits
 Staff dashboard access but cannot read personal sitter/customer endpoints without that
@@ -30,13 +30,13 @@ Authorship and publication identities are verified using the local helper per ac
 
 | Check | Actual result |
 | --- | --- |
-| Backend npm run lint | PASS |
-| Backend npm test -- --selectProjects unit --testMatch '**/tests/unit/**/*.test.js' | 52 suites, 488 tests PASS (57 P28) |
-| Backend npm test -- --selectProjects integration --testMatch '**/tests/integration/p28-*.test.js' | 1 suite, 9 tests PASS; real Express, synthetic sessions, no DB/provider |
+| Backend npm run lint | PASS after runtime registry, settlement enum and identifier-contract changes |
+| Backend npm test -- --selectProjects unit --testMatch '**/tests/unit/**/*.test.js' | 57 suites, 511 tests PASS (including P28) |
+| Backend npm test -- --selectProjects integration --testMatch '**/tests/integration/p28-*.test.js' | 2 suites, 11 tests PASS; real Express, synthetic sessions, no DB/provider |
 | Frontend npm run lint | PASS |
 | Frontend npm test | 55 suites PASS, 1 suite FAIL; 400 tests PASS, 1 FAIL |
 | P28 frontend tests within that run | 3 suites, 24 tests PASS |
-| Frontend npm run build | PASS for existing runtime entry; P28 awaits route registration |
+| Frontend npm run build | PASS for existing runtime entry; role routes are now composed in `AppRoutes.jsx` |
 | Browser fixture | Four role dashboards, earnings and payroll rendered in 360px iframe; client/scroll widths both 345px after vertical scrollbar, no horizontal overflow |
 | P48 drawer in fixture | Open button works; Escape closes and restores focus to trigger |
 
@@ -68,9 +68,10 @@ and production end-to-end checks were not performed.
 No real Mongo/ledger/provider flow was verified. P41's persistent repository, P27 care
 projection, P30 rating moderation and P20/P24 operational read adapters need composition.
 FIN-07 eligibility/commission and post-payout details remain open; P28 does not resolve
-them. Route registration/navigation belongs to P34 and is described in the
-[integration proposal](../api/p28-read-projections.md). No shared registry, manifest,
-model, global token or concurrent workspace edits are overwritten.
+them. The runtime read module mounts all eight paths and the frontend role navigation
+points to their pages, but missing repositories still return pending. P34/P01 must
+supply the persistent source composition described in the [integration proposal](../api/p28-read-projections.md).
+No shared manifest, model, global token or concurrent workspace edits are overwritten.
 
 Full task acceptance, APPROVE and merge remain blocked by these integration/decision
 gates and the existing failing frontend test. Preserve the draft until they are resolved;

@@ -1,7 +1,11 @@
 import { AppError } from '../../utils/app-error.js';
 import { hasRole } from '../../middlewares/session.js';
 
-export const ID = /^[a-f0-9]{24}$/;
+// P41 settlement identifiers are opaque strings (for example UUID earning ids),
+// while user ids normally serialize as Mongo ObjectIds. Keep one bounded
+// identifier contract at this read boundary instead of assuming every source
+// uses a 24 character ObjectId.
+export const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 export const fail = (status, code) => { throw new AppError(status, code, code); };
 export const text = (value, max = 200) => typeof value === 'string' && value.length <= max;
 export function integer(value) {
