@@ -40,7 +40,9 @@ Frontend targeted Jest: 3 passing cases (pending, decision/quota, timeout key re
 Frontend lint and Vite build passed. Build checks the registered application;
 new page JSX is covered by its Jest import, not registered in runtime yet.
 No Mongo concurrency test or end-to-end money/provider verification was performed.
-Responsive CSS uses auto-fit panels and 44px controls; real 360px/browser keyboard/
+A local synthetic browser harness verified 360px frame layout without horizontal
+overflow (345px usable content with scrollbar), Space checkbox selection and
+Tab/Enter submit reaching FIXTURE_ONLY error. CSS uses auto-fit panels and 44px controls; device
 touch verification and Figma fidelity remain pending. Existing P04 tokens are
 provisional, not a verified Figma specification.
 
