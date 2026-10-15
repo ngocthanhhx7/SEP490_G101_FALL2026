@@ -31,4 +31,4 @@ Chưa thực hiện provider delivery, staging/load, thiết bị thật, Figma 
 
 ## Git và attribution
 
-Workspace đang ở nhánh `feature/p36-a-system-security-performance-and-mobile-qa`, HEAD `9dfe6ed`, có nhiều thay đổi chưa commit ngoài P37. Vì vậy P37 handoff chỉ ghi nhận diff tài liệu; chưa commit, push, PR, approval hoặc merge để tránh trộn công việc. Khi tách nhánh theo bảng P37-D, owner thực tế phải dùng account đã xác minh; reviewer độc lập approve head cuối; Leader mới merge vào `develop`.
+P37-D được cô lập trong worktree và nhánh eature/p37-d-project-plan-wbs-and-source-management-synchronization; các thay đổi ngoài phạm vi P37 trong workspace P36 vẫn được giữ nguyên. Trạng thái commit, review và merge được xác nhận trên PR #79; phần handoff này không suy diễn approval hoặc tích hợp từ fixture. P37-A, P37-B và P37-C đã vào develop trước khi P37-D được rebase.
