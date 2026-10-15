@@ -53,14 +53,15 @@ export function createSessionService({ connection, User, models = identityModels
     return roles.some(role => role === 'STAFF' || role === 'ADMIN') ? STAFF_SESSION_MS : CUSTOMER_SESSION_MS;
   }
 
-  async function issueInTransaction(user, mongoSession) {
+  async function issueInTransaction(user, mongoSession, { rememberDevice } = {}) {
     if (!user || user.state !== 'ACTIVE' || user.synthetic === true) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     }
-    const duration = sessionDuration(user.roles);
+    const baseDuration = sessionDuration(user.roles);
+    const duration = rememberDevice === false ? Math.min(baseDuration, STAFF_SESSION_MS) : baseDuration;
     const now = clock();
     const token = randomBytesImpl(32).toString('base64url');
-    const csrfToken = randomBytesImpl(32).toString('base64url');
+    const csrfToken = digest(csrfKey, token, 'csrf-session');
     const sessionId = randomUUID();
     const expiresAt = new Date(now + duration);
     await models.AuthSession.create([{
@@ -146,11 +147,30 @@ export function createSessionService({ connection, User, models = identityModels
     return result.modifiedCount;
   }
 
-  function setCookie(res, issued, { secure = true } = {}) {
+  function setCookie(res, issued, { secure = true, persistent = true } = {}) {
     res.cookie(SESSION_COOKIE, issued.token, {
       httpOnly: true, secure, sameSite: 'lax', path: '/',
-      maxAge: issued.maxAge
+      ...(persistent ? { maxAge: issued.maxAge } : {})
     });
+  }
+
+  async function resumeCsrf(req, auth) {
+    const token = readCookie(req);
+    if (!token || !auth?.sessionId || !Types.ObjectId.isValid(auth.userId)) {
+      throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    }
+    const csrfToken = digest(csrfKey, token, 'csrf-session');
+    const filter = { sessionId: auth.sessionId, userId: new Types.ObjectId(auth.userId),
+      tokenDigest: digest(sessionKey, token, 'session'), revokedAt: null, expiresAt: { $gt: new Date(clock()) } };
+    const stored = await models.AuthSession.findOne(filter).select('+csrfDigest').lean();
+    if (!stored) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    const csrfDigest = digest(csrfKey, csrfToken, 'csrf');
+    // Older sessions used random CSRF tokens. Migrate once; normal GET /me stays read-only.
+    if (!equalDigest(stored.csrfDigest, csrfDigest)) {
+      const result = await models.AuthSession.updateOne(filter, { $set: { csrfDigest } });
+      if (!result.matchedCount) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    }
+    return csrfToken;
   }
 
   function clearCookie(res, { secure = true } = {}) {
@@ -159,7 +179,7 @@ export function createSessionService({ connection, User, models = identityModels
 
   return Object.freeze({
     authenticate, getCurrentUser, verifyCsrf, issueInTransaction, revoke, revokeUserSessions,
-    setCookie, clearCookie, cookieName: SESSION_COOKIE
+    setCookie, clearCookie, resumeCsrf, cookieName: SESSION_COOKIE
   });
 }
 

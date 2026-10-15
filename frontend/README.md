@@ -69,3 +69,8 @@ P04 adds [tokens and usage](../doc/ui-ux/p04-brand-design-system.md), shared UI 
 The `/sitter/availability` page remains explicitly pending without its real API adapter; mounting a route does not prove backend/provider integration. P34 is an iterative integration task; this policy/route mini-gate is not final project acceptance.
 
 P34 now hosts the merged P48 role shell for account and registered Admin/Customer/Sitter pages. Sidebar links point only to registered routes; public pages keep FoundationLayout. The shared shell does not grant server permissions or invent notification destinations.
+
+
+## Đăng ký email và phiên ghi nhớ
+
+Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp nhận hồ sơ](../doc/testing/p34-registration-email-and-session.md). Đăng ký/đăng nhập hiện chỉ dùng OTP email; không bật SMS. Tùy chọn ghi nhớ dành cho Customer/Pet Sitter tối đa 30 ngày; đăng xuất thu hồi phiên phía server.
