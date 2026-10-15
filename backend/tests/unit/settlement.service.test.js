@@ -119,3 +119,18 @@ test('read projection refuses foreign records and strips private metadata', asyn
   projection.earnings[0].sitterId = 'someone-else';
   await expect(f.service.readOwn({ actor: sitter })).rejects.toMatchObject({ code: 'LEDGER_SCOPE_INVALID' });
 });
+
+test('read projection preserves non-available earning buckets and rejects malformed money', async () => {
+  const f = fixture();
+  const projection = { balances: { accrued: 1000, pending: 100, held: 200, available: 300, reserved: 150, paid: 250 },
+    earnings: [{ id: 'held-earning', sitterId: sitter.userId, earningPeriodKey: '2026-10-12',
+      accruedVnd: 1000, pendingVnd: 100, heldVnd: 200, availableVnd: 300, reservedVnd: 150, paidVnd: 250,
+      visitId: 'visit-1' }], requests: [], quotaUsed: false, decisionIds: [] };
+  f.repository.readOwn = async () => projection;
+  const result = await f.service.readOwn({ actor: sitter });
+  expect(result.balances).toMatchObject({ pending: 100, held: 200, reserved: 150, paid: 250 });
+  expect(result.earnings[0]).toMatchObject({ id: 'held-earning', visitId: 'visit-1', pendingVnd: 100,
+    heldVnd: 200, availableVnd: 300, reservedVnd: 150, paidVnd: 250 });
+  projection.earnings[0].heldVnd = -1;
+  await expect(f.service.readOwn({ actor: sitter })).rejects.toMatchObject({ code: 'LEDGER_UNAVAILABLE' });
+});

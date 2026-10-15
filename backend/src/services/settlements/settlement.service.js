@@ -89,6 +89,9 @@ export function createSettlementService({ unitOfWork, repository, policy, clock 
       }
       if (projection.requests.some(row => row.sitterId !== actor.userId)
         || projection.earnings.some(row => row.sitterId !== actor.userId)) fail(503, 'LEDGER_SCOPE_INVALID');
+      const earningMoneyFields = ['accruedVnd', 'pendingVnd', 'heldVnd', 'availableVnd', 'reservedVnd', 'paidVnd'];
+      if (projection.earnings.some(row => earningMoneyFields.some(field => row[field] !== undefined
+        && (!Number.isSafeInteger(row[field]) || row[field] < 0)))) fail(503, 'LEDGER_UNAVAILABLE');
       return { balances, earnings: projection.earnings.map(row => ({ id: row.id,
         earningPeriodKey: row.earningPeriodKey, availableVnd: row.availableVnd,
         ...(row.visitId ? { visitId: row.visitId } : {}),

@@ -50,7 +50,8 @@ export default function WeeklySettlementPage({ api = pendingSettlementApi }) {
         <legend>Khoản kiếm tiền khả dụng</legend>
         {!data.earnings.length && <p>Chưa có khoản khả dụng.</p>}
         {data.earnings.map(earning => <label key={earning.id}>
-          <input type="checkbox" checked={selected.includes(earning.id)} onChange={event => {
+          <input type="checkbox" disabled={!Number.isSafeInteger(earning.availableVnd) || earning.availableVnd <= 0}
+            checked={selected.includes(earning.id)} onChange={event => {
             command.current = null;
             setSelected(ids => event.target.checked ? [...ids, earning.id] : ids.filter(id => id !== earning.id));
           }} /> {earning.earningPeriodKey}: {money(earning.availableVnd)}

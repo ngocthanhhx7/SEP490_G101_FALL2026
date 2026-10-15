@@ -19,11 +19,16 @@ Earning/FinancialLock/Evidence records, and P51 policy decisions are resolved.
 Transactions require the Mongo replica-set topology already enforced by P02;
 serial in-memory tests do not prove Mongo races or production constraints.
 
-`readOwn` must return only `{ balances: { accrued, available, reserved, paid },
-earnings: [{ id, sitterId, earningPeriodKey, availableVnd }], requests: [publicRequest],
-quotaUsed, decisionIds }`. Balances derive from immutable ledger entries, never
-from summing requests. Amounts are nonnegative safe integer VND. Return no raw
-ledger metadata, private case notes, bank details or other users' earnings.
+`readOwn` must return only `{ balances: { accrued, pending, held, available,
+reserved, paid }, earnings, requests: [publicRequest], quotaUsed, decisionIds }`.
+Each earning item is an owner-scoped row with its `id`, optional `visitId`,
+`earningPeriodKey`, and disjoint `accruedVnd`, `pendingVnd`, `heldVnd`,
+`availableVnd`, `reservedVnd`, and `paidVnd` buckets. Rows with only pending,
+held, reserved, or paid money remain visible so the sitter can distinguish an
+unavailable balance from missing data; only positive available rows are eligible
+for a new request. Balances derive from immutable ledger entries, never from
+summing requests. Amounts are nonnegative safe integer VND. Return no raw ledger
+metadata, private case notes, bank details or other users' earnings.
 
 Missing/unresolved policy fails with DECISION_REQUIRED. FIN-07-ELIG defines
 earning/holds; FIN-07-POSTPAY defines post-payout refund adjustments; FIN-08-EDIT

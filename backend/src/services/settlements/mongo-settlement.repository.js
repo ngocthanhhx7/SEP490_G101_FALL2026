@@ -17,6 +17,12 @@ function asDate(value, field = 'date') {
 function safeAmount(value) {
   return Number.isSafeInteger(value) && value >= 0;
 }
+function earningBucketsReady(row) {
+  return Object.values(BUCKET_TO_FIELD).every(field => safeAmount(row[field]));
+}
+function hasEarningBalance(row) {
+  return settlementBucketNames.some(bucket => row[BUCKET_TO_FIELD[bucket]] > 0);
+}
 function requestView(row) {
   const source = plain(row);
   return { ...source, id: source.id, submittedAt: source.submittedAt instanceof Date
@@ -178,6 +184,10 @@ export function createMongoSettlementRepository({ connection, models = settlemen
   async function readOwn({ sitterId, requestWeekKey }) {
     const earningRows = await earnings.find({ sitterId }).sort({ earningPeriodKey: -1, earningId: 1 }).lean().exec();
     const ledgerRows = await ledger.find({ sitterId }).sort({ occurredAt: 1, lineId: 1 }).lean().exec();
+    // A sitter read must expose every real bucket (pending/held/reserved/paid as
+    // well as available). Invalid persisted money is an unavailable projection,
+    // never a reason to silently omit an earning or replace it with zeroes.
+    if (earningRows.some(row => !earningBucketsReady(row))) return { ledgerReady: false };
     const totals = Object.fromEntries(settlementBucketNames.map(bucket => [bucket, 0]));
     for (const line of ledgerRows) {
       if (!safeAmount(line.amountVnd) || !settlementBucketNames.includes(line.toBucket)) return { ledgerReady: false };
@@ -193,7 +203,7 @@ export function createMongoSettlementRepository({ connection, models = settlemen
       balances: { accrued: settlementBucketNames.reduce((sum, bucket) => sum + totals[bucket], 0),
         pending: totals.PENDING, held: totals.HELD, available: totals.AVAILABLE,
         reserved: totals.RESERVED, paid: totals.PAID },
-      earnings: earningRows.map(mapEarning).filter(row => row.availableVnd > 0),
+      earnings: earningRows.map(mapEarning).filter(hasEarningBalance),
       requests: requestRows.map(requestView), quotaUsed: Boolean(claim), decisionIds: []
     };
   }

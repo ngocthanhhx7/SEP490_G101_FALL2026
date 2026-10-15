@@ -22,6 +22,10 @@ Leader: Nguyễn Ngọc Thành. Assignment is not approval.
   immutable ledger lines, events, and outbox rows in a replica-set transaction.
   `settlementRequestRuntimeModule` is provided for P34 registration and fails closed
   while the unresolved P51 policy decisions remain unresolved.
+- The sitter read projection keeps disjoint pending/held/available/reserved/paid
+  earning buckets, including rows that are not currently requestable; malformed
+  persisted bucket values fail closed. The page disables non-available rows so a
+  pending or held earning cannot be submitted as a new settlement request.
 
 ## Decisions and dependencies
 
@@ -40,9 +44,10 @@ The shared app composition hook now ignores a factory's deliberate `null`/
 
 ## Evidence
 
-Backend targeted Jest: 13 passing cases (Vietnam Sunday/Monday and year boundaries,
+Backend targeted Jest: 16 passing cases (Vietnam Sunday/Monday and year boundaries,
 concurrent requests on serialized transactional double, replay across week, foreign/
-held earning, rollback on ledger failure, auth and idempotency collision).
+held earning, rollback on ledger failure, auth and idempotency collision, full
+bucket projection, and malformed persisted bucket fail-closed checks).
 Frontend targeted Jest: 3 passing cases (pending, decision/quota, timeout key replay).
 Frontend lint and Vite build passed. Build checks the registered application;
 new page JSX is covered by its Jest import, not registered in runtime yet.
@@ -63,9 +68,9 @@ review/transfer in its own contributor branch, without modifying shared schema.
 
 ## Current branch verification (2026-10-15)
 
-- Live head: `9e6020b27d28d79ec0df3648af1cb8c94a06167c`; base `develop`:
+- Live head: `7351d95238d2235ee66827cdc87ceb2b3bd143e1`; base `develop`:
   `f02321e5f82ee7ad522494c0247b94209db6c1a7`.
-- Full backend Jest run on this head: **62 suites / 564 tests passed**.
+- Full backend Jest run on this head: **63 suites / 567 tests passed**.
 - GitHub reports only a Vercel Preview Comments success for this head; no CI
   workflow result or reviewer approval is inferred. The assigned reviewer remains
   `anhnhat432`, and the existing review is `COMMENTED` on an older head.
