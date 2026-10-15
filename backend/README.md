@@ -51,3 +51,14 @@ P16 keeps Sitter operational suspension separate from `User.state`, so suspensio
 P11 dùng SMTP theo lựa chọn của user. [Runbook email](../doc/deployment/p11-email-runbook.md) ghi env, kết quả nội bộ, retry và giới hạn delivery. Runtime dùng Nodemailer 10.1.1; `EMAIL_ENABLED=false` giữ provider fail-closed. P12 eSMS vẫn tắt mặc định và P34 ánh xạ `PHONE` sang channel nội bộ `SMS`. Không gọi adapter trực tiếp từ endpoint public hoặc ghi command email/OTP vào log. [Handoff P11](../doc/deployment/p11-handoff.md), [handoff P12](../doc/deployment/p12-handoff.md) và [P34-A status](../doc/testing/p34-a-integration-status.md) ghi các gate còn lại.
 
 P17's service catalog (WBS-019), service price (WBS-020), and system settings (WBS-021) modules are exported from their route files for P34 composition. P34 must provide the service existence, active-price, and catalog-visibility ports and register the modules; none changes app.js or the shared route registry. Service, policy, price, and setting changes use immutable effective-dated versions with an actor and audit record. Prices are nonnegative safe integer VND values; fractional values are rejected without a rounding calculation. Catalog visibility defaults to disabled. The catalog exports a booking snapshot for new bookings to copy and never updates existing bookings. Real booking integration remains pending.
+
+P42 exports `createDirectedBookingProposalService` from
+`src/services/booking-proposals/directed-booking-proposal.service.js` and the
+Customer-only `createDirectedProposalRouter` from
+`src/routes/directed-proposal.routes.js`. Proposal creation reads availability
+through an injected port and stores a pending Customer confirmation; the
+confirm command uses an expected version, idempotency key, expiry check and an
+atomic repository command before creating a pending sitter offer. The route is
+export-only so P34 can wire the real booking, payment and offer repositories;
+fixtures do not prove that integration. Multi-visit prepay must report a
+verified payment before the offer command is allowed.

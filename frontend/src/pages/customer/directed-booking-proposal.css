@@ -1,0 +1,27 @@
+.directed-proposal { max-width: 860px; margin: 0 auto; padding: 2rem 1rem 4rem; color: var(--pwc-color-ink, #27313a); }
+.directed-proposal__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; }
+.directed-proposal__eyebrow { margin: 0 0 .35rem; color: var(--pwc-color-muted, #66727d); font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.directed-proposal h1 { margin: 0; font-size: clamp(1.65rem, 4vw, 2.3rem); }
+.directed-proposal h2 { margin: 0 0 1rem; font-size: 1.1rem; }
+.directed-proposal__header p:not(.directed-proposal__eyebrow) { max-width: 58ch; margin-bottom: 0; color: var(--pwc-color-muted, #66727d); }
+.directed-proposal__state { padding: .35rem .65rem; border-radius: 999px; background: #eef5ff; color: #1c5792; font-size: .78rem; font-weight: 800; white-space: nowrap; }
+.directed-proposal__panel { margin-top: 1rem; padding: 1.25rem; border: 1px solid #dbe3e8; border-radius: 1rem; background: #fff; box-shadow: 0 8px 24px rgba(39, 49, 58, .05); }
+.directed-proposal__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem 1rem; margin: 0; }
+.directed-proposal__facts div { padding: .75rem; border-radius: .7rem; background: #f7fafb; }
+.directed-proposal__facts dt { color: #66727d; font-size: .8rem; }
+.directed-proposal__facts dd { margin: .2rem 0 0; font-weight: 700; }
+.directed-proposal__pets { margin: 1rem 0 0; }
+.directed-proposal__slots { display: grid; gap: .65rem; padding: 0; border: 0; }
+.directed-proposal__slots legend { margin-bottom: .55rem; font-weight: 700; }
+.directed-proposal__slot { display: flex; align-items: center; gap: .7rem; padding: .85rem 1rem; border: 1px solid #dbe3e8; border-radius: .7rem; cursor: pointer; }
+.directed-proposal__slot:has(input:checked) { border-color: #3c7e63; background: #f0faf5; }
+.directed-proposal__slot input { width: 1.05rem; height: 1.05rem; accent-color: #3c7e63; }
+.directed-proposal__slot span { display: grid; gap: .15rem; }
+.directed-proposal__slot small, .directed-proposal__expiry { color: #66727d; }
+.directed-proposal__expiry { margin: 1rem 0; font-size: .9rem; }
+@media (max-width: 520px) {
+  .directed-proposal { padding: 1.25rem .75rem 3rem; }
+  .directed-proposal__header { display: grid; }
+  .directed-proposal__facts { grid-template-columns: 1fr; }
+  .directed-proposal__panel { padding: 1rem; }
+}
