@@ -35,10 +35,8 @@ import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
 import { applicationStatusApi } from '../services/application-status-api.js';
-import { useMemo } from 'react';
 import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
 import { createSettlementApi } from '../services/settlement-api.js';
-import { createApiClient } from '../services/api-client.js';
 
 function SitterSettlementRoute() {
   const { getCsrfToken, user } = useSession();
