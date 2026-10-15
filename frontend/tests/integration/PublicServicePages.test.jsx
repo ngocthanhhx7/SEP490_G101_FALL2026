@@ -14,6 +14,7 @@ const services = [
     scope: 'Theo lịch đã xác nhận.', species: ['DOG'],
     price: { amountVnd: 50000, currency: 'VND', unitLabel: 'mỗi lượt' },
     policy: { version: 1, title: 'Chính sách dắt chó', body: 'Nội dung hiện hành do catalog cung cấp.', effectiveAt: '2026-10-01T00:00:00.000Z' },
+    details: { preparation: ['Chuẩn bị dây dắt phù hợp.'], exclusions: ['Không bao gồm huấn luyện.'], faq: [{ question: 'Cần chuẩn bị gì?', answer: 'Cung cấp lời dặn của bé.' }] },
   },
   {
     id: 'cat-care-1', name: 'Ghé thăm mèo tại nhà', description: 'Chăm sóc mèo trong không gian quen thuộc.',
@@ -45,6 +46,9 @@ test('service list filters catalog results by Vietnamese search and species', as
   renderAt('/services');
   expect(await screen.findByRole('heading', { name: 'Dắt chó đi dạo' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Ghé thăm mèo tại nhà' })).toBeVisible();
+  expect(screen.getByRole('img', { name: 'Người chăm sóc dắt chó đi dạo' })).toHaveAttribute('src', '/assets/figma-public/home-Image658.webp');
+  expect(screen.getAllByRole('link', { name: 'Xem chi tiết' })[0]).toHaveAttribute('href', '/services/dog-walk-1');
+  expect(screen.getByText(/50\.000.*mỗi lượt/)).toBeVisible();
 
   fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm dịch vụ' }), { target: { value: 'dắt chó' } });
   expect(screen.getByRole('heading', { name: 'Dắt chó đi dạo' })).toBeVisible();
@@ -56,13 +60,26 @@ test('service list filters catalog results by Vietnamese search and species', as
   expect(screen.getByRole('heading', { name: 'Ghé thăm mèo tại nhà' })).toBeVisible();
 });
 
+test('catalog query links filter published results without inventing extra services', async () => {
+  renderAt('/services?q=meo');
+  expect(await screen.findByRole('heading', { name: 'Ghé thăm mèo tại nhà' })).toBeVisible();
+  expect(screen.queryByRole('heading', { name: 'Dắt chó đi dạo' })).not.toBeInTheDocument();
+  expect(screen.getByRole('searchbox', { name: 'Tìm dịch vụ' })).toHaveValue('meo');
+  expect(screen.getByRole('link', { name: 'Liên hệ PawWorld' })).toHaveAttribute('href', '/contact');
+});
+
 test('service detail reads price and policy from the catalog and links to sign in', async () => {
   renderAt('/services/dog-walk-1');
   expect(await screen.findByRole('heading', { name: 'Dắt chó đi dạo' })).toBeVisible();
-  expect(screen.getByText(/50\.000.*mỗi lượt/)).toBeVisible();
+  expect(screen.getAllByText(/50\.000.*mỗi lượt/)).toHaveLength(2);
   expect(screen.getByText('Nội dung hiện hành do catalog cung cấp.')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Đặt dịch vụ này' }))
     .toHaveAttribute('href', '/sign-in?serviceId=dog-walk-1');
+  expect(screen.getByRole('heading', { name: 'Giá dịch vụ hiện hành' })).toBeVisible();
+  expect(screen.getByText('Không bao gồm huấn luyện.')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Chủ nuôi cần chuẩn bị' }));
+  expect(screen.getByText('Chuẩn bị dây dắt phù hợp.')).toBeVisible();
+  expect(screen.getByText('Cần chuẩn bị gì?')).toBeVisible();
 });
 
 test('service details return a not-found state for an unpublished service', async () => {

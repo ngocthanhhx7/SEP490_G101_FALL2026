@@ -19,7 +19,7 @@ export function AboutPage() {
       </div>
       <div className="pwc-about-intro-copy"><h1 id="pwc-about-heading">Về<br />PawWorld Care</h1>
         <p>Paw World Care kết nối người nuôi chó, mèo với dịch vụ chăm sóc thú cưng tại nhà. Khi bạn bận rộn hoặc vắng nhà, bé vẫn cần được quan tâm trong không gian quen thuộc.</p>
-        <p>Dự án hướng đến việc giúp bạn tìm dịch vụ phù hợp, đặt lịch chăm sóc và theo dõi từng lượt thực hiện — từ ghé thăm, chơi cùng bé đến dắt chó đi dạo và spa tại nhà.</p>
+        <p>Dự án hướng đến việc giúp bạn tìm dịch vụ phù hợp, đặt lịch chăm sóc và theo dõi từng lượt thực hiện — từ ghé thăm, chơi cùng bé đến dắt chó đi dạo và đưa bé đến lịch hẹn thú y.</p>
       </div>
     </section>
 

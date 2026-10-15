@@ -6,7 +6,7 @@ import { AvatarMenu } from '../common/AvatarMenu.jsx';
 const links = [
   ['Trang chủ', '/'],
   ['Câu truyện', '/#stories'],
-  ['Sản phẩm', '/services'],
+  ['Dịch vụ', '/services'],
   ['Về chúng tôi', '/about'],
   ['Liên hệ', '/contact'],
 ];
