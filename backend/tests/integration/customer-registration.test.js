@@ -90,6 +90,33 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P07 Customer registration over P06 OTP with isolated MongoDB', () => {
+  test.each([false, true])('email login rememberDevice=%s survives reload and logs out with resumed CSRF', async rememberDevice => {
+    // Keep synthetic expiry ahead of the real MongoDB TTL monitor's wall clock.
+    clockNow = Date.now() + 24 * 60 * 60 * 1000;
+    const { app } = fixture();
+    const registration = await startChallenge(app);
+    await request(app).post('/api/v1/otp-verifications').send(verificationBody(registration)).expect(200);
+    clockNow += 60000;
+    const challenge = await request(app).post('/api/v1/otp-challenges')
+      .send({ channel: 'EMAIL', contact: registration.contact, purpose: 'LOGIN' }).expect(202);
+    const login = await request(app).post('/api/v1/sessions').send({
+      challengeId: challenge.body.data.challengeId, channel: 'EMAIL', contact: registration.contact,
+      purpose: 'LOGIN', code, rememberDevice,
+    }).expect(200);
+    const cookieHeader = login.headers['set-cookie'][0];
+    if (rememberDevice) expect(cookieHeader).toMatch(/Max-Age=2592000/i);
+    else expect(cookieHeader).not.toMatch(/Max-Age|Expires=/i);
+    const headers = { Host: '127.0.0.1', Origin: 'http://127.0.0.1', Cookie: cookieHeader.split(';')[0] };
+    const resumed = await request(app).get('/api/v1/me').set(headers).expect(200);
+    expect(resumed.headers['cache-control']).toBe('private, no-store');
+    expect(resumed.body.data.csrfToken).toBe(login.body.data.csrfToken);
+    await request(app).delete('/api/v1/sessions/current').set(headers).expect(403);
+    await request(app).delete('/api/v1/sessions/current')
+      .set({ ...headers, 'X-CSRF-Token': resumed.body.data.csrfToken }).expect(204);
+    await request(app).get('/api/v1/me').set(headers).expect(401);
+    expect(await models.AuthSession.countDocuments({ revokedAt: { $ne: null } })).toBe(1);
+  });
+
   test.each([
     ['EMAIL', ' PERSON@Example.Test ', 'person@example.test'],
   ])('verifies one %s contact and creates exactly one active Customer with an HttpOnly session', async (channel, contact, canonical) => {

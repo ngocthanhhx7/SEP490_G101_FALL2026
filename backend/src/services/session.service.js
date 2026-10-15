@@ -156,12 +156,20 @@ export function createSessionService({ connection, User, models = identityModels
 
   async function resumeCsrf(req, auth) {
     const token = readCookie(req);
-    if (!token || !auth?.sessionId) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    if (!token || !auth?.sessionId || !Types.ObjectId.isValid(auth.userId)) {
+      throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    }
     const csrfToken = digest(csrfKey, token, 'csrf-session');
-    const result = await models.AuthSession.updateOne({ sessionId: auth.sessionId, userId: new Types.ObjectId(auth.userId),
-      tokenDigest: digest(sessionKey, token, 'session'), revokedAt: null, expiresAt: { $gt: new Date(clock()) } },
-    { $set: { csrfDigest: digest(csrfKey, csrfToken, 'csrf') } });
-    if (!result.matchedCount) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    const filter = { sessionId: auth.sessionId, userId: new Types.ObjectId(auth.userId),
+      tokenDigest: digest(sessionKey, token, 'session'), revokedAt: null, expiresAt: { $gt: new Date(clock()) } };
+    const stored = await models.AuthSession.findOne(filter).select('+csrfDigest').lean();
+    if (!stored) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    const csrfDigest = digest(csrfKey, csrfToken, 'csrf');
+    // Older sessions used random CSRF tokens. Migrate once; normal GET /me stays read-only.
+    if (!equalDigest(stored.csrfDigest, csrfDigest)) {
+      const result = await models.AuthSession.updateOne(filter, { $set: { csrfDigest } });
+      if (!result.matchedCount) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    }
     return csrfToken;
   }
 

@@ -30,3 +30,18 @@ Customer đăng nhập thành công hoặc mở lại `/sign-in` với phiên h�
 Các route mới `/account/pets`, `/account/pets/:petId`, `/account/bookings`, `/account/notifications` đều ở trong Customer guard. API đích chưa được runtime backend mặc định cung cấp; lỗi tải được hiển thị đúng, không báo nhầm không có dữ liệu. Lịch sử đơn hàng đọc mọi trạng thái qua `/api/v1/bookings?limit=20` và cursor; cần P01 xác nhận DTO và tích hợp backend trước khi coi là nối dữ liệu hoàn chỉnh.
 
 Frontend: lint, 420 tests (65 suites), build đạt. Bộ kiểm tra gồm Customer về Home/Admin về Account, hover mở menu với đủ URL, đăng xuất trở về trạng thái khách, và lịch sử đơn nhiều trạng thái/phân trang/lỗi API. Chưa xác minh dropdown bằng một tài khoản thật trong trình duyệt vì phiên kiểm tra hiện là guest.
+
+## Review regression checks (2026-10-15)
+
+The PR audit rejects an explicit `rememberDevice: null` instead of silently treating it as false.
+Pending session resolutions are canceled when login/logout changes the session, and late `/me`
+success/401 responses cannot replace the current in-memory CSRF token. GET `/me` reads current
+session CSRF without writing, except a one-time upgrade of a legacy random-CSRF session.
+Isolated Mongo HTTP tests exercise email login with both cookie lifetimes, reload, CSRF logout,
+revocation, legacy migration and exact expiry; delivery uses a synthetic provider.
+
+Fresh full checks after these auth fixes: backend lint and 60 suites / 556 tests PASS;
+frontend lint, 66 suites / 425 tests and Vite production build PASS (bundle >500 kB warning).
+Browser verification uses the actual header/layout components with a synthetic session;
+it is not mailbox, staging or physical-device evidence. A 360px check found the dropdown's
+left edge clipped; the mobile panel now anchors to the public header with 16px side insets.

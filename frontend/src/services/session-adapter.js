@@ -6,6 +6,7 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
   if (request !== undefined && typeof request !== 'function') throw new TypeError('An API request function is required');
   if (typeof getCsrfToken !== 'function') throw new TypeError('A CSRF token provider is required');
   let csrfToken = null;
+  let generation = 0;
   const readCsrfToken = () => csrfToken ?? getCsrfToken();
   const getRequest = () => request ?? createApiClient({ getCsrfToken: readCsrfToken });
   function mapUser(response) {
@@ -19,12 +20,18 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
   }
   return Object.freeze({
     async resolve({ signal } = {}) {
+      const current = ++generation;
       try {
         const response = await getRequest()('/me', { signal });
-        if (typeof response.data?.csrfToken === 'string' && response.data.csrfToken) csrfToken = response.data.csrfToken;
-        return { status: 'authenticated', user: mapUser(response) };
+        const user = mapUser(response);
+        if (current === generation && !signal?.aborted
+          && typeof response.data?.csrfToken === 'string' && response.data.csrfToken) csrfToken = response.data.csrfToken;
+        return { status: 'authenticated', user };
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) { csrfToken = null; return { status: 'guest' }; }
+        if (error instanceof ApiError && error.status === 401) {
+          if (current === generation && !signal?.aborted) csrfToken = null;
+          return { status: 'guest' };
+        }
         throw error;
       }
     },
@@ -36,6 +43,7 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
       return response.data;
     },
     async login({ challengeId, channel, contact, code, rememberDevice } = {}) {
+      const current = ++generation;
       const response = await getRequest()('/sessions', {
         method: 'POST', body: { challengeId, channel, contact, purpose: 'LOGIN', code,
           ...(rememberDevice !== undefined ? { rememberDevice } : {}) }, csrfBootstrap: true
@@ -45,10 +53,11 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
       if (typeof response.data.csrfToken !== 'string' || !response.data.csrfToken) {
         throw new ApiError('INVALID_RESPONSE', response.status);
       }
-      csrfToken = response.data.csrfToken;
+      if (current === generation) csrfToken = response.data.csrfToken;
       return { status: 'authenticated', user };
     },
     async logout() {
+      ++generation;
       await getRequest()('/sessions/current', { method: 'DELETE' });
       csrfToken = null;
     }

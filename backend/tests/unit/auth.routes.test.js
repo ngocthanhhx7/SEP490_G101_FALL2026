@@ -50,6 +50,7 @@ describe('auth route module HTTP contract', () => {
     expect(otpService.begin).not.toHaveBeenCalled();
     const body = { challengeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '123456' };
     await request(server).post('/api/v1/sessions').send({ ...body, rememberDevice: 'true' }).expect(422);
+    await request(server).post('/api/v1/sessions').send({ ...body, rememberDevice: null }).expect(422);
     expect(otpService.verify).not.toHaveBeenCalled();
     await request(server).post('/api/v1/sessions').send({ ...body, rememberDevice: true }).expect(200);
     expect(otpService.verify).toHaveBeenCalledWith({ ...body, rememberDevice: true });

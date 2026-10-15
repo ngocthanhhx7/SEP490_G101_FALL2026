@@ -357,3 +357,24 @@ test.each([['CUSTOMER',true,30*24],['PET_SITTER',true,30*24],['CUSTOMER',false,1
   expect(await sessionService.authenticate(req)).toBe(null);
   await expect(sessionService.resumeCsrf(req,auth)).rejects.toMatchObject({status:401});
 });
+
+test('CSRF resume migrates legacy sessions once and rejects expiry and mismatched cookies', async () => {
+  const { user } = await createActiveUser();
+  const { sessionService } = fixture();
+  const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session, { rememberDevice: false }));
+  const req = { headers: { cookie: `pwc_session=${issued.token}` } };
+  const auth = await sessionService.authenticate(req);
+  await models.AuthSession.updateOne({ sessionId: issued.sessionId }, { $set: { csrfDigest: 'a'.repeat(64) } });
+  const update = jest.spyOn(models.AuthSession, 'updateOne');
+  try {
+    const token = await sessionService.resumeCsrf(req, auth);
+    expect(await sessionService.verifyCsrf(auth, token)).toBe(true);
+    await sessionService.resumeCsrf(req, auth);
+    expect(update).toHaveBeenCalledTimes(1);
+    await expect(sessionService.resumeCsrf({ headers: { cookie: `pwc_session=${'b'.repeat(43)}` } }, auth))
+      .rejects.toMatchObject({ status: 401 });
+    clockNow = issued.expiresAt;
+    expect(await sessionService.authenticate(req)).toBeNull();
+    await expect(sessionService.resumeCsrf(req, auth)).rejects.toMatchObject({ status: 401 });
+  } finally { update.mockRestore(); }
+});

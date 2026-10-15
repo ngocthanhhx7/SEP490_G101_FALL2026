@@ -77,7 +77,7 @@ export function authModule({ otpService, sessionService, accountSettingsService,
 
   router.post('/sessions', async (req, res) => {
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? { ...req.body } : null;
-    const rememberDevice = body?.rememberDevice ?? false;
+    const rememberDevice = body && Object.hasOwn(body, 'rememberDevice') ? body.rememberDevice : false;
     if (body) delete body.rememberDevice;
     if (!hasOnlyKeys(body, VERIFICATION_KEYS) || body.purpose !== 'LOGIN' || typeof rememberDevice !== 'boolean') {
       return respond(res, req, 422, { code: 'VALIDATION_FAILED', message: 'Session request is invalid' });
