@@ -61,6 +61,16 @@ export function createReviewRouter({ service, sessionPort, sessionService, allow
     return send(res, req, result, result?.pending ? 202 : 201);
   });
 
+  router.post('/sitter/visits/:visitId', requireRoles('PET_SITTER'), csrf, async (req, res) => {
+    if (typeof service.rateCustomer !== 'function' && typeof service.rateSitter !== 'function') {
+      throw new AppError(503, 'REVIEW_UNAVAILABLE', 'Sitter rating is unavailable');
+    }
+    const input = body(req, ['expectedVersion', 'rating', 'comment', 'feedback', 'tags']);
+    const rate = service.rateCustomer ?? service.rateSitter;
+    const result = await rate({ ...input, actor: req.auth, visitId: req.params.visitId, idempotencyKey: req.get('Idempotency-Key') });
+    return send(res, req, result, result?.pending ? 202 : 201);
+  });
+
   router.get('/:reviewId', requireRoles('CUSTOMER', 'STAFF'), async (req, res) => {
     if (typeof service.get !== 'function') throw new AppError(503, 'REVIEW_UNAVAILABLE', 'Review read is unavailable');
     return send(res, req, await service.get({ actor: req.auth, reviewId: req.params.reviewId }));

@@ -3,7 +3,7 @@ import { hasRole } from '../../middlewares/session.js';
 import { AppError } from '../../utils/app-error.js';
 
 export const REVIEW_STATES = Object.freeze(['SUBMITTED', 'PUBLISHED', 'WITHHELD']);
-export const REVIEW_DIRECTIONS = Object.freeze(['CUSTOMER_TO_SITTER']);
+export const REVIEW_DIRECTIONS = Object.freeze(['CUSTOMER_TO_SITTER', 'SITTER_TO_CUSTOMER']);
 export const REVIEW_RATINGS = Object.freeze([1, 2, 3, 4, 5]);
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,128}$/;
