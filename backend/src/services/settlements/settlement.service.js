@@ -18,9 +18,18 @@ export function text(value, max = 128) {
 }
 
 export function publicRequest(row) {
-  return { id: row.id, sitterId: row.sitterId, requestWeekKey: row.requestWeekKey,
+  const result = { id: row.id, sitterId: row.sitterId, requestWeekKey: row.requestWeekKey,
     amountVnd: row.amountVnd, currency: 'VND', status: row.status, version: row.version,
     submittedAt: row.submittedAt };
+  if (Array.isArray(row.earningIds)) result.earningIds = [...row.earningIds];
+  if (Array.isArray(row.earningSnapshots)) result.perVisit = row.earningSnapshots.map(snapshot => ({
+    earningId: snapshot.earningId, visitId: snapshot.visitId ?? null,
+    earningPeriodKey: snapshot.earningPeriodKey, amountVnd: snapshot.amountVnd,
+    pendingVnd: snapshot.pendingVnd ?? 0, heldVnd: snapshot.heldVnd ?? 0,
+    availableVnd: snapshot.availableVnd ?? 0, reservedVnd: snapshot.reservedVnd ?? 0,
+    paidVnd: snapshot.paidVnd ?? 0
+  }));
+  return result;
 }
 
 // policy is a trusted P51/P01 port, never request body/configured client flags.
@@ -66,19 +75,28 @@ export function createSettlementService({ unitOfWork, repository, policy, clock 
       const week = vietnamRequestWeek(now);
       // Adapter returns only an allowlisted financial projection, no bank/customer data.
       const projection = await repository.readOwn({ sitterId: actor.userId, ...week });
-      if (!projection?.balances || !Array.isArray(projection.earnings) || !Array.isArray(projection.requests)) {
+      if (!projection?.balances || !Array.isArray(projection.earnings) || !Array.isArray(projection.requests)
+        || projection.ledgerReady === false) {
         fail(503, 'LEDGER_UNAVAILABLE');
       }
       const balances = {};
-      for (const key of ['accrued', 'available', 'reserved', 'paid']) {
+      for (const key of ['accrued', 'pending', 'held', 'available', 'reserved', 'paid']) {
         const value = projection.balances[key];
+        // Older adapters may omit the new buckets; durable adapters must provide them.
+        if (value === undefined && ['pending', 'held'].includes(key)) continue;
         if (!Number.isSafeInteger(value) || value < 0) fail(503, 'LEDGER_UNAVAILABLE');
         balances[key] = value;
       }
       if (projection.requests.some(row => row.sitterId !== actor.userId)
         || projection.earnings.some(row => row.sitterId !== actor.userId)) fail(503, 'LEDGER_SCOPE_INVALID');
       return { balances, earnings: projection.earnings.map(row => ({ id: row.id,
-        earningPeriodKey: row.earningPeriodKey, availableVnd: row.availableVnd })),
+        earningPeriodKey: row.earningPeriodKey, availableVnd: row.availableVnd,
+        ...(row.visitId ? { visitId: row.visitId } : {}),
+        ...(Number.isSafeInteger(row.accruedVnd) ? { accruedVnd: row.accruedVnd } : {}),
+        ...(Number.isSafeInteger(row.pendingVnd) ? { pendingVnd: row.pendingVnd } : {}),
+        ...(Number.isSafeInteger(row.heldVnd) ? { heldVnd: row.heldVnd } : {}),
+        ...(Number.isSafeInteger(row.reservedVnd) ? { reservedVnd: row.reservedVnd } : {}),
+        ...(Number.isSafeInteger(row.paidVnd) ? { paidVnd: row.paidVnd } : {}) })),
       requests: projection.requests.map(publicRequest), quotaUsed: projection.quotaUsed === true,
       decisionIds: Array.isArray(projection.decisionIds) ? projection.decisionIds : ['FIN-07-ELIG'],
       ...week, serverNow: now.toISOString() };
@@ -102,7 +120,7 @@ export function createSettlementService({ unitOfWork, repository, policy, clock 
             fail(409, 'EARNINGS_UNAVAILABLE');
           }
           const row = await repository.create({ id: claim.id, sitterId: actor.userId, ...week,
-            earningIds: ids, amountVnd: reservation.amountVnd, currency: 'VND',
+            earningIds: ids, earningSnapshots: reservation.earnings, amountVnd: reservation.amountVnd, currency: 'VND',
             status: 'SUBMITTED', version: 0, submittedAt, ...versions }, transaction);
           await repository.appendEvent({ operationId: `settlement:${row.id}:reserve`,
             type: 'EARNING_RESERVED', requestId: row.id, earningIds: ids, amountVnd: row.amountVnd,

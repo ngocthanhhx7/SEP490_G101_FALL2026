@@ -16,6 +16,12 @@ Leader: Nguyễn Ngọc Thành. Assignment is not approval.
   [API adapter](../../frontend/src/services/settlement-api.js): ledger balances,
   selection/history, empty/error/loading/forbidden/decision-pending and uncertain
   retry retaining the same key. No successful mock fallback.
+- [Durable Mongo adapter](../../backend/src/services/settlements/mongo-settlement.repository.js)
+  and [schema](../../backend/src/models/settlement.model.js) now enforce unique
+  week/earning/command/evidence keys, conditional reservations, CAS transitions,
+  immutable ledger lines, events, and outbox rows in a replica-set transaction.
+  `settlementRequestRuntimeModule` is provided for P34 registration and fails closed
+  while the unresolved P51 policy decisions remain unresolved.
 
 ## Decisions and dependencies
 
@@ -26,8 +32,7 @@ resolver blocks writes; no commission, wallet, automatic payout or debt offset.
 After refund on already paid earnings, retain immutable history and reconciliation
 hold; do not deduct future settlement automatically. P51 must close adjustment rules.
 
-P01/P34 must supply durable repository, unique indexes, shared refund/case earning
-locks, snapshot/CAS transactions and outbox. P27/P30 supply care/case eligibility,
+P34 must register the durable runtime factory. P27/P30 supply care/case eligibility,
 P31/P32 supply verified paid/refund allocations. No synthetic fixture establishes
 these integrations. Status: INTEGRATION_PENDING / MONEY_BLOCKED_BY_DECISION.
 
@@ -40,6 +45,10 @@ Frontend targeted Jest: 3 passing cases (pending, decision/quota, timeout key re
 Frontend lint and Vite build passed. Build checks the registered application;
 new page JSX is covered by its Jest import, not registered in runtime yet.
 No Mongo concurrency test or end-to-end money/provider verification was performed.
+A local MongoDB 8.0.34 replica-set probe created the indexes, earning, reservation,
+request, ledger/event/outbox records and scoped balances; a duplicate week claim
+returned `null`. This is synthetic adapter evidence, not CI, load, or provider
+verification.
 A local synthetic browser harness verified 360px frame layout without horizontal
 overflow (345px usable content with scrollbar), Space checkbox selection and
 Tab/Enter submit reaching FIXTURE_ONLY error. CSS uses auto-fit panels and 44px controls; device

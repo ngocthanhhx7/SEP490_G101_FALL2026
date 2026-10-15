@@ -5,13 +5,18 @@ is the local Monday date, including across years. It is independent of earningPe
 `settlement.service.js` owns sitter reads and atomic request orchestration. It does
 not calculate commissions or create wallet/bank transfers.
 
-Production is INTEGRATION_PENDING. P01/P34 must implement the injected repository
-and unitOfWork with retryable transactions: unique `(sitterId, requestWeekKey)`
-claims (never deleted on rejection/withdrawal), actor/operation/key idempotency
-with fingerprint, and conditional reservation of every selected earning by its
-global earning ID. Reservation must check owner, availability, hold/refund/case
-locks and policy versions in the same transaction as state, ledger and outbox.
-Refund uses the same allocation/earning locks. All-or-nothing rollback is required;
+`mongo-settlement.repository.js` and `settlement.model.js` provide the durable
+Mongo adapter: a replica-set transaction writes the week claim, conditional
+earning reservations, immutable ledger lines, state event, outbox row and command
+result together. Unique `(sitterId, requestWeekKey)`, earning IDs, command keys,
+transfer references and evidence references are database constraints. Active
+`FinancialLock` rows are checked for both refund/case/allocation and settlement
+operations, so a stale in-memory caller cannot move a held earning.
+
+Production is still INTEGRATION_PENDING until P34 registers
+`settlementRequestRuntimeModule`, upstream P27/P30/P31/P32 producers create the
+Earning/FinancialLock/Evidence records, and P51 policy decisions are resolved.
+Transactions require the Mongo replica-set topology already enforced by P02;
 serial in-memory tests do not prove Mongo races or production constraints.
 
 `readOwn` must return only `{ balances: { accrued, available, reserved, paid },
