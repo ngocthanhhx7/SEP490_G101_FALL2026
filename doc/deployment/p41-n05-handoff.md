@@ -60,3 +60,12 @@ provisional, not a verified Figma specification.
 PR must remain draft while these financial and integration gates are open; no
 approval or merge claimed. P34 owns route/manifest changes. WBS-N06 adds Admin
 review/transfer in its own contributor branch, without modifying shared schema.
+
+## Current branch verification (2026-10-15)
+
+- Live head: `9e6020b27d28d79ec0df3648af1cb8c94a06167c`; base `develop`:
+  `f02321e5f82ee7ad522494c0247b94209db6c1a7`.
+- Full backend Jest run on this head: **62 suites / 564 tests passed**.
+- GitHub reports only a Vercel Preview Comments success for this head; no CI
+  workflow result or reviewer approval is inferred. The assigned reviewer remains
+  `anhnhat432`, and the existing review is `COMMENTED` on an older head.
