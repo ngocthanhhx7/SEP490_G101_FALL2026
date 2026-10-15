@@ -89,4 +89,4 @@ export function VisitCareInstructionsPage({ api = careInstructionsApi, visitId: 
     </section>
     <section className="visit-care__card" aria-labelledby="visit-care-history-title"><h2 id="visit-care-history-title">Lịch sử phiên bản</h2>{history.length === 0 ? <Notice state="empty" title="Chưa có lịch sử">Phiên bản đầu tiên sẽ được ghi khi bạn lưu hướng dẫn.</Notice> : <ol className="visit-care__history">{history.map(item => <li key={item.version}><strong>Phiên bản {item.version}</strong><span>{formatDate(item.updatedAt)}</span><small>{item.reason || 'Không có lý do'}</small></li>)}</ol>}</section>
   </main>;
-}\n
+}
