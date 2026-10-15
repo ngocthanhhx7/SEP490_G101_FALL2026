@@ -37,7 +37,7 @@ Authorship and publication identities are verified using the local helper per ac
 | Backend npm test -- --selectProjects unit --testMatch '**/tests/unit/**/*.test.js' | 57 suites, 511 tests PASS (including P28) |
 | Backend npm test -- --selectProjects integration --testMatch '**/tests/integration/p28-*.test.js' | 2 suites, 11 tests PASS; real Express, synthetic sessions, no DB/provider |
 | Frontend npm run lint | PASS |
-| Frontend npm test | 55 suites PASS, 1 suite FAIL; 400 tests PASS, 1 FAIL |
+| Frontend npm test | 67 suites, 437 tests PASS (the NotificationsPage fix from PR #73 is present in the current base) |
 | P28 frontend tests within that run | 3 suites, 24 tests PASS |
 | Frontend npm run build | PASS for existing runtime entry; role routes are now composed in `AppRoutes.jsx` |
 | Browser fixture | Four role dashboards, earnings and payroll rendered in 360px iframe; client/scroll widths both 345px after vertical scrollbar, no horizontal overflow |
@@ -46,10 +46,9 @@ Authorship and publication identities are verified using the local helper per ac
 Jest's configured `<rootDir>` testMatch gets an escaped `.codex` path in this managed
 Windows worktree and finds zero backend tests without the explicit relative glob shown
 above. No passWithNoTests, shared config change or skipped assertion was used.
-Frontend's existing NotificationsPage test calls its deferred resolve before the
-asynchronous loader assigns it: `TypeError: resolve is not a function`. That test,
-NotificationsPage and useApiResource are unchanged from the base. The failure reproduces
-when run alongside only P28 tests; it is not claimed fixed or passing.
+The frontend full-suite run was executed on the current PR head after the PR #73
+NotificationsPage fix was synchronized into the base. No frontend test failure is
+being carried as an open gate for this head.
 
 Negative coverage includes Guest/expired/wrong-role reads, Staff payroll denial,
 foreign-owner rows, projection scope mismatch, unknown ownership query filters, invalid
@@ -79,6 +78,6 @@ supply the persistent source composition described in the [integration proposal]
 No shared manifest, model, global token or concurrent workspace edits are overwritten.
 
 Full task acceptance, APPROVE and merge remain blocked by these integration/decision
-gates and the existing failing frontend test. Preserve the draft until they are resolved;
+gates. Preserve the draft until they are resolved;
 then rerun the relevant suites, inspect the final diff/head and request an independent
 review on that exact SHA. No CI result or approval is inferred from local checks.
