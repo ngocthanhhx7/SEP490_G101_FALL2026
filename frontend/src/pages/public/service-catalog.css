@@ -62,8 +62,14 @@
 .pwc-service-faq details { padding: 20px; background: white; border-radius: 12px; border: 1px solid #e8d9f0; margin-bottom: 12px; }
 .pwc-service-faq summary { cursor: pointer; font-weight: 800; color: #2c0050; }
 .pwc-service-faq details p { line-height: 27px; }
+.pwc-public-root .pwc-service-details-page h2 { font-size: 32px; line-height: 1.2; }
+.pwc-public-root .pwc-service-details-page .pwc-service-highlights h2 { font: 800 18px/26px Nunito,sans-serif; }
+.pwc-public-root .pwc-service-details-page .pwc-service-work-body h3 { font: 800 18px/26px Nunito,sans-serif; }
+.pwc-public-root .pwc-service-details-page .pwc-service-process h3 { font: 800 17px/25px Nunito,sans-serif; }
 @media(max-width:1000px) { .pwc-service-work-layout { grid-template-columns: 1fr; } .pwc-service-section-controls { flex-direction: row; } }
 @media(max-width:640px) {
+ .pwc-public-root .pwc-service-details-page h2 { font-size: 28px; }
+ .pwc-public-root .pwc-service-details-page .pwc-service-highlights h2 { font-size: 18px; }
  .pwc-service-details-page { padding: 24px 20px 48px; }
  .pwc-service-details-page .pwc-service-detail-hero { grid-template-columns: 1fr; gap: 24px; }
  .pwc-service-details-page .pwc-service-detail-photo { grid-column: 1; grid-row: 2; height: 300px; }
