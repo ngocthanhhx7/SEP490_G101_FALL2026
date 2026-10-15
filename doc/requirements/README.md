@@ -21,3 +21,5 @@ P51-A — Financial cancellation and settlement contracts:
 - [Hợp đồng tài chính và quyết định P51 v1.0](p51-financial-contract-v1.md): phương án đã được người dùng duyệt và chi tiết còn mở, trạng thái, tiền và quyền.
 - [Bàn giao P51](p51-handoff.md): phạm vi, dependency, checks tài liệu và gate implementation.
 - [API/events/acceptance](../api/p51-financial-api-v1.md) và [data/ledger](../database/p51-financial-ledger-v1.md): đề xuất kỹ thuật cho P01, chưa có runtime.
+
+P37-A bổ sung [crosswalk SRS/UC và trạng thái thực thi v1.0](p37-srs-uc-synchronization-v1.md). Đây là bản audit cục bộ; chưa tuyên bố nguồn Drive đã được sửa.
