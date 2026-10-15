@@ -1,8 +1,11 @@
 # P28 read projection integration proposal
 
 Status: **INTEGRATION_PENDING**, DTO proposal for P01/P34 review, 15 October 2026.
-The P28 runtime read module and frontend role routes are now composed, but source
-repositories remain explicitly pending until the P01/P41/P20 adapters are supplied.
+The P28 runtime read module and frontend role routes are now composed. A durable
+P41-backed Admin payroll reader is available when runtime Mongo/auth configuration is
+present; it remains pending until persisted settlement requests, sitter user joins and
+policy decision versions satisfy the read contract. The other source repositories remain
+explicitly pending until the P01/P41/P20 adapters are supplied.
 
 | WBS | Factory service / router prefix | GET under /api/v1 | Allowed roles | Page export |
 | --- | --- | --- | --- | --- |
@@ -61,6 +64,12 @@ Self profile rejects another sitter row. Public directory access and profile edi
 are not approved by this proposal. Payroll items expose request id, sitter display name,
 state, amountVnd, requestWeekKey and optional transferRecordedAt; bank data is omitted.
 Approved explicitly does not mean Paid. P28 never creates a payout or settlement request.
+
+The payroll adapter reads only the persisted `SettlementRequest` projection and a
+role-scoped `User.displayName` lookup. It uses the request's stored policy and decision
+versions, signs cursors to the Admin scope and filters, and returns `INTEGRATION_PENDING`
+for missing joins, mixed policies or incomplete rows. It does not create indexes, mutate
+settlements, infer a commission/tax rule, or expose transfer evidence metadata.
 
 UI: the eight pages are mounted inside the existing P48 `RoleDashboardLayout` with
 role-specific navigation in `frontend/src/routes/AppRoutes.jsx`. The backend runtime

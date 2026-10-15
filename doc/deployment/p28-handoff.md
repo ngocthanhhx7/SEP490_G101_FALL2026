@@ -10,7 +10,10 @@ Private implementation prompts and team credential/role maps remain local.
 No Drive reports or diagrams were modified or copied into the repository.
 
 The eight role/page entry points, source projection services, runtime HTTP routers,
-and same-origin API adapters are implemented. Ownership is derived from authenticated
+and same-origin API adapters are implemented. The runtime now includes a durable
+P41-backed Admin payroll read adapter when Mongo/auth configuration is available;
+it fails closed until settlement request/user source rows satisfy the DTO contract.
+Ownership is derived from authenticated
 sessions and checked again for personal visit/earning/profile records. Admin inherits
 Staff dashboard access but cannot read personal sitter/customer endpoints without that
 actual role. Staff cannot read payroll. Financial reads require an authoritative,
@@ -65,7 +68,9 @@ frontend dev script and open `/tests/manual/p28-preview.html`; query `role` and 
 select fixture cases. Physical touch-device checks, all-page desktop visual comparison
 and production end-to-end checks were not performed.
 
-No real Mongo/ledger/provider flow was verified. P41's persistent repository, P27 care
+No real Mongo/ledger/provider flow was verified. The payroll adapter has unit coverage
+for its aggregation projection, literal search, scope-bound cursor and fail-closed
+source validation, but no live P41 collection was available in this worktree. P41's persistent repository, P27 care
 projection, P30 rating moderation and P20/P24 operational read adapters need composition.
 FIN-07 eligibility/commission and post-payout details remain open; P28 does not resolve
 them. The runtime read module mounts all eight paths and the frontend role navigation

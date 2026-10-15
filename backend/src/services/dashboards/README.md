@@ -1,15 +1,21 @@
 # P28 read projections
 
 Export-only services consume a trusted `repository.readSnapshot({ scope, query })` port.
-No read model is registered in the runtime yet. P34 supplies the session port, registers
-routers under `/api/v1`, and connects repositories after P01 approves these read DTOs.
+A durable P41-backed payroll adapter is registered when the runtime has a Mongo connection
+and the auth cursor secret; it reads `SettlementRequest` rows and approved `User` display
+names. It fails closed when either collection is absent, the join is incomplete, policy
+versions are mixed, or the persisted decision version is missing. The other projections
+remain unregistered until P01/P34 supply their source adapters. Explicit repository ports
+passed by composition override the durable default.
 Each snapshot must be read atomically from its source (consistent counts and rows),
 with `{ ready, scope, sourceVersion, asOf, metrics, items, nextCursor }`. Scope is echoed
 exactly; repository queries must constrain ownership BEFORE counts, search or pagination.
 Query dates are inclusive Vietnam calendar dates; convert to [from 00:00 +07:00,
 day-after-to 00:00 +07:00). Cursors must be opaque, signed, query/scope-bound and use
 stable `(sortKey,id)` ordering; expired/foreign/filter-mismatched cursors are rejected.
-Never interpolate search into a raw regex or Mongo expression. Limit defaults to 20,
+Never interpolate search into a raw regex or Mongo expression. The payroll adapter escapes
+the bounded literal before its user lookup; a future source must provide an equivalent
+literal/indexed search contract. Limit defaults to 20,
 maximum 50. Adapters perform pagination, not an in-memory full collection scan.
 
 Missing/unready adapters return HTTP 202 with null data, never fabricated zero totals.
