@@ -38,9 +38,14 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
+  const extensionModules = moduleFactories.map(factory => factory(context))
+    // Optional runtime modules fail closed when a provider or policy is absent.
+    // Do not hand null/undefined modules to the registry, which would turn a
+    // deliberate disabled feature into an application boot failure.
+    .filter(module => module !== null && module !== undefined);
   registerModules(app, [healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...moduleFactories.map(factory => factory(context))]);
+    ...extensionModules]);
   app.use(notFound, errorHandler(logger));
   return app;
 }
