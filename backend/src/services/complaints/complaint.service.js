@@ -180,6 +180,9 @@ function safeComplaint(record, actor) {
     result.staffNotes = typeof record.privateStaffNotes === 'string' ? record.privateStaffNotes : typeof record.staffNotes === 'string' ? record.staffNotes : null;
     result.involvedActorRefs = Array.isArray(record.involvedActorRefs) ? record.involvedActorRefs.map(idOf).filter(Boolean) : [];
     result.financialHold = record.financialHold ? { state: record.financialHold.state || 'ON_HOLD', reference: idOf(record.financialHold.reference) } : null;
+  } else if (hasRole(actor?.roles, 'PET_SITTER')) {
+    delete result.objection;
+    delete result.settlement;
   }
   return result;
 }
@@ -249,6 +252,8 @@ export function createComplaintService({ repository, clock = () => new Date() } 
   function authorizeRead(actor, record, visit) {
     if (hasRole(actor.roles, 'STAFF')) return;
     if (hasRole(actor.roles, 'CUSTOMER') && customerIdOf(visit) === actor.userId) return;
+    if (hasRole(actor.roles, 'PET_SITTER') && sitterIdOf(visit) === actor.userId
+      && (!sitterIdOf(record) || sitterIdOf(record) === actor.userId)) return;
     fail(404, 'RESOURCE_NOT_FOUND', 'Complaint not found');
   }
 
@@ -336,7 +341,8 @@ export function createComplaintService({ repository, clock = () => new Date() } 
     if (!Array.isArray(rows) || rows.length > limit) fail(503, 'COMPLAINT_UNAVAILABLE', 'Complaint list response is invalid');
     const items = rows.map(row => {
       const allowed = hasRole(actor.roles, 'STAFF')
-        || (hasRole(actor.roles, 'CUSTOMER') && customerIdOf(row) === actor.userId);
+        || (hasRole(actor.roles, 'CUSTOMER') && customerIdOf(row) === actor.userId)
+        || (hasRole(actor.roles, 'PET_SITTER') && sitterIdOf(row) === actor.userId);
       if (!allowed) fail(503, 'COMPLAINT_UNAVAILABLE', 'Complaint list returned an out-of-scope record');
       const item = safeComplaint({ ...row, kind: 'COMPLAINT' }, actor);
       if (!item || (filter.state && item.state !== filter.state) || (filter.category && item.category !== filter.category)

@@ -28,7 +28,8 @@ function setup({ state = 'COMPLETED', complaint = null, now = '2026-10-15T00:00:
     lock = current.then(() => undefined, () => undefined);
     return current;
   };
-  return { data, tx, repository: { runForVisitActor: run, runForCase: run } };
+  return { data, tx, repository: { runForVisitActor: run, runForCase: run,
+    listComplaints: async () => ({ items: data.complaint ? [data.complaint] : [], nextCursor: null }) } };
 }
 
 test('submits a complaint inside the seven-day server window with private evidence IDs', async () => {
@@ -85,4 +86,22 @@ test('requires Admin for final close and hides Staff notes from Customer project
   await expect(service.decide({ actor: actor(STAFF, ['STAFF']), complaintId: CASE, expectedVersion: 2, idempotencyKey: 'complaint-key-11', summary: 'Không được' })).rejects.toMatchObject({ status: 403 });
   const customer = await service.get({ actor: actor(CUSTOMER, ['CUSTOMER']), complaintId: CASE });
   expect(customer).not.toHaveProperty('staffNotes');
+});
+
+test('allows the assigned Sitter to read related complaints and excludes Staff notes', async () => {
+  const setupData = setup({ complaint: { id: CASE, kind: 'COMPLAINT', visitId: VISIT, customerId: CUSTOMER, sitterId: SITTER,
+    state: 'UNDER_REVIEW', version: 1, category: 'PET_SAFETY', summary: 'Theo dõi', description: 'Bối cảnh',
+    evidenceRefs: [{ mediaId: 'media-1' }], privateStaffNotes: 'Chỉ Staff', objectionCount: 0 } });
+  const service = createComplaintService({ repository: setupData.repository, clock: () => setupData.data.now });
+  const sitter = await service.get({ actor: actor(SITTER, ['PET_SITTER']), complaintId: CASE });
+  expect(sitter).toMatchObject({ id: CASE, visitId: VISIT, state: 'UNDER_REVIEW', evidenceRefs: [{ mediaId: 'media-1' }] });
+  expect(sitter).not.toHaveProperty('staffNotes');
+  expect(sitter).not.toHaveProperty('settlement');
+  expect(sitter).not.toHaveProperty('objection');
+  const list = await service.list({ actor: actor(SITTER, ['PET_SITTER']) });
+  expect(list.items).toHaveLength(1);
+  expect(list.items[0]).not.toHaveProperty('staffNotes');
+  setupData.data.complaint.sitterId = 'other-sitter';
+  await expect(service.get({ actor: actor(SITTER, ['PET_SITTER']), complaintId: CASE })).rejects.toMatchObject({ status: 404 });
+  await expect(service.get({ actor: actor('other-sitter', ['PET_SITTER']), complaintId: CASE })).rejects.toMatchObject({ status: 404 });
 });

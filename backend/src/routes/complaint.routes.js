@@ -31,7 +31,7 @@ export function createComplaintRouter({ service, sessionPort, sessionService, al
   router.param('visitId', (req, _res, next, value) => ID.test(value) ? next() : next(new AppError(422, 'VALIDATION_FAILED', 'Visit ID is invalid')));
   router.param('complaintId', (req, _res, next, value) => ID.test(value) ? next() : next(new AppError(422, 'VALIDATION_FAILED', 'Complaint ID is invalid')));
   const csrf = requireCsrf(session, { allowedOrigins });
-  const read = requireRoles('CUSTOMER', 'STAFF');
+  const read = requireRoles('CUSTOMER', 'PET_SITTER', 'STAFF');
   const customer = requireRoles('CUSTOMER');
   const staff = requireRoles('STAFF');
 

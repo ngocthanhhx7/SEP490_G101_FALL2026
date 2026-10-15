@@ -10,5 +10,6 @@ Tài liệu gốc nằm trong khu vực báo cáo của nhóm trên Google Drive
 ## Nghiên cứu sản phẩm tham chiếu
 
 - [Đối chiếu Rover và HouseBuddy (P49-A)](rover-housebuddy-benchmark.md): nguồn Rover chính thức, kiểm tra tĩnh mã HouseBuddy, quy tắc PWC, đề xuất và câu hỏi còn mở.
+- [P37 project plan and source synchronization](p37-project-plan-source-sync-v1.md).
 
 Quy ước commit sử dụng [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/). Hướng dẫn bảo vệ nhánh tham chiếu [GitHub protected branches](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches).
