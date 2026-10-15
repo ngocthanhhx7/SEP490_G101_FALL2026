@@ -68,6 +68,13 @@ describe('offline staging environment gate', () => {
     }))).toThrow('ESMS_SANDBOX');
   });
 
+  test('SMS-only configuration cannot satisfy email-only authentication', () => {
+    expect(() => validateStagingEnvironment(environment({
+      EMAIL_ENABLED: 'false', SMS_ENABLED: 'true', ESMS_API_KEY: 'synthetic',
+      ESMS_SECRET_KEY: 'synthetic', ESMS_BRANDNAME: 'Synthetic', ESMS_SANDBOX: 'false'
+    }))).toThrow('EMAIL_ENABLED');
+  });
+
   test('CLI reports offline success and fails with safe fields on unsafe input', () => {
     const path = fileURLToPath(new URL('../../scripts/deployment/staging-preflight.js', import.meta.url));
     const valid = spawnSync(process.execPath, [path], { env: environment(), encoding: 'utf8' });

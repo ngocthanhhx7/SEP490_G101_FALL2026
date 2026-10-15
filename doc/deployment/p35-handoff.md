@@ -62,3 +62,11 @@ luồng tài chính hoàn tất gate theo P35. Leader chốt hosting/access/doma
 inputs vận hành rồi thực hiện ma trận staging, restore và rollback. Production
 chỉ sau UAT duyệt. Thiếu các deliverable này chặn approval/merge toàn gói P35;
 không chuyển draft thành ready hoặc gọi approval để che gate còn mở.
+
+## Audit follow-up (2026-10-15)
+
+The offline preflight now requires SMTP email configuration, because current registration/login
+reject SMS. A valid SMS-only configuration is covered by a negative regression test; it cannot
+satisfy interactive staging authentication. Full backend lint and Jest: 61 suites / 574 tests PASS,
+including 25 preflight cases. No hosting deployment, real message, restore or provider effect was
+performed by this audit. The original dirty P35 checkout remains untouched.

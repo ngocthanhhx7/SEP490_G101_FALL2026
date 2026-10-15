@@ -103,7 +103,7 @@ Không in giá trị, `printenv`, URI có credential hoặc chụp màn hình se
 | `ALLOW_DEV_ADMIN_SEED` | `false`; seed hiện tạo Admin synthetic LOCKED, không bootstrap Admin staging |
 | `AUTH_ENABLED` | `true` khi wiring/secret/provider đã sẵn sàng |
 | Auth keys | 5 key riêng: OTP_HMAC_SECRET, SESSION_TOKEN_SECRET, SESSION_CSRF_SECRET, CONTACT_LOOKUP_SECRET (>=32 bytes); CONTACT_ENCRYPTION_KEY đúng 32 UTF-8 bytes |
-| `EMAIL_ENABLED`, `SMS_ENABLED` | Bật theo provider đã xác minh; cấu hình SMTP/eSMS theo runbook; không coi sandbox là gửi thật |
+| `EMAIL_ENABLED`, `SMS_ENABLED` | Email phải bật và cấu hình SMTP hợp lệ cho đăng ký/đăng nhập chỉ qua email; SMS không thay thế email, mặc định tắt; không coi sandbox là gửi thật |
 | `ESMS_SANDBOX` | `false` khi bật SMS; vẫn cần đích synthetic được ủy quyền |
 | Timeouts/limiter/proxy | Dùng config hiện có; đo health frequency và proxy trước khi chốt |
 

@@ -10,9 +10,9 @@ export function validateStagingEnvironment(env) {
   if (!config.database.endsWith('_staging')) fields.push('MONGO_DB');
   if (env.ALLOW_DEV_ADMIN_SEED !== 'false') fields.push('ALLOW_DEV_ADMIN_SEED');
   if (!config.auth.enabled) fields.push('AUTH_ENABLED');
-  if (env.EMAIL_ENABLED !== 'true' && env.SMS_ENABLED !== 'true') {
-    fields.push('EMAIL_ENABLED', 'SMS_ENABLED');
-  }
+  // Registration and login currently support email only; SMS can serve contact
+  // changes but cannot make an interactive staging environment usable.
+  if (env.EMAIL_ENABLED !== 'true') fields.push('EMAIL_ENABLED');
   if (env.SMS_ENABLED === 'true' && env.ESMS_SANDBOX !== 'false') fields.push('ESMS_SANDBOX');
 
   const secretFields = ['OTP_HMAC_SECRET', 'SESSION_TOKEN_SECRET', 'SESSION_CSRF_SECRET',

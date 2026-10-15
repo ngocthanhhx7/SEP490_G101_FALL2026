@@ -75,7 +75,7 @@ ledger đồng bộ trong khi writers còn chạy.
 3. Restore vào cluster/DB kiểm thử **mới**, không đè staging đang dùng. Cô lập
    network, chặn email/SMS/payOS và không chạy worker khi kiểm tra dữ liệu restore.
    Không chạy preflight như lệnh khởi động bản restore có provider tắt: tool này
-   cố ý yêu cầu ít nhất một kênh cho staging tương tác.
+   cố ý yêu cầu email cho đăng ký/đăng nhập trên staging tương tác.
 4. So sánh counts, indexes/unique/TTL, snapshots, ledger totals, receipt/outbox
    uniqueness và đọc dữ liệu mã hóa. Kiểm tra transaction, role/ownership và không
    phát lại effect cũ. Không giả việc copy document là restore toàn hệ thống.
