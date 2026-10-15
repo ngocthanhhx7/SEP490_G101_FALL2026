@@ -35,6 +35,8 @@ hold; do not deduct future settlement automatically. P51 must close adjustment r
 P34 must register the durable runtime factory. P27/P30 supply care/case eligibility,
 P31/P32 supply verified paid/refund allocations. No synthetic fixture establishes
 these integrations. Status: INTEGRATION_PENDING / MONEY_BLOCKED_BY_DECISION.
+The shared app composition hook now ignores a factory's deliberate `null`/
+`undefined` fail-closed result while still rejecting malformed non-null modules.
 
 ## Evidence
 
