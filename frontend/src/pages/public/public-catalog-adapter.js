@@ -34,9 +34,20 @@ function normalizeService(service) {
     invalidResponse();
   }
 
+  let details;
+  if (service.details !== undefined) {
+    const value = service.details;
+    if (!value || !['preparation', 'exclusions', 'faq'].every(key => Array.isArray(value[key]) && value[key].length <= 30)
+      || [...value.preparation, ...value.exclusions].some(text => typeof text !== 'string' || text.length > 500)
+      || value.faq.some(item => !item || !nonEmptyString(item.question) || item.question.length > 200
+        || !nonEmptyString(item.answer) || item.answer.length > 1500)) invalidResponse();
+    details = { preparation: [...value.preparation], exclusions: [...value.exclusions], faq: value.faq.map(item => ({ question: item.question, answer: item.answer })) };
+  }
+
   return Object.freeze({
     id: service.id,
     ...(typeof service.code === 'string' ? { code: service.code } : {}),
+    ...(details ? { details } : {}),
     name: service.name.trim(),
     description: service.description.trim(),
     scope: service.scope.trim(),

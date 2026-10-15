@@ -5,6 +5,7 @@ import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { provisionInitialCatalog } from '../../src/services/initial-catalog-provisioning.service.js';
+import { provisionServiceDetails } from '../../src/services/service-details-provisioning.service.js';
 let replica, connection, app;
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
@@ -37,6 +38,8 @@ test('provisions the three real offerings once with migration provenance and pre
   const config = { auth: { enabled: false } };
   const result = await provisionInitialCatalog({ config, connection });
   expect(result.state).toBe('APPLIED'); expect(result.created).toHaveLength(3);
+  expect((await provisionServiceDetails(connection)).state).toBe('APPLIED');
+  expect((await provisionServiceDetails(connection)).state).toBe('ALREADY_APPLIED');
   const run = await connection.collection('catalogprovisioningruns').findOne({ key: 'pawworld-initial-three-services-v1' });
   expect(run.actorKind).toBe('SYSTEM_MIGRATION');
   expect(await connection.collection('users').countDocuments()).toBe(0);
@@ -51,5 +54,7 @@ test('provisions the three real offerings once with migration provenance and pre
     expect(actual).toHaveLength(3);
     expect(actual.find(item => item.code === 'dog-walking').price.amountVnd).toBe(90000);
     expect(actual.find(item => item.code === 'vet-escort').species).toEqual(['DOG', 'CAT']);
+    expect(actual.find(item => item.code === 'vet-escort').details.exclusions.join(' ')).toContain('điều trị');
+    expect(actual.find(item => item.code === 'home-visit').details.faq).toHaveLength(2);
   });
 });
