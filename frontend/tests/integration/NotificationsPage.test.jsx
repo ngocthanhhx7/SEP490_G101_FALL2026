@@ -11,10 +11,11 @@ describe('NotificationsPage', () => {
     const markRead = jest.fn(async () => ({ data: { status: 'READ' } }));
     render(<NotificationsPage api={{ list, markRead }} />);
     expect(screen.getByText('Đang tải thông báo')).toBeInTheDocument();
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
     resolve({ data: [item], meta: {} });
     await waitFor(() => expect(screen.getByText('Lịch sắp tới')).toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: 'Đánh dấu đã đọc' }));
     await waitFor(() => expect(markRead).toHaveBeenCalledWith('notice-1', 'notification-read:notice-1'));
-    expect(screen.queryByRole('button', { name: 'Đánh dấu đã đọc' })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Đánh dấu đã đọc' })).not.toBeInTheDocument());
   });
 });
