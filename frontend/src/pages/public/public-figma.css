@@ -265,3 +265,9 @@
 .pwc-public-root .pwc-public-footer { border: 0; }
 
 .pwc-footer-policies { background: white; padding: 20px; border-radius: 8px; }
+
+/* Signed-in public header follows the outlined account icon in the design. */
+.pwc-public-header .pwc-avatar-menu__trigger { padding: 8px; width: 44px; height: 44px; min-width: 44px; border: 0; border-radius: 8px; justify-content: center; background: transparent; color: #211a13; }
+.pwc-public-header .pwc-avatar-menu__trigger:hover, .pwc-public-header .pwc-avatar-menu__trigger[aria-expanded='true'] { background: #f6edfc; }
+.pwc-avatar-menu__account-subnav { padding-left: 16px; font-size: 14px; }
+.pwc-avatar-menu__account-group > a { font-weight: 800; }

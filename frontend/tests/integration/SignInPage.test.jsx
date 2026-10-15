@@ -6,12 +6,12 @@ import { SignInPage } from '../../src/pages/public/SignInPage.jsx';
 function renderPage(adapter) {
   return render(<MemoryRouter initialEntries={['/sign-in']}>
     <SessionProvider adapter={adapter}>
-      <Routes><Route path="/sign-in" element={<SignInPage />} /><Route path="/account" element={<p>Account</p>} /></Routes>
+      <Routes><Route path="/sign-in" element={<SignInPage />} /><Route path="/account" element={<p>Account</p>} /><Route path="/" element={<p>Home</p>} /></Routes>
     </SessionProvider>
   </MemoryRouter>);
 }
 
-test('requests a login OTP and verifies it before navigating to account', async () => {
+test('requests a login OTP and verifies it before navigating the customer home', async () => {
   const adapter = {
     resolve: jest.fn(async () => ({ status: 'guest' })),
     requestLoginOtp: jest.fn(async () => ({ challengeId: 'challenge-1', resendAfterSeconds: 60 })),
@@ -25,7 +25,7 @@ test('requests a login OTP and verifies it before navigating to account', async 
   fireEvent.change(screen.getByLabelText('Mã OTP 6 chữ số'), { target: { value: '123456' } });
   fireEvent.click(screen.getByRole('checkbox', { name: 'Không hỏi lại trên thiết bị này trong 30 ngày' }));
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
-  await waitFor(() => expect(screen.getByText('Account')).toBeVisible());
+  await waitFor(() => expect(screen.getByText('Home')).toBeVisible());
   expect(adapter.login).toHaveBeenCalledWith(expect.objectContaining({ challengeId: 'challenge-1', code: '123456', rememberDevice: true }));
 });
 
@@ -42,4 +42,10 @@ test('shows validation and provider errors without attempting login', async () =
   fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Bạn đã yêu cầu quá nhiều mã');
   expect(adapter.requestLoginOtp).toHaveBeenCalledTimes(1);
+});
+
+
+test.each([['CUSTOMER', 'Home'], ['ADMIN', 'Account']])('an existing %s session uses the correct landing page', async (role, expected) => {
+  renderPage({ resolve: async () => ({ status: 'authenticated', user: { id: 'synthetic', displayName: 'Synthetic', roles: [role] } }) });
+  expect(await screen.findByText(expected)).toBeVisible();
 });

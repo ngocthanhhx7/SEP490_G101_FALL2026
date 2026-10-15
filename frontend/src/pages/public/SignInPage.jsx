@@ -4,6 +4,11 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import './sign-in.css';
 import './auth-public.css';
 
+function destination(user, from) {
+  const roles = user?.roles ?? [user?.role];
+  return roles.includes('CUSTOMER') && !roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role)) ? '/' : (from || '/account');
+}
+
 const CHANNELS = { EMAIL: 'email', PHONE: 'phone' };
 
 function messageFor(error) {
@@ -33,8 +38,8 @@ export function SignInPage() {
   const [rememberDevice, setRememberDevice] = useState(false);
 
   useEffect(() => {
-    if (session.status === 'authenticated') navigate(location.state?.from || '/account', { replace: true });
-  }, [session.status, navigate, location.state]);
+    if (session.status === 'authenticated') navigate(destination(session.user, location.state?.from), { replace: true });
+  }, [session.status, session.user, navigate, location.state]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -67,7 +72,7 @@ export function SignInPage() {
     try {
       const result = await session.login({ challengeId, channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: contact.trim(), code, rememberDevice });
       if (result?.status !== 'authenticated') { setError('Thông tin chưa được xác thực.'); return; }
-      navigate(location.state?.from || '/account', { replace: true });
+      navigate(destination(result.user, location.state?.from), { replace: true });
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
   }

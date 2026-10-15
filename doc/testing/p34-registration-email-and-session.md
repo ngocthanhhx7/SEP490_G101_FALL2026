@@ -21,3 +21,12 @@ Tại backend: `node --env-file-if-exists=.env scripts/seeds/registration-polici
 Backend: lint và 553 unit/integration tests đạt, bao gồm cookie 30 ngày/12 giờ, CSRF reload, logout thu hồi, OTP một lần và consent transaction. Frontend: lint, 416 unit/integration tests và production build đạt. Kiểm tra trên trình duyệt: hai lựa chọn vai trò, header/footer và link policy đúng phiên bản từ database.
 
 Không gửi email thật khi kiểm thử tự động; dùng provider giả trong MongoDB cách ly. Gửi OTP thật cần SMTP hoạt động và người dùng kiểm tra email của mình; không coi HTTP 202 là thư đã đến hộp thư.
+
+
+## Customer header và điểm đến đăng nhập
+
+Customer đăng nhập thành công hoặc mở lại `/sign-in` với phiên hợp lệ được đưa về `/`. Vai trò quản trị/nhân viên/sitter giữ điểm đến khu vực riêng. Header công khai dùng icon tài khoản nét viền, mở dropdown bằng rê chuột, focus bàn phím hoặc chạm. Menu có Trung tâm tài khoản (Hồ sơ/Quản lý địa chỉ), hồ sơ thú cưng, Đơn hàng, Thông báo, Đăng xuất. Logout chỉ về Home sau khi server chấp nhận thu hồi; lỗi vẫn giữ phiên và hiển thị thông báo.
+
+Các route mới `/account/pets`, `/account/pets/:petId`, `/account/bookings`, `/account/notifications` đều ở trong Customer guard. API đích chưa được runtime backend mặc định cung cấp; lỗi tải được hiển thị đúng, không báo nhầm không có dữ liệu. Lịch sử đơn hàng đọc mọi trạng thái qua `/api/v1/bookings?limit=20` và cursor; cần P01 xác nhận DTO và tích hợp backend trước khi coi là nối dữ liệu hoàn chỉnh.
+
+Frontend: lint, 420 tests (65 suites), build đạt. Bộ kiểm tra gồm Customer về Home/Admin về Account, hover mở menu với đủ URL, đăng xuất trở về trạng thái khách, và lịch sử đơn nhiều trạng thái/phân trang/lỗi API. Chưa xác minh dropdown bằng một tài khoản thật trong trình duyệt vì phiên kiểm tra hiện là guest.
