@@ -10,12 +10,19 @@ const money = {
   max: Number.MAX_SAFE_INTEGER,
   validate: Number.isSafeInteger
 };
+const nullableMoney = {
+  type: Number,
+  default: null,
+  min: 0,
+  max: Number.MAX_SAFE_INTEGER,
+  validate: value => value === null || Number.isSafeInteger(value)
+};
 
 const transferSchema = new Schema({
   outcome: { type: String, enum: ['CONFIRMED', 'UNKNOWN', 'AMOUNT_MISMATCH'], required: true },
   reference: { type: String, required: true, maxlength: 160 },
   evidenceReference: { type: String, required: true, maxlength: 160 },
-  amountVnd: { ...money, default: null },
+  amountVnd: nullableMoney,
   paidAt: { type: Date, default: null },
   recordedBy: { type: String, required: true, maxlength: 128 },
   recordedAt: { type: Date, required: true }
@@ -154,7 +161,7 @@ export function settlementModels(connection) {
     type: { type: String, required: true, immutable: true, maxlength: 100 },
     actorId: { type: String, default: null, maxlength: 128, immutable: true },
     earningIds: { type: [String], default: undefined, immutable: true },
-    amountVnd: { ...money, default: null, immutable: true },
+    amountVnd: { ...nullableMoney, immutable: true },
     fromBucket: { type: String, enum: [...BUCKETS, null], default: null, immutable: true },
     toBucket: { type: String, enum: BUCKETS, default: null, immutable: true },
     reason: { type: String, default: null, maxlength: 500, immutable: true },
@@ -188,7 +195,7 @@ export function settlementModels(connection) {
     outcome: { type: String, enum: ['CONFIRMED', 'UNKNOWN', 'AMOUNT_MISMATCH'], required: true, immutable: true },
     reference: { type: String, required: true, maxlength: 160, immutable: true },
     evidenceReference: { type: String, required: true, maxlength: 160, immutable: true },
-    amountVnd: { ...money, default: null, immutable: true },
+    amountVnd: { ...nullableMoney, immutable: true },
     paidAt: { type: Date, default: null, immutable: true },
     recordedAt: { type: Date, required: true, immutable: true }
   }, { versionKey: false, strict: 'throw', bufferCommands: false });
