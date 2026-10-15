@@ -6,7 +6,7 @@ and an offline validation status only; exit 1 blocks invalid input. This command
 the app, connect to MongoDB, send OTP, enable a scheduler or certify deployment readiness.
 
 The validator reuses runtime configuration and adds the P35 staging policy: production security
-mode, public bind address, separate `*_staging` database, explicit disabled development seed,
+mode, IPv4 loopback behind a local proxy or managed-host wildcard bind, separate `*_staging` database, explicit disabled development seed,
 enabled email delivery, separate auth keys and TLS without weakened certificate validation.
 Registration and login currently require email; SMS alone cannot satisfy that gate. Real email
 delivery must still pass the integration gate. `TRUST_PROXY_HOPS` remains a measured topology decision.

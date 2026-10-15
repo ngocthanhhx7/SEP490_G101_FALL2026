@@ -1,6 +1,6 @@
 # Deployment và vận hành
 
-- [P35 staging runbook](p35-staging-runbook.md): Vercel frontend, Render backend,
+- [P35 staging runbook](p35-staging-runbook.md): EC2 frontend/backend, Cloudflare DNS/proxy, private R2,
   Atlas, HTTPS/session, environment, private upload và payOS gates.
 - [P35 verification](p35-verification.md): bằng chứng bắt buộc và trạng thái thực.
 - [P35 recovery](p35-recovery.md): health/readiness, job, backup/restore, log và rollback.

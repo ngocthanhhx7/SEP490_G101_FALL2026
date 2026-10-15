@@ -6,7 +6,9 @@ export function validateStagingEnvironment(env) {
   const config = loadConfig(env);
   const fields = [];
   if (config.nodeEnv !== 'production') fields.push('NODE_ENV');
-  if (config.host !== '0.0.0.0') fields.push('HOST');
+  // A same-machine reverse proxy uses IPv4 loopback; managed hosts may require
+  // a wildcard bind. This offline gate cannot verify the surrounding firewall.
+  if (!['127.0.0.1', '0.0.0.0'].includes(config.host)) fields.push('HOST');
   if (!config.database.endsWith('_staging')) fields.push('MONGO_DB');
   if (env.ALLOW_DEV_ADMIN_SEED !== 'false') fields.push('ALLOW_DEV_ADMIN_SEED');
   if (!config.auth.enabled) fields.push('AUTH_ENABLED');

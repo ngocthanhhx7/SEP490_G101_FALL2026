@@ -39,7 +39,7 @@ Không có command worker có thể chạy thật; không tạo cron gọi tùy 
 P23 và P33 có logic nhắc visit giao nhau; P34 chọn một orchestration/owner cho
 mỗi logical event. Không chạy hai scheduler tạo hai thông báo cùng nội dung.
 Một web replica vẫn chưa chứng minh chống trùng vì redeploy có thể overlap.
-Free service ngủ khi nhàn rỗi không bảo đảm lịch job; cần quyết định host worker/
+EC2 web service không tự đăng ký job; cần quyết định worker/
 scheduler phù hợp trước khi nghiệm thu, không tự mua gói trả phí.
 
 Diễn tập sau wiring: tạo synthetic due records và chạy hai worker đồng thời trên
@@ -93,13 +93,13 @@ Giữ timestamp UTC, release SHA, requestId, safe code và counters; hiển th�
 gian vận hành ở VN. Không log request body/contact/OTP/session/CSRF/Authorization/
 cookie/Mongo URI/home access/giấy tờ/ảnh hoặc payload webhook chứa dữ liệu riêng.
 Stack/driver error có thể lộ URI nên chỉ safe event/code theo runtime hiện có.
-Kiểm tra logging ở CDN/Render/provider, không chỉ application logger. Không xuất
+Kiểm tra logging ở Cloudflare/Nginx/systemd/provider, không chỉ application logger. Không xuất
 HAR/cookie jar lên PR. Retention/quyền đọc và quy trình xóa log do Leader xác nhận;
 incident ticket chỉ chứa dữ liệu đã lược bỏ thông tin nhạy cảm.
 
 ## Rollback
 
-Trước rollout giữ frontend deployment ID, backend deployment ID/SHA trước đó,
+Trước rollout giữ EC2 instance/region, frontend/backend release directory/SHA trước đó,
 schema/index compatibility, config version và backup đã restore được. P35 chưa
 có bản staging trước đó để rollback; đây là gate chưa đạt, không ghi PASS.
 
@@ -113,5 +113,5 @@ Không xóa ledger/receipt/outbox hoặc chạy down-migration tự động đ�
 Nếu schema mới không tương thích bản cũ, giữ maintenance và dùng kế hoạch forward
 repair/restore được duyệt. Restore DB sau payment cần reconcile provider; rollback
 code không hoàn tác tiền bên ngoài. Rotation secret phải giữ khả năng giải mã;
-không thay key để ép phiên cũ hoạt động. Ghi incident timeline, hai deployment ID,
+không thay key để ép phiên cũ hoạt động. Ghi incident timeline, instance/release IDs,
 SHA, người thao tác, kết quả và hành động tiếp theo trong kho riêng đã lược secrets.

@@ -1,7 +1,7 @@
 # P35 — Verification record
 
 Ngày: 15/10/2026 (`Asia/Ho_Chi_Minh`). Baseline khảo sát: develop `f02321e`.
-**Staging INTEGRATION_PENDING; chỉ có Vercel frontend branch preview, chưa có
+**Staging INTEGRATION_PENDING; EC2 + Cloudflare + private R2 đã được chọn, chưa có
 integrated PWC staging hoặc UAT được xác minh.**
 Runtime/unit fixtures không chứng minh provider, hosting hoặc UAT. Link tới
 [runbook](p35-staging-runbook.md), [recovery](p35-recovery.md).
@@ -16,7 +16,9 @@ provider flow, TLS contract, staging acceptance or UAT.
 | Mục | Giá trị thực tại phiên này |
 | --- | --- |
 | Frontend/backend public URL, domain/TLS | Vercel preview `https://pawworld-frontend-staging-git-feature-p35-a-0f0593-ngocthanhhx7.vercel.app` được PR status báo Ready; integrated public origin/backend/TLS chưa xác minh |
-| Vercel/Render deployment ID, release SHA | Vercel frontend preview `pawworld-frontend-staging`, deployment `6QaZXjrEwEp7QDuFopnkAyujPUvC`; Render backend/integrated release chưa có |
+| Historical Vercel preview (superseded target) | Vercel frontend preview `pawworld-frontend-staging`, deployment `6QaZXjrEwEp7QDuFopnkAyujPUvC`; EC2/integrated release chưa có |
+| EC2 instance/region, DNS and origin TLS | Chưa tạo EC2; proposed staging.pawworldvn.shop, DNS chưa thay đổi; NOT RUN |
+| R2 private bucket/adapter | Đã chọn R2; chưa có bucket/credentials/adapter/live upload proof |
 | Final P34 integration gate | Chưa đạt; status hiện ghi mini-gate |
 | Atlas version/topology/index migration | Chưa kiểm tra staging |
 | Provider, private storage, webhook | Chưa xác minh trên staging |
@@ -24,8 +26,8 @@ provider flow, TLS contract, staging acceptance or UAT.
 | Previous deployment và rollback drill | Chưa có/chưa diễn tập |
 | UAT, production approval | Chưa có; preview Ready không phải UAT hoặc production |
 
-Không dùng URL của `smartlearn-backend` làm URL PWC. Screenshot cấu hình mới
-chọn Ruby/main cần đổi thành Node/develop theo runbook; không chứng minh deploy.
+User supplied `pawworldvn.shop`; the proposal uses `staging.pawworldvn.shop`.
+EC2 and R2 bucket do not exist. No provision, DNS change or deployment performed.
 
 ## Ma trận kiểm chứng sau gate
 

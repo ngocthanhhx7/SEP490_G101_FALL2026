@@ -25,7 +25,7 @@ describe('offline staging environment gate', () => {
 
   test.each([
     [{ NODE_ENV: 'development' }, 'NODE_ENV'],
-    [{ HOST: '127.0.0.1' }, 'HOST'],
+    [{ HOST: '::' }, 'HOST'],
     [{ MONGO_DB: 'paw_world_care_prod' }, 'MONGO_DB'],
     [{ ALLOW_DEV_ADMIN_SEED: 'true' }, 'ALLOW_DEV_ADMIN_SEED'],
     [{ ALLOW_DEV_ADMIN_SEED: undefined }, 'ALLOW_DEV_ADMIN_SEED'],
@@ -59,6 +59,12 @@ describe('offline staging environment gate', () => {
     expect(validateStagingEnvironment(environment({
       MONGO_URI: 'mongodb://db1.test:27017,db2.test:27017/?replicaSet=rs0&tls=true'
     })).status).toBe('CONFIG_VALIDATED');
+  });
+
+  test('accepts loopback behind the EC2 local proxy without claiming deployment', () => {
+    expect(validateStagingEnvironment(environment({ HOST: '127.0.0.1',
+      PORT: '3000', TRUST_PROXY_HOPS: '1' }))).toEqual({ status: 'CONFIG_VALIDATED',
+      scope: 'OFFLINE_ONLY', deploymentVerified: false });
   });
 
   test('SMS sandbox cannot stand in for staging delivery', () => {

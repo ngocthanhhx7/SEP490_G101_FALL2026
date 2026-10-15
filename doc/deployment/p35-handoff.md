@@ -1,72 +1,47 @@
-# P35-A — Handoff
+# P35 — Handoff
 
-- Task: staging deployment và operational runbook; nền/cross-cut, không gán UC
-  mới. Bao phủ vận hành các EXT-PREPAY/SETTLEMENT/PWA/PERF/POLICY qua dependency.
-- Contributor/author/committer được giao: Đặng Văn Hải (`Haidvhe181849`). Reviewer
-  được giao Đoàn Tiến Đạt (`doantd11`); merger Nguyễn Ngọc Thành (`ngocthanhhx7`).
-  Phân công này chưa phải approval hoặc merge. Xem PR để biết actor/SHA thực tế.
-- Branch: `feature/p35-a-staging-deployment-and-operational-runbook`; isolated
-  synced head `3224540`, merged from `origin/develop` `f02321e`. The original
-  checkout at `D:/WW/SEP490_G101_FALL2026-p35` remains separate and dirty; do not
-  use it for release or cleanup operations.
-- Trạng thái: công cụ/tài liệu triển khai đã chuẩn bị; PR metadata ghi nhận một
-  Vercel frontend branch preview **Ready** (preview-only). Staging vẫn
-  **INTEGRATION_PENDING** vì chưa có integrated Render/backend, proxy/domain,
-  provider evidence hoặc UAT/production approval. UI_NOT_IN_SCOPE, không claim
-  Figma.
+Author/push: Đặng Văn Hải (`Haidvhe181849`); assigned independent reviewer:
+Đoàn Tiến Đạt (`doantd11`); Leader/merger: Nguyễn Ngọc Thành (`ngocthanhhx7`).
+Review identity and approval are verified separately in PR metadata.
 
-## Phạm vi hoàn thành
+## Scope and selected topology
 
-Runbook hướng Vercel frontend + Render Node backend + Atlas theo screenshot người
-dùng, cổng tích hợp, env preflight, proxy/HTTPS/CORS/CSRF gates, upload/payOS,
-health, job recovery, private logs, backup/restore và rollback. Verification record
-giữ rõ các case chưa chạy. Không sửa router, manifests/lockfile hoặc DTO/schema;
-P34 nhận proposal reverse proxy/public-origin/cache từ runbook.
+The user selected one EC2 for frontend/backend, Cloudflare DNS/proxy HTTPS and
+R2 image storage. Domain is `pawworldvn.shop`; proposed staging is `staging.pawworldvn.shop`. EC2 and R2 bucket do
+not exist. This replaces the earlier Vercel/Render preparation. No provision,
+deploy, DNS change, provider message or money movement was performed.
+The original dirty P35 checkout remains untouched; edits use an isolated worktree.
 
-`backend/src/config/staging-preflight.js` tái dùng validator runtime; CLI tại
-`backend/scripts/deployment/` chỉ kiểm tra offline, không connect/send/start.
-Tests negative kiểm tra TLS/seed/secret separation/provider/DB namespace và
-không xuất giá trị cấu hình. Các secret trong test là synthetic, không dùng deploy.
-Không sửa checkout chính đang có công việc gói khác.
+[Runbook](p35-staging-runbook.md), [Nginx template](aws/nginx.conf.example),
+[systemd template](aws/pwc-backend.service.example) and
+[R2 plan](aws/r2-private-media.md) document same-origin routing, local backend,
+trusted Cloudflare IP handling, strict TLS, private cache/logs, immutable release
+paths, secret separation and recovery prerequisites. Templates are not installed
+and cannot run with their unresolved certificate/include paths and unprovisioned host.
+No Nginx/systemd host validation has been executed on Windows.
 
-## Nguồn và quyết định
+Offline preflight reuses runtime validation, requires email for email-only auth,
+rejects SMS-only configuration and accepts IPv4 loopback for a local EC2 proxy
+(or wildcard for a managed host). It never connects/sends/deploys. R2 credentials
+are a proposed adapter contract only, not existing runtime environment support.
 
-Đã đọc yêu cầu P35/prompt nền, mapping và dependency, delta/crosswalk, quy ước Git,
-ADR P01, source runtime/env/session/ports, P34 status, P23/P31/P33 handoff và tài
-liệu chính thức hosting được dẫn ở runbook. Không khẳng định đã đọc/cập nhật
-reports Drive hoặc xem Figma. PWC hosting URL/domain và public-origin contract,
-Admin bootstrap, private storage/retention, provider credentials, FIN details,
-RPO/RTO và chi phí/scheduler vẫn cần owner chốt; không tự đưa mặc định nghiệp vụ.
+## Checks and remaining acceptance
 
-## Checks thực tế
+After merging develop #82, backend lint + full 61 suites / 581 tests passed on
+`942809f`. A further loopback regression and topology documentation are included
+in the follow-up. Fresh backend lint and full 61 suites / 582 tests PASS, including
+26 offline preflight cases; 27 local documentation links pass.
+Local tests use synthetic providers and isolated Mongo, never live acceptance.
 
-- Node 24.21.0 / npm 11.19.0 đã xác minh.
-- Backend `npm run lint` trên head `3224540`: PASS.
-- Backend `npm test -- --runInBand` trên head `3224540`: 61 suites / 573 tests PASS.
-- Bộ preflight hiện có 24 tests PASS, gồm subprocess CLI exit 0/1, TLS,
-  standard multi-host URI, secrets/seed/namespace/provider và SMS sandbox.
-- 19 Markdown local links trong tài liệu P35: PASS; `git diff --check`: PASS.
-- Ignore `.env`, env staging, IDE và cấu hình AI cục bộ: PASS.
-- Staging/provider/load/UAT, two-replica Mongo jobs, backup/restore/rollback:
-  NOT RUN vì final gate, deployment và inputs còn thiếu. Không có CI được claim.
+Staging remains **INTEGRATION_PENDING**: exact EC2/domain/DB/authorized release,
+R2 bucket plus durable metadata/upload/read adapter and approved retention/quota,
+real TLS/proxy/CSRF/cache checks, Admin bootstrap, schema/index provisioning,
+provider/payOS composition, job lease/outbox with two-worker crash/restart,
+RPO/RTO, restore/rollback and UAT are missing or NOT RUN. Selection of R2 resolves
+the provider choice, not these gates. P44 end-to-end load evidence is a shared
+release acceptance dependency, not a code/build import. P34 final integration
+and unresolved financial policy gates still apply.
 
-Lượt test đầu phát hiện WHATWG URL không hỗ trợ MongoDB multi-host URI. Đã sửa
-dùng parser MongoDB hiện có qua Mongoose (không gọi connect), giữ case regression.
-
-## Dependency và bước tiếp
-
-P34 hoàn thành final wiring/tests trên SHA release, gồm same-origin proxy Host/
-Origin/CSRF/limiter/cache và migration/index/job/lease/outbox thật. P31 cung cấp
-route webhook thực; P06/P07/P09/P10/P13/P25/P33/P42/P43/P44/P45/P46/P47 và các
-luồng tài chính hoàn tất gate theo P35. Leader chốt hosting/access/domain/DB và
-inputs vận hành rồi thực hiện ma trận staging, restore và rollback. Production
-chỉ sau UAT duyệt. Thiếu các deliverable này chặn approval/merge toàn gói P35;
-không chuyển draft thành ready hoặc gọi approval để che gate còn mở.
-
-## Audit follow-up (2026-10-15)
-
-The offline preflight now requires SMTP email configuration, because current registration/login
-reject SMS. A valid SMS-only configuration is covered by a negative regression test; it cannot
-satisfy interactive staging authentication. Full backend lint and Jest: 61 suites / 574 tests PASS,
-including 25 preflight cases. No hosting deployment, real message, restore or provider effect was
-performed by this audit. The original dirty P35 checkout remains untouched.
+Keep draft and withhold approval/merge until the actual deployment acceptance
+criteria are met. Historical Vercel preview status is not proof of this topology.
+See [verification](p35-verification.md) and [recovery](p35-recovery.md).
