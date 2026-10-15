@@ -5,3 +5,5 @@ This directory records checks that were actually run and integration gates that 
 Keep evidence tied to a work item, branch/head, command, result, and date. Use synthetic identities and data. Do not include OTP values, phone numbers, provider credentials, `.env` contents, or customer data.
 
 Feature owners maintain domain test scenarios. P34 integration status documents which routes and providers are wired and which end-to-end dependencies remain pending.
+
+P37-C records the current [UC/EXT traceability and test evidence](p37-traceability-evidence-v1.md). Its local test totals do not prove provider, staging, UAT or production integration.
