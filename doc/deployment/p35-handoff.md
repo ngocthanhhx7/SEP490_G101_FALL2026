@@ -5,8 +5,10 @@
 - Contributor/author/committer được giao: Đặng Văn Hải (`Haidvhe181849`). Reviewer
   được giao Đoàn Tiến Đạt (`doantd11`); merger Nguyễn Ngọc Thành (`ngocthanhhx7`).
   Phân công này chưa phải approval hoặc merge. Xem PR để biết actor/SHA thực tế.
-- Branch: `feature/p35-a-staging-deployment-and-operational-runbook`; checkout
-  `D:/WW/SEP490_G101_FALL2026-p35`, từ develop `38627be`.
+- Branch: `feature/p35-a-staging-deployment-and-operational-runbook`; isolated
+  synced head `c460d16`, merged from `origin/develop` `90ad3c7`. The original
+  checkout at `D:/WW/SEP490_G101_FALL2026-p35` remains separate and dirty; do not
+  use it for release or cleanup operations.
 - Trạng thái: công cụ/tài liệu triển khai đã chuẩn bị; staging **INTEGRATION_PENDING**.
   Không có bằng chứng deploy/UAT/production. UI_NOT_IN_SCOPE, không claim Figma.
 
@@ -36,12 +38,11 @@ RPO/RTO và chi phí/scheduler vẫn cần owner chốt; không tự đưa mặc
 ## Checks thực tế
 
 - Node 24.21.0 / npm 11.19.0 đã xác minh.
-- Backend `npm ci --ignore-scripts`: 469 packages, audit 0 vulnerabilities.
-- Backend `npm run lint`: PASS.
-- Backend `npm test` trên bản cuối: 56 suites / 543 tests PASS.
-- Bộ preflight mới nhất: 24 tests PASS, gồm subprocess CLI exit 0/1, TLS,
+- Backend `npm run lint` trên head `c460d16`: PASS.
+- Backend `npm test -- --runInBand` trên head `c460d16`: 59 suites / 559 tests PASS.
+- Bộ preflight hiện có 24 tests PASS, gồm subprocess CLI exit 0/1, TLS,
   standard multi-host URI, secrets/seed/namespace/provider và SMS sandbox.
-- 19 Markdown local links trong tài liệu mới: PASS; `git diff --check`: PASS.
+- 19 Markdown local links trong tài liệu P35: PASS; `git diff --check`: PASS.
 - Ignore `.env`, env staging, IDE và cấu hình AI cục bộ: PASS.
 - Staging/provider/load/UAT, two-replica Mongo jobs, backup/restore/rollback:
   NOT RUN vì final gate, deployment và inputs còn thiếu. Không có CI được claim.
