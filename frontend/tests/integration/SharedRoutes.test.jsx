@@ -35,9 +35,9 @@ test('account uses the merged P48 shell with only registered destinations', asyn
 test('default registration cannot accept unpublished policies or send registration', () => {
   show('/register');
   expect(screen.getByRole('checkbox')).toBeDisabled();
-  expect(screen.getByRole('button', { name: 'Gửi mã OTP' })).toBeDisabled();
-  expect(screen.getByRole('button', { name: /Đăng ký tài khoản Khách hàng/ })).toBeDisabled();
-  fireEvent.submit(screen.getByRole('button', { name: /Đăng ký tài khoản Khách hàng/ }).closest('form'));
+  expect(screen.queryByRole('button', { name: 'Gửi mã OTP qua email' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Đăng ký', exact: true })).toBeDisabled();
+  fireEvent.submit(screen.getByRole('button', { name: 'Đăng ký', exact: true }).closest('form'));
   expect(screen.getByRole('alert')).toHaveTextContent('Chính sách chưa sẵn sàng');
   expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms/draft-v1');
 });
@@ -80,7 +80,7 @@ test('policy expiry is checked on forced submit even without a metadata refresh'
     show('/register', { registrationPolicies: policies });
     expect(screen.getByRole('checkbox')).toBeEnabled();
     clock.mockReturnValue(Date.parse('2026-10-14T00:01:00Z'));
-    fireEvent.submit(screen.getByRole('button', { name: /Đăng ký tài khoản Khách hàng/ }).closest('form'));
+    fireEvent.submit(screen.getByRole('button', { name: 'Đăng ký', exact: true }).closest('form'));
     expect(screen.getByRole('alert')).toHaveTextContent('Chính sách chưa sẵn sàng');
   } finally { clock.mockRestore(); }
 });
@@ -109,4 +109,14 @@ test('actual Customer profile route loads its runtime API and appears in role na
     expect(screen.getByRole('link', { name: 'Hồ sơ', exact: true })).toHaveAttribute('href', '/account/profile');
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/me/profile', expect.objectContaining({ credentials: 'same-origin' }));
   } finally { globalThis.fetch = original; }
+});
+
+
+test.each(['/register', '/sitter/apply'])('registration entry %s keeps PawWorld header, footer and role choices', path => {
+  show(path);
+  expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Khách hàng', exact: true })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Ứng tuyển Pet Sitter', exact: true })).toBeVisible();
+  expect(screen.getByText(/2026 PawWorld. All rights reserved/)).toBeVisible();
+  if (path === '/sitter/apply') expect(screen.getByText(/Xác minh email trước khi hoàn tất hồ sơ/)).toBeVisible();
 });

@@ -56,7 +56,7 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
     }
   }
 
-  return Object.freeze({ uploadDocument, submit, createIdempotencyKey: keyFactory });
+  return Object.freeze({ uploadDocument, submit, createIdempotencyKey: keyFactory, uploadsAvailable: Boolean(uploadDocumentImpl) });
 }
 
 export const sitterApplicationApi = createSitterApplicationApi();

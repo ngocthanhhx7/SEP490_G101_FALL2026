@@ -69,3 +69,42 @@ describe('API session adapter', () => {
     expect(adapter.getCsrfToken()).toBe('csrf-1');
   });
 });
+
+
+test('restores in-memory CSRF after browser reload and clears it after logout', async () => {
+  const request = jest.fn().mockResolvedValueOnce({ data: { csrfToken: 'resumed-csrf', user: {
+    id: 'synthetic-customer', displayName: 'Customer', roles: ['CUSTOMER']
+  } } }).mockResolvedValueOnce({ status: 204 });
+  const adapter = createApiSessionAdapter({ request });
+  expect(adapter.getCsrfToken()).toBeNull();
+  await adapter.resolve();
+  expect(adapter.getCsrfToken()).toBe('resumed-csrf');
+  await adapter.logout();
+  expect(adapter.getCsrfToken()).toBeNull();
+});
+
+test.each(['login', 'logout'])('late session reads cannot overwrite CSRF after %s', async action => {
+  let finish;
+  const user = { id: 'synthetic', displayName: 'Customer', roles: ['CUSTOMER'] };
+  const request = jest.fn().mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }))
+    .mockResolvedValueOnce({ status: 200, data: { authenticated: true, user, csrfToken: 'new-csrf' } });
+  const adapter = createApiSessionAdapter({ request });
+  const pending = adapter.resolve();
+  await adapter[action]();
+  finish({ data: { user, csrfToken: 'stale-csrf' } });
+  await pending;
+  expect(adapter.getCsrfToken()).toBe(action === 'login' ? 'new-csrf' : null);
+});
+
+test('a late unauthorized session read cannot erase a successful login CSRF', async () => {
+  let reject;
+  const user = { id: 'synthetic', displayName: 'Customer', roles: ['CUSTOMER'] };
+  const request = jest.fn().mockImplementationOnce(() => new Promise((_resolve, fail) => { reject = fail; }))
+    .mockResolvedValueOnce({ status: 200, data: { authenticated: true, user, csrfToken: 'new-csrf' } });
+  const adapter = createApiSessionAdapter({ request });
+  const pending = adapter.resolve();
+  await adapter.login();
+  reject(new ApiError('UNAUTHENTICATED', 401));
+  await pending;
+  expect(adapter.getCsrfToken()).toBe('new-csrf');
+});
