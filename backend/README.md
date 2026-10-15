@@ -62,3 +62,6 @@ atomic repository command before creating a pending sitter offer. The route is
 export-only so P34 can wire the real booking, payment and offer repositories;
 fixtures do not prove that integration. Multi-visit prepay must report a
 verified payment before the offer command is allowed.
+
+
+Public contact form: `POST /api/v1/contact/messages` sends a consented request to the server-configured `CONTACT_INBOX_EMAIL`, through the existing SMTP system-email adapter. Set the real inbox in local deployment configuration and enable/configure `EMAIL_ENABLED` and SMTP. It never uses a visitor-supplied destination, sends an automatic reply or stores submissions in MongoDB. Three attempts/IP/hour and same-origin checks apply; missing configuration fails closed. A 202 response means SMTP acceptance, not guaranteed mailbox delivery. Unknown delivery outcomes are reported separately to avoid automatic resend. See `doc/deployment/public-figma-alignment-handoff.md`.

@@ -1,3 +1,5 @@
+import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
+const guestSession = { resolve: async () => ({ status: 'guest' }) };
 jest.mock('../../src/pages/public/public-pages.css', () => ({}), { virtual: true });
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -25,7 +27,7 @@ const catalog = { available: true, services };
 function renderAt(path) {
   return render(<MemoryRouter initialEntries={[path]}>
     <Routes>
-      <Route element={<PublicSiteLayout />}>
+      <Route element={<SessionProvider adapter={guestSession}><PublicSiteLayout /></SessionProvider>}>
         <Route path="/services" element={<ServiceListPage loadCatalog={() => Promise.resolve({ data: catalog })} />} />
         <Route path="/services/:serviceId" element={<ServiceDetailsPage loadCatalog={() => Promise.resolve({ data: catalog })} />} />
         <Route path="/service-areas" element={<ServiceAreasPage
