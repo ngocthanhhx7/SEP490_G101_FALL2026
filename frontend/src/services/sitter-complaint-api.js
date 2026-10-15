@@ -30,7 +30,7 @@ function detailView(result, complaintId) {
   const item = result?.data?.complaint ?? result?.data;
   safeItem(item);
   if (item.id !== complaintId) throw new ApiError('INVALID_RESPONSE', result?.status || 0);
-  return { ...result, data: result.data?.complaint ? result.data : item };
+  return { ...result, data: item };
 }
 
 export function createSitterComplaintApi({ request, fetchImpl, getCsrfToken, onUnauthorized, timeoutMs } = {}) {
