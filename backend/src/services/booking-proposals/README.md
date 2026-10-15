@@ -1,0 +1,10 @@
+# Booking proposals
+
+This folder contains booking-proposal domain exports for P42. The service
+accepts repository ports for server-owned booking context, sitter availability,
+proposal persistence and atomic offer dispatch. It does not create MongoDB
+models or wire the application registry; P01 owns contracts and P34 owns
+runtime registration.
+
+`directed-booking-proposal.service.js` re-exports the P42 service while the
+legacy P21 import remains available for existing dispatch consumers.
