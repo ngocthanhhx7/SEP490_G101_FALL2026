@@ -69,10 +69,25 @@ test('requires a current instruction acknowledgement before a Sitter can read pr
   expect(beforeWindow.instructions).not.toHaveProperty('accessNotes');
   const accessService = createCareInstructionsService({ repository, clock: () => new Date('2026-10-15T03:30:00.000Z') });
   await expect(accessService.getAccessNotes({ actor: active(SITTER, ['PET_SITTER']), visitId: VISIT }))
-    .resolves.toMatchObject({ privateAccessNotes: 'Mã cửa tổng hợp' });
+    .rejects.toMatchObject({ status: 403, code: 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED' });
   await service.acknowledgeInstructions({ actor: active(SITTER, ['PET_SITTER']), visitId: VISIT,
     instructionVersion: 1, idempotencyKey: 'ack-key-1' });
   expect(state.care.acknowledgements).toHaveLength(1);
+  await expect(accessService.getAccessNotes({ actor: active(SITTER, ['PET_SITTER']), visitId: VISIT }))
+    .resolves.toMatchObject({ privateAccessNotes: 'Mã cửa tổng hợp' });
+});
+
+test('fails closed when acknowledgement persistence is unavailable', async () => {
+  const service = createCareInstructionsService({ repository: {
+    runForVisitActor: async (_actor, _visitId, work) => work({
+      getVisit: async () => ({ id: VISIT, customerId: CUSTOMER, sitterId: SITTER, state: 'ASSIGNED', version: 1,
+        startAt: '2026-10-15T04:00:00.000Z', endAt: '2026-10-15T05:00:00.000Z' }),
+      getCareInstructions: async () => ({ version: 1, instructions: {} }),
+    }),
+  }, clock: () => NOW });
+  await expect(service.acknowledgeInstructions({ actor: active(SITTER, ['PET_SITTER']), visitId: VISIT,
+    instructionVersion: 1, idempotencyKey: 'missing-save' }))
+    .rejects.toMatchObject({ status: 503, code: 'CARE_INSTRUCTIONS_UNAVAILABLE' });
 });
 
 test('rejects expired sessions, another Customer and idempotency key reuse', async () => {

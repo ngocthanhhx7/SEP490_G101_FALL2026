@@ -262,9 +262,12 @@ export function createCareInstructionsService({ repository, clock = () => new Da
           return previous.result;
         }
       }
-      const saved = typeof tx.recordCareInstructionAcknowledgement === 'function'
-        ? await tx.recordCareInstructionAcknowledgement({ visit, sitterId: actor.userId, version, acknowledgedAt: new Date(now).toISOString() }) : null;
-      const result = unwrapResult(saved ?? { visitId, sitterId: actor.userId, version, acknowledged: true, acknowledgedAt: new Date(now).toISOString() });
+      if (typeof tx.recordCareInstructionAcknowledgement !== 'function') {
+        fail(503, 'CARE_INSTRUCTIONS_UNAVAILABLE', 'Acknowledgement persistence is unavailable');
+      }
+      const result = unwrapResult(await tx.recordCareInstructionAcknowledgement({
+        visit, sitterId: actor.userId, version, acknowledgedAt: new Date(now).toISOString()
+      }));
       if (result.acknowledged !== true) fail(503, 'CARE_INSTRUCTIONS_UNAVAILABLE', 'Acknowledgement was not confirmed');
       if (typeof tx.appendAuditAndOutbox === 'function') await tx.appendAuditAndOutbox({
         type: 'CareInstructionsAcknowledged', actorId: actor.userId, visitId, version, at: result.acknowledgedAt
@@ -282,6 +285,14 @@ export function createCareInstructionsService({ repository, clock = () => new Da
       if (instant(visit.startAt) - now > ACCESS_WINDOW_MS) fail(403, 'ACCESS_WINDOW_CLOSED', 'Access notes are available from one hour before the visit');
       if (visit.endAt && now >= instant(visit.endAt)) fail(403, 'ACCESS_REVOKED', 'Access notes are no longer available');
       if (visit.handoverRequired === true && visit.handoverAccepted !== true) fail(403, 'HANDOVER_REQUIRED', 'Confirm the visit handover before viewing access notes');
+      if (typeof tx.getCareInstructions !== 'function') {
+        fail(503, 'CARE_INSTRUCTIONS_UNAVAILABLE', 'Care instruction acknowledgement is unavailable');
+      }
+      const care = await tx.getCareInstructions(visitId);
+      const acknowledged = Number.isSafeInteger(care?.version)
+        && Array.isArray(care.acknowledgements)
+        && care.acknowledgements.some(item => item.sitterId === actor.userId && item.version === care.version);
+      if (!acknowledged) fail(403, 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED', 'Acknowledge the latest care instructions before viewing access notes');
       const notes = typeof tx.getAccessNotesSnapshot === 'function' ? await tx.getAccessNotesSnapshot({ visitId, sitterId: actor.userId }) : null;
       if (!notes) fail(404, 'RESOURCE_NOT_FOUND', 'Access notes not found');
       return { visitId, privateAccessNotes: notes.privateAccessNotes ?? notes.accessNotes ?? null, expiresAt: visit.endAt ?? null };
