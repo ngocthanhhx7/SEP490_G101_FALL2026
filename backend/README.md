@@ -4,6 +4,10 @@ Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0
 
 ## Chạy và kiểm tra
 
+P35 adds an offline [staging preflight tool](scripts/deployment/README.md) and
+[deployment runbook](../doc/deployment/p35-staging-runbook.md). These tools do not
+register routes/jobs or certify a live staging deployment.
+
 Từ backend, npm ci --ignore-scripts; điền URI Atlas và MONGO_DB trong .env local rồi npm start (npm run dev cho watch). Config thiếu/sai dừng trước listen. Không commit .env hoặc bất kỳ .env.* ở bất kỳ depth nào; chỉ .env.example chứa placeholders được push. Không force-add env hoặc đưa credential thật vào example.
 
 ```powershell
