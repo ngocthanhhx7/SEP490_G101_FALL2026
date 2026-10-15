@@ -21,11 +21,12 @@ test('requests a login OTP and verifies it before navigating to account', async 
   await waitFor(() => expect(adapter.resolve).toHaveBeenCalled());
   fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'person@example.test' } });
   fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
-  expect(await screen.findByText(/Mã đã gửi tới/)).toBeVisible();
+  expect(await screen.findByText(/Yêu cầu gửi mã tới/)).toBeVisible();
   fireEvent.change(screen.getByLabelText('Mã OTP 6 chữ số'), { target: { value: '123456' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Không hỏi lại trên thiết bị này trong 30 ngày' }));
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
   await waitFor(() => expect(screen.getByText('Account')).toBeVisible());
-  expect(adapter.login).toHaveBeenCalledWith(expect.objectContaining({ challengeId: 'challenge-1', code: '123456' }));
+  expect(adapter.login).toHaveBeenCalledWith(expect.objectContaining({ challengeId: 'challenge-1', code: '123456', rememberDevice: true }));
 });
 
 test('shows validation and provider errors without attempting login', async () => {

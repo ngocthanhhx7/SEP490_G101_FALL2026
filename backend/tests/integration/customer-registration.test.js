@@ -92,7 +92,6 @@ afterAll(async () => { await connection?.close(); await replica?.stop(); }, 3000
 describe('P07 Customer registration over P06 OTP with isolated MongoDB', () => {
   test.each([
     ['EMAIL', ' PERSON@Example.Test ', 'person@example.test'],
-    ['PHONE', '+84912345678', '+84912345678'],
   ])('verifies one %s contact and creates exactly one active Customer with an HttpOnly session', async (channel, contact, canonical) => {
     const { app, sessionService, sent } = fixture();
     const challenge = await startChallenge(app, { channel, contact });
@@ -104,7 +103,7 @@ describe('P07 Customer registration over P06 OTP with isolated MongoDB', () => {
     expect(response.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
     expect(response.body.data).toMatchObject({ verified: true, authenticated: true,
       user: { displayName: 'Nguyễn Văn A', roles: ['CUSTOMER'] } });
-    expect(response.body.data.expiresAt).toBe(new Date(clockNow + 30 * 24 * 60 * 60 * 1000).toISOString());
+    expect(response.body.data.expiresAt).toBe(new Date(clockNow + 12 * 60 * 60 * 1000).toISOString());
     expect(JSON.stringify(response.body)).not.toContain(code);
     expect(JSON.stringify(response.body)).not.toContain(canonical);
     expect(JSON.stringify(response.body)).not.toMatch(/password/i);

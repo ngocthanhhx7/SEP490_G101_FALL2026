@@ -14,8 +14,7 @@ import { AccountPage } from '../pages/account/AccountPage.jsx';
 import { AccountSettingsPage } from '../pages/account/AccountSettingsPage.jsx';
 import { RequireSession } from './RequireSession.jsx';
 import { publicPolicyFallbackRoutes } from './PublicPolicyRoutes.jsx';
-import { CustomerRegistrationPage } from '../pages/public/CustomerRegistrationPage.jsx';
-import { SitterApplicationPage } from '../pages/public/SitterApplicationPage.jsx';
+import { RegistrationPage } from '../pages/public/RegistrationPage.jsx';
 import { AdminServicesPage } from '../pages/admin/AdminServicesPage.jsx';
 import { AdminServicePricesPage } from '../pages/admin/AdminServicePricesPage.jsx';
 import { AdminSystemSettingsPage } from '../pages/admin/AdminSystemSettingsPage.jsx';
@@ -89,10 +88,10 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
       <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
       <Route path="service-areas" element={<ServiceAreasPage />} />
       <Route path="sign-in" element={<SignInPage />} />
+      <Route path="register" element={<RegistrationPage />} />
+      <Route path="sitter/apply" element={<RegistrationPage initialSitter />} />
     </Route>
     <Route element={<FoundationLayout />}>
-      <Route path="register" element={<CustomerRegistrationPage />} />
-      <Route path="sitter/apply" element={<SitterApplicationPage />} />
       <Route path="sitter/application-status" element={<ApplicationStatusPage api={applicationStatusApi} />} />
       {publicPolicyRouteElements}
       <Route path="*" element={<section><h1>Không tìm thấy trang</h1>

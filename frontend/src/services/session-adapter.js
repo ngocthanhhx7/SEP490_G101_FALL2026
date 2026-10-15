@@ -21,9 +21,10 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
     async resolve({ signal } = {}) {
       try {
         const response = await getRequest()('/me', { signal });
+        if (typeof response.data?.csrfToken === 'string' && response.data.csrfToken) csrfToken = response.data.csrfToken;
         return { status: 'authenticated', user: mapUser(response) };
       } catch (error) {
-        if (error instanceof ApiError && error.status === 401) return { status: 'guest' };
+        if (error instanceof ApiError && error.status === 401) { csrfToken = null; return { status: 'guest' }; }
         throw error;
       }
     },
@@ -34,9 +35,10 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
       });
       return response.data;
     },
-    async login({ challengeId, channel, contact, code } = {}) {
+    async login({ challengeId, channel, contact, code, rememberDevice } = {}) {
       const response = await getRequest()('/sessions', {
-        method: 'POST', body: { challengeId, channel, contact, purpose: 'LOGIN', code }, csrfBootstrap: true
+        method: 'POST', body: { challengeId, channel, contact, purpose: 'LOGIN', code,
+          ...(rememberDevice !== undefined ? { rememberDevice } : {}) }, csrfBootstrap: true
       });
       if (response.data?.authenticated !== true) return { status: 'guest' };
       const user = mapUser(response);

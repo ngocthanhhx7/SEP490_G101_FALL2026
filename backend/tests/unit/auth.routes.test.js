@@ -44,6 +44,16 @@ function appFixture({ authenticated = false } = {}) {
 }
 
 describe('auth route module HTTP contract', () => {
+  test('rejects SMS for new login/registration and validates the remember-device flag', async () => {
+    const { server, otpService } = appFixture();
+    await request(server).post('/api/v1/otp-challenges').send({ channel: 'PHONE', contact: '+84912345678', purpose: 'REGISTER' }).expect(503);
+    expect(otpService.begin).not.toHaveBeenCalled();
+    const body = { challengeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '123456' };
+    await request(server).post('/api/v1/sessions').send({ ...body, rememberDevice: 'true' }).expect(422);
+    expect(otpService.verify).not.toHaveBeenCalled();
+    await request(server).post('/api/v1/sessions').send({ ...body, rememberDevice: true }).expect(200);
+    expect(otpService.verify).toHaveBeenCalledWith({ ...body, rememberDevice: true });
+  });
   test('returns the authenticated user and masked verified contacts from GET /me', async () => {
     const { server, accountSettingsService } = appFixture({ authenticated: true });
     accountSettingsService.listVerifiedContacts.mockResolvedValue([{

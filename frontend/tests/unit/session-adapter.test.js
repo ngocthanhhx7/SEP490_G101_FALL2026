@@ -69,3 +69,16 @@ describe('API session adapter', () => {
     expect(adapter.getCsrfToken()).toBe('csrf-1');
   });
 });
+
+
+test('restores in-memory CSRF after browser reload and clears it after logout', async () => {
+  const request = jest.fn().mockResolvedValueOnce({ data: { csrfToken: 'resumed-csrf', user: {
+    id: 'synthetic-customer', displayName: 'Customer', roles: ['CUSTOMER']
+  } } }).mockResolvedValueOnce({ status: 204 });
+  const adapter = createApiSessionAdapter({ request });
+  expect(adapter.getCsrfToken()).toBeNull();
+  await adapter.resolve();
+  expect(adapter.getCsrfToken()).toBe('resumed-csrf');
+  await adapter.logout();
+  expect(adapter.getCsrfToken()).toBeNull();
+});
