@@ -1,0 +1,14 @@
+.sitter-visit-details { max-width: var(--pwc-content-width); margin: auto; padding: var(--pwc-space-6); color: var(--pwc-ink); }
+.sitter-visit-details header { display: grid; gap: var(--pwc-space-2); margin-bottom: var(--pwc-space-6); }
+.sitter-visit-details header h1, .sitter-visit-details header p { margin: 0; }
+.sitter-visit-details h1 { font-family: var(--pwc-font-display); font-size: var(--pwc-text-heading); font-weight: 400; }
+.sitter-visit-details h2 { font-size: var(--pwc-text-large); }
+.sitter-visit-details__eyebrow { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); font-weight: 800; }
+.sitter-visit-details__card { display: grid; gap: var(--pwc-space-3); margin-top: var(--pwc-space-4); padding: clamp(1rem, 3vw, 1.5rem); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); }
+.sitter-visit-details__card h2, .sitter-visit-details__card p { margin: 0; }
+.sitter-visit-details__card ul { display: grid; gap: var(--pwc-space-2); margin: 0; padding-left: 1.25rem; }
+.sitter-visit-details__private-note { white-space: pre-wrap; overflow-wrap: anywhere; padding: var(--pwc-space-3); border-radius: var(--pwc-radius-control); background: var(--pwc-lavender-soft); }
+.sitter-visit-details__card form { display: grid; gap: var(--pwc-space-3); }
+.sitter-visit-details :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+@media (max-width: 480px) { .sitter-visit-details { padding: var(--pwc-space-4); } .sitter-visit-details__card button { width: 100%; } }
+@media (max-width: 360px) { .sitter-visit-details { padding-inline: var(--pwc-space-3); } .sitter-visit-details__card { padding: var(--pwc-space-3); } }
