@@ -13,6 +13,8 @@ The eight role/page entry points, source projection services, runtime HTTP route
 and same-origin API adapters are implemented. The runtime now includes a durable
 P41-backed Admin payroll read adapter when Mongo/auth configuration is available;
 it fails closed until settlement request/user source rows satisfy the DTO contract.
+The adapter accepts native Mongo cursors and both Mongoose aggregate return
+shapes while keeping `allowDiskUse: false` explicit at the read boundary.
 Ownership is derived from authenticated
 sessions and checked again for personal visit/earning/profile records. Admin inherits
 Staff dashboard access but cannot read personal sitter/customer endpoints without that

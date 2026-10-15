@@ -42,6 +42,7 @@ describe('durable P28 payroll Mongo adapter', () => {
     expect(snapshot.nextCursor).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(snapshot.sourceVersion).toMatch(/^settlement-request\//);
     const pipeline = requests.aggregate.mock.calls[0][0];
+    expect(requests.aggregate.mock.calls[0][1]).toEqual({ allowDiskUse: false });
     expect(pipeline[0].$match.submittedAt.$gte).toEqual(new Date('2026-09-30T17:00:00.000Z'));
     expect(pipeline.at(-1).$facet.items[0].$limit).toBe(2);
   });
