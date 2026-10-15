@@ -4,7 +4,10 @@ Ngày lập: 15/10/2026, giờ Việt Nam (`Asia/Ho_Chi_Minh`). **INTEGRATION_PE
 Ảnh người dùng cung cấp cho thấy đang cấu hình frontend Vercel và có workspace
 Render; service `smartlearn-backend` trong ảnh thuộc dự án khác, không chứng minh
 Paw World Care đã deploy. Hướng chuẩn bị là Vercel + Render + MongoDB Atlas.
-Chưa có URL/service/domain PWC được xác minh hoặc quyền hosting trong phiên này.
+PR metadata hiện có một Vercel branch preview cho frontend, nhưng preview đó
+không phải integrated PWC staging và không chứng minh Render backend, domain,
+TLS, provider wiring hoặc UAT. Chưa có service/domain PWC tích hợp được xác minh
+hoặc quyền hosting trong phiên này.
 
 ## Cổng trước triển khai
 

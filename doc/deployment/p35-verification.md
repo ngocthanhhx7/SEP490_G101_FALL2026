@@ -1,22 +1,28 @@
 # P35 — Verification record
 
-Ngày: 15/10/2026 (`Asia/Ho_Chi_Minh`). Baseline khảo sát: develop `38627be`.
-**Staging INTEGRATION_PENDING; chưa deploy; chưa có URL PWC được xác minh.**
+Ngày: 15/10/2026 (`Asia/Ho_Chi_Minh`). Baseline khảo sát: develop `f02321e`.
+**Staging INTEGRATION_PENDING; chỉ có Vercel frontend branch preview, chưa có
+integrated PWC staging hoặc UAT được xác minh.**
 Runtime/unit fixtures không chứng minh provider, hosting hoặc UAT. Link tới
 [runbook](p35-staging-runbook.md), [recovery](p35-recovery.md).
+
+PR #72 head `3632e1a` reported Vercel status `success` and a completed
+`Vercel Preview Comments` check at 15/10/2026 20:37 (`Asia/Ho_Chi_Minh`). This
+is frontend preview evidence only; it does not verify an integrated backend,
+provider flow, TLS contract, staging acceptance or UAT.
 
 ## Release evidence cần bổ sung
 
 | Mục | Giá trị thực tại phiên này |
 | --- | --- |
-| Frontend/backend public URL, domain/TLS | Chưa được cung cấp/xác minh |
-| Vercel/Render deployment ID, release SHA | Chưa có |
+| Frontend/backend public URL, domain/TLS | Vercel preview `https://pawworld-frontend-staging-git-feature-p35-a-0f0593-ngocthanhhx7.vercel.app` được PR status báo Ready; integrated public origin/backend/TLS chưa xác minh |
+| Vercel/Render deployment ID, release SHA | Vercel frontend preview `pawworld-frontend-staging`, deployment `6QaZXjrEwEp7QDuFopnkAyujPUvC`; Render backend/integrated release chưa có |
 | Final P34 integration gate | Chưa đạt; status hiện ghi mini-gate |
 | Atlas version/topology/index migration | Chưa kiểm tra staging |
 | Provider, private storage, webhook | Chưa xác minh trên staging |
 | RPO/RTO, backup ID và restore duration | Chưa chốt/chưa diễn tập |
 | Previous deployment và rollback drill | Chưa có/chưa diễn tập |
-| UAT, production approval | Chưa có; production chưa được thực hiện |
+| UAT, production approval | Chưa có; preview Ready không phải UAT hoặc production |
 
 Không dùng URL của `smartlearn-backend` làm URL PWC. Screenshot cấu hình mới
 chọn Ruby/main cần đổi thành Node/develop theo runbook; không chứng minh deploy.

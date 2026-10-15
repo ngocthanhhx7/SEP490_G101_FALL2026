@@ -9,8 +9,11 @@
   synced head `3224540`, merged from `origin/develop` `f02321e`. The original
   checkout at `D:/WW/SEP490_G101_FALL2026-p35` remains separate and dirty; do not
   use it for release or cleanup operations.
-- Trạng thái: công cụ/tài liệu triển khai đã chuẩn bị; staging **INTEGRATION_PENDING**.
-  Không có bằng chứng deploy/UAT/production. UI_NOT_IN_SCOPE, không claim Figma.
+- Trạng thái: công cụ/tài liệu triển khai đã chuẩn bị; PR metadata ghi nhận một
+  Vercel frontend branch preview **Ready** (preview-only). Staging vẫn
+  **INTEGRATION_PENDING** vì chưa có integrated Render/backend, proxy/domain,
+  provider evidence hoặc UAT/production approval. UI_NOT_IN_SCOPE, không claim
+  Figma.
 
 ## Phạm vi hoàn thành
 
