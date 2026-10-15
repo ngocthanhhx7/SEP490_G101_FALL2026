@@ -65,3 +65,12 @@ gates, not a request for routine permission. Keep PR draft, no approval claimed.
 
 Files live only under backend/, frontend/, doc/. Dependencies/build outputs and
 local credentials/helpers/prompts are ignored and excluded from staging.
+
+## Current branch verification (2026-10-15)
+
+- Live head: `211822e6f5c163621dc5731dbed26ae2a25b93b6`; base `develop`:
+  `f02321e5f82ee7ad522494c0247b94209db6c1a7`.
+- Full backend Jest run on this head: **63 suites / 562 tests passed**.
+- GitHub reports only a Vercel Preview Comments success for this head; no CI
+  workflow result or reviewer approval is inferred. The assigned reviewer remains
+  `Chunggrizzy11`, and the existing review is `COMMENTED` on an older head.
