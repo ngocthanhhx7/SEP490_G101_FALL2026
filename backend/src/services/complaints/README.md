@@ -10,3 +10,8 @@ Settlement holds are passed to the injected financial port. This module never
 calculates, charges, refunds or marks a settlement complete. P34/P01 must wire
 the repository, case projection and media capability provider before calling the
 flow integrated.
+
+P47 adds read-only Sitter access. A Sitter may list or open only complaints
+tied to an assigned visit; the serializer omits Staff notes, objections and
+settlement details. Sitter complaint creation and lifecycle commands remain
+forbidden.

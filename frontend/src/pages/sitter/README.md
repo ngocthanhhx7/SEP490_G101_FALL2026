@@ -20,3 +20,7 @@ validation, and policy-decision states and never claims success for an
 unacknowledged response. P34 owns the final route and provider wiring; P01's
 SITTER-FEEDBACK decision still gates the live rating window, visibility, and
 moderation policy.
+
+`SitterComplaintsPage` and `sitter-complaint-api.js` are read-only. The server
+must scope every list/detail result to the Sitter's assigned visit and omit
+Staff private notes; no Sitter complaint creation or Staff command is exposed.
