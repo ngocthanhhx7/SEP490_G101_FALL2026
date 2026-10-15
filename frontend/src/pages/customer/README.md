@@ -6,7 +6,7 @@ P14 registers `CustomerProfilePage` at `/account/profile` behind the Customer ro
 
 Customer-facing pages that manage a Customer's own Paw World Care data belong here. The pet list is WBS-014; pet details and editing belong to WBS-015.
 
-`PetListPage` is intentionally not registered in `AppRoutes`. P34 owns route registration and session/CSRF wiring. Its default detail links point to `/account/pets/:petId`; P34 may supply the `detailsPath` prop when integrating the final route. The page uses the same-origin API client through `services/pet-api.js` and has no product mock or fallback data.
+`PetListPage` and `PetDetailsPage` are registered behind the Customer guard in `AppRoutes`. P34 injects the current session/CSRF adapter. Its default detail links point to `/account/pets/:petId`; P34 may supply the `detailsPath` prop when integrating the final route. The page uses the same-origin API client through `services/pet-api.js` and has no product mock or fallback data.
 
 `DirectedBookingProposalPage` renders the Customer confirmation boundary for a
 Customer-selected sitter. It reads a server proposal, displays only the
@@ -19,3 +19,8 @@ gate and offer dispatch transaction are mounted in the runtime.
 **UI status: PROVISIONAL.** It uses the P04 token and component contract; no P15-specific Figma frame was supplied or inspected.
 
 **Integration status: INTEGRATION_PENDING.** The P01/P14/P50 work is not all on `origin/develop`, and end-to-end route/provider verification is pending. This branch includes injected services and unit tests, but no Pet schema, controller, route registration, or live session/CSRF wiring. Before wiring a live provider, confirm the server's list envelope with P01; the adapter currently accepts either `data: PetView[]` or `data: { items: PetView[], nextCursor }` and rejects other shapes instead of presenting them as an empty list. Mutations require the existing in-memory CSRF adapter and return a real server acknowledgement before the UI reports success.
+
+
+`CustomerBookingsPage` at `/account/bookings` requests the complete history without a payment/state filter and supports cursor pagination. The expected projection is `{id, state, reference?, serviceName?}` in `data: []` or `data.items`, plus an optional `nextCursor`. HTTP failures are shown as unavailable, never as an empty history. This read contract still needs the P01 booking endpoint in the default backend runtime. `/account/notifications` reuses the existing notifications page/API, with the same current-session CSRF wiring.
+
+Frontend routes are connected; runtime backend Pet and Notification repository/routes and Booking reads are still pending integration. No production mock data or fake success is supplied.
