@@ -1,0 +1,28 @@
+.incident-page { max-width: 60rem; margin: 0 auto; padding: var(--pwc-space-6); display: grid; gap: var(--pwc-space-4); color: var(--pwc-ink); }
+.incident-page__header { display: grid; gap: var(--pwc-space-2); }
+.incident-page__header h1, .incident-card h2 { margin: 0; font-family: var(--pwc-font-display, var(--pwc-font-body)); }
+.incident-page__header p { margin: 0; line-height: var(--pwc-leading); }
+.incident-page__eyebrow { margin: 0; color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); font-weight: 900; letter-spacing: .08em; overflow-wrap: anywhere; }
+.incident-card { display: grid; gap: var(--pwc-space-3); padding: var(--pwc-space-5); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-card); background: var(--pwc-surface); box-shadow: var(--pwc-shadow-soft); }
+.incident-form { max-width: 46rem; }
+.incident-field { display: grid; gap: .4rem; font-weight: 700; }
+.incident-field textarea { width: 100%; min-height: 3rem; box-sizing: border-box; resize: vertical; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); padding: .75rem; color: var(--pwc-ink); background: var(--pwc-surface); font: inherit; line-height: var(--pwc-leading); }
+.incident-field textarea:focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+.incident-form__hint { margin: 0; color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); line-height: var(--pwc-leading); }
+.incident-filters { grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); align-items: end; }
+.incident-list__items { display: grid; gap: var(--pwc-space-3); margin: 0; padding: 0; list-style: none; }
+.incident-list__item { display: flex; justify-content: space-between; gap: var(--pwc-space-4); }
+.incident-list__item h2 { margin: 0; font-size: 1.1rem; overflow-wrap: anywhere; }
+.incident-list__item p { margin: .35rem 0 0; color: var(--pwc-ink-muted); }
+.incident-list__meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
+.incident-pill { display: inline-flex; min-height: 2rem; align-items: center; border: 1px solid var(--pwc-border); border-radius: 999px; padding: .2rem .65rem; font-size: var(--pwc-text-small); font-weight: 800; white-space: nowrap; }
+.incident-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: var(--pwc-space-3); margin: 0; }
+.incident-facts div { min-width: 0; }
+.incident-facts dt { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.incident-facts dd { margin: .3rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.incident-timeline { display: grid; gap: var(--pwc-space-3); margin: 0; padding-left: 1.25rem; }
+.incident-timeline li { padding: var(--pwc-space-3); background: var(--pwc-lavender-soft); border-radius: var(--pwc-radius-control); }
+.incident-timeline p { margin: .35rem 0; white-space: pre-wrap; }
+.incident-timeline time { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.incident-page :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+@media (max-width: 40rem) { .incident-page { padding: var(--pwc-space-3); } .incident-card { padding: var(--pwc-space-4); } .incident-list__item { display: grid; } .incident-list__meta { justify-content: flex-start; } }
