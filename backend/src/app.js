@@ -1,3 +1,5 @@
+import { contactModule } from './routes/contact.routes.js';
+import { serviceCatalogRuntimeModules } from './routes/service-catalog-runtime.js';
 import { customerProfileRuntimeModule } from './routes/customer-profile.routes.js';
 import { applicationStatusModule } from './routes/application-status.routes.js';
 import express from 'express';
@@ -38,14 +40,16 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
-  const extensionModules = moduleFactories.map(factory => factory(context))
+  const suppliedModules = moduleFactories.map(factory => factory(context))
     // Optional runtime modules fail closed when a provider or policy is absent.
     // Do not hand null/undefined modules to the registry, which would turn a
     // deliberate disabled feature into an application boot failure.
     .filter(module => module !== null && module !== undefined);
-  registerModules(app, [healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
+  const catalogModules = serviceCatalogRuntimeModules(context)
+    .filter(module => !suppliedModules.some(supplied => supplied.name === module.name));
+  registerModules(app, [contactModule(context), healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...extensionModules]);
+    ...catalogModules, ...suppliedModules]);
   app.use(notFound, errorHandler(logger));
   return app;
 }
