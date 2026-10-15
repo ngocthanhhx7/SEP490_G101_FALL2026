@@ -48,7 +48,9 @@ gates, not a request for routine permission. Keep PR draft, no approval claimed.
 - Transactional doubles do not verify Mongo uniqueness, bank evidence, provider,
   actual payout or integrated care/refund/complaint flow. No CI status inferred.
 - P04 shared tokens used. CSS cards/fields fit narrow layouts with 44px controls;
-  actual 360px/browser keyboard/touch and Figma fidelity are unverified. Brand
+  local synthetic browser harness verified a 360px frame without horizontal
+  overflow (345px usable content with scrollbar), labeled reference entry and
+  Tab focus to evidence field. Physical touch and Figma fidelity are unverified. Brand
   tokens currently describe themselves as provisional. No fake visual approval.
 
 Files live only under backend/, frontend/, doc/. Dependencies/build outputs and
