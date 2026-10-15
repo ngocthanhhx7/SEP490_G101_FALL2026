@@ -1,3 +1,5 @@
+import { contactModule } from './routes/contact.routes.js';
+import { serviceCatalogRuntimeModules } from './routes/service-catalog-runtime.js';
 import { customerProfileRuntimeModule } from './routes/customer-profile.routes.js';
 import { applicationStatusModule } from './routes/application-status.routes.js';
 import express from 'express';
@@ -41,10 +43,18 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const dashboardRead = dashboardReadRuntimeModule({ ...context, repositories: dashboardRepositories,
     sessionService: auth?.sessionService });
-  registerModules(app, [healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
+  // Auth already owns the /api/v1 mount. Compose the read routers into that
+  // router so the registry keeps one mount while the public paths remain
+  // /api/v1/me/earnings, /api/v1/payroll, and /api/v1/dashboards/*.
+  if (auth && dashboardRead) auth.router.use(dashboardRead.router);
+  const suppliedModules = moduleFactories.map(factory => factory(context))
+    .filter(module => module !== null && module !== undefined);
+  const catalogModules = serviceCatalogRuntimeModules(context)
+    .filter(module => !suppliedModules.some(supplied => supplied.name === module.name));
+  registerModules(app, [contactModule(context), healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...(dashboardRead ? [dashboardRead] : []),
-    ...moduleFactories.map(factory => factory(context))]);
+    ...(dashboardRead && !auth ? [dashboardRead] : []),
+    ...catalogModules, ...suppliedModules]);
   app.use(notFound, errorHandler(logger));
   return app;
 }
