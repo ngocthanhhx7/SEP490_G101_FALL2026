@@ -218,7 +218,9 @@ function transitions(current, target) {
   return (current === 'OPEN' && target === 'UNDER_REVIEW') || (current === 'UNDER_REVIEW' && target === 'RESOLVED')
     || (current === 'RESOLVED' && target === 'CLOSED') || (current === 'RESOLVED' && target === 'UNDER_REVIEW');
 }
-function runner(repository, actor, resourceId, work) {
+function runner(repository, actor, resourceId, work, resourceKind = 'visit') {
+  if (resourceKind === 'case' && typeof repository.runForCase === 'function') return repository.runForCase(actor, resourceId, work);
+  if (resourceKind === 'visit' && typeof repository.runForVisitActor === 'function') return repository.runForVisitActor(actor, resourceId, work);
   if (typeof repository.runForVisitActor === 'function') return repository.runForVisitActor(actor, resourceId, work);
   if (typeof repository.runForCase === 'function') return repository.runForCase(actor, resourceId, work);
   if (typeof repository.runIncidentTransaction === 'function') return repository.runIncidentTransaction({ actor, resourceId }, work);
@@ -231,9 +233,9 @@ export function createIncidentService({ repository, clock = () => new Date() } =
     throw new TypeError('Incident repository transaction port is required');
   }
   if (typeof clock !== 'function') throw new TypeError('clock must be a function');
-  async function transaction(actor, resourceId, work) {
+  async function transaction(actor, resourceId, work, resourceKind = 'visit') {
     active(actor, clock); identifier(resourceId, 'resourceId');
-    try { return await runner(repository, actor, resourceId, work); }
+    try { return await runner(repository, actor, resourceId, work, resourceKind); }
     catch (error) { if (error instanceof AppError) throw error; throw new AppError(503, 'INCIDENT_UNAVAILABLE', 'Incident service is temporarily unavailable'); }
   }
   async function getVisit(tx, visitId) {
@@ -274,7 +276,9 @@ export function createIncidentService({ repository, clock = () => new Date() } =
       if (!saved) fail(503, 'INCIDENT_UNAVAILABLE', 'Incident was not acknowledged by the server');
       const savedRecord = { ...record, ...saved, state: saved.state ?? record.state, kind: 'INCIDENT', visitId,
         version: Number.isSafeInteger(saved.version) ? saved.version : record.version };
-      const result = { incident: safeCase(savedRecord, actor), case: safeCase(savedRecord, actor) };
+      const incident = safeCase(savedRecord, actor);
+      const result = { id: incident?.id, caseId: incident?.id, visitId, state: incident?.state, version: incident?.version,
+        incident, case: incident };
       if (!result.incident?.id || result.incident.kind !== 'INCIDENT' || result.incident.visitId !== visitId) fail(503, 'INCIDENT_UNAVAILABLE', 'Incident response is invalid');
       await callFirst(tx, ['appendAuditAndOutbox'], { type: 'IncidentReported', actorId: actor.userId, caseId: result.incident.id, visitId, at: now, urgency: normalized.urgency });
       await saveOperation(tx, identity, hash, result);
@@ -322,7 +326,7 @@ export function createIncidentService({ repository, clock = () => new Date() } =
       const visit = await getVisit(tx, visitId); authorizeVisit(actor, visit);
       const view = safeCase(record, actor); if (!view) fail(503, 'INCIDENT_UNAVAILABLE', 'Incident response is invalid');
       return view;
-    });
+    }, 'case');
   }
   async function resolve({ actor, caseId, incidentId, expectedVersion: suppliedVersion, idempotencyKey: suppliedKey, ...input } = {}) {
     active(actor, clock); if (!operational(actor)) fail(403, 'FORBIDDEN', 'Operational access required');
@@ -349,12 +353,13 @@ export function createIncidentService({ repository, clock = () => new Date() } =
       const saved = await callFirst(tx, ['resolveIncident', 'updateCase', 'saveIncidentResolution'], { caseId: id, incident: current, resolution: record,
         expectedVersion: expected, actorId: actor.userId, idempotencyKey: key });
       if (!saved || saved.version !== expected + 1 || !state(saved.state || record.state)) fail(503, 'INCIDENT_UNAVAILABLE', 'Resolution was not acknowledged by the server');
-      const result = safeCase({ ...current, ...saved, id, kind: 'INCIDENT', visitId, version: saved.version, state: saved.state, resolution: { ...record, ...(saved.resolution || {}) } }, actor);
+      const result = safeCase({ ...current, ...saved, id, kind: 'INCIDENT', visitId, version: saved.version,
+        state: saved.state ?? record.state, resolution: { ...record, ...(saved.resolution || {}) } }, actor);
       if (!result) fail(503, 'INCIDENT_UNAVAILABLE', 'Resolution response is invalid');
       await callFirst(tx, ['appendAuditAndOutbox'], { type: 'IncidentResolved', actorId: actor.userId, caseId: id, visitId, state: result.state, at: now, final });
       await saveOperation(tx, identity, hash, result);
       return result;
-    });
+    }, 'case');
   }
   return Object.freeze({ report, create: report, list, listIncidents: list, detail, get: detail, resolve, resolveIncident: resolve });
 }
