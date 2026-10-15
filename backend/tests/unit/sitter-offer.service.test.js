@@ -81,6 +81,13 @@ describe('sitter offer projections and commands', () => {
     await expect(service.list({ ...actor, roles: ['CUSTOMER'] })).rejects.toMatchObject({ status: 403 });
   });
 
+  test('accepts assignment-state filters for the assigned schedule', async () => {
+    const repo = repository({ assignments: [{ id: VISIT, visitId: VISIT, sitterId: SITTER, state: 'ASSIGNED', version: 1,
+      startAt: '2026-10-16T02:00:00.000Z', endAt: '2026-10-16T03:00:00.000Z', serviceName: 'Chăm sóc chó', areaCode: 'Q1', pets: [] }] });
+    const service = createSitterOfferService({ repository: repo, clock: () => now });
+    await expect(service.assignments(actor, { state: 'ASSIGNED' })).resolves.toMatchObject({ items: [{ visitId: VISIT }] });
+  });
+
   test('accept rechecks eligibility and slot inside the repository command', async () => {
     const repo = repository();
     const service = createSitterOfferService({ repository: repo, clock: () => now });

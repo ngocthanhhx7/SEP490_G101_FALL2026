@@ -86,7 +86,10 @@ function requireKey(value) {
   return value;
 }
 
-function pageQuery(query = {}) {
+const OFFER_STATES = ['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'REVOKED'];
+const ASSIGNMENT_STATES = ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'WITHDRAWN', 'CANCELLED'];
+
+function pageQuery(query = {}, states = OFFER_STATES) {
   if (!query || typeof query !== 'object' || Array.isArray(query)
     || Object.keys(query).some(key => !['limit', 'cursor', 'state'].includes(key))) {
     fail(422, 'VALIDATION_FAILED', 'Offer list query is invalid');
@@ -99,7 +102,7 @@ function pageQuery(query = {}) {
   if (cursor !== null && (typeof cursor !== 'string' || !ID.test(cursor))) {
     fail(422, 'VALIDATION_FAILED', 'Offer cursor is invalid');
   }
-  if (query.state !== undefined && !['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'REVOKED'].includes(query.state)) {
+  if (query.state !== undefined && !states.includes(query.state)) {
     fail(422, 'VALIDATION_FAILED', 'Offer state is invalid');
   }
   return { limit, cursor, state: query.state ?? null };
@@ -154,12 +157,14 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
   async function detail(actor, offerId) {
     const sitterId = activeSitter(actor);
     const record = await repository.getOffer({ offerId: identifier(offerId, 'offerId'), sitterId });
-    return safeOffer(record, sitterId, Number(clock()));
+    const asOf = Number(clock());
+    if (!Number.isFinite(asOf)) fail(503, 'OFFER_DATA_UNAVAILABLE', 'Server clock is unavailable');
+    return safeOffer(record, sitterId, asOf);
   }
 
   async function assignments(actor, query = {}) {
     const sitterId = activeSitter(actor);
-    const filter = pageQuery(query);
+    const filter = pageQuery(query, ASSIGNMENT_STATES);
     const result = await repository.listAssignedVisits({ sitterId, ...filter });
     if (!Array.isArray(result?.items) || result.items.length > filter.limit) {
       fail(503, 'ASSIGNMENT_DATA_UNAVAILABLE', 'Assignments are unavailable');
