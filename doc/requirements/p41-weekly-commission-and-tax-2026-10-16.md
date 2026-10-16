@@ -69,8 +69,9 @@ migration, khấu trừ hay chuyển tiền.
   Điều 13 NĐ 68. Khấu trừ giao dịch, ngưỡng doanh thu năm và hoàn/đối soát thuế
   không được gộp thành một cờ tự miễn thuế.
 
-Chưa xác định sitter là cá nhân kinh doanh độc lập, lao động nhận tiền công hay
-pháp nhân; pháp nhân/phương pháp thuế của PWC cũng chưa được cung cấp. Vì vậy
+Người dùng xác nhận PWC là dự án demo/chưa đăng ký kinh doanh, sitter dự kiến là
+đối tác cá nhân độc lập. Đây là mô hình sản phẩm, chưa phải hồ sơ xác nhận cá nhân
+kinh doanh/cư trú/doanh thu hay chế độ thuế được cơ quan có thẩm quyền áp dụng. Vì vậy
 **không có một tỷ lệ thuế duy nhất đủ cơ sở để bật tự động**. Bộ phận phụ trách
 thuế cần xác nhận classification, doanh thu tổng năm, cư trú, cơ sở tính thuế,
 ngày hiệu lực, ưu đãi và chứng từ; snapshot lưu regime/basis/rates/amounts/reference.
@@ -92,7 +93,9 @@ Với cơ sở dịch vụ G, phí C, khoản thuế giao dịch đã được x
 
 Ví dụ G = 1.000.000đ, C = 100.000đ và **giả định riêng** T đã xác nhận 60.000đ:
 sitter 870.000đ; nền tảng 70.000đ; thuế 60.000đ. Tổng đúng 1.000.000đ. T không
-do calculator suy ra tỷ lệ luật định. Thuế riêng của PWC không nằm trong ví dụ.
+do calculator suy ra tỷ lệ luật định. Thuế riêng của PWC không nằm trong ví dụ. Khoản hỗ trợ thuế cũng phải được xem xét
+trong cơ sở doanh thu/gross-up khi xác lập assessment thật; ví dụ không tự giải
+quyết việc này.
 Nếu C < ceil(T/2), nền tảng cần cấp bù nguồn tiền; không âm thầm giảm tiền sitter.
 
 `previewEqualTaxCostSplit` không tạo earning hoặc payout, không coi giá trị thiếu
@@ -112,3 +115,13 @@ cách pháp lý và phép tính thuế. `FIN-07-ELIG` vẫn cần completed-care
 payment + complaint/refund hold/release thực. Postpay/reconciliation và chỉnh sửa
 sau duyệt không được mở chỉ vì có bảng phí. Giữ payout fail-closed, không tự thu
 hồi tiền hoặc gọi API chuyển khoản. Xem [hợp đồng P51](p51-financial-contract-v1.md).
+
+## Chế độ demo đã xác nhận
+
+Trong demo, dữ liệu booking/payment/tax assessment chỉ dùng fixture synthetic
+và phải được gắn nhãn mô phỏng. Không gọi giả lập là xác nhận thuế pháp định,
+đã nộp thuế hoặc chuyển tiền thật. Ví dụ thuế 60.000đ ở trên là input mô phỏng,
+không là thuế suất mặc định 6% cho mọi đơn. Không bật policy eligibility trong
+runtime chung để bù cho producer chưa có; không tạo hoặc sửa dữ liệu tài chính
+của môi trường khác. Khi chuyển sang vận hành thật, xác định hồ sơ pháp lý và
+assessment trước khi bật khấu trừ; thuế và ngưỡng năm không reset theo tuần phí.
