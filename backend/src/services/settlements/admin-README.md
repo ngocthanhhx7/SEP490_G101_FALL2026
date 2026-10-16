@@ -59,3 +59,13 @@ so a newly committed case/refund lock forces retry and a fresh hold check. Same-
 session identity changes remount the frontend page and clear prior payroll/forms.
 The shared sitter projection uses one snapshot and explicit 1000 earning/request,
 10000 ledger line caps; larger histories return SETTLEMENT_HISTORY_LIMIT (503).
+
+## Weekly commission, 2026-10-16
+
+weekly-commission.js calculates the user-approved progressive fee per completed
+booking: 1–5 10%, 6–10 9%, 11–20 8%, 21+ 7%, Vietnam Monday reset. It requires
+complete authoritative snapshots, rejects duplicate/mixed-owner/unsafe amounts,
+and applies user-approved half-up VND rounding per booking with exact BigInt
+arithmetic. The platform bears any odd VND when sharing tax cost equally.
+The tax split is preview-only from confirmed tax amounts, never a hard-coded
+statutory rate or earning eligibility. See the P41 commission/tax addendum.
