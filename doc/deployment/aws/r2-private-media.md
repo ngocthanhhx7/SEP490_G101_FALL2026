@@ -1,70 +1,111 @@
-# R2 private media — selected provider, integration pending
+# R2 private image runtime
 
-The user selected Cloudflare R2 on 15/10/2026. The supplied dashboard screenshot
-shows no bucket created. Prepare a separate staging bucket, for example
-`pwc-private-staging` (availability unverified), independent of production.
-Keep both Public Development URL (`r2.dev`) and public custom-domain access
-**disabled**. Do not make private documents public to display them in the UI.
-Creating a bucket, credentials, lifecycle rules or uploading files has not occurred.
+Implemented scope (16/10/2026): authenticated owner-only PNG/JPEG storage, backed
+by Mongo metadata/quota and the R2 S3-compatible SDK. Disabled by default via
+`R2_ENABLED=false`. No bucket, credentials, DNS, lifecycle rule or real upload has
+been created in this audit. No frontend upload control is enabled by this change.
+Guest applicant documents/PDF, care reports, settlement evidence registration and
+public image publication remain separate integrations; do not reuse an arbitrary
+owner-image reference as approved evidence.
 
-## Backend configuration contract to implement
+## Operator setup
 
-Use the S3-compatible endpoint `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`,
-region `auto`, and bucket-scoped Object Read & Write credentials held only in the
-backend secret store. Never use an account-wide administration token, expose
-keys in VITE variables or commit them. Proposed adapter-specific names are
-`R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; these are
-**not yet consumed by runtime or validated by the offline preflight**. Adding
-these values today does not wire `privateMedia` or enable uploads.
+Create a separate private staging bucket (proposed `pwc-private-staging`), with
+both r2.dev and custom-domain public access disabled. Scope credentials to that
+bucket's Object Read & Write operations; do not use an account administration token.
+Use backend-only `R2_ENABLED=true`, `R2_ACCOUNT_ID`, `R2_BUCKET`,
+`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_MAX_IMAGES_PER_USER` from the
+[example](../../../backend/.env.example). Real values belong only in the private
+EC2 environment file. Never put them in frontend/VITE settings. Account ID is
+32 lowercase hex characters, access key ID 32 and secret 64; malformed enabled
+configuration stops startup with safe field names. Disabled configuration is inert.
 
-The implementation must bind durable media metadata to authenticated owner,
-resource/assignment, purpose, content type, byte size, verified content checksum,
-object key and state. Use random server-generated keys, no contact/name/home
-address in object paths. Upload into a quarantine state, verify actual content
-and size server-side (browser MIME checks/signing Content-Type are insufficient),
-then promote metadata and expose only accepted media. Bound streaming/temporary
-space and clean orphan objects through an idempotent job only after retention
-policy is approved. Do not treat S3 ETag as a universal content checksum.
+Runtime consumes and validates these fields. Preflight reuses that validation but
+cannot verify credentials, bucket privacy, quota, SDK/R2 behavior or live network.
+The endpoint is derived from the validated account ID, HTTPS only, region `auto`;
+there is no caller-controlled endpoint or ambient AWS credential chain. SDK
+versions are exact in the lockfile. AWS SDK transport retries are disabled; a
+hard 10-second abort covers request and full download body. A timeout keeps
+metadata pending because a provider may have stored the object already.
 
-Prefer backend-mediated upload/read for the first integration so browser auth
-remains same-origin. Before every read, check current role, ownership, assignment
-and the permitted time window. For temporary direct reads, issue a short-lived
-GetObject capability only after those checks; its lifetime must not exceed the
-remaining authorization window. Presigned URLs are bearer credentials and can
-be reused until expiry; they cannot prove continued assignment or instant
-revocation. Use an authenticated backend stream where immediate revocation is
-required. Never persist signed URLs as permanent media identity or log their
-query strings. API and object responses must be private/no-store and excluded
-from CDN/service-worker caches.
+The image and quota collections need their native `_id` indexes only. Upload
+reserves a slot and pending record in one Mongo transaction. No startup
+syncIndexes/drop or destructive migration runs. Provision/check collections and
+transaction permissions on the actual Atlas staging DB before traffic.
 
-R2 presigned URLs use the S3 API hostname, not a public custom domain. With
-backend-mediated traffic, no browser-to-R2 CORS policy is needed. If a later
-reviewed adapter permits direct browser PUT/GET, restrict CORS to the exact
-staging HTTPS origin and required methods/headers; do not use `*` or expose
-DELETE. Signing content type does not enforce actual file size/content or stop
-repeated overwrites. A direct-upload design therefore needs quarantine,
-post-upload verification and a safe finalization/idempotency protocol.
+## API and authorization
 
-## Gates and operator evidence
+When authentication and R2 are enabled, the default app mounts:
 
-Before enabling uploads, record the bucket name/region jurisdiction choice,
-credential scope/rotation, approved quota, max bytes/types, retention/deletion
-and backup policy. R2 durability is not proof of recoverability from an accidental
-delete; test the selected independent backup/recovery method and reconcile DB
-metadata with objects. Do not install deletion/lifecycle rules before retention
-is agreed. Public marketing/avatar media, if later approved for public release,
-needs a distinct publication workflow and bucket; no automatic promotion of
-applicant documents or check-in evidence.
+- `POST /api/v1/private-images`: raw `image/png` or `image/jpeg` body; active
+  session cookie, same-origin Origin, X-CSRF-Token and Idempotency-Key required.
+  Key format is 16–128 ASCII letters/digits/underscore/hyphen. Returns 201 on
+  completion or 200 for a completed replay, with `{id,state,replayed}` only.
+- `GET /api/v1/private-images/:id/content`: active current owner's session;
+  other users, including Admin/Staff, get 404. Revoked/expired sessions get 401.
+  Backend downloads and verifies the object's stored length, type and SHA256,
+  then returns attachment bytes, no public or signed browser URL.
 
-Required synthetic tests: guest/other-owner/incorrect assignment denied; expired
-and revoked access denied; invalid content/oversize rejected; retry/lost response
-not duplicated; orphan cleanup safe; object and DB recovery consistent; no public
-r2.dev/custom-domain read; no PII/signed URL in logs/cache. Prove actual SDK/R2
-behavior with an authorized target separately from port doubles. Current
-`privateMedia` remains fail-closed; no runtime R2 adapter or live proof exists.
+Requests/responses are private/no-store, nosniff and no-referrer. Cloudflare and
+service-worker bypass rules still need live verification. The route never logs
+body, object key, credentials or signed URL. There is no list/read-any-user or
+unauthenticated upload endpoint, and no arbitrary user ID accepted from a client.
 
-Official sources searched and read on 15/10/2026:
+Upload input and output are capped at 5 MiB, decoded pixels at 16 million, static
+single-frame PNG/JPEG only. Sharp decodes and re-encodes with a five-second
+processing limit and strips metadata; client MIME or magic bytes alone do not
+establish acceptance. A route instance admits at most four image operations at a
+time, including upload body parsing. Native decoding memory/host CPU must still
+be measured on the selected EC2 size; these are safety caps, not load evidence.
 
+The default technical cap is 20 image identities per user, operator-configurable
+1–1000. Pending/uncertain objects consume a slot too; failure cannot bypass quota.
+Quota is shared through Mongo across app processes. There is no delete/release
+API until retention/evidence policy is approved. Do not enable this service in a
+live environment before deciding retention, backup, orphan recovery and support
+for a user whose quota is full. Failed input/auth/CSRF does not reserve a slot.
+
+## Idempotency and uncertain outcomes
+
+The server derives an opaque object identity from session owner + command key;
+clients cannot choose R2 paths. The normalized input digest binds that identity
+to one payload. Changed payload gives 409; a completed retry returns its stored
+identity. Same-key concurrent PUTs may occur, but converge on the same identity
+and bytes with one Mongo quota slot. Do not claim exactly-once network transfer.
+After lost acknowledgement, the object may exist while metadata remains PENDING;
+retry the same payload/key to reconcile. Never issue a new command key just to
+hide a timeout. Content bytes must verify before a READY object is served.
+
+Identity derivation uses the backend session-token secret with a purpose prefix;
+keep its version stable during retry windows. Key rotation requires a reviewed
+idempotency-version migration; changing it silently can create another identity.
+No automatic cleanup or deletion is implemented. Preserve the original image
+input and command identity securely if retry/reconciliation is needed.
+
+The lower-level provider exposes short-lived signed read capabilities only for
+internal authorized services, restricted to the private image key namespace.
+Presigned URLs are bearer tokens reusable until expiry and work on the S3 API
+hostname, not a public custom domain. The owner API deliberately uses backend
+reads, so each new request rechecks session/ownership and needs no R2 browser CORS.
+A future direct-browser adapter needs exact-origin CORS, quota/quarantine,
+content verification and short lifetimes; CORS alone is not authorization.
+
+## Evidence and remaining gates
+
+Tests cover the real AWS SDK signing/serialization through a synthetic HTTP
+handler and real image decode/reencode. Isolated Mongo with persisted sessions
+covers CSRF, owner access/revocation, EXIF removal, false MIME, oversize/quota,
+concurrent IDs, provider unknown outcome and storage tampering. Hung-request and
+stalled-body tests verify hard abort/stream destruction. None contacts R2.
+Final exact test counts are recorded in the PR review. Live bucket privacy,
+credential scope, actual PUT/GET, EC2 native install/memory, provider failures,
+retention/deletion and DB/object restore remain NOT RUN.
+
+Official references read 15–16/10/2026:
+
+- [Cloudflare SDK v3 configuration](https://developers.cloudflare.com/r2/examples/aws/aws-sdk-js-v3/)
+- [Private/public bucket behavior](https://developers.cloudflare.com/r2/buckets/public-buckets/)
 - [Presigned URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls)
-- [R2 CORS](https://developers.cloudflare.com/r2/buckets/cors/)
-- [Public buckets and default privacy](https://developers.cloudflare.com/r2/buckets/public-buckets/)
+- [CORS](https://developers.cloudflare.com/r2/buckets/cors/)
+- [Sharp constructor/input safety](https://sharp.pixelplumbing.com/api-constructor/)
+- [Sharp output/metadata](https://sharp.pixelplumbing.com/api-output/)

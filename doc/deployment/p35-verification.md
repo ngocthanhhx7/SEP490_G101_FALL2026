@@ -18,7 +18,7 @@ provider flow, TLS contract, staging acceptance or UAT.
 | Frontend/backend public URL, domain/TLS | Vercel preview `https://pawworld-frontend-staging-git-feature-p35-a-0f0593-ngocthanhhx7.vercel.app` được PR status báo Ready; integrated public origin/backend/TLS chưa xác minh |
 | Historical Vercel preview (superseded target) | Vercel frontend preview `pawworld-frontend-staging`, deployment `6QaZXjrEwEp7QDuFopnkAyujPUvC`; EC2/integrated release chưa có |
 | EC2 instance/region, DNS and origin TLS | Chưa tạo EC2; proposed staging.pawworldvn.shop, DNS chưa thay đổi; NOT RUN |
-| R2 private bucket/adapter | Đã chọn R2; chưa có bucket/credentials/adapter/live upload proof |
+| R2 private bucket/adapter | Đã chọn R2; chưa có bucket/credentials/live upload proof; owner PNG/JPEG adapter/API implemented, other attachment flows pending |
 | Final P34 integration gate | Chưa đạt; status hiện ghi mini-gate |
 | Atlas version/topology/index migration | Chưa kiểm tra staging |
 | Provider, private storage, webhook | Chưa xác minh trên staging |

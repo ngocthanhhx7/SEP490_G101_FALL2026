@@ -22,8 +22,8 @@ No Nginx/systemd host validation has been executed on Windows.
 
 Offline preflight reuses runtime validation, requires email for email-only auth,
 rejects SMS-only configuration and accepts IPv4 loopback for a local EC2 proxy
-(or wildcard for a managed host). It never connects/sends/deploys. R2 credentials
-are a proposed adapter contract only, not existing runtime environment support.
+(or wildcard for a managed host). It never connects/sends/deploys. R2 settings now validate and compose an opt-in PNG/JPEG transport and owner API.
+Guest applicant/care/settlement evidence integration remains absent.
 
 ## Checks and remaining acceptance
 
@@ -34,7 +34,7 @@ in the follow-up. Fresh backend lint and full 61 suites / 582 tests PASS, includ
 Local tests use synthetic providers and isolated Mongo, never live acceptance.
 
 Staging remains **INTEGRATION_PENDING**: exact EC2/domain/DB/authorized release,
-R2 bucket plus durable metadata/upload/read adapter and approved retention/quota,
+R2 bucket and live provider checks, approved retention/cleanup and attachment integration,
 real TLS/proxy/CSRF/cache checks, Admin bootstrap, schema/index provisioning,
 provider/payOS composition, job lease/outbox with two-worker crash/restart,
 RPO/RTO, restore/rollback and UAT are missing or NOT RUN. Selection of R2 resolves
@@ -45,3 +45,12 @@ and unresolved financial policy gates still apply.
 Keep draft and withhold approval/merge until the actual deployment acceptance
 criteria are met. Historical Vercel preview status is not proof of this topology.
 See [verification](p35-verification.md) and [recovery](p35-recovery.md).
+
+## Runtime follow-up 16/10/2026
+
+Owner-only private image upload/read, transactional quota/idempotency, actual SDK
+transport/signing and server image validation are implemented behind R2_ENABLED.
+See [R2 runtime](aws/r2-private-media.md). No live bucket/upload or deployment.
+Fresh backend lint and full 63 suites / 591 tests PASS, including nine focused
+R2/HTTP regressions. Production dependency audit: zero reported vulnerabilities.
+Nineteen local documentation links and whitespace pass. Exact head is recorded in the latest PR review.

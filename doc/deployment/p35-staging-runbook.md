@@ -131,8 +131,9 @@ No real email/SMS/payment was sent in this audit.
 
 Use the [R2 private-media plan](aws/r2-private-media.md). The user's selection
 resolves the storage provider, not retention/quota/media authorization or the
-missing runtime adapter. Do not save private images in frontend/public or on the
-EC2 root disk. `privateMedia` currently fails closed until integration exists.
+remaining attachment/retention integration. Do not save private images in frontend/public or on the
+EC2 root disk. Opt-in owner PNG/JPEG upload/read is now wired; guest documents,
+care reports and settlement evidence remain unavailable. See the R2 plan for exact endpoints.
 
 payOS still needs its actual route/repository/outbox composition and approved
 provider secret mapping. Do not invent a callback URL or claim a return URL proves

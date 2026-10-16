@@ -4,6 +4,12 @@ Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.21.0/npm11.19.0
 
 ## Chạy và kiểm tra
 
+P35 adds opt-in [R2 private images](../doc/deployment/aws/r2-private-media.md) with
+owner-only upload/read routes, Mongo quota/idempotency and server-side PNG/JPEG
+validation. The storage provider and image services live in `src/services/`;
+`private-image.model.js` owns metadata/quota, `private-image.routes.js` auth/CSRF.
+Guest application documents and care/settlement evidence are not wired by this module.
+
 P35 adds an offline [staging preflight tool](scripts/deployment/README.md) and
 [deployment runbook](../doc/deployment/p35-staging-runbook.md). These tools do not
 register routes/jobs or certify a live staging deployment.
