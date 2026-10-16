@@ -99,4 +99,9 @@ describe('HTTP foundation (controlled DB/session doubles, not provider integrati
     expect(() => registerModules(app, [{ name: 'one', mount: '/api/v1/one', router }, { name: 'one', mount: '/api/v1/two', router }])).toThrow();
     expect(app.use).not.toHaveBeenCalled();
   });
+  test('fail-closed optional runtime modules do not abort application boot', () => {
+    const config = loadConfig({ NODE_ENV: 'test', MONGO_URI: 'mongodb://127.0.0.1:27017', MONGO_DB: 'synthetic_test' });
+    expect(() => createApp({ config, connection: { readyState: 0 }, lifecycle: { draining: false },
+      moduleFactories: [() => null, () => undefined] })).not.toThrow();
+  });
 });
