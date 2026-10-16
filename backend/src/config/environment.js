@@ -1,6 +1,7 @@
 import { loadEsmsConfig } from '../services/esms-sms.service.js';
 import { loadSmtpConfig } from '../services/smtp-email.service.js';
 import { isMailbox } from '../services/email-template.service.js';
+import { loadR2Config } from './r2.js';
 
 export class ConfigurationError extends Error {
   constructor(fields) {
@@ -57,7 +58,7 @@ export function loadConfig(env = process.env) {
     }
   }
 
-  for (const loadProviderConfig of [loadSmtpConfig, loadEsmsConfig]) {
+  for (const loadProviderConfig of [loadSmtpConfig, loadEsmsConfig, loadR2Config]) {
     try { loadProviderConfig(env); }
     catch (error) {
       if (Array.isArray(error?.details?.fields)) invalid.push(...error.details.fields);

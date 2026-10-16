@@ -14,6 +14,7 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
+import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 
 export function createApp({ config, connection, lifecycle, portOverrides, moduleFactories = [],
   logger = () => {}, env = process.env, clock = Date.now }) {
@@ -35,17 +36,18 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
     handler: (req, res) => res.status(429).json(errorPayload(req, 'RATE_LIMITED', 'Too many requests'))
   }));
   app.use(express.json({ limit: '64kb', strict: true }));
-  const context = { config, connection, lifecycle, ports, clock };
+  const context = { config, connection, lifecycle, ports, clock, env };
   const auth = authenticationModule({ ...context, logger });
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
+  const privateImages = privateImageRuntimeModule(context);
   const suppliedModules = moduleFactories.map(factory => factory(context));
   const catalogModules = serviceCatalogRuntimeModules(context)
     .filter(module => !suppliedModules.some(supplied => supplied.name === module.name));
   registerModules(app, [contactModule(context), healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...catalogModules, ...suppliedModules]);
+    ...(privateImages ? [privateImages] : []), ...catalogModules, ...suppliedModules]);
   app.use(notFound, errorHandler(logger));
   return app;
 }

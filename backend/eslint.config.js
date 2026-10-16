@@ -3,7 +3,7 @@ export default [{
   ignores: ['node_modules/**', 'coverage/**'],
   languageOptions: {
     ecmaVersion: 'latest', sourceType: 'module',
-    globals: Object.fromEntries(['process', 'console', 'Buffer', 'URL', 'setTimeout', 'clearTimeout'].map(name => [name, 'readonly']))
+    globals: Object.fromEntries(['process', 'console', 'Buffer', 'URL', 'AbortController', 'setTimeout', 'clearTimeout'].map(name => [name, 'readonly']))
   },
   rules: {
     'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
