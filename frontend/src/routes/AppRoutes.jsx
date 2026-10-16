@@ -35,6 +35,14 @@ import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
 import { applicationStatusApi } from '../services/application-status-api.js';
+import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
+import { createSettlementApi } from '../services/settlement-api.js';
+
+function SitterSettlementRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createSettlementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return <WeeklySettlementPage key={user?.id} api={api} />;
+}
 
 const navigationByRole = {
   ADMIN: [
@@ -43,7 +51,7 @@ const navigationByRole = {
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
   ],
   CUSTOMER: [['Tài khoản', '/account'], ['Hồ sơ', '/account/profile'], ['Địa chỉ', '/account/addresses'], ['Thú cưng', '/account/pets'], ['Đơn hàng', '/account/bookings'], ['Thông báo', '/account/notifications']],
-  PET_SITTER: [['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability']],
+  PET_SITTER: [['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability'], ['Tất toán tuần', '/sitter/settlements']],
   STAFF: [['Tài khoản', '/account']],
 };
 Object.values(navigationByRole).forEach((items) => {
@@ -102,6 +110,7 @@ export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRout
     <Route element={<RequireSession roles={['PET_SITTER']} />}>
       <Route element={<Workspace role="PET_SITTER" />}>
         <Route path="sitter/availability" element={<SitterAvailabilityPage />} />
+        <Route path="sitter/settlements" element={<SitterSettlementRoute />} />
       </Route>
     </Route>
     <Route element={<PublicSiteLayout />}>

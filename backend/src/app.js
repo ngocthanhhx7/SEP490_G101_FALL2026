@@ -14,6 +14,7 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
+import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
 
 export function createApp({ config, connection, lifecycle, portOverrides, moduleFactories = [],
   logger = () => {}, env = process.env, clock = Date.now }) {
@@ -40,12 +41,18 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
-  const suppliedModules = moduleFactories.map(factory => factory(context));
+  const suppliedModules = moduleFactories.map(factory => factory(context))
+    // Optional runtime modules fail closed when a provider or policy is absent.
+    // Do not hand null/undefined modules to the registry, which would turn a
+    // deliberate disabled feature into an application boot failure.
+    .filter(module => module !== null && module !== undefined);
   const catalogModules = serviceCatalogRuntimeModules(context)
     .filter(module => !suppliedModules.some(supplied => supplied.name === module.name));
+  const settlement = suppliedModules.some(module => module.name === 'settlement-requests')
+    ? null : settlementRequestRuntimeModule(context);
   registerModules(app, [contactModule(context), healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...catalogModules, ...suppliedModules]);
+    ...(settlement ? [settlement] : []), ...catalogModules, ...suppliedModules]);
   app.use(notFound, errorHandler(logger));
   return app;
 }
