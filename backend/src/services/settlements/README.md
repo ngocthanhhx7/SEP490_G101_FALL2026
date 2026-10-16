@@ -60,3 +60,13 @@ Transfer reference ownership is unique per request through SettlementTransferCla
 separate immutable attempts permit UNKNOWN to CONFIRMED with the same references.
 Lock writers must use `lockEarning` inside a transaction, touching the same earning
 as reservation writers; inserting only a FinancialLock row does not serialize them.
+
+## Weekly commission, 2026-10-16
+
+weekly-commission.js calculates the user-approved progressive fee per completed
+booking: 1–5 10%, 6–10 9%, 11–20 8%, 21+ 7%, Vietnam Monday reset. It requires
+complete authoritative snapshots, rejects duplicate/mixed-owner/unsafe amounts,
+and applies user-approved half-up VND rounding per booking with exact BigInt
+arithmetic. The platform bears any odd VND when sharing tax cost equally.
+The tax split is preview-only from confirmed tax amounts, never a hard-coded
+statutory rate or earning eligibility. See the P41 commission/tax addendum.
