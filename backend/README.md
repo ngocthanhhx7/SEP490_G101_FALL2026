@@ -76,4 +76,6 @@ Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp n
 
 ## AI báo giá và đề xuất sitter
 
+Bộ dữ liệu demo có tài khoản khách/sitter/Admin/Staff và trang quan sát thuật toán: [AI demo local](../doc/testing/ai-demo-accounts.md). Chạy tường minh `node scripts/demo-ai.js --apply`; database riêng, không gửi email/SMS thật.
+
 Module tại src/ai, runtime bật bằng AI_ENABLED=true (cần auth). Xem [API, MongoDB local, seeds và cách test](../doc/api/ai-pricing-matching-v1.md). Dữ liệu giống/traits do script seeds/ai.js nạp tường minh, không tự seed khi server chạy. Node 24.22.1/npm11.19.1; local Mongo8.0.34 replica-set tại27018, không ảnh hưởng Mongo8.2 tại27017.

@@ -18,6 +18,8 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 ## Responsibilities
 
+`demo-ai/` là trang HTML/JS quan sát AI độc lập chỉ phục vụ bởi backend/scripts/demo-ai.js trên loopback3011; không nằm trong bundle sản phẩm. Xem [bộ tài khoản và tình huống demo](../doc/testing/ai-demo-accounts.md).
+
 | Path | Responsibility |
 | --- | --- |
 | src/app | Entry, root error boundary, providers and P03/P04 shared CSS integration |
