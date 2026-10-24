@@ -1,3 +1,4 @@
+import { aiRuntimeModule } from './ai/routes.js';
 import { contactModule } from './routes/contact.routes.js';
 import { serviceCatalogRuntimeModules } from './routes/service-catalog-runtime.js';
 import { customerProfileRuntimeModule } from './routes/customer-profile.routes.js';
@@ -36,6 +37,7 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   }));
   app.use(express.json({ limit: '64kb', strict: true }));
   const context = { config, connection, lifecycle, ports, clock };
+  const ai = aiRuntimeModule(context);
   const auth = authenticationModule({ ...context, logger });
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
@@ -45,7 +47,7 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
     .filter(module => !suppliedModules.some(supplied => supplied.name === module.name));
   registerModules(app, [contactModule(context), healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...catalogModules, ...suppliedModules]);
+    ...catalogModules, ...(ai ? [ai] : []), ...suppliedModules]);
   app.use(notFound, errorHandler(logger));
   return app;
 }

@@ -65,7 +65,16 @@ export function loadConfig(env = process.env) {
     }
   }
 
+  const aiEnabled = env.AI_ENABLED ?? 'false';
+  if (!['true', 'false'].includes(aiEnabled)) invalid.push('AI_ENABLED');
+  if (aiEnabled === 'true' && !authEnabled) invalid.push('AUTH_ENABLED');
+  const routingUrl = env.AI_ROUTING_URL || null;
+  if (routingUrl) {
+    try { const url = new URL(routingUrl); if (url.username || url.password || url.search || url.hash || !(url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost','127.0.0.1'].includes(url.hostname)))) invalid.push('AI_ROUTING_URL'); }
+    catch { invalid.push('AI_ROUTING_URL'); }
+  }
   const result = {
+    ai: Object.freeze({ enabled: aiEnabled === 'true', routingUrl }),
     nodeEnv, host, mongoUri, database, contactInbox, allowDevAdminSeed: seedValue === 'true',
     auth: Object.freeze(authEnabled
       ? { enabled: true, ...authSecrets }
