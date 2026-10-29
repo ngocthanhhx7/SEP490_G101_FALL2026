@@ -115,6 +115,7 @@ export function settlementModels(connection) {
   earningSchema.index({ sitterId: 1, visitId: 1 }, { unique: true, name: 'earning_visit_owner_v2',
     partialFilterExpression: { visitId: { $type: 'string' } } });
   earningSchema.index({ 'reservation.requestId': 1, state: 1 });
+  earningSchema.index({ sitterId: 1, completedAt: -1, earningId: -1 });
 
   const lockSchema = new Schema({
     resourceType: { type: String, enum: ['EARNING', 'ALLOCATION', 'REFUND', 'CASE'], required: true },

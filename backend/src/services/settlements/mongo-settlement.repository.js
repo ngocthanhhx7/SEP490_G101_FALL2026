@@ -75,7 +75,8 @@ function mapEarning(row) {
   };
 }
 
-export function createMongoSettlementRepository({ connection, models = settlementModels(connection), cursorSecret } = {}) {
+export function createMongoSettlementRepository({ connection, models = settlementModels(connection), cursorSecret,
+  privateEvidence } = {}) {
   if (!connection || !models) throw new TypeError('Settlement database dependencies are required');
   const {
     SettlementRequest: requests, SettlementWeekClaim: claims, Earning: earnings,
@@ -315,6 +316,16 @@ export function createMongoSettlementRepository({ connection, models = settlemen
 
   async function assertEvidenceOwnership({ evidenceReference, requestId, actorId }, session) {
     const row = await queryWithSession(evidence.findOne({ evidenceReference, requestId, ownerActorId: actorId, state: 'UPLOADED' }), session).lean().exec();
+    if (privateEvidence) {
+      const image = await privateEvidence.findReady({ evidenceReference, actorId, requestId, session });
+      if (!image) return false;
+      if (row) return row.mediaId === image.mediaId;
+      const existing = await evidence.findOne({ evidenceReference }).session(session).lean();
+      if (existing) return false;
+      await registerEvidence({ requestId, ownerActorId: actorId, evidenceReference,
+        mediaId: image.mediaId, uploadedAt: image.uploadedAt }, session);
+      return true;
+    }
     return Boolean(row);
   }
 
