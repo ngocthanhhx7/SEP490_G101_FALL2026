@@ -14,7 +14,7 @@ test('real sitter settlement route loads same-origin API and exposes policy bloc
       resolve: async () => ({ status: 'authenticated', user: { id: 'sitter', roles: ['PET_SITTER'] } }),
       getCsrfToken: () => 'synthetic-csrf' }} /></MemoryRouter>);
     expect(await screen.findByText(/Chờ quyết định/)).toHaveTextContent('FIN-07-ELIG');
-    expect(screen.getByRole('link', { name: 'Tất toán tuần' })).toHaveAttribute('href', '/sitter/settlements');
+    expect(screen.getByRole('link', { name: 'Lương và tạm ứng' })).toHaveAttribute('href', '/sitter/payroll');
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/settlement-requests', expect.objectContaining({ credentials: 'same-origin' }));
     expect(screen.getByRole('button', { name: 'Gửi yêu cầu tất toán' })).toBeDisabled();
   } finally { globalThis.fetch = original; }

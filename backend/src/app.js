@@ -20,6 +20,8 @@ import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
 import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
+import { financeSourceRuntime } from './routes/finance-source-runtime.js';
+import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 
 export function createApp({
   config,
@@ -61,10 +63,14 @@ export function createApp({
   const pricing = pricingRuntimeModule(context);
   const petCare = petCareRuntimeModule(context);
   const auth = authenticationModule({ ...context, logger });
+  const financeSources = financeSourceRuntime(context);
+  if (auth && financeSources) auth.router.use(financeSources.router);
+  app.locals.financeSources = financeSources?.service ?? null;
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
+  const payroll = payrollRuntimeModule(context);
   const suppliedModules = moduleFactories.map((factory) => factory(context))
     .filter(module => module !== null && module !== undefined);
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
@@ -84,6 +90,7 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(payroll ? [payroll] : []),
     ...(settlement ? [settlement] : []),
     ...(adminSettlement ? [adminSettlement] : []),
     ...catalogModules,
