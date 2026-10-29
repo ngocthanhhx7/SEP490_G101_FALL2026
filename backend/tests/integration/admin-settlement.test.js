@@ -8,6 +8,10 @@ import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
 import request from 'supertest';
 import { settlementRuntimeFixture } from '../fixtures/settlement-runtime.js';
 import { provisionSettlementStorage } from '../../src/services/settlements/provisioning.js';
+import { createPrivateTransferEvidenceRepository } from '../../src/services/settlements/private-transfer-evidence.repository.js';
+import { privateImageModels } from '../../src/models/private-image.model.js';
+import { createPrivateImageService } from '../../src/services/private-image.service.js';
+import sharp from 'sharp';
 
 let replica, connection, models, repository, service;
 const actor = { userId: 'admin', state: 'ACTIVE', roles: ['ADMIN'] };
@@ -20,6 +24,8 @@ beforeAll(async () => {
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'admin_settlement_regression', autoIndex: false }).asPromise();
   models = settlementModels(connection);
   await provisionSettlementStorage(connection);
+  await privateImageModels(connection).PrivateImage.createCollection();
+  await privateImageModels(connection).PrivateImageQuota.createCollection();
   repository = createMongoSettlementRepository({ connection });
   service = createAdminSettlementService({ repository, unitOfWork: createUnitOfWork(connection), policy,
     clock: () => new Date('2026-10-15T03:00:00Z') });
@@ -118,4 +124,54 @@ test('default app mounts Admin payroll with real session and blocks unresolved w
     .set('Idempotency-Key', 'runtime-command').send({ expectedVersion: 1, outcome: 'UNKNOWN', reference: 'bank1', evidenceReference: 'evidence1' }).expect(409);
   expect(blocked.body.error.code).toBe('DECISION_REQUIRED');
   expect(await models.SettlementTransfer.countDocuments()).toBe(0);
+});
+
+test('real private upload links atomically, supports reconciliation and remains owner-only on download', async () => {
+  const owner = new mongoose.Types.ObjectId().toString();
+  const bytes = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#197555' } }).png().toBuffer();
+  const stored = new Map();
+  const media = { upload: async item => stored.set(item.storageRef, item), read: async ({ storageRef }) => stored.get(storageRef) };
+  const images = createPrivateImageService({ connection, media, secret: 'synthetic-evidence-secret' });
+  const uploaded = await images.upload({ actor: { userId: owner }, body: bytes,
+    contentType: 'image/png', idempotencyKey: 'transfer-image-retry-1' });
+  const evidenceReference = `private-image:${uploaded.id}`;
+  const durable = createMongoSettlementRepository({ connection,
+    privateEvidence: createPrivateTransferEvidenceRepository({ connection }) });
+  const wired = createAdminSettlementService({ repository: durable, unitOfWork: createUnitOfWork(connection), policy,
+    clock: () => new Date('2026-10-15T03:00:00Z') });
+  const input = { ...base, actor: { ...actor, userId: owner }, evidenceReference, outcome: 'UNKNOWN' };
+  expect((await wired.recordTransfer(input)).status).toBe('TRANSFER_PENDING');
+  expect((await wired.recordTransfer(input)).status).toBe('TRANSFER_PENDING');
+  expect(await models.SettlementEvidence.countDocuments({ evidenceReference })).toBe(1);
+  expect((await wired.recordTransfer({ ...confirmed, ...input, outcome: 'CONFIRMED',
+    amountVnd: 100, paidAt: confirmed.paidAt, expectedVersion: 2, idempotencyKey: 'confirm-private-image' })).status).toBe('PAID');
+  expect((await images.read({ actor: { userId: owner }, id: uploaded.id })).body).toEqual(bytes);
+  await expect(images.read({ actor: { ...actor, userId: new mongoose.Types.ObjectId().toString() }, id: uploaded.id }))
+    .rejects.toMatchObject({ status: 404 });
+  expect(await models.SettlementTransfer.countDocuments()).toBe(2);
+});
+
+test('foreign, pending and unlinked evidence cannot settle; a failed transfer rolls back its link', async () => {
+  const owner = new mongoose.Types.ObjectId().toString();
+  const imageId = 'a'.repeat(64);
+  const { PrivateImage } = privateImageModels(connection);
+  await PrivateImage.deleteMany({});
+  await PrivateImage.create({ _id: imageId, ownerId: owner, inputDigest: 'synthetic',
+    storageRef: 'synthetic', contentDigest: 'b'.repeat(64), byteLength: 100, contentType: 'image/png', state: 'READY' });
+  const evidenceReference = `private-image:${imageId}`;
+  const wired = createAdminSettlementService({ repository: createMongoSettlementRepository({ connection,
+    privateEvidence: createPrivateTransferEvidenceRepository({ connection }) }), unitOfWork: createUnitOfWork(connection),
+    policy, clock: () => new Date('2026-10-15T03:00:00Z') });
+  await expect(wired.recordTransfer({ ...confirmed, evidenceReference })).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' });
+  const input = { ...confirmed, actor: { ...actor, userId: owner }, evidenceReference };
+  await PrivateImage.updateOne({ _id: imageId }, { $set: { state: 'PENDING' } });
+  await expect(wired.recordTransfer(input)).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' });
+  await PrivateImage.updateOne({ _id: imageId }, { $set: { state: 'READY' } });
+  await models.SettlementTransferClaim.create({ kind: 'TRANSFER', reference: 'bank1', requestId: 'other-request' });
+  await expect(wired.recordTransfer(input)).rejects.toMatchObject({ code: 'RESERVATION_CONFLICT' });
+  expect(await models.SettlementEvidence.countDocuments({ evidenceReference })).toBe(0);
+  expect((await models.SettlementRequest.findOne({ id: 'r1' })).status).toBe('APPROVED');
+  await models.SettlementTransferClaim.deleteMany({});
+  await repository.registerEvidence({ requestId: 'other-request', ownerActorId: owner, evidenceReference, mediaId: imageId });
+  await expect(wired.recordTransfer(input)).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' });
 });

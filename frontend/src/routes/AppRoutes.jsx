@@ -40,10 +40,13 @@ import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
 import { createSettlementApi } from '../services/settlement-api.js';
 import AdminSettlementsPage from '../pages/admin/AdminSettlementsPage.jsx';
 import { createAdminSettlementApi } from '../services/admin-settlement-api.js';
+import { createPrivateImageApi } from '../services/private-image-api.js';
 
 function AdminSettlementRoute() {
   const { getCsrfToken, user } = useSession();
-  const api = useMemo(() => createAdminSettlementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  const api = useMemo(() => createAdminSettlementApi(createApiClient({ getCsrfToken }), {
+    privateImages: createPrivateImageApi({ getCsrfToken })
+  }), [getCsrfToken]);
   return <AdminSettlementsPage key={user?.id} api={api} />;
 }
 
