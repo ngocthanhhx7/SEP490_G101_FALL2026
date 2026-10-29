@@ -19,7 +19,7 @@ function DecisionForm({ row, kind, state, api }) {
     await state.command(`${kind}:${row.id}`, body, key => api[kind === 'advance' ? 'advanceDecision' : 'statementDecision'](row.id, body, key));
   };
   const [action, setAction] = useState('APPROVE');
-  if (row.status === 'PAID') return null;
+  if (!['SUBMITTED', 'PREPARED', 'APPROVED'].includes(row.status)) return null;
   return <form className="payroll-form" onSubmit={decide}>
     {row.status === 'APPROVED' ? <>
       <input type="hidden" name="action" value="RECORD_PAYMENT" />
@@ -27,7 +27,7 @@ function DecisionForm({ row, kind, state, api }) {
       <button disabled={state.busy} type="submit">Ghi nhận đã chi trả</button>
     </> : <>
       <label className="payroll-field"><span>Quyết định</span><select name="action" value={action} onChange={event => setAction(event.target.value)}>
-        <option value="APPROVE">Duyệt</option>{kind === 'advance' && <option value="REJECT">Từ chối</option>}
+        <option value="APPROVE">Duyệt</option><option value="REJECT">{kind === 'advance' ? 'Từ chối' : 'Hủy phiếu chờ duyệt'}</option>
       </select></label>
       {action === 'REJECT' && <PayrollField label="Lý do từ chối" name="reason" maxLength={1000} />}
       <button disabled={state.busy} type="submit">Lưu quyết định</button>
@@ -70,7 +70,7 @@ export function EmployeePayrollAdminPage({ api }) {
         <label className="payroll-field"><span>Hình thức làm việc</span><select value={employmentType} onChange={e => setEmploymentType(e.target.value)}>
           <option value="FULL_TIME">Toàn thời gian · 10.000.000đ gross/tháng</option><option value="PART_TIME">Bán thời gian · 3.000.000đ gross/tháng</option>
         </select></label>
-        <PayrollField key={employmentType} label="Phút làm việc mỗi tuần" name="weeklyMinutes" type="number" min="1" max="2880" step="1" defaultValue={employmentType === 'PART_TIME' ? 1200 : 2400} readOnly={employmentType === 'PART_TIME'} />
+        <PayrollField key={employmentType} label="Phút làm việc mỗi tuần" name="weeklyMinutes" type="number" min="1" max="2880" step="1" defaultValue={employmentType === 'PART_TIME' ? 1200 : ''} readOnly={employmentType === 'PART_TIME'} />
         {employmentType === 'PART_TIME' && <label className="payroll-field"><span>Kỳ trả theo hợp đồng</span><select name="payCycle"><option value="WEEKLY">Theo tuần</option><option value="MONTHLY">Theo tháng</option></select></label>}
         <PayrollField label="Ngày ký" name="signedAt" type="date" /><PayrollField label="Ngày hiệu lực" name="effectiveAt" type="date" />
         <PayrollField label="Ngày hết hiệu lực" name="endsAt" type="date" required={false} />

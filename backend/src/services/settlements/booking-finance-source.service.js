@@ -144,7 +144,11 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             const priceVisits = await col('visits').find({ bookingId: booking._id, _id: { $in: booking.visitIds } }, { session }).limit(61).toArray();
             if (priceVisits.length !== booking.originalVisitCount || priceVisits.some(row => !Number.isSafeInteger(row.snapshots?.serviceBasisVnd) || row.snapshots.serviceBasisVnd < 0)) fail(409, 'SOURCE_RECONCILIATION_REQUIRED');
             const paid = receipt[0];
-            const expected = priceVisits.reduce((sum, row) => sum + BigInt(row.snapshots.serviceBasisVnd), 0n);
+            const paymentSnapshot = booking.paymentSnapshot;
+            if (compensationModel === 'EMPLOYEE' && (paymentSnapshot?.currency !== 'VND' ||
+              !Number.isSafeInteger(paymentSnapshot?.amountVnd) || paymentSnapshot.amountVnd < 0)) fail(409, 'SOURCE_RECONCILIATION_REQUIRED');
+            const expected = compensationModel === 'EMPLOYEE' ? BigInt(paymentSnapshot.amountVnd)
+              : priceVisits.reduce((sum, row) => sum + BigInt(row.snapshots.serviceBasisVnd), 0n);
             if (paid.receiptMoney?.currency !== 'VND' || !Number.isSafeInteger(paid.receiptMoney?.amountVnd)
               || BigInt(paid.receiptMoney.amountVnd) !== expected || !(paid.verifiedAt instanceof Date)) fail(409, 'PREPAYMENT_REQUIRED');
           }

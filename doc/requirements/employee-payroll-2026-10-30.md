@@ -60,6 +60,14 @@ bonus disputes and lawful wage deductions need separate reviewed rules.
 - Salary statements use completed periods and explicit attendance, overtime, tax/insurance assessments.
   Customer payment status never determines base wages. Commission derives from completion snapshots,
   without the superseded partner fee or tax split. No bank transfer is initiated by these endpoints.
+- Employee completion requires the dedicated immutable `visit.snapshots.employeeServiceNetVnd`;
+  it never falls back to legacy `serviceBasisVnd`. Multi-visit receipt verification uses
+  `booking.paymentSnapshot` (VND/amountVnd) separately from the commission basis, since customer
+  totals may contain fees that are not commissionable.
+- Admin may void a PREPARED statement with a required reason and create a replacement. The old
+  assessment and audit remain; source claims are released atomically. APPROVED/PAID statements
+  cannot be voided. The storage migration creates the active-period unique index before removing
+  the obsolete all-history period index; runtime refuses that obsolete index.
 - Advance repayment is an explicit agreed installment, bounded by the amount paid and previous
   statement allocations. A shared transactional transfer claim prevents reusing one bank reference
   across salary and advance payments.

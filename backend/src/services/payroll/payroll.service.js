@@ -14,7 +14,7 @@ const publicAdvance = row => ({ id: String(row._id), amountVnd: row.amountVnd, c
   settlementPeriod: row.settlementPeriod, status: row.status, version: row.version, reason: row.reason,
   decisionReason: row.decisionReason ?? null, requestedAt: row.requestedAt, paidAt: row.paidAt ?? null });
 const publicStatement = row => ({ id: String(row._id), employeeId: String(row.employeeId), periodStart: row.periodStart, periodEnd: row.periodEnd,
-  dueAt: row.dueAt, status: row.status, version: row.version, payCycle: row.payCycle, breakdown: row.breakdown, paidAt: row.paidAt ?? null });
+  dueAt: row.dueAt, status: row.status, version: row.version, payCycle: row.payCycle, breakdown: row.breakdown, paidAt: row.paidAt ?? null, voidReason: row.voidReason ?? null });
 
 export function createPayrollService({ connection, policy, clock = () => new Date() }) {
   const models = payrollModels(connection), User = userModel(connection), { SitterStatus, SitterApplication } = sitterApplicationModels(connection);
@@ -161,7 +161,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (contract.endsAt && contract.endsAt < input.periodEnd) fail('CONTRACT_REQUIRED', 'Split period at contract end', 409);
         if (await models.EmploymentContract.exists({ employeeId: input.employeeId, effectiveAt: { $gt: input.periodStart, $lt: input.periodEnd } }).session(session))
           fail('CONTRACT_REQUIRED', 'Split period at contract change', 409);
-        const existing = await models.PayrollStatement.find({ employeeId: input.employeeId, monthKey }).select('+assessment').session(session).lean();
+        const existing = await models.PayrollStatement.find({ employeeId: input.employeeId, monthKey, status: { $ne: 'VOIDED' } }).select('+assessment').session(session).lean();
         if (existing.some(s => s.periodStart < input.periodEnd && s.periodEnd > input.periodStart)) fail('PAYROLL_PERIOD_OVERLAP', 'Payroll period overlaps', 409);
         if (contract.payCycle === 'WEEKLY' && input.periodEnd - input.periodStart > 7 * 86400000) fail('VALIDATION_FAILED', 'Weekly period too long');
         if (contract.payCycle === 'WEEKLY' && input.dueAt - input.periodEnd > 8 * 86400000) fail('VALIDATION_FAILED', 'Pay date exceeds weekly payment interval');
@@ -186,7 +186,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         for (const installment of input.advanceRepayments) {
           const advance = await models.SalaryAdvance.findOne({ _id: installment.advanceId, employeeId: input.employeeId, status: 'PAID', settlementPeriod: { $lte: monthKey } }).session(session).lean();
           if (!advance) fail('RESOURCE_NOT_FOUND', 'Paid advance unavailable for agreed settlement', 404);
-          const related = await models.PayrollStatement.find({ employeeId: input.employeeId, advanceIds: advance._id }).session(session).lean();
+          const related = await models.PayrollStatement.find({ employeeId: input.employeeId, advanceIds: advance._id, status: { $ne: 'VOIDED' } }).session(session).lean();
           const already = related.reduce((sum, s) => sum + (s.breakdown.advanceAllocations ?? []).filter(a => a.advanceId === installment.advanceId).reduce((n, a) => n + a.amountVnd, 0), 0);
           if (already + installment.amountVnd > advance.amountVnd) fail('ADVANCE_RECONCILIATION_REQUIRED', 'Advance repayment exceeds amount paid', 409);
           repayments.push({ advanceId: installment.advanceId, amountVnd: installment.amountVnd });
@@ -208,20 +208,22 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
     },
     async decideStatement(actor, statementId, body, key) {
       role(actor, 'ADMIN'); id(statementId); const input = advanceDecisionInput(body);
-      if (!['APPROVE', 'RECORD_PAYMENT'].includes(input.action)) fail('VALIDATION_FAILED', 'Payroll statement supports approval and payment');
+      if (!['APPROVE', 'REJECT', 'RECORD_PAYMENT'].includes(input.action)) fail('VALIDATION_FAILED', 'Invalid payroll statement decision');
       return command(actor, 'STATEMENT_' + input.action, key, { statementId, ...input }, async session => {
         const row = await models.PayrollStatement.findById(statementId).session(session).lean();
         if (!row) fail('RESOURCE_NOT_FOUND', 'Statement unavailable', 404);
         await employeeGuard(String(row.employeeId), session);
         if (row.version !== input.expectedVersion) fail('VERSION_CONFLICT', 'Statement changed', 409);
-        const expected = input.action === 'APPROVE' ? 'PREPARED' : 'APPROVED';
+        const expected = input.action === 'RECORD_PAYMENT' ? 'APPROVED' : 'PREPARED';
         if (row.status !== expected) fail('INVALID_STATE', 'Statement state mismatch', 409);
         if (input.action === 'RECORD_PAYMENT') await claimTransfer(input.transferReference, { statementId: row._id }, session);
-        const fields = input.action === 'APPROVE' ? { status: 'APPROVED', approvedBy: actor.userId, approvedAt: now() }
+        const fields = input.action === 'REJECT' ? { status: 'VOIDED', voidedBy: actor.userId, voidedAt: now(), voidReason: input.reason }
+          : input.action === 'APPROVE' ? { status: 'APPROVED', approvedBy: actor.userId, approvedAt: now() }
           : { status: 'PAID', paidBy: actor.userId, paidAt: now(), transferReference: input.transferReference };
         const saved = await models.PayrollStatement.findOneAndUpdate({ _id: statementId, version: row.version }, { $set: fields, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
         if (!saved) fail('VERSION_CONFLICT', 'Statement changed', 409);
-        await event(actor, row.employeeId, row._id, 'STATEMENT_' + input.action, null, session); return publicStatement(saved);
+        if (input.action === 'REJECT') await models.PayrollSourceClaim.deleteMany({ statementId: row._id }, { session });
+        await event(actor, row.employeeId, row._id, 'STATEMENT_' + input.action, input.reason, session); return publicStatement(saved);
       });
     },
     async listStatements(actor) {
