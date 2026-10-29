@@ -1,14 +1,14 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { AppError } from './app-error.js';
 
-export function createScopedCursor({ secret, namespace }) {
+export function createScopedCursor({ secret, namespace, clock = Date.now, ttlMs = 15 * 60 * 1000 }) {
   if (typeof secret !== 'string' || Buffer.byteLength(secret) < 32 || !namespace) throw new TypeError('Cursor signing configuration required');
   const fingerprint = context => createHash('sha256').update(JSON.stringify(context)).digest('base64url');
   const sign = payload => createHmac('sha256', secret).update(`${namespace}\0${payload}`).digest('base64url');
   const invalid = () => { throw new AppError(422, 'VALIDATION_FAILED', 'Invalid cursor'); };
   return Object.freeze({
     encode(position, context) {
-      const payload = Buffer.from(JSON.stringify([position, fingerprint(context)])).toString('base64url');
+      const payload = Buffer.from(JSON.stringify([position, fingerprint(context), clock() + ttlMs])).toString('base64url');
       return Buffer.from(JSON.stringify([payload, sign(payload)])).toString('base64url');
     },
     decode(token, context) {
@@ -19,8 +19,9 @@ export function createScopedCursor({ secret, namespace }) {
         const expected = Buffer.from(sign(payload));
         const received = Buffer.from(signature);
         if (expected.length !== received.length || !timingSafeEqual(expected, received)) invalid();
-        const [position, suppliedContext] = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-        if (suppliedContext !== fingerprint(context) || !position || typeof position !== 'object') invalid();
+        const [position, suppliedContext, expiresAt] = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        if (suppliedContext !== fingerprint(context) || !position || typeof position !== 'object'
+          || !Number.isSafeInteger(expiresAt) || expiresAt <= clock()) invalid();
         return position;
       } catch { invalid(); }
     }

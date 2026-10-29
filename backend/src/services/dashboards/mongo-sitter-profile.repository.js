@@ -44,7 +44,7 @@ export function createMongoSitterProfileRepository({ connection, cursorSecret })
         { $match: { direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', sitterId: { $in: [...ids, ...ids.map(String)] } } },
         { $group: { _id: { $toString: '$sitterId' }, count: { $sum: 1 }, rating: { $avg: '$rating' },
           invalid: { $sum: { $cond: [{ $and: [{ $isNumber: '$rating' }, { $gte: ['$rating', 1] },
-            { $lte: ['$rating', 5] }, { $eq: [{ $mod: ['$rating', 1] }, 0] }] }, 0, 1] } },
+            { $lte: ['$rating', 5] }, { $eq: [{ $mod: [{ $convert: { input: '$rating', to: 'double', onError: null, onNull: null } }, 1] }, 0] }] }, 0, 1] } },
           updatedAt: { $max: '$updatedAt' } } }
       ], { session, maxTimeMS: 5000 }).toArray();
       if (ratings.some(row => row.invalid)) throw new AppError(503, 'INVALID_PROJECTION', 'Invalid published rating');
