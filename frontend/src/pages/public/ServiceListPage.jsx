@@ -155,7 +155,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         />
       )}
 
-      {catalog.data?.available && <ServiceBasket services={services} />}
+      {catalog.data?.available && <><p><a href="/assets/services/credits.html">Nguồn ảnh dịch vụ</a></p><ServiceBasket services={services} /></>}
       <section className="pwc-catalog-help">
         <div>
           <h2>Bạn cần tìm dịch vụ phù hợp?</h2>
