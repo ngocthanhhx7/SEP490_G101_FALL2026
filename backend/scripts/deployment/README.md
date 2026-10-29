@@ -1,6 +1,12 @@
 ﻿# Deployment tools
 
 Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
+`check-private-media-memory.py` and its adjacent `.mjs` are isolated Linux
+diagnostics, not application startup code. The Python runner requires a built
+full-SHA application image, root Docker access and spare RAM; it creates a unique
+internal network and temporary Mongo/Node containers without production env,
+volumes or published ports. It removes only those generated resources afterward.
+See the [memory evidence and limits](../../../doc/deployment/aws/r2-private-media.md).
 The adjacent `../test-esms.js` is an operator-only, one-request transport smoke test:
 from `backend/`, run `node --env-file-if-exists=.env scripts/test-esms.js --sandbox`
 with `ESMS_TEST_PHONE` in a private environment. `--live` sends a real SMS and requires

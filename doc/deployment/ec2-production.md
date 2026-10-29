@@ -73,9 +73,10 @@ supply a trusted CF-Connecting-IP. See
 [Caddy trusted proxy configuration](https://caddyserver.com/docs/caddyfile/options).
 
 Configure `EMAIL_ENABLED`, SMTP_HOST/PORT/USER/PASSWORD and EMAIL_FROM using the
-chosen SMTP provider; configure CONTACT_INBOX_EMAIL for contact forms. Email
-stays disabled until real credentials exist, so OTP/login/registration cannot
-be represented as fully available. SMS and payment remain disabled/unconfigured.
+chosen SMTP provider; configure CONTACT_INBOX_EMAIL for contact forms. SMTP
+authentication has been verified separately. An authorized SMS smoke was delivered
+successfully and acknowledged by the recipient; that proves the tested eSMS route,
+not every network or the complete application OTP flow. Payment remains unconfigured.
 Never use fake OTP delivery or demo credentials on production.
 
 R2 variables are reserved in the server `.env` (`R2_ENABLED=false`, account,
@@ -83,7 +84,9 @@ bucket, access key, secret and `R2_MAX_IMAGES_PER_USER`). The backend now has an
 opt-in owner-only PNG/JPEG adapter and `/api/v1/private-images` upload/read
 runtime. Keep it disabled until a separate private bucket, bucket-scoped
 credentials, retention/quota approval and a live provider check are complete.
-The local tests use synthetic providers and do not prove a real R2 PUT/GET.
+Direct R2 provider smoke and isolated Linux memory evidence are recorded in the
+[R2 runbook](aws/r2-private-media.md); new-runtime privacy/cache/evidence gates
+remain separate from those checks.
 Applicant documents, care evidence and public images remain separate workflows;
 never share their objects or public domains with this bucket.
 
@@ -139,11 +142,11 @@ must return an API 404 envelope, never SPA HTML.
 Keep this PowerShell window open:
 
 ```powershell
-ssh -N -L 127.0.0.1:27018:127.0.0.1:27017 -o ExitOnForwardFailure=yes -i "$env:USERPROFILE/.ssh/pawworldcare-ec2.pem" ec2-user@ec2-54-79-81-209.ap-southeast-2.compute.amazonaws.com
+ssh -N -L 127.0.0.1:27019:127.0.0.1:27017 -o ExitOnForwardFailure=yes -i "$env:USERPROFILE/.ssh/pawworldcare-ec2.pem" ec2-user@ec2-54-79-81-209.ap-southeast-2.compute.amazonaws.com
 ```
 
 Use MongoDB Compass to connect to
-`mongodb://127.0.0.1:27018/paw_world_care?directConnection=true`.
+`mongodb://127.0.0.1:27019/paw_world_care?directConnection=true`.
 In Authentication select Username/Password, username `pwcapp`, authentication
 database `paw_world_care`; enter the password privately from the server's
 root-only `.env`. `directConnection=true` prevents Compass following the

@@ -97,6 +97,50 @@ reads, so each new request rechecks session/ownership and needs no R2 browser CO
 A future direct-browser adapter needs exact-origin CORS, quota/quarantine,
 content verification and short lifetimes; CORS alone is not authorization.
 
+## Linux diagnostic and provider update — 29/10/2026
+
+The earlier NOT RUN memory statement is superseded for this specific synthetic
+workload: actual production Dockerfile/dependencies built successfully on EC2
+Linux ARM64. In a separate internal Docker network, a tmpfs Mongo replica set
+and a 384 MiB Node container completed 16 JPEG HTTP uploads and 16 downloads in
+waves of four. The input was a 1900x1900 synthetic noisy JPEG (2,987,593 bytes).
+Cgroup memory.peak was 284,676,096 bytes (271.5 MiB), RSS 284,553,216 bytes,
+with zero OOM kills. All temporary containers and the network were removed;
+no production environment, database volume or published port was used.
+
+The checked-in runner was then executed with RAM+swap explicitly capped to
+384 MiB and `/data/configdb` also on tmpfs. It passed the same 16+16 workload:
+fixture 2,987,603 bytes, peak 310,317,056 bytes (295.9 MiB), RSS 313,470,976 bytes,
+swap usage/limit both zero, OOM kills zero. Random fixture bytes/native allocator
+behavior vary between runs; both measurements remain below the RAM cap.
+
+Authentication/provider are synthetic in this diagnostic. It verifies native
+Sharp/runtime installation and bounded HTTP/body/re-encode memory for this
+workload; it is not a 200-user load test, slow-client proof or every possible
+PNG/JPEG/provider-failure memory case. Existing isolated integration tests cover
+session/ownership separately. Do not turn this measurement into full acceptance.
+
+Reproduce on a host with at least 900 MiB spare RAM and an already built release
+image (the runner does not build, pull application code, or activate a release):
+
+```bash
+sudo python3 backend/scripts/deployment/check-private-media-memory.py pawworldcare-backend:FULL_40_CHARACTER_SHA
+```
+
+The runner uses a pinned Mongo image, an isolated internal network, no port
+mapping and no production env/volume. It invokes the adjacent diagnostic module
+inside the supplied image with fake authentication and an in-memory provider.
+If Docker lacks the pinned Mongo image it may pull that public image.
+The diagnostic's in-memory provider does not measure SDK GET chunk/concat
+allocations or actual provider latency; the JPEG is not a worst-case 5 MiB PNG.
+
+Separately, an actual EC2-to-R2 S3 signed provider smoke completed PUT/GET 200,
+byte-for-byte SHA256 match, private/no-store metadata and DELETE 204. The
+operator fixed the token/IP filtering that previously returned AccessDenied.
+Unsigned S3 API returned 400; this alone does not attest r2.dev/custom-domain
+privacy. New-runtime API/provider integration, Cloudflare cache, retention,
+deletion/orphan recovery, restoration and attachment/UI acceptance remain open.
+
 ## Evidence and remaining gates
 
 Tests cover the real AWS SDK signing/serialization through a synthetic HTTP

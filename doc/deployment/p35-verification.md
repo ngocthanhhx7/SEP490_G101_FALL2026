@@ -17,7 +17,7 @@ readiness, matching release assets and live provider evidence for acceptance.
 | --- | --- |
 | Frontend/backend public URL, domain/TLS | Production origin `https://pawworldvn.shop`, EC2 frontend/backend; staging hostname remains unprovisioned |
 | EC2 instance/region, DNS and origin TLS | EC2 `54.79.81.209`, `ap-southeast-2`, release `1f784887…`, `/health` and `/ready` 200 on `127.0.0.1:3001`; DNS for root/api/www resolves to Cloudflare proxy IPs; origin HTTPS succeeds with `--resolve`; staging hostname remains unprovisioned |
-| R2 private bucket/adapter | Bucket/credentials configured by operator; direct EC2 S3 PUT/GET 200 with SHA256 match, DELETE 204 on 29/10/2026. Owner PNG/JPEG adapter/API has 5 MiB body/output, 4M pixel and one-job Sharp limits. New-runtime API/UI, Linux memory, retention/cache/evidence acceptance remain separate gates. |
+| R2 private bucket/adapter | Direct EC2 S3 PUT/GET 200 + SHA256 match, DELETE 204. Linux ARM64 isolated 384 MiB workload: 16 uploads/16 reads, peak 271.5 MiB, no OOM. Synthetic auth/provider diagnostic; real runtime API/UI, cache/privacy, retention/recovery/evidence acceptance still pending. |
 | Final P34 integration gate | Chưa đạt; status hiện ghi mini-gate |
 | Atlas version/topology/index migration | Chưa kiểm tra staging |
 | Provider, private storage, webhook | Chưa xác minh trên staging |

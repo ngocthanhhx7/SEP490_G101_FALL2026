@@ -1,4 +1,4 @@
-﻿# P35 — Handoff
+# P35 — Handoff
 
 Author/push: Đặng Văn Hải (`Haidvhe181849`); assigned independent reviewer:
 Đoàn Tiến Đạt (`doantd11`); Leader/merger: Nguyễn Ngọc Thành (`ngocthanhhx7`).
@@ -100,3 +100,17 @@ DNS/source does not disconnect those apps. See [retirement steps](retire-legacy-
 Linux memory, real R2/cache/restore acceptance, retention decisions and the
 attachment/UI integrations remain pending. No commit, push, merge or deploy
 was performed for these uncommitted changes.
+
+## Final local verification after consolidation
+
+Backend: 70 suites / 670 tests PASS; frontend: 71 suites / 451 tests PASS.
+Both lints, architecture and frontend build PASS (568.49 kB bundle warning).
+The 18 batch-reader tests and six unique #69 files are retained in this change.
+Python deployment: 6 tests PASS. Isolated ARM64 memory diagnostic: 16 uploads
+and 16 reads in a 384 MiB RAM/no-swap container, peak 295.9 MiB, no OOM.
+See the R2 runbook for exact synthetic-auth/provider limits. Direct R2 provider
+smoke and recipient-confirmed Viettel OTP delivery passed separately.
+
+Staging/UAT, full runtime private-media/cache/retention/evidence acceptance,
+trusted Hanoi OSRM data and persistent booking/offer integration remain open.
+No synthetic fixture or service diagnostic is production load acceptance.
