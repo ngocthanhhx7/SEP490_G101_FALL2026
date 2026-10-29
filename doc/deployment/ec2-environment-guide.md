@@ -45,7 +45,7 @@ Giữ nguyên `MONGO_URI`, `MONGO_DB`, các khóa OTP/session/contact đang có.
 | `EMAIL_MAX_ATTEMPTS` | Giữ `2`. |
 | `ESMS_OTP_TEMPLATE` | `Ma xac nhan cua ban la {code}` nếu đúng mẫu tài khoản đã được duyệt. Backend thay `{code}` bằng OTP; không điền mã thật vào `.env`. |
 | `ESMS_SANDBOX` | `true` để kiểm tra không phát SMS; `false` là có thể gửi thật khi adapter được bật. |
-| `SMS_ENABLED` | Giữ `false` trong production đến khi xử lý xong lần gửi thất bại và release template mới được review. |
+| `SMS_ENABLED` | Production hiện dùng `true`: release template đã được review, lần gửi thử Viettel đã được người nhận xác nhận. Local giữ `false` nếu không chủ động kiểm tra gửi thật. Provider nhận yêu cầu chưa đồng nghĩa SMS được phát thành công. |
 
 `CONTACT_INBOX_EMAIL` còn cần `EMAIL_ENABLED=true` và SMTP hợp lệ. Chỉ điền
 địa chỉ nhận không tự kích hoạt SMTP. Không đổi `EMAIL_FROM` sang địa chỉ chưa

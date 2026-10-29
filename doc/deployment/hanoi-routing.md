@@ -48,6 +48,17 @@ Runtime chỉ bind `127.0.0.1:5000`, một thread, `--algorithm mld --mmap`, tab
 Giới hạn radius là lựa chọn vận hành của provider, không phải bán kính dịch vụ.
 Không mở cổng 5000 trong security group hoặc proxy public.
 
+### Kiểm tra EC2 ngày 30/10/2026
+
+Graph MLD dựng trên WSL bằng cùng OSRM v26.10.0 đã mở thành công trên ARM64.
+Archive SHA256 `194e0d67671c4199024b40b5f18a9ff1373051318f5e57b893e89982ebace262`;
+26 tệp ở `/opt/pawworldcare/routing/hanoi-mld-v2610` được mount read-only.
+Container `pwc-osrm-hanoi` dùng một thread, CPU 0.5, RAM 384 MiB, không swap,
+restart unless-stopped và chỉ publish loopback. Table API giữa hai điểm công khai
+`105.85,21.03` và `105.82,21.02` trả `Ok`, ETA hai chiều 517.7 và 523.8 giây.
+Docker báo running, OOM=false và khoảng 12.42 MiB tại mẫu đo sau truy vấn.
+Đây là smoke test hai điểm, chưa xác nhận tải đồng thời hay toàn bộ coverage.
+
 ## Cấu hình backend
 
 ```dotenv
