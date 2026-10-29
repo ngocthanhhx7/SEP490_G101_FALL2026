@@ -79,6 +79,28 @@ assessment adapters. The earning producer now exists, but its trusted source por
 must be implemented and called by the authoritative completion/payment flows.
 The synthetic source used by tests is explicitly not registered in runtime.
 
+## Public Profiles And Operational Readers
+
+The user approved separately authored public sitter profiles, Staff/Admin review
+and PUBLISHED customer-rating aggregates. This branch now includes those Mongo
+submission/review commands, authenticated/CSRF routes, sitter and Staff screens,
+versioned audit/idempotency and scope-bound pagination. Application content is
+never used as public content. Editing an approved profile requires review again.
+
+All four operational dashboard adapters now read the canonical P01 primary
+collections under snapshot isolation with scoped counts, bounded pages and query
+timeouts. Absent collections remain pending. This completes reader wiring, not
+the missing Booking/Visit/payment/case/refund producer flows.
+
+Actual checks: backend lint/architecture PASS; full backend 96 suites / 858 tests
+PASS before the final own-profile review-reason projection; its 7 Mongo profile
+regressions reran PASS after that change. Frontend lint PASS, 79 suites / 493 tests
+PASS, build PASS; focused public-profile UI 2 tests PASS after the reason display.
+Playwright checked profile edit, Staff review and Admin transfer at 1440x1000
+and 390x844: six screenshots inspected, no horizontal overflow, offscreen control
+or browser page error. Browser API responses were synthetic UI fixtures; Mongo
+integration tests above cover persistence separately. Local Vite runs on 5185.
+
 Default policy stays closed until that integration and private transfer evidence
 exist. These passing checks do not establish live business acceptance or authorize
 an approval. PR #63, #64 and #65 must retain their acceptance gates until the

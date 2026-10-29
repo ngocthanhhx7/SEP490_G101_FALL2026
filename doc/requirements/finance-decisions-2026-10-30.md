@@ -37,9 +37,13 @@ an integration gate, even when synthetic integration tests pass.
 
 ## Additional user confirmations
 
-Multi-visit bookings require prepayment. This confirms payment timing, not the
-allocation algorithm between visits or sitters; FIN-02-ALLOC remains pending its
-separate answer. A payment receipt must not be inferred from booking submission.
+Multi-visit bookings require prepayment. The user subsequently approved allocation
+of collected service money by immutable visit price snapshots, and allocation of
+confirmed tax amount T by those same proportions, aggregated by sitter. A payment
+receipt must not be inferred from booking submission. Unknown tax stays unknown.
+Whole-VND allocation uses largest fractional remainders with a stable visit-id
+tie break so the allocated sum exactly equals T; this is an implementation of the
+approved proportions, not a tax-rate decision or a change to fee rounding.
 
 For PR #65 the user approved a separate sitter-authored public bio/work-area
 profile reviewed by Staff/Admin. Application text is not a publication source.

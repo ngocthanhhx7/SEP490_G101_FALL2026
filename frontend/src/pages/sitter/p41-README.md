@@ -7,3 +7,10 @@ navigation, with the same-origin API client and session CSRF token. The componen
 standalone default adapter reports INTEGRATION_PENDING; the actual route supplies
 the authenticated adapter. Open financial policy IDs disable writes. See
 [handoff](../../../../doc/deployment/p41-n05-handoff.md).
+
+## Public Profile
+
+`SitterPublicProfilePage` owns the separate public bio/work-area submission form.
+Staff/Admin use `SitterProfileReviewsPage` to review the versioned queue. Both use
+the shared authenticated transport and preserve command keys after uncertain
+responses. Identity changes remount the route and clear prior drafts.

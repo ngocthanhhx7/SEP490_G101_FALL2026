@@ -15,9 +15,21 @@ The completed-booking snapshot is the authoritative completion fact for these
 rows, so the earnings DTO supports `bookingId` without pretending it is a visit.
 Existing visit-level injected adapters remain compatible. This repository cannot
 create earnings; PR #63's source producer still needs its operational adapters.
-Payroll and earnings have durable adapters. The other six projections still need
-the primary operational Visit/Offer/Bill/Case and approved-public-profile/rating
-source contracts; absence must not be converted into a successful empty result.
+All eight projections now have durable readers. Operational readers use the P01
+Visit/Booking/Offer/Bill/Case collection mapping documented in the API contract.
+The primary producer flows still need integration; missing collections are not
+converted into a successful empty result.
+
+The user-approved public-profile flow now has a separate durable submission/review
+service and `/api/v1/sitter-public-profiles` API. Sitter edits require reapproval;
+Staff/Admin cannot self-approve. Commands serialize on active User/SitterStatus,
+use version checks and durable idempotency, and append content-hash audit records.
+Provision its additive indexes explicitly using
+`scripts/migrations/sitter-public-profile-storage.js --apply` in local/test only.
+Profile/directory readers join APPROVED profiles with active users and status,
+then aggregate only PUBLISHED CUSTOMER_TO_SITTER ratings. An absent `reviews`
+moderation collection stays pending. Signed directory/review cursors bind scope.
+No application text, review comment, customer identity or private document appears.
 
 Dashboard routes now wire an HTTP controller; the service imports role rules from
 utils rather than middleware. Shared composition retains current pricing, matching,
@@ -28,8 +40,8 @@ Export-only services consume a trusted `repository.readSnapshot({ scope, query }
 A durable P41-backed payroll adapter is registered when the runtime has a Mongo connection
 and the auth cursor secret; it reads `SettlementRequest` rows and approved `User` display
 names. It fails closed when either collection is absent, the join is incomplete, policy
-versions are mixed, or the persisted decision version is missing. The other projections
-remain unregistered until P01/P34 supply their source adapters. Explicit repository ports
+versions are mixed, or the persisted decision version is missing. The other readers
+remain pending when their authoritative collections are absent. Explicit repository ports
 passed by composition override the durable default.
 Each snapshot must be read atomically from its source (consistent counts and rows),
 with `{ ready, scope, sourceVersion, asOf, metrics, items, nextCursor }`.

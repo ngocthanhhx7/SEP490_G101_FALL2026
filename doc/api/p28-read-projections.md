@@ -100,6 +100,26 @@ P34/P01 source composition; current Figma frames. Existing P04/P48 components ar
 
 ### Concrete source gaps found during the PR audit
 
+Update, 30 October 2026: all four operational dashboards now have a Mongo read
+adapter for the canonical P01 collections. It never provisions them. Missing
+collections still return INTEGRATION_PENDING. The concrete mapping is ObjectId
+`Visit._id/bookingId/sitterId`, BSON Date `Visit.startAt`, Booking.customerId,
+Offer.visitId/sitterId/state/deadline, Case.visitId/state, Bill.bookingId/state/dueAt.
+Customer ownership is joined before counts or paging. Metrics cover the filtered
+period, independent of cursor; date filters apply to Visit.startAt, Bill.dueAt and
+Application.createdAt. Upcoming visits are SCHEDULED/ASSIGNED after server time;
+unpaid bills are ISSUED/ON_HOLD; pending offers require an unexpired deadline;
+unassigned visits are SCHEDULED with null sitter; open cases are OPEN/UNDER_REVIEW;
+pending applications are PENDING/UNDER_REVIEW/INTERVIEW. All queries in a response
+share one snapshot and 5-second server query limits. Cursors bind actor/filters.
+No public profile or operational writer is inferred from these readers.
+
+Public profiles now use a separately authored/reviewed SitterPublicProfile source.
+Only APPROVED profiles with active User/SitterStatus join moderated PUBLISHED
+CUSTOMER_TO_SITTER rating aggregates. Missing moderation collection stays pending.
+The older audit below describes the missing primary producer flows, not the new
+read-adapter implementation status.
+
 The current integration base contains User/identity, SitterApplication/SitterStatus,
 catalog/settings and public-policy models. It has no persisted Visit, Offer, Bill,
 Case or moderated Rating model. The following gaps cannot be filled by treating an

@@ -21,6 +21,7 @@ import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
 import { dashboardReadRuntimeModule } from './routes/dashboard-runtime.routes.js';
 import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
+import { sitterPublicProfileModule } from './routes/sitter-public-profile.routes.js';
 
 export function createApp({
   config,
@@ -66,6 +67,8 @@ export function createApp({
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
+  const publicProfiles = auth && typeof connection?.model === 'function'
+    ? sitterPublicProfileModule({ ...context, sessionService: auth.sessionService }) : null;
   const suppliedModules = moduleFactories.map((factory) => factory(context))
     .filter(module => module !== null && module !== undefined);
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
@@ -96,6 +99,7 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(publicProfiles ? [publicProfiles] : []),
     ...(settlement ? [settlement] : []),
     ...(dashboards && !auth ? [dashboards] : []),
     ...(adminSettlement ? [adminSettlement] : []),

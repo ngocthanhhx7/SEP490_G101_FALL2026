@@ -1,6 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { AppError } from '../../utils/app-error.js';
 import { createMongoEarningsRepository } from './mongo-earnings.repository.js';
+import { createMongoSitterProfileRepository } from './mongo-sitter-profile.repository.js';
+import { createMongoOperationalDashboardRepository } from './mongo-operational-dashboard.repository.js';
 
 const CURSOR_CONTEXT = 'p28-payroll-cursor\0';
 const MAX_CURSOR_LENGTH = 512;
@@ -224,7 +226,14 @@ export function createMongoPayrollRepository({ connection, requests,
 
 export function createMongoDashboardRepositories({ connection, cursorSecret } = {}) {
   if (!connection?.collection || !validSecret(cursorSecret)) return Object.freeze({});
+  const profiles = typeof connection.model === 'function' && typeof connection.transaction === 'function'
+    ? createMongoSitterProfileRepository({ connection, cursorSecret }) : null;
+  const operational = connection.db && typeof connection.transaction === 'function'
+    ? createMongoOperationalDashboardRepository({ connection, cursorSecret }) : null;
   return Object.freeze({ payroll: createMongoPayrollRepository({ connection, cursorSecret }),
+    ...(profiles ? { 'sitter-profile': profiles, 'sitter-list': profiles } : {}),
+    ...(operational ? Object.fromEntries(['admin-dashboard', 'customer-dashboard', 'sitter-dashboard', 'staff-dashboard']
+      .map(kind => [kind, operational])) : {}),
     ...(typeof connection.transaction === 'function'
       ? { earnings: createMongoEarningsRepository({ connection, cursorSecret }) } : {}) });
 }
