@@ -8,7 +8,7 @@ Paw World Care hỗ trợ đặt lịch chăm sóc chó/mèo, quản lý từng 
 
 ## Trạng thái
 
-Repository đang ở bước khởi tạo cấu trúc và quy ước làm việc. Chưa có ứng dụng chạy được, dependency, cấu hình build, kiểm thử tự động hay deployment. Các thư mục trống được giữ bằng `.gitkeep`; xóa tệp này khi thư mục có nội dung thực tế.
+Repository có runtime React/Vite và Node.js/Express/Mongoose cùng kiểm thử tự động. Các module có mức tích hợp khác nhau; provider thiếu cấu hình trả trạng thái pending/unavailable. Không suy ra mọi flow đã hoạt động production từ việc build thành công. Đọc [package responsibilities](doc/source-code-management/package-architecture.md), README frontend/backend và bằng chứng kiểm tra của PR hiện tại.
 
 ## Công nghệ theo kế hoạch
 
@@ -18,7 +18,7 @@ Repository đang ở bước khởi tạo cấu trúc và quy ước làm việc
 | Backend | Node.js, Express |
 | Database | MongoDB 7+ / MongoDB Atlas; Mongoose |
 | Kiểm thử dự kiến | Jest, Supertest, React Testing Library |
-| Triển khai dự kiến | Vercel cho frontend; Render / AWS cho backend |
+| Triển khai dự kiến | EC2 frontend/backend + MongoDB local replica set; Cloudflare DNS/HTTPS; R2 adapter còn cần tích hợp |
 
 Phiên bản runtime, build tool và dependency sẽ được chốt trong PR khởi tạo ứng dụng và ghi vào README tương ứng cùng lockfile.
 

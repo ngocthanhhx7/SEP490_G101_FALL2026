@@ -1,5 +1,13 @@
 This folder contains Customer-owned profile, service-address, pet, and unpaid-booking screens. Each page uses shared P04 controls and a domain adapter from `src/services`; API ownership and role authorization remain server responsibilities.
 
+`SitterRecommendationsPage` is registered at `/account/sitter-recommendations`
+behind the Customer guard. It uses `/pet-care` owned pets/confirmed addresses,
+separate from the unmounted legacy `/pets` adapter. Customers can add basic
+confirmed care context and request a Vietnam-time slot; shortlist displays
+explanations, limited history/search, routing failure and expiry. It never sends
+an offer or computes money. Persistent booking/proposal/offer integration and
+an actual trusted Hanoi routing dataset remain release dependencies.
+
 `CustomerUnpaidBookingsPage` renders the server-projected unpaid-booking list and starts a payment-intent command for multi-visit prepayment through an injected API adapter. Single-visit postpay bills need a separate P01/P34 command. The page does not infer payment success from query parameters or browser return URLs, and fails closed when server clock metadata is unavailable.
 
 P14 registers `CustomerProfilePage` at `/account/profile` behind the Customer role guard. It uses the runtime session/CSRF adapter and `/api/v1/me/profile` for display-name updates and masked verified contacts. The backend derives ownership from the current session; version conflicts require reloading before retrying.

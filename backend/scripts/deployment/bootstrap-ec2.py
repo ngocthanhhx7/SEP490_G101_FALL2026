@@ -59,10 +59,11 @@ def main():
         'EMAIL_ENABLED=false', 'SMTP_HOST=', 'SMTP_PORT=587', 'SMTP_USER=',
         'SMTP_PASSWORD=', 'EMAIL_FROM=', 'CONTACT_INBOX_EMAIL=',
         'SMS_ENABLED=false', 'ESMS_API_KEY=', 'ESMS_SECRET_KEY=', 'ESMS_BRANDNAME=',
+        'ESMS_OTP_TEMPLATE=Ma xac nhan cua ban la {code}',
         'AI_ENABLED=false', 'AI_ROUTING_URL=',
         '# Reserved for the R2 adapter; empty values do not enable image storage.',
         'R2_ENABLED=false', 'R2_ACCOUNT_ID=', 'R2_BUCKET=',
-        'R2_ACCESS_KEY_ID=', 'R2_SECRET_ACCESS_KEY=', 'R2_PUBLIC_BASE_URL=', ''
+        'R2_ACCESS_KEY_ID=', 'R2_SECRET_ACCESS_KEY=', 'R2_MAX_IMAGES_PER_USER=20', ''
     ]))
     if run('docker', 'container', 'ls', '-a', '--filter', 'name=^pwc-mongo$',
            '--format', '{{.Names}}', capture=True).stdout.strip() != 'pwc-mongo':

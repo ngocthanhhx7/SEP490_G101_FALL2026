@@ -15,11 +15,23 @@ describe('eSMS configuration and contact delivery port', () => {
   test('validates missing credentials and bounded timeout without exposing values', () => {
     expect(() => loadEsmsConfig({ ...validEnv, ESMS_SECRET_KEY: '' })).toThrow(AppError);
     expect(() => loadEsmsConfig({ ...validEnv, SMS_TIMEOUT_MS: '99999' })).toThrow(AppError);
+    expect(() => loadEsmsConfig({ ...validEnv, ESMS_OTP_TEMPLATE: 'missing placeholder' })).toThrow(AppError);
     try { loadEsmsConfig({ ...validEnv, ESMS_API_KEY: '' }); } catch (error) {
       expect(error.code).toBe('SMS_CONFIGURATION_INVALID');
       expect(error.details.fields).toContain('ESMS_API_KEY');
       expect(JSON.stringify(error)).not.toContain('synthetic-secret');
     }
+  });
+
+  test('passes the configured approved template unchanged to the provider', async () => {
+    const fetchImpl = jest.fn(async () => ({ status: 200, ok: true, json: async () => ({ CodeResult: '100' }) }));
+    const now = Date.parse('2026-10-29T00:00:00Z');
+    const { contactDelivery } = createSmsPortOverrides({ env: { ...validEnv,
+      ESMS_OTP_TEMPLATE: '{code} la ma xac minh dang ky Baotrixemay cua ban' }, fetchImpl, clock: () => now });
+    await contactDelivery.send({ channel: 'SMS', kind: 'OTP', to: '+84901234567',
+      operationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', purpose: 'LOGIN', code: '012345',
+      expiresAt: new Date(now + 300000).toISOString() });
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body).Content).toBe('012345 la ma xac minh dang ky Baotrixemay cua ban');
   });
 
   test('routes only SMS OTP commands and uses injected fake provider', async () => {

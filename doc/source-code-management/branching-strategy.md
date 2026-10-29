@@ -40,4 +40,4 @@ git switch -c hotfix/456-payment-callback
 
 Sau khi sửa, chạy kiểm tra phù hợp và mở PR vào `main`. Leader merge sau approval độc lập, thực hiện quy trình phát hành cần thiết, rồi mở PR `main → develop`. Nếu một nhánh release đang hoạt động, đưa bản sửa vào nhánh đó qua PR trước khi phát hành. Không bỏ qua bước review vì nhánh có tên hotfix.
 
-Việc có nhánh `main` không tự tạo deployment. Vercel/Render và pipeline sẽ được cấu hình trong công việc triển khai riêng.
+Việc có nhánh `main` không tự tạo deployment. Frontend và backend chạy trên EC2; Cloudflare quản lý DNS/proxy HTTPS. Phát hành đúng SHA đã được review và kiểm tra theo [EC2 runbook](../deployment/ec2-production.md).

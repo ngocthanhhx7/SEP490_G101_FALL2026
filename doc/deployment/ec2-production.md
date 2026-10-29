@@ -5,6 +5,8 @@ seed demo accounts, or claim unconfigured providers are working.
 
 ## Host and access
 
+Hướng dẫn thao tác bằng tiếng Việt: [SSH và điền từng biến .env](ec2-environment-guide.md).
+
 - EC2: `54.79.81.209`, Sydney `ap-southeast-2`, Amazon Linux 2023 / ARM64.
 - SSH key remains on the operator's machine, outside this repository.
 - Application releases: `/opt/pawworldcare/releases/<full-git-sha>/`.
@@ -27,8 +29,8 @@ Security group: SSH 22 from the operator IP; HTTP 80 and HTTPS 443 public;
 
 ## Cloudflare DNS cutover
 
-Export existing DNS records first so the original Render/Vercel targets remain
-available for rollback. Nameservers already delegated to Cloudflare do not need
+Export existing DNS records first so the previous targets remain recorded
+for rollback. Nameservers already delegated to Cloudflare do not need
 to change. Replace the three existing web CNAME records as follows; there must
 not be a conflicting CNAME or old AAAA for the same name.
 
@@ -71,17 +73,22 @@ supply a trusted CF-Connecting-IP. See
 [Caddy trusted proxy configuration](https://caddyserver.com/docs/caddyfile/options).
 
 Configure `EMAIL_ENABLED`, SMTP_HOST/PORT/USER/PASSWORD and EMAIL_FROM using the
-chosen SMTP provider; configure CONTACT_INBOX_EMAIL for contact forms. Email
-stays disabled until real credentials exist, so OTP/login/registration cannot
-be represented as fully available. SMS and payment remain disabled/unconfigured.
+chosen SMTP provider; configure CONTACT_INBOX_EMAIL for contact forms. SMTP
+authentication has been verified separately. An authorized SMS smoke was delivered
+successfully and acknowledged by the recipient; that proves the tested eSMS route,
+not every network or the complete application OTP flow. Payment remains unconfigured.
 Never use fake OTP delivery or demo credentials on production.
 
 R2 variables are reserved in the server `.env` (`R2_ENABLED=false`, account,
-bucket, access key, secret and public media base URL). Merely adding variables
-does not implement an adapter: this release does **not** yet upload images to
-R2. Keep it disabled until the adapter, authorization, MIME/size limits and
-private document access are integrated and tested. Private identity/evidence
-objects must not share a public image bucket/domain.
+bucket, access key, secret and `R2_MAX_IMAGES_PER_USER`). The backend now has an
+opt-in owner-only PNG/JPEG adapter and `/api/v1/private-images` upload/read
+runtime. Keep it disabled until a separate private bucket, bucket-scoped
+credentials, retention/quota approval and a live provider check are complete.
+Direct R2 provider smoke and isolated Linux memory evidence are recorded in the
+[R2 runbook](aws/r2-private-media.md); new-runtime privacy/cache/evidence gates
+remain separate from those checks.
+Applicant documents, care evidence and public images remain separate workflows;
+never share their objects or public domains with this bucket.
 
 After changing environment values, redeploy the same reviewed SHA using the
 activation command below. Docker restart alone retains the old container env.
@@ -103,7 +110,7 @@ sudo python3 /opt/pawworldcare/releases/FULL_SHA/backend/scripts/deployment/acti
 ```
 
 Replace FULL_SHA with the actual 40-character SHA. The backend image is built
-from a pinned Node 24.21.0 / npm 11.19.0 ARM64-compatible image. Production npm
+from a pinned Node 24.22.1 / npm 11.19.1 ARM64-compatible image. Production npm
 dependencies exclude dev dependencies. Required indexes must succeed before
 activation. The inactive blue/green API slot starts on loopback 3000/3001;
 readiness must pass before one graceful Caddy reload changes both the frontend
@@ -125,8 +132,8 @@ curl --fail https://pawworldvn.shop/ready
 sudo ss -lnt
 ```
 
-Before DNS points to EC2, a successful domain request may still be Render or
-Vercel. Verify the origin directly using `curl --resolve` and check the release
+Before DNS points to EC2, a successful domain request may still come from the
+previous origin. Verify the origin directly using `curl --resolve` and check the release
 metadata on EC2. Never claim cutover from an old host's response. Bare `/api`
 must return an API 404 envelope, never SPA HTML.
 
@@ -135,11 +142,11 @@ must return an API 404 envelope, never SPA HTML.
 Keep this PowerShell window open:
 
 ```powershell
-ssh -N -L 127.0.0.1:27018:127.0.0.1:27017 -o ExitOnForwardFailure=yes -i "$env:USERPROFILE/.ssh/pawworldcare-ec2.pem" ec2-user@ec2-54-79-81-209.ap-southeast-2.compute.amazonaws.com
+ssh -N -L 127.0.0.1:27019:127.0.0.1:27017 -o ExitOnForwardFailure=yes -i "$env:USERPROFILE/.ssh/pawworldcare-ec2.pem" ec2-user@ec2-54-79-81-209.ap-southeast-2.compute.amazonaws.com
 ```
 
 Use MongoDB Compass to connect to
-`mongodb://127.0.0.1:27018/paw_world_care?directConnection=true`.
+`mongodb://127.0.0.1:27019/paw_world_care?directConnection=true`.
 In Authentication select Username/Password, username `pwcapp`, authentication
 database `paw_world_care`; enter the password privately from the server's
 root-only `.env`. `directConnection=true` prevents Compass following the

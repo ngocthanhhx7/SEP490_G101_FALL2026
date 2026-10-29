@@ -1,1 +1,1 @@
-export * from './incident.service.js';
+export * from './incidents/incident.service.js';

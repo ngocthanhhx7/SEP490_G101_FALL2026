@@ -1,6 +1,6 @@
 ﻿# Frontend
 
-P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.21.0, npm 11.19.0, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
+P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.22.1, npm 11.19.1, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
 
 From `frontend/`:
 
@@ -18,6 +18,8 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 ## Responsibilities
 
+`demo-ai/` là trang HTML/JS quan sát AI độc lập chỉ phục vụ bởi backend/scripts/demo-ai.js trên loopback3011; không nằm trong bundle sản phẩm. Xem [bộ tài khoản và tình huống demo](../doc/testing/ai-demo-accounts.md).
+
 | Path | Responsibility |
 | --- | --- |
 | src/app | Entry, root error boundary, providers and P03/P04 shared CSS integration |
@@ -28,7 +30,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/pages/account | Signed-in user's own session identity and WBS-004 account settings; verified contact edits remain owner-scoped, masked and OTP-protected; P34 owns route registration |
 | src/pages/public/policies | P45 approved-only policy index/article UI, stable version routes, context links and consent policy references; the real App mounts the route/provider, while P01/P17 own shared DTO and policy lifecycle integration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
-| src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters and explicit pending adapter |
+| src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters, owner-only private-image upload/read adapter and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
 | src/components/public | P13 public navigation and footer for guest pages; no authenticated role menu or commerce controls |
 | src/components/ui, src/styles | P04 brand tokens/fonts and native shared controls; root adoption through P34 |
@@ -37,6 +39,15 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | tests/integration | Synthetic adapter UI/router tests; no real backend or provider |
 | tests/fixtures | Synthetic test-only policy drafts; application code must not import these fixtures |
 | tests/e2e | Reserved; no end-to-end test or claim yet |
+
+The private-image adapter requires the caller to provide and retain an
+`Idempotency-Key` for the complete payload. A retry after an unknown response
+must call `upload(file, { idempotencyKey })` with the same key; a new image
+command must use a new key. The adapter keeps its timeout and caller abort
+signal through JSON/blob body consumption, cancels the response stream on
+interruption, and dispatches the shared `pwc:session-invalidated` event once
+for a 401 unless a consumer injects its own handler. No public object URL is
+created.
 
 ## Integration ports
 
