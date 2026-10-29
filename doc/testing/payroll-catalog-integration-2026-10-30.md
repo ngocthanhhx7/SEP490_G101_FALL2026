@@ -43,7 +43,7 @@ writers and transactional credit creation are covered separately by the Mongo so
 - Customer basket currently produces a quote, not a finalized booking or a real payment link.
   Booking creation must persist dedicated employee service net snapshots and the separate
   customer payment snapshot; legacy values must not be inferred as commissionable money.
-- Actual workplace ward/commune, full-time hours, verified contract backfill and per-period
+- Owner confirmed Hanoi. Exact workplace ward/commune, full-time hours, verified contract backfill and per-period
   timecard/tax/insurance evidence remain operational inputs. Current statutory tax/insurance
   research is incomplete; no blanket rate is claimed or applied automatically.
 - PREPARED payroll can be voided with reason and replaced. Approved/paid correction needs an

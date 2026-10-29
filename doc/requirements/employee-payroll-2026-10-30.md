@@ -28,7 +28,8 @@ bonus disputes and lawful wage deductions need separate reviewed rules.
 
 ## Pending clarification
 
-- Actual workplace commune/ward and regional minimum wage; full-time contracted hours.
+- Owner confirmed the business is in Hanoi. The exact workplace commune/ward and
+  full-time contracted hours still require contract entry; do not infer a wage region from the city alone.
 - Actual attendance/overtime/leave, insurance and income tax assessments per employee and period.
 - Advance settlement period and consent reference per request. Mandatory statutory advances need a separate path.
 - Verified contract metadata/backfill for existing approved employees. Approval is not a reason to
