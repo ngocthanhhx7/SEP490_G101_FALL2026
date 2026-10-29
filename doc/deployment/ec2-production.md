@@ -103,7 +103,7 @@ sudo python3 /opt/pawworldcare/releases/FULL_SHA/backend/scripts/deployment/acti
 ```
 
 Replace FULL_SHA with the actual 40-character SHA. The backend image is built
-from a pinned Node 24.21.0 / npm 11.19.0 ARM64-compatible image. Production npm
+from a pinned Node 24.22.1 / npm 11.19.1 ARM64-compatible image. Production npm
 dependencies exclude dev dependencies. Required indexes must succeed before
 activation. The inactive blue/green API slot starts on loopback 3000/3001;
 readiness must pass before one graceful Caddy reload changes both the frontend

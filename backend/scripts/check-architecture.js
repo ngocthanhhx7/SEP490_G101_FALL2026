@@ -105,6 +105,35 @@ export function inspectSource(side, source, text) {
   const ast = parse(text, { sourceType: 'unambiguous', plugins: ['jsx'] });
   const imports = [],
     problems = [];
+  const localFunctions = new Map(),
+    routers = new Set(['router']),
+    routerFactories = new Set(['Router']);
+  walk(ast, (node) => {
+    if (node.type === 'ImportDeclaration' && node.source.value === 'express') {
+      for (const specifier of node.specifiers) {
+        if (specifier.imported?.name === 'Router')
+          routerFactories.add(specifier.local.name);
+      }
+    }
+  });
+  walk(ast, (node) => {
+    if (node.type === 'FunctionDeclaration' && node.id)
+      localFunctions.set(node.id.name, node);
+    if (node.type === 'VariableDeclarator' && node.id.type === 'Identifier') {
+      if (
+        ['ArrowFunctionExpression', 'FunctionExpression'].includes(
+          node.init?.type
+        )
+      )
+        localFunctions.set(node.id.name, node.init);
+      if (
+        node.init?.type === 'CallExpression' &&
+        (routerFactories.has(node.init.callee?.name) ||
+          node.init.callee?.property?.name === 'Router')
+      )
+        routers.add(node.id.name);
+    }
+  });
   walk(ast, (node) => {
     if (
       [
@@ -141,23 +170,52 @@ export function inspectSource(side, source, text) {
       side === 'backend' &&
       source.startsWith('routes/') &&
       node.type === 'CallExpression' &&
-      node.callee?.object?.name === 'router' &&
+      routers.has(node.callee?.object?.name) &&
       ['get', 'post', 'put', 'patch', 'delete'].includes(
         node.callee.property?.name
       )
     ) {
       for (const arg of node.arguments.slice(1)) {
+        const handler =
+          arg.type === 'Identifier' ? localFunctions.get(arg.name) : arg;
         if (
-          ['ArrowFunctionExpression', 'FunctionExpression'].includes(
-            arg.type
+          (['ArrowFunctionExpression', 'FunctionExpression'].includes(
+            handler?.type
           ) &&
-          arg.params.length < 3
+            handler.params.length < 3) ||
+          (handler?.type === 'FunctionDeclaration' && handler.params.length < 3)
         ) {
           problems.push(
             `${side}/${source}:${arg.loc.start.line}: HTTP handlers belong in controllers`
           );
         }
       }
+    }
+    if (
+      side === 'backend' &&
+      source.startsWith('routes/') &&
+      node.type === 'CallExpression' &&
+      [
+        'find',
+        'findOne',
+        'findById',
+        'exists',
+        'aggregate',
+        'insertMany',
+        'updateOne',
+        'updateMany',
+        'deleteOne',
+        'deleteMany',
+        'findOneAndUpdate',
+        'countDocuments',
+        'bulkWrite',
+        'transaction',
+        'startSession'
+      ].includes(node.callee?.property?.name)
+    ) {
+      problems.push(
+        `${side}/${source}:${node.loc.start.line}: data queries/transactions belong in services`
+      );
     }
   });
   return { imports, problems };

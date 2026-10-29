@@ -31,7 +31,8 @@ let replica,
   petId,
   addressId,
   auth,
-  clockNow;
+  clockNow,
+  routingAdvanceMs = 0;
 const secret = 'synthetic-ai-integration-secret-at-least-32';
 const authFor = async (user) => {
   const issued = await connection.transaction((session) =>
@@ -69,18 +70,22 @@ beforeAll(async () => {
     auth: { enabled: true, tokenSecret: secret, csrfSecret: secret + '-csrf' }
   };
   const routingProvider = {
-    matrix: async (points) => ({
-      map: new Map(
-        points.flatMap((a) =>
-          points.map((b) => [
-            edgeKey(a, b),
-            JSON.stringify(a) === JSON.stringify(b) ? 0 : 5
-          ])
-        )
-      ),
-      recordedAt: new Date(clockNow),
-      source: 'ISOLATED_TEST_ROUTER'
-    })
+    matrix: async (points) => {
+      clockNow += routingAdvanceMs;
+      routingAdvanceMs = 0;
+      return {
+        map: new Map(
+          points.flatMap((a) =>
+            points.map((b) => [
+              edgeKey(a, b),
+              JSON.stringify(a) === JSON.stringify(b) ? 0 : 5
+            ])
+          )
+        ),
+        recordedAt: new Date(clockNow),
+        source: 'ISOLATED_TEST_ROUTER'
+      };
+    }
   };
   app = createApp({
     config,
@@ -119,6 +124,7 @@ beforeEach(async () => {
   for (const collection of Object.values(connection.collections))
     await collection.deleteMany({});
   clockNow = Date.parse('2026-10-24T00:00:00Z');
+  routingAdvanceMs = 0;
   [customer, other, admin] = await User.create([
     { displayName: 'Synthetic Customer', roles: ['CUSTOMER'], state: 'ACTIVE' },
     { displayName: 'Synthetic Other', roles: ['CUSTOMER'], state: 'ACTIVE' },
@@ -742,4 +748,17 @@ test('Admin capability version conflict and schedule concurrency guard reject du
   ]);
   expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
   expect(await models.SitterScheduleBlock.countDocuments()).toBe(1);
+});
+
+test('a slow routing lookup cannot save a ready snapshot after the lead-time window closes', async () => {
+  await seedSitters();
+  routingAdvanceMs = 3 * 86400000;
+  await request(app)
+    .post('/api/v1/ai/recommendations')
+    .set(await authFor(customer))
+    .send(matchBody())
+    .expect(422);
+  expect(await models.DecisionSnapshot.countDocuments({ kind: 'MATCH' })).toBe(
+    0
+  );
 });

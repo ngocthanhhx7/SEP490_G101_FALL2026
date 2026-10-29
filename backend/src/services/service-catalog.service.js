@@ -421,15 +421,35 @@ export function createServiceCatalogService({
 
   async function listAdmin({ includePolicyText = false } = {}) {
     const services = await Service.find({}).sort({ code: 1 }).lean();
+    const ids = services.map((service) => service._id);
+    const at = new Date(clock());
+    const grouped = (Model, filter, sort) =>
+      Model.aggregate([
+        { $match: { serviceId: { $in: ids }, ...filter } },
+        { $sort: sort },
+        { $group: { _id: '$serviceId', current: { $first: '$$ROOT' } } },
+        { $replaceRoot: { newRoot: '$current' } }
+      ]).option({ maxTimeMS: 2000 });
+    const [versionRows, policyRows, latestRows] = await Promise.all([
+      grouped(ServiceVersion, {}, { version: -1 }),
+      grouped(
+        PolicyVersion,
+        { effectiveAt: { $lte: at } },
+        { effectiveAt: -1, version: -1 }
+      ),
+      grouped(PolicyVersion, {}, { version: -1 })
+    ]);
+    const map = (rows) =>
+      new Map(rows.map((row) => [row.serviceId.toString(), row]));
+    const versions = map(versionRows),
+      policies = map(policyRows),
+      latestPolicies = map(latestRows);
     const output = [];
     for (const service of services) {
-      const [version, currentPolicy, latestPolicyVersion] = await Promise.all([
-        ServiceVersion.findOne({ serviceId: service._id })
-          .sort({ version: -1 })
-          .lean(),
-        effective(PolicyVersion, service._id, new Date(clock())),
-        latest(PolicyVersion, service._id)
-      ]);
+      const key = service._id.toString();
+      const version = versions.get(key),
+        currentPolicy = policies.get(key),
+        latestPolicyVersion = latestPolicies.get(key);
       if (!version) continue;
       const policy =
         currentPolicy?.state === 'PUBLISHED'

@@ -56,3 +56,25 @@ test('AST detects reexports, dynamic imports and route ownership without matchin
     ).problems
   ).toHaveLength(1);
 });
+
+test('blocks named and aliased HTTP handlers and direct route persistence calls', () => {
+  for (const source of [
+    "function serve(req,res){res.json({})} router.get('/',serve);",
+    "import {Router as makeRouter} from 'express';const api=makeRouter();api.get('/',(req,res)=>res.json({}));",
+    "const handler=async(req,res)=>res.json({});router.get('/',handler);"
+  ])
+    expect(
+      inspectSource('backend', 'routes/sample.js', source).problems
+    ).toHaveLength(1);
+  expect(
+    inspectSource('backend', 'routes/sample.js', 'await User.find({});')
+      .problems
+  ).toHaveLength(1);
+  expect(
+    inspectSource(
+      'backend',
+      'routes/sample.js',
+      "router.get('/',controller.read);"
+    ).problems
+  ).toHaveLength(0);
+});

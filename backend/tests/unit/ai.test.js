@@ -1,3 +1,4 @@
+import { instant } from '../../src/validators/pet-care.validator.js';
 import { test, expect } from '@jest/globals';
 import { calculateQuote } from '../../src/services/pricing/pricing-calculation.service.js';
 import { scoreSitter } from '../../src/services/sitter-matching/scoring.service.js';
@@ -271,4 +272,22 @@ test('routing outage never fabricates a distance or accepts cloud HTTP/credentia
   expect(() =>
     createRoutingProvider({ baseUrl: 'https://user:pass@example.com' })
   ).toThrow();
+});
+
+test.each([
+  '2026-02-30T10:00:00Z',
+  '2026-02-29T10:00:00+07:00',
+  '2026-04-31T10:00:00Z'
+])(
+  'rejects impossible calendar instant %s before parser normalization',
+  (value) => {
+    expect(() => instant(value)).toThrow(
+      expect.objectContaining({ code: 'VALIDATION_FAILED' })
+    );
+  }
+);
+test('permits a real leap day with timezone offset', () => {
+  expect(instant('2028-02-29T10:00:00+07:00')).toBe(
+    Date.parse('2028-02-29T03:00:00Z')
+  );
 });

@@ -6,6 +6,8 @@ Thư mục chứa thiết kế logical records, quan hệ, khóa/index đề xu�
 - [P01 logical data/schema/index/atomic contract v1](p01-data-contract-v1.md):17 entities, snapshots và multi-document transaction/occupancy guards; chưa có models/migration hoặc DB verification.
 
 
-## AI pricing/matching data
+## Backend pricing và sitter matching data
 
 Mongoose definitions tại backend/src/models/platform-data.model.js: Pet, CustomerAddress, AiBreed, AiTrait, AiPricingPolicy, AiSitterProfile, AiVisitOutcome, AiScheduleBlock, AiRoutingMatrix, AiDecision, AiRankingPolicy và AiRankModel. Canonical pets/addresses dùng ownerId; routing points chọn riêng, không public. Policy/source versions immutable qua API, outcome unique visitId; calendar writes CAS profile trong transaction. Seeds chỉ reference/configuration, không tạo user/rating giả. Xem [contract và local setup](../api/ai-pricing-matching-v1.md). AiDecision TTL dành estimate5/10phút không phải sổ booking/tiền; consumer phải snapshot cần thiết vào booking riêng.
+
+Model names now split into pet-care/pricing/decision-snapshot/sitter-matching factories. Physical legacy Ai* collections are preserved explicitly by `model-definitions.js`; routing cache remains `airoutingmatrixes`. The aggregate platform factory is seed/test composition only.
