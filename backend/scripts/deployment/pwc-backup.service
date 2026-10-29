@@ -1,0 +1,9 @@
+[Unit]
+Description=Paw World Care MongoDB backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh /opt/pawworldcare/current/backend/scripts/deployment/backup-mongo.sh
+UMask=0077
