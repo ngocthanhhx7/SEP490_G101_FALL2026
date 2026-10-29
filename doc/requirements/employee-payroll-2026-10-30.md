@@ -50,6 +50,15 @@ bonus disputes and lawful wage deductions need separate reviewed rules.
   No interest; Admin rejection reason mandatory; only Admin records actual payment.
 - Policy version `PWC-EMPLOYEE-PAYROLL-2026-10-30-v1`.
 
+## History Pagination
+
+Employee and Admin payroll history uses signed, expiring cursors, default 20 and maximum 50 rows
+per page. Cursor scope binds actor, resource, view and page size. Employee ownership cannot be
+changed through query fields. Admin can switch between pending advances and full advance history;
+paid/rejected/withdrawn rows remain readable without new decision controls. The active contract is
+resolved separately from recent contract history, so an expired newer version cannot reactivate an
+older one. Reads require provisioned storage and use bounded database execution time.
+
 ## Implemented boundaries
 
 - `backend/src/services/payroll/` owns contract verification, salary calculation, advance commands,
