@@ -3,7 +3,7 @@
 - This repository is SEP490_G101_FALL2026, led by Nguyễn Ngọc Thành (@ngocthanhhx7).
 - Read `README.md`, `CONTRIBUTING.md`, and `doc/source-code-management/README.md` before changing project files. Follow the linked project conventions.
 - Keep frontend code in `frontend/`, backend code in `backend/`, and documentation in `doc/`. Use these exact spellings; do not create parallel `fontend/`, `docs/`, `client/`, or `server/` roots.
-- Planned stack: React, Node.js/Express, MongoDB/Mongoose. This baseline contains folders and documentation only. Do not claim the application runs or tests pass before a runtime and real checks exist.
+- Stack: React/Vite, Node.js/Express, MongoDB/Mongoose. Runtime and automated checks exist; integration readiness differs by module. Report actual checks and source/provider gates rather than inferring full business acceptance from a build.
 - Feature work starts from `develop` on `feature/<short-name>` or `feature/<issue-id>-<short-name>`. Hotfixes start from `main` on `hotfix/<short-name>` and must be synchronized back to `develop` through a PR.
 - Use Conventional Commits: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, or `chore:` followed by a space and a concise description.
 - After the initial repository bootstrap, changes to `main` and `develop` go through PR review. At least one team member other than the author must approve, and the Project Leader performs the final merge. Never invent approval or bypass protection.

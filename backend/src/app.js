@@ -18,6 +18,7 @@ import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
+import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
 
 export function createApp({
   config,
@@ -63,11 +64,14 @@ export function createApp({
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
-  const suppliedModules = moduleFactories.map((factory) => factory(context));
+  const suppliedModules = moduleFactories.map((factory) => factory(context))
+    .filter(module => module !== null && module !== undefined);
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
     (module) =>
       !suppliedModules.some((supplied) => supplied.name === module.name)
   );
+  const settlement = suppliedModules.some(module => module.name === 'settlement-requests')
+    ? null : settlementRequestRuntimeModule(context);
   registerModules(app, [
     contactModule(context),
     healthModule(context),
@@ -77,6 +81,7 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(settlement ? [settlement] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),
