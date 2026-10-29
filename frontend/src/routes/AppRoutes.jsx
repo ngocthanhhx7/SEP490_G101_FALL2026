@@ -38,6 +38,15 @@ import { ApplicationStatusPage } from '../pages/public/application-status/Applic
 import { applicationStatusApi } from '../services/application-status-api.js';
 import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
 import { createSettlementApi } from '../services/settlement-api.js';
+import { createEmployeePayrollApi } from '../services/employee-payroll-api.js';
+import { EmployeePayrollPage } from '../pages/sitter/EmployeePayrollPage.jsx';
+import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPage.jsx';
+
+function EmployeePayrollRoute({ admin = false }) {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createEmployeePayrollApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return admin ? <EmployeePayrollAdminPage key={user?.id} api={api} /> : <EmployeePayrollPage key={user?.id} api={api} />;
+}
 
 function SitterSettlementRoute() {
   const { getCsrfToken, user } = useSession();
@@ -49,6 +58,7 @@ const navigationByRole = {
   ADMIN: [
     ['Tài khoản', '/account'],
     ['Người dùng', '/admin/users'],
+    ['Quản lý lương', '/admin/payroll'],
     ['Dịch vụ', '/admin/services'],
     ['Giá dịch vụ', '/admin/service-prices'],
     ['Cấu hình', '/admin/system-settings'],
@@ -66,7 +76,7 @@ const navigationByRole = {
   PET_SITTER: [
     ['Tài khoản', '/account'],
     ['Lịch làm việc', '/sitter/availability'],
-    ['Tất toán tuần', '/sitter/settlements']
+    ['Lương và tạm ứng', '/sitter/payroll']
   ],
   STAFF: [['Tài khoản', '/account']]
 };
@@ -119,6 +129,7 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['ADMIN']} />}>
         <Route element={<Workspace role="ADMIN" />}>
           <Route path="admin/users" element={<AdminUsersPage />} />
+          <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
           <Route path="admin/services" element={<AdminServicesPage />} />
           <Route
             path="admin/service-prices"
@@ -171,6 +182,7 @@ export function AppRoutes({
             element={<SitterAvailabilityPage />}
           />
           <Route path="sitter/settlements" element={<SitterSettlementRoute />} />
+          <Route path="sitter/payroll" element={<EmployeePayrollRoute />} />
         </Route>
       </Route>
       <Route element={<PublicSiteLayout />}>

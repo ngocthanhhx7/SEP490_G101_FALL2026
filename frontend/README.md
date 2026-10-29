@@ -18,6 +18,12 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 ## Responsibilities
 
+Employee payroll pages live in `src/pages/sitter/EmployeePayrollPage.jsx` and
+`src/pages/admin/EmployeePayrollAdminPage.jsx`, with shared rendering in `src/components/payroll/`,
+request lifecycle in `src/hooks/usePayrollWorkspace.js` and same-origin transport in
+`src/services/employee-payroll-api.js`. Backend owns every financial calculation. Unknown mutation
+acknowledgements retain the same operation key for an identical retry. No bank transfer is performed.
+
 `demo-ai/` là trang HTML/JS quan sát AI độc lập chỉ phục vụ bởi backend/scripts/demo-ai.js trên loopback3011; không nằm trong bundle sản phẩm. Xem [bộ tài khoản và tình huống demo](../doc/testing/ai-demo-accounts.md).
 
 | Path | Responsibility |

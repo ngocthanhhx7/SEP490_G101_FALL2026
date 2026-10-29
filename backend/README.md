@@ -16,6 +16,13 @@ GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 
 
 ## Trách nhiệm
 
+Employee payroll is composed at `/api/v1/payroll` when authentication is enabled. Services in
+`src/services/payroll/` own approved gross contract terms, immutable service credits, salary
+assessments and advance/payment audit. `models/payroll.model.js` owns persistence; explicit storage
+provisioning is `scripts/migrations/payroll-storage.js`. See
+[approved employee policy](../doc/requirements/employee-payroll-2026-10-30.md). Legacy partner
+earning/settlement history must not be used as employee wages.
+
 P22 exports a scoped operational board service and [visit board router](src/routes/visit-board.routes.js) for P34 composition. It uses the P21 eligibility evaluator inside the guarded mutation callback. The repository must implement the real transaction/eligibility/day guards, CAS and atomic audit/outbox; synthetic tests do not supply production storage. No global registry/runtime/manifest is changed. See [P22 handoff](../doc/deployment/p22-visit-board-handoff.md) and [integration proposal](../doc/api/p22-visit-board-integration-proposal.md).
 
 | Đường dẫn | Nội dung |

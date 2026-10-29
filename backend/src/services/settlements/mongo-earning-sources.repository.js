@@ -64,7 +64,8 @@ export function createMongoEarningSources({ connection }) {
     const receipt = receipts[0], assessment = assessments[0];
     if (!(receipt.verifiedAt instanceof Date) || !receipt.intentId || !receipt.provider || !receipt.providerEventId
       || !assessment.confirmedBy || !(assessment.confirmedAt instanceof Date) || !assessment.evidenceReference) return null;
-    const holds = await collection('cases').find({ visitId: { $in: booking.visitIds }, state: { $in: ['OPEN', 'UNDER_REVIEW'] } }, { session })
+    const holds = await collection('cases').find({ visitId: { $in: booking.visitIds },
+      $or: [{ state: { $in: ['OPEN', 'UNDER_REVIEW', 'RESOLVED'] } }, { financialHold: true }] }, { session })
       .project({ _id: 1 }).limit(101).toArray();
     const refunds = await collection('refunds').find({ bookingId: booking._id,
       state: { $in: ['PROPOSED', 'APPROVED', 'TRANSFER_PENDING', 'FAILED'] } }, { session }).project({ _id: 1 }).limit(101).toArray();
