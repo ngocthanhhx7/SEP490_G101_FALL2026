@@ -4,7 +4,7 @@ Advisory matching for the invitation workflow only. `recommendation.service.js` 
 
 This package cannot calculate prices or mutate fees, tax, booking, invitation or assignment state. Existing backend commands revalidate eligibility/occupancy before invitations and assignment. Missing route evidence fails closed.
 
-`commercial-routing.service.js` selects OSRM, Goong car Distance Matrix or Google Routes DRIVE
+`commercial-routing.service.js` selects OSRM, Goong car Distance Matrix, Vietmap Matrix v4 or Google Routes DRIVE
 from server configuration. Provider namespaces are distinct; raw commercial matrices are not
 persisted. The employee scheduling adapter uses the same selection when rechecking travel.
 See [Google/Goong configuration and limitations](../../../../doc/deployment/google-goong-maps.md).

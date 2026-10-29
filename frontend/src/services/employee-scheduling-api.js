@@ -1,8 +1,11 @@
+import { createVisitTravelApi } from './visit-travel-api.js';
+
 export function createEmployeeSchedulingApi(request) {
   const root = '/employee-scheduling';
   const get = (path, signal) => request(`${root}${path}`, { signal });
   const mutate = (path, body, idempotencyKey, method = 'POST', signal) => request(`${root}${path}`, { method, body, idempotencyKey, signal });
   return {
+    ...createVisitTravelApi(request),
     getAvailability: ({ signal } = {}) => get('/availability', signal),
     listCalendar: ({ fromLocalDate, toLocalDate, signal }) => get(`/calendar?${new globalThis.URLSearchParams({ fromLocalDate, toLocalDate })}`, signal),
     saveAvailability: ({ idempotencyKey, ...body }) => mutate('/availability', body, idempotencyKey, 'PUT'),

@@ -17,5 +17,8 @@ export async function assertEmployeeSchedulingStorage(connection) {
     const indexes = await model.collection.listIndexes().toArray();
     if (model.schema.indexes().some(([key, options]) => options.unique && !indexes.some(row => row.unique && JSON.stringify(row.key) === JSON.stringify(key))))
       throw new AppError(409, 'SCHEDULING_STORAGE_NOT_READY', 'Provision employee scheduling indexes first');
+    if (model.schema.indexes().some(([key, options]) => options.expireAfterSeconds !== undefined &&
+      !indexes.some(row => row.expireAfterSeconds === options.expireAfterSeconds && JSON.stringify(row.key) === JSON.stringify(key))))
+      throw new AppError(409, 'SCHEDULING_STORAGE_NOT_READY', 'Provision employee location retention index first');
   }
 }

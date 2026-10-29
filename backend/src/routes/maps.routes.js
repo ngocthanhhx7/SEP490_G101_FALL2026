@@ -12,7 +12,9 @@ export function mapsRuntimeModule({ config, connection, env = {}, clock = Date.n
   const c = createMapsController({ service: service ?? createLocationSearchService({ env }) }), router = Router();
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); res.vary('Cookie'); next(); },
     requireSession(session, { clock }), requireRoles('CUSTOMER', 'STAFF', 'ADMIN', 'PET_SITTER'), requireCsrf(session));
-  router.post('/search', rateLimit({ windowMs: 60000, limit: 10, keyGenerator: req => String(req.auth.userId),
-    standardHeaders: 'draft-8', legacyHeaders: false }), c.search);
+  router.use(rateLimit({ windowMs: 60000, limit: 10, keyGenerator: req => String(req.auth.userId),
+    standardHeaders: 'draft-8', legacyHeaders: false }));
+  router.post('/search', c.search);
+  router.post('/places/resolve', c.resolve);
   return { name: 'maps', mount: '/api/v1/maps', router };
 }

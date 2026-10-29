@@ -1,120 +1,144 @@
-# Google Maps va Goong Maps
+# Google Maps, Goong va Vietmap
 
-Huong dan cho ban demo ngay 30/10/2026. "Go map" duoc hieu la **Goong Maps**.
-Nguoi dieu phoi review khi chua phan cong: Nguyen Ngoc Thanh; van can approval doc lap.
+Huong dan demo 30/10/2026. Go map duoc hieu la **Goong Maps**.
+Nguyen Ngoc Thanh dieu phoi review khi chua phan cong; van can approval doc lap.
 
-## Vai tro trong ung dung
+## Chuc nang
 
-| Thanh phan | Cach dung hien co | Can khoa |
-| --- | --- | --- |
-| Goong Geocoding | Tim dia chi, chon goi y, khach kiem tra toa do va xac nhan truoc khi luu | REST API key o backend |
-| Goong Distance Matrix | Uoc tinh duong bo giua cac ca; vehicle=car | REST API key o backend |
-| Google Maps URLs | Nut chi duong trong don cua khach va ca sitter da nhan | Khong |
-| Google Routes API | Nguon tinh tuyen thay the, DRIVE va TRAFFIC_UNAWARE | Server API key, Routes API va billing |
-| Ban do nhung/keo ghim | Chua tich hop SDK ban do nhung trong dot nay | Can browser key/Maptiles key rieng va kiem tra tren trinh duyet |
+| Chuc nang | Google Maps | Goong | Vietmap |
+| --- | --- | --- | --- |
+| Tim dia chi | Geocoding API | Geocoding REST | Search v4 -> Place v4 khi chon |
+| ETA | Routes computeRouteMatrix, DRIVE | Distance Matrix, car | Matrix v4, car |
+| Chi duong ngoai | Maps URLs, khong can key | Khong mo SDK | Khong mo SDK |
+| GPS sitter | Browser Geolocation -> backend rieng | Cung luong | Cung luong |
 
-Goong va Google la hai nha cung cap doc lap. Moi lan trien khai chon **mot** nguon tinh tuyen;
-khong gui hai request tinh phi cho cung mot phep tinh va khong tu chuyen provider khi gap loi.
-Google Maps URLs mo ung dung/trang chi duong rieng, khong nap Google Places hay Google map tiles
-vao ban do Goong. Du lieu Goong chi hien thi trong danh sach goi y co attribution Goong.
+Co the cai ca ba bo key; moi chuc nang chon mot provider. Vi du tim dia chi bang
+Vietmap, tinh tuyen bang Goong, mo chi duong bang Google Maps. Khong goi ca ba cho moi
+ban tin GPS, khong tu chuyen provider khi loi, khong tron cache/nguon ETA.
+Chua nhung SDK/tiles hay keo ghim. Khong ve du lieu Google len tiles Goong/Vietmap.
+Truoc khi dung that, doi chieu dieu khoan attribution, luu toa do va ket hop du lieu
+theo goi da ky. Luu dia chi booking lau dai can quyen luu tru phu hop; viec khach
+xac nhan toa do khong thay the dieu khoan provider.
 
-## 1. Tao khoa Goong
+## 1. Tao key
 
-1. Mo <https://account.goong.io/>, tao tai khoan/du an va vao muc quan ly API keys.
-2. Tao **REST API key** cho Geocoding va Distance Matrix. Maptiles key dung cho hien thi ban do
-   la khoa khac; khong thay no vao GOONG_REST_API_KEY.
-3. Chon goi/quota phu hop trong tai khoan. Kiem tra cach gioi han key theo IP/quyen ma tai khoan
-   hien tai ho tro; khong dua khoa REST vao frontend. Khong gui key vao chat, issue hay PR.
-4. Dat khoa trong backend/.env local hoac secret store cua server. File nay khong duoc Git theo doi.
+**Google**: vao <https://console.cloud.google.com/>, tao project, lien ket billing,
+bat **Routes API** khi tinh tuyen va **Geocoding API** khi tim dia chi. Tao server key,
+gioi han cac API nay va IP egress backend. Maps URLs khong can key. SDK Maps JavaScript
+neu bo sung sau can browser key rieng va HTTP referrer restrictions. Khong dung server
+key trong VITE_*. Khong can Distance Matrix API legacy.
 
-```dotenv
-MAPS_ENABLED=true
-MAPS_ROUTING_PROVIDER=goong
-GOONG_REST_API_KEY=<REST_KEY_RIENG_CUA_DU_AN>
-GOOGLE_MAPS_SERVER_KEY=
-```
+**Goong**: vao <https://account.goong.io/>, tao REST API key cho Geocoding/Distance Matrix.
+Maptiles key la key khac. Dat quota va gioi han key theo tuy chon tai khoan ho tro;
+REST key chi o backend. Adapter dung https://rsapi.goong.io/geocode va /distancematrix.
 
-Backend goi host co dinh rsapi.goong.io, GET /Geocode va /DistanceMatrix, redirect bi chan.
-GeoJSON luu [longitude,latitude]; request Goong dung latitude,longitude. Khong dao hai gia tri.
+**Vietmap**: vao <https://maps.vietmap.vn/>, dang ky tai khoan/du an trong Console,
+tao API key cho Search v4, Place v4 va Matrix v4. Kiem tra quyen API, IP/domain restriction
+va quota theo goi da mua. Key SDK/tiles neu bo sung sau phai tach rieng. Matrix cu da
+deprecated; adapter dung /api/matrix/v4. Search v4 khong tra toa do: chi resolve
+/api/place/v4 khi chon, giu nguyen prefix auto:/geocode: cua ref_id.
 
-## 2. Google Maps va Routes API
-
-Nut "Chi duong bang Google Maps" da dung URL chinh thuc
-https://www.google.com/maps/dir/?api=1&destination=... . Cach nay khong can Google API key
-va chi gui dia chi sang Google khi nguoi dung bam link. Chi sitter da nhan ca duoc doc dia chi
-ca cua minh; danh sach loi moi chua nhan chi co khu vuc va thong tin cham soc.
-
-Neu muon Google tinh thoi gian di chuyen thay Goong:
-
-1. Mo <https://console.cloud.google.com/>, tao/chon project va lien ket billing.
-2. Bat **Routes API**. Adapter dung computeRouteMatrix moi, khong can bat Distance Matrix API legacy.
-3. Tao API key cho backend; API restriction chi cho Routes API, application restriction theo IP
-   egress co dinh cua backend. May local IP thay doi can khoa dev rieng va quota thap.
-4. Dat quota cho Routes API va canh bao ngan sach. Budget alert khong tu dong chan chi phi.
-5. Cau hinh backend va khoi dong lai:
-
-```dotenv
-MAPS_ROUTING_PROVIDER=google
-GOOGLE_MAPS_SERVER_KEY=<SERVER_KEY_RIENG_CUA_DU_AN>
-```
-
-GOONG_REST_API_KEY van can neu tiep tuc dung tim dia chi Goong. MAPS_ENABLED dieu khien endpoint
-tim dia chi; MAPS_ROUTING_PROVIDER dieu khien tinh tuyen rieng. Khong dung server key trong VITE_*.
-Neu bo sung Google Maps JavaScript/Embed ve sau, tao browser key rieng, gioi han HTTP referrer
-va chi bat cac API frontend can dung; khong tai su dung server key.
-
-## 3. Cau hinh booking va ca lam
+Khong gui key vao chat/issue/PR. Dien backend/.env local (Git ignore) hoac secret store
+server, khoi dong lai backend. Chi .env.example chua placeholder duoc track. Khong sua
+production de thu provider chua nghiem thu.
 
 ```dotenv
 AUTH_ENABLED=true
+MAPS_ENABLED=true
+MAPS_SEARCH_PROVIDER=vietmap
+MAPS_ROUTING_PROVIDER=goong
+GOOGLE_MAPS_SERVER_KEY=<SERVER_KEY>
+GOONG_REST_API_KEY=<REST_KEY>
+VIETMAP_REST_API_KEY=<REST_KEY>
+```
+
+MAPS_SEARCH_PROVIDER nhan google/goong/vietmap; MAPS_ROUTING_PROVIDER nhan
+osrm/google/goong/vietmap. OSRM can AI_ROUTING_URL. MAPS_ENABLED bat tim dia chi;
+AI_ENABLED va EMPLOYEE_SCHEDULING_ENABLED la cac cong tac nghiep vu rieng.
+
+## 2. Booking va dieu phoi
+
+```dotenv
 BOOKING_CHECKOUT_ENABLED=true
 EMPLOYEE_SCHEDULING_ENABLED=true
 EMPLOYEE_DISPATCH_AGENT_ENABLED=true
+VISIT_TRAVEL_ENABLED=true
 BOOKING_WEB_ORIGIN=http://127.0.0.1:5188
 BOOKING_FACILITY_ADDRESS=So 5 pho Tran Cao Van, Hai Ba Trung, Ha Noi
 BOOKING_FACILITY_COORDINATES=
 AI_ROUTING_BOUNDS=
 ```
 
-Dien BOOKING_FACILITY_COORDINATES bang mang JSON [longitude,latitude] sau khi kiem tra dung
-ghim so 5 Tran Cao Van. Khong tu dung toa do trung tam Ha Noi. Khi thieu toa do co so, ca tai
-co so van co the xep noi bo cung dia diem, nhung tuyen co so <-> nha khach can Staff ra soat.
-AI_ROUTING_BOUNDS chi dien khi da xac dinh rectangle west,south,east,north; khong dung rectangle
-de thay cho danh muc khu vuc nghiep vu hay ranh gioi hanh chinh.
+Provision finance va employee-scheduling storage tren database demo rieng theo migration.
+Chay lai employee-scheduling-storage de tao EmployeeVisitTravel va TTL index; runtime
+khong provision storage. Mongo replica set can cho transaction. Dien toa do co so
+bang JSON [longitude,latitude] sau khi kiem tra ghim; khong dung trung tam Ha Noi.
 
-Provision storage tren database demo rieng theo migration employee-scheduling-storage va finance
-truoc khi bat cac flag; runtime khong tu tao indexes. Contract, nang luc da duyet, khu vuc/ca
-sitters va payment provider la cac cau hinh doc lap. MAPS_* khong kich hoat thanh toan that.
+Luong: dia chi xac nhan -> quote -> booking snapshot -> prepay nhieu buoi/ngay trong
+15 phut -> receipt xac minh du -> Staff xac nhan care plan -> agent moi -> sitter chap
+nhan sau kiem tra lai. Chi dinh sitter thi giu nguyen; doi gio can khach xac nhan.
+Luu tru chia ca toi da 8 gio. Maps khong sua gia, combo, hoa hong hay luong.
 
-Luong: dia chi duoc xac nhan -> quote -> booking snapshot -> prepay neu nhieu buoi/nhieu ngay
--> xac minh thu du trong han 15 phut -> Staff xac nhan care plan -> agent gui loi moi -> sitter
-chap nhan sau khi kiem tra lai. Khach chi dinh sitter thi giu nguyen sitter; doi gio can khach
-xac nhan. Ca luu tru toi da 8 gio; ban do khong thay doi gia, combo hay hoa hong.
+Recommendation AI dung matrix cho tinh kha thi va diem travel trong nam yeu to
+fit/travel/quality/reliability/workload. Agent chi xet nguoi qua gate hop dong, nang luc,
+khu vuc, ca, nghi phep, payment va occupancy. Mac dinh uu tien ung vien co du lieu di
+chuyen giua ca, tong phut di chuyen co buffer nho hon, roi tai gio lam trong tuan.
+Thieu diem neo la unknown, khong coi bang 0. Ranker tu van chi duoc hoan vi danh sach
+du dieu kien; chap nhan loi moi kiem tra lai. Khong suy vi tri cho booking tuong lai
+tu GPS hien tai hay gui GPS tho sang LLM.
 
-## 4. Gioi han va cach kiem tra
+## 3. Vi tri va trang thai
 
-- Tim dia chi: dang nhap + CSRF, toi da 10 request/tai khoan/phut tren moi app instance;
-  toi da 5 goi y. Goi y khong tu tao dia chi/booking.
-- Matrix thuong mai: toi da 10 diem/100 elements/request, deadline toi da 8 giay, body 1 MB.
-  Hai chieu duong di duoc tinh rieng. Hien dung oto, khong khang dinh ETA xe may hay live traffic.
-- Raw matrix Google/Goong khong duoc ghi cache Mongo. OSRM giu cache 15 phut voi namespace rieng.
-  Xem dieu khoan provider truoc khi mo rong luu tru, hien thi hay tai su dung du lieu.
-- Loi/quota/timeout/mat khoa -> khong co ETA da xac minh; ca can kiem tra di chuyen duoc giu
-  cho Staff, khong tu thay bang khoang cach duong chim hoac ETA bang 0.
-- Test tu dong hien dung fake provider, khong goi API tinh phi. Can smoke test voi khoa that:
-  dia chi dung/sai, ZERO_RESULTS, tuyen hai chieu, loi quota/key, ca co du/thieu thoi gian di chuyen,
-  va chap nhan loi moi khi lich vua bi thay doi. Khong chup key vao anh bang chung.
-- Chua co ban do nhung, keo ghim, theo doi GPS truc tiep, traffic-aware hay toi uu nhieu xe.
+Sitter: Loi moi nhan viec -> Ca da nhan -> Hanh trinh den diem cham soc.
+Khach: don tren /services?booking=ID -> hanh trinh ca. Luu tru dung ID ca thuc te,
+khong dung ID luot luu tru da superseded.
+Staff/Admin: Dieu phoi ca cham soc -> Ca dang den diem cham soc (co phan trang).
 
-## Nguon da doi chieu
+- Chi xin GPS sau khi sitter chon Chia se vi tri; chi bat session khi GPS hop le.
+- Cua so demo: 120 phut truoc ca den endAt, visit ASSIGNED/IN_PROGRESS va booking
+  hoat dong. Chi sitter duoc phan cong gui vi tri. Khach cua don va Staff/Admin duoc xem.
+- CSRF, no-store, kiem tra quyen moi request. GPS foreground moi 15 giay, doc moi
+  30 giay khi mo panel. Sai so <=100 m; ban tin qua 60 giay, vuot server 10 giay,
+  hoac dao thu tu bi tu choi.
+- Qua 90 giay khong co mau moi: an toa do, khong tinh ETA tu diem cu. ETA chi goi
+  theo yeu cau, toi da 2 lan/account/phut, khong goi moi ban tin GPS.
+- Dung chia se/Da den xoa toa do va session, chan ban tin session cu dang gui.
+  Dong panel co gang STOP; mat mang/dong tab dot ngot thi diem cu het fresh sau
+  90 giay. Khong cam ket background GPS tren browser/OS.
+- Luu mau moi nhat, TTL den endAt; Mongo TTL xoa bat dong bo. Read/write tu choi
+  ngoai cua so, sau huy/ket thuc/dieu chuyen ca du TTL chua chay.
+- Da den la khai bao van hanh; khong tu check-in, hoan tat cham soc, ghi cong/KPI,
+  credit hoa hong, thu tien hay tra luong. Van can bang chung nghiep vu.
 
-- [Goong SDK chinh thuc: Geocode](https://github.com/goong-io/goong-sdk/blob/master/services/geocoding.js)
-- [Goong SDK chinh thuc: Distance Matrix](https://github.com/goong-io/goong-sdk/blob/master/services/distancematrix.js)
-- [Google: computeRouteMatrix](https://developers.google.com/maps/documentation/routes/compute_route_matrix)
+Geolocation can HTTPS (localhost duoc mien) va quyen nguoi dung. GPS co the bi gia lap,
+khong phai bang chung danh tinh/hoan thanh. Nut chi duong mo Google Maps ben ngoai.
+
+## 4. Quota va nghiem thu
+
+- Search + resolve chung 10 request/account/phut/instance; toi da 5 goi y.
+- Matrix thuong mai toi da 10 diem/100 elements/request, deadline 8 giay, body 1 MB.
+  Hai chieu tinh rieng; car/DRIVE, traffic unaware, khong khang dinh ETA xe may/live traffic.
+- Khong cache raw matrix thuong mai. OSRM cache 15 phut voi namespace rieng.
+- Gioi han account khong phai hard cap du an. Multi-instance can shared rate store;
+  dat quota provider va theo doi billing. Budget alert khong tu chan chi phi.
+- Google matrix tinh theo elements/SKU. Trang gia 30/10/2026 liet ke Essentials
+  10.000 free usage cap va tier dau $5/1.000; doi chieu lai ngay kich hoat va tai khoan.
+  Vietmap matrix tinh origins x destinations transactions; Goong theo goi tai khoan.
+- Loi/quota/mat key -> khong co ETA xac minh; khong thay bang duong chim/ETA=0.
+- Test tu dong dung provider gia lap. Can key that truoc production: search/resolve,
+  tuyen hai chieu, quota/key loi, GPS desktop/mobile HTTPS, thu hoi quyen, doi phan cong,
+  huy ca, het cua so va nhan loi moi khi lich doi. Khong chup key vao bang chung.
+
+## Nguon chinh thuc
+
+- [Vietmap docs](https://maps.vietmap.vn/docs/vi/)
+- [Vietmap OpenAPI v4](https://maps.vietmap.vn/docs/openapi.json)
+- [Goong Help](https://help.goong.io/)
+- [Google computeRouteMatrix](https://developers.google.com/maps/documentation/routes/compute_route_matrix)
+- [Google Geocoding](https://developers.google.com/maps/documentation/geocoding/overview)
 - [Google Maps URLs](https://developers.google.com/maps/documentation/urls/guide)
-- [Google Routes policies va attribution](https://developers.google.com/maps/documentation/routes/policies)
+- [Google pricing](https://developers.google.com/maps/billing-and-pricing/pricing)
+- [Google Routes policies](https://developers.google.com/maps/documentation/routes/policies)
 - [Google API security](https://developers.google.com/maps/api-security-best-practices)
 
-Truy cap 30/10/2026: Google docs va Goong SDK GitHub doc duoc. docs.goong.io gap
-ERR_TLS_CERT_ALTNAME_INVALID tu may hien tai; khong tat kiem tra TLS de vuot loi.
-Contract Goong da doi chieu SDK nhung chua xac minh response voi key cua du an.
+Da doc tai lieu cong khai; chua goi API tinh phi bang key that cua du an.

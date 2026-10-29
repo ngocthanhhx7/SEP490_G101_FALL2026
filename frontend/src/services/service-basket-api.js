@@ -1,8 +1,10 @@
 import { createApiClient, ApiError } from './api-client.js';
+import { createVisitTravelApi } from './visit-travel-api.js';
 
 export function createServiceBasketApi(options) {
   const request = createApiClient(options);
   return {
+    ...createVisitTravelApi(request),
     async checkoutOptions({ signal } = {}) { return request('/checkout/options', { signal }); },
     async addresses({ signal } = {}) { return request('/pet-care/addresses', { signal }); },
     async confirm(body, idempotencyKey) {

@@ -14,7 +14,7 @@ composes quote-to-booking snapshots, fifteen-minute prepay intents, care-plan fi
 self-registered areas/shifts, durable invitations and customer-confirmed directed rescheduling.
 `src/services/employee-scheduling/` owns these employee adapters; `jobs/employee-dispatch.job.js`
 owns worker lifecycle. Provision storage before enabling the documented flags.
-`src/services/maps/` owns bounded Goong address search; commercial route adapters remain in
+`src/services/maps/` owns Google/Goong/Vietmap address search; commercial route adapters remain in
 `sitter-matching/`. See [Google Maps / Goong configuration](../doc/deployment/google-goong-maps.md).
 
 ## Chạy và kiểm tra

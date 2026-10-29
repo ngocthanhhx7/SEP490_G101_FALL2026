@@ -1,6 +1,8 @@
 # Location Search
 
-`location-search.service.js` owns bounded Goong forward geocoding, not saved customer addresses.
+`location-search.service.js` owns bounded Google/Goong geocoding and Vietmap v4 search with
+selected-place resolution, not saved customer addresses. Search and route providers are
+configured separately; no automatic cross-provider paid fallback is performed.
 Suggestions return at most five labels and GeoJSON-order coordinate pairs. They never confirm
 an address, infer an operational area, reserve a slot or create an assignment. The existing
 pet-care command requires the owner to explicitly confirm the location and choose a supported

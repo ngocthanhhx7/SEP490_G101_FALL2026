@@ -4,6 +4,33 @@ Implemented demo composition, 30 October 2026. Authentication is mandatory; all 
 same-origin CSRF. Versioned mutations also need an `Idempotency-Key`. Unknown acknowledgements
 must be reconciled/retried with the original payload and key. Responses are private/no-store.
 
+## Travel And Map Search
+
+Travel requires `VISIT_TRAVEL_ENABLED=true` as well as employee scheduling. Authentication,
+CSRF for writes, private/no-store responses and ownership checks are mandatory.
+
+| Method/path under `/api/v1/employee-scheduling` | Input/result |
+| --- | --- |
+| GET `/travel-visits` | Staff/Admin; current assigned travel-window visits, cursor pagination, 20 per page |
+| GET `/visits/:id/travel` | Assigned employee, owning customer or Staff/Admin; latest status and fresh location only |
+| POST `/visits/:id/travel` | Assigned employee; action START/STOP/ARRIVED and expectedVersion |
+| PUT `/visits/:id/travel/location` | Assigned employee; sessionId, coordinates [lng,lat], accuracyMeters, observedAt |
+| POST `/visits/:id/travel/eta` | Authorized viewer; empty object; advisory minutes/source/observedAt/recordedAt/arrivalAt |
+
+Travel transitions use optimistic expectedVersion, not an idempotency ledger. After an uncertain
+acknowledgement read the current state before another transition. GPS samples are monotonic per
+session; STOP/ARRIVED rotates away the session and removes its coordinates. Rate limits per
+account/instance: 120 reads, 20 writes, 2 ETA calculations per minute. No background GPS promise,
+care completion, automatic assignment change or financial effect. The window is startAt minus
+120 minutes through endAt; freshness is 90 seconds and maximum accuracy error is 100 m.
+
+Map API `/api/v1/maps/search` accepts POST `{query}` with `MAPS_ENABLED=true`. Configured
+Google/Goong returns at most five `{label, coordinates}` results. Vietmap returns
+`{label, provider:'VIETMAP', refId}` and requires POST `/api/v1/maps/places/resolve`
+with `{provider, refId}` for the selected suggestion. Both endpoints share a ten-request budget
+per account/minute/instance. Suggestions do not save or confirm customer addresses.
+See [three-provider setup](../deployment/google-goong-maps.md).
+
 ## Checkout
 
 Root `/api/v1/checkout`, CUSTOMER only, opt-in `BOOKING_CHECKOUT_ENABLED=true`.

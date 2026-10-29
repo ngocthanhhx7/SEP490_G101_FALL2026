@@ -153,6 +153,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     const neighbours = rows.filter(row => schedulingDate(row.startAt) === date || schedulingDate(new Date(row.endAt.getTime() - 1)) === date);
     const before = neighbours.filter(row => row.endAt <= start).sort((a, b) => b.endAt - a.endAt)[0];
     const after = neighbours.filter(row => row.startAt >= end).sort((a, b) => a.startAt - b.startAt)[0];
+    let adjacentTravelMinutes = 0, verifiedLegs = 0;
     for (const [from, to] of [[before, visit], [visit, after]]) {
       if (!from || !to) continue;
       let travel = 0;
@@ -177,13 +178,15 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       const handover = samePlace(from, to) ? 0 : SCHEDULE_RULES.handoverMinutes;
       if (new Date(from.endAt).getTime() + (travel + handover) * 60000 > new Date(to.startAt).getTime())
         fail('TRAVEL_TIME_CONFLICT', 'Not enough time to travel and hand over between visits', 409);
+      adjacentTravelMinutes += travel; verifiedLegs++;
     }
     const all = [...rows, { startAt: start, endAt: end }];
     for (let at = week.getTime(); at < until.getTime(); at += 7 * DAY)
       if (occupiedMinutes(all, at, at + 7 * DAY) > contract.weeklyMinutes) fail('CONTRACT_HOURS_EXCEEDED', 'Contract weekly hours exceeded', 409);
     for (let at = Date.parse(`${date}T00:00:00+07:00`); at < end.getTime(); at += DAY)
       if (occupiedMinutes(all, at, at + DAY) > 480) fail('CONTRACT_HOURS_EXCEEDED', 'Eight ordinary work hours per day exceeded', 409);
-    return true;
+    return { eligible: true, adjacentTravelMinutes: verifiedLegs ? adjacentTravelMinutes : null,
+      routingSource: routingProvider?.source ?? 'OSRM_STATIC_ROAD_ETA', weeklyWorkMinutes: occupiedMinutes(rows, week, until) };
   }
   return { models, payroll, uow, col, availability, areas, employeeGuard, eligible, runGuard, find, contractAt,
     areaKeys: code => workAreaKeys(code, coverageAreas) };

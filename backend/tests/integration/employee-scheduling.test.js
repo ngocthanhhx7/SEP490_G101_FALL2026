@@ -11,6 +11,8 @@ import { CHECKOUT_POLICY_VERSION } from '../../src/services/booking-proposals/ch
 import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { createBookingFinanceSourceService } from '../../src/services/settlements/booking-finance-source.service.js';
 import { createAiRepository } from '../../src/services/sitter-matching/matching.repository.js';
+import { createVisitTravelService } from '../../src/services/employee-scheduling/visit-travel.service.js';
+import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
@@ -29,7 +31,7 @@ beforeAll(async () => {
     const record = await connection.collection('users').findOne({ _id: new mongoose.Types.ObjectId(user) });
     return record ? { ...record, userId: user, expiresAt: clock() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
-  module = employeeSchedulingRuntimeModule({ connection, config: { auth: { enabled: true } }, clock, sessionService, env: { EMPLOYEE_SCHEDULING_ENABLED: 'true' } });
+  module = employeeSchedulingRuntimeModule({ connection, config: { auth: { enabled: true } }, clock, sessionService, env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: 'true' } });
   app = express(); app.use(express.json(), requestId); app.use(module.mount, module.router); app.use(errorHandler(() => {}));
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
@@ -62,6 +64,66 @@ async function visit({ start = '2026-11-02T02:00:00Z', minutes = 60, prepay = fa
     checkoutSnapshot: { policyVersion: CHECKOUT_POLICY_VERSION, customerVisits: [row] } });
   await connection.collection('visits').insertOne(row); return row;
 }
+
+test('travel access is scoped, location is ordered, stop invalidates in-flight updates, and arrival never completes care', async () => {
+  const sitter = await employee(), other = await employee(), row = await visit({ start: '2026-10-30T03:30:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId), state: 'ASSIGNED', 'snapshots.point': { type: 'Point', coordinates: [105.86, 21.02] } } });
+  let now = clock(), calls = 0;
+  const travel = createVisitTravelService({ repository: module.repository, clock: () => now, routingProvider: {
+    edgeKey, matrix: async points => { calls++; return { map: new Map([[edgeKey(...points), 7]]), source: 'SYNTHETIC_ROUTE', recordedAt: new Date(now) }; }
+  } });
+  const visitId = String(row._id), get = value => request(app).get(`/api/v1/employee-scheduling/visits/${visitId}/travel`).set('x-test-actor', value.userId);
+  await get(other).expect(404); await get(customer).expect(200);
+  const staffList = await request(app).get('/api/v1/employee-scheduling/travel-visits').set('x-test-actor', staff.userId).expect(200);
+  expect(staffList.body.data.items.some(item => item.id === visitId)).toBe(true);
+  expect(JSON.stringify(staffList.body)).not.toContain('Synthetic private facility');
+  await request(app).get('/api/v1/employee-scheduling/travel-visits').set('x-test-actor', customer.userId).expect(403);
+  const customerCommand = request(app).post(`/api/v1/employee-scheduling/visits/${visitId}/travel`).set('Host', 'localhost').set('Origin', 'http://localhost').set('x-test-actor', customer.userId).set('x-csrf-token', 'synthetic-csrf');
+  await customerCommand.send({ action: 'START', expectedVersion: 0 }).expect(403);
+  const initial = await travel.command(sitter, visitId, { action: 'START', expectedVersion: 0 });
+  const sample = { sessionId: initial.sessionId, coordinates: [105.85, 21.01], accuracyMeters: 12, observedAt: new Date(now).toISOString() };
+  await expect(travel.locate(other, visitId, sample)).rejects.toMatchObject({ code: 'TRAVEL_WINDOW_CLOSED' });
+  await travel.locate(sitter, visitId, sample);
+  expect(await travel.get(customer, visitId)).toMatchObject({ fresh: true, location: { coordinates: sample.coordinates } });
+  expect((await travel.get(customer, visitId)).sessionId).toBeUndefined();
+  await expect(travel.locate(sitter, visitId, sample)).rejects.toMatchObject({ code: 'LOCATION_OUT_OF_ORDER' });
+  expect(await travel.eta(customer, visitId, {})).toMatchObject({ minutes: 7, advisory: true, source: 'SYNTHETIC_ROUTE' }); expect(calls).toBe(1);
+  now += 91000;
+  expect(await travel.get(customer, visitId)).toMatchObject({ fresh: false, location: null });
+  await expect(travel.eta(customer, visitId, {})).rejects.toMatchObject({ code: 'LOCATION_STALE' }); expect(calls).toBe(1);
+  await expect(travel.locate(sitter, visitId, sample)).rejects.toMatchObject({ code: 'LOCATION_STALE' });
+  await travel.command(sitter, visitId, { action: 'STOP', expectedVersion: 1 });
+  await expect(travel.locate(sitter, visitId, { ...sample, observedAt: new Date(now).toISOString() })).rejects.toMatchObject({ code: 'LOCATION_SHARING_STOPPED' });
+  await travel.command(sitter, visitId, { action: 'START', expectedVersion: 2 });
+  await travel.command(sitter, visitId, { action: 'ARRIVED', expectedVersion: 3 });
+  expect(await travel.get(customer, visitId)).toMatchObject({ state: 'ARRIVED', sharing: false, location: null });
+  const visitAfter = await connection.collection('visits').findOne({ _id: row._id });
+  expect(visitAfter.state).toBe('ASSIGNED'); expect(visitAfter.version).toBe(0); expect(visitAfter.evidenceRefs).toBeUndefined();
+  expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).paymentState).toBe('UNPAID');
+  const indexes = await module.repository.models.EmployeeVisitTravel.collection.listIndexes().toArray();
+  expect(indexes.some(index => index.key.expiresAt === 1 && index.expireAfterSeconds === 0)).toBe(true);
+});
+
+test('travel rejects poor accuracy/future times, hides completed/reassigned/cancelled work, and honors end cutoff', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-10-30T03:30:00Z' }), visitId = String(row._id);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId), state: 'ASSIGNED' } });
+  let now = clock(); const travel = createVisitTravelService({ repository: module.repository, clock: () => now });
+  const started = await travel.command(sitter, visitId, { action: 'START', expectedVersion: 0 });
+  const sample = { sessionId: started.sessionId, coordinates: [105.85, 21.01], accuracyMeters: 20, observedAt: new Date(now).toISOString() };
+  await expect(travel.locate(sitter, visitId, { ...sample, accuracyMeters: 101 })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  await expect(travel.locate(sitter, visitId, { ...sample, observedAt: new Date(now + 11000).toISOString() })).rejects.toMatchObject({ code: 'LOCATION_STALE' });
+  await travel.locate(sitter, visitId, sample);
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { state: 'CANCELLED' } });
+  expect(await travel.get(customer, visitId)).toMatchObject({ available: false, location: null });
+  await expect(travel.command(sitter, visitId, { action: 'START', expectedVersion: 1 })).rejects.toMatchObject({ code: 'TRAVEL_WINDOW_CLOSED' });
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { state: 'ASSIGNED' } });
+  now = row.endAt.getTime();
+  expect(await travel.get(customer, visitId)).toMatchObject({ available: false, location: null });
+  await expect(travel.command(sitter, visitId, { action: 'START', expectedVersion: 1 })).rejects.toMatchObject({ code: 'TRAVEL_WINDOW_CLOSED' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { sitterId: oid() } });
+  await expect(travel.get(sitter, visitId)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
+  expect(await travel.get(customer, visitId)).toMatchObject({ location: null });
+});
 
 test('two screens persist shared versions, replay commands, keep future schedule from changing earlier dates, and require signed active contracts', async () => {
   const sitter = await employee();

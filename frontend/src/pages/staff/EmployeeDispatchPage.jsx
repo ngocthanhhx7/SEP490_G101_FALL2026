@@ -4,6 +4,7 @@ import { Check, Eye, RefreshCw, Send } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button } from '../../components/ui/index.js';
+import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import '../../styles/employee-scheduling.css';
 
 const time = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -55,5 +56,6 @@ export function EmployeeDispatchPage({ api }) {
       {row.pendingInvitation ? <p>Đang chờ phản hồi · {time(row.pendingInvitation.deadline)}</p> :
         <Button disabled={command.busy || command.pending} onClick={() => command.execute(key => api.invite(row.id, row.version, key))}><Send size={18} />Gửi lời mời</Button>}
     </li>)}</ul>
+    {api.travelVisits && <StaffTravelMonitor api={api} />}
   </section>;
 }

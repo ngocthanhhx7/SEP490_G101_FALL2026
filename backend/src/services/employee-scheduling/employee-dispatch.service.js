@@ -97,13 +97,20 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     const directed = visit.requestedSitterId && String(visit.requestedSitterId);
     const rows = await models.EmployeeAvailability.find({ areas: { $in: repository.areaKeys(visit.areaCode) }, ...(directed ? { _id: directed } : {}) }).sort({ _id: 1 }).limit(100).lean();
     const allowed = [];
+    const evidence = new Map();
     for (const row of rows) {
       if (Date.now() >= deadline) break;
       const user = await col('users').findOne({ _id: oid(row._id), state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } });
       const status = await col('sitterstatuses').findOne({ userId: oid(row._id), status: 'ACTIVE' });
       if (!user || !status) continue;
-      try { await eligible(row._id, visit); allowed.push(row._id); } catch (error) { if (error.status !== 409) throw error; }
+      try { evidence.set(row._id, await eligible(row._id, visit)); allowed.push(row._id); } catch (error) { if (error.status !== 409) throw error; }
     }
+    allowed.sort((a, b) => {
+      const x = evidence.get(a), y = evidence.get(b);
+      const knownX = Number.isFinite(x.adjacentTravelMinutes), knownY = Number.isFinite(y.adjacentTravelMinutes);
+      if (knownX !== knownY) return knownX ? -1 : 1;
+      return (knownX ? x.adjacentTravelMinutes - y.adjacentTravelMinutes : 0) || x.weeklyWorkMinutes - y.weeklyWorkMinutes || a.localeCompare(b);
+    });
     if (!ranker || allowed.length < 2) return allowed;
     let timer;
     const controller = new globalThis.AbortController();

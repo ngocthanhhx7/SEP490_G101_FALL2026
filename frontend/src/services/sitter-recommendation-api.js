@@ -30,6 +30,7 @@ export function createSitterRecommendationApi({ request = createApiClient() } = 
     async createPet(body) { return request('/pet-care/pets', { method: 'POST', body }); },
     async createAddress(body) { return request('/pet-care/addresses', { method: 'POST', body }); },
     async searchAddress(query) { return request('/maps/search', { method: 'POST', body: { query } }); },
+    async resolveAddress(body) { return request('/maps/places/resolve', { method: 'POST', body }); },
     async recommend(body, { signal } = {}) {
       const response = await request('/ai/recommendations', { method: 'POST', body, signal });
       const result = response.data;

@@ -4,8 +4,19 @@ import { EmployeeDispatchPage } from '../../src/pages/staff/EmployeeDispatchPage
 import { createEmployeeSchedulingApi } from '../../src/services/employee-scheduling-api.js';
 import { MemoryRouter } from 'react-router-dom';
 import { DirectedBookingProposalPage } from '../../src/pages/customer/DirectedBookingProposalPage.jsx';
+import { StaffTravelMonitor } from '../../src/pages/staff/StaffTravelMonitor.jsx';
 
 afterEach(cleanup);
+test('Staff travel monitor pages assigned visits without exposing employee mutation controls', async () => {
+  const api = { travelVisits: jest.fn().mockResolvedValueOnce({ data: { items: [{ id: 'visit', sitterId: 'employee',
+    serviceName: 'Synthetic live care', areaCode: 'HANOI', startAt: new Date(Date.now() + 60000).toISOString(), endAt: new Date(Date.now() + 3600000).toISOString() }], nextCursor: 'next' } })
+    .mockResolvedValue({ data: { items: [] } }) };
+  render(<StaffTravelMonitor api={api} />);
+  expect(await screen.findByText('Synthetic live care')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Chia sẻ vị trí' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Trang ca di chuyển sau' }));
+  await waitFor(() => expect(api.travelVisits).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'next' })));
+});
 const fixture = () => ({
   offers: jest.fn().mockResolvedValue({ data: { items: [{ id: 'offer', version: 2, canRespond: true, serviceName: 'Chăm sóc tại gia',
     startAt: '2026-11-03T02:00:00Z', endAt: '2026-11-03T03:00:00Z', deadline: '2026-11-01T02:15:00Z', areaCode: 'CITY_HANOI', state: 'PENDING', pets: [{ name: 'Milo' }] }] } }),

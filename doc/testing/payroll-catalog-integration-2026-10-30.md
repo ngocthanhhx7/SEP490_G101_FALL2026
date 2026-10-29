@@ -8,12 +8,12 @@ checkout, scheduling and maps changes committed with this evidence. Earlier chec
 
 | Package | Check | Actual result |
 | --- | --- | --- |
-| Backend | `npm test` | PASS: 108 suites, 946 tests |
+| Backend | `npm test` | PASS: 108 suites, 953 tests |
 | Backend | `npm run lint` | PASS |
 | Backend | `npm run check:architecture` | PASS |
-| Frontend | `npm test` | PASS: 84 suites, 520 tests |
+| Frontend | `npm test` | PASS: 85 suites, 526 tests |
 | Frontend | `npm run lint` | PASS |
-| Frontend | `npm run build` | PASS; 675.75 kB chunk warning remains |
+| Frontend | `npm run build` | PASS; 684.55 kB chunk warning remains |
 
 After the full run, the accepted-assignment DTO was extended to expose its service address
 for navigation only in ASSIGNED/IN_PROGRESS states. The affected scheduling integration suite
@@ -61,6 +61,25 @@ records actual attendance and verifies exact employee credits without partner-pr
 Commercial maps tests use injected responses, never a live paid provider. No embedded map SDK
 or live traffic is claimed. See [maps setup and limitations](../deployment/google-goong-maps.md).
 
+## Three Providers And Foreground Travel
+
+Latest complete check: backend 108 suites / 953 tests, frontend 85 suites / 526 tests passed.
+Backend lint/architecture and frontend build passed. After the final Staff name projection and
+provider display labels, scheduling integration (13 tests), frontend travel/address/scheduling
+(15 tests), frontend lint/build and backend architecture were checked again.
+
+Vietmap v4 repeated-point matrix and selected-place resolution, Google geocoding and Goong
+current lowercase paths are covered with injected providers. No paid API was called. Mongo
+travel regressions cover scoped access, ordering, accuracy, staleness, stop-session invalidation,
+arrival without care/payment mutation, cancellation, reassignment, window cutoff and TTL index.
+
+Authenticated Playwright with real API/session/CSRF and simulated browser geolocation passed
+at 1440x1000 and 390x844: employee explicitly shared, owning customer saw the fresh position,
+customer could not publish, Staff/Admin monitored the assigned ca, STOP hid the position and
+an unowned visit returned 404. No page
+errors or horizontal overflow. Screenshots were inspected. This verifies foreground UI and
+the composed backend, not real GPS accuracy, background tracking or paid-provider acceptance.
+
 ## Remaining Acceptance Work
 
 - Live payOS link/callback smoke checks require project credentials. Synthetic webhook tests
@@ -70,8 +89,9 @@ or live traffic is claimed. See [maps setup and limitations](../deployment/googl
   timecard/tax/insurance evidence remain operational inputs. Current statutory tax/insurance
   research is incomplete; no blanket rate is claimed or applied automatically.
 - Verify actual customer area mappings for legacy addresses, facility coordinates and provider
-  quotas/keys before using road ETA for home/facility dispatch. Embedded draggable maps, live GPS
-  and a whole-boarding-stay reschedule/requote workflow are not implemented.
+  quotas/keys before using road ETA for home/facility dispatch. Foreground GPS is implemented
+  and checked with simulated browser positions; real-device HTTPS acceptance is outstanding.
+  Embedded draggable maps and whole-boarding-stay reschedule/requote are not implemented.
 - Independent review is outstanding. The current #65 dependency history contains contributions
   from all five members, so none may be presented as its sole independent non-contributor reviewer.
   Ngọc Thành coordinates unassigned review; this is not an approval or a waiver of the rule.

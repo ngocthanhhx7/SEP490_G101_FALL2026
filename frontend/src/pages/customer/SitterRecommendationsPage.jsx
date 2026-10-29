@@ -61,7 +61,7 @@ function CareSetup({ api, breeds, workAreas = [{ code: 'HN', label: 'Hà Nội' 
     <details><summary>Thêm địa chỉ có tọa độ tại Hà Nội</summary>
       <p>Lấy tọa độ ghim chính xác từ bản đồ. Chỉ nhập địa chỉ bạn có quyền sử dụng; thông tin này không hiển thị trong danh sách gợi ý.</p>
       <form ref={addressForm} onSubmit={event => save(event, 'address')}>
-        <AddressSearch search={api.searchAddress} disabled={pending || uncertain} onSelect={item => {
+        <AddressSearch search={api.searchAddress} resolve={api.resolveAddress} disabled={pending || uncertain} onSelect={item => {
           const fields = addressForm.current.elements;
           fields.location.value = item.label; fields.longitude.value = item.coordinates[0]; fields.latitude.value = item.coordinates[1];
           fields.confirmed.checked = false;
