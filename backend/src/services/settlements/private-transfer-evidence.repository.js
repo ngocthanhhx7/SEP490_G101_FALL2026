@@ -5,14 +5,18 @@ import { privateImageModels } from '../../models/private-image.model.js';
 export function createPrivateTransferEvidenceRepository({ connection }) {
   const { PrivateImage } = privateImageModels(connection);
   return Object.freeze({
-    async findReady({ evidenceReference, actorId, session }) {
+    async findReady({ evidenceReference, actorId, requestId, session }) {
       const match = /^private-image:([a-f0-9]{64})$/.exec(evidenceReference ?? '');
-      if (!match || !Types.ObjectId.isValid(actorId) || !session) return null;
+      if (!match || !Types.ObjectId.isValid(actorId) || typeof requestId !== 'string' || !requestId || !session) return null;
       const image = await PrivateImage.findOne({ _id: match[1], ownerId: actorId, state: 'READY' })
         .select('+contentDigest').session(session).lean();
       if (!image || !/^[a-f0-9]{64}$/.test(image.contentDigest ?? '')
         || !Number.isSafeInteger(image.byteLength) || image.byteLength < 1 || image.byteLength > 5 * 1024 * 1024
         || !['image/png', 'image/jpeg'].includes(image.contentType)) return null;
+      const claimed = await connection.collection('privateimages').updateOne({ _id: image._id, state: 'READY',
+        careVisitId: { $exists: false }, $or: [{ transferEvidenceRequestId: { $exists: false } }, { transferEvidenceRequestId: requestId }] },
+      { $set: { transferEvidenceRequestId: requestId } }, { session });
+      if (!claimed.matchedCount) return null;
       return { mediaId: image._id, uploadedAt: image.updatedAt };
     }
   });
