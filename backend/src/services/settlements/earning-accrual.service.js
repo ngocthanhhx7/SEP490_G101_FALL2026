@@ -105,7 +105,8 @@ export function createEarningAccrualService({ connection, unitOfWork, sources, c
       const commissionVnd = Number((BigInt(source.serviceBasisVnd) * BigInt(feeBasisPoints) + 5000n) / 10000n);
       const split = previewEqualTaxCostSplit({ serviceBasisVnd: source.serviceBasisVnd,
         commissionVnd, confirmedTaxVnd: source.confirmedTaxVnd });
-      if (source.sitterTaxCostVnd !== undefined || source.platformTaxCostVnd !== undefined) {
+      if (source.allocationPolicyVersion !== undefined
+        || source.sitterTaxCostVnd !== undefined || source.platformTaxCostVnd !== undefined) {
         if (source.allocationPolicyVersion !== BOOKING_ALLOCATION_VERSION
           || !Number.isSafeInteger(source.sitterTaxCostVnd) || source.sitterTaxCostVnd < 0
           || !Number.isSafeInteger(source.platformTaxCostVnd) || source.platformTaxCostVnd < 0
