@@ -6,6 +6,7 @@ import { createMongoSettlementRepository } from './mongo-settlement.repository.j
 import { vietnamRequestWeek } from './week.js';
 import { WEEKLY_COMMISSION_TIERS, WEEKLY_COMMISSION_VERSION,
   previewEqualTaxCostSplit } from './weekly-commission.js';
+import { BOOKING_ALLOCATION_VERSION } from './booking-allocation.js';
 
 export const EARNING_DECISION_VERSION = 'PWC-FIN-07-08-2026-10-30-v1';
 const identifier = value => typeof value === 'string'
@@ -104,6 +105,17 @@ export function createEarningAccrualService({ connection, unitOfWork, sources, c
       const commissionVnd = Number((BigInt(source.serviceBasisVnd) * BigInt(feeBasisPoints) + 5000n) / 10000n);
       const split = previewEqualTaxCostSplit({ serviceBasisVnd: source.serviceBasisVnd,
         commissionVnd, confirmedTaxVnd: source.confirmedTaxVnd });
+      if (source.sitterTaxCostVnd !== undefined || source.platformTaxCostVnd !== undefined) {
+        if (source.allocationPolicyVersion !== BOOKING_ALLOCATION_VERSION
+          || !Number.isSafeInteger(source.sitterTaxCostVnd) || source.sitterTaxCostVnd < 0
+          || !Number.isSafeInteger(source.platformTaxCostVnd) || source.platformTaxCostVnd < 0
+          || BigInt(source.sitterTaxCostVnd) + BigInt(source.platformTaxCostVnd) !== BigInt(source.confirmedTaxVnd)) blocked();
+        split.sitterTaxCostVnd = source.sitterTaxCostVnd; split.platformTaxCostVnd = source.platformTaxCostVnd;
+        split.sitterVnd = source.serviceBasisVnd - commissionVnd - source.sitterTaxCostVnd;
+        split.platformVnd = commissionVnd - source.platformTaxCostVnd;
+        split.requiresPlatformFunding = split.platformVnd < 0;
+        if (split.sitterVnd < 0) blocked();
+      }
       // A negative platform share needs an explicit funded adjustment, not an
       // implied deduction from another sitter's earnings.
       if (split.requiresPlatformFunding) blocked('PLATFORM_FUNDING_REQUIRED');
@@ -113,6 +125,7 @@ export function createEarningAccrualService({ connection, unitOfWork, sources, c
         confirmedTaxVnd: source.confirmedTaxVnd, sitterTaxCostVnd: split.sitterTaxCostVnd,
         platformTaxCostVnd: split.platformTaxCostVnd, accruedVnd: split.sitterVnd,
         policyVersion: WEEKLY_COMMISSION_VERSION, decisionVersion: EARNING_DECISION_VERSION,
+        ...(source.allocationPolicyVersion ? { allocationPolicyVersion: source.allocationPolicyVersion } : {}),
         sourceVersion: source.sourceVersion,
         sourceHash: createHash('sha256').update(JSON.stringify(source)).digest('hex'),
         completionReference: source.completionReference, paymentReference: source.paymentReference,
