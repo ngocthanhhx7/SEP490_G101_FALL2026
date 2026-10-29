@@ -34,3 +34,15 @@ The week comes from the authoritative completion instant. The source producer
 must call `recognizeCompletion` with its session at that transition. A delayed
 payment cannot change fee tiers. Missing operational source adapters remain
 an integration gate, even when synthetic integration tests pass.
+
+## Receipt allocation, approved 30 October 2026
+
+The user confirmed that multi-visit bookings require prepayment, then approved
+allocation of service money by immutable visit price snapshots and confirmed tax
+T in those same proportions, aggregated by sitter. Version:
+`PWC-VISIT-SNAPSHOT-ALLOCATION-2026-10-30-v1`. Unknown tax stays pending.
+Largest-remainder integer apportionment with a stable visit-id tie break preserves
+the exact total T. Fee half-up rounding and the platform's odd-VND tax cost split
+remain separate steps. Receipt service amount must equal the visit snapshot sum;
+unexplained differences remain reconciliation, not an inferred discount/refund.
+The calculator alone neither verifies a receipt nor creates available earnings.
