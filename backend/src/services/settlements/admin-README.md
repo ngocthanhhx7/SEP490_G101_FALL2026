@@ -15,6 +15,15 @@ Missing authoritative source adapters, tax assessments and private transfer
 evidence remain integration gates. The default runtime policy remains closed.
 Recorded transfer evidence is a historical record, never a bank transfer API call.
 
+Admin can upload a PNG/JPEG through the existing private-image API and use
+`private-image:<id>` as the transfer evidence reference. Runtime checks the READY
+image, owner, digest metadata and size in the settlement transaction, then links
+it atomically with the transfer attempt. The deterministic reference prevents
+reuse across requests. Failed transfers roll back the link. Downloads retain the
+existing owner-only private-image endpoint and content digest verification;
+payroll exposes no image URL. R2 remains disabled until its separate release gates
+pass; this integration does not enable a provider or execute a bank transfer.
+
 `createApp` registers `adminSettlementRuntimeModule` with the durable Mongo adapter
 when authentication is enabled. The
 adapter is shared with WBS-N05 and uses the same settlement request aggregate,

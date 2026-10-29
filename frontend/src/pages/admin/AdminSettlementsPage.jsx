@@ -15,8 +15,20 @@ function RequestCard({ row, api, disabled, refresh }) {
   const [notice, setNotice] = useState('');
   const command = useRef(null);
   const lock = useRef(false);
+  const upload = useRef(null);
+  const [file, setFile] = useState(null);
   const submitted = row.status === 'SUBMITTED';
   const actionable = submitted || ['APPROVED', 'TRANSFER_PENDING'].includes(row.status);
+  async function uploadEvidence() {
+    if (!file || lock.current) return;
+    if (upload.current?.file !== file) upload.current = { file, key: window.crypto.randomUUID() };
+    lock.current = true; setBusy(true); setError(null);
+    try {
+      setEvidence(await api.uploadEvidence(file, upload.current.key));
+      setNotice('Đã tải bằng chứng riêng tư.');
+    } catch (failure) { setError(failure.code || 'NETWORK_ERROR'); }
+    finally { lock.current = false; setBusy(false); }
+  }
   async function send(event) {
     event.preventDefault();
     if (lock.current) return;
@@ -49,6 +61,12 @@ function RequestCard({ row, api, disabled, refresh }) {
           <label>Kết quả<select value={outcome} onChange={event => setOutcome(event.target.value)}><option value="CONFIRMED">Đã xác nhận</option><option value="UNKNOWN">Chưa rõ / cần đối soát</option></select></label>
           <label>Reference chuyển khoản<input required maxLength={160} value={reference} onChange={event => setReference(event.target.value)} /></label>
           <label>Mã bằng chứng riêng tư<input required maxLength={160} value={evidence} onChange={event => setEvidence(event.target.value)} /></label>
+          {api.uploadEvidence && <>
+            <label>Ảnh chuyển khoản<input type="file" accept="image/png,image/jpeg" onChange={event => {
+              setFile(event.target.files?.[0] ?? null); setEvidence(''); setNotice('');
+            }} /></label>
+            <button type="button" disabled={!file} onClick={uploadEvidence}>Tải bằng chứng</button>
+          </>}
           {outcome === 'CONFIRMED' && <>
             <label>Số tiền VND<input type="number" min="1" step="1" required value={amount} onChange={event => setAmount(event.target.value)} /></label>
             <label>Thời điểm có múi giờ (ISO, ví dụ 2026-10-15T10:00:00+07:00)<input required value={paidAt} onChange={event => setPaidAt(event.target.value)} /></label>

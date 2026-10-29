@@ -63,6 +63,14 @@ ports; the doubles and regressions were updated, then all suites passed.
 After composing the Admin review branch with dashboard routes: backend lint and
 architecture PASS, 94 suites / 844 tests PASS; frontend lint PASS, 78 suites /
 490 tests PASS, build PASS. This precedes the private transfer attachment update.
+Private transfer evidence integration now uses the existing image uploader and
+owner-only content endpoint. READY metadata is rechecked inside the transfer
+transaction; its deterministic reference binds one image to one request. Failed
+transfers roll back evidence links, and UNKNOWN can reconcile with the same image.
+Checks after this change: backend lint/architecture PASS, 81 suites / 759 tests
+PASS; frontend lint PASS, 75 suites / 467 tests PASS; focused Admin UI/route
+9 tests PASS; frontend build PASS (existing bundle warning). Test media is isolated
+and synthetic. R2 and all production operations remain unchanged.
 
 The approved [FIN-07/08 decision](../requirements/finance-decisions-2026-10-30.md)
 does not supply booking payment allocations or tax assessments. The current base

@@ -34,3 +34,14 @@ The week comes from the authoritative completion instant. The source producer
 must call `recognizeCompletion` with its session at that transition. A delayed
 payment cannot change fee tiers. Missing operational source adapters remain
 an integration gate, even when synthetic integration tests pass.
+
+## Additional user confirmations
+
+Multi-visit bookings require prepayment. This confirms payment timing, not the
+allocation algorithm between visits or sitters; FIN-02-ALLOC remains pending its
+separate answer. A payment receipt must not be inferred from booking submission.
+
+For PR #65 the user approved a separate sitter-authored public bio/work-area
+profile reviewed by Staff/Admin. Application text is not a publication source.
+Ratings aggregate only CUSTOMER_TO_SITTER reviews in PUBLISHED state; customer
+comments and identity are excluded from the directory.

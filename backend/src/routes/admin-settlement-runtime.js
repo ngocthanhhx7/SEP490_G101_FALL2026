@@ -3,6 +3,7 @@ import { createUnitOfWork } from '../services/unit-of-work.service.js';
 import { createMongoSettlementRepository } from '../services/settlements/mongo-settlement.repository.js';
 import { createAdminSettlementService } from '../services/settlements/admin-settlement.service.js';
 import { adminSettlementModule } from './admin-settlements.routes.js';
+import { createPrivateTransferEvidenceRepository } from '../services/settlements/private-transfer-evidence.repository.js';
 
 const unresolvedPolicy = Object.freeze({
   resolve: async () => ({ ready: false, decisionIds: ['FIN-07-ELIG', 'FIN-07-POSTPAY', 'FIN-08-EDIT'] })
@@ -17,7 +18,8 @@ export function adminSettlementRuntimeModule({ config, connection, sessionServic
   const session = sessionService ?? createSessionService({ connection, clock,
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const repository = createMongoSettlementRepository({ connection,
-    cursorSecret: config.auth.tokenSecret });
+    cursorSecret: config.auth.tokenSecret,
+    privateEvidence: createPrivateTransferEvidenceRepository({ connection }) });
   const service = createAdminSettlementService({ unitOfWork: createUnitOfWork(connection),
     repository, policy: policy ?? unresolvedPolicy, clock: () => new Date(clock()) });
   return adminSettlementModule({ service, sessionService: session });

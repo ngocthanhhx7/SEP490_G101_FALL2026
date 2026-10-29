@@ -37,3 +37,20 @@ test('approved has transfer form; paid has no mutation form', async () => {
   await screen.findByText(/PAID/);
   expect(screen.queryByRole('button', { name: 'Ghi kết quả' })).not.toBeInTheDocument();
 });
+
+test('evidence upload retries the same key and fills transfer reference after success', async () => {
+  const calls = [];
+  const evidence = `private-image:${'a'.repeat(64)}`;
+  const api = { load: async () => ({ items: [{ ...row, status: 'APPROVED' }], decisionIds: [] }),
+    uploadEvidence: async (...args) => { calls.push(args); if (calls.length === 1) throw { code: 'TIMEOUT' }; return evidence; } };
+  render(<AdminSettlementsPage api={api} />);
+  const file = new window.File(['synthetic'], 'transfer.png', { type: 'image/png' });
+  fireEvent.change(await screen.findByLabelText('Ảnh chuyển khoản'), { target: { files: [file] } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tải bằng chứng' }));
+  await screen.findByRole('alert');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Tải bằng chứng' })).toBeEnabled());
+  fireEvent.click(screen.getByRole('button', { name: 'Tải bằng chứng' }));
+  await waitFor(() => expect(screen.getByLabelText('Mã bằng chứng riêng tư')).toHaveValue(evidence));
+  expect(calls).toHaveLength(2);
+  expect(calls[0]).toEqual(calls[1]);
+});
