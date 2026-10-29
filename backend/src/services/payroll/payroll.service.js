@@ -8,6 +8,7 @@ import { createUnitOfWork } from '../unit-of-work.service.js';
 import { calculateEmployeePayroll } from './payroll-calculation.service.js';
 import { assertPayrollStorage } from './payroll-storage.service.js';
 import { createScopedCursor } from '../../utils/scoped-cursor.js';
+import { createPayrollAdjustmentService, publicPayrollAdjustment } from './payroll-adjustment.service.js';
 
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const payrollMonth = at => new Date(at.getTime() + 7 * 3600000).toISOString().slice(0, 7);
@@ -22,7 +23,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
   const uow = createUnitOfWork(connection);
   const now = () => new Date(clock());
   const codec = cursorSecret ? createScopedCursor({ secret: cursorSecret, namespace: 'employee-payroll-history-v1', clock: () => now().getTime() }) : null;
-  async function page(model, match, actor, input, field, kind, project) {
+  async function page(model, match, actor, input, field, kind, project, select = '') {
     const context = { actorId: actor.userId, kind, limit: input.limit, match };
     let position;
     if (input.cursor) {
@@ -32,7 +33,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
     }
     const filter = { ...match, ...(position ? { $or: [{ [field]: { $lt: new Date(position.at) } },
       { [field]: new Date(position.at), _id: { $lt: position.id } }] } : {}) };
-    const rows = await model.find(filter).sort({ [field]: -1, _id: -1 }).limit(input.limit + 1).maxTimeMS(5000).lean();
+    const rows = await model.find(filter).select(select).sort({ [field]: -1, _id: -1 }).limit(input.limit + 1).maxTimeMS(5000).lean();
     const items = rows.slice(0, input.limit), last = items.at(-1);
     let nextCursor = null;
     if (rows.length > input.limit) {
@@ -82,6 +83,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
     return value;
   }
   return {
+    ...createPayrollAdjustmentService({ connection, models, role, command, employeeGuard, claimTransfer, event, page, now }),
     models,
     async recordContract(actor, body, key) {
       role(actor, 'ADMIN'); const input = contractInput(body), approved = await policyFor('CONTRACT');
@@ -117,10 +119,13 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         { limit: input.limit, cursor: input.advanceCursor }, 'requestedAt', 'own-advances', publicAdvance);
       const statements = await page(models.PayrollStatement, { employeeId: actor.userId }, actor,
         { limit: input.limit, cursor: input.statementCursor }, 'periodEnd', 'own-statements', publicStatement);
+      const adjustments = await page(models.PayrollAdjustment, { employeeId: actor.userId }, actor,
+        { limit: input.limit, cursor: input.adjustmentCursor }, 'requestedAt', 'own-adjustments', publicPayrollAdjustment);
       return { contracts: contracts.map(c => ({ id: String(c._id), version: c.version, employmentType: c.employmentType, salaryBasis: c.salaryBasis,
         monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
         activeContractId: active ? String(active._id) : null, advances: advances.items, statements: statements.items,
-        advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor };
+        advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor,
+        adjustments: adjustments.items, adjustmentNextCursor: adjustments.nextCursor };
     },
     async submitAdvance(actor, body, key) {
       role(actor, 'PET_SITTER'); const input = advanceInput(body), approved = await policyFor('ADVANCE');

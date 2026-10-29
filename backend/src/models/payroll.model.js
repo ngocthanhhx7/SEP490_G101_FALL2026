@@ -62,8 +62,22 @@ export function payrollModels(connection) {
   statements.index({ transferReference: 1 }, { unique: true, partialFilterExpression: { transferReference: { $type: 'string' } } });
   statements.index({ employeeId: 1, periodEnd: -1, _id: -1 });
   statements.index({ periodEnd: -1, _id: -1 });
-  const claims = new Schema({ _id: String, statementId: oid, advanceId: oid }, options);
+  const adjustments = new Schema({
+    employeeId: { type: oid, required: true }, statementId: { type: oid, required: true },
+    statementVersion: { type: Number, required: true }, direction: { type: String, enum: ['SUPPLEMENT', 'RECOVERY'], required: true },
+    amountVnd: { ...money, min: 1, required: true }, reason: { type: String, required: true, maxlength: 1000 },
+    assessmentReference: { type: String, required: true, maxlength: 160, select: false },
+    status: { type: String, enum: ['SUBMITTED', 'APPROVED', 'REJECTED', 'PAID', 'RECONCILED'], required: true },
+    version: { type: Number, default: 0 }, requestedAt: { type: Date, required: true }, preparedBy: { type: oid, required: true },
+    decidedBy: oid, decidedAt: Date, decisionReason: { type: String, maxlength: 1000 },
+    resolvedBy: oid, resolvedAt: Date, transferReference: { type: String, maxlength: 160, select: false },
+    agreementReference: { type: String, maxlength: 160, select: false }, resolutionReference: { type: String, maxlength: 160, select: false }
+  }, options);
+  adjustments.index({ statementId: 1, assessmentReference: 1 }, { unique: true });
+  adjustments.index({ employeeId: 1, requestedAt: -1, _id: -1 });
+  adjustments.index({ requestedAt: -1, _id: -1 });
+  const claims = new Schema({ _id: String, statementId: oid, advanceId: oid, adjustmentId: oid }, options);
   const defs = { EmploymentContract: contracts, SalaryAdvance: advances, PayrollMonthGuard: guards, PayrollCommand: commands,
-    PayrollEvent: events, PayrollServiceCredit: credits, PayrollStatement: statements, PayrollSourceClaim: claims };
+    PayrollEvent: events, PayrollServiceCredit: credits, PayrollStatement: statements, PayrollAdjustment: adjustments, PayrollSourceClaim: claims };
   return Object.fromEntries(Object.entries(defs).map(([name, schema]) => [name, connection.models[name] ?? connection.model(name, schema)]));
 }

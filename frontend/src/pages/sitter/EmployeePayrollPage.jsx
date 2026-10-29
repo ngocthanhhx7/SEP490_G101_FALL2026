@@ -1,11 +1,13 @@
 import { useCallback, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
-import { PayrollStatement, PayrollField, PayrollLoadState, PayrollPager, money, date, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
+import { PayrollStatement, PayrollAdjustment, PayrollField, PayrollLoadState, PayrollPager, money, date, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
 
 export function EmployeePayrollPage({ api }) {
   const [advancePages, setAdvancePages] = useState([null]), [statementPages, setStatementPages] = useState([null]);
+  const [adjustmentPages, setAdjustmentPages] = useState([null]);
   const advanceCursor = advancePages.at(-1), statementCursor = statementPages.at(-1);
-  const load = useCallback(options => api.own({ ...options, advanceCursor, statementCursor }), [api, advanceCursor, statementCursor]);
+  const adjustmentCursor = adjustmentPages.at(-1);
+  const load = useCallback(options => api.own({ ...options, advanceCursor, statementCursor, adjustmentCursor }), [api, advanceCursor, statementCursor, adjustmentCursor]);
   const state = usePayrollWorkspace(load);
   const contracts = state.data?.contracts || [];
   const today = new Date();
@@ -45,6 +47,10 @@ export function EmployeePayrollPage({ api }) {
       </section><section><h2>Phiếu lương</h2>{!state.data.statements.length && <p>Chưa có phiếu lương.</p>}
         {state.data.statements.map(row => <PayrollStatement key={row.id} statement={row} />)}
         <PayrollPager label="phiếu lương" pages={statementPages} setPages={setStatementPages} nextCursor={state.data.statementNextCursor} busy={state.busy} />
+      </section>
+      <section><h2>Điều chỉnh lương</h2>{!(state.data.adjustments || []).length && <p>Chưa có điều chỉnh.</p>}
+        {(state.data.adjustments || []).map(row => <PayrollAdjustment key={row.id} row={row} />)}
+        <PayrollPager label="điều chỉnh" pages={adjustmentPages} setPages={setAdjustmentPages} nextCursor={state.data.adjustmentNextCursor} busy={state.busy} />
       </section>
     </>}
   </section>;
