@@ -9,6 +9,14 @@ evidence integration remain required; the default runtime resolver stays closed.
 transaction, then creates an immutable booking-level fee/tax snapshot, earning,
 principal ledger line and outbox record when verified sources become eligible.
 Its guarded source port must serialize case/refund producers on the same booking.
+
+`mongo-earning-sources.repository.js` implements the primary collection join for
+Booking/Visit, verified Payment, confirmed TaxAssessment, private check-in/out
+images and open Case/Refund records. It is read-only except for the shared
+Booking.financeGuardVersion guard. It never creates missing primary collections.
+The concrete producer mapping and remaining runtime hooks are documented in
+`doc/database/earning-source-mapping-v1.md`. It is not registered as a ready
+runtime producer until completion/payment/case/refund writers use those hooks.
 An absent assessment never means a tax amount of zero. Payment arriving later
 cannot change the completion ordinal. Synthetic source fixtures are not runtime
 operational adapters.
