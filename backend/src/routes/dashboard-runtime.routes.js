@@ -18,17 +18,14 @@ import { createSitterProfileService } from '../services/dashboards/sitter-profil
 import { createStaffDashboardService } from '../services/dashboards/staff-dashboard.service.js';
 import { createMongoDashboardRepositories } from '../services/dashboards/mongo-payroll.repository.js';
 
-// The application registry owns this composition. Missing source repositories are
-// deliberately left undefined (apart from the optional durable payroll adapter)
-// so the read boundary returns INTEGRATION_PENDING instead of fake projections.
+// The application registry composes durable readers. Missing primary collections
+// remain INTEGRATION_PENDING rather than becoming successful empty projections.
 export function dashboardReadRuntimeModule({ config, connection, clock = Date.now,
   repositories = {}, sessionService } = {}) {
   if (!config?.auth?.enabled) return null;
   const durableRepositories = createMongoDashboardRepositories({ connection,
     cursorSecret: config.auth.tokenSecret });
-  // Explicit ports are test/integration overrides. The durable payroll reader
-  // is only selected when no override is supplied and remains fail-closed until
-  // P41's persisted SettlementRequest/User records are available.
+  // Explicit ports override the durable readers for isolated integration checks.
   const sourceRepositories = { ...durableRepositories, ...repositories };
   const session = sessionService ?? createSessionService({ connection,
     clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });

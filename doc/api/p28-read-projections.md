@@ -11,15 +11,15 @@ remain pending and ledger inconsistencies return 503. Existing injected visit
 projections continue to work. All displayed money comes from backend records.
 The corresponding [FIN-07/08 decisions](../requirements/finance-decisions-2026-10-30.md)
 are approved; operational source production and actual tax assessments still have
-to be integrated. The six nonfinancial source gaps in the historical matrix below
-remain open; payroll/earnings implementation alone does not close them.
+to be integrated. All eight read adapters are implemented. Availability depends
+on their primary collections and producer integration, as detailed below.
 
 Status: **INTEGRATION_PENDING**, DTO proposal for P01/P34 review, 15 October 2026.
 The P28 runtime read module and frontend role routes are now composed. A durable
 P41-backed Admin payroll reader is available when runtime Mongo/auth configuration is
 present; it remains pending until persisted settlement requests, sitter user joins and
-policy decision versions satisfy the read contract. The other source repositories remain
-explicitly pending until the P01/P41/P20 adapters are supplied.
+policy decision versions satisfy the read contract. Operational and approved-profile
+readers use the canonical collections; absent sources remain pending.
 
 | WBS | Factory service / router prefix | GET under /api/v1 | Allowed roles | Page export |
 | --- | --- | --- | --- | --- |
@@ -64,20 +64,21 @@ Earnings items: id, visitId, state, accrued, pending, available, held, reserved,
 completedAt, explanation, ledgerReference, transferRecordedAt. Source partition balances
 sum to accrued; canceled visits are excluded; Paid requires transfer evidence timestamp.
 Only the authoritative P41 snapshot can establish eligibility and policyVersion.
-P41's current `readOwn` DTO (balances/earnings/requests/quota) is not a drop-in
-source for this visit-level projection: its totals now expose disjoint held/pending
-partitions, but it lacks the completed-visit state/timestamp join and the P28
-paginated atomic snapshot required
-here. P01/P41 must approve and
-implement the read adapter; missing fields must not be inferred or filled with zero.
+P41's `readOwn` DTO (balances/earnings/requests/quota) is not used directly.
+The implemented reader joins immutable BookingEarningSnapshot, Earning and ledger
+records, with `bookingId` for booking-level earnings. It requires the stored
+completion timestamp, versioned decisions and reconciled disjoint buckets;
+missing fields must not be inferred or filled with zero.
 No commission, price multiplication or undocumented financial rule is introduced.
 Totals use `totalsScope: PAGE`; they are never advertised as totals for an entire period.
 
 Profile/directory items: id, displayName, bio, areas, reviewCount, rating (null if none).
 Only approved sitter profiles and permitted moderated aggregate ratings are accepted;
 no private documents, contacts, customer text reviews or home-access data is exposed.
-Self profile rejects another sitter row. Public directory access and profile editing
-are not approved by this proposal. Payroll items expose request id, sitter display name,
+Self profile rejects another sitter row. The user separately approved sitter-authored
+profile submission and Staff/Admin moderation on 30 October 2026; those authenticated
+commands are documented in the profile module. The directory retains the roles above.
+Payroll items expose request id, sitter display name,
 state, amountVnd, requestWeekKey and optional transferRecordedAt; bank data is omitted.
 Approved explicitly does not mean Paid. P28 never creates a payout or settlement request.
 
@@ -94,9 +95,10 @@ role-specific navigation in `frontend/src/routes/AppRoutes.jsx`. The backend run
 module and these routes are composition points; preview fixtures still only prove
 rendering, and real repositories are required for non-pending responses.
 
-Open gates: P01 read DTO approval; P20/P24/P27/P30/P31/P41 persistent read adapters;
-FIN-07-ELIG/POSTPAY for financial eligibility, FIN-08-EDIT for related settlement commands;
-P34/P01 source composition; current Figma frames. Existing P04/P48 components are reused.
+Open gates: primary completion/payment/assessment/case/refund and review-moderation
+writers, their transactional financial hooks, actual source acceptance and current
+Figma frames. FIN-07/08 rules have been approved; the default settlement runtime
+remains closed until source writers enforce them. Existing P04/P48 components are reused.
 
 ### Concrete source gaps found during the PR audit
 
@@ -125,15 +127,15 @@ catalog/settings and public-policy models. It has no persisted Visit, Offer, Bil
 Case or moderated Rating model. The following gaps cannot be filled by treating an
 absent collection as a ready empty source or by inventing a parallel domain schema.
 
-| Projection | Missing authoritative source or mapping |
+| Projection | Implemented reader / remaining primary source |
 | --- | --- |
-| Admin dashboard | Application states exist, but `needsAction` and visit rows need the operational Visit/Case model and state contract. A partial count cannot satisfy the complete DTO. |
-| Customer dashboard | Owner-scoped Visit schedules and unpaid Bill records, including their period/count semantics. |
-| Sitter dashboard | Assigned Visit and pending Offer records with sitter ownership and stable paging. |
-| Staff dashboard | Unassigned Visit and open Case records with approved operational state/count definitions. |
-| Sitter profile and directory | Approved public profile/bio and moderated Rating aggregates. Application `experience`/`workAreas` exist, but application approval does not establish permission to publish application text; missing reviews cannot be assumed to mean zero. |
-| Earnings | P41 supplies Earning/ledger partitions, but an adapter still needs completed Visit state/time, the approved eligibility policy and an atomic bounded P28 read contract covering every partition. Settlement request-selection/read DTOs are not that projection. |
+| Admin dashboard | Mongo application/visit/case counts and visit pages implemented; operational writers remain required. |
+| Customer dashboard | Mongo owner-scoped Visit/Bill counts and pages implemented; schedule and billing writers remain required. |
+| Sitter dashboard | Mongo assigned Visit and pending Offer counts/pages implemented; assignment and offer writers remain required. |
+| Staff dashboard | Mongo unassigned Visit and open Case counts/pages implemented; operational writers remain required. |
+| Sitter profile and directory | Separate profile submission/review storage implemented; moderated review producer remains required. Application text is excluded. |
+| Earnings | Snapshot/earning/ledger reader implemented; whole-booking completion, verified receipt, confirmed tax and financial hold producers remain required. |
 
-Payroll alone can consume P41 SettlementRequest and User records directly. Its isolated
-Mongo integration tests verify that read contract with synthetic persisted rows; they
+Payroll consumes P41 SettlementRequest and User records directly. Isolated
+Mongo integration tests verify the read contracts with synthetic persisted rows; they
 do not verify the settlement commands, a production collection or any transfer provider.

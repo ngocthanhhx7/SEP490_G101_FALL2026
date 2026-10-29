@@ -1,5 +1,33 @@
 # P28 handoff — role dashboards, sitter profiles and earnings
 
+## Current Update, 30 October 2026
+
+This section supersedes the historical implementation and open-decision notes below.
+All eight Mongo read adapters are implemented. The runtime shares the authenticated
+API mount and session verifier. Separate sitter-authored public profiles support
+versioned submission and Staff/Admin review; edits require a new approval. Only
+PUBLISHED CUSTOMER_TO_SITTER ratings are aggregated, without customer comments.
+Signed cursors bind scope/filters and expire after 15 minutes.
+
+Backend lint and architecture checks passed. The full backend run after allocation
+v2 and cursor changes passed 99 suites / 869 tests. Subsequent allocation-source
+validation has focused regression evidence recorded in the PR. Frontend evidence
+before these backend changes: 79 suites / 493 tests, lint and build passed.
+Six Playwright desktop/mobile profile/moderation/transfer screenshots were checked
+using synthetic HTTP fixtures; they do not prove end-to-end business readiness.
+
+Primary booking completion, verified payment, explicit tax assessment, hold and
+review-moderation writers remain required. The financial runtime stays closed;
+no production configuration or data was changed. FIN-07/08, multi-visit prepayment,
+visit-price allocation and whole-booking tax cost split are approved in the
+[decision addendum](../requirements/finance-decisions-2026-10-30.md).
+
+The inherited PR history currently includes all five team members. Re-evaluate
+reviewer eligibility after dependency PRs merge; an account with prior contributions
+cannot supply the sole independent approval. No new approval or merge is asserted.
+
+## Historical Handoff
+
 Date: 15 October 2026, Asia/Saigon. Status: **IMPLEMENTED / INTEGRATION_PENDING**.
 PR/merge state must be checked on GitHub; this document does not assert approval or merge.
 
