@@ -317,7 +317,7 @@ export function createMongoSettlementRepository({ connection, models = settlemen
   async function assertEvidenceOwnership({ evidenceReference, requestId, actorId }, session) {
     const row = await queryWithSession(evidence.findOne({ evidenceReference, requestId, ownerActorId: actorId, state: 'UPLOADED' }), session).lean().exec();
     if (privateEvidence) {
-      const image = await privateEvidence.findReady({ evidenceReference, actorId, session });
+      const image = await privateEvidence.findReady({ evidenceReference, actorId, requestId, session });
       if (!image) return false;
       if (row) return row.mediaId === image.mediaId;
       const existing = await evidence.findOne({ evidenceReference }).session(session).lean();

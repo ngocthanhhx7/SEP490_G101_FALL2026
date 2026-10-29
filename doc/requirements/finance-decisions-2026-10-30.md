@@ -1,5 +1,9 @@
 # FIN-07 / FIN-08 decision addendum
 
+> Later owner direction replaces the independent-partner model with employee payroll.
+> See [employee payroll revision](employee-payroll-2026-10-30.md) before enabling earning or payouts.
+> The historical booking fee/tax decisions below are not employee wage/tax rules.
+
 Version: `PWC-FIN-07-08-2026-10-30-v1`. Approved by the user on
 30 October 2026, Asia/Ho_Chi_Minh, in response to the concrete proposal below.
 This supersedes the corresponding open decisions in

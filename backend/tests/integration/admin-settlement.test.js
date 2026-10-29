@@ -105,6 +105,23 @@ test('bank reference already claimed by another request rolls back all changes',
   expect(await models.SettlementTransfer.countDocuments()).toBe(0);
 });
 
+test('private evidence cannot be claimed by two transfers or reused after care attachment', async () => {
+  const owner = new mongoose.Types.ObjectId(), mediaId = 'f'.repeat(64), careMediaId = 'e'.repeat(64);
+  const images = connection.collection('privateimages');
+  await images.deleteMany({ _id: { $in: [mediaId, careMediaId] } });
+  const row = { ownerId: owner, state: 'READY', contentDigest: 'a'.repeat(64), byteLength: 100, contentType: 'image/png', updatedAt: new Date() };
+  await images.insertMany([{ _id: mediaId, ...row }, { _id: careMediaId, ...row, careVisitId: 'synthetic-visit' }]);
+  const evidence = createPrivateTransferEvidenceRepository({ connection }), uow = createUnitOfWork(connection);
+  const claims = await Promise.all(['request-a', 'request-b'].map(requestId => uow.run(session => evidence.findReady({
+    evidenceReference: `private-image:${mediaId}`, actorId: String(owner), requestId, session
+  }))));
+  expect(claims.filter(Boolean)).toHaveLength(1);
+  const claimed = await images.findOne({ _id: mediaId });
+  expect(await uow.run(session => evidence.findReady({ evidenceReference: `private-image:${mediaId}`, actorId: String(owner), requestId: claimed.transferEvidenceRequestId, session }))).toBeTruthy();
+  expect(await uow.run(session => evidence.findReady({ evidenceReference: `private-image:${careMediaId}`, actorId: String(owner), requestId: 'request-c', session }))).toBeNull();
+  expect((await images.updateOne({ _id: mediaId, transferEvidenceRequestId: { $exists: false } }, { $set: { careVisitId: 'another-visit' } })).matchedCount).toBe(0);
+});
+
 test('missing request is a deliberate 404 and read policy remains visible', async () => {
   await expect(service.recordTransfer({ ...confirmed, requestId: 'missing' })).rejects.toMatchObject({ status: 404 });
   const pending = createAdminSettlementService({ repository, unitOfWork: createUnitOfWork(connection),
