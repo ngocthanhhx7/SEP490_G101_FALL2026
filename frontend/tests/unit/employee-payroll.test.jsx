@@ -10,6 +10,7 @@ const contract = { id: 'contract', employmentType: 'PART_TIME', monthlyBaseVnd: 
 const apiFixture = () => ({ own: jest.fn().mockResolvedValue({ contracts: [contract], advances: [], statements: [] }),
   submit: jest.fn().mockResolvedValue({}), advanceDecision: jest.fn().mockResolvedValue({}),
   advances: jest.fn().mockResolvedValue({ items: [] }), statements: jest.fn().mockResolvedValue({ items: [] }),
+  adjustments: jest.fn().mockResolvedValue({ items: [] }), submitAdjustment: jest.fn().mockResolvedValue({}), adjustmentDecision: jest.fn().mockResolvedValue({}),
   contract: jest.fn().mockResolvedValue({}), prepare: jest.fn().mockResolvedValue({}) });
 const fill = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
@@ -87,4 +88,26 @@ test('explicitly expired current contract does not reactivate an older contract'
   const api = apiFixture(); api.own.mockResolvedValue({ contracts: [contract], activeContractId: null, statements: [], advances: [] });
   render(<EmployeePayrollPage api={api} />); await screen.findByText('Chưa có hợp đồng đang hiệu lực được Admin xác minh.');
   expect(screen.queryByText('Gửi đề nghị')).toBeNull();
+});
+
+test('Admin submits a separate correction against the authoritative paid statement version', async () => {
+  const api = apiFixture(); api.statements.mockResolvedValue({ items: [{ id: 'paid-statement', employeeId,
+    version: 2, status: 'PAID', periodStart: '2026-10-01', periodEnd: '2026-11-01', dueAt: '2026-11-02', breakdown: {} }] });
+  render(<EmployeePayrollAdminPage api={api} />); await screen.findByText('Lập điều chỉnh');
+  fill('Số tiền điều chỉnh (VND)', '250000'); fill('Lý do điều chỉnh', 'Synthetic overtime correction');
+  fill('Mã hồ sơ đánh giá điều chỉnh', 'verified-overtime');
+  fireEvent.submit(screen.getByText('Gửi điều chỉnh chờ duyệt').closest('form'));
+  await waitFor(() => expect(api.submitAdjustment).toHaveBeenCalledWith({ statementId: 'paid-statement', expectedVersion: 2,
+    direction: 'SUPPLEMENT', amountVnd: 250000, reason: 'Synthetic overtime correction', assessmentReference: 'verified-overtime' }, expect.any(String)));
+});
+
+test('approved recovery requires agreement and resolution evidence with no payment action', async () => {
+  const api = apiFixture(); api.adjustments.mockResolvedValue({ items: [{ id: 'recovery', employeeId, statementId: 'salary',
+    direction: 'RECOVERY', amountVnd: 50000, status: 'APPROVED', version: 1, reason: 'Synthetic correction' }] });
+  render(<EmployeePayrollAdminPage api={api} />); await screen.findByText('Ghi nhận đối soát');
+  expect(screen.queryByText('Ghi nhận chi bổ sung', { selector: 'button' })).toBeNull();
+  fill('Mã thỏa thuận xử lý chênh lệch', 'agreed-resolution'); fill('Mã chứng từ hoàn tất đối soát', 'evidence-reference');
+  fireEvent.submit(screen.getByText('Ghi nhận đối soát').closest('form'));
+  await waitFor(() => expect(api.adjustmentDecision).toHaveBeenCalledWith('recovery', { action: 'RECONCILE', expectedVersion: 1,
+    agreementReference: 'agreed-resolution', resolutionReference: 'evidence-reference' }, expect.any(String)));
 });

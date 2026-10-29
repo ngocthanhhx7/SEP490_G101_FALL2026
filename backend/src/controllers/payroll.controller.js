@@ -1,6 +1,9 @@
 import { controllerAction } from './controller-action.js';
 export function createPayrollController(service) {
   return {
+    submitAdjustment: controllerAction(201, req => service.submitAdjustment(req.auth, req.body, req.get('Idempotency-Key'))),
+    adjustmentDecision: controllerAction(200, req => service.decideAdjustment(req.auth, req.params.id, req.body, req.get('Idempotency-Key'))),
+    adjustments: controllerAction(200, req => service.listAdjustments(req.auth, req.query)),
     own: controllerAction(200, req => service.own(req.auth, req.query)),
     contracts: controllerAction(201, req => service.recordContract(req.auth, req.body, req.get('Idempotency-Key'))),
     submit: controllerAction(201, req => service.submitAdvance(req.auth, req.body, req.get('Idempotency-Key'))),
