@@ -46,6 +46,14 @@ import { SitterDashboardPage } from '../pages/sitter/SitterDashboardPage.jsx';
 import { SitterEarningsPage } from '../pages/sitter/SitterEarningsPage.jsx';
 import { SitterProfilePage } from '../pages/sitter/SitterProfilePage.jsx';
 import { StaffDashboardPage } from '../pages/staff/StaffDashboardPage.jsx';
+import AdminSettlementsPage from '../pages/admin/AdminSettlementsPage.jsx';
+import { createAdminSettlementApi } from '../services/admin-settlement-api.js';
+
+function AdminSettlementRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createAdminSettlementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return <AdminSettlementsPage key={user?.id} api={api} />;
+}
 
 function SitterSettlementRoute() {
   const { getCsrfToken, user } = useSession();
@@ -61,7 +69,8 @@ const navigationByRole = {
     ['Dịch vụ', '/admin/services'],
     ['Giá dịch vụ', '/admin/service-prices'],
     ['Cấu hình', '/admin/system-settings'],
-    ['Hồ sơ ứng tuyển', '/admin/sitter-applications']
+    ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
+    ['Duyệt tất toán', '/admin/settlements']
   ],
   CUSTOMER: [
     ['Dashboard', '/customer'], ['Sitter list', '/sitters'],
@@ -133,6 +142,7 @@ export function AppRoutes({
           <Route path="admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="admin/payroll" element={<AdminPayrollPage />} />
           <Route path="admin/sitters" element={<SitterListPage />} />
+          <Route path="admin/settlements" element={<AdminSettlementRoute />} />
           <Route path="admin/services" element={<AdminServicesPage />} />
           <Route
             path="admin/service-prices"

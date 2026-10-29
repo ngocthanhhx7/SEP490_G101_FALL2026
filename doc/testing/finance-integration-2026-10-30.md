@@ -45,6 +45,24 @@ Final dashboard integration checks before adding the Admin review branch:
   shared authenticated API router. Regression coverage exercises a real session
   and the composed earnings and settlement endpoints without duplicate mounts.
 - Vite still reports a bundle larger than 500 kB. No production operation ran.
+## Admin settlement integration
+
+PR #64 integrates the #63 foundation and current develop. Owner: Thanh.
+Mandatory evidence ownership, reservation readiness and transfer-attempt ports
+now fail composition when omitted. The Admin route uses its own controller;
+rejection audit no longer mislabels held money as available.
+
+Actual checks on this integration: backend lint/architecture PASS; full backend
+81 suites / 757 tests PASS; frontend lint PASS, full frontend 75 suites / 466
+tests PASS, frontend build PASS with the existing bundle-size warning.
+The first focused unit run exposed outdated doubles missing the now-mandatory
+ports; the doubles and regressions were updated, then all suites passed.
+
+## Remaining source gates
+
+After composing the Admin review branch with dashboard routes: backend lint and
+architecture PASS, 94 suites / 844 tests PASS; frontend lint PASS, 78 suites /
+490 tests PASS, build PASS. This precedes the private transfer attachment update.
 
 The approved [FIN-07/08 decision](../requirements/finance-decisions-2026-10-30.md)
 does not supply booking payment allocations or tax assessments. The current base

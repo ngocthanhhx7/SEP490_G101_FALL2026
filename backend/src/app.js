@@ -20,6 +20,7 @@ import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
 import { dashboardReadRuntimeModule } from './routes/dashboard-runtime.routes.js';
+import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
 
 export function createApp({
   config,
@@ -73,6 +74,8 @@ export function createApp({
   );
   const settlement = suppliedModules.some(module => module.name === 'settlement-requests')
     ? null : settlementRequestRuntimeModule(context);
+  const adminSettlement = suppliedModules.some(module => module.name === 'admin-settlements')
+    ? null : adminSettlementRuntimeModule(context);
   const dashboards = suppliedModules.some(module => module.name === 'dashboard-read')
     ? null : dashboardReadRuntimeModule({ ...context, sessionService: auth?.sessionService });
   const suppliedDashboards = suppliedModules.filter(module => module.name === 'dashboard-read');
@@ -95,6 +98,7 @@ export function createApp({
     ...(privateImages ? [privateImages] : []),
     ...(settlement ? [settlement] : []),
     ...(dashboards && !auth ? [dashboards] : []),
+    ...(adminSettlement ? [adminSettlement] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),
