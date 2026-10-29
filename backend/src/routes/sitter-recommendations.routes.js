@@ -9,15 +9,16 @@ import { createAiRepository } from '../services/sitter-matching/matching.reposit
 import { createAiService } from '../services/sitter-matching/recommendation.service.js';
 import { createAiManagement } from '../services/sitter-matching/management.service.js';
 import { createAiController } from '../controllers/sitter-recommendations.controller.js';
-import { createRoutingProvider } from '../services/sitter-matching/routing.service.js';
+import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
 export function aiRuntimeModule({
   config,
   connection,
   clock = Date.now,
+  env = {},
   routingProvider
 }) {
   if (!config.ai?.enabled || !config.auth?.enabled) return null;
-  const repository = createAiRepository(connection, clock);
+  const repository = createAiRepository(connection, clock, { employeeSchedulingEnabled: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' });
   const session = createSessionService({
     connection,
     clock,
@@ -28,7 +29,7 @@ export function aiRuntimeModule({
     repository,
     routingProvider:
       routingProvider ??
-      createRoutingProvider({ baseUrl: config.ai.routingUrl, bounds: config.ai.routingBounds, clock }),
+      createConfiguredRoutingProvider({ env, config, clock }),
     clock
   });
   const management = createAiManagement({ repository, clock }),

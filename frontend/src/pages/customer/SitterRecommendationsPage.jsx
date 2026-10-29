@@ -4,6 +4,7 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
 import { createSitterRecommendationApi } from '../../services/sitter-recommendation-api.js';
+import { AddressSearch } from '../../components/common/AddressSearch.jsx';
 import './sitter-recommendations.css';
 
 function message(error) {
@@ -17,10 +18,11 @@ function message(error) {
     ?? 'Chưa thực hiện được yêu cầu. Vui lòng kiểm tra thông tin hoặc thử lại sau.';
 }
 
-function CareSetup({ api, breeds, onSaved }) {
+function CareSetup({ api, breeds, workAreas = [{ code: 'HN', label: 'Hà Nội' }], onSaved }) {
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [uncertain, setUncertain] = useState(false);
+  const addressForm = useRef(null);
   async function save(event, kind) {
     event.preventDefault();
     if (pending || uncertain) return;
@@ -32,7 +34,7 @@ function CareSetup({ api, breeds, onSaved }) {
         species: fields.get('species'), breedCode: fields.get('breedCode'), weightKg: Number(fields.get('weightKg')),
         traits: [], careNeedsConfirmed: fields.get('confirmed') === 'on' })
         : await api.createAddress({ label: fields.get('label'), location: fields.get('location'),
-          areaCode: 'HN', coordinates: [Number(fields.get('longitude')), Number(fields.get('latitude'))],
+          areaCode: fields.get('areaCode'), coordinates: [Number(fields.get('longitude')), Number(fields.get('latitude'))],
           pointConfirmed: fields.get('confirmed') === 'on' });
       if (result.pending) { setUncertain(true); setFeedback('Máy chủ đang xử lý. Tải lại dữ liệu để đối chiếu trước khi tạo lại.'); return; }
       form.reset(); setFeedback('Đã lưu thông tin.'); onSaved();
@@ -58,9 +60,15 @@ function CareSetup({ api, breeds, onSaved }) {
     </details>
     <details><summary>Thêm địa chỉ có tọa độ tại Hà Nội</summary>
       <p>Lấy tọa độ ghim chính xác từ bản đồ. Chỉ nhập địa chỉ bạn có quyền sử dụng; thông tin này không hiển thị trong danh sách gợi ý.</p>
-      <form onSubmit={event => save(event, 'address')}>
+      <form ref={addressForm} onSubmit={event => save(event, 'address')}>
+        <AddressSearch search={api.searchAddress} disabled={pending || uncertain} onSelect={item => {
+          const fields = addressForm.current.elements;
+          fields.location.value = item.label; fields.longitude.value = item.coordinates[0]; fields.latitude.value = item.coordinates[1];
+          fields.confirmed.checked = false;
+        }} />
         <Input label="Tên địa chỉ" name="label" required maxLength={100} />
         <Input label="Địa chỉ chăm sóc" name="location" required maxLength={500} />
+        <Select label="Khu vực phục vụ" name="areaCode" required>{workAreas.map(area => <option key={area.code} value={area.code}>{area.label}</option>)}</Select>
         <Input label="Kinh độ" name="longitude" type="number" min="-180" max="180" step="any" required />
         <Input label="Vĩ độ" name="latitude" type="number" min="-90" max="90" step="any" required />
         <label><input type="checkbox" name="confirmed" required /> Tôi đã kiểm tra đúng vị trí ghim của địa chỉ này.</label>
@@ -118,7 +126,7 @@ export function SitterRecommendationsForm({ api }) {
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải thông tin" />}
     {['error', 'forbidden'].includes(resource.status) && <Notice state="error" title="Chưa tải được thông tin" action={<Button onClick={resource.retry}>Tải lại</Button>}>Kiểm tra phiên đăng nhập hoặc thử lại sau.</Notice>}
     {data && <>
-      <CareSetup api={api} breeds={data.breeds} onSaved={() => { invalidate(); resource.retry(); }} />
+      <CareSetup api={api} breeds={data.breeds} workAreas={data.workAreas} onSaved={() => { invalidate(); resource.retry(); }} />
       <form onSubmit={recommend} onChange={invalidate}>
         <Select label="Dịch vụ" required value={serviceId} onChange={event => setServiceId(event.target.value)}>
           <option value="">Chọn dịch vụ</option>{data.services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}

@@ -28,8 +28,9 @@ bonus disputes and lawful wage deductions need separate reviewed rules.
 
 ## Pending clarification
 
-- Owner confirmed the business is in Hanoi. The exact workplace commune/ward and
-  full-time contracted hours still require contract entry; do not infer a wage region from the city alone.
+- Owner selected a demo facility at so 5 pho Tran Cao Van, Hai Ba Trung, Hanoi.
+  Actual workplace classification and full-time contracted hours still require verified contract
+  entry; a demo address does not constitute employment evidence.
 - Actual attendance/overtime/leave, insurance and income tax assessments per employee and period.
 - Advance settlement period and consent reference per request. Mandatory statutory advances need a separate path.
 - Verified contract metadata/backfill for existing approved employees. Approval is not a reason to
@@ -91,8 +92,9 @@ older one. Reads require provisioned storage and use bounded database execution 
 - Run `node scripts/migrations/payroll-storage.js` for a dry run; review its guarded `--apply`
   procedure before writing to an isolated development database. Runtime never provisions indexes.
 
-Outstanding integration: booking creation must persist the approved post-combo, pre-tax direct
-service snapshot, distinct from customer fees/disbursements; verified timecard and statutory assessment
-references remain operational inputs. Historical signatures are never synthesized. The adjustment
+Checkout now persists the approved post-combo direct service snapshot separately from customer
+fees/payment totals. Finalized boarding plans allocate that amount across care shifts by duration.
+Verified timecard and statutory assessment references remain operational inputs. Historical
+signatures are never synthesized. The adjustment
 workflow records verified external evidence; a reference is not proof that a transfer or recovery was
 performed by this application.

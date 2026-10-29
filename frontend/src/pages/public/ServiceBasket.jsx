@@ -1,14 +1,16 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, Calculator } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { createServiceBasketApi } from '../../services/service-basket-api.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
+import { BookingCheckoutForm, BookingConfirmation } from './BookingCheckout.jsx';
 
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 function CustomerBasket({ services, session }) {
   const api = useMemo(() => createServiceBasketApi({ getCsrfToken: session.getCsrfToken }), [session.getCsrfToken]);
   const pets = useApiResource(api.pets);
+  const [, setParams] = useSearchParams();
   const nextId = useRef(1), requestId = useRef(0);
   const [rows, setRows] = useState([]), [result, setResult] = useState(null), [status, setStatus] = useState('idle');
   useEffect(() => () => { requestId.current++; }, []);
@@ -31,7 +33,7 @@ function CustomerBasket({ services, session }) {
   if (pets.status === 'loading') return <p role="status">Đang tải hồ sơ thú cưng…</p>;
   if (pets.status === 'empty') return <p><Link to="/account/sitter-recommendations">Thêm hồ sơ thú cưng</Link></p>;
   if (pets.status !== 'success') return <div><p role="alert">Chưa tải được hồ sơ thú cưng.</p><button type="button" onClick={pets.retry}>Thử lại</button></div>;
-  return <form onSubmit={submit} className="pwc-service-basket">
+  return <><BookingConfirmation api={api} /><form onSubmit={submit} className="pwc-service-basket">
     {rows.map((row, index) => {
       const service = services.find(s => s.id === row.serviceId), unit = service?.price.unitLabel;
       return <div className="pwc-basket-row" key={row.key}>
@@ -56,7 +58,9 @@ function CustomerBasket({ services, session }) {
     ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
       <p>{result.paymentMode === 'PREPAY' ? 'Thanh toán trước khi thực hiện.' : 'Thanh toán sau khi hoàn tất.'} Báo giá có hiệu lực đến {new Date(result.expiresAt).toLocaleTimeString('vi-VN')}.</p>
     </div>}
-  </form>;
+  </form>{result?.items?.length > 0 && <BookingCheckoutForm key={result.quoteId} quote={result} services={services} api={api} onConfirmed={booking => {
+    setParams(current => { const next = new globalThis.URLSearchParams(current); next.set('booking', booking.id); return next; }); setResult(null); setRows([]);
+  }} />}</>;
 }
 export function ServiceBasket({ services }) {
   const session = useSession();

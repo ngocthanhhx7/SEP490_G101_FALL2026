@@ -44,6 +44,7 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
   const params = useParams();
   const proposalId = suppliedProposalId || params.proposalId;
   const keyRef = useRef(idempotencyKey(suppliedKey));
+  const operationRef = useRef(null);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [commandState, setCommandState] = useState({ status: 'idle' });
   const load = useCallback(({ signal }) => {
@@ -61,13 +62,14 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
     if (!isConfirmable || !selectedSlot || commandState.status === 'submitting' || typeof api?.confirmProposal !== 'function') return;
     setCommandState({ status: 'submitting' });
     try {
-      const result = await api.confirmProposal(proposal.id || proposalId, {
-        expectedVersion: proposal.version, selectedSlot, idempotencyKey: keyRef.current
-      });
+      if (!operationRef.current) operationRef.current = { expectedVersion: proposal.version, selectedSlot, idempotencyKey: keyRef.current };
+      const result = await api.confirmProposal(proposal.id || proposalId, operationRef.current);
       setCommandState({ status: result?.pending ? 'pending' : 'success', result: result?.data });
       if (!result?.pending) onConfirmed?.(result?.data);
     } catch (error) {
-      setCommandState({ status: 'error', code: error?.code, message: actionMessage(error) });
+      const uncertain = ['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR'].includes(error?.code);
+      setCommandState({ status: uncertain ? 'pending' : 'error', code: error?.code, message: actionMessage(error) });
+      if (!uncertain) operationRef.current = null;
       if (error?.status === 401) resource.retry();
     }
   }
@@ -101,7 +103,8 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
           const value = `${item.startAt}/${item.endAt}`;
           return <label key={value} className="directed-proposal__slot"><input type="radio" name="directed-slot" value={value}
             checked={selectedSlot?.startAt === item.startAt && selectedSlot?.endAt === item.endAt}
-            onChange={() => setSelectedSlot(item)} /><span><strong>{formatDate(item.startAt)}</strong><small> đến {formatDate(item.endAt)}</small></span></label>;
+            disabled={['submitting', 'pending', 'success'].includes(commandState.status) || !isConfirmable}
+            onChange={() => { setSelectedSlot(item); operationRef.current = null; keyRef.current = idempotencyKey(); }} /><span><strong>{formatDate(item.startAt)}</strong><small> đến {formatDate(item.endAt)}</small></span></label>;
         })}</fieldset>}
         {proposal.expiresAt && <p className="directed-proposal__expiry">Hạn xác nhận: {formatDate(proposal.expiresAt)}. Máy chủ sẽ kiểm tra lại hạn và slot.</p>}
         {commandState.status === 'error' && <Notice state="error" title="Chưa xác nhận được lịch">{commandState.message}</Notice>}

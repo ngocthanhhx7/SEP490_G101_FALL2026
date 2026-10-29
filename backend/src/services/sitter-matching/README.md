@@ -4,6 +4,11 @@ Advisory matching for the invitation workflow only. `recommendation.service.js` 
 
 This package cannot calculate prices or mutate fees, tax, booking, invitation or assignment state. Existing backend commands revalidate eligibility/occupancy before invitations and assignment. Missing route evidence fails closed.
 
+`commercial-routing.service.js` selects OSRM, Goong car Distance Matrix or Google Routes DRIVE
+from server configuration. Provider namespaces are distinct; raw commercial matrices are not
+persisted. The employee scheduling adapter uses the same selection when rechecking travel.
+See [Google/Goong configuration and limitations](../../../../doc/deployment/google-goong-maps.md).
+
 Routing can enforce `AI_ROUTING_BOUNDS` before cache lookup, based on the deployed
 dataset rather than a claimed service area. Its deadline covers the response
 body and native streaming responses are capped at 1 MB. See the

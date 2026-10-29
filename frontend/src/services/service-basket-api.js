@@ -3,6 +3,15 @@ import { createApiClient, ApiError } from './api-client.js';
 export function createServiceBasketApi(options) {
   const request = createApiClient(options);
   return {
+    async checkoutOptions({ signal } = {}) { return request('/checkout/options', { signal }); },
+    async addresses({ signal } = {}) { return request('/pet-care/addresses', { signal }); },
+    async confirm(body, idempotencyKey) {
+      return (await request('/checkout/bookings', { method: 'POST', body, idempotencyKey })).data;
+    },
+    async booking(id, { signal } = {}) { return (await request(`/checkout/bookings/${encodeURIComponent(id)}`, { signal })).data; },
+    async paymentLink(id, idempotencyKey) {
+      return (await request(`/checkout/bookings/${encodeURIComponent(id)}/payment-link`, { method: 'POST', body: {}, idempotencyKey })).data;
+    },
     async pets({ signal } = {}) {
       const response = await request('/pet-care/pets', { signal });
       if (!Array.isArray(response.data)) throw new ApiError('INVALID_RESPONSE');

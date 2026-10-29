@@ -8,10 +8,12 @@ import {
 import { createPetCareController } from '../controllers/pet-care.controller.js';
 import { createPetCareManagement } from '../services/pet-care-management.service.js';
 import { petCareModels } from '../models/pet-care.model.js';
-export function petCareRuntimeModule({ config, connection, clock = Date.now }) {
+import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
+export function petCareRuntimeModule({ config, connection, clock = Date.now, env = {} }) {
   if (!config.auth?.enabled) return null;
   const repository = { connection, models: petCareModels(connection) },
-    management = createPetCareManagement({ repository, clock });
+    management = createPetCareManagement({ repository, clock,
+      coverageAreas: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' ? DEMO_WORK_AREAS : [] });
   const session = createSessionService({
     connection,
     clock,

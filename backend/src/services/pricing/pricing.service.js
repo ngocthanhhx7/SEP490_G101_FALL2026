@@ -100,9 +100,11 @@ export function createPricingService({ repository, clock = Date.now }) {
     const orderFeeVnd = fee(subtotalVnd, tierBps);
     const result = { currency: 'VND', kind: 'ESTIMATE', baseVnd: base, surchargeVnd: gross - base, discountVnd, comboBps,
       subtotalVnd, orderFeeVnd, totalVnd: safe(BigInt(subtotalVnd) + BigInt(orderFeeVnd)), visitCount: visits,
-      paymentMode: visits > 1 ? 'PREPAY' : 'POSTPAY', rounding: 'HALF_UP_VND_PER_LINE',
+      paymentMode: visits > 1 || computed.some(item => item.input.dayCount > 1) ? 'PREPAY' : 'POSTPAY', rounding: 'HALF_UP_VND_PER_LINE',
       items: computed.map(({ input, result, context }) => ({ serviceId: input.serviceId, ...result,
-        serviceVersion: context.version.version, petVersions: context.pets.map(p => ({ id: String(p._id), version: p.version })) })) };
+        serviceVersion: context.version.version, servicePolicyVersion: context.servicePolicy.version,
+        servicePolicy: { title: context.servicePolicy.title, body: context.servicePolicy.body },
+        petVersions: context.pets.map(p => ({ id: String(p._id), version: p.version })) })) };
     const decision = await save(ownerId, 'QUOTE', body, { input: body, result }, 10 * 60000);
     return { ...result, quoteId: decision.id, expiresAt: decision.expiresAt };
   }

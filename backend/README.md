@@ -9,6 +9,14 @@ a non-production `*_dev` database. See [approved rules](../doc/requirements/demo
 Customer/CSRF-protected `POST /api/v1/pricing/basket-quotes` validates owned pets and snapshots
 one combo/order fee across all rows. An estimate does not create bookings or collect payment.
 
+The opt-in [checkout and employee scheduling API](../doc/api/employee-scheduling-checkout.md)
+composes quote-to-booking snapshots, fifteen-minute prepay intents, care-plan finalization,
+self-registered areas/shifts, durable invitations and customer-confirmed directed rescheduling.
+`src/services/employee-scheduling/` owns these employee adapters; `jobs/employee-dispatch.job.js`
+owns worker lifecycle. Provision storage before enabling the documented flags.
+`src/services/maps/` owns bounded Goong address search; commercial route adapters remain in
+`sitter-matching/`. See [Google Maps / Goong configuration](../doc/deployment/google-goong-maps.md).
+
 ## Chạy và kiểm tra
 
 Từ backend, npm ci --ignore-scripts; điền URI Atlas và MONGO_DB trong .env local rồi npm start (npm run dev cho watch). Config thiếu/sai dừng trước listen. Không commit .env hoặc bất kỳ .env.* ở bất kỳ depth nào; chỉ .env.example chứa placeholders được push. Không force-add env hoặc đưa credential thật vào example.

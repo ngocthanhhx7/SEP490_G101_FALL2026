@@ -180,6 +180,8 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
         endAt: instant(item.endAt, 'endAt'),
         serviceName: text(item.serviceName, 'serviceName'),
         areaCode: text(item.areaCode, 'areaCode', 80),
+        ...(['ASSIGNED', 'IN_PROGRESS'].includes(item.state) && item.serviceAddress !== undefined
+          ? { serviceAddress: text(item.serviceAddress, 'serviceAddress', 500) } : {}),
         pets: safePetSummary(item.pets ?? item.petSummary),
         handoverRequired: item.handoverRequired === true,
         handoverAccepted: item.handoverAccepted === true

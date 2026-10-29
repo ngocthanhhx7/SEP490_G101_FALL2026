@@ -1,23 +1,30 @@
 # Employee Payroll And Demo Catalogue Integration
 
-Checked 30 October 2026 against integration commit `cdcdbdaf0a025d16de6c0fff411a2ba0b26e73b2`.
-The subsequent attribution-page/documentation change does not alter financial calculations.
+Checked 30 October 2026 on `feature/demo-service-catalog`, based on `e7a79ce` plus the
+checkout, scheduling and maps changes committed with this evidence. Earlier checks against
+`cdcdbda` are superseded below. Provider activation and independent review remain separate gates.
 
 ## Automated Checks
 
 | Package | Check | Actual result |
 | --- | --- | --- |
-| Backend | `npm test` | PASS: 104 suites, 916 tests |
+| Backend | `npm test` | PASS: 108 suites, 946 tests |
 | Backend | `npm run lint` | PASS |
 | Backend | `npm run check:architecture` | PASS |
-| Frontend | `npm test` | PASS: 81 suites, 502 tests |
+| Frontend | `npm test` | PASS: 84 suites, 520 tests |
 | Frontend | `npm run lint` | PASS |
-| Frontend | `npm run build` | PASS; 627 kB chunk warning remains |
+| Frontend | `npm run build` | PASS; 675.75 kB chunk warning remains |
+
+After the full run, the accepted-assignment DTO was extended to expose its service address
+for navigation only in ASSIGNED/IN_PROGRESS states. The affected scheduling integration suite
+(11 tests), offer domain suite (12 tests) and backend lint passed again. Pending offers still
+omit that address. Browser checks below were repeated against the composed runtime.
 
 Mongo integration tests use temporary isolated replica sets, not an existing business database.
 Key regressions are in `backend/tests/integration/employee-payroll.test.js`,
 `finance-source-writers.test.js`, `admin-settlement.test.js`, `demo-service-catalog.test.js`,
-and `frontend/tests/unit/employee-payroll.test.jsx`, `service-basket.test.jsx`.
+`booking-checkout.test.js`, `employee-scheduling.test.js`, `commercial-maps.test.js`,
+`maps-routes.test.js`, and frontend payroll/basket/checkout/scheduling/address-search tests.
 
 ## Authenticated Browser Check
 
@@ -33,22 +40,38 @@ credit were synthetic fixtures in a disposable Mongo database. No API responses 
    Employee API returned both records as PAID; the itemized statement was 714,818 VND payable.
 5. Customer, employee and Admin screens were checked at 1440x1000 and 390x844, including expanded
    contract/assessment forms. No page errors, broken images or horizontal overflow were observed.
+6. Customer finalized the six-visit quote into one persisted PREPAY booking, reloaded it and
+   retained the same total and fifteen-minute deadline. External payment provider stayed disabled.
+7. Employee/Admin paged actual persisted history. Admin recorded a separate supplement payment
+   and an agreed recovery reconciliation; original paid salary was unchanged and employee
+   responses excluded private financial evidence references.
+8. Sitter saved/reloaded work areas and seven recurring daily windows on the two distinct screens.
+   Customer created a single directed booking; Staff finalized its unassigned care plan and
+   proposed a different time; the owning customer confirmed and the chosen sitter accepted.
+   Five scheduling/proposal screens passed both desktop/mobile checks.
+9. Goong search correctly showed unavailable with the provider disabled. The manual coordinate
+   form remained available and customer area options matched the employee operational catalog.
+   Its desktop/mobile screenshots had no page errors or horizontal overflow.
 
 PAID here means a persisted Admin payment record, not a bank transfer initiated by the application.
 The browser check starts from a synthetic completion credit. Real check-in/checklist/check-out
 writers and transactional credit creation are covered separately by the Mongo source-writer tests.
+The boarding regression completes two paid care shifts through check-in/checklist/check-out,
+records actual attendance and verifies exact employee credits without partner-price fields.
+Commercial maps tests use injected responses, never a live paid provider. No embedded map SDK
+or live traffic is claimed. See [maps setup and limitations](../deployment/google-goong-maps.md).
 
 ## Remaining Acceptance Work
 
-- Customer basket currently produces a quote, not a finalized booking or a real payment link.
-  Booking creation must persist dedicated employee service net snapshots and the separate
-  customer payment snapshot; legacy values must not be inferred as commissionable money.
-- Owner confirmed Hanoi. Exact workplace ward/commune, full-time hours, verified contract backfill and per-period
+- Live payOS link/callback smoke checks require project credentials. Synthetic webhook tests
+  establish amount/expiry/receipt guards; they do not establish a real transfer.
+- Owner selected so 5 pho Tran Cao Van, Hai Ba Trung, Hanoi for the demo. Verified workplace
+  classification, full-time hours, verified contract backfill and per-period
   timecard/tax/insurance evidence remain operational inputs. Current statutory tax/insurance
   research is incomplete; no blanket rate is claimed or applied automatically.
-- PREPARED payroll can be voided with reason and replaced. Approved/paid correction needs an
-  audited adjustment/reconciliation workflow; current endpoints refuse destructive edits.
-- Payroll lists are bounded (100 Admin, 50 employee records) and do not yet provide history pagination.
+- Verify actual customer area mappings for legacy addresses, facility coordinates and provider
+  quotas/keys before using road ETA for home/facility dispatch. Embedded draggable maps, live GPS
+  and a whole-boarding-stay reschedule/requote workflow are not implemented.
 - Independent review is outstanding. The current #65 dependency history contains contributions
   from all five members, so none may be presented as its sole independent non-contributor reviewer.
   Ngọc Thành coordinates unassigned review; this is not an approval or a waiver of the rule.

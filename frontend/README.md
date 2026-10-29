@@ -4,6 +4,13 @@ P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/archit
 
 From `frontend/`:
 
+The composed demo includes customer quote/checkout, separate employee area and shift screens,
+invitations, Staff dispatch and customer confirmation of a directed schedule proposal.
+`pages/public/BookingCheckout.jsx` owns checkout presentation; `pages/staff/EmployeeDispatchPage.jsx`
+owns Staff presentation, and `services/employee-scheduling-api.js` owns transport only.
+Goong address search and Google Maps navigation are configured through the backend; see
+[maps setup](../doc/deployment/google-goong-maps.md) and [scheduling API](../doc/api/employee-scheduling-checkout.md).
+
 ```bash
 npm ci
 npm run dev -- --host 127.0.0.1

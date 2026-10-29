@@ -5,3 +5,6 @@
 .sitter-recommendations__setup { margin-bottom: 24px; }
 .sitter-recommendations ol { padding-left: 24px; }
 .sitter-recommendations ol > li { padding: 16px 0; border-bottom: 1px solid var(--pwc-border, #ddd); }
+.pwc-address-search { min-width: 0; display: grid; gap: 8px; }
+.pwc-address-search ul { list-style: none; padding: 0; margin: 0; }
+.pwc-address-search li button { max-width: 100%; height: auto; min-height: 42px; white-space: normal; overflow-wrap: anywhere; text-align: left; }

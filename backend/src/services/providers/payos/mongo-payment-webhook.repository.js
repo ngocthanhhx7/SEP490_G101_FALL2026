@@ -41,6 +41,9 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
         const booking = intent ? await col('bookings').findOne({ _id: intent.bookingId }, { session }) : null;
         const at = new Date(receipt.receivedAt);
         let reason = decision.type === 'RECONCILE' ? decision.reason : null;
+        if (!reason && booking?.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' &&
+          (booking.paymentSnapshot?.currency !== 'VND' || booking.paymentSnapshot.amountVnd !== intent?.amountVnd || booking.paymentMode !== 'PREPAY'))
+          reason = 'BOOKING_PAYMENT_SNAPSHOT_MISMATCH';
         if (!reason && (previous || !intent || !booking || intent.version !== decision.expectedIntentVersion
           || intent.state !== 'PENDING' || booking.state !== 'AWAITING_PAYMENT'
           || intent.providerReference !== receipt.providerOrderCode || intent.amountVnd !== receipt.amountVnd
@@ -59,7 +62,8 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
           const changed = await col('paymentintents').updateOne({ _id: intentId, version: intent.version, state: 'PENDING' },
             { $set: { state: 'PAID', paidAt: at }, $inc: { version: 1 } }, { session });
           if (!changed.matchedCount) throw new Error('Payment intent transition lost its guard');
-          const updated = await finance.touch(booking, session, { paymentState: 'PAID' });
+          const updated = await finance.touch(booking, session, { paymentState: 'PAID',
+            ...(booking.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? { state: 'DISPATCH_PENDING' } : {}) });
           await finance.enqueue(updated, session);
         } else if (booking) {
           // Reconciliation receipts serialize with every earning source write too.
