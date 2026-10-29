@@ -40,9 +40,16 @@ an integration gate, even when synthetic integration tests pass.
 The user confirmed that multi-visit bookings require prepayment, then approved
 allocation of service money by immutable visit price snapshots and confirmed tax
 T in those same proportions, aggregated by sitter. Version:
-`PWC-VISIT-SNAPSHOT-ALLOCATION-2026-10-30-v1`. Unknown tax stays pending.
+`PWC-VISIT-SNAPSHOT-ALLOCATION-2026-10-30-v2`. Unknown tax stays pending.
 Largest-remainder integer apportionment with a stable visit-id tie break preserves
 the exact total T. Fee half-up rounding and the platform's odd-VND tax cost split
 remain separate steps. Receipt service amount must equal the visit snapshot sum;
 unexplained differences remain reconciliation, not an inferred discount/refund.
 The calculator alone neither verifies a receipt nor creates available earnings.
+
+The user explicitly chose to split T for the WHOLE booking before apportioning
+the sitter cost by visit price. Total sitter cost is floor(T/2); platform cost is
+T minus that amount. Both the confirmed tax allocation and the sitter cost use
+stable largest remainders; each visit's platform cost is their difference. Do not
+halve each sitter's allocated tax again. Snapshot the allocation policy and both
+costs so later policy changes cannot recalculate prior earnings.

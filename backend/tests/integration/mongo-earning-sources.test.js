@@ -7,6 +7,7 @@ import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
 import { provisionSettlementStorage } from '../../src/services/settlements/provisioning.js';
 import { earningAccrualModels } from '../../src/models/earning-accrual.model.js';
 import { settlementModels } from '../../src/models/settlement.model.js';
+import { BOOKING_ALLOCATION_VERSION } from '../../src/services/settlements/booking-allocation.js';
 
 let replica, connection, sources, service, models, booking, visits, sitterIds;
 const names = ['bookings', 'visits', 'payments', 'taxassessments', 'cases', 'refunds', 'privateimages'];
@@ -55,10 +56,18 @@ test('primary completion/payment/assessment joins create one immutable earning p
   });
   const first = await service.accrue(input(0));
   const second = await service.accrue(input(1));
-  expect(first).toMatchObject({ serviceBasisVnd: 100000, confirmedTaxVnd: 3333, ordinal: 1, accruedVnd: 88334 });
+  expect(first).toMatchObject({ serviceBasisVnd: 100000, confirmedTaxVnd: 3333, ordinal: 1, accruedVnd: 88333,
+    sitterTaxCostVnd: 1667, platformTaxCostVnd: 1666, allocationPolicyVersion: BOOKING_ALLOCATION_VERSION });
   expect(second).toMatchObject({ serviceBasisVnd: 200000, confirmedTaxVnd: 6667, ordinal: 1, accruedVnd: 176667 });
   expect(await service.accrue(input(0))).toEqual(first);
   expect(await models.Earning.countDocuments()).toBe(2);
+  expect(await models.EarningLedgerEntry.countDocuments()).toBe(2);
+  expect(first.sitterTaxCostVnd + second.sitterTaxCostVnd).toBe(5000);
+  expect(first.platformTaxCostVnd + second.platformTaxCostVnd).toBe(5000);
+  // A later assessment or policy migration must use a separate adjustment.
+  await store('taxassessments').updateMany({}, { $set: { totalTaxVnd: 12000 }, $inc: { version: 1 } });
+  expect(await service.accrue(input(0))).toEqual(first);
+  expect(await service.accrue(input(1))).toEqual(second);
   expect(await models.EarningLedgerEntry.countDocuments()).toBe(2);
 });
 

@@ -22,6 +22,15 @@ apportionment follows the approved allocation version and persists in the earnin
 source hash. Missing T, multiple receipts/assessments or unexplained money
 differences require reconciliation. No tax rate is chosen here.
 
+Allocation policy `PWC-VISIT-SNAPSHOT-ALLOCATION-2026-10-30-v2` first splits
+the WHOLE booking T: sitter cost is floor(T/2), platform cost is the remainder.
+Allocate T and the sitter cost by visit price using exact largest remainders and
+stable visit-id ties; each visit's platform cost is the difference. Aggregate
+these costs per sitter and snapshot both with the allocation policy version.
+For prices 100,000/200,000 and T = 10,000 VND, sitter costs are 1,667/3,333;
+platform costs are 1,666/3,334. Each side bears exactly 5,000 for the booking.
+Never independently halve each sitter's allocated T or recalculate old snapshots.
+
 ## Required Writer Hooks
 
 The primary completion writer must call `recognizeCompletion` for each distinct
