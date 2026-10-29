@@ -5,6 +5,8 @@ seed demo accounts, or claim unconfigured providers are working.
 
 ## Host and access
 
+Hướng dẫn thao tác bằng tiếng Việt: [SSH và điền từng biến .env](ec2-environment-guide.md).
+
 - EC2: `54.79.81.209`, Sydney `ap-southeast-2`, Amazon Linux 2023 / ARM64.
 - SSH key remains on the operator's machine, outside this repository.
 - Application releases: `/opt/pawworldcare/releases/<full-git-sha>/`.
@@ -27,8 +29,8 @@ Security group: SSH 22 from the operator IP; HTTP 80 and HTTPS 443 public;
 
 ## Cloudflare DNS cutover
 
-Export existing DNS records first so the original Render/Vercel targets remain
-available for rollback. Nameservers already delegated to Cloudflare do not need
+Export existing DNS records first so the previous targets remain recorded
+for rollback. Nameservers already delegated to Cloudflare do not need
 to change. Replace the three existing web CNAME records as follows; there must
 not be a conflicting CNAME or old AAAA for the same name.
 
@@ -77,11 +79,13 @@ be represented as fully available. SMS and payment remain disabled/unconfigured.
 Never use fake OTP delivery or demo credentials on production.
 
 R2 variables are reserved in the server `.env` (`R2_ENABLED=false`, account,
-bucket, access key, secret and public media base URL). Merely adding variables
-does not implement an adapter: this release does **not** yet upload images to
-R2. Keep it disabled until the adapter, authorization, MIME/size limits and
-private document access are integrated and tested. Private identity/evidence
-objects must not share a public image bucket/domain.
+bucket, access key, secret and `R2_MAX_IMAGES_PER_USER`). The backend now has an
+opt-in owner-only PNG/JPEG adapter and `/api/v1/private-images` upload/read
+runtime. Keep it disabled until a separate private bucket, bucket-scoped
+credentials, retention/quota approval and a live provider check are complete.
+The local tests use synthetic providers and do not prove a real R2 PUT/GET.
+Applicant documents, care evidence and public images remain separate workflows;
+never share their objects or public domains with this bucket.
 
 After changing environment values, redeploy the same reviewed SHA using the
 activation command below. Docker restart alone retains the old container env.
@@ -125,8 +129,8 @@ curl --fail https://pawworldvn.shop/ready
 sudo ss -lnt
 ```
 
-Before DNS points to EC2, a successful domain request may still be Render or
-Vercel. Verify the origin directly using `curl --resolve` and check the release
+Before DNS points to EC2, a successful domain request may still come from the
+previous origin. Verify the origin directly using `curl --resolve` and check the release
 metadata on EC2. Never claim cutover from an old host's response. Bare `/api`
 must return an API 404 envelope, never SPA HTML.
 

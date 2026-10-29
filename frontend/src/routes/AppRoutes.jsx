@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { PetListPage } from '../pages/customer/PetListPage.jsx';
 import { PetDetailsPage } from '../pages/customer/PetDetailsPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
+import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
 import { createPetApi } from '../services/pet-api.js';
 import { createPetProfileApi } from '../services/pet-profile-api.js';
@@ -51,6 +52,7 @@ const navigationByRole = {
     ['Địa chỉ', '/account/addresses'],
     ['Thú cưng', '/account/pets'],
     ['Đơn hàng', '/account/bookings'],
+    ['Tìm sitter', '/account/sitter-recommendations'],
     ['Thông báo', '/account/notifications']
   ],
   PET_SITTER: [
@@ -146,6 +148,7 @@ export function AppRoutes({
             element={<CustomerFeaturePage page="pet" />}
           />
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
+          <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
           <Route
             path="account/notifications"
             element={<CustomerFeaturePage page="notifications" />}

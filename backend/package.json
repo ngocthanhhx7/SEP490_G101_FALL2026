@@ -19,11 +19,14 @@
     "check:architecture": "node scripts/check-architecture.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
+    "@aws-sdk/s3-request-presigner": "3.1152.0",
     "express": "5.3.0",
     "express-rate-limit": "8.7.1",
     "helmet": "8.3.0",
     "mongoose": "9.11.2",
-    "nodemailer": "10.1.4"
+    "nodemailer": "10.1.4",
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@babel/parser": "7.29.9",

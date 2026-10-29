@@ -30,6 +30,7 @@ Trong P34-A, runtime gọi `createSmsPortOverrides` trước khi listen và ghé
 | `ESMS_API_KEY` | API Key từ eSMS; secret, không ghi log |
 | `ESMS_SECRET_KEY` | Secret Key từ eSMS; secret, không ghi log |
 | `ESMS_BRANDNAME` | Brandname CSKH đã được eSMS/nhà mạng duyệt, tối đa 11 ký tự |
+| `ESMS_OTP_TEMPLATE` | Mẫu ASCII đã được duyệt, đúng một `{code}`; mặc định `Ma xac nhan cua ban la {code}` |
 | `SMS_TIMEOUT_MS` | Deadline 100–30000 ms; mặc định 10000 |
 | `ESMS_SANDBOX` | `true` gửi request sandbox không phát SMS; mặc định `false` |
 
@@ -37,7 +38,7 @@ Khi tắt, factory trả `{}` để giữ provider fail-closed của P02. Khi b�
 
 ## Hợp đồng nội bộ, timeout và trạng thái
 
-Adapter SMS nhận command server-only `{ channel: 'SMS', kind: 'OTP', to, operationId, purpose, code, expiresAt }`. P06 gửi `channel: 'PHONE'` cho số điện thoại, vì đây là loại liên hệ trong contract; P34-A map `PHONE` thành `SMS` trước khi gọi adapter. `operationId` UUID do server sinh và phải ổn định khi caller reconcile cùng operation. Adapter chuẩn hóa số di động Việt Nam thành E.164 `+84…`, gửi API digits-only `84…`; không chấp nhận quốc gia khác. Nội dung ASCII gồm mã, purpose, hạn 5 phút và cảnh báo không chia sẻ mã.
+Adapter SMS nhận command server-only `{ channel: 'SMS', kind: 'OTP', to, operationId, purpose, code, expiresAt }`. P06 gửi `channel: 'PHONE'` cho số điện thoại, vì đây là loại liên hệ trong contract; P34-A map `PHONE` thành `SMS` trước khi gọi adapter. `operationId` UUID do server sinh và phải ổn định khi caller reconcile cùng operation. Adapter chuẩn hóa số di động Việt Nam thành E.164 `+84…`, gửi API digits-only `84…`; không chấp nhận quốc gia khác. Nội dung lấy từ `ESMS_OTP_TEMPLATE` và chỉ thay `{code}`; purpose và expiry vẫn được kiểm tra nội bộ, không nối thêm vào mẫu đã duyệt.
 
 `RequestId` truyền `operationId`; eSMS ghi tài liệu rằng giá trị này chặn request trùng trong 24 giờ. Adapter coalesce các lời gọi đồng thời cùng payload trong process. Payload khác nhưng reuse id trả `OPERATION_CONFLICT`. Mỗi lần thử chỉ gửi một HTTP request. Timeout/mất kết nối sau khi bắt đầu request trả `TIMEOUT` hoặc `PROVIDER_ERROR`, `uncertain=true`, không retry tự động; caller phải giữ trạng thái pending/uncertain và dùng lại cùng operation ID khi reconcile, không phát sinh OTP/send mới chỉ vì chưa nhận response.
 

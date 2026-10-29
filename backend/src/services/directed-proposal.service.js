@@ -153,6 +153,7 @@ function proposalView(proposal) {
     version: proposal.version,
     expiresAt: proposal.expiresAt ?? null,
     priceSnapshot: safePriceSnapshot(proposal.priceSnapshot),
+    ...(proposal.petSnapshots?.length ? { petSnapshots: safePetSnapshots(proposal.petSnapshots) } : {}),
     paymentState: proposal.paymentState ?? null,
     paymentRequired: proposal.paymentRequired === true
   };

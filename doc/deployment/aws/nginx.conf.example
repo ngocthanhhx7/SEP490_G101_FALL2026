@@ -1,0 +1,57 @@
+# Include from Nginx http {}. Replace hostname and paths before installation.
+# Required reviewed file: set_real_ip_from <current Cloudflare CIDR>; per entry.
+include /etc/nginx/pwc-cloudflare-realip.conf;
+real_ip_header CF-Connecting-IP;
+real_ip_recursive off;
+log_format pwc_safe '$request_id $status $request_time';
+
+server {
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_certificate /etc/pwc/tls/origin.pem;
+    ssl_certificate_key /etc/pwc/tls/origin.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    access_log /var/log/nginx/pwc-access.log pwc_safe;
+    error_log /dev/null crit;
+    return 444;
+}
+
+server {
+    listen 443 ssl;
+    server_name staging.pawworldvn.shop;
+    ssl_certificate /etc/pwc/tls/origin.pem;
+    ssl_certificate_key /etc/pwc/tls/origin.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    root /srv/pwc/current/frontend/dist;
+    index index.html;
+    server_tokens off;
+    access_log /var/log/nginx/pwc-access.log pwc_safe;
+    # Raw error logs may contain secret URLs; use safe app metrics/journal instead.
+    error_log /dev/null crit;
+    client_max_body_size 6m;
+    add_header Cache-Control "private, no-store" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy no-referrer always;
+
+    location ~ ^/(api(?:/|$)|health$|ready$) {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host staging.pawworldvn.shop;
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header Connection "";
+        proxy_cache off;
+        proxy_hide_header Cache-Control;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 30s;
+        proxy_send_timeout 30s;
+    }
+    location /assets/ { try_files $uri =404; }
+    location /fonts/ { try_files $uri =404; }
+    location ~ /\. { deny all; }
+    location ~ \.[a-zA-Z0-9]+$ { try_files $uri =404; }
+    location / { try_files $uri $uri/ /index.html; }
+}

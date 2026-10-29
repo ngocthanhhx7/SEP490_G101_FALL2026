@@ -9,7 +9,7 @@ export function createPorts(overrides = {}) {
     session: { authenticate: async () => null },
     contactDelivery: { send: unavailable },
     paymentGateway: { createIntent: unavailable, verifyCallback: unavailable, reconcile: unavailable },
-    privateMedia: { upload: unavailable, createReadCapability: unavailable },
+    privateMedia: { upload: unavailable, read: unavailable, createReadCapability: unavailable },
     notificationDelivery: { send: unavailable }
   };
   for (const name of Object.keys(overrides)) {

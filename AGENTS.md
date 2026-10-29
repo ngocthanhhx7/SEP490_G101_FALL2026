@@ -23,3 +23,13 @@
 - Preserve legacy MongoDB collection names during renames. Add regression coverage for domain independence and existing API status/auth/error behavior when moving logic.
 - Run the configured architecture checker, lint, affected tests and frontend build before pushing. Update the checker when an explicitly justified composition exception is introduced; do not weaken it merely to silence a violation.
 - Verify the task's assigned GitHub identities before mutations. A reviewer must inspect the final SHA independently and must not be its author/contributor. Deployment uses a reviewed main SHA; do not publish unfinished local refactors. Keep secrets and database volumes outside release artifacts.
+
+## Review writing (all agents)
+
+- Deployment target is EC2 for both frontend and backend with Cloudflare DNS/proxy and private R2. Do not introduce Render/Vercel deployment configuration or treat historical preview checks as production acceptance. Read `doc/deployment/ec2-environment-guide.md` before environment changes; keep optional providers disabled until their release and live acceptance gates pass.
+
+- Follow `doc/source-code-management/code-review-process.md` when writing PR reviews, inline comments and review handoffs. Write natural Vietnamese by default, as a clear technical conversation with a teammate; keep code identifiers and useful technical terms unchanged.
+- Lead with the actual finding or conclusion. For a defect, explain the trigger, observed behavior, impact and concrete correction; link the relevant code. For approval, briefly state what was checked and any remaining condition that matters to this PR.
+- Scale detail to the change. Do not paste audit transcripts, repeat the PR description, list every test counter, or repeat full SHAs/account identities already present in GitHub metadata. Link detailed evidence when needed. Keep spaces between words, counts and units.
+- Avoid formulaic openings such as "Codex-assisted independent review under the assigned account", repeated "exact head/scoped approval" claims, generic praise and long disclaimers. State a specific unverified integration once if it affects the decision.
+- Report only checks actually performed, distinguish author evidence from reviewer checks, and never invent results or approval. Do not add boilerplate about the review tool or method to the opening or closing.

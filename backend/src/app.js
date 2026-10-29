@@ -17,6 +17,7 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
+import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 
 export function createApp({
   config,
@@ -53,7 +54,7 @@ export function createApp({
     })
   );
   app.use(express.json({ limit: '64kb', strict: true }));
-  const context = { config, connection, lifecycle, ports, clock };
+  const context = { config, connection, lifecycle, ports, clock, env };
   const ai = aiRuntimeModule(context);
   const pricing = pricingRuntimeModule(context);
   const petCare = petCareRuntimeModule(context);
@@ -61,6 +62,7 @@ export function createApp({
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
+  const privateImages = privateImageRuntimeModule(context);
   const suppliedModules = moduleFactories.map((factory) => factory(context));
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
     (module) =>
@@ -74,6 +76,7 @@ export function createApp({
     ...(customerProfile ? [customerProfile] : []),
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
+    ...(privateImages ? [privateImages] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),

@@ -1,3 +1,5 @@
+import { DEFAULT_SMS_OTP_TEMPLATE, isSmsOtpTemplate } from '../validators/sms-template.validator.js';
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE']);
 
@@ -15,7 +17,8 @@ export function normalizeVietnamPhone(value) {
 }
 
 // Private P06 command only. This adapter sends OTPs; P06 owns generation and verification.
-export function renderSms(command, now) {
+export function renderSms(command, now, template = DEFAULT_SMS_OTP_TEMPLATE) {
+  if (!isSmsOtpTemplate(template)) return { error: 'INVALID_REQUEST' };
   if (!command || command.channel !== 'SMS' || command.kind !== 'OTP'
     || typeof command.operationId !== 'string' || !UUID.test(command.operationId)
     || typeof command.code !== 'string' || !/^\d{6}$/.test(command.code)
@@ -34,6 +37,6 @@ export function renderSms(command, now) {
     operationId: command.operationId.toLowerCase(),
     purpose: command.purpose,
     expiry,
-    content: `Paw World Care code: ${command.code} (${command.purpose}). Expires in ${Math.ceil((expiry - now) / 60000)} minutes. Never share it.`
+    content: template.replace('{code}', command.code)
   };
 }

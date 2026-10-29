@@ -1,4 +1,5 @@
 import { AppError } from '../utils/app-error.js';
+import { DEFAULT_SMS_OTP_TEMPLATE, isSmsOtpTemplate } from '../validators/sms-template.validator.js';
 function invalid(fields) {
   throw new AppError(
     503,
@@ -36,6 +37,8 @@ export function loadEsmsConfig(env = process.env) {
     fields.push('SMS_TIMEOUT_MS');
   const sandboxValue = env.ESMS_SANDBOX ?? 'false';
   if (!['true', 'false'].includes(sandboxValue)) fields.push('ESMS_SANDBOX');
+  const otpTemplate = env.ESMS_OTP_TEMPLATE ?? DEFAULT_SMS_OTP_TEMPLATE;
+  if (!isSmsOtpTemplate(otpTemplate)) fields.push('ESMS_OTP_TEMPLATE');
   if (fields.length) invalid(fields);
 
   return {
@@ -43,6 +46,7 @@ export function loadEsmsConfig(env = process.env) {
     secretKey: env.ESMS_SECRET_KEY,
     brandname: env.ESMS_BRANDNAME,
     timeoutMs,
-    sandbox: sandboxValue === 'true'
+    sandbox: sandboxValue === 'true',
+    otpTemplate
   };
 }
