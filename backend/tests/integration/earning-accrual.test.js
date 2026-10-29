@@ -8,6 +8,7 @@ import { createEarningAccrualService } from '../../src/services/settlements/earn
 import { createMongoSettlementRepository } from '../../src/services/settlements/mongo-settlement.repository.js';
 import { createSettlementService } from '../../src/services/settlements/settlement.service.js';
 import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
+import { BOOKING_ALLOCATION_VERSION } from '../../src/services/settlements/booking-allocation.js';
 
 let replica, connection, models, Source, service;
 const sitterId = 'synthetic-sitter';
@@ -106,6 +107,21 @@ test('open complaint/refund blocks accrual; audited source release retains origi
   await Source.updateOne({ bookingId: 'held' }, { $set: { 'payload.holdReferences': [],
     'payload.sourceVersion': 'audited-release-v2' } });
   expect(await accrue('held')).toMatchObject({ ordinal: 1, sourceVersion: 'audited-release-v2' });
+});
+
+test.each([
+  { allocationPolicyVersion: BOOKING_ALLOCATION_VERSION },
+  { allocationPolicyVersion: BOOKING_ALLOCATION_VERSION, sitterTaxCostVnd: 1 },
+  { allocationPolicyVersion: 'unknown-version', sitterTaxCostVnd: 1, platformTaxCostVnd: 2 },
+  { allocationPolicyVersion: BOOKING_ALLOCATION_VERSION, sitterTaxCostVnd: 2, platformTaxCostVnd: 2 },
+  { allocationPolicyVersion: BOOKING_ALLOCATION_VERSION, sitterTaxCostVnd: -1, platformTaxCostVnd: 4 }
+])('versioned allocation cannot fall back to a sitter-level tax split: %j', async invalid => {
+  await seed('invalid-allocation', invalid);
+  await complete('invalid-allocation');
+  await expect(accrue('invalid-allocation')).rejects.toMatchObject({ code: 'EARNING_SOURCE_PENDING' });
+  for (const key of ['BookingEarningSnapshot', 'Earning', 'EarningLedgerEntry', 'EarningAccrualOutbox']) {
+    expect(await models[key].countDocuments()).toBe(0);
+  }
 });
 
 test('missing counter unique index fails before any ordinal or money is written', async () => {
