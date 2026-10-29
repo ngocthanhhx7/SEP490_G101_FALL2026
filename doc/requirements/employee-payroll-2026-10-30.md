@@ -81,11 +81,18 @@ older one. Reads require provisioned storage and use bounded database execution 
 - Advance repayment is an explicit agreed installment, bounded by the amount paid and previous
   statement allocations. A shared transactional transfer claim prevents reusing one bank reference
   across salary and advance payments.
+- Approved/paid statement corrections use separate versioned adjustment records with a reason and
+  verified assessment reference. Admin submits and decides; rejection and approval require reasons.
+  SUPPLEMENT payments require approval, an already PAID original statement and a bank reference
+  unique across salary, advance and adjustment payments. RECOVERY requires an already PAID original
+  statement and explicit agreement/resolution evidence before it is marked RECONCILED. It never
+  changes a statement, reduces future wages or initiates a transfer. Rejected adjustments remain in
+  history. Employees can read only their own adjustments; evidence references are Admin-only.
 - Run `node scripts/migrations/payroll-storage.js` for a dry run; review its guarded `--apply`
   procedure before writing to an isolated development database. Runtime never provisions indexes.
 
 Outstanding integration: booking creation must persist the approved post-combo, pre-tax direct
 service snapshot, distinct from customer fees/disbursements; verified timecard and statutory assessment
-references remain operational inputs. Historical signatures are never synthesized. Paid statement
-correction requires an audited adjustment workflow; do not edit the paid snapshot or silently deduct
-money from a later wage.
+references remain operational inputs. Historical signatures are never synthesized. The adjustment
+workflow records verified external evidence; a reference is not proof that a transfer or recovery was
+performed by this application.
