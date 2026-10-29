@@ -19,6 +19,7 @@ export function earningAccrualModels(connection) {
     platformTaxCostVnd: { ...money, immutable: true },
     accruedVnd: { ...money, immutable: true },
     policyVersion: { ...reference, immutable: true },
+    allocationPolicyVersion: { type: String, maxlength: 160, immutable: true },
     decisionVersion: { ...reference, immutable: true },
     sourceVersion: { ...reference, immutable: true },
     sourceHash: { ...reference, immutable: true },

@@ -84,6 +84,8 @@ export function createMongoEarningSources({ connection }) {
     if (!sitter) return null;
     return { ...projection, paymentVerified: true, allocationVerified: true, assessmentConfirmed: true, currency: 'VND',
       serviceBasisVnd: sitter.serviceBasisVnd, confirmedTaxVnd: sitter.confirmedTaxVnd,
+      sitterTaxCostVnd: sitter.sitterTaxCostVnd, platformTaxCostVnd: sitter.platformTaxCostVnd,
+      allocationPolicyVersion: allocation.policyVersion,
       holdReferences: [...holds.map(row => `case:${row._id}`), ...refunds.map(row => `refund:${row._id}`)].sort(),
       paymentReference: String(receipt._id), assessmentReference: String(assessment._id),
       allocationReference: `visit-allocation:${allocation.sourceHash}`,
