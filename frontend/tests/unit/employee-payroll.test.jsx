@@ -48,6 +48,7 @@ test('Admin verifies contract with explicit workplace and approved monthly gross
   await screen.findByText('Không có đề nghị chờ xử lý.');
   const form = screen.getByText('Lưu hợp đồng đã xác minh').closest('form');
   fireEvent.change(form.elements.employeeId, { target: { value: employeeId } });
+  fill('Phút làm việc mỗi tuần', '2400');
   fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-02'); fill('Mã hồ sơ hợp đồng đã ký', 'signed-contract');
   fill('Vùng lương nơi làm việc', '1'); fill('Phường/xã và căn cứ xác định vùng', 'Synthetic verified workplace');
   fireEvent.submit(form);

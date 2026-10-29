@@ -5,7 +5,7 @@ import { AppError } from '../../utils/app-error.js';
 export async function recordEmployeeServiceCompletion({ connection, visits, session }) {
   const { PayrollServiceCredit } = payrollModels(connection);
   for (const visit of visits) {
-    const basis = visit.snapshots?.serviceBasisVnd;
+    const basis = visit.snapshots?.employeeServiceNetVnd;
     if (!Number.isSafeInteger(basis) || basis < 0 || !(visit.checkInAt instanceof Date) || !(visit.checkOutAt instanceof Date) ||
       visit.checkOutAt < visit.checkInAt || !(visit.startAt instanceof Date) || !Number.isSafeInteger(visit.version))
       throw new AppError(409, 'PAYROLL_SOURCE_RECONCILIATION_REQUIRED', 'Visit price/times require reconciliation');

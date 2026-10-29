@@ -9,7 +9,7 @@ if (!process.argv.includes('--apply')) {
   let connection;
   try {
     const config = loadConfig();
-    if (config.nodeEnv === 'production') throw new Error('Production provisioning is outside this command scope');
+    if (config.nodeEnv === 'production' || !config.database.endsWith('_dev')) throw new Error('Development database required');
     connection = await connectDatabase(config);
     await provisionSettlementStorage(connection);
     await provisionFinanceSources(connection);
