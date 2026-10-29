@@ -35,15 +35,19 @@ must call `recognizeCompletion` with its session at that transition. A delayed
 payment cannot change fee tiers. Missing operational source adapters remain
 an integration gate, even when synthetic integration tests pass.
 
-## Additional user confirmations
+## Receipt allocation, approved 30 October 2026
 
-Multi-visit bookings require prepayment. The user subsequently approved allocation
-of collected service money by immutable visit price snapshots, and allocation of
-confirmed tax amount T by those same proportions, aggregated by sitter. A payment
-receipt must not be inferred from booking submission. Unknown tax stays unknown.
-Whole-VND allocation uses largest fractional remainders with a stable visit-id
-tie break so the allocated sum exactly equals T; this is an implementation of the
-approved proportions, not a tax-rate decision or a change to fee rounding.
+The user confirmed that multi-visit bookings require prepayment, then approved
+allocation of service money by immutable visit price snapshots and confirmed tax
+T in those same proportions, aggregated by sitter. Version:
+`PWC-VISIT-SNAPSHOT-ALLOCATION-2026-10-30-v1`. Unknown tax stays pending.
+Largest-remainder integer apportionment with a stable visit-id tie break preserves
+the exact total T. Fee half-up rounding and the platform's odd-VND tax cost split
+remain separate steps. Receipt service amount must equal the visit snapshot sum;
+unexplained differences remain reconciliation, not an inferred discount/refund.
+The calculator alone neither verifies a receipt nor creates available earnings.
+
+## Public sitter profiles, approved 30 October 2026
 
 For PR #65 the user approved a separate sitter-authored public bio/work-area
 profile reviewed by Staff/Admin. Application text is not a publication source.
