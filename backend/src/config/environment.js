@@ -2,6 +2,7 @@ import { loadEsmsConfig } from './esms.js';
 import { loadSmtpConfig } from './smtp.js';
 import { isMailbox } from '../utils/mailbox.js';
 import { loadR2Config } from './r2.js';
+import { parseRoutingBounds } from '../validators/routing.validator.js';
 
 export class ConfigurationError extends Error {
   constructor(fields) {
@@ -110,8 +111,11 @@ export function loadConfig(env = process.env) {
       invalid.push('AI_ROUTING_URL');
     }
   }
+  let routingBounds = null;
+  try { routingBounds = parseRoutingBounds(env.AI_ROUTING_BOUNDS); }
+  catch { invalid.push('AI_ROUTING_BOUNDS'); }
   const result = {
-    ai: Object.freeze({ enabled: aiEnabled === 'true', routingUrl }),
+    ai: Object.freeze({ enabled: aiEnabled === 'true', routingUrl, routingBounds }),
     nodeEnv,
     host,
     mongoUri,

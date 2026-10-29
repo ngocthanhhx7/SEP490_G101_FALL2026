@@ -2,6 +2,7 @@
 
 - [EC2 environment](ec2-environment-guide.md): SSH, Nano, cách điền từng biến và nạp lại cấu hình.
 - [MongoDB từ máy cá nhân](mongodb-access.md): Compass qua SSH tunnel và phân biệt dữ liệu dev/production.
+- [Định tuyến Hà Nội](hanoi-routing.md): dữ liệu OSM, graph OSRM, coverage và giới hạn vận hành.
 - [Ngừng hosting cũ](retire-legacy-hosting.md): ngắt auto-deploy và kiểm tra ngoài Git.
 - [P35 staging runbook](p35-staging-runbook.md): EC2 frontend/backend, Cloudflare DNS/proxy, private R2,
   Mongo local replica set hoặc remote TLS, HTTPS/session, environment, private upload và payOS gates.
