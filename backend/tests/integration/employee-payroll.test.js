@@ -17,7 +17,7 @@ const advance = () => ({ amountVnd: 1500000, reason: 'Synthetic requested advanc
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_payroll' }).asPromise();
-  service = createPayrollService({ connection, policy: employeePayrollPolicyResolver, clock: () => at });
+  service = createPayrollService({ connection, policy: employeePayrollPolicyResolver, clock: () => at, cursorSecret: 'synthetic-employee-payroll-cursor-secret' });
   for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
   await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(sitter.userId), state: 'ACTIVE', roles: ['PET_SITTER'] });
   await connection.collection('sitterapplications').insertOne({ _id: oid(), state: 'APPROVED', provisionedUserId: new mongoose.Types.ObjectId(sitter.userId) });
@@ -103,4 +103,28 @@ test('voiding an unapproved statement retains history and releases credits for a
     .rejects.toMatchObject({ code: 'INVALID_STATE' });
   expect(await service.models.PayrollStatement.countDocuments({ _id: first.id, status: 'VOIDED' })).toBe(1);
   expect(await service.models.PayrollSourceClaim.countDocuments({ statementId: replacement.id })).toBe(1);
+});
+
+test('signed payroll pagination is scoped to employee, resource, view, page size and expiry', async () => {
+  const first = await service.own(sitter, { limit: '1' }); expect(first.advances).toHaveLength(1); expect(first.advanceNextCursor).toEqual(expect.any(String));
+  const second = await service.own(sitter, { limit: 1, advanceCursor: first.advanceNextCursor });
+  expect(second.advances).toHaveLength(1); expect(second.advances[0].id).not.toBe(first.advances[0].id);
+  await expect(service.own(other, { limit: 1, advanceCursor: first.advanceNextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  await expect(service.own(sitter, { limit: 2, advanceCursor: first.advanceNextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  await expect(service.own(sitter, { limit: 1, statementCursor: first.advanceNextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const adminHistory = await service.listAdvances(admin, { view: 'HISTORY', limit: 1 });
+  expect(adminHistory.nextCursor).toEqual(expect.any(String));
+  await expect(service.listAdvances(admin, { view: 'PENDING', limit: 1, cursor: adminHistory.nextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const savedAt = at; at = new Date(at.getTime() + 16 * 60000);
+  try { await expect(service.own(sitter, { limit: 1, advanceCursor: first.advanceNextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' }); }
+  finally { at = savedAt; }
+  await expect(service.own(sitter, { limit: '0' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  await expect(service.own(sitter, { employeeId: other.userId })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+});
+
+test('an expired latest contract does not revive an earlier open-ended version', async () => {
+  await service.recordContract(admin, { ...contract(), expectedVersion: 1, signedAt: '2026-10-31T00:00:00Z',
+    effectiveAt: '2026-10-31T17:00:00Z', endsAt: '2026-11-01T00:00:00Z' }, 'record-ended-contract');
+  expect((await service.own(sitter)).activeContractId).toBeNull();
+  await expect(service.submitAdvance(sitter, advance(), 'advance-ended-contract')).rejects.toMatchObject({ code: 'CONTRACT_REQUIRED' });
 });
