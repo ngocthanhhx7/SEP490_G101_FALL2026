@@ -1,6 +1,10 @@
 ﻿# Deployment tools
 
 Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
+`extract-hanoi-routing.py` clips an operator-supplied public OSM PBF using
+separately installed osmium 4.3.2, preserving routing tags, complete references
+and relevant turn restrictions. It refuses existing output, emits hashes and
+counts, and never downloads or deploys data. Generated graph files stay outside Git.
 `check-private-media-memory.py` and its adjacent `.mjs` are isolated Linux
 diagnostics, not application startup code. The Python runner requires a built
 full-SHA application image, root Docker access and spare RAM; it creates a unique
