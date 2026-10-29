@@ -2,6 +2,7 @@
 """Expose a ready release with Caddy; certificates persist across releases."""
 from pathlib import Path
 import ipaddress
+import json
 import os
 import re
 import subprocess
@@ -10,6 +11,28 @@ import time
 import urllib.request
 
 ROOT = Path('/opt/pawworldcare')
+
+
+def cloudflare_ranges():
+    # Public documented API avoids HTML/bot responses from the marketing site.
+    request = urllib.request.Request('https://api.cloudflare.com/client/v4/ips',
+                                     headers={'Accept': 'application/json', 'User-Agent': 'PawWorldCare-Deployment/1.0'})
+    with urllib.request.urlopen(request, timeout=10) as response:
+        payload = json.loads(response.read(65536))
+    result = payload.get('result', {})
+    if payload.get('success') is not True:
+        raise ValueError('Cloudflare IP API unavailable')
+    ranges = []
+    for field, family in [('ipv4_cidrs', 4), ('ipv6_cidrs', 6)]:
+        values = result.get(field)
+        if not isinstance(values, list) or not 1 <= len(values) <= 256:
+            raise ValueError('Cloudflare IP response is incomplete')
+        for value in values:
+            network = ipaddress.ip_network(value)
+            if network.version != family or not network.is_global or network.prefixlen == 0:
+                raise ValueError('Invalid public Cloudflare network')
+            ranges.append(str(network))
+    return ranges
 
 
 def main():
@@ -30,13 +53,7 @@ def main():
     prior = config.read_text() if config.exists() else None
     # Only official Cloudflare networks may supply CF-Connecting-IP. A direct
     # request with forged forwarding headers must retain its TCP client address.
-    ranges = []
-    for endpoint in ['https://www.cloudflare.com/ips-v4', 'https://www.cloudflare.com/ips-v6']:
-        with urllib.request.urlopen(endpoint, timeout=10) as response:
-            ranges.extend(str(ipaddress.ip_network(line.strip())) for line in
-                          response.read(65536).decode().splitlines() if line.strip())
-    if not ranges:
-        raise SystemExit('Cloudflare proxy ranges unavailable')
+    ranges = cloudflare_ranges()
     global_config = '{\n servers {\n trusted_proxies static ' + ' '.join(ranges) + '\n trusted_proxies_strict\n client_ip_headers CF-Connecting-IP\n }\n}\n'
     template = (release / 'backend/scripts/deployment/Caddyfile').read_text()
     rendered = global_config + template.replace('/srv/frontend', '/srv/releases/' + revision + '/frontend/dist').replace('127.0.0.1:3000', '127.0.0.1:' + port)
