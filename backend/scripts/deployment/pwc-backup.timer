@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Paw World Care MongoDB backup
+
+[Timer]
+OnCalendar=*-*-* 20:10:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

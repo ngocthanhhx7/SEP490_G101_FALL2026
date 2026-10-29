@@ -88,3 +88,6 @@ __pycache__/
 *.dump
 *.bson
 *.sql.gz
+# Python deployment/training bytecode
+__pycache__/
+*.py[cod]
