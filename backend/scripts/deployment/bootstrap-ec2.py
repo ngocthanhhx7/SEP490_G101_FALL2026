@@ -76,6 +76,8 @@ def main():
             digest, '--bind_ip', '127.0.0.1', '--port', '27017',
             '--replSet', 'rs0', '--keyFile', '/run/mongo-keyfile',
             '--wiredTigerCacheSizeGB', '0.25')
+    else:
+        run('docker', 'start', 'pwc-mongo')
     # Credentials are read inside mongosh from its container environment.
     prefix = "const c=new Mongo('mongodb://'+encodeURIComponent(process.env.MONGO_INITDB_ROOT_USERNAME)+':'+encodeURIComponent(process.env.MONGO_INITDB_ROOT_PASSWORD)+'@127.0.0.1:27017/admin?directConnection=true');const a=c.getDB('admin');"
     initiate = prefix + "try{a.runCommand({replSetGetStatus:1})}catch(e){if(e.code!==94)throw e;const r=a.runCommand({replSetInitiate:{_id:'rs0',members:[{_id:0,host:'127.0.0.1:27017'}]}});if(r.ok!==1)throw Error('Replica set unavailable')}"
