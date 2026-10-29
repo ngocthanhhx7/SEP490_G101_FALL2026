@@ -99,6 +99,22 @@ content verification and short lifetimes; CORS alone is not authorization.
 
 ## Linux diagnostic and provider update — 29/10/2026
 
+User decision 30/10/2026: demo owner images remain until their owner requests
+deletion; no age-based expiration, default quota 20 images per owner. This does
+not apply to complaint/settlement evidence. Until a reviewed deletion command
+exists, operator requests must check owner, reject objects linked to evidence,
+record a deletion tombstone first, delete the exact R2 key and reconcile Mongo
+quota only after provider deletion is confirmed. Do not decrement quota after
+an uncertain response or silently remove metadata first. Pending/unknown
+uploads require same-key reconciliation; do not bulk-delete apparent orphans
+from R2 without comparing durable metadata and active operations.
+
+An isolated runtime using real persisted sessions and the actual R2 SDK has
+now passed upload 201, same-key replay 200, owner read 200, wrong-CSRF 403,
+guest/revoked 401, other owner/Admin 404, one quota slot and EXIF removal.
+Its synthetic database was removed and its real test objects deleted. This
+does not yet attest Cloudflare cache behavior or create a user deletion UI.
+
 The earlier NOT RUN memory statement is superseded for this specific synthetic
 workload: actual production Dockerfile/dependencies built successfully on EC2
 Linux ARM64. In a separate internal Docker network, a tmpfs Mongo replica set

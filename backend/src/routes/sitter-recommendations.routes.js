@@ -28,7 +28,7 @@ export function aiRuntimeModule({
     repository,
     routingProvider:
       routingProvider ??
-      createRoutingProvider({ baseUrl: config.ai.routingUrl, clock }),
+      createRoutingProvider({ baseUrl: config.ai.routingUrl, bounds: config.ai.routingBounds, clock }),
     clock
   });
   const management = createAiManagement({ repository, clock }),
