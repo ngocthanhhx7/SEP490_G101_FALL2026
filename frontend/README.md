@@ -1,6 +1,6 @@
 ﻿# Frontend
 
-P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.21.0, npm 11.19.0, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
+P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.22.1, npm 11.19.1, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
 
 From `frontend/`:
 
@@ -18,6 +18,8 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 ## Responsibilities
 
+`demo-ai/` là trang HTML/JS quan sát AI độc lập chỉ phục vụ bởi backend/scripts/demo-ai.js trên loopback3011; không nằm trong bundle sản phẩm. Xem [bộ tài khoản và tình huống demo](../doc/testing/ai-demo-accounts.md).
+
 | Path | Responsibility |
 | --- | --- |
 | src/app | Entry, root error boundary, providers and P03/P04 shared CSS integration |
@@ -28,7 +30,7 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | src/pages/account | Signed-in user's own session identity and WBS-004 account settings; verified contact edits remain owner-scoped, masked and OTP-protected; P34 owns route registration |
 | src/pages/public/policies | P45 approved-only policy index/article UI, stable version routes, context links and consent policy references; the real App mounts the route/provider, while P01/P17 own shared DTO and policy lifecycle integration |
 | src/contexts | In-memory session adapter state; no persisted credentials |
-| src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters and explicit pending adapter |
+| src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters, owner-only private-image upload/read adapter and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
 | src/components/public | P13 public navigation and footer for guest pages; no authenticated role menu or commerce controls |
 | src/components/ui, src/styles | P04 brand tokens/fonts and native shared controls; root adoption through P34 |
@@ -37,6 +39,15 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 | tests/integration | Synthetic adapter UI/router tests; no real backend or provider |
 | tests/fixtures | Synthetic test-only policy drafts; application code must not import these fixtures |
 | tests/e2e | Reserved; no end-to-end test or claim yet |
+
+The private-image adapter requires the caller to provide and retain an
+`Idempotency-Key` for the complete payload. A retry after an unknown response
+must call `upload(file, { idempotencyKey })` with the same key; a new image
+command must use a new key. The adapter keeps its timeout and caller abort
+signal through JSON/blob body consumption, cancels the response stream on
+interruption, and dispatches the shared `pwc:session-invalidated` event once
+for a 401 unless a consumer injects its own handler. No public object URL is
+created.
 
 ## Integration ports
 
@@ -69,3 +80,8 @@ P04 adds [tokens and usage](../doc/ui-ux/p04-brand-design-system.md), shared UI 
 The `/sitter/availability` page remains explicitly pending without its real API adapter; mounting a route does not prove backend/provider integration. P34 is an iterative integration task; this policy/route mini-gate is not final project acceptance.
 
 P34 now hosts the merged P48 role shell for account and registered Admin/Customer/Sitter pages. Sidebar links point only to registered routes; public pages keep FoundationLayout. The shared shell does not grant server permissions or invent notification destinations.
+
+
+## Đăng ký email và phiên ghi nhớ
+
+Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp nhận hồ sơ](../doc/testing/p34-registration-email-and-session.md). Đăng ký/đăng nhập hiện chỉ dùng OTP email; không bật SMS. Tùy chọn ghi nhớ dành cho Customer/Pet Sitter tối đa 30 ngày; đăng xuất thu hồi phiên phía server.

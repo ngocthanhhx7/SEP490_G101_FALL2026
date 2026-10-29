@@ -1,3 +1,8 @@
+import { pricingRuntimeModule } from './routes/pricing.routes.js';
+import { petCareRuntimeModule } from './routes/pet-care.routes.js';
+import { aiRuntimeModule } from './routes/sitter-recommendations.routes.js';
+import { contactModule } from './routes/contact.routes.js';
+import { serviceCatalogRuntimeModules } from './routes/service-catalog-runtime.js';
 import { customerProfileRuntimeModule } from './routes/customer-profile.routes.js';
 import { applicationStatusModule } from './routes/application-status.routes.js';
 import express from 'express';
@@ -12,9 +17,18 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
+import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 
-export function createApp({ config, connection, lifecycle, portOverrides, moduleFactories = [],
-  logger = () => {}, env = process.env, clock = Date.now }) {
+export function createApp({
+  config,
+  connection,
+  lifecycle,
+  portOverrides,
+  moduleFactories = [],
+  logger = () => {},
+  env = process.env,
+  clock = Date.now
+}) {
   const app = express();
   const basePorts = createPorts();
   const providerPortOverrides = createProviderPortOverrides({
@@ -26,21 +40,49 @@ export function createApp({ config, connection, lifecycle, portOverrides, module
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxyHops);
   app.use(requestId, helmet());
-  app.use(rateLimit({
-    windowMs: config.rateLimitWindowMs, limit: config.rateLimitMax,
-    standardHeaders: 'draft-8', legacyHeaders: false,
-    skip: req => req.path === '/health',
-    handler: (req, res) => res.status(429).json(errorPayload(req, 'RATE_LIMITED', 'Too many requests'))
-  }));
+  app.use(
+    rateLimit({
+      windowMs: config.rateLimitWindowMs,
+      limit: config.rateLimitMax,
+      standardHeaders: 'draft-8',
+      legacyHeaders: false,
+      skip: (req) => req.path === '/health',
+      handler: (req, res) =>
+        res
+          .status(429)
+          .json(errorPayload(req, 'RATE_LIMITED', 'Too many requests'))
+    })
+  );
   app.use(express.json({ limit: '64kb', strict: true }));
-  const context = { config, connection, lifecycle, ports, clock };
+  const context = { config, connection, lifecycle, ports, clock, env };
+  const ai = aiRuntimeModule(context);
+  const pricing = pricingRuntimeModule(context);
+  const petCare = petCareRuntimeModule(context);
   const auth = authenticationModule({ ...context, logger });
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
-  registerModules(app, [healthModule(context), publicPolicyModule(context), ...(auth ? [auth] : []),
-    ...(customerProfile ? [customerProfile] : []), ...(applicationStatus ? [applicationStatus] : []), ...(userAdmin ? [userAdmin] : []),
-    ...moduleFactories.map(factory => factory(context))]);
+  const privateImages = privateImageRuntimeModule(context);
+  const suppliedModules = moduleFactories.map((factory) => factory(context));
+  const catalogModules = serviceCatalogRuntimeModules(context).filter(
+    (module) =>
+      !suppliedModules.some((supplied) => supplied.name === module.name)
+  );
+  registerModules(app, [
+    contactModule(context),
+    healthModule(context),
+    publicPolicyModule(context),
+    ...(auth ? [auth] : []),
+    ...(customerProfile ? [customerProfile] : []),
+    ...(applicationStatus ? [applicationStatus] : []),
+    ...(userAdmin ? [userAdmin] : []),
+    ...(privateImages ? [privateImages] : []),
+    ...catalogModules,
+    ...(pricing ? [pricing] : []),
+    ...(petCare ? [petCare] : []),
+    ...(ai ? [ai] : []),
+    ...suppliedModules
+  ]);
   app.use(notFound, errorHandler(logger));
   return app;
 }

@@ -9,11 +9,13 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
   const [session, setSession] = useState({ status: 'loading' });
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
+  const resolution = useRef(null);
   const adapterRef = useRef(adapter);
   adapterRef.current = adapter;
   useEffect(() => {
     const current = ++generation.current;
     const controller = new AbortController();
+    resolution.current = controller;
     setSession({ status: 'loading' });
     Promise.resolve().then(() => adapter.resolve({ signal: controller.signal }))
       .then((result) => {
@@ -33,6 +35,7 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
   }, [adapter, revision]);
   const invalidate = useCallback(() => {
     ++generation.current;
+    resolution.current?.abort();
     setSession({ status: 'guest' });
   }, []);
   useEffect(() => {
@@ -58,8 +61,10 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
       error.code = 'LOGIN_NOT_AVAILABLE';
       throw error;
     }
+    const current = ++generation.current;
+    resolution.current?.abort();
     const result = await action(input);
-    if (result?.status === 'authenticated') setSession(result);
+    if (generation.current === current && result?.status === 'authenticated') setSession(result);
     return result;
   }, []);
   const logout = useCallback(async () => {
@@ -69,6 +74,8 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
       error.code = 'LOGOUT_NOT_AVAILABLE';
       throw error;
     }
+    ++generation.current;
+    resolution.current?.abort();
     await logoutAction();
     invalidate();
   }, [invalidate]);

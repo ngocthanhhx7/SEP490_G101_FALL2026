@@ -2,6 +2,12 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import './sign-in.css';
+import './auth-public.css';
+
+function destination(user, from) {
+  const roles = user?.roles ?? [user?.role];
+  return roles.includes('CUSTOMER') && !roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role)) ? '/' : (from || '/account');
+}
 
 const CHANNELS = { EMAIL: 'email', PHONE: 'phone' };
 
@@ -29,6 +35,11 @@ export function SignInPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(0);
+  const [rememberDevice, setRememberDevice] = useState(false);
+
+  useEffect(() => {
+    if (session.status === 'authenticated') navigate(destination(session.user, location.state?.from), { replace: true });
+  }, [session.status, session.user, navigate, location.state]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -59,9 +70,9 @@ export function SignInPage() {
     if (!/^\d{6}$/.test(code) || !challengeId) { setError('Nhập đủ 6 chữ số OTP.'); return; }
     setBusy(true);
     try {
-      const result = await session.login({ challengeId, channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: contact.trim(), code });
+      const result = await session.login({ challengeId, channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: contact.trim(), code, rememberDevice });
       if (result?.status !== 'authenticated') { setError('Thông tin chưa được xác thực.'); return; }
-      navigate(location.state?.from || '/account', { replace: true });
+      navigate(destination(result.user, location.state?.from), { replace: true });
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
   }
@@ -84,7 +95,7 @@ export function SignInPage() {
       {step === 'contact' ? <form onSubmit={requestCode} noValidate>
         <fieldset className="sign-in-channel"><legend>Nhận mã bằng</legend>
           <label><input type="radio" name="channel" value="email" checked={channel === CHANNELS.EMAIL} onChange={() => setChannel(CHANNELS.EMAIL)} /> Email</label>
-          <label><input type="radio" name="channel" value="phone" checked={channel === CHANNELS.PHONE} onChange={() => setChannel(CHANNELS.PHONE)} /> Điện thoại</label>
+          <label><input type="radio" name="channel" value="phone" checked={false} disabled /> SMS — chưa khả dụng</label>
         </fieldset>
         <label className="sign-in-field"><span>{channel === CHANNELS.EMAIL ? 'Email' : 'Số điện thoại'}</span>
           <input autoComplete={channel === CHANNELS.EMAIL ? 'email' : 'tel'} value={contact} onChange={event => setContact(event.target.value)} required />
@@ -92,11 +103,13 @@ export function SignInPage() {
         {error && <p className="sign-in-error" role="alert">{error}</p>}
         <button type="submit" disabled={busy}>{busy ? 'Đang gửi mã…' : 'Gửi mã OTP'}</button>
       </form> : <form onSubmit={verifyCode} noValidate>
-        <p className="sign-in-sent">Mã đã gửi tới <strong>{contact}</strong>.</p>
+        <p className="sign-in-sent">Yêu cầu gửi mã tới <strong>{contact}</strong> đã được tiếp nhận. Vui lòng kiểm tra hộp thư và thư rác.</p>
         <label className="sign-in-field"><span>Mã OTP 6 chữ số</span>
           <input inputMode="numeric" autoComplete="one-time-code" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required maxLength={6} />
         </label>
         {error && <p className="sign-in-error" role="alert">{error}</p>}
+        <label className="sign-in-remember"><input type="checkbox" checked={rememberDevice} onChange={event => setRememberDevice(event.target.checked)} /> Không hỏi lại trên thiết bị này trong 30 ngày</label>
+        <p className="sign-in-trust-hint">Chỉ chọn trên thiết bị cá nhân. Đăng xuất hoặc tài khoản bị khóa sẽ kết thúc phiên; tài khoản quản trị vẫn giới hạn 12 giờ.</p>
         <button type="submit" disabled={busy || code.length !== 6}>{busy ? 'Đang xác thực…' : 'Xác thực & đăng nhập'}</button>
         <div className="sign-in-actions"><button type="button" className="sign-in-link" onClick={() => { setStep('contact'); setCode(''); setError(''); }}>Đổi liên hệ</button>
           <button type="button" className="sign-in-link" onClick={resend} disabled={busy || cooldown > 0}>{cooldown > 0 ? `Gửi lại sau ${cooldown}s` : 'Gửi lại mã'}</button></div>

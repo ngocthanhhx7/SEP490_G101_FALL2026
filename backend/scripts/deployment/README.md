@@ -1,19 +1,34 @@
-# EC2 operations
+﻿# Deployment tools
 
-Root-only host bootstrap and release scripts for the shared backend/frontend EC2
-deployment. See [deployment runbook](../../../doc/deployment/ec2-production.md).
+Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
+`check-private-media-memory.py` and its adjacent `.mjs` are isolated Linux
+diagnostics, not application startup code. The Python runner requires a built
+full-SHA application image, root Docker access and spare RAM; it creates a unique
+internal network and temporary Mongo/Node containers without production env,
+volumes or published ports. It removes only those generated resources afterward.
+See the [memory evidence and limits](../../../doc/deployment/aws/r2-private-media.md).
+The adjacent `../test-esms.js` is an operator-only, one-request transport smoke test:
+from `backend/`, run `node --env-file-if-exists=.env scripts/test-esms.js --sandbox`
+with `ESMS_TEST_PHONE` in a private environment. `--live` sends a real SMS and requires
+authorization for that recipient. Do not rerun after acceptance/timeout just because
+the handset has not received a message; check the provider delivery record first.
+Optional `ESMS_TEST_RECEIPT` writes a private, exclusive receipt without OTP/phone;
+keep it outside Git. This script does not enable SMS registration/login in the UI.
 
-- `bootstrap-ec2.py`: retain/generate host secrets and initialise authenticated
-  loopback MongoDB replica set; no customer/demo fixtures.
-- `Dockerfile`: pinned production Node image and production dependencies only.
-- `ensure-indexes.js`: initialise runtime model indexes without opening HTTP.
-- `activate-release.py`: validate full-SHA release, prepare inactive API slot,
-  verify readiness, switch web frontend/API together and retain rollback metadata.
-- `start-web.py`, `Caddyfile`: validated Caddy configuration, trusted Cloudflare
-  client addresses and persistent automatic HTTPS certificates.
-- `backup-mongo.sh`, service/timer: root-only oplog archives with local retention.
+From `backend/`, run `node --env-file-if-exists=.env scripts/deployment/staging-preflight.js`.
+Use a private, ignored staging `.env` or the hosting secret store. Output contains field names
+and an offline validation status only; exit 1 blocks invalid input. This command does not start
+the app, connect to MongoDB, send OTP, enable a scheduler or certify deployment readiness.
 
-Run scripts only for the user's explicitly selected environment. Live `.env`,
-private keys, certificates, volumes and backups never belong in this directory
-or Git. A generated secret is not a provider credential; disabled SMTP/R2 must
-not be reported as operational.
+The validator reuses runtime configuration and adds the P35 staging policy: production security
+mode, IPv4 loopback behind a local proxy or managed-host wildcard bind, separate `*_staging` database, explicit disabled development seed,
+enabled email delivery, separate auth keys and TLS without weakened certificate validation.
+Set `STAGING_MONGO_TOPOLOGY=remote` for a TLS-validated remote replica set. The explicit
+`local-ec2` option accepts only authenticated `mongodb://` replica-set URIs whose every
+host is the literal `127.0.0.1` or `::1`; it does not accept network hosts or mixed URIs.
+Registration and login currently require email; SMS alone cannot satisfy that gate. Real email
+delivery must still pass the integration gate. `TRUST_PROXY_HOPS` remains a measured topology decision.
+
+See [staging runbook](../../../doc/deployment/p35-staging-runbook.md) and
+[verification matrix](../../../doc/deployment/p35-verification.md). P34 owns changes to
+runtime registration, manifests and shared auth/proxy configuration.

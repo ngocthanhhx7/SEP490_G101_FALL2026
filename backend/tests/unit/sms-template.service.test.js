@@ -24,9 +24,17 @@ describe('SMS OTP template and Vietnam phone normalization', () => {
     const result = renderSms(command(), NOW);
     expect(result).toMatchObject({ to: '+84901234567', operationId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', purpose: 'LOGIN' });
     expect(result.content).toContain('012345');
-    expect(result.content).toContain('Expires in 5 minutes');
+    expect(result.content).toBe('Ma xac nhan cua ban la 012345');
     expect(result.content).toMatch(/^[\x20-\x7e]+$/);
     expect(result.content.length).toBeLessThan(160);
+  });
+
+  test('uses the approved configured text exactly, replacing only the OTP', () => {
+    expect(renderSms(command(), NOW, '{code} la ma xac minh dang ky Baotrixemay cua ban').content)
+      .toBe('012345 la ma xac minh dang ky Baotrixemay cua ban');
+    for (const template of ['missing code', '{code}{code}', '{code} {other}', '{code}\ninvalid']) {
+      expect(renderSms(command(), NOW, template).error).toBe('INVALID_REQUEST');
+    }
   });
 
   test('rejects wrong channel, wrong purpose and invalid OTP shape', () => {

@@ -5,17 +5,30 @@ import { normalizeDispatchRequest } from '../services/dispatch.service.js';
 const ISO_WITH_ZONE = /(?:Z|[+-]\d{2}:\d{2})$/i;
 const MAX_VISITS_PER_RUN = 100;
 const MAX_CANDIDATES = 100;
-const DISPATCHABLE_STATES = new Set(['DISPATCH_PENDING', 'READY_FOR_DISPATCH', 'AWAITING_SITTER']);
+const DISPATCHABLE_STATES = new Set([
+  'DISPATCH_PENDING',
+  'READY_FOR_DISPATCH',
+  'AWAITING_SITTER'
+]);
 
 function asOfInstant(value) {
-  if (value instanceof Date && Number.isFinite(value.getTime())) return new Date(value.getTime());
-  if (typeof value === 'number' && Number.isFinite(value)) return new Date(value);
-  if (typeof value === 'string' && ISO_WITH_ZONE.test(value) && Number.isFinite(Date.parse(value))) return new Date(Date.parse(value));
+  if (value instanceof Date && Number.isFinite(value.getTime()))
+    return new Date(value.getTime());
+  if (typeof value === 'number' && Number.isFinite(value))
+    return new Date(value);
+  if (
+    typeof value === 'string' &&
+    ISO_WITH_ZONE.test(value) &&
+    Number.isFinite(Date.parse(value))
+  )
+    return new Date(Date.parse(value));
   throw new TypeError('clock must return a valid timezone-aware instant');
 }
 
 function dispatchKey(visitId, dispatchSequence, sitterId) {
-  const digest = createHash('sha256').update(`${visitId}\n${dispatchSequence}\n${sitterId}`).digest('hex');
+  const digest = createHash('sha256')
+    .update(`${visitId}\n${dispatchSequence}\n${sitterId}`)
+    .digest('hex');
   return `auto-assignment:v1:${digest}`;
 }
 
@@ -25,21 +38,39 @@ function safeOffer(result, fallback) {
   const id = offer.id ?? offer.offerId;
   const visitId = offer.visitId ?? fallback.visitId;
   const sitterId = offer.sitterId ?? fallback.sitterId;
-  if (typeof id !== 'string' || typeof visitId !== 'string' || typeof sitterId !== 'string') return null;
+  if (
+    typeof id !== 'string' ||
+    typeof visitId !== 'string' ||
+    typeof sitterId !== 'string'
+  )
+    return null;
   return Object.freeze({
-    id, visitId, sitterId,
+    id,
+    visitId,
+    sitterId,
     state: typeof offer.state === 'string' ? offer.state : 'PENDING',
     deadline: offer.deadline ?? null,
-    dispatchSequence: offer.dispatchSequence ?? fallback.dispatchSequence,
+    dispatchSequence: offer.dispatchSequence ?? fallback.dispatchSequence
   });
 }
 
 function isDispatchableVisit(visit) {
   if (!visit || typeof visit !== 'object' || Array.isArray(visit)) return false;
-  if (visit.directed === true || visit.dispatchMode === 'DIRECTED' || visit.requestedSitterId) return false;
-  if (visit.dispatchAllowed === false || visit.paymentStatus === 'PAYMENT_REQUIRED') return false;
-  if (visit.paymentRequired === true && visit.paymentStatus !== 'PAID') return false;
-  if (visit.state !== undefined && !DISPATCHABLE_STATES.has(visit.state)) return false;
+  if (
+    visit.directed === true ||
+    visit.dispatchMode === 'DIRECTED' ||
+    visit.requestedSitterId
+  )
+    return false;
+  if (
+    visit.dispatchAllowed === false ||
+    visit.paymentStatus === 'PAYMENT_REQUIRED'
+  )
+    return false;
+  if (visit.paymentRequired === true && visit.paymentStatus !== 'PAID')
+    return false;
+  if (visit.state !== undefined && !DISPATCHABLE_STATES.has(visit.state))
+    return false;
   return typeof (visit.visitId ?? visit.id) === 'string';
 }
 
@@ -49,23 +80,43 @@ function isDispatchableVisit(visit) {
  * acquire the P01 eligibility + occupancy guards, and atomically deduplicate
  * the generated idempotency key with creation of one pending Offer.
  */
-export function createAutoAssignmentJob({ repository, dispatchService, clock = () => new Date(), limit = MAX_VISITS_PER_RUN } = {}) {
-  if (typeof repository?.findDispatchableVisits !== 'function'
-    || typeof repository?.createOfferAtomically !== 'function'
-    || typeof dispatchService?.suggest !== 'function'
-    || typeof clock !== 'function') {
-    throw new TypeError('Auto-assignment repository, dispatch service and clock ports are required');
+export function createAutoAssignmentJob({
+  repository,
+  dispatchService,
+  clock = () => new Date(),
+  limit = MAX_VISITS_PER_RUN
+} = {}) {
+  if (
+    typeof repository?.findDispatchableVisits !== 'function' ||
+    typeof repository?.createOfferAtomically !== 'function' ||
+    typeof dispatchService?.suggest !== 'function' ||
+    typeof clock !== 'function'
+  ) {
+    throw new TypeError(
+      'Auto-assignment repository, dispatch service and clock ports are required'
+    );
   }
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_VISITS_PER_RUN) {
-    throw new TypeError(`Auto-assignment limit must be between 1 and ${MAX_VISITS_PER_RUN}`);
+    throw new TypeError(
+      `Auto-assignment limit must be between 1 and ${MAX_VISITS_PER_RUN}`
+    );
   }
 
   let inFlight;
 
   async function run() {
     const asOf = asOfInstant(clock());
-    const visits = await repository.findDispatchableVisits({ asOf: asOf.toISOString(), limit });
-    if (!Array.isArray(visits)) throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Dispatch queue is unavailable');
+    const visits = await repository.findDispatchableVisits({
+      asOf: asOf.toISOString(),
+      limit
+    });
+    if (!Array.isArray(visits) || visits.length > limit) {
+      throw new AppError(
+        503,
+        'DISPATCH_UNAVAILABLE',
+        'Dispatch queue is unavailable'
+      );
+    }
 
     let queried = visits.length;
     let created = 0;
@@ -80,8 +131,11 @@ export function createAutoAssignmentJob({ repository, dispatchService, clock = (
         continue;
       }
       const visitId = visit.visitId ?? visit.id;
-      const dispatchSequence = Number.isSafeInteger(visit.dispatchSequence) && visit.dispatchSequence >= 0
-        ? visit.dispatchSequence : 0;
+      const dispatchSequence =
+        Number.isSafeInteger(visit.dispatchSequence) &&
+        visit.dispatchSequence >= 0
+          ? visit.dispatchSequence
+          : 0;
       let request;
       try {
         request = normalizeDispatchRequest({ ...visit, visitId });
@@ -92,7 +146,12 @@ export function createAutoAssignmentJob({ repository, dispatchService, clock = (
 
       try {
         const suggestion = await dispatchService.suggest({
-          request, candidates: visit.candidates, limit: Math.min(visit.candidateLimit ?? MAX_CANDIDATES, MAX_CANDIDATES)
+          request,
+          candidates: visit.candidates,
+          limit: Math.min(
+            visit.candidateLimit ?? MAX_CANDIDATES,
+            MAX_CANDIDATES
+          )
         });
         if (!suggestion?.selected?.length) {
           skipped += 1;
@@ -102,17 +161,33 @@ export function createAutoAssignmentJob({ repository, dispatchService, clock = (
         const sitterId = selected.sitterId;
         const idempotencyKey = dispatchKey(visitId, dispatchSequence, sitterId);
         const result = await repository.createOfferAtomically({
-          visitId, sitterId, dispatchSequence, idempotencyKey,
+          visitId,
+          sitterId,
+          dispatchSequence,
+          idempotencyKey,
           asOf: asOf.toISOString(),
-          explanation: Array.isArray(selected.reasons) ? [...selected.reasons] : [],
+          explanation: Array.isArray(selected.reasons)
+            ? [...selected.reasons]
+            : [],
           rankingSource: suggestion.rankingSource ?? 'DETERMINISTIC_RULES'
         });
         if (result?.status === 'CREATED') {
-          const offer = safeOffer(result, { visitId, sitterId, dispatchSequence });
-          if (!offer) { failed += 1; continue; }
+          const offer = safeOffer(result, {
+            visitId,
+            sitterId,
+            dispatchSequence
+          });
+          if (!offer) {
+            failed += 1;
+            continue;
+          }
           offers.push(offer);
           created += 1;
-        } else if (result?.status === 'ALREADY_EXISTS' || result?.status === 'SKIPPED' || result?.status === 'STALE') {
+        } else if (
+          result?.status === 'ALREADY_EXISTS' ||
+          result?.status === 'SKIPPED' ||
+          result?.status === 'STALE'
+        ) {
           alreadyHandled += 1;
         } else {
           // Unknown repository outcomes must not be counted as a successful offer.
@@ -124,13 +199,22 @@ export function createAutoAssignmentJob({ repository, dispatchService, clock = (
       }
     }
 
-    return Object.freeze({ queried, created, alreadyHandled, skipped, failed, offers: Object.freeze(offers) });
+    return Object.freeze({
+      queried,
+      created,
+      alreadyHandled,
+      skipped,
+      failed,
+      offers: Object.freeze(offers)
+    });
   }
 
   return Object.freeze({
     runOnce() {
       if (inFlight) return inFlight;
-      inFlight = run().finally(() => { inFlight = undefined; });
+      inFlight = run().finally(() => {
+        inFlight = undefined;
+      });
       return inFlight;
     }
   });

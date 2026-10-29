@@ -1,3 +1,3 @@
-# Brand styles
+# Shared styles
 
-Import index.css once to load tokens, all static font faces, base typography/focus and UI component classes. Tokens/fonts/base belong to P04. All component classes use pwc-; consumers should use variables instead of copying values. Read [design system](../../../doc/ui-ux/p04-brand-design-system.md) for source/contrast/weight and usage constraints. Dark mode has not been designed or declared. Root integration belongs to P34; the separate manual fixture already imports this entry.
+Shared resets, tokens and site-wide styles belong here. `public-site.css` supplies public site/layout styles; `public-pages.css` supplies shared public page styling. Preserve stylesheet import order when moving CSS. Component-specific CSS may remain with its owning component/page, such as AvatarMenu or AdminUsersPage.

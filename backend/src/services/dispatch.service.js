@@ -46,16 +46,23 @@ function parseInstant(value, field) {
     failValidation(`${field} must include a timezone offset`);
   }
   const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp)) failValidation(`${field} must be a valid instant`);
+  if (!Number.isFinite(timestamp))
+    failValidation(`${field} must be a valid instant`);
   return new Date(timestamp);
 }
 
 function localDateForInstant(instant, zone = PAW_WORLD_CARE_TIME_ZONE) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit'
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
   }).formatToParts(instant);
-  const values = Object.fromEntries(parts.filter(part => part.type !== 'literal')
-    .map(part => [part.type, part.value]));
+  const values = Object.fromEntries(
+    parts
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value])
+  );
   return `${values.year}-${values.month}-${values.day}`;
 }
 
@@ -77,7 +84,11 @@ function nestedArrayValue(candidate, keys) {
 
 function normalizeTokenSet(values) {
   if (!Array.isArray(values)) return null;
-  return new Set(values.filter(value => typeof value === 'string').map(value => value.trim().toLowerCase()));
+  return new Set(
+    values
+      .filter((value) => typeof value === 'string')
+      .map((value) => value.trim().toLowerCase())
+  );
 }
 
 function normalizeBoolean(value) {
@@ -89,7 +100,9 @@ function statusValue(candidate) {
   if (sitterStatus && typeof sitterStatus === 'object') {
     return sitterStatus.status ?? sitterStatus.state ?? null;
   }
-  return sitterStatus ?? candidate?.operationalStatus ?? candidate?.status ?? null;
+  return (
+    sitterStatus ?? candidate?.operationalStatus ?? candidate?.status ?? null
+  );
 }
 
 function userStateValue(candidate) {
@@ -99,31 +112,44 @@ function userStateValue(candidate) {
 }
 
 function approvalValue(candidate) {
-  if (candidate?.approved !== undefined) return normalizeBoolean(candidate.approved);
-  if (candidate?.eligibility?.approved !== undefined) return normalizeBoolean(candidate.eligibility.approved);
-  if (candidate?.applicationState !== undefined) return candidate.applicationState === 'APPROVED';
-  if (candidate?.sitterStatus && typeof candidate.sitterStatus === 'object'
-    && candidate.sitterStatus.approved !== undefined) return normalizeBoolean(candidate.sitterStatus.approved);
+  if (candidate?.approved !== undefined)
+    return normalizeBoolean(candidate.approved);
+  if (candidate?.eligibility?.approved !== undefined)
+    return normalizeBoolean(candidate.eligibility.approved);
+  if (candidate?.applicationState !== undefined)
+    return candidate.applicationState === 'APPROVED';
+  if (
+    candidate?.sitterStatus &&
+    typeof candidate.sitterStatus === 'object' &&
+    candidate.sitterStatus.approved !== undefined
+  )
+    return normalizeBoolean(candidate.sitterStatus.approved);
   return null;
 }
 
 function activeValue(candidate) {
-  if (candidate?.active !== undefined) return normalizeBoolean(candidate.active);
+  if (candidate?.active !== undefined)
+    return normalizeBoolean(candidate.active);
   const status = statusValue(candidate);
   if (status !== null) return status === 'ACTIVE';
   return null;
 }
 
 function availabilityValue(candidate) {
-  if (candidate?.available !== undefined) return normalizeBoolean(candidate.available);
-  if (candidate?.isAvailable !== undefined) return normalizeBoolean(candidate.isAvailable);
-  if (candidate?.availability?.available !== undefined) return normalizeBoolean(candidate.availability.available);
+  if (candidate?.available !== undefined)
+    return normalizeBoolean(candidate.available);
+  if (candidate?.isAvailable !== undefined)
+    return normalizeBoolean(candidate.isAvailable);
+  if (candidate?.availability?.available !== undefined)
+    return normalizeBoolean(candidate.availability.available);
   return null;
 }
 
 function conflictValue(candidate) {
-  if (candidate?.hasConflict !== undefined) return normalizeBoolean(candidate.hasConflict);
-  if (candidate?.conflict !== undefined) return normalizeBoolean(candidate.conflict);
+  if (candidate?.hasConflict !== undefined)
+    return normalizeBoolean(candidate.hasConflict);
+  if (candidate?.conflict !== undefined)
+    return normalizeBoolean(candidate.conflict);
   const conflicts = candidate?.conflicts ?? candidate?.availability?.conflicts;
   if (Array.isArray(conflicts)) return conflicts.length > 0;
   if (candidate?.conflictChecked === true) return false;
@@ -131,9 +157,13 @@ function conflictValue(candidate) {
 }
 
 function dayOffValue(candidate, localDate) {
-  if (candidate?.isDayOff !== undefined) return normalizeBoolean(candidate.isDayOff);
-  if (candidate?.dayOff !== undefined) return normalizeBoolean(candidate.dayOff);
-  const days = arrayValue(candidate, ['dayOffDates']) ?? nestedArrayValue(candidate, ['dayOffDates']);
+  if (candidate?.isDayOff !== undefined)
+    return normalizeBoolean(candidate.isDayOff);
+  if (candidate?.dayOff !== undefined)
+    return normalizeBoolean(candidate.dayOff);
+  const days =
+    arrayValue(candidate, ['dayOffDates']) ??
+    nestedArrayValue(candidate, ['dayOffDates']);
   if (days) return days.includes(localDate);
   return null;
 }
@@ -143,7 +173,12 @@ function candidateId(candidate) {
 }
 
 function validNumber(value, min = 0, max = Number.MAX_SAFE_INTEGER) {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max;
+  return (
+    typeof value === 'number' &&
+    Number.isFinite(value) &&
+    value >= min &&
+    value <= max
+  );
 }
 
 function metric(candidate, key, nestedKeys = []) {
@@ -157,8 +192,10 @@ function metric(candidate, key, nestedKeys = []) {
 function normalizeRating(candidate) {
   const value = candidate?.rating ?? candidate?.ratingSummary?.averageRating;
   const count = candidate?.ratingCount ?? candidate?.ratingSummary?.count;
-  if (!validNumber(value, MIN_RATING, MAX_RATING)) return { value: null, count: null };
-  if (count !== undefined && !validNumber(count, 0)) return { value: null, count: null };
+  if (!validNumber(value, MIN_RATING, MAX_RATING))
+    return { value: null, count: null };
+  if (count !== undefined && !validNumber(count, 0))
+    return { value: null, count: null };
   return { value, count: count ?? null };
 }
 
@@ -166,8 +203,13 @@ function safeCandidateView(candidate, request) {
   const sitterId = candidateId(candidate);
   const rating = normalizeRating(candidate);
   const distanceKm = metric(candidate, 'distanceKm', ['distance']);
-  const workload = metric(candidate, 'activeWorkload', ['workload', 'currentWorkload']);
-  const slotMatch = candidate?.slotMatch === true || candidate?.availability?.slotMatch === true;
+  const workload = metric(candidate, 'activeWorkload', [
+    'workload',
+    'currentWorkload'
+  ]);
+  const slotMatch =
+    candidate?.slotMatch === true ||
+    candidate?.availability?.slotMatch === true;
   return Object.freeze({
     sitterId: String(sitterId),
     serviceId: request.serviceId,
@@ -176,7 +218,7 @@ function safeCandidateView(candidate, request) {
     rating: rating.value,
     ratingCount: rating.count,
     workload,
-    slotMatch,
+    slotMatch
   });
 }
 
@@ -185,35 +227,72 @@ function safeCandidateView(candidate, request) {
  * an input snapshot: the P51 integration decides when dispatch is allowed.
  */
 export function normalizeDispatchRequest(request) {
-  if (!request || typeof request !== 'object' || Array.isArray(request)) failValidation();
-  const serviceId = asIdentifier(request.serviceId ?? request.serviceCode, 'serviceId');
-  const areaCode = asIdentifier(request.areaCode ?? request.workAreaCode, 'areaCode');
+  if (!request || typeof request !== 'object' || Array.isArray(request))
+    failValidation();
+  const serviceId = asIdentifier(
+    request.serviceId ?? request.serviceCode,
+    'serviceId'
+  );
+  const areaCode = asIdentifier(
+    request.areaCode ?? request.workAreaCode,
+    'areaCode'
+  );
   const startAt = parseInstant(request.startAt, 'startAt');
   const endAt = parseInstant(request.endAt, 'endAt');
-  if (endAt.getTime() <= startAt.getTime()) failValidation('endAt must follow startAt');
+  if (endAt.getTime() <= startAt.getTime())
+    failValidation('endAt must follow startAt');
   const derivedLocalDate = localDateForInstant(startAt);
-  const localDate = typeof request.localDate === 'string' ? request.localDate : derivedLocalDate;
-  if (!DATE_ONLY.test(localDate)) failValidation('localDate must use YYYY-MM-DD');
-  if (localDate !== derivedLocalDate) failValidation('localDate must match startAt in the service timezone');
+  const localDate =
+    typeof request.localDate === 'string'
+      ? request.localDate
+      : derivedLocalDate;
+  if (!DATE_ONLY.test(localDate))
+    failValidation('localDate must use YYYY-MM-DD');
+  if (localDate !== derivedLocalDate)
+    failValidation('localDate must match startAt in the service timezone');
 
   if (request.dispatchAllowed === false) {
-    failDispatch('DISPATCH_NOT_ALLOWED', 'This visit is not eligible for dispatch');
+    failDispatch(
+      'DISPATCH_NOT_ALLOWED',
+      'This visit is not eligible for dispatch'
+    );
   }
   const paymentRequired = request.paymentRequired === true;
-  const paymentStatus = request.paymentStatus ?? request.payment?.status ?? null;
-  if (paymentRequired && request.dispatchAllowed !== true && !['PAID', 'VERIFIED'].includes(paymentStatus)) {
-    failDispatch('PAYMENT_REQUIRED', 'Payment must be verified before dispatch');
+  const paymentStatus =
+    request.paymentStatus ?? request.payment?.status ?? null;
+  if (
+    paymentRequired &&
+    request.dispatchAllowed !== true &&
+    !['PAID', 'VERIFIED'].includes(paymentStatus)
+  ) {
+    failDispatch(
+      'PAYMENT_REQUIRED',
+      'Payment must be verified before dispatch'
+    );
   }
 
   return Object.freeze({
-    visitId: request.visitId === undefined || request.visitId === null ? null : asIdentifier(request.visitId, 'visitId'),
-    bookingId: request.bookingId === undefined || request.bookingId === null ? null : asIdentifier(request.bookingId, 'bookingId'),
-    serviceId, areaCode, startAt, endAt, localDate,
+    visitId:
+      request.visitId === undefined || request.visitId === null
+        ? null
+        : asIdentifier(request.visitId, 'visitId'),
+    bookingId:
+      request.bookingId === undefined || request.bookingId === null
+        ? null
+        : asIdentifier(request.bookingId, 'bookingId'),
+    serviceId,
+    areaCode,
+    startAt,
+    endAt,
+    localDate,
     dispatchAllowed: request.dispatchAllowed !== false,
     paymentStatus,
     paymentRequired,
-    requestedSitterId: request.requestedSitterId === undefined || request.requestedSitterId === null
-      ? null : asIdentifier(request.requestedSitterId, 'requestedSitterId'),
+    requestedSitterId:
+      request.requestedSitterId === undefined ||
+      request.requestedSitterId === null
+        ? null
+        : asIdentifier(request.requestedSitterId, 'requestedSitterId')
   });
 }
 
@@ -228,31 +307,57 @@ function gate(reason, detail = undefined) {
  */
 export function evaluateCandidate(candidate, request) {
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
-    return Object.freeze({ eligible: false, reasons: [gate('CANDIDATE_INVALID')] });
+    return Object.freeze({
+      eligible: false,
+      reasons: [gate('CANDIDATE_INVALID')]
+    });
   }
   const sitterId = candidateId(candidate);
   if (typeof sitterId !== 'string' || !IDENTIFIER.test(sitterId.trim())) {
-    return Object.freeze({ eligible: false, reasons: [gate('SITTER_ID_UNAVAILABLE')] });
+    return Object.freeze({
+      eligible: false,
+      reasons: [gate('SITTER_ID_UNAVAILABLE')]
+    });
   }
-  const context = request?.serviceId && request?.startAt instanceof Date
-    && request?.endAt instanceof Date && typeof request?.localDate === 'string'
-    ? request : normalizeDispatchRequest(request);
+  const context =
+    request?.serviceId &&
+    request?.startAt instanceof Date &&
+    request?.endAt instanceof Date &&
+    typeof request?.localDate === 'string'
+      ? request
+      : normalizeDispatchRequest(request);
   const reasons = [];
   const approved = approvalValue(candidate);
-  if (approved !== true) reasons.push(approved === false ? 'NOT_APPROVED' : 'APPROVAL_UNKNOWN');
+  if (approved !== true)
+    reasons.push(approved === false ? 'NOT_APPROVED' : 'APPROVAL_UNKNOWN');
 
   const active = activeValue(candidate);
   const userState = userStateValue(candidate);
-  if (active !== true || (userState !== null && userState !== 'ACTIVE')) reasons.push('NOT_ACTIVE');
+  if (active !== true || (userState !== null && userState !== 'ACTIVE'))
+    reasons.push('NOT_ACTIVE');
 
-  const services = normalizeTokenSet(arrayValue(candidate, ['serviceIds', 'serviceCodes', 'services', 'eligibleServices']));
-  if (!services || !services.has(context.serviceId.toLowerCase())) reasons.push(services ? 'SERVICE_MISMATCH' : 'SERVICE_DATA_UNAVAILABLE');
+  const services = normalizeTokenSet(
+    arrayValue(candidate, [
+      'serviceIds',
+      'serviceCodes',
+      'services',
+      'eligibleServices'
+    ])
+  );
+  if (!services || !services.has(context.serviceId.toLowerCase()))
+    reasons.push(services ? 'SERVICE_MISMATCH' : 'SERVICE_DATA_UNAVAILABLE');
 
-  const areas = normalizeTokenSet(arrayValue(candidate, ['workAreas', 'areaCodes', 'areas', 'coverageAreas']));
-  if (!areas || !areas.has(context.areaCode.toLowerCase())) reasons.push(areas ? 'AREA_MISMATCH' : 'AREA_DATA_UNAVAILABLE');
+  const areas = normalizeTokenSet(
+    arrayValue(candidate, ['workAreas', 'areaCodes', 'areas', 'coverageAreas'])
+  );
+  if (!areas || !areas.has(context.areaCode.toLowerCase()))
+    reasons.push(areas ? 'AREA_MISMATCH' : 'AREA_DATA_UNAVAILABLE');
 
   const available = availabilityValue(candidate);
-  if (available !== true) reasons.push(available === false ? 'NOT_AVAILABLE' : 'AVAILABILITY_UNKNOWN');
+  if (available !== true)
+    reasons.push(
+      available === false ? 'NOT_AVAILABLE' : 'AVAILABILITY_UNKNOWN'
+    );
   const isDayOff = dayOffValue(candidate, context.localDate);
   if (isDayOff === true) reasons.push('DAY_OFF');
   else if (isDayOff === null) reasons.push('DAY_OFF_STATUS_UNKNOWN');
@@ -260,13 +365,27 @@ export function evaluateCandidate(candidate, request) {
   if (hasConflict === true) reasons.push('VISIT_CONFLICT');
   else if (hasConflict === null) reasons.push('CONFLICT_STATUS_UNKNOWN');
 
-  if (context.requestedSitterId && sitterId.trim() !== context.requestedSitterId) reasons.push('NOT_REQUESTED_SITTER');
-  if (reasons.length) return Object.freeze({ eligible: false, sitterId: sitterId.trim(), reasons });
+  if (
+    context.requestedSitterId &&
+    sitterId.trim() !== context.requestedSitterId
+  )
+    reasons.push('NOT_REQUESTED_SITTER');
+  if (reasons.length)
+    return Object.freeze({
+      eligible: false,
+      sitterId: sitterId.trim(),
+      reasons
+    });
 
   const safe = safeCandidateView(candidate, context);
   const explanations = [
-    'ACTIVE_SITTER', 'APPROVED', 'SERVICE_MATCH', 'AREA_MATCH', 'SLOT_AVAILABLE',
-    'NO_DAY_OFF', 'NO_VISIT_CONFLICT'
+    'ACTIVE_SITTER',
+    'APPROVED',
+    'SERVICE_MATCH',
+    'AREA_MATCH',
+    'SLOT_AVAILABLE',
+    'NO_DAY_OFF',
+    'NO_VISIT_CONFLICT'
   ];
   if (safe.slotMatch) explanations.push('SCHEDULE_MATCH');
   if (safe.distanceKm !== null) explanations.push('DISTANCE_AVAILABLE');
@@ -274,7 +393,12 @@ export function evaluateCandidate(candidate, request) {
   else explanations.push('NEW_OR_UNRATED_SITTER');
   if (safe.workload !== null) explanations.push('WORKLOAD_AVAILABLE');
   else explanations.push('WORKLOAD_UNKNOWN');
-  return Object.freeze({ eligible: true, sitterId: sitterId.trim(), candidate: safe, explanations });
+  return Object.freeze({
+    eligible: true,
+    sitterId: sitterId.trim(),
+    candidate: safe,
+    explanations
+  });
 }
 
 function rankingKey(decision) {
@@ -296,8 +420,8 @@ function rankingKey(decision) {
 }
 
 function compareKeys(left, right) {
-  const a = rankingKey(left);
-  const b = rankingKey(right);
+  const a = left.key;
+  const b = right.key;
   for (let index = 0; index < a.length; index += 1) {
     if (a[index] < b[index]) return -1;
     if (a[index] > b[index]) return 1;
@@ -309,12 +433,31 @@ function compareKeys(left, right) {
  * Apply hard gates, then deterministic ordering. No aggregate score is
  * returned: each result retains the dimensions that explain its position.
  */
-export function rankEligibleCandidates({ request, candidates, limit = DEFAULT_DISPATCH_LIMIT } = {}) {
-  const context = request?.serviceId && request?.startAt instanceof Date
-    ? request : normalizeDispatchRequest(request);
-  if (!Array.isArray(candidates)) failValidation('Candidate records are unavailable');
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_DISPATCH_CANDIDATES) {
-    failValidation(`Candidate limit must be between 1 and ${MAX_DISPATCH_CANDIDATES}`);
+export function rankEligibleCandidates({
+  request,
+  candidates,
+  limit = DEFAULT_DISPATCH_LIMIT
+} = {}) {
+  const context =
+    request?.serviceId && request?.startAt instanceof Date
+      ? request
+      : normalizeDispatchRequest(request);
+  if (
+    !Array.isArray(candidates) ||
+    candidates.length > MAX_DISPATCH_CANDIDATES
+  ) {
+    failValidation(
+      `Candidate records must be bounded to ${MAX_DISPATCH_CANDIDATES}`
+    );
+  }
+  if (
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > MAX_DISPATCH_CANDIDATES
+  ) {
+    failValidation(
+      `Candidate limit must be between 1 and ${MAX_DISPATCH_CANDIDATES}`
+    );
   }
 
   const eligible = [];
@@ -324,21 +467,30 @@ export function rankEligibleCandidates({ request, candidates, limit = DEFAULT_DI
     const decision = evaluateCandidate(candidate, context);
     if (decision.sitterId && seen.has(decision.sitterId)) continue;
     if (decision.sitterId) seen.add(decision.sitterId);
-    if (decision.eligible) eligible.push(decision);
-    else excluded.push(Object.freeze({ sitterId: decision.sitterId ?? null, reasons: [...decision.reasons] }));
+    if (decision.eligible)
+      eligible.push({ ...decision, key: rankingKey(decision) });
+    else
+      excluded.push(
+        Object.freeze({
+          sitterId: decision.sitterId ?? null,
+          reasons: [...decision.reasons]
+        })
+      );
   }
   eligible.sort(compareKeys);
-  const selected = eligible.slice(0, limit).map((decision, index) => Object.freeze({
-    rank: index + 1,
-    sitterId: decision.sitterId,
-    reasons: Object.freeze([...decision.explanations]),
-    ...decision.candidate
-  }));
+  const selected = eligible.slice(0, limit).map((decision, index) =>
+    Object.freeze({
+      rank: index + 1,
+      sitterId: decision.sitterId,
+      reasons: Object.freeze([...decision.explanations]),
+      ...decision.candidate
+    })
+  );
   return Object.freeze({
     rankingSource: 'DETERMINISTIC_RULES',
     selected: Object.freeze(selected),
     eligibleCount: eligible.length,
-    excluded: Object.freeze(excluded),
+    excluded: Object.freeze(excluded)
   });
 }
 
@@ -347,43 +499,130 @@ export function rankEligibleCandidates({ request, candidates, limit = DEFAULT_DI
  * bounded, already-authorized projections; the service never receives pet
  * profile or private address data from a caller-facing route.
  */
-export function createSitterDispatchService({ listCandidates, ranker = null } = {}) {
-  if (typeof listCandidates !== 'function') throw new TypeError('A candidate repository port is required');
-  if (ranker !== null && typeof ranker !== 'function') throw new TypeError('ranker must be a function');
+export function createSitterDispatchService({
+  listCandidates,
+  ranker = null,
+  candidateTimeoutMs = 1000,
+  rankerTimeoutMs = 500
+} = {}) {
+  if (typeof listCandidates !== 'function')
+    throw new TypeError('A candidate repository port is required');
+  if (ranker !== null && typeof ranker !== 'function')
+    throw new TypeError('ranker must be a function');
+  for (const timeout of [candidateTimeoutMs, rankerTimeoutMs]) {
+    if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 10000) {
+      throw new TypeError(
+        'Dispatch timeouts must be between 1 and 10000 milliseconds'
+      );
+    }
+  }
 
-  async function suggest({ request, candidates, limit = DEFAULT_DISPATCH_LIMIT } = {}) {
+  async function withinDeadline(work, timeoutMs) {
+    const controller = new globalThis.AbortController();
+    let timer;
+    try {
+      return await Promise.race([
+        Promise.resolve().then(() => work(controller.signal)),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error('Dispatch deadline exceeded'));
+            controller.abort();
+          }, timeoutMs);
+        })
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function suggest({
+    request,
+    candidates,
+    limit = DEFAULT_DISPATCH_LIMIT
+  } = {}) {
     const context = normalizeDispatchRequest(request);
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_DISPATCH_CANDIDATES) {
-      failValidation(`Candidate limit must be between 1 and ${MAX_DISPATCH_CANDIDATES}`);
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > MAX_DISPATCH_CANDIDATES
+    ) {
+      failValidation(
+        `Candidate limit must be between 1 and ${MAX_DISPATCH_CANDIDATES}`
+      );
     }
     let records;
     if (candidates === undefined) {
       try {
-        records = await listCandidates({ request: context, limit });
+        records = await withinDeadline(
+          (signal) => listCandidates({ request: context, limit, signal }),
+          candidateTimeoutMs
+        );
       } catch (error) {
         if (error instanceof AppError) throw error;
-        throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Sitter candidates are unavailable');
+        throw new AppError(
+          503,
+          'DISPATCH_UNAVAILABLE',
+          'Sitter candidates are unavailable'
+        );
       }
     } else records = candidates;
-    if (!Array.isArray(records)) throw new AppError(503, 'DISPATCH_UNAVAILABLE', 'Sitter candidates are unavailable');
-    const fallback = () => rankEligibleCandidates({ request: context, candidates: records, limit });
+    if (!Array.isArray(records) || records.length > MAX_DISPATCH_CANDIDATES) {
+      throw new AppError(
+        503,
+        'DISPATCH_UNAVAILABLE',
+        'Sitter candidates are unavailable'
+      );
+    }
+    const fallback = () =>
+      rankEligibleCandidates({ request: context, candidates: records, limit });
     const base = fallback();
     if (!ranker || base.selected.length === 0) return base;
 
     try {
-      const rankedIds = await ranker({ request: context, candidates: base.selected.map(item => ({ ...item })) });
-      if (!Array.isArray(rankedIds) || rankedIds.length !== base.selected.length
-        || new Set(rankedIds).size !== rankedIds.length
-        || rankedIds.some(id => typeof id !== 'string' || !base.selected.some(item => item.sitterId === id))) {
-        return Object.freeze({ ...base, fallbackUsed: true, fallbackReason: 'RANKER_INVALID_RESULT' });
+      const rankedIds = await withinDeadline(
+        (signal) =>
+          ranker({
+            request: context,
+            candidates: base.selected.map((item) => ({ ...item })),
+            signal
+          }),
+        rankerTimeoutMs
+      );
+      const allowedIds = new Set(base.selected.map((item) => item.sitterId));
+      if (
+        !Array.isArray(rankedIds) ||
+        rankedIds.length !== base.selected.length ||
+        new Set(rankedIds).size !== rankedIds.length ||
+        rankedIds.some((id) => typeof id !== 'string' || !allowedIds.has(id))
+      ) {
+        return Object.freeze({
+          ...base,
+          fallbackUsed: true,
+          fallbackReason: 'RANKER_INVALID_RESULT'
+        });
       }
       const positions = new Map(rankedIds.map((id, index) => [id, index]));
-      const selected = base.selected.map(item => Object.freeze({ ...item, rankingSource: 'PROVIDER_ORDER' }))
-        .sort((left, right) => positions.get(left.sitterId) - positions.get(right.sitterId))
+      const selected = base.selected
+        .map((item) =>
+          Object.freeze({ ...item, rankingSource: 'PROVIDER_ORDER' })
+        )
+        .sort(
+          (left, right) =>
+            positions.get(left.sitterId) - positions.get(right.sitterId)
+        )
         .map((item, index) => Object.freeze({ ...item, rank: index + 1 }));
-      return Object.freeze({ ...base, rankingSource: 'PROVIDER_ORDER', selected: Object.freeze(selected), fallbackUsed: false });
+      return Object.freeze({
+        ...base,
+        rankingSource: 'PROVIDER_ORDER',
+        selected: Object.freeze(selected),
+        fallbackUsed: false
+      });
     } catch {
-      return Object.freeze({ ...base, fallbackUsed: true, fallbackReason: 'RANKER_UNAVAILABLE' });
+      return Object.freeze({
+        ...base,
+        fallbackUsed: true,
+        fallbackReason: 'RANKER_UNAVAILABLE'
+      });
     }
   }
 
