@@ -12,6 +12,9 @@ export function payrollRuntimeModule({ config, connection, clock = Date.now, ses
   const router = Router(), controller = createPayrollController(service), admin = requireRoles('ADMIN'), sitter = requireRoles('PET_SITTER'), csrf = requireCsrf(session);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, requireSession(session, { clock }));
   router.get('/me', sitter, controller.own);
+  router.post('/adjustments', admin, csrf, controller.submitAdjustment);
+  router.get('/adjustments', admin, controller.adjustments);
+  router.post('/adjustments/:id/decisions', admin, csrf, controller.adjustmentDecision);
   router.post('/contracts', admin, csrf, controller.contracts);
   router.post('/statements', admin, csrf, controller.prepare);
   router.get('/statements', admin, controller.statements);

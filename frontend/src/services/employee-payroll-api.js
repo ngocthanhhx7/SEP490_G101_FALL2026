@@ -7,7 +7,10 @@ export function createEmployeePayrollApi(request) {
   const get = async (path, signal) => (await request(`/payroll${path}`, { signal })).data;
   const post = async (path, body, idempotencyKey) => (await request(`/payroll${path}`, { method: 'POST', body, idempotencyKey })).data;
   return Object.freeze({
-    own: ({ signal, advanceCursor, statementCursor, limit } = {}) => get('/me' + query({ advanceCursor, statementCursor, limit }), signal),
+    own: ({ signal, advanceCursor, statementCursor, adjustmentCursor, limit } = {}) => get('/me' + query({ advanceCursor, statementCursor, adjustmentCursor, limit }), signal),
+    adjustments: ({ signal, cursor, limit } = {}) => get('/adjustments' + query({ cursor, limit }), signal),
+    submitAdjustment: (body, key) => post('/adjustments', body, key),
+    adjustmentDecision: (id, body, key) => post(`/adjustments/${encodeURIComponent(id)}/decisions`, body, key),
     advances: ({ signal, cursor, view, limit } = {}) => get('/advances' + query({ cursor, view, limit }), signal),
     statements: ({ signal, cursor, limit } = {}) => get('/statements' + query({ cursor, limit }), signal),
     submit: (body, key) => post('/advances', body, key),

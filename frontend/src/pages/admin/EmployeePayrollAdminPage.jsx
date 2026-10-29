@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
-import { PayrollStatement, PayrollField, PayrollLoadState, PayrollPager, money, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
+import { PayrollStatement, PayrollAdjustment, PayrollField, PayrollLoadState, PayrollPager, money, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
+import { PayrollAdjustmentForm, PayrollAdjustmentDecision } from '../../components/payroll/PayrollAdjustmentForms.jsx';
 
 const employeeField = { label: 'Mã nhân viên', name: 'employeeId', pattern: '[a-fA-F0-9]{24}', maxLength: 24 };
 const numberValue = (data, key) => Number(data.get(key));
@@ -37,12 +38,15 @@ function DecisionForm({ row, kind, state, api }) {
 
 export function EmployeePayrollAdminPage({ api }) {
   const [advancePages, setAdvancePages] = useState([null]), [statementPages, setStatementPages] = useState([null]);
+  const [adjustmentPages, setAdjustmentPages] = useState([null]);
   const [history, setHistory] = useState(false);
   const advanceCursor = advancePages.at(-1), statementCursor = statementPages.at(-1);
+  const adjustmentCursor = adjustmentPages.at(-1);
   const load = useCallback(async ({ signal }) => {
-    const [advances, statements] = await Promise.all([api.advances({ signal, cursor: advanceCursor, view: history ? 'HISTORY' : 'PENDING' }), api.statements({ signal, cursor: statementCursor })]);
-    return { advances: advances.items, statements: statements.items, advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor };
-  }, [api, advanceCursor, statementCursor, history]);
+    const [advances, statements, adjustments] = await Promise.all([api.advances({ signal, cursor: advanceCursor, view: history ? 'HISTORY' : 'PENDING' }), api.statements({ signal, cursor: statementCursor }), api.adjustments({ signal, cursor: adjustmentCursor })]);
+    return { advances: advances.items, statements: statements.items, adjustments: adjustments.items,
+      advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor, adjustmentNextCursor: adjustments.nextCursor };
+  }, [api, advanceCursor, statementCursor, adjustmentCursor, history]);
   const state = usePayrollWorkspace(load);
   const [employmentType, setEmploymentType] = useState('FULL_TIME');
   const [installments, setInstallments] = useState([]);
@@ -112,8 +116,15 @@ export function EmployeePayrollAdminPage({ api }) {
         <PayrollPager label="tạm ứng" pages={advancePages} setPages={setAdvancePages} nextCursor={state.data.advanceNextCursor} busy={state.busy} />
       </>}
       </section>{state.data && <section><h2>Phiếu lương</h2>{!state.data.statements.length && <p>Chưa có phiếu lương.</p>}
-        {state.data.statements.map(row => <PayrollStatement key={row.id} statement={row}><p>Nhân viên: {row.employeeId}</p><DecisionForm row={row} kind="statement" state={state} api={api} /></PayrollStatement>)}
+        {state.data.statements.map(row => <PayrollStatement key={row.id} statement={row}><p>Nhân viên: {row.employeeId}</p><DecisionForm row={row} kind="statement" state={state} api={api} /><PayrollAdjustmentForm statement={row} state={state} api={api} /></PayrollStatement>)}
         <PayrollPager label="phiếu lương" pages={statementPages} setPages={setStatementPages} nextCursor={state.data.statementNextCursor} busy={state.busy} />
       </section>}
+    {state.data && <section><h2>Điều chỉnh lương</h2>{!state.data.adjustments.length && <p>Chưa có điều chỉnh.</p>}
+      {state.data.adjustments.map(row => <PayrollAdjustment key={row.id} row={row}><p>Nhân viên: {row.employeeId}</p>
+        <p>Hồ sơ đánh giá: {row.assessmentReference}</p>{row.agreementReference && <p>Thỏa thuận: {row.agreementReference}</p>}
+        {row.resolutionReference && <p>Chứng từ đối soát: {row.resolutionReference}</p>}{row.transferReference && <p>Giao dịch: {row.transferReference}</p>}
+        <PayrollAdjustmentDecision row={row} state={state} api={api} /></PayrollAdjustment>)}
+      <PayrollPager label="điều chỉnh" pages={adjustmentPages} setPages={setAdjustmentPages} nextCursor={state.data.adjustmentNextCursor} busy={state.busy} />
+    </section>}
   </section>;
 }

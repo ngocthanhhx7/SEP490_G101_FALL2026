@@ -1,14 +1,36 @@
 import { exact, id, number, instant, fail } from './pet-care.validator.js';
 const text = (value, max = 1000) => { if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f\x7f]/.test(value)) fail('VALIDATION_FAILED', 'Text required'); return value.trim(); };
 export function payrollPageInput(value = {}, own = false) {
-  exact(value, own ? ['advanceCursor', 'statementCursor', 'limit'] : ['cursor', 'limit', 'view'], []);
+  exact(value, own ? ['advanceCursor', 'statementCursor', 'adjustmentCursor', 'limit'] : ['cursor', 'limit', 'view'], []);
   const result = { ...value, limit: value.limit === undefined ? 20 : Number(value.limit) };
   if (value.limit !== undefined && !/^[1-9]\d?$/.test(String(value.limit))) fail('VALIDATION_FAILED', 'Invalid page size');
   number(result.limit, 1, 50, true);
-  for (const key of own ? ['advanceCursor', 'statementCursor'] : ['cursor']) {
+  for (const key of own ? ['advanceCursor', 'statementCursor', 'adjustmentCursor'] : ['cursor']) {
     if (value[key] !== undefined && (typeof value[key] !== 'string' || value[key].length > 512 || !/^[A-Za-z0-9_-]+$/.test(value[key]))) fail('VALIDATION_FAILED', 'Invalid payroll cursor');
   }
   if (!own && value.view !== undefined && !['PENDING', 'HISTORY'].includes(value.view)) fail('VALIDATION_FAILED', 'Invalid payroll view');
+  return result;
+}
+export function payrollAdjustmentInput(value) {
+  const keys = ['statementId', 'expectedVersion', 'direction', 'amountVnd', 'reason', 'assessmentReference'];
+  exact(value, keys, keys); id(value.statementId); number(value.expectedVersion, 0, 1000000, true);
+  if (!['SUPPLEMENT', 'RECOVERY'].includes(value.direction)) fail('VALIDATION_FAILED', 'Invalid adjustment direction');
+  number(value.amountVnd, 1, Number.MAX_SAFE_INTEGER, true);
+  return { ...value, reason: text(value.reason), assessmentReference: text(value.assessmentReference, 160) };
+}
+export function payrollAdjustmentDecisionInput(value) {
+  exact(value, ['action', 'expectedVersion', 'reason', 'transferReference', 'agreementReference', 'resolutionReference'], ['action', 'expectedVersion']);
+  number(value.expectedVersion, 0, 1000000, true);
+  if (!['APPROVE', 'REJECT', 'RECORD_PAYMENT', 'RECONCILE'].includes(value.action)) fail('VALIDATION_FAILED', 'Invalid adjustment decision');
+  const result = { action: value.action, expectedVersion: value.expectedVersion };
+  if (['APPROVE', 'REJECT'].includes(value.action)) result.reason = text(value.reason);
+  if (value.action === 'RECORD_PAYMENT') result.transferReference = text(value.transferReference, 160);
+  if (value.action === 'RECONCILE') {
+    result.agreementReference = text(value.agreementReference, 160);
+    result.resolutionReference = text(value.resolutionReference, 160);
+  }
+  const allowed = ['action', 'expectedVersion', ...Object.keys(result)];
+  if (Object.keys(value).some(key => !allowed.includes(key))) fail('VALIDATION_FAILED', 'Unexpected adjustment decision field');
   return result;
 }
 export function contractInput(value) {

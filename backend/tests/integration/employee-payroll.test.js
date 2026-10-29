@@ -122,6 +122,73 @@ test('signed payroll pagination is scoped to employee, resource, view, page size
   await expect(service.own(sitter, { employeeId: other.userId })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
 });
 
+test('payroll supplement requires Admin assessment, approval, unique transfer and preserves original salary', async () => {
+  const original = await service.models.PayrollStatement.findOne({ status: 'PAID' }).lean();
+  const input = { statementId: String(original._id), expectedVersion: original.version, direction: 'SUPPLEMENT', amountVnd: 250000,
+    reason: 'Synthetic missed overtime assessment', assessmentReference: 'synthetic-overtime-correction' };
+  await expect(service.submitAdjustment(sitter, input, 'adjust-forbidden')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  await expect(service.submitAdjustment(admin, { ...input, expectedVersion: 0 }, 'adjust-stale-version')).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
+  const saved = await service.submitAdjustment(admin, input, 'adjust-supplement-001');
+  expect(saved).toMatchObject({ amountVnd: 250000, status: 'SUBMITTED', statementVersion: original.version });
+  expect(saved).not.toHaveProperty('assessmentReference');
+  expect(await service.submitAdjustment(admin, input, 'adjust-supplement-001')).toEqual(saved);
+  await expect(service.submitAdjustment(admin, input, 'adjust-duplicate-ref')).rejects.toMatchObject({ code: 'PAYROLL_ADJUSTMENT_ALREADY_RECORDED' });
+  await expect(service.submitAdjustment(admin, { ...input, amountVnd: 100 }, 'adjust-supplement-001')).rejects.toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+  await expect(service.decideAdjustment(admin, saved.id, { expectedVersion: 0, action: 'RECORD_PAYMENT', transferReference: 'synthetic-supplement-bank' }, 'adjust-premature-pay'))
+    .rejects.toMatchObject({ code: 'INVALID_STATE' });
+  await expect(service.decideAdjustment(admin, saved.id, { expectedVersion: 0, action: 'APPROVE' }, 'adjust-missing-reason'))
+    .rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const approved = await service.decideAdjustment(admin, saved.id, { expectedVersion: 0, action: 'APPROVE', reason: 'Verified synthetic correction' }, 'adjust-approve-001');
+  expect(approved.status).toBe('APPROVED');
+  await expect(service.decideAdjustment(admin, saved.id, { expectedVersion: 1, action: 'RECORD_PAYMENT', transferReference: 'synthetic-salary-bank-reference' }, 'adjust-reused-transfer'))
+    .rejects.toMatchObject({ code: 'TRANSFER_REFERENCE_ALREADY_USED' });
+  const payment = { expectedVersion: 1, action: 'RECORD_PAYMENT', transferReference: 'synthetic-supplement-bank' };
+  const results = await Promise.all([service.decideAdjustment(admin, saved.id, payment, 'adjust-pay-001'), service.decideAdjustment(admin, saved.id, payment, 'adjust-pay-001')]);
+  expect(results[0]).toEqual(results[1]); expect(results[0].status).toBe('PAID');
+  expect(await service.models.PayrollStatement.findById(original._id).lean()).toEqual(original);
+  expect((await service.own(sitter)).adjustments).toHaveLength(1);
+  expect((await service.own(other)).adjustments).toEqual([]);
+  expect(await service.models.PayrollEvent.countDocuments({ resourceId: saved.id, type: 'ADJUSTMENT_RECORD_PAYMENT' })).toBe(1);
+});
+
+test('recovery is an audited agreed resolution and never deducts wages or creates a bank payment', async () => {
+  const original = await service.models.PayrollStatement.findOne({ status: 'PAID' }).lean();
+  const input = { statementId: String(original._id), expectedVersion: original.version, direction: 'RECOVERY', amountVnd: 50000,
+    reason: 'Synthetic discrepancy for reconciliation', assessmentReference: 'synthetic-recovery-assessment' };
+  const saved = await service.submitAdjustment(admin, input, 'adjust-recovery-001');
+  await service.decideAdjustment(admin, saved.id, { expectedVersion: 0, action: 'APPROVE', reason: 'Verified discrepancy' }, 'adjust-recovery-approve');
+  await expect(service.decideAdjustment(admin, saved.id, { expectedVersion: 1, action: 'RECORD_PAYMENT', transferReference: 'not-a-salary-payment' }, 'recovery-wrong-action'))
+    .rejects.toMatchObject({ code: 'INVALID_STATE' });
+  await expect(service.decideAdjustment(admin, saved.id, { expectedVersion: 1, action: 'RECONCILE', agreementReference: 'synthetic-consent' }, 'recovery-no-evidence'))
+    .rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const decision = { expectedVersion: 1, action: 'RECONCILE', agreementReference: 'synthetic-agreement', resolutionReference: 'synthetic-resolution-evidence' };
+  const resolved = await service.decideAdjustment(admin, saved.id, decision, 'adjust-recovery-close');
+  expect(resolved.status).toBe('RECONCILED'); expect(resolved).not.toHaveProperty('agreementReference');
+  expect(await service.models.PayrollSourceClaim.countDocuments({ adjustmentId: saved.id })).toBe(0);
+  expect(await service.models.PayrollStatement.findById(original._id).lean()).toEqual(original);
+  const first = await service.own(sitter, { limit: 1 }); expect(first.adjustmentNextCursor).toEqual(expect.any(String));
+  await expect(service.own(other, { limit: 1, adjustmentCursor: first.adjustmentNextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const next = await service.own(sitter, { limit: 1, adjustmentCursor: first.adjustmentNextCursor });
+  expect(next.adjustments[0].id).not.toBe(first.adjustments[0].id);
+  await request(app).get('/api/v1/payroll/adjustments').set('x-test-actor', 'sitter').expect(403);
+  await request(app).post('/api/v1/payroll/adjustments').set('x-test-actor', 'admin').send(input).expect(403);
+  const response = await request(app).get('/api/v1/payroll/adjustments').set('x-test-actor', 'admin').expect(200);
+  expect(response.body.data.items).toHaveLength(2);
+  expect(response.body.data.items.find(row => row.id === saved.id)).toMatchObject({ assessmentReference: input.assessmentReference,
+    agreementReference: 'synthetic-agreement', resolutionReference: 'synthetic-resolution-evidence' });
+});
+
+test('rejected adjustments retain reasons and cannot be paid', async () => {
+  const original = await service.models.PayrollStatement.findOne({ status: 'PAID' }).lean();
+  const input = { statementId: String(original._id), expectedVersion: original.version, direction: 'SUPPLEMENT', amountVnd: 1,
+    reason: 'Synthetic unverified claim', assessmentReference: 'synthetic-rejected-correction' };
+  const saved = await service.submitAdjustment(admin, input, 'adjust-to-reject');
+  const result = await service.decideAdjustment(admin, saved.id, { expectedVersion: 0, action: 'REJECT', reason: 'Missing work evidence' }, 'adjust-reject-001');
+  expect(result).toMatchObject({ status: 'REJECTED', decisionReason: 'Missing work evidence' });
+  await expect(service.decideAdjustment(admin, saved.id, { expectedVersion: 1, action: 'RECORD_PAYMENT', transferReference: 'rejected-never-paid' }, 'adjust-rejected-pay'))
+    .rejects.toMatchObject({ code: 'INVALID_STATE' });
+});
+
 test('an expired latest contract does not revive an earlier open-ended version', async () => {
   await service.recordContract(admin, { ...contract(), expectedVersion: 1, signedAt: '2026-10-31T00:00:00Z',
     effectiveAt: '2026-10-31T17:00:00Z', endsAt: '2026-11-01T00:00:00Z' }, 'record-ended-contract');
