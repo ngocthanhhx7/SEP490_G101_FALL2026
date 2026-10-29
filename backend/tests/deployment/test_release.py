@@ -87,5 +87,31 @@ class ReleaseTests(unittest.TestCase):
             run.assert_not_called()
 
 
+class CloudflareTests(unittest.TestCase):
+    def fetch(self, payload):
+        module = load('start-web')
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = json.dumps(payload).encode()
+        with patch.object(module.urllib.request, 'urlopen', return_value=response):
+            return module.cloudflare_ranges()
+
+    def test_official_api_validates_both_network_families(self):
+        self.assertEqual(self.fetch({'success': True, 'result': {
+            'ipv4_cidrs': ['173.245.48.0/20'], 'ipv6_cidrs': ['2400:cb00::/32']
+        }}), ['173.245.48.0/20', '2400:cb00::/32'])
+
+    def test_empty_or_unsuccessful_api_does_not_expand_trust(self):
+        for payload in [{'success': False}, {'success': True, 'result': {
+                'ipv4_cidrs': [], 'ipv6_cidrs': ['2400:cb00::/32']}}]:
+            with self.assertRaises(ValueError):
+                self.fetch(payload)
+
+    def test_rejects_global_default_routes_and_private_proxy_ranges(self):
+        for invalid in ['0.0.0.0/0', '127.0.0.0/8', '10.0.0.0/8']:
+            with self.assertRaises(ValueError):
+                self.fetch({'success': True, 'result': {
+                    'ipv4_cidrs': [invalid], 'ipv6_cidrs': ['2400:cb00::/32']}})
+
+
 if __name__ == '__main__':
     unittest.main()
