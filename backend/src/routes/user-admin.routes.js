@@ -1,21 +1,27 @@
+import { privateResponse } from '../middlewares/private-response.js';
+import { createUserAdminController } from '../controllers/user-admin.controller.js';
 import { Router } from 'express';
 import { identityModels } from '../models/identity.model.js';
 import { userModel } from '../models/user.model.js';
 import { userAdminAuditModel } from '../models/user-admin-audit.model.js';
-import { requireCsrf, requireRoles, requireSession } from '../middlewares/session.js';
+import {
+  requireCsrf,
+  requireRoles,
+  requireSession
+} from '../middlewares/session.js';
 import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { createUserAdminService } from '../services/user-admin.service.js';
-import { AppError, metadata } from '../utils/app-error.js';
-
-function respond(res, req, status, data) {
-  res.status(status).json({ data, meta: metadata(req) });
-}
 
 export function userAdminModule({ config, connection, clock = Date.now } = {}) {
-  if (!config?.auth?.enabled || !connection) throw new TypeError('Enabled authentication and a database connection are required');
+  if (!config?.auth?.enabled || !connection)
+    throw new TypeError(
+      'Enabled authentication and a database connection are required'
+    );
   const sessionService = createSessionService({
-    connection, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret
+    connection,
+    tokenSecret: config.auth.tokenSecret,
+    csrfSecret: config.auth.csrfSecret
   });
   const models = identityModels(connection);
   const contactCrypto = createContactCrypto({
@@ -32,26 +38,32 @@ export function userAdminModule({ config, connection, clock = Date.now } = {}) {
     cursorSecret: config.auth.tokenSecret,
     clock
   });
-  const authenticatedAdmin = [requireSession(sessionService, { clock }), requireRoles('ADMIN')];
+  const authenticatedAdmin = [
+    requireSession(sessionService, { clock }),
+    requireRoles('ADMIN')
+  ];
   const csrfProtected = requireCsrf(sessionService);
   const router = Router();
+  router.use(privateResponse);
 
-  router.get('/', ...authenticatedAdmin, async (req, res) => {
-    const result = await service.list(req.query);
-    return respond(res, req, 200, result);
-  });
+  router.get(
+    '/',
+    ...authenticatedAdmin,
+    createUserAdminController({ service }).getRoot
+  );
 
-  router.get('/:id', ...authenticatedAdmin, async (req, res) => {
-    return respond(res, req, 200, await service.getById(req.params.id));
-  });
+  router.get(
+    '/:id',
+    ...authenticatedAdmin,
+    createUserAdminController({ service }).getById
+  );
 
-  router.post('/:id/lock-decisions', ...authenticatedAdmin, csrfProtected, async (req, res) => {
-    if (!['LOCK', 'UNLOCK'].includes(req.body?.action)) {
-      throw new AppError(422, 'VALIDATION_FAILED', 'Account decision is invalid');
-    }
-    const user = await service.decide({ userId: req.params.id, body: req.body, actor: req.auth });
-    return respond(res, req, 200, { userId: user._id.toString(), state: user.state, version: user.version });
-  });
+  router.post(
+    '/:id/lock-decisions',
+    ...authenticatedAdmin,
+    csrfProtected,
+    createUserAdminController({ service }).createByIdLockDecisions
+  );
 
   return { name: 'user-admin', mount: '/api/v1/users', router };
 }

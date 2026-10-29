@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../../src/app.js';
-import { aiRuntimeModule } from '../../src/ai/routes.js';
+import { aiRuntimeModule } from '../../src/routes/sitter-recommendations.routes.js';
 import { assertDemoDatabase, demoRoutingProvider } from './fixtures.js';
 
 export function createDemoApp({ config, connection, manifest, origin }) {
@@ -55,20 +55,20 @@ export function createDemoApp({ config, connection, manifest, origin }) {
           inbox.set(message.to, {
             code: message.code,
             expiresAt: message.expiresAt,
-            purpose: message.purpose,
+            purpose: message.purpose
           });
           return { status: 'ACCEPTED', code: 'DEMO_LOCAL_INBOX' };
-        },
-      },
+        }
+      }
     },
     moduleFactories: [
       (context) =>
         aiRuntimeModule({
           ...context,
           config,
-          routingProvider: demoRoutingProvider(),
-        }),
-    ],
+          routingProvider: demoRoutingProvider()
+        })
+    ]
   });
   app.use('/api/v1/ai', (_req, res, next) => {
     res.set('X-PWC-Demo-Routing', 'SIMULATED_NOT_OSRM');

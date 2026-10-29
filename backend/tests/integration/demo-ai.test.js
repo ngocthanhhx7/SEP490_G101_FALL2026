@@ -9,10 +9,10 @@ import { connectDatabase } from '../../src/config/database.js';
 import {
   seedDemo,
   DEMO_DATABASE,
-  assertDemoDatabase,
+  assertDemoDatabase
 } from '../../scripts/demo-ai/fixtures.js';
 import { createDemoApp } from '../../scripts/demo-ai/server.js';
-import { aiModels } from '../../src/ai/models.js';
+import { platformDataModels } from '../../src/models/platform-data.model.js';
 import { userModel } from '../../src/models/user.model.js';
 
 let replica, connection, config, manifest, app;
@@ -21,7 +21,7 @@ const origin = 'http://127.0.0.1:3011';
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({
     binary: { version: '8.0.34' },
-    replSet: { count: 1, storageEngine: 'wiredTiger' },
+    replSet: { count: 1, storageEngine: 'wiredTiger' }
   });
   const env = {
     NODE_ENV: 'development',
@@ -35,14 +35,15 @@ beforeAll(async () => {
     SESSION_TOKEN_SECRET: 'test-demo-only-token-secret-at-least32',
     SESSION_CSRF_SECRET: 'test-demo-only-csrf-secret-at-least32',
     CONTACT_LOOKUP_SECRET: 'test-demo-only-lookup-secret-at-least32',
-    CONTACT_ENCRYPTION_KEY: 'test-demo-contact-encryption-key32',
+    CONTACT_ENCRYPTION_KEY: 'test-demo-contact-encryption-key32'
   };
   // Exactly 32 bytes for AES-256, no real credentials.
   env.CONTACT_ENCRYPTION_KEY = 'a'.repeat(32);
   for (const seed of [
     'service-catalog.js',
     'registration-policies.js',
-    'ai.js',
+    'pricing.js',
+    'sitter-matching.js'
   ])
     await promisify(execFile)(
       process.execPath,
@@ -50,7 +51,7 @@ beforeAll(async () => {
       {
         cwd: fileURLToPath(new URL('../..', import.meta.url)),
         env: { ...process.env, ...env },
-        stdio: 'pipe',
+        stdio: 'pipe'
       }
     );
   config = loadConfig(env);
@@ -68,7 +69,7 @@ async function login(key) {
   const payload = {
     channel: 'EMAIL',
     contact: account.email,
-    purpose: 'LOGIN',
+    purpose: 'LOGIN'
   };
   const challenge = await agent
     .post('/api/v1/otp-challenges')
@@ -88,7 +89,7 @@ async function login(key) {
       ...payload,
       challengeId: challenge.body.data.challengeId,
       code: inbox.body.code,
-      rememberDevice: false,
+      rememberDevice: false
     })
     .expect(200);
   expect(session.body.data.authenticated).toBe(true);
@@ -97,7 +98,7 @@ async function login(key) {
     Host: '127.0.0.1:3011',
     Origin: origin,
     Cookie: session.headers['set-cookie'][0].split(';')[0],
-    'X-CSRF-Token': session.body.data.csrfToken,
+    'X-CSRF-Token': session.body.data.csrfToken
   };
   return { agent, headers };
 }
@@ -113,43 +114,44 @@ test('fixtures reject non-demo or non-local databases, and serving on non-loopba
       config,
       connection,
       manifest,
-      origin: 'http://0.0.0.0:3011',
+      origin: 'http://0.0.0.0:3011'
     })
   ).toThrow();
 });
 test('rerun preserves fixture counts and complete account/pet/application relationships', async () => {
-  const before = await aiModels(connection).AiVisitOutcome.countDocuments();
+  const before =
+    await platformDataModels(connection).SitterVisitOutcome.countDocuments();
   const again = await seedDemo(connection, config);
   expect(again.accounts).toHaveLength(16);
   expect(again.sitters).toHaveLength(11);
   expect(again.pets).toHaveLength(6);
   expect(again.addresses).toHaveLength(7);
   expect(await userModel(connection).countDocuments()).toBe(16);
-  expect(await aiModels(connection).AiVisitOutcome.countDocuments()).toBe(
-    before
-  );
+  expect(
+    await platformDataModels(connection).SitterVisitOutcome.countDocuments()
+  ).toBe(before);
 });
 test('real OTP/session APIs run quotes, shortlist >=5, shortage=3, species and schedule changes', async () => {
   const { agent, headers } = await login('customer-an');
   const first = manifest.scenarios[0];
   const quote = await agent
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(headers)
     .send({
       serviceId: first.serviceId,
       petIds: first.petIds,
-      durationMinutes: 30,
+      durationMinutes: 30
     })
     .expect(201);
   expect(quote.body.data.totalVnd).toBe(80000);
   const tier = await agent
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(headers)
     .send({
       serviceId: first.serviceId,
       petIds: first.petIds,
       durationMinutes: 60,
-      visitCount: 32,
+      visitCount: 32
     })
     .expect(201);
   expect(tier.body.data.totalVnd).toBe(5222400);
@@ -196,19 +198,23 @@ test('second customer cannot quote first customer pets; sitter cannot call custo
     body = {
       serviceId: scenario.serviceId,
       petIds: scenario.petIds,
-      durationMinutes: 30,
+      durationMinutes: 30
     };
-  await agent.post('/api/v1/ai/quotes').set(headers).send(body).expect(404);
+  await agent
+    .post('/api/v1/pricing/quotes')
+    .set(headers)
+    .send(body)
+    .expect(404);
   const sitter = await login('sitter-minh');
   await sitter.agent
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(sitter.headers)
     .send(body)
     .expect(403);
   await sitter.agent.get('/api/v1/me').set(sitter.headers).expect(200);
   for (const [key, role] of [
     ['admin', 'ADMIN'],
-    ['staff', 'STAFF'],
+    ['staff', 'STAFF']
   ]) {
     const session = await login(key);
     const me = await session.agent
@@ -217,7 +223,7 @@ test('second customer cannot quote first customer pets; sitter cannot call custo
       .expect(200);
     expect(me.body.data.user.roles).toEqual([role]);
     await session.agent
-      .post('/api/v1/ai/quotes')
+      .post('/api/v1/pricing/quotes')
       .set(session.headers)
       .send(body)
       .expect(403);
@@ -247,7 +253,7 @@ test('demo rejects cross-site/foreign Host, serves static UI and does not delive
     .send({
       channel: 'EMAIL',
       contact: 'not-a-fixture@example.com',
-      purpose: 'LOGIN',
+      purpose: 'LOGIN'
     })
     .expect(202);
   await request(app)

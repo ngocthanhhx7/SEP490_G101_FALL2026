@@ -1,3 +1,5 @@
+import { pricingRuntimeModule } from '../../src/routes/pricing.routes.js';
+import { petCareRuntimeModule } from '../../src/routes/pet-care.routes.js';
 import { servicePolicyVersionModel } from '../../src/models/service-policy-version.model.js';
 import { systemSettingVersionModel } from '../../src/models/system-setting-version.model.js';
 import { beforeAll, afterAll, beforeEach, test, expect } from '@jest/globals';
@@ -7,16 +9,16 @@ import { Types } from 'mongoose';
 import { connectDatabase } from '../../src/config/database.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { createApp } from '../../src/app.js';
-import { aiRuntimeModule } from '../../src/ai/routes.js';
-import { aiModels } from '../../src/ai/models.js';
+import { aiRuntimeModule } from '../../src/routes/sitter-recommendations.routes.js';
+import { platformDataModels } from '../../src/models/platform-data.model.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { userModel } from '../../src/models/user.model.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
 import { serviceModel } from '../../src/models/service.model.js';
 import { serviceVersionModel } from '../../src/models/service-version.model.js';
 import { servicePriceVersionModel } from '../../src/models/service-price-version.model.js';
-import { DEFAULT_WEIGHTS } from '../../src/ai/scoring.js';
-import { edgeKey } from '../../src/ai/routing.js';
+import { DEFAULT_WEIGHTS } from '../../src/services/sitter-matching/scoring.service.js';
+import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
 let replica,
   connection,
   models,
@@ -39,32 +41,32 @@ const authFor = async (user) => {
     Cookie: 'pwc_session=' + issued.token,
     'X-CSRF-Token': issued.csrfToken,
     Origin: 'http://127.0.0.1',
-    Host: '127.0.0.1',
+    Host: '127.0.0.1'
   };
 };
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({
     binary: { version: '8.0.34' },
-    replSet: { count: 1, storageEngine: 'wiredTiger' },
+    replSet: { count: 1, storageEngine: 'wiredTiger' }
   });
   const config = loadConfig({
     NODE_ENV: 'test',
     MONGO_URI: replica.getUri(),
-    MONGO_DB: 'pwc_ai_isolated',
+    MONGO_DB: 'pwc_ai_isolated'
   });
   connection = await connectDatabase(config);
-  models = aiModels(connection);
+  models = platformDataModels(connection);
   User = userModel(connection);
   auth = createSessionService({
     connection,
     tokenSecret: secret,
     csrfSecret: secret + '-csrf',
-    clock: () => clockNow,
+    clock: () => clockNow
   });
   const aiConfig = {
     ...config,
     ai: { enabled: true },
-    auth: { enabled: true, tokenSecret: secret, csrfSecret: secret + '-csrf' },
+    auth: { enabled: true, tokenSecret: secret, csrfSecret: secret + '-csrf' }
   };
   const routingProvider = {
     matrix: async (points) => ({
@@ -72,13 +74,13 @@ beforeAll(async () => {
         points.flatMap((a) =>
           points.map((b) => [
             edgeKey(a, b),
-            JSON.stringify(a) === JSON.stringify(b) ? 0 : 5,
+            JSON.stringify(a) === JSON.stringify(b) ? 0 : 5
           ])
         )
       ),
       recordedAt: new Date(clockNow),
-      source: 'ISOLATED_TEST_ROUTER',
-    }),
+      source: 'ISOLATED_TEST_ROUTER'
+    })
   };
   app = createApp({
     config,
@@ -86,13 +88,25 @@ beforeAll(async () => {
     lifecycle: { draining: false },
     moduleFactories: [
       () =>
+        pricingRuntimeModule({
+          config: aiConfig,
+          connection,
+          clock: () => clockNow
+        }),
+      () =>
+        petCareRuntimeModule({
+          config: aiConfig,
+          connection,
+          clock: () => clockNow
+        }),
+      () =>
         aiRuntimeModule({
           config: aiConfig,
           connection,
           clock: () => clockNow,
-          routingProvider,
-        }),
-    ],
+          routingProvider
+        })
+    ]
   });
   for (const Model of Object.values(connection.models))
     await Model.createIndexes();
@@ -108,12 +122,12 @@ beforeEach(async () => {
   [customer, other, admin] = await User.create([
     { displayName: 'Synthetic Customer', roles: ['CUSTOMER'], state: 'ACTIVE' },
     { displayName: 'Synthetic Other', roles: ['CUSTOMER'], state: 'ACTIVE' },
-    { displayName: 'Synthetic Admin', roles: ['ADMIN'], state: 'ACTIVE' },
+    { displayName: 'Synthetic Admin', roles: ['ADMIN'], state: 'ACTIVE' }
   ]);
   const service = await serviceModel(connection).create({
     code: 'home-visit',
     createdBy: admin._id,
-    createdAt: new Date(clockNow),
+    createdAt: new Date(clockNow)
   });
   serviceId = String(service._id);
   await serviceVersionModel(connection).create({
@@ -127,7 +141,7 @@ beforeEach(async () => {
     effectiveAt: new Date(clockNow - 1000),
     changedBy: admin._id,
     reason: 'Synthetic fixture',
-    recordedAt: new Date(clockNow),
+    recordedAt: new Date(clockNow)
   });
   await servicePriceVersionModel(connection).create({
     serviceId,
@@ -138,7 +152,7 @@ beforeEach(async () => {
     effectiveAt: new Date(clockNow - 1000),
     changedBy: admin._id,
     reason: 'Synthetic fixture',
-    recordedAt: new Date(clockNow),
+    recordedAt: new Date(clockNow)
   });
   await servicePolicyVersionModel(connection).create({
     serviceId,
@@ -149,7 +163,7 @@ beforeEach(async () => {
     effectiveAt: new Date(clockNow - 1000),
     changedBy: admin._id,
     reason: 'Synthetic fixture',
-    recordedAt: new Date(clockNow),
+    recordedAt: new Date(clockNow)
   });
   await systemSettingVersionModel(connection).create({
     key: 'SERVICE_CATALOG_VISIBLE',
@@ -158,13 +172,13 @@ beforeEach(async () => {
     effectiveAt: new Date(clockNow - 1000),
     changedBy: admin._id,
     reason: 'Synthetic fixture',
-    recordedAt: new Date(clockNow),
+    recordedAt: new Date(clockNow)
   });
-  await models.AiBreed.create({
+  await models.PetBreed.create({
     code: 'cat-mixed',
     name: 'Synthetic cat breed',
     species: 'CAT',
-    source: 'Synthetic fixture',
+    source: 'Synthetic fixture'
   });
   const pet = await models.Pet.create({
     ownerId: customer._id,
@@ -173,7 +187,7 @@ beforeEach(async () => {
     breedCode: 'cat-mixed',
     weightKg: 4,
     traits: [],
-    careNeedsConfirmed: true,
+    careNeedsConfirmed: true
   });
   petId = String(pet._id);
   const address = await models.CustomerAddress.create({
@@ -182,10 +196,10 @@ beforeEach(async () => {
     location: 'Synthetic address',
     point: { type: 'Point', coordinates: [105.8, 21] },
     pointConfirmedAt: new Date(clockNow),
-    areaCode: 'HN',
+    areaCode: 'HN'
   });
   addressId = String(address._id);
-  await models.AiPricingPolicy.create({
+  await models.PricingPolicy.create({
     serviceId,
     version: 1,
     status: 'APPROVED',
@@ -200,30 +214,30 @@ beforeEach(async () => {
     orderStepVnd: 5000000,
     orderStepBps: 200,
     maxOrderTierBps: 2000,
-    rules: [],
+    rules: []
   });
-  await models.AiRankingPolicy.create({
+  await models.SitterRankingPolicy.create({
     version: 1,
     status: 'APPROVED',
     effectiveAt: new Date(clockNow - 1000),
     approvedAt: new Date(clockNow - 1000),
     approvedBy: admin._id,
     reason: 'Synthetic approved ranking',
-    weights: DEFAULT_WEIGHTS,
+    weights: DEFAULT_WEIGHTS
   });
 });
 const quoteBody = () => ({
   serviceId,
   petIds: [petId],
   durationMinutes: 30,
-  visitCount: 1,
+  visitCount: 1
 });
 const matchBody = () => ({
   serviceId,
   petIds: [petId],
   addressId,
   startAt: '2026-10-26T10:00:00+07:00',
-  endAt: '2026-10-26T10:30:00+07:00',
+  endAt: '2026-10-26T10:30:00+07:00'
 });
 async function seedSitters(count = 6) {
   const apps = sitterApplicationModels(connection),
@@ -232,7 +246,7 @@ async function seedSitters(count = 6) {
     const u = await User.create({
       displayName: 'Synthetic Sitter ' + i,
       roles: ['PET_SITTER'],
-      state: 'ACTIVE',
+      state: 'ACTIVE'
     });
     ids.push(u._id);
     await apps.SitterApplication.create({
@@ -250,20 +264,20 @@ async function seedSitters(count = 6) {
         {
           documentId: 'fixture',
           documentType: 'IDENTITY',
-          storageRef: 'synthetic-private',
-        },
+          storageRef: 'synthetic-private'
+        }
       ],
       state: 'APPROVED',
       provisionedUserId: u._id,
       submissionKeyDigest: 'key-' + i,
-      submissionPayloadDigest: 'payload-' + i,
+      submissionPayloadDigest: 'payload-' + i
     });
     await apps.SitterStatus.create({
       userId: u._id,
       status: 'ACTIVE',
-      changedAt: new Date(clockNow),
+      changedAt: new Date(clockNow)
     });
-    await models.AiSitterProfile.create({
+    await models.SitterMatchingProfile.create({
       userId: u._id,
       serviceIds: [serviceId],
       species: ['CAT'],
@@ -279,12 +293,12 @@ async function seedSitters(count = 6) {
           localDate: '2026-10-26',
           point: { type: 'Point', coordinates: [105.81 + i * 0.001, 21.01] },
           availableFrom: new Date('2026-10-26T08:00:00+07:00'),
-          availableUntil: new Date('2026-10-26T18:00:00+07:00'),
-        },
-      ],
+          availableUntil: new Date('2026-10-26T18:00:00+07:00')
+        }
+      ]
     });
     for (let j = 0; j < 20; j++)
-      await models.AiVisitOutcome.create({
+      await models.SitterVisitOutcome.create({
         visitId: new Types.ObjectId(),
         sitterId: u._id,
         serviceId,
@@ -295,7 +309,7 @@ async function seedSitters(count = 6) {
         rating: 5,
         onTime: true,
         verifiedBy: admin._id,
-        sourceRef: 'Synthetic verified fixture',
+        sourceRef: 'Synthetic verified fixture'
       });
   }
   return ids;
@@ -303,38 +317,133 @@ async function seedSitters(count = 6) {
 test('quotes use persisted prices, reject spoofed price/ownership and protect saved decisions', async () => {
   const headers = await authFor(customer);
   const response = await request(app)
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(headers)
     .send(quoteBody())
     .expect(201);
   expect(response.body.data.totalVnd).toBe(80000);
   expect(response.body.data.lines).toHaveLength(2);
   await request(app)
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(headers)
     .send({ ...quoteBody(), baseAmountVnd: 1 })
     .expect(422);
   await request(app)
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(await authFor(other))
     .send(quoteBody())
     .expect(404);
   await request(app)
-    .get('/api/v1/ai/decisions/' + response.body.data.quoteId)
+    .get('/api/v1/pricing/quotes/' + response.body.data.quoteId)
     .set(await authFor(other))
     .expect(404);
   clockNow += 11 * 60000;
   await request(app)
-    .get('/api/v1/ai/decisions/' + response.body.data.quoteId)
+    .get('/api/v1/pricing/quotes/' + response.body.data.quoteId)
     .set(headers)
     .expect(404);
 });
+
+test('backend pricing remains available when AI matching is disabled', async () => {
+  const config = loadConfig({
+    NODE_ENV: 'test',
+    MONGO_URI: replica.getUri(),
+    MONGO_DB: 'pwc_ai_isolated',
+    AUTH_ENABLED: 'true',
+    AI_ENABLED: 'false',
+    OTP_HMAC_SECRET: secret,
+    SESSION_TOKEN_SECRET: secret,
+    SESSION_CSRF_SECRET: secret + '-csrf',
+    CONTACT_LOOKUP_SECRET: secret,
+    CONTACT_ENCRYPTION_KEY: 's'.repeat(32)
+  });
+  const pricingOnlyApp = createApp({
+    config,
+    connection,
+    lifecycle: { draining: false },
+    clock: () => clockNow
+  });
+  await request(pricingOnlyApp)
+    .post('/api/v1/pricing/quotes')
+    .set(await authFor(customer))
+    .send(quoteBody())
+    .expect(201);
+  await request(pricingOnlyApp)
+    .post('/api/v1/ai/recommendations')
+    .send(matchBody())
+    .expect(404);
+  await request(pricingOnlyApp)
+    .post('/api/v1/ai/quotes')
+    .send(quoteBody())
+    .expect(404);
+});
+
+test('matching has no pricing prerequisite and decision kinds cannot be crossed', async () => {
+  await seedSitters();
+  const headers = await authFor(customer);
+  const quote = await request(app)
+    .post('/api/v1/pricing/quotes')
+    .set(headers)
+    .send(quoteBody())
+    .expect(201);
+  await models.PricingPolicy.deleteMany({});
+  await servicePriceVersionModel(connection).deleteMany({});
+  const match = await request(app)
+    .post('/api/v1/ai/recommendations')
+    .set(headers)
+    .send(matchBody())
+    .expect(201);
+  expect(match.body.data.returned).toBe(5);
+  const saved = await models.DecisionSnapshot.findOne({ kind: 'MATCH' }).lean();
+  await request(app)
+    .get('/api/v1/pricing/quotes/' + saved._id)
+    .set(headers)
+    .expect(404);
+  await request(app)
+    .get('/api/v1/ai/decisions/' + quote.body.data.quoteId)
+    .set(headers)
+    .expect(404);
+});
+
+test('model renames retain legacy persisted collections including routing cache', () => {
+  const legacy = {
+    PetTrait: 'AiTrait',
+    PetBreed: 'AiBreed',
+    PricingPolicy: 'AiPricingPolicy',
+    SitterMatchingProfile: 'AiSitterProfile',
+    SitterVisitOutcome: 'AiVisitOutcome',
+    SitterScheduleBlock: 'AiScheduleBlock',
+    RoutingMatrixCache: 'AiRoutingMatrix',
+    DecisionSnapshot: 'AiDecision',
+    SitterRankingPolicy: 'AiRankingPolicy',
+    SitterRankModel: 'AiRankModel'
+  };
+  for (const [name, original] of Object.entries(legacy)) {
+    // These explicit expectations guard existing collections rather than empty renamed replacements.
+    const expected = {
+      AiTrait: 'aitraits',
+      AiBreed: 'aibreeds',
+      AiPricingPolicy: 'aipricingpolicies',
+      AiSitterProfile: 'aisitterprofiles',
+      AiVisitOutcome: 'aivisitoutcomes',
+      AiScheduleBlock: 'aischeduleblocks',
+      AiRoutingMatrix: 'airoutingmatrixes',
+      AiDecision: 'aidecisions',
+      AiRankingPolicy: 'airankingpolicies',
+      AiRankModel: 'airankmodels'
+    };
+    expect(models[name].collection.name).toBe(expected[original]);
+  }
+});
 test('authenticated routes reject missing CSRF/guest and restrict policy writes to Admin', async () => {
-  await request(app).post('/api/v1/ai/quotes').send(quoteBody()).expect(401);
+  await request(app)
+    .post('/api/v1/pricing/quotes')
+    .send(quoteBody())
+    .expect(401);
   const h = await authFor(customer);
   delete h['X-CSRF-Token'];
   await request(app)
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(h)
     .send(quoteBody())
     .expect(403);
@@ -355,7 +464,7 @@ test('returns five real eligible candidates with explanations, excludes suspende
   expect(response.body.data).toMatchObject({
     status: 'READY_FOR_OFFER_SHORTLIST',
     returned: 5,
-    shortfall: 0,
+    shortfall: 0
   });
   expect(
     response.body.data.candidates.every((c) => c.breakdown.length === 5)
@@ -365,17 +474,19 @@ test('returns five real eligible candidates with explanations, excludes suspende
   );
   expect(JSON.stringify(response.body)).not.toContain('coordinates');
   expect(JSON.stringify(response.body)).not.toContain('Synthetic address');
-  expect(await models.AiDecision.countDocuments({ kind: 'MATCH' })).toBe(1);
+  expect(await models.DecisionSnapshot.countDocuments({ kind: 'MATCH' })).toBe(
+    1
+  );
 });
 test('does not pad the shortlist when fewer than five qualify or a calendar conflict occurs', async () => {
   const ids = await seedSitters(2);
-  await models.AiScheduleBlock.create({
+  await models.SitterScheduleBlock.create({
     sitterId: ids[0],
     startAt: new Date(matchBody().startAt),
     endAt: new Date(matchBody().endAt),
     point: { type: 'Point', coordinates: [105.8, 21] },
     state: 'CONFIRMED',
-    kind: 'VISIT',
+    kind: 'VISIT'
   });
   const response = await request(app)
     .post('/api/v1/ai/recommendations')
@@ -385,7 +496,7 @@ test('does not pad the shortlist when fewer than five qualify or a calendar conf
   expect(response.body.data).toMatchObject({
     status: 'INSUFFICIENT_ELIGIBLE_SITTERS',
     returned: 1,
-    shortfall: 4,
+    shortfall: 4
   });
   expect(response.body.data.exclusions.VISIT_CONFLICT).toBe(1);
 });
@@ -395,7 +506,7 @@ test('Admin creates immutable policy versions; duplicate version conflicts and d
     status: 'DRAFT',
     effectiveAt: new Date(clockNow).toISOString(),
     reason: 'Synthetic draft',
-    weights: DEFAULT_WEIGHTS,
+    weights: DEFAULT_WEIGHTS
   };
   await request(app)
     .post('/api/v1/ai/admin/ranking-policies')
@@ -415,13 +526,13 @@ test('published service policies and catalog visibility gate AI quotes too', asy
     { $set: { enabled: false } }
   );
   await request(app)
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(await authFor(customer))
     .send(quoteBody())
     .expect(409);
 });
 test('Admin surcharge rules survive database round-trip and do not compound', async () => {
-  const policy = await models.AiPricingPolicy.findOne({ serviceId }).lean();
+  const policy = await models.PricingPolicy.findOne({ serviceId }).lean();
   const body = {
     ...policy,
     version: 2,
@@ -433,26 +544,40 @@ test('Admin surcharge rules survive database round-trip and do not compound', as
         scope: 'PET',
         bps: 1000,
         flatVnd: 0,
-        when: { minWeightKg: 3, maxWeightKg: 6 },
-      },
-    ],
+        when: { minWeightKg: 3, maxWeightKg: 6 }
+      }
+    ]
   };
   for (const key of [
     '_id',
     'createdAt',
     'updatedAt',
     'approvedAt',
-    'approvedBy',
+    'approvedBy'
   ])
     delete body[key];
   body.effectiveAt = body.effectiveAt.toISOString();
   await request(app)
-    .post('/api/v1/ai/admin/pricing-policies')
+    .post('/api/v1/pricing/policies')
     .set(await authFor(admin))
     .send(body)
     .expect(201);
+  await request(app)
+    .post('/api/v1/pricing/policies')
+    .set(await authFor(admin))
+    .send(body)
+    .expect(409);
+  await request(app)
+    .post('/api/v1/pricing/policies')
+    .set(await authFor(admin))
+    .send({
+      ...body,
+      version: 3,
+      rules: [{ ...body.rules[0], label: 'x'.repeat(161) }]
+    })
+    .expect(422);
   const result = await request(app)
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(await authFor(customer))
     .send(quoteBody())
     .expect(201);
@@ -468,30 +593,30 @@ test('creates only valid owned catalog pets, sanitizes address lists and rejects
     breedCode: 'cat-mixed',
     weightKg: 4,
     traits: [],
-    careNeedsConfirmed: true,
+    careNeedsConfirmed: true
   };
   await request(app)
-    .post('/api/v1/ai/pets')
+    .post('/api/v1/pet-care/pets')
     .set(headers)
     .send({ ...body, ownerId: String(other._id) })
     .expect(422);
   await request(app)
-    .post('/api/v1/ai/pets')
+    .post('/api/v1/pet-care/pets')
     .set(headers)
     .send({ ...body, breedCode: 'unregistered' })
     .expect(422);
   await request(app)
-    .post('/api/v1/ai/pets')
+    .post('/api/v1/pet-care/pets')
     .set(headers)
     .send(body)
     .expect(201);
   const list = await request(app)
-    .get('/api/v1/ai/pets')
+    .get('/api/v1/pet-care/pets')
     .set(headers)
     .expect(200);
   expect(list.body.data).toHaveLength(2);
   const addresses = await request(app)
-    .get('/api/v1/ai/addresses')
+    .get('/api/v1/pet-care/addresses')
     .set(headers)
     .expect(200);
   expect(JSON.stringify(addresses.body)).not.toContain('coordinates');
@@ -512,7 +637,7 @@ test('changed pricing policy caps and special care readiness fail closed', async
     { $set: { traits: ['not-priced-yet'] } }
   );
   await request(app)
-    .post('/api/v1/ai/quotes')
+    .post('/api/v1/pricing/quotes')
     .set(await authFor(customer))
     .send(quoteBody())
     .expect(409);
@@ -525,14 +650,14 @@ test('approved additive model is used only after hash and holdout checks, invali
       travel: 25,
       quality: 20,
       reliability: 15,
-      workload: 10,
+      workload: 10
     },
     trainingRows: 200,
     testMae: 1,
     baselineMae: 2,
     testGroups: 10,
     trainedUntil: new Date(clockNow - 60000).toISOString(),
-    state: 'APPROVED',
+    state: 'APPROVED'
   };
   await request(app)
     .post('/api/v1/ai/admin/models')
@@ -551,7 +676,7 @@ test('approved additive model is used only after hash and holdout checks, invali
     .send(matchBody())
     .expect(201);
   expect(result.body.data.rankingSource).toBe('APPROVED_ADDITIVE_MODEL');
-  await models.AiRankModel.updateOne(
+  await models.SitterRankModel.updateOne(
     { version: payload.version },
     { $set: { sha256: 'tampered' } }
   );
@@ -582,10 +707,10 @@ test('Admin capability version conflict and schedule concurrency guard reject du
         localDate: '2026-10-26',
         coordinates: [105.81, 21.01],
         availableFrom: '2026-10-26T08:00:00+07:00',
-        availableUntil: '2026-10-26T18:00:00+07:00',
-      },
+        availableUntil: '2026-10-26T18:00:00+07:00'
+      }
     ],
-    active: true,
+    active: true
   };
   await request(app)
     .put('/api/v1/ai/admin/sitters/' + userId)
@@ -603,7 +728,7 @@ test('Admin capability version conflict and schedule concurrency guard reject du
     endAt: matchBody().endAt,
     coordinates: [105.8, 21],
     kind: 'VISIT',
-    sourceRef: 'synthetic-concurrency',
+    sourceRef: 'synthetic-concurrency'
   };
   const results = await Promise.all([
     request(app)
@@ -613,8 +738,8 @@ test('Admin capability version conflict and schedule concurrency guard reject du
     request(app)
       .post('/api/v1/ai/admin/schedule-blocks')
       .set(headers)
-      .send(block),
+      .send(block)
   ]);
   expect(results.map((r) => r.status).sort()).toEqual([201, 409]);
-  expect(await models.AiScheduleBlock.countDocuments()).toBe(1);
+  expect(await models.SitterScheduleBlock.countDocuments()).toBe(1);
 });

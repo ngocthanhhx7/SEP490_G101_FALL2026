@@ -6,9 +6,15 @@ import { apiSessionAdapter } from '../services/session-adapter.js';
 import { loadPublicPolicies } from '../services/public-policy-api.js';
 import '../styles/index.css';
 import './foundation.css';
-import '../pages/public/public-pages.css';
-import '../pages/admin/admin-users.css';
+import '../styles/public-pages.css';
 
 createRoot(document.getElementById('root')).render(
-  <StrictMode><BrowserRouter><App sessionAdapter={apiSessionAdapter} loadPublicPolicies={loadPublicPolicies} /></BrowserRouter></StrictMode>,
+  <StrictMode>
+    <BrowserRouter>
+      <App
+        sessionAdapter={apiSessionAdapter}
+        loadPublicPolicies={loadPublicPolicies}
+      />
+    </BrowserRouter>
+  </StrictMode>
 );

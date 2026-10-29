@@ -1,6 +1,6 @@
-# AI v1 — Báo giá và đề xuất Pet Sitter
+# Backend pricing và AI gợi ý Pet Sitter
 
-Ngày 24/10/2026. JavaScript ESM/Express/Mongoose tại `backend/src/ai`. Đây là module backend đã gắn runtime khi AI_ENABLED=true. Không gọi báo giá là hóa đơn; không gọi shortlist là assignment. Frontend booking chưa được chuyển sang module này trong thay đổi này.
+Ngày 24/10/2026. JavaScript ESM/Express/Mongoose tại `backend/src/services/sitter-matching`. Pricing/pet-care mount khi AUTH_ENABLED=true, chỉ matching chịu AI_ENABLED. AI không quyết định giá và không tự gửi lời mời. Không gọi báo giá là hóa đơn; không gọi shortlist là assignment. Frontend booking chưa được chuyển sang module này trong thay đổi này.
 
 ## 1. Khởi động local và Node
 
@@ -24,7 +24,8 @@ cd D:\WW\SEP490_G101_FALL2026\backend
 .\scripts\start-local-mongo.ps1
 node --env-file-if-exists=.env scripts/seeds/service-catalog.js --apply
 node --env-file-if-exists=.env scripts/seeds/registration-policies.js --apply
-node --env-file-if-exists=.env scripts/seeds/ai.js --apply
+node --env-file-if-exists=.env scripts/seeds/pricing.js --apply
+node --env-file-if-exists=.env scripts/seeds/sitter-matching.js --apply
 npm run dev
 ```
 
@@ -44,34 +45,35 @@ Seeds dùng setOnInsert/unique version và transaction, chạy lại không nhâ
 
 ## 3. API và bảo vệ truy cập
 
-Base: /api/v1/ai. API chuẩn `{data,meta}` / `{error,meta}`.
+API `{data,meta}` / `{error,meta}`, cùng origin, cookie và CSRF. Các đường dẫn cũ dưới `/ai` cho pricing/pets/catalog không còn được phục vụ.
 
 | Method/path | Quyền | Mục đích |
 | --- | --- | --- |
-| GET /catalog | Public | Danh mục giống và đặc điểm |
-| GET /pets | Customer | Hồ sơ pet ACTIVE của chính mình, tối đa 100 |
-| GET /addresses | Customer | ID/label/area của địa chỉ mình, không trả coordinates/location |
-| POST /pets | Customer + CSRF | Thêm pet đúng danh mục, owner do session |
-| POST /addresses | Customer + CSRF | Địa chỉ và ghim đã xác nhận, mã khu vực |
-| POST /quotes | Customer + CSRF | Tính và lưu estimate 10 phút |
-| POST /recommendations | Customer + CSRF | Tính shortlist 5–20 người, lưu 5 phút |
-| GET /decisions/:decisionId | Customer owner | Đọc lại kết quả còn hạn, không trả input nhà/địa chỉ |
-| POST /admin/pricing-policies | Admin + CSRF | Tạo DRAFT/APPROVED version mới |
-| POST /admin/ranking-policies | Admin + CSRF | Trọng số có tổng 100, version mới |
-| PUT /admin/sitters/:userId | Admin + CSRF | Năng lực/lịch/ngày nghỉ/điểm xuất phát, expectedVersion |
-| POST /admin/schedule-blocks | Admin + CSRF | Import block VISIT/BREAK, khóa profile version trong transaction |
-| POST /admin/outcomes | Admin + CSRF | Import kết quả đã xác minh, visitId duy nhất |
-| POST /admin/models | Admin + CSRF | Import model cộng tuyến tính DRAFT/APPROVED, gate MAE |
+| GET /api/v1/pet-care/catalog | Customer | Giống/đặc điểm |
+| GET /api/v1/pet-care/pets | Customer | Pet của chính mình |
+| POST /api/v1/pet-care/pets | Customer + CSRF | Thêm pet |
+| GET /api/v1/pet-care/addresses | Customer | Địa chỉ mình, không trả coordinates |
+| POST /api/v1/pet-care/addresses | Customer + CSRF | Địa chỉ/ghim xác nhận |
+| POST /api/v1/pricing/quotes | Customer + CSRF | Backend tính estimate 10 phút |
+| GET /api/v1/pricing/quotes/:quoteId | Customer owner | Snapshot QUOTE |
+| POST /api/v1/pricing/policies | Admin + CSRF | Policy giá phiên bản mới |
+| POST /api/v1/ai/recommendations | Customer + CSRF | Shortlist, snapshot MATCH 5 phút |
+| GET /api/v1/ai/decisions/:decisionId | Customer owner | Snapshot MATCH |
+| POST /api/v1/ai/admin/ranking-policies | Admin + CSRF | Trọng số phiên bản mới |
+| PUT /api/v1/ai/admin/sitters/:userId | Admin + CSRF | Năng lực/lịch với expectedVersion |
+| POST /api/v1/ai/admin/schedule-blocks | Admin + CSRF | Block lịch với CAS |
+| POST /api/v1/ai/admin/outcomes | Admin + CSRF | Outcome đã xác minh |
+| POST /api/v1/ai/admin/models | Admin + CSRF | Import model qua quality gate |
 
 Không chấp nhận baseAmount/score/ownerId/role do Customer truyền. Đọc giá từ ServicePriceVersion, kiểm tra ServiceVersion ACTIVE, ServicePolicy PUBLISHED và catalog enabled. Policy mới immutable qua API: không có PATCH ghi đè; duplicate version trả 409. Mutation có cookie session, Origin đúng host và X-CSRF-Token lấy từ GET /api/v1/me. Cấu hình hiện tại same-origin; không bật CORS tùy tiện.
 
 ## 4. Test nhanh bằng PowerShell
 
-Public, không cần đăng nhập:
+Sau khi đăng nhập Customer:
 
 ```powershell
 Invoke-RestMethod http://localhost:3000/health
-(Invoke-RestMethod http://localhost:3000/api/v1/ai/catalog).data.breeds
+(Invoke-RestMethod http://localhost:3000/api/v1/pet-care/catalog).data.breeds
 (Invoke-RestMethod http://localhost:3000/api/v1/services).data.services
 ```
 
@@ -98,7 +100,7 @@ const send = async (path, body, method = 'POST') => {
   });
   return {status:response.status, body:await response.json()};
 };
-const catalog = await fetch('/api/v1/ai/catalog').then(r=>r.json());
+const catalog = await fetch('/api/v1/pet-care/catalog').then(r=>r.json());
 const services = await fetch('/api/v1/services').then(r=>r.json());
 const serviceId = services.data.services.find(s=>s.code==='home-visit').id;
 const pet = await send('/pets', {
@@ -185,8 +187,8 @@ JSONL mỗi dòng chỉ cho phép:
 Định nghĩa nhãn targetScore phải được nhóm duyệt và đối soát; không lấy chính heuristic score làm nhãn rồi gọi accuracy thực tế. Không email/địa chỉ/coordinates/CCCD trong dataset. >=200 observations, >=50 nhóm booking; chronological group split80/20, loại nhóm băng qua cutoff để tránh leakage; train>=100, test>=10 nhóm. File tối đa50MB.
 
 ```powershell
-python src/ai/train_model.py storage/ai/verified-outcomes.jsonl --version pwc-rank-v1 --output storage/ai/model-v1.json
-python -m unittest discover -s src/ai -p test_train_model.py
+python scripts/ai/train_model.py storage/ai/verified-outcomes.jsonl --version pwc-rank-v1 --output storage/ai/model-v1.json
+python -m unittest discover -s tests/python -p test_train_model.py
 ```
 
 Output DRAFT, không tự activate. POST /admin/models với output và state APPROVED sau review. Gate backend: MAE test < baseline MAE, đủ nhóm/rows, weights hợp lệ, thời gian không tương lai; hash canonical kiểm tra trước inference. Đây là thông số Admin công bố, không bằng chứng tự xác minh dataset. Model lỗi gate fallback quy tắc; model không thay eligibility, route feasibility hay price policy. Trước dùng production cần benchmark/shadow thật, provenance dataset và rollback version.
@@ -197,7 +199,7 @@ Output DRAFT, không tự activate. POST /admin/models với output và state AP
 npm run lint
 npm test
 npm test -- --runTestsByPath tests/unit/ai.test.js tests/integration/ai.test.js
-python -m unittest discover -s src/ai -p test_train_model.py
+python -m unittest discover -s tests/python -p test_train_model.py
 ```
 
 Integration tests tạo MongoDB8.0 replica set riêng và fake routing nội bộ, không đụng database .env; cover cookie/CSRF/ownership, quote policy/roundtrip, shortlist5, thiếu người, đình chỉ/trùng lịch, expiry, rules. Python tests dùng dữ liệu tổng hợp chỉ trong kiểm thử để chứng minh split/train, không publish model đó.
@@ -208,7 +210,7 @@ Chưa hoàn tất: OSRM deployment, lịch/booking/offer/care ingestion tự đ�
 ## Kết quả kiểm tra ngày 24/10/2026
 
 - MongoDB local 8.0.34 primary pwc-local: READY; seed3 dịch vụ/24 giống/5 traits, chạy lại giữ nguyên số lượng. Có 3 policy báo giá ban đầu, một correction version cho vet theo lượt và 1 ranking policy. Không tạo Customer/sitter/rating giả trong database local.
-- HTTP thật localhost:3000/health trả200; /api/v1/ai/catalog trả200 với24 giống. Database Atlas trước chuyển local resolveDNS được nhưng cả3 node TLS timeout; không thay chứng chỉ/TLS để lách lỗi.
+- HTTP thật localhost:3000/health trả200; /api/v1/pet-care/catalog trả200 với24 giống. Database Atlas trước chuyển local resolveDNS được nhưng cả3 node TLS timeout; không thay chứng chỉ/TLS để lách lỗi.
 - Backend lint và toàn bộ 580 tests/62 suites đạt; suite AI 24 tests đạt, gồm cạnh tranh lịch/model fallback. Python 3 tests đạt.
 - Sau nâng Node24.22.1/npm11.19.1: frontend lint425 tests/66suites và build đạt. Build còn cảnh báo chunk chính555kB, không phải lỗi build.
 - Không tuyên bố đã chạy model huấn luyện dữ liệu thật hoặc đã gửi lời mời sitter thực tế; integration test có6 sitter tổng hợp trong database tách biệt.

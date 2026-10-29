@@ -35,7 +35,7 @@ if (
     SESSION_TOKEN_SECRET: randomBytes(32).toString('hex'),
     SESSION_CSRF_SECRET: randomBytes(32).toString('hex'),
     CONTACT_LOOKUP_SECRET: randomBytes(32).toString('hex'),
-    CONTACT_ENCRYPTION_KEY: randomBytes(16).toString('hex'),
+    CONTACT_ENCRYPTION_KEY: randomBytes(16).toString('hex')
   };
   let connection, server, app;
   try {
@@ -53,7 +53,8 @@ if (
     for (const seed of [
       'service-catalog.js',
       'registration-policies.js',
-      'ai.js',
+      'pricing.js',
+      'sitter-matching.js'
     ])
       await promisify(execFile)(
         process.execPath,
@@ -61,7 +62,7 @@ if (
         {
           cwd: root,
           env: demoEnv,
-          stdio: 'pipe',
+          stdio: 'pipe'
         }
       );
     const config = loadConfig(demoEnv);
@@ -77,7 +78,7 @@ if (
         accounts: manifest.accounts.length,
         sitters: manifest.sitters.length,
         date: manifest.date,
-        routing: manifest.routing,
+        routing: manifest.routing
       })
     );
     server.on('error', async () => {

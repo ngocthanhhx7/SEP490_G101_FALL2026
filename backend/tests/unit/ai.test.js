@@ -1,8 +1,14 @@
 import { test, expect } from '@jest/globals';
-import { calculateQuote } from '../../src/ai/pricing.js';
-import { scoreSitter } from '../../src/ai/scoring.js';
-import { planInsertion, validateSlot } from '../../src/ai/scheduling.js';
-import { createRoutingProvider, edgeKey } from '../../src/ai/routing.js';
+import { calculateQuote } from '../../src/services/pricing/pricing-calculation.service.js';
+import { scoreSitter } from '../../src/services/sitter-matching/scoring.service.js';
+import {
+  planInsertion,
+  validateSlot
+} from '../../src/services/sitter-matching/scheduling.service.js';
+import {
+  createRoutingProvider,
+  edgeKey
+} from '../../src/services/sitter-matching/routing.service.js';
 const policy = {
   version: 1,
   unitMinutes: 30,
@@ -12,14 +18,14 @@ const policy = {
   orderStepVnd: 5000000,
   orderStepBps: 200,
   maxOrderTierBps: 2000,
-  rules: [],
+  rules: []
 };
 const pet = {
   _id: 'pet',
   species: 'DOG',
   breedCode: 'dog-poodle',
   weightKg: 12,
-  traits: [],
+  traits: []
 };
 const price = (amount, extra = {}) =>
   calculateQuote({
@@ -28,12 +34,12 @@ const price = (amount, extra = {}) =>
     policy,
     pets: [pet],
     durationMinutes: 30,
-    ...extra,
+    ...extra
   });
 test.each([
   [4999999, 0],
   [5000000, 100000],
-  [10000000, 400000],
+  [10000000, 400000]
 ])('order tier charges the subtotal once for %i', (amount, surcharge) => {
   const q = price(amount);
   expect(q.totalVnd).toBe(amount + surcharge);
@@ -48,7 +54,7 @@ test('breed/trait/weight conditions are explicit, additive, and explained', () =
       scope: 'PET',
       bps: 1000,
       flatVnd: 0,
-      when: { breedCodes: ['dog-poodle'] },
+      when: { breedCodes: ['dog-poodle'] }
     },
     {
       code: 'weight',
@@ -57,8 +63,8 @@ test('breed/trait/weight conditions are explicit, additive, and explained', () =
       scope: 'VISIT',
       bps: 500,
       flatVnd: 0,
-      when: { minWeightKg: 10, maxWeightKg: 20 },
-    },
+      when: { minWeightKg: 10, maxWeightKg: 20 }
+    }
   ];
   const q = price(100000, { policy: { ...policy, rules } });
   expect(q.totalVnd).toBe(115000);
@@ -66,14 +72,14 @@ test('breed/trait/weight conditions are explicit, additive, and explained', () =
     'BASE',
     'breed',
     'weight',
-    'ORDER_VALUE_TIER',
+    'ORDER_VALUE_TIER'
   ]);
 });
 test('duration and multiple pets preserve unit/basis accounting', () => {
   const q = price(80000, {
     durationMinutes: 31,
     visitCount: 2,
-    pets: [pet, { ...pet, _id: 'p2' }],
+    pets: [pet, { ...pet, _id: 'p2' }]
   });
   expect(q.totalVnd).toBe(480000);
   expect(q.paymentMode).toBe('PREPAY');
@@ -87,11 +93,11 @@ test('rejects overlapping exclusive rules, cap overflow, negative and unsafe mon
     bps: 1000,
     flatVnd: 0,
     exclusiveGroup: 'size',
-    when: {},
+    when: {}
   };
   expect(() =>
     price(80000, {
-      policy: { ...policy, rules: [rule, { ...rule, code: 'b' }] },
+      policy: { ...policy, rules: [rule, { ...rule, code: 'b' }] }
     })
   ).toThrow('Overlapping');
   expect(() => price(60000000)).toThrow('Order tier');
@@ -109,11 +115,11 @@ test('scores the documented example and exposes a reason for all five dimensions
       completed: 40,
       faults: 1,
       onTime: 36,
-      late: 4,
+      late: 4
     },
     historyCounts: [3],
     extraTravelMinutes: 15,
-    busyMinutes: 240,
+    busyMinutes: 240
   });
   expect(result.score).toBe(77.9);
   expect(result.breakdown).toHaveLength(5);
@@ -127,14 +133,14 @@ test('new sitters have no fabricated public rating and invalid statistics are re
     completed: 0,
     faults: 0,
     onTime: 0,
-    late: 0,
+    late: 0
   };
   expect(
     scoreSitter({
       stats,
       historyCounts: [0],
       extraTravelMinutes: 0,
-      busyMinutes: 60,
+      busyMinutes: 60
     }).rating
   ).toBeNull();
   expect(() =>
@@ -142,7 +148,7 @@ test('new sitters have no fabricated public rating and invalid statistics are re
       stats: { ...stats, ratingSum: 6, ratingCount: 1 },
       historyCounts: [0],
       extraTravelMinutes: 0,
-      busyMinutes: 60,
+      busyMinutes: 60
     })
   ).toThrow();
 });
@@ -157,9 +163,9 @@ const profile = {
       localDate: day,
       point: { coordinates: [0, 0] },
       availableFrom: day + 'T08:00:00+07:00',
-      availableUntil: day + 'T18:00:00+07:00',
-    },
-  ],
+      availableUntil: day + 'T18:00:00+07:00'
+    }
+  ]
 };
 const blocks = [
   {
@@ -167,15 +173,15 @@ const blocks = [
     startAt: day + 'T09:00:00+07:00',
     endAt: day + 'T09:30:00+07:00',
     point: { coordinates: [1, 1] },
-    kind: 'VISIT',
+    kind: 'VISIT'
   },
   {
     _id: 'c',
     startAt: day + 'T11:15:00+07:00',
     endAt: day + 'T11:45:00+07:00',
     point: { coordinates: [3, 3] },
-    kind: 'VISIT',
-  },
+    kind: 'VISIT'
+  }
 ];
 const matrix = (a, b) =>
   JSON.stringify(a) === JSON.stringify(b)
@@ -189,22 +195,22 @@ test('checks both neighboring visits including handover and road buffer', async 
     blocks,
     slot: { start, end, localDate: day },
     address: { point: { coordinates: [2, 2] } },
-    matrix,
+    matrix
   };
   expect(await planInsertion(args)).toMatchObject({
     eligible: true,
     beforeVisitId: 'a',
-    afterVisitId: 'c',
+    afterVisitId: 'c'
   });
   expect(
     await planInsertion({
       ...args,
-      slot: { start: start - 600000, end: end - 600000, localDate: day },
+      slot: { start: start - 600000, end: end - 600000, localDate: day }
     })
   ).toMatchObject({ eligible: false, reason: 'TRAVEL_TIME_CONFLICT' });
   expect(await planInsertion({ ...args, matrix: () => null })).toMatchObject({
     eligible: false,
-    reason: 'ROUTE_UNAVAILABLE',
+    reason: 'ROUTE_UNAVAILABLE'
   });
 });
 test('refuses days off, conflicts and slots without the 24h booking lead', async () => {
@@ -220,7 +226,7 @@ test('refuses days off, conflicts and slots without the 24h booking lead', async
       blocks,
       slot: { start, end, localDate: day },
       address: { point: { coordinates: [2, 2] } },
-      matrix,
+      matrix
     })
   ).toMatchObject({ reason: 'DAY_OFF' });
 });
@@ -234,14 +240,14 @@ test('OSRM seconds are converted to minutes; null routes remain unreachable', as
         code: 'Ok',
         durations: [
           [0, 600],
-          [null, 0],
-        ],
-      }),
-    }),
+          [null, 0]
+        ]
+      })
+    })
   });
   const { map } = await provider.matrix([
     [105, 21],
-    [106, 22],
+    [106, 22]
   ]);
   expect(map.get(edgeKey([105, 21], [106, 22]))).toBe(10);
   expect(map.get(edgeKey([106, 22], [105, 21]))).toBeNull();
@@ -250,7 +256,7 @@ test('OSRM seconds are converted to minutes; null routes remain unreachable', as
 test('vet escort PER_VISIT keeps the per-visit base price despite a longer routing budget', () => {
   const result = price(150000, {
     durationMinutes: 180,
-    policy: { ...policy, billingMode: 'PER_VISIT', unitMinutes: 60 },
+    policy: { ...policy, billingMode: 'PER_VISIT', unitMinutes: 60 }
   });
   expect(result.totalVnd).toBe(150000);
   expect(result.durationUnits).toBe(1);

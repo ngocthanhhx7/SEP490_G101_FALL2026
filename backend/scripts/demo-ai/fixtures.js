@@ -5,10 +5,10 @@ import { userModel } from '../../src/models/user.model.js';
 import { identityModels } from '../../src/models/identity.model.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
-import { aiModels } from '../../src/ai/models.js';
+import { platformDataModels } from '../../src/models/platform-data.model.js';
 import { serviceModel } from '../../src/models/service.model.js';
-import { localDay } from '../../src/ai/scheduling.js';
-import { edgeKey } from '../../src/ai/routing.js';
+import { localDay } from '../../src/services/sitter-matching/scheduling.service.js';
+import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
 
 export const DEMO_DATABASE = 'paw_world_care_ai_demo';
 const fixtureId = (key) =>
@@ -39,19 +39,19 @@ export function assertDemoDatabase(connection) {
 
 export async function seedDemo(connection, config, clock = Date.now) {
   assertDemoDatabase(connection);
-  const models = aiModels(connection),
+  const models = platformDataModels(connection),
     User = userModel(connection);
   const identity = identityModels(connection),
     apps = sitterApplicationModels(connection);
   const crypto = createContactCrypto({
     lookupSecret: config.auth.contactLookupSecret,
-    encryptionKey: config.auth.contactEncryptionKey,
+    encryptionKey: config.auth.contactEncryptionKey
   });
   for (const Model of [
     User,
     ...Object.values(identity),
     ...Object.values(apps),
-    ...Object.values(models),
+    ...Object.values(models)
   ])
     await Model.createIndexes();
   const now = new Date(clock());
@@ -73,7 +73,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       synthetic: false,
       fixtureKey: `ai-demo:${key}`,
       authEpoch: 0,
-      version: 0,
+      version: 0
     });
     const email = `${key}@pwc-demo.example`;
     await put(identity.Contact, `contact:${key}`, {
@@ -82,14 +82,14 @@ export async function seedDemo(connection, config, clock = Date.now) {
       canonicalCiphertext: crypto.encrypt(email),
       lookupKey: crypto.lookup('EMAIL', email).lookupKey,
       state: 'VERIFIED',
-      verifiedAt: now,
+      verifiedAt: now
     });
     accounts.push({
       key,
       id: String(user._id),
       name: user.displayName,
       role,
-      email,
+      email
     });
     return user;
   }
@@ -99,14 +99,14 @@ export async function seedDemo(connection, config, clock = Date.now) {
   for (const [key, name] of [
     ['customer-an', 'Khách An'],
     ['customer-binh', 'Khách Bình'],
-    ['customer-chi', 'Khách Chi'],
+    ['customer-chi', 'Khách Chi']
   ])
     customers.push(await account(key, name, 'CUSTOMER'));
   const pets = [];
   for (let i = 0; i < customers.length; i++) {
     for (const [kind, breed, weight] of [
       ['DOG', 'dog-poodle', 6],
-      ['CAT', 'cat-british-short', 4],
+      ['CAT', 'cat-british-short', 4]
     ]) {
       const p = await put(models.Pet, `pet:${i}:${kind}`, {
         ownerId: customers[i]._id,
@@ -117,13 +117,13 @@ export async function seedDemo(connection, config, clock = Date.now) {
         traits: [],
         careNeedsConfirmed: true,
         state: 'ACTIVE',
-        version: 0,
+        version: 0
       });
       pets.push({
         id: String(p._id),
         ownerId: String(customers[i]._id),
         name: p.name,
-        species: kind,
+        species: kind
       });
     }
   }
@@ -131,7 +131,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
   for (let i = 0; i < customers.length; i++) {
     for (const [suffix, areaCode] of [
       ['many', 'DEMO-HN'],
-      ['two', 'DEMO-TWO'],
+      ['two', 'DEMO-TWO']
     ]) {
       const a = await put(models.CustomerAddress, `address:${i}:${suffix}`, {
         ownerId: customers[i]._id,
@@ -142,13 +142,13 @@ export async function seedDemo(connection, config, clock = Date.now) {
         areaCode,
         pointConfirmedAt: now,
         state: 'ACTIVE',
-        version: 0,
+        version: 0
       });
       addresses.push({
         id: String(a._id),
         ownerId: String(customers[i]._id),
         label: a.label,
-        areaCode,
+        areaCode
       });
     }
   }
@@ -163,7 +163,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
     ['duc', 'Đức — bị tạm ngưng nhận việc', 30, 5, 0],
     ['mai', 'Mai — chỉ nhận mèo', 25, 5, 0],
     ['khoa', 'Khoa — lịch có sẵn gần nhà khách', 30, 5, 0],
-    ['huy', 'Huy — có lỗi đã đối soát', 24, 4, 6],
+    ['huy', 'Huy — có lỗi đã đối soát', 24, 4, 6]
   ];
   const sitters = [];
   for (let i = 0; i < descriptions.length; i++) {
@@ -185,22 +185,22 @@ export async function seedDemo(connection, config, clock = Date.now) {
         {
           documentId: 'demo-placeholder',
           documentType: 'OTHER',
-          storageRef: 'demo-only/no-real-document',
-        },
+          storageRef: 'demo-only/no-real-document'
+        }
       ],
       state: 'APPROVED',
       provisionedUserId: user._id,
       submissionKeyDigest: `demo-key-${key}`,
-      submissionPayloadDigest: `demo-payload-${key}`,
+      submissionPayloadDigest: `demo-payload-${key}`
     });
     await put(apps.SitterStatus, `status:${key}`, {
       userId: user._id,
       status: key === 'duc' ? 'SUSPENDED' : 'ACTIVE',
       changedAt: now,
       statusReason: 'DEMO scenario',
-      version: 0,
+      version: 0
     });
-    await put(models.AiSitterProfile, `profile:${key}`, {
+    await put(models.SitterMatchingProfile, `profile:${key}`, {
       userId: user._id,
       serviceIds: services.map((s) => s._id),
       species: key === 'mai' ? ['CAT'] : ['DOG', 'CAT'],
@@ -212,7 +212,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       windows: Array.from({ length: 7 }, (_, weekday) => ({
         weekday,
         startMinute: 480,
-        endMinute: 1080,
+        endMinute: 1080
       })),
       dayOffDates: [],
       starts: [
@@ -220,11 +220,11 @@ export async function seedDemo(connection, config, clock = Date.now) {
           localDate: date,
           point: point([105.801 + i * 0.001, 21.002]),
           availableFrom: at('08:00'),
-          availableUntil: at('18:00'),
-        },
+          availableUntil: at('18:00')
+        }
       ],
       changedBy: admin._id,
-      version: 1,
+      version: 1
     });
     // One outcome per unique visit; deterministic IDs keep reruns idempotent.
     for (const service of services) {
@@ -234,10 +234,10 @@ export async function seedDemo(connection, config, clock = Date.now) {
           new Types.ObjectId(pets[j < 4 && key === 'lan' ? 0 : 4].id),
           ...(service.code === 'dog-walking'
             ? []
-            : [new Types.ObjectId(pets[5].id)]),
+            : [new Types.ObjectId(pets[5].id)])
         ];
         await put(
-          models.AiVisitOutcome,
+          models.SitterVisitOutcome,
           `outcome:${key}:${service.code}:${j}`,
           {
             visitId: fixtureId(`visit:${key}:${service.code}:${j}`),
@@ -249,14 +249,14 @@ export async function seedDemo(connection, config, clock = Date.now) {
             resolution: fault ? 'SITTER_FAULT' : 'COMPLETED',
             ...(!fault ? { rating, onTime: j % 11 !== 0 } : {}),
             verifiedBy: admin._id,
-            sourceRef: 'DEMO SYNTHETIC — never use for production training',
+            sourceRef: 'DEMO SYNTHETIC — never use for production training'
           }
         );
       }
     }
     if (['trang', 'khoa'].includes(key)) {
       const occupied = key === 'trang';
-      await put(models.AiScheduleBlock, `block:${key}`, {
+      await put(models.SitterScheduleBlock, `block:${key}`, {
         sitterId: user._id,
         visitId: fixtureId(`scheduled:${key}`),
         startAt: at(occupied ? '10:00' : '09:00'),
@@ -266,7 +266,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
         kind: 'VISIT',
         sourceRef: 'DEMO SYNTHETIC calendar',
         changedBy: admin._id,
-        version: 0,
+        version: 0
       });
     }
     sitters.push({
@@ -278,7 +278,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       rating,
       faults,
       note: label,
-      scenario: key,
+      scenario: key
     });
   }
   const first = String(customers[0]._id);
@@ -292,13 +292,13 @@ export async function seedDemo(connection, config, clock = Date.now) {
     areaCode: 'DEMO-HN',
     pointConfirmedAt: now,
     state: 'ACTIVE',
-    version: 0,
+    version: 0
   });
   addresses.push({
     id: String(clinic._id),
     ownerId: first,
     label: clinic.label,
-    areaCode: 'DEMO-HN',
+    areaCode: 'DEMO-HN'
   });
   const scenarios = [
     {
@@ -310,7 +310,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       addressId: addresses[0].id,
       startAt: at('10:00').toISOString(),
       endAt: at('10:30').toISOString(),
-      limit: 5,
+      limit: 5
     },
     {
       key: 'two',
@@ -321,7 +321,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       addressId: addresses[1].id,
       startAt: at('10:00').toISOString(),
       endAt: at('10:30').toISOString(),
-      limit: 5,
+      limit: 5
     },
     {
       key: 'cat',
@@ -332,7 +332,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       addressId: addresses[0].id,
       startAt: at('10:00').toISOString(),
       endAt: at('10:30').toISOString(),
-      limit: 10,
+      limit: 10
     },
     {
       key: 'later',
@@ -343,15 +343,15 @@ export async function seedDemo(connection, config, clock = Date.now) {
       addressId: addresses[0].id,
       startAt: at('14:00').toISOString(),
       endAt: at('14:30').toISOString(),
-      limit: 10,
-    },
+      limit: 10
+    }
   ];
   scenarios.push(
     {
       ...scenarios[0],
       key: 'walking',
       label: 'Dắt chó đi dạo: cùng pet, đổi dịch vụ và lịch sử tương ứng',
-      serviceId: String(walk._id),
+      serviceId: String(walk._id)
     },
     {
       ...scenarios[0],
@@ -362,7 +362,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       clinicAddressId: String(clinic._id),
       appointmentAt: at('10:45').toISOString(),
       waitingMinutes: 30,
-      returnToHome: true,
+      returnToHome: true
     }
   );
   return {
@@ -374,7 +374,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
     addresses,
     sitters,
     services: services.map((s) => ({ id: String(s._id), code: s.code })),
-    scenarios,
+    scenarios
   };
 }
 
@@ -392,6 +392,6 @@ export function demoRoutingProvider() {
           );
         }
       return { map, source: 'DEMO_SIMULATED_NOT_OSRM', recordedAt: new Date() };
-    },
+    }
   };
 }
