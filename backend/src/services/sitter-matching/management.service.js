@@ -293,6 +293,11 @@ export function createAiManagement({ repository, clock = Date.now }) {
       )
         fail('VALIDATION_FAILED', 'Invalid outcome scope');
       body.petIds.forEach(id);
+      if (
+        new Set(body.petIds.map((petId) => petId.toLowerCase())).size !== body.petIds.length ||
+        new Set(body.species).size !== body.species.length
+      )
+        fail('VALIDATION_FAILED', 'Duplicate outcome pets or species');
       if (!['COMPLETED', 'SITTER_FAULT', 'EXCUSED'].includes(body.resolution))
         fail('VALIDATION_FAILED', 'Invalid resolution');
       if (body.rating !== undefined) number(body.rating, 1, 5, true);
