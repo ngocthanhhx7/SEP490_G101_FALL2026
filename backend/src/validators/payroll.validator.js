@@ -1,5 +1,16 @@
 import { exact, id, number, instant, fail } from './pet-care.validator.js';
 const text = (value, max = 1000) => { if (typeof value !== 'string' || !value.trim() || value.length > max || /[\x00-\x1f\x7f]/.test(value)) fail('VALIDATION_FAILED', 'Text required'); return value.trim(); };
+export function payrollPageInput(value = {}, own = false) {
+  exact(value, own ? ['advanceCursor', 'statementCursor', 'limit'] : ['cursor', 'limit', 'view'], []);
+  const result = { ...value, limit: value.limit === undefined ? 20 : Number(value.limit) };
+  if (value.limit !== undefined && !/^[1-9]\d?$/.test(String(value.limit))) fail('VALIDATION_FAILED', 'Invalid page size');
+  number(result.limit, 1, 50, true);
+  for (const key of own ? ['advanceCursor', 'statementCursor'] : ['cursor']) {
+    if (value[key] !== undefined && (typeof value[key] !== 'string' || value[key].length > 512 || !/^[A-Za-z0-9_-]+$/.test(value[key]))) fail('VALIDATION_FAILED', 'Invalid payroll cursor');
+  }
+  if (!own && value.view !== undefined && !['PENDING', 'HISTORY'].includes(value.view)) fail('VALIDATION_FAILED', 'Invalid payroll view');
+  return result;
+}
 export function contractInput(value) {
   const required = ['employeeId', 'expectedVersion', 'employmentType', 'salaryBasis', 'monthlyBaseVnd', 'payCycle', 'weeklyMinutes', 'signedAt', 'effectiveAt', 'contractReference', 'workplaceRegion', 'workplaceReference'];
   exact(value, [...required, 'endsAt'], required); id(value.employeeId); number(value.expectedVersion, 0, 1000000, true);

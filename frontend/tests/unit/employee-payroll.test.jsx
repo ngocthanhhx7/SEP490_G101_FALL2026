@@ -62,3 +62,29 @@ test('API uses payroll endpoints and preserves CSRF/idempotency transport contra
   expect(await api.advanceDecision(employeeId, body, 'stable-operation')).toEqual({ id: 'record' });
   expect(request).toHaveBeenCalledWith(`/payroll/advances/${employeeId}/decisions`, { method: 'POST', body, idempotencyKey: 'stable-operation' });
 });
+
+test('employee history moves through server cursors and can return to the first page', async () => {
+  const api = apiFixture(); api.own.mockImplementation(async ({ advanceCursor }) => ({ contracts: [contract], statements: [],
+    advances: [{ id: advanceCursor ? 'older' : 'newer', amountVnd: 100000, requestedAt: '2026-10-01', settlementPeriod: '2026-11',
+      status: 'REJECTED', version: 1, reason: advanceCursor ? 'Older advance' : 'Newer advance' }], advanceNextCursor: advanceCursor ? null : 'cursor-one' }));
+  render(<EmployeePayrollPage api={api} />); await screen.findByText('Newer advance');
+  fireEvent.click(screen.getByLabelText('Trang tiếp tạm ứng')); await screen.findByText('Older advance');
+  expect(api.own.mock.calls.some(([input]) => input.advanceCursor === 'cursor-one')).toBe(true);
+  fireEvent.click(screen.getByLabelText('Trang trước tạm ứng')); await screen.findByText('Newer advance');
+});
+
+test('Admin can inspect paid advance history without exposing mutation controls for it', async () => {
+  const api = apiFixture(); api.advances.mockImplementation(async ({ view }) => ({ items: view === 'HISTORY' ? [{
+    id: 'paid-history', employeeId, amountVnd: 100000, status: 'PAID', monthKey: '2026-10', settlementPeriod: '2026-11', reason: 'Paid advance history'
+  }] : [], nextCursor: null }));
+  render(<EmployeePayrollAdminPage api={api} />); await screen.findByText('Không có đề nghị chờ xử lý.');
+  fireEvent.click(screen.getByLabelText('Hiện lịch sử tạm ứng')); await screen.findByText('Paid advance history');
+  expect(screen.queryByText('Ghi nhận đã chi trả', { selector: 'button' })).toBeNull();
+  expect(api.advances.mock.calls.some(([input]) => input.view === 'HISTORY')).toBe(true);
+});
+
+test('explicitly expired current contract does not reactivate an older contract', async () => {
+  const api = apiFixture(); api.own.mockResolvedValue({ contracts: [contract], activeContractId: null, statements: [], advances: [] });
+  render(<EmployeePayrollPage api={api} />); await screen.findByText('Chưa có hợp đồng đang hiệu lực được Admin xác minh.');
+  expect(screen.queryByText('Gửi đề nghị')).toBeNull();
+});

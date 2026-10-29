@@ -1,15 +1,20 @@
+import { useCallback, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
-import { PayrollStatement, PayrollField, PayrollLoadState, money, date, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
+import { PayrollStatement, PayrollField, PayrollLoadState, PayrollPager, money, date, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
 
 export function EmployeePayrollPage({ api }) {
-  const state = usePayrollWorkspace(api.own);
+  const [advancePages, setAdvancePages] = useState([null]), [statementPages, setStatementPages] = useState([null]);
+  const advanceCursor = advancePages.at(-1), statementCursor = statementPages.at(-1);
+  const load = useCallback(options => api.own({ ...options, advanceCursor, statementCursor }), [api, advanceCursor, statementCursor]);
+  const state = usePayrollWorkspace(load);
   const contracts = state.data?.contracts || [];
   const today = new Date();
-  const contract = contracts.find(c => new Date(c.effectiveAt) <= today && (!c.endsAt || new Date(c.endsAt) > today));
+  const contract = Object.hasOwn(state.data || {}, 'activeContractId') ? contracts.find(c => c.id === state.data.activeContractId)
+    : contracts.find(c => new Date(c.effectiveAt) <= today && (!c.endsAt || new Date(c.endsAt) > today));
   const submit = async event => {
     event.preventDefault(); const form = event.currentTarget, data = new window.FormData(form);
     const body = { amountVnd: Number(data.get('amountVnd')), reason: data.get('reason'), settlementPeriod: data.get('settlementPeriod'), settlementConsentReference: data.get('settlementConsentReference') };
-    if (await state.command('submit', body, key => api.submit(body, key))) form.reset();
+    if (await state.command('submit', body, key => api.submit(body, key))) { form.reset(); setAdvancePages([null]); }
   };
   return <section className="payroll-workspace"><h1>Lương và tạm ứng</h1><PayrollLoadState state={state} />
     {state.data && <>
@@ -36,8 +41,10 @@ export function EmployeePayrollPage({ api }) {
             state.command(`withdraw:${row.id}`, body, key => api.advanceDecision(row.id, body, key));
           }}>Rút đề nghị</button>}
         </article>)}
+        <PayrollPager label="tạm ứng" pages={advancePages} setPages={setAdvancePages} nextCursor={state.data.advanceNextCursor} busy={state.busy} />
       </section><section><h2>Phiếu lương</h2>{!state.data.statements.length && <p>Chưa có phiếu lương.</p>}
         {state.data.statements.map(row => <PayrollStatement key={row.id} statement={row} />)}
+        <PayrollPager label="phiếu lương" pages={statementPages} setPages={setStatementPages} nextCursor={state.data.statementNextCursor} busy={state.busy} />
       </section>
     </>}
   </section>;
