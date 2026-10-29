@@ -83,3 +83,24 @@ test('real completion credits feed weekly payroll without partner fee/tax; salar
   expect((await service.own(sitter)).statements[0].breakdown.payableVnd).toBe(1100000);
   expect(await connection.collection('payments').countDocuments()).toBe(0);
 });
+
+test('voiding an unapproved statement retains history and releases credits for a replacement only', async () => {
+  await service.models.PayrollServiceCredit.create({ visitId: oid(), bookingId: oid(), employeeId: sitter.userId,
+    completedAt: new Date('2026-10-20T04:00:00Z'), serviceNetVnd: 200000, careMinutes: 60,
+    onTime: true, reportsComplete: true, sourceVersion: 3, policyVersion: 'PWC-EMPLOYEE-PAYROLL-2026-10-30-v1' });
+  const assessment = { employeeId: sitter.userId, periodStart: '2026-10-19T00:00:00+07:00', periodEnd: '2026-10-26T00:00:00+07:00', dueAt: '2026-10-27T00:00:00+07:00',
+    scheduledMonthMinutes: 4800, paidPeriodMinutes: 1200, kpiTargetMinutes: 0, seriousViolationConfirmed: false, includeMonthlyBonus: false,
+    overtimeVnd: 0, employeeInsuranceVnd: 0, incomeTaxVnd: 0, otherLawfulDeductionsVnd: 0,
+    assessmentReference: 'synthetic-verified-assessment', deductionConsentReference: 'synthetic-no-deductions', advanceRepayments: [] };
+  const first = await service.prepareStatement(admin, assessment, 'prepare-to-void-001');
+  await expect(service.decideStatement(admin, first.id, { action: 'REJECT', expectedVersion: 0 }, 'void-reason-missing')).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const voided = await service.decideStatement(admin, first.id, { action: 'REJECT', expectedVersion: 0, reason: 'Synthetic attendance correction' }, 'void-statement-001');
+  expect(voided).toMatchObject({ status: 'VOIDED', voidReason: 'Synthetic attendance correction', breakdown: first.breakdown });
+  const replacement = await service.prepareStatement(admin, assessment, 'prepare-replacement-001');
+  expect(replacement.id).not.toBe(first.id); expect(replacement.breakdown.commissionVnd).toBe(10000);
+  await service.decideStatement(admin, replacement.id, { action: 'APPROVE', expectedVersion: 0 }, 'approve-replacement-001');
+  await expect(service.decideStatement(admin, replacement.id, { action: 'REJECT', expectedVersion: 1, reason: 'Cannot void approved payroll' }, 'reject-approved-statement'))
+    .rejects.toMatchObject({ code: 'INVALID_STATE' });
+  expect(await service.models.PayrollStatement.countDocuments({ _id: first.id, status: 'VOIDED' })).toBe(1);
+  expect(await service.models.PayrollSourceClaim.countDocuments({ statementId: replacement.id })).toBe(1);
+});

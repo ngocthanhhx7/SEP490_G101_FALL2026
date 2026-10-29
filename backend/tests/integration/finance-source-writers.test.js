@@ -185,6 +185,8 @@ test('employee completion writes one immutable credit per visit and never create
   service = createBookingFinanceSourceService({ connection, clock: () => at });
   webhook = createPayosPaymentWebhookService({ provider: { verifyWebhook: async body => body.data },
     repository: createMongoPaymentWebhookRepository({ connection, finance: service }), clock: () => at });
+  await col('bookings').updateOne({ _id: booking._id }, { $set: { paymentSnapshot: { currency: 'VND', amountVnd: 300000 } } });
+  for (const visit of visits) await col('visits').updateOne({ _id: visit._id }, { $set: { 'snapshots.employeeServiceNetVnd': visit.snapshots.serviceBasisVnd - 10000 } });
   await payAndAssign();
   for (let index = 0; index < 2; index++) {
     await service.checkIn(command(index, 0, 'employee-check-in', { mediaId: images[index][0] }));
@@ -194,9 +196,21 @@ test('employee completion writes one immutable credit per visit and never create
   await Promise.all([0, 1].map(index => service.checkOut(command(index, 2, 'employee-check-out', { mediaId: images[index][1] }))));
   await service.checkOut(command(1, 2, 'employee-check-out', { mediaId: images[1][1] }));
   const credits = await models.PayrollServiceCredit.find().sort({ serviceNetVnd: 1 }).lean();
-  expect(credits.map(c => [c.serviceNetVnd, c.careMinutes, c.onTime, c.reportsComplete])).toEqual([[100000, 60, true, true], [200000, 60, true, true]]);
+  expect(credits.map(c => [c.serviceNetVnd, c.careMinutes, c.onTime, c.reportsComplete])).toEqual([[90000, 60, true, true], [190000, 60, true, true]]);
   expect(await models.Earning.countDocuments()).toBe(0);
   expect(await models.CompletedBookingOrdinal.countDocuments()).toBe(0);
   expect(await models.EarningAccrualTask.countDocuments()).toBe(0);
   expect(await service.drain()).toEqual([]);
+});
+
+test('employee completion refuses legacy price basis and rolls back the final checkout', async () => {
+  service = createBookingFinanceSourceService({ connection, clock: () => at });
+  webhook = createPayosPaymentWebhookService({ provider: { verifyWebhook: async body => body.data },
+    repository: createMongoPaymentWebhookRepository({ connection, finance: service }), clock: () => at });
+  await col('bookings').updateOne({ _id: booking._id }, { $set: { paymentSnapshot: { currency: 'VND', amountVnd: 300000 } } });
+  await payAndAssign(); await finish(0);
+  await expect(finish(1)).rejects.toMatchObject({ code: 'PAYROLL_SOURCE_RECONCILIATION_REQUIRED' });
+  expect((await col('visits').findOne({ _id: visits[1]._id })).state).toBe('IN_PROGRESS');
+  expect(await models.PayrollServiceCredit.countDocuments()).toBe(0);
+  expect(await models.CareMediaBinding.exists({ _id: images[1][1] })).toBeNull();
 });
