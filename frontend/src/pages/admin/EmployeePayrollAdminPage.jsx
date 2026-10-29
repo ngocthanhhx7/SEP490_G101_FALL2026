@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
-import { PayrollStatement, PayrollField, PayrollLoadState, money, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
+import { PayrollStatement, PayrollField, PayrollLoadState, PayrollPager, money, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
 
 const employeeField = { label: 'Mã nhân viên', name: 'employeeId', pattern: '[a-fA-F0-9]{24}', maxLength: 24 };
 const numberValue = (data, key) => Number(data.get(key));
@@ -36,10 +36,13 @@ function DecisionForm({ row, kind, state, api }) {
 }
 
 export function EmployeePayrollAdminPage({ api }) {
+  const [advancePages, setAdvancePages] = useState([null]), [statementPages, setStatementPages] = useState([null]);
+  const [history, setHistory] = useState(false);
+  const advanceCursor = advancePages.at(-1), statementCursor = statementPages.at(-1);
   const load = useCallback(async ({ signal }) => {
-    const [advances, statements] = await Promise.all([api.advances({ signal }), api.statements({ signal })]);
-    return { advances: advances.items, statements: statements.items };
-  }, [api]);
+    const [advances, statements] = await Promise.all([api.advances({ signal, cursor: advanceCursor, view: history ? 'HISTORY' : 'PENDING' }), api.statements({ signal, cursor: statementCursor })]);
+    return { advances: advances.items, statements: statements.items, advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor };
+  }, [api, advanceCursor, statementCursor, history]);
   const state = usePayrollWorkspace(load);
   const [employmentType, setEmploymentType] = useState('FULL_TIME');
   const [installments, setInstallments] = useState([]);
@@ -98,15 +101,19 @@ export function EmployeePayrollAdminPage({ api }) {
       <div className="payroll-form"><button type="button" disabled={installments.length >= 12 || state.busy} onClick={() => setInstallments(rows => [...rows, globalThis.crypto.randomUUID()])}>Thêm khoản đối trừ tạm ứng</button>
         <button disabled={state.busy} type="submit">Lập phiếu lương</button></div>
     </form></details></section>
-    {state.data && <>
-      <section><h2>Tạm ứng chờ xử lý</h2>{!state.data.advances.length && <p>Không có đề nghị chờ xử lý.</p>}
+    <section><h2>{history ? 'Lịch sử tạm ứng' : 'Tạm ứng chờ xử lý'}</h2>
+      <p><label className="payroll-check"><input type="checkbox" checked={history} disabled={state.busy} onChange={event => { setHistory(event.target.checked); setAdvancePages([null]); }} />Hiện lịch sử tạm ứng</label></p>
+      {state.data && <>{!state.data.advances.length && <p>{history ? 'Chưa có đề nghị tạm ứng.' : 'Không có đề nghị chờ xử lý.'}</p>}
         {state.data.advances.map(row => <article key={row.id} className="payroll-statement"><header><h2>{money(row.amountVnd)}</h2><span>{payrollStatus(row.status)}</span></header>
           <p>Nhân viên: {row.employeeId}</p><p>{row.reason}</p><p>Tháng đề nghị: {row.monthKey} · Đối trừ: {row.settlementPeriod}</p>
+          {row.decisionReason && <p>Lý do quyết định: {row.decisionReason}</p>}
           <DecisionForm row={row} kind="advance" state={state} api={api} />
         </article>)}
-      </section><section><h2>Phiếu lương</h2>{!state.data.statements.length && <p>Chưa có phiếu lương.</p>}
+        <PayrollPager label="tạm ứng" pages={advancePages} setPages={setAdvancePages} nextCursor={state.data.advanceNextCursor} busy={state.busy} />
+      </>}
+      </section>{state.data && <section><h2>Phiếu lương</h2>{!state.data.statements.length && <p>Chưa có phiếu lương.</p>}
         {state.data.statements.map(row => <PayrollStatement key={row.id} statement={row}><p>Nhân viên: {row.employeeId}</p><DecisionForm row={row} kind="statement" state={state} api={api} /></PayrollStatement>)}
-      </section>
-    </>}
+        <PayrollPager label="phiếu lương" pages={statementPages} setPages={setStatementPages} nextCursor={state.data.statementNextCursor} busy={state.busy} />
+      </section>}
   </section>;
 }

@@ -31,6 +31,8 @@ export function payrollModels(connection) {
     settlementConsentReference: { type: String, required: true, maxlength: 160, select: false }
   }, options);
   advances.index({ employeeId: 1, monthKey: 1, status: 1, requestedAt: -1 });
+  advances.index({ employeeId: 1, requestedAt: -1, _id: -1 });
+  advances.index({ status: 1, requestedAt: -1, _id: -1 });
   advances.index({ transferReference: 1 }, { unique: true, partialFilterExpression: { transferReference: { $type: 'string' } } });
   const guards = new Schema({ _id: String, version: { type: Number, default: 0 }, pendingId: oid, approvedId: oid }, options);
   const commands = new Schema({ _id: String, fingerprint: String, result: Schema.Types.Mixed, createdAt: Date }, options);
@@ -58,6 +60,8 @@ export function payrollModels(connection) {
   statements.index({ employeeId: 1, periodStart: 1, periodEnd: 1 }, { name: 'active_payroll_period', unique: true,
     partialFilterExpression: { status: { $in: ['PREPARED', 'APPROVED', 'PAID'] } } });
   statements.index({ transferReference: 1 }, { unique: true, partialFilterExpression: { transferReference: { $type: 'string' } } });
+  statements.index({ employeeId: 1, periodEnd: -1, _id: -1 });
+  statements.index({ periodEnd: -1, _id: -1 });
   const claims = new Schema({ _id: String, statementId: oid, advanceId: oid }, options);
   const defs = { EmploymentContract: contracts, SalaryAdvance: advances, PayrollMonthGuard: guards, PayrollCommand: commands,
     PayrollEvent: events, PayrollServiceCredit: credits, PayrollStatement: statements, PayrollSourceClaim: claims };

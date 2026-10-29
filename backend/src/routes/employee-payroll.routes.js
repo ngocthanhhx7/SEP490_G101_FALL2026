@@ -8,7 +8,7 @@ import { requireSession, requireCsrf, requireRoles } from '../middlewares/sessio
 export function payrollRuntimeModule({ config, connection, clock = Date.now, sessionService, policy = employeePayrollPolicyResolver }) {
   if (!config.auth?.enabled || !connection?.model) return null;
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
-  const service = createPayrollService({ connection, policy, clock: () => new Date(clock()) });
+  const service = createPayrollService({ connection, policy, clock: () => new Date(clock()), cursorSecret: config.auth.tokenSecret });
   const router = Router(), controller = createPayrollController(service), admin = requireRoles('ADMIN'), sitter = requireRoles('PET_SITTER'), csrf = requireCsrf(session);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, requireSession(session, { clock }));
   router.get('/me', sitter, controller.own);

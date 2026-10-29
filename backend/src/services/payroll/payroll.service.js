@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto';
 import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
 import { userModel } from '../../models/user.model.js';
-import { contractInput, advanceInput, advanceDecisionInput, payrollAssessmentInput } from '../../validators/payroll.validator.js';
+import { contractInput, advanceInput, advanceDecisionInput, payrollAssessmentInput, payrollPageInput } from '../../validators/payroll.validator.js';
 import { fail, id } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { calculateEmployeePayroll } from './payroll-calculation.service.js';
 import { assertPayrollStorage } from './payroll-storage.service.js';
+import { createScopedCursor } from '../../utils/scoped-cursor.js';
 
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const payrollMonth = at => new Date(at.getTime() + 7 * 3600000).toISOString().slice(0, 7);
@@ -16,10 +17,30 @@ const publicAdvance = row => ({ id: String(row._id), amountVnd: row.amountVnd, c
 const publicStatement = row => ({ id: String(row._id), employeeId: String(row.employeeId), periodStart: row.periodStart, periodEnd: row.periodEnd,
   dueAt: row.dueAt, status: row.status, version: row.version, payCycle: row.payCycle, breakdown: row.breakdown, paidAt: row.paidAt ?? null, voidReason: row.voidReason ?? null });
 
-export function createPayrollService({ connection, policy, clock = () => new Date() }) {
+export function createPayrollService({ connection, policy, clock = () => new Date(), cursorSecret }) {
   const models = payrollModels(connection), User = userModel(connection), { SitterStatus, SitterApplication } = sitterApplicationModels(connection);
   const uow = createUnitOfWork(connection);
   const now = () => new Date(clock());
+  const codec = cursorSecret ? createScopedCursor({ secret: cursorSecret, namespace: 'employee-payroll-history-v1', clock: () => now().getTime() }) : null;
+  async function page(model, match, actor, input, field, kind, project) {
+    const context = { actorId: actor.userId, kind, limit: input.limit, match };
+    let position;
+    if (input.cursor) {
+      if (!codec) fail('PAYROLL_STORAGE_NOT_READY', 'Payroll cursor configuration required', 503);
+      position = codec.decode(input.cursor, context); id(position.id);
+      if (typeof position.at !== 'string' || !Number.isFinite(Date.parse(position.at))) fail('VALIDATION_FAILED', 'Invalid payroll cursor');
+    }
+    const filter = { ...match, ...(position ? { $or: [{ [field]: { $lt: new Date(position.at) } },
+      { [field]: new Date(position.at), _id: { $lt: position.id } }] } : {}) };
+    const rows = await model.find(filter).sort({ [field]: -1, _id: -1 }).limit(input.limit + 1).maxTimeMS(5000).lean();
+    const items = rows.slice(0, input.limit), last = items.at(-1);
+    let nextCursor = null;
+    if (rows.length > input.limit) {
+      if (!codec) fail('PAYROLL_STORAGE_NOT_READY', 'Payroll cursor configuration required', 503);
+      nextCursor = codec.encode({ id: String(last._id), at: last[field].toISOString() }, context);
+    }
+    return { items: items.map(project), nextCursor, limit: input.limit };
+  }
   function role(actor, name) {
     if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles) || !actor.userId || actor.synthetic === true) fail('UNAUTHENTICATED', 'Authentication required', 401);
     id(actor.userId); if (!actor.roles.includes(name)) fail('FORBIDDEN', 'Action not permitted', 403);
@@ -85,13 +106,21 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         return { id: String(record._id), version: record.version };
       });
     },
-    async own(actor) {
-      role(actor, 'PET_SITTER');
+    async own(actor, query) {
+      role(actor, 'PET_SITTER'); const input = payrollPageInput(query, true);
+      await assertPayrollStorage(connection);
       const contracts = await models.EmploymentContract.find({ employeeId: actor.userId }).sort({ version: -1 }).limit(20).lean();
-      const advances = await models.SalaryAdvance.find({ employeeId: actor.userId }).sort({ requestedAt: -1, _id: -1 }).limit(50).lean();
-      const statements = await models.PayrollStatement.find({ employeeId: actor.userId }).sort({ periodEnd: -1, _id: -1 }).limit(50).lean();
+      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, effectiveAt: { $lte: now() } }).sort({ version: -1 }).lean();
+      const active = effective && (!effective.endsAt || effective.endsAt > now()) ? effective : null;
+      if (active && !contracts.some(c => String(c._id) === String(active._id))) contracts.push(active);
+      const advances = await page(models.SalaryAdvance, { employeeId: actor.userId }, actor,
+        { limit: input.limit, cursor: input.advanceCursor }, 'requestedAt', 'own-advances', publicAdvance);
+      const statements = await page(models.PayrollStatement, { employeeId: actor.userId }, actor,
+        { limit: input.limit, cursor: input.statementCursor }, 'periodEnd', 'own-statements', publicStatement);
       return { contracts: contracts.map(c => ({ id: String(c._id), version: c.version, employmentType: c.employmentType, salaryBasis: c.salaryBasis,
-        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })), advances: advances.map(publicAdvance), statements: statements.map(publicStatement) };
+        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
+        activeContractId: active ? String(active._id) : null, advances: advances.items, statements: statements.items,
+        advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor };
     },
     async submitAdvance(actor, body, key) {
       role(actor, 'PET_SITTER'); const input = advanceInput(body), approved = await policyFor('ADVANCE');
@@ -226,14 +255,16 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         await event(actor, row.employeeId, row._id, 'STATEMENT_' + input.action, input.reason, session); return publicStatement(saved);
       });
     },
-    async listStatements(actor) {
-      role(actor, 'ADMIN');
-      return { items: (await models.PayrollStatement.find().sort({ periodEnd: -1, _id: -1 }).limit(100).lean()).map(publicStatement), limit: 100 };
+    async listStatements(actor, query) {
+      role(actor, 'ADMIN'); const input = payrollPageInput(query);
+      await assertPayrollStorage(connection);
+      return page(models.PayrollStatement, {}, actor, input, 'periodEnd', 'admin-statements', publicStatement);
     },
-    async listAdvances(actor) {
-      role(actor, 'ADMIN');
-      const records = await models.SalaryAdvance.find({ status: { $in: ['SUBMITTED', 'APPROVED'] } }).sort({ requestedAt: 1, _id: 1 }).limit(100).lean();
-      return { items: records.map(row => ({ ...publicAdvance(row), employeeId: String(row.employeeId) })), limit: 100 };
+    async listAdvances(actor, query) {
+      role(actor, 'ADMIN'); const input = payrollPageInput(query);
+      await assertPayrollStorage(connection);
+      return page(models.SalaryAdvance, input.view === 'HISTORY' ? {} : { status: { $in: ['SUBMITTED', 'APPROVED'] } }, actor,
+        input, 'requestedAt', 'admin-advances', row => ({ ...publicAdvance(row), employeeId: String(row.employeeId) }));
     }
   };
 }

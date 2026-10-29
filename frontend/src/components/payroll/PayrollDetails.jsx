@@ -19,3 +19,11 @@ export function PayrollField({ label, ...props }) {
 export function PayrollLoadState({ state }) {
   return <>{state.loading && <p role="status">Đang tải bảng lương…</p>}{state.error && <div role="alert"><p>Không tải được dữ liệu ({state.error}).</p><button type="button" onClick={state.refresh}>Tải lại</button></div>}{state.message && <p role="status">{state.message}</p>}</>;
 }
+export function PayrollPager({ label, pages, setPages, nextCursor, busy }) {
+  if (pages.length === 1 && !nextCursor) return null;
+  return <nav className="payroll-pagination" aria-label={`Phân trang ${label}`}>
+    <button type="button" disabled={busy || pages.length < 2} aria-label={`Trang trước ${label}`} title="Trang trước" onClick={() => setPages(current => current.slice(0, -1))}>&larr;</button>
+    <span>Trang {pages.length}</span>
+    <button type="button" disabled={busy || !nextCursor} aria-label={`Trang tiếp ${label}`} title="Trang tiếp" onClick={() => setPages(current => [...current, nextCursor])}>&rarr;</button>
+  </nav>;
+}
