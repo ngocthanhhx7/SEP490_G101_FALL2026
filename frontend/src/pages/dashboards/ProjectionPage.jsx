@@ -42,7 +42,8 @@ function ProjectionContent({ api, title, description, kind, targetId, searchable
       </div>)}</dl>
       {data.items.length === 0 && <Notice state="empty" title="Chưa có dữ liệu trong phạm vi đã chọn" />}
       <ul className="pwc-projection__items">{data.items.map(item => <li key={item.id}>
-        <h2>{item.displayName ?? (item.visitId ? `Buổi chăm sóc ${item.visitId}` : `Mã ${item.id}`)}</h2>
+        <h2>{item.displayName ?? (item.bookingId ? `Đơn chăm sóc ${item.bookingId}`
+          : item.visitId ? `Buổi chăm sóc ${item.visitId}` : `Mã ${item.id}`)}</h2>
         {item.state && <p>Trạng thái: {labels[item.state] ?? item.state}</p>}
         {item.startsAt && <p>Lịch chăm sóc: {time(item.startsAt)}</p>}
         {item.bio && <p>{item.bio}</p>}

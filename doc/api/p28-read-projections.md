@@ -1,5 +1,19 @@
 # P28 read projection integration proposal
 
+## Update, 30 October 2026
+
+The durable earnings adapter is now implemented against PR #63's persisted
+booking snapshots and ledger. Booking earnings return `bookingId` (not a fabricated
+visitId), the stored completion instant and disjoint financial buckets. The
+adapter uses one snapshot transaction, owner/date predicates, signed scoped
+cursors, 50-row pages, and a bounded ledger reconciliation. Missing snapshot joins
+remain pending and ledger inconsistencies return 503. Existing injected visit
+projections continue to work. All displayed money comes from backend records.
+The corresponding [FIN-07/08 decisions](../requirements/finance-decisions-2026-10-30.md)
+are approved; operational source production and actual tax assessments still have
+to be integrated. The six nonfinancial source gaps in the historical matrix below
+remain open; payroll/earnings implementation alone does not close them.
+
 Status: **INTEGRATION_PENDING**, DTO proposal for P01/P34 review, 15 October 2026.
 The P28 runtime read module and frontend role routes are now composed. A durable
 P41-backed Admin payroll reader is available when runtime Mongo/auth configuration is

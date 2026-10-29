@@ -1,5 +1,5 @@
 import { AppError } from '../../utils/app-error.js';
-import { hasRole } from '../../middlewares/session.js';
+import { hasRole } from '../../utils/roles.js';
 
 // P41 settlement identifiers are opaque strings (for example UUID earning ids),
 // while user ids normally serialize as Mongo ObjectIds. Keep one bounded

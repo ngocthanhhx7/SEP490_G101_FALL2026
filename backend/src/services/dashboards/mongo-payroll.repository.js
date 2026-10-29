@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { AppError } from '../../utils/app-error.js';
+import { createMongoEarningsRepository } from './mongo-earnings.repository.js';
 
 const CURSOR_CONTEXT = 'p28-payroll-cursor\0';
 const MAX_CURSOR_LENGTH = 512;
@@ -223,5 +224,7 @@ export function createMongoPayrollRepository({ connection, requests,
 
 export function createMongoDashboardRepositories({ connection, cursorSecret } = {}) {
   if (!connection?.collection || !validSecret(cursorSecret)) return Object.freeze({});
-  return Object.freeze({ payroll: createMongoPayrollRepository({ connection, cursorSecret }) });
+  return Object.freeze({ payroll: createMongoPayrollRepository({ connection, cursorSecret }),
+    ...(typeof connection.transaction === 'function'
+      ? { earnings: createMongoEarningsRepository({ connection, cursorSecret }) } : {}) });
 }

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { renderSms } from './sms-template.service.js';
+import { DEFAULT_SMS_OTP_TEMPLATE, isSmsOtpTemplate } from '../validators/sms-template.validator.js';
 
 const ESMS_SEND_URL = 'https://rest.esms.vn/MainService.svc/json/SendMultipleMessage_V4_post_json/';
 
@@ -25,10 +26,11 @@ function mapEsmsCode(code) {
 }
 
 export function createSmsDelivery({ apiKey, secretKey, brandname, sandbox = false,
-  fetchImpl = globalThis.fetch, timeoutMs = 10000, clock = Date.now, logger = () => {} }) {
+  otpTemplate = DEFAULT_SMS_OTP_TEMPLATE, fetchImpl = globalThis.fetch, timeoutMs = 10000, clock = Date.now, logger = () => {} }) {
   if (typeof apiKey !== 'string' || !apiKey || typeof secretKey !== 'string' || !secretKey
     || typeof brandname !== 'string' || !brandname || typeof fetchImpl !== 'function'
-    || typeof sandbox !== 'boolean' || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) {
+    || typeof sandbox !== 'boolean' || !isSmsOtpTemplate(otpTemplate)
+    || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000) {
     throw new TypeError('Invalid SMS adapter configuration');
   }
 
@@ -101,7 +103,7 @@ export function createSmsDelivery({ apiKey, secretKey, brandname, sandbox = fals
 
   return Object.freeze({
     send(command) {
-      const message = renderSms(command, clock());
+      const message = renderSms(command, clock(), otpTemplate);
       if (message.error) return Promise.resolve(failure(message.error));
 
       const fingerprint = createHash('sha256').update(JSON.stringify(message)).digest('hex');

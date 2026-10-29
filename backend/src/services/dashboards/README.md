@@ -1,5 +1,29 @@
 # P28 read projections
 
+## Integration update, 2026-10-30
+
+`mongo-earnings.repository.js` now reads booking-level Earning records, immutable
+BookingEarningSnapshot joins and the corresponding ledger in one Mongo snapshot.
+It checks every disjoint bucket against ledger principal, retains persisted
+amounts, filters the authenticated sitter before querying, uses inclusive Vietnam
+dates and signed scope/filter-bound cursors, and bounds pages to 50 and ledger
+reads to 10000 lines. Missing snapshots remain pending; inconsistent ledger money
+returns INVALID_PROJECTION. Source ids, payment/evidence references and assessment
+details are excluded from the response. Only page totals are returned.
+
+The completed-booking snapshot is the authoritative completion fact for these
+rows, so the earnings DTO supports `bookingId` without pretending it is a visit.
+Existing visit-level injected adapters remain compatible. This repository cannot
+create earnings; PR #63's source producer still needs its operational adapters.
+Payroll and earnings have durable adapters. The other six projections still need
+the primary operational Visit/Offer/Bill/Case and approved-public-profile/rating
+source contracts; absence must not be converted into a successful empty result.
+
+Dashboard routes now wire an HTTP controller; the service imports role rules from
+utils rather than middleware. Shared composition retains current pricing, matching,
+private-image and settlement routes. All financial endpoints remain independent
+of AI.
+
 Export-only services consume a trusted `repository.readSnapshot({ scope, query })` port.
 A durable P41-backed payroll adapter is registered when the runtime has a Mongo connection
 and the auth cursor secret; it reads `SettlementRequest` rows and approved `User` display
