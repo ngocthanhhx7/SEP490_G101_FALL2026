@@ -80,6 +80,8 @@ function normalizeService(service) {
     )
       invalidResponse();
     details = {
+      ...(value.category !== undefined ? { category: value.category, locations: value.locations,
+        ...(value.durationMinutes !== undefined ? { durationMinutes: value.durationMinutes } : {}) } : {}),
       preparation: [...value.preparation],
       exclusions: [...value.exclusions],
       faq: value.faq.map((item) => ({
@@ -87,6 +89,9 @@ function normalizeService(service) {
         answer: item.answer
       }))
     };
+    if (value.category !== undefined && (!nonEmptyString(value.category) || value.category.length > 80 ||
+      !Array.isArray(value.locations) || !value.locations.length || value.locations.some(x => !['FACILITY', 'HOME', 'OUTDOOR'].includes(x)) ||
+      (value.durationMinutes !== undefined && (!Number.isSafeInteger(value.durationMinutes) || value.durationMinutes < 1 || value.durationMinutes > 1440)))) invalidResponse();
   }
 
   return Object.freeze({

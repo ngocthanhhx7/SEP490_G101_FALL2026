@@ -2,6 +2,13 @@
 
 Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và runtime REGISTER handler. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
 
+## Demo Catalogue
+
+`node scripts/seeds/demo-services.js` previews the13 sheet offerings; `--apply` only targets
+a non-production `*_dev` database. See [approved rules](../doc/requirements/demo-service-catalog-2026-10-30.md).
+Customer/CSRF-protected `POST /api/v1/pricing/basket-quotes` validates owned pets and snapshots
+one combo/order fee across all rows. An estimate does not create bookings or collect payment.
+
 ## Chạy và kiểm tra
 
 Từ backend, npm ci --ignore-scripts; điền URI Atlas và MONGO_DB trong .env local rồi npm start (npm run dev cho watch). Config thiếu/sai dừng trước listen. Không commit .env hoặc bất kỳ .env.* ở bất kỳ depth nào; chỉ .env.example chứa placeholders được push. Không force-add env hoặc đưa credential thật vào example.

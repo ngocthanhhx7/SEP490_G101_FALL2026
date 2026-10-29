@@ -8,6 +8,7 @@ import {
 } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
 import './service-catalog.css';
+import { ServiceBasket } from './ServiceBasket.jsx';
 
 function normalizeSearch(value) {
   return value
@@ -34,7 +35,10 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
     );
   };
   const [species, setSpecies] = useState('ALL');
+  const [category, setCategory] = useState('ALL');
+  const [location, setLocation] = useState('ALL');
   const services = catalog.data?.services || [];
+  const categories = [...new Set(services.map(s => s.details?.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   const filtered = useMemo(() => {
     const term = normalizeSearch(query.trim());
     return services.filter((service) => {
@@ -50,9 +54,10 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         ).includes(term);
       const matchesSpecies =
         species === 'ALL' || service.species.includes(species);
-      return matchesText && matchesSpecies;
+      return matchesText && matchesSpecies && (category === 'ALL' || service.details?.category === category) &&
+        (location === 'ALL' || service.details?.locations?.includes(location));
     });
-  }, [services, query, species]);
+  }, [services, query, species, category, location]);
 
   return (
     <div className="pwc-page pwc-service-list-page">
@@ -63,8 +68,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         <p className="pwc-eyebrow">Paw World Care</p>
         <h1 id="pwc-service-list-title">Dịch vụ PawWorld dành cho bé</h1>
         <p className="pwc-lead">
-          Chọn dịch vụ phù hợp để bé được quan tâm, ngay trong không gian quen
-          thuộc.
+          Chăm sóc, làm đẹp, lưu trú và vận động dành cho chó, mèo.
         </p>
       </section>
 
@@ -95,6 +99,14 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
             <option value="CAT">Mèo</option>
           </select>
         </label>
+        {categories.length > 0 && <>
+          <label><span>Nhóm dịch vụ</span><select value={category} onChange={event => setCategory(event.target.value)}>
+            <option value="ALL">Tất cả nhóm</option>{categories.map(value => <option key={value}>{value}</option>)}
+          </select></label>
+          <label><span>Địa điểm</span><select value={location} onChange={event => setLocation(event.target.value)}>
+            <option value="ALL">Tất cả địa điểm</option><option value="FACILITY">Tại cơ sở</option><option value="HOME">Tại gia</option><option value="OUTDOOR">Ngoài trời</option>
+          </select></label>
+        </>}
       </form>
       {catalog.status === 'success' &&
         catalog.data?.available &&
@@ -133,6 +145,8 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
               onClick={() => {
                 setQuery('');
                 setSpecies('ALL');
+                setCategory('ALL');
+                setLocation('ALL');
               }}
             >
               Xóa bộ lọc
@@ -141,6 +155,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         />
       )}
 
+      {catalog.data?.available && <ServiceBasket services={services} />}
       <section className="pwc-catalog-help">
         <div>
           <h2>Bạn cần tìm dịch vụ phù hợp?</h2>

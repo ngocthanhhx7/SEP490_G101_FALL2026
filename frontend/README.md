@@ -16,6 +16,13 @@ npm audit
 
 These commands were exercised locally on Windows with the ADR runtime. Stop dev/preview before `npm ci` on Windows: the running process can lock the native bundler dependency. Production needs SPA fallback to index.html for frontend routes and a separate /api/v1 upstream; Vite preview is a local build check. No deployment or CI workflow is configured by P03.
 
+## Demo Catalogue
+
+Public service pages display category/location/duration and local photographs, with category,
+location, species and search filters. `ServiceBasket.jsx` lets signed-in Customers request
+server-priced baskets for owned pets; editing clears stale estimates. Transport lives in
+`services/service-basket-api.js`; source/license metadata lives with the service assets.
+
 ## Responsibilities
 
 `demo-ai/` là trang HTML/JS quan sát AI độc lập chỉ phục vụ bởi backend/scripts/demo-ai.js trên loopback3011; không nằm trong bundle sản phẩm. Xem [bộ tài khoản và tình huống demo](../doc/testing/ai-demo-accounts.md).
