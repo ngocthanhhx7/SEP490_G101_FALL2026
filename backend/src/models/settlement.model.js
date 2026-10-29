@@ -1,7 +1,7 @@
 import { Schema } from 'mongoose';
 
 const BUCKETS = ['PENDING', 'HELD', 'AVAILABLE', 'RESERVED', 'PAID'];
-const REQUEST_STATES = ['SUBMITTED', 'APPROVED', 'REJECTED', 'TRANSFER_PENDING', 'PAID'];
+const REQUEST_STATES = ['SUBMITTED', 'APPROVED', 'REJECTED', 'WITHDRAWN', 'TRANSFER_PENDING', 'PAID'];
 
 const money = {
   type: Number,
@@ -90,6 +90,9 @@ export function settlementModels(connection) {
     earningId: { type: String, required: true, immutable: true, maxlength: 128 },
     sitterId: { type: String, required: true, immutable: true, maxlength: 128 },
     visitId: { type: String, default: null, immutable: true, maxlength: 128 },
+    bookingId: { type: String, immutable: true, maxlength: 128 },
+    completedAt: { type: Date, immutable: true },
+    sourceSnapshotId: { type: String, immutable: true, maxlength: 128 },
     earningPeriodKey: { type: String, required: true, immutable: true, maxlength: 80 },
     accruedVnd: money,
     pendingVnd: { ...money, default: 0 },
@@ -109,7 +112,8 @@ export function settlementModels(connection) {
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
   earningSchema.index({ earningId: 1 }, { unique: true });
   earningSchema.index({ sitterId: 1, state: 1, earningPeriodKey: 1, earningId: 1 });
-  earningSchema.index({ sitterId: 1, visitId: 1 }, { unique: true, sparse: true });
+  earningSchema.index({ sitterId: 1, visitId: 1 }, { unique: true, name: 'earning_visit_owner_v2',
+    partialFilterExpression: { visitId: { $type: 'string' } } });
   earningSchema.index({ 'reservation.requestId': 1, state: 1 });
 
   const lockSchema = new Schema({
@@ -120,7 +124,8 @@ export function settlementModels(connection) {
     state: { type: String, enum: ['ACTIVE', 'RELEASED'], required: true },
     actorId: { type: String, default: null, maxlength: 128 },
     createdAt: { type: Date, required: true },
-    releasedAt: { type: Date, default: null }
+    releasedAt: { type: Date, default: null },
+    releasedBy: { type: String, default: null, maxlength: 128 }
   }, { versionKey: false, strict: 'throw', bufferCommands: false });
   lockSchema.index({ resourceType: 1, resourceId: 1, lockType: 1, reference: 1 }, { unique: true });
   lockSchema.index({ resourceType: 1, resourceId: 1, state: 1, lockType: 1 });
@@ -222,6 +227,20 @@ export function settlementModels(connection) {
   }, { versionKey: false, strict: 'throw', bufferCommands: false });
   evidenceSchema.index({ evidenceReference: 1 }, { unique: true });
   evidenceSchema.index({ requestId: 1, ownerActorId: 1, state: 1 });
+  const adjustmentSchema = new Schema({
+    id: { type: String, required: true, immutable: true, maxlength: 128 },
+    earningId: { type: String, required: true, immutable: true, maxlength: 128 },
+    sitterId: { type: String, required: true, immutable: true, maxlength: 128 },
+    sourceReference: { type: String, required: true, immutable: true, maxlength: 160 },
+    sourceType: { type: String, enum: ['CASE', 'REFUND', 'HOLD'], required: true, immutable: true },
+    status: { type: String, enum: ['PENDING_ADMIN_REVIEW'], required: true },
+    proposedAmountVnd: nullableMoney,
+    createdBy: { type: String, default: null, immutable: true, maxlength: 128 },
+    createdAt: { type: Date, required: true, immutable: true }
+  }, { strict: 'throw', versionKey: false, bufferCommands: false });
+  adjustmentSchema.index({ id: 1 }, { unique: true });
+  adjustmentSchema.index({ earningId: 1, sourceType: 1, sourceReference: 1 }, { unique: true });
+  adjustmentSchema.index({ status: 1, createdAt: 1 });
 
   return Object.freeze({
     SettlementRequest: model(connection, 'SettlementRequest', requestSchema),
@@ -234,7 +253,8 @@ export function settlementModels(connection) {
     SettlementOutbox: model(connection, 'SettlementOutbox', outboxSchema),
     SettlementTransfer: model(connection, 'SettlementTransfer', transferSchemaRoot),
     SettlementTransferClaim: model(connection, 'SettlementTransferClaim', transferClaimSchema),
-    SettlementEvidence: model(connection, 'SettlementEvidence', evidenceSchema)
+    SettlementEvidence: model(connection, 'SettlementEvidence', evidenceSchema),
+    EarningAdjustment: model(connection, 'EarningAdjustment', adjustmentSchema)
   });
 }
 

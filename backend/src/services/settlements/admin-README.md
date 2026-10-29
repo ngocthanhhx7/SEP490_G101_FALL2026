@@ -1,5 +1,20 @@
 # WBS-N06 Admin settlement review and transfer
 
+## Integration update, 2026-10-30
+
+This branch depends on PR #63's earning/snapshot/hold implementation; integrate
+#63 first. Both modules now mount together while preserving the newer architecture,
+private-image, pricing and matching composition. Routes wire controllers only.
+Evidence ownership, reservation readiness and transfer-attempt persistence are
+mandatory repository methods: omitting them fails composition instead of allowing
+a transfer. Rejection events do not claim that all funds returned to AVAILABLE;
+ledger entries preserve the actual HELD destination for active case/refund locks.
+
+The user approved [FIN-07/08 conditions](../../../../doc/requirements/finance-decisions-2026-10-30.md).
+Missing authoritative source adapters, tax assessments and private transfer
+evidence remain integration gates. The default runtime policy remains closed.
+Recorded transfer evidence is a historical record, never a bank transfer API call.
+
 `createApp` registers `adminSettlementRuntimeModule` with the durable Mongo adapter
 when authentication is enabled. The
 adapter is shared with WBS-N05 and uses the same settlement request aggregate,

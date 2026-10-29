@@ -1,5 +1,10 @@
 # P51-A — Hợp đồng tài chính và chính sách hủy v1.0
 
+> Cập nhật 30/10/2026: [quyết định FIN-07/FIN-08](finance-decisions-2026-10-30.md)
+> đã chốt điều kiện eligibility, hold, adjustment sau payout và giới hạn sửa/rút
+> request. Các mục bên dưới là lịch sử hợp đồng; source/payment/allocation và
+> assessment thuế cụ thể vẫn phải được xác minh trước khi tạo tiền khả dụng.
+
 Ngày 14/10/2026, Asia/Ho_Chi_Minh. Phạm vi EXT-FINANCIAL; contributor được giao Nguyễn Hữu Anh Nhật, reviewer Đoàn Tiến Đạt, merge cuối Nguyễn Ngọc Thành. Đây là hợp đồng thiết kế, chưa có runtime, provider hoặc schema triển khai. Approval PR xác nhận chất lượng tài liệu; không tự đóng các quyết định nghiệp vụ còn mở.
 
 ## Nguồn, phiên bản và hiệu lực

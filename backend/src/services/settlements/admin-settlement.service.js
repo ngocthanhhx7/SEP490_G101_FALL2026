@@ -28,7 +28,8 @@ function project(row) {
 
 export function createAdminSettlementService({ unitOfWork, repository, policy, clock = () => new Date() }) {
   for (const method of ['findCommand', 'saveCommand', 'getById', 'compareAndSet', 'appendEvent',
-    'releaseReservation', 'settleReservation', 'listPayroll']) {
+    'releaseReservation', 'settleReservation', 'listPayroll', 'assertReservationReady',
+    'assertEvidenceOwnership', 'recordTransferAttempt']) {
     if (typeof repository?.[method] !== 'function') throw new TypeError(`Admin settlement repository requires ${method}`);
   }
   if (typeof unitOfWork?.run !== 'function') throw new TypeError('Settlement transaction required');
@@ -102,7 +103,7 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
           return { patch: { status: decision === 'APPROVE' ? 'APPROVED' : 'REJECTED', decision: { decision, reason } },
             event: { type: decision === 'APPROVE' ? 'SETTLEMENT_APPROVED' : 'EARNING_RESERVATION_RELEASED',
               reason, amountVnd: row.amountVnd,
-              ...(decision === 'REJECT' ? { fromBucket: 'RESERVED', toBucket: 'AVAILABLE' } : {}) } };
+              } };
         } });
     },
     async recordTransfer(input) {
@@ -131,9 +132,8 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
           const transfer = { outcome: confirmed ? 'CONFIRMED' : outcome === 'UNKNOWN' ? 'UNKNOWN' : 'AMOUNT_MISMATCH',
             reference, evidenceReference, amountVnd: input.amountVnd ?? null, paidAt,
             recordedBy: input.actor.userId, recordedAt: occurredAt };
-          const evidenceCheck = typeof repository.assertEvidenceOwnership === 'function'
-            ? await repository.assertEvidenceOwnership({ evidenceReference, requestId: row.id,
-              actorId: input.actor.userId }, transaction) : true;
+          const evidenceCheck = await repository.assertEvidenceOwnership({ evidenceReference, requestId: row.id,
+            actorId: input.actor.userId }, transaction);
           if (!evidenceCheck) fail(409, 'EVIDENCE_UNAVAILABLE');
           if (confirmed && await repository.settleReservation({ requestId: row.id,
             amountVnd: row.amountVnd, reference, evidenceReference, adminId: input.actor.userId,

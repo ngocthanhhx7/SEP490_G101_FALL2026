@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { settlementModels, settlementBucketNames } from '../../models/settlement.model.js';
 import { AppError } from '../../utils/app-error.js';
 
@@ -82,7 +82,7 @@ export function createMongoSettlementRepository({ connection, models = settlemen
     FinancialLock: locks, EarningLedgerEntry: ledger, SettlementCommand: commands,
     SettlementEvent: events, SettlementOutbox: outbox, SettlementTransfer: transfers,
     SettlementTransferClaim: transferClaims,
-    SettlementEvidence: evidence
+    SettlementEvidence: evidence, EarningAdjustment: adjustments
   } = models;
 
   async function assertIndexesReady() {
@@ -95,8 +95,9 @@ export function createMongoSettlementRepository({ connection, models = settlemen
         if (error.code !== 26) throw error;
         throw new AppError(503, 'SETTLEMENT_STORAGE_NOT_READY', 'Settlement indexes must be provisioned');
       }
-      if (required.some(([keys]) => !actual.some(index => index.unique === true
-        && JSON.stringify(index.key) === JSON.stringify(keys) && !index.partialFilterExpression))) {
+      if (required.some(([keys, config]) => !actual.some(index => index.unique === true
+        && JSON.stringify(index.key) === JSON.stringify(keys)
+        && JSON.stringify(index.partialFilterExpression) === JSON.stringify(config.partialFilterExpression)))) {
         throw new AppError(503, 'SETTLEMENT_STORAGE_NOT_READY', 'Settlement indexes must be provisioned');
       }
     }
@@ -292,15 +293,18 @@ export function createMongoSettlementRepository({ connection, models = settlemen
     for (const row of rows) if (!await earningLedgerReady(row, session)) return false;
     const now = new Date();
     for (const row of rows) {
+      const held = Boolean(await activeLockForEarning(row, requestId, session));
+      const target = held ? 'HELD' : 'AVAILABLE';
+      const field = BUCKET_TO_FIELD[target];
       const updated = await queryWithSession(earnings.findOneAndUpdate({ earningId: row.earningId,
         state: 'RESERVED', 'reservation.requestId': requestId, reservedVnd: row.reservedVnd },
-      { $inc: { reservedVnd: -row.reservedVnd, availableVnd: row.reservedVnd, version: 1 },
-        $set: { state: 'AVAILABLE', reservation: { requestId: null, reservedAt: null } } },
+      { $inc: { reservedVnd: -row.reservedVnd, [field]: row.reservedVnd, version: 1 },
+        $set: { state: target, reservation: { requestId: null, reservedAt: null } } },
       { ...options(session), returnDocument: 'after', runValidators: true }), session).lean().exec();
       if (!updated) return false;
       await ledger.create([{
         lineId: `settlement:${requestId}:release:${row.earningId}`, operationId: `settlement:${requestId}:release`,
-        requestId, earningId: row.earningId, sitterId: row.sitterId, fromBucket: 'RESERVED', toBucket: 'AVAILABLE',
+        requestId, earningId: row.earningId, sitterId: row.sitterId, fromBucket: 'RESERVED', toBucket: target,
         amountVnd: row.reservedVnd, actorId, policyVersion, decisionVersion, occurredAt: now
       }], options(session));
     }
@@ -382,16 +386,57 @@ export function createMongoSettlementRepository({ connection, models = settlemen
     // Lock producers and reservation writers must touch the same earning. A
     // separate FinancialLock insert alone permits write skew under snapshots.
     const target = resourceType === 'EARNING' ? { earningId } : { visitId: earningId };
+    const existing = await locks.findOne({ resourceType, resourceId: earningId, lockType, reference }).session(session).lean();
+    if (existing) return existing;
     const touched = await earnings.updateMany(target, { $inc: { version: 1 } }, options(session));
     if (!touched.matchedCount) throw new TypeError('Financial lock has no earning');
+    const now = new Date();
+    const rows = await earnings.find({ ...target, state: 'AVAILABLE' }).session(session).lean();
+    if (['CASE', 'REFUND', 'HOLD'].includes(lockType)) {
+      const paidRows = await earnings.find({ ...target, paidVnd: { $gt: 0 } }).session(session).lean();
+      for (const row of paidRows) {
+        const id = createHash('sha256').update(JSON.stringify([row.earningId, lockType, reference])).digest('hex');
+        await adjustments.create([{ id, earningId: row.earningId, sitterId: row.sitterId,
+          sourceReference: reference, sourceType: lockType, status: 'PENDING_ADMIN_REVIEW',
+          proposedAmountVnd: null, createdBy: actorId, createdAt: now }], options(session));
+      }
+    }
+    for (const row of rows) {
+      if (!await earningLedgerReady(row, session)) throw new AppError(409, 'LEDGER_UNAVAILABLE', 'Invalid earning ledger');
+      await earnings.updateOne({ earningId: row.earningId, version: row.version },
+        { $inc: { availableVnd: -row.availableVnd, heldVnd: row.availableVnd, version: 1 },
+          $set: { state: 'HELD' } }, options(session));
+      const digest = createHash('sha256').update(JSON.stringify([row.earningId, lockType, reference])).digest('hex');
+      await ledger.create([{ lineId: `hold:${digest}`, operationId: `hold:${digest}`,
+        earningId: row.earningId, sitterId: row.sitterId, fromBucket: 'AVAILABLE', toBucket: 'HELD',
+        amountVnd: row.availableVnd, actorId, occurredAt: now }], options(session));
+    }
     return locks.create([{ resourceType, resourceId: earningId, lockType, reference, actorId,
-      state: 'ACTIVE', createdAt: new Date(), releasedAt: null }], options(session));
+      state: 'ACTIVE', createdAt: now, releasedAt: null }], options(session));
   }
 
-  async function unlockEarning({ earningId, lockType, reference }, session) {
-    const updated = await queryWithSession(locks.findOneAndUpdate({ resourceType: 'EARNING', resourceId: earningId,
-      lockType, reference, state: 'ACTIVE' }, { $set: { state: 'RELEASED', releasedAt: new Date() } },
+  async function unlockEarning({ earningId, lockType, reference, actorId, resourceType = 'EARNING' }, session) {
+    if (!session || typeof actorId !== 'string' || !actorId) throw new TypeError('Audited transaction required for hold release');
+    const target = resourceType === 'EARNING' ? { earningId } : { visitId: earningId };
+    // Release and reservation/transfer writers serialize on the same earning.
+    await earnings.updateMany(target, { $inc: { version: 1 } }, options(session));
+    const now = new Date();
+    const updated = await queryWithSession(locks.findOneAndUpdate({ resourceType, resourceId: earningId,
+      lockType, reference, state: 'ACTIVE' }, { $set: { state: 'RELEASED', releasedAt: now, releasedBy: actorId } },
     { ...options(session), returnDocument: 'after' }), session).lean().exec();
+    if (!updated) return false;
+    const rows = await earnings.find({ ...target, state: 'HELD' }).session(session).lean();
+    for (const row of rows) {
+      if (await activeLockForEarning(row, null, session)) continue;
+      if (!await earningLedgerReady(row, session)) throw new AppError(409, 'LEDGER_UNAVAILABLE', 'Invalid earning ledger');
+      await earnings.updateOne({ earningId: row.earningId, version: row.version },
+        { $inc: { heldVnd: -row.heldVnd, availableVnd: row.heldVnd, version: 1 },
+          $set: { state: 'AVAILABLE' } }, options(session));
+      const digest = createHash('sha256').update(JSON.stringify([row.earningId, lockType, reference])).digest('hex');
+      await ledger.create([{ lineId: `release-hold:${digest}`, operationId: `release-hold:${digest}`,
+        earningId: row.earningId, sitterId: row.sitterId, fromBucket: 'HELD', toBucket: 'AVAILABLE',
+        amountVnd: row.heldVnd, actorId, occurredAt: now }], options(session));
+    }
     return Boolean(updated);
   }
 

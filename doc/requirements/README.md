@@ -23,3 +23,5 @@ P51-A — Financial cancellation and settlement contracts:
 - [API/events/acceptance](../api/p51-financial-api-v1.md) và [data/ledger](../database/p51-financial-ledger-v1.md): đề xuất kỹ thuật cho P01, chưa có runtime.
 
 P37-A bổ sung [crosswalk SRS/UC và trạng thái thực thi v1.0](p37-srs-uc-synchronization-v1.md). Đây là bản audit cục bộ; chưa tuyên bố nguồn Drive đã được sửa.
+
+- [Bộ quy tắc chọn Pet Sitter, tính điểm và xếp lịch v1](pwc-sitter-matching-scheduling-rules-v1.md): đề xuất ngày 17/10/2026; gồm điều kiện bắt buộc, điểm 100, ETA/chèn tuyến, offer/assignment, quyền địa chỉ và tiêu chí nghiệm thu. Chưa phải policy được xuất bản hoặc xác nhận runtime đã triển khai.

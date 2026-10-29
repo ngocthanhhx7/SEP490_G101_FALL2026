@@ -35,4 +35,4 @@ Trước khi commit, kiểm tra `git diff --cached --name-only`: chỉ đưa và
 - [Cấu trúc và quy ước đặt tên](doc/source-code-management/coding-conventions.md)
 - [Thiết lập GitHub](doc/source-code-management/github-settings.md)
 
-Hiện repository chỉ có cấu trúc và tài liệu. Không có lệnh `npm install`, `npm test` hoặc `npm run build` hoạt động cho đến khi PR khởi tạo runtime thêm manifest, lockfile và script thực tế.
+Runtime hiện có trong frontend/backend. Chạy các script thực tế trong package.json và `npm run check:architecture` ở backend. Tuân thủ [package responsibilities](doc/source-code-management/package-architecture.md); báo kết quả thật và phần chưa tích hợp trong PR.

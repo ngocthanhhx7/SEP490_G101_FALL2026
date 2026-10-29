@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { PetListPage } from '../pages/customer/PetListPage.jsx';
 import { PetDetailsPage } from '../pages/customer/PetDetailsPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
+import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
 import { createPetApi } from '../services/pet-api.js';
 import { createPetProfileApi } from '../services/pet-profile-api.js';
@@ -35,6 +36,8 @@ import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
 import { applicationStatusApi } from '../services/application-status-api.js';
+import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
+import { createSettlementApi } from '../services/settlement-api.js';
 import AdminSettlementsPage from '../pages/admin/AdminSettlementsPage.jsx';
 import { createAdminSettlementApi } from '../services/admin-settlement-api.js';
 
@@ -44,28 +47,61 @@ function AdminSettlementRoute() {
   return <AdminSettlementsPage key={user?.id} api={api} />;
 }
 
+function SitterSettlementRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createSettlementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return <WeeklySettlementPage key={user?.id} api={api} />;
+}
+
 const navigationByRole = {
   ADMIN: [
-    ['Tài khoản', '/account'], ['Người dùng', '/admin/users'], ['Dịch vụ', '/admin/services'],
-    ['Giá dịch vụ', '/admin/service-prices'], ['Cấu hình', '/admin/system-settings'],
+    ['Tài khoản', '/account'],
+    ['Người dùng', '/admin/users'],
+    ['Dịch vụ', '/admin/services'],
+    ['Giá dịch vụ', '/admin/service-prices'],
+    ['Cấu hình', '/admin/system-settings'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
-    ['Duyệt tất toán', '/admin/settlements'],
+    ['Duyệt tất toán', '/admin/settlements']
   ],
-  CUSTOMER: [['Tài khoản', '/account'], ['Hồ sơ', '/account/profile'], ['Địa chỉ', '/account/addresses'], ['Thú cưng', '/account/pets'], ['Đơn hàng', '/account/bookings'], ['Thông báo', '/account/notifications']],
-  PET_SITTER: [['Tài khoản', '/account'], ['Lịch làm việc', '/sitter/availability']],
-  STAFF: [['Tài khoản', '/account']],
+  CUSTOMER: [
+    ['Tài khoản', '/account'],
+    ['Hồ sơ', '/account/profile'],
+    ['Địa chỉ', '/account/addresses'],
+    ['Thú cưng', '/account/pets'],
+    ['Đơn hàng', '/account/bookings'],
+    ['Tìm sitter', '/account/sitter-recommendations'],
+    ['Thông báo', '/account/notifications']
+  ],
+  PET_SITTER: [
+    ['Tài khoản', '/account'],
+    ['Lịch làm việc', '/sitter/availability'],
+    ['Tất toán tuần', '/sitter/settlements']
+  ],
+  STAFF: [['Tài khoản', '/account']]
 };
 Object.values(navigationByRole).forEach((items) => {
   items.splice(1, 0, ['Cài đặt', '/account/settings']);
 });
 function Workspace({ role }) {
-  return <RoleDashboardLayout role={role} navigationItems={(navigationByRole[role] || [])
-    .map(([label, to]) => ({ label, to, end: true }))} />;
+  const { user } = useSession();
+  return (
+    <RoleDashboardLayout
+      key={user?.id}
+      role={role}
+      navigationItems={(navigationByRole[role] || []).map(([label, to]) => ({
+        label,
+        to,
+        end: true
+      }))}
+    />
+  );
 }
 function AccountWorkspace() {
   const { user } = useSession();
   const roles = user?.roles || [user?.role];
-  const role = ['ADMIN', 'STAFF', 'PET_SITTER', 'CUSTOMER'].find(value => roles.includes(value));
+  const role = ['ADMIN', 'STAFF', 'PET_SITTER', 'CUSTOMER'].find((value) =>
+    roles.includes(value)
+  );
   return <Workspace role={role} />;
 }
 
@@ -73,63 +109,110 @@ function CustomerFeaturePage({ page }) {
   const { getCsrfToken } = useSession();
   const apis = useMemo(() => {
     const request = createApiClient({ getCsrfToken });
-    return { pets: createPetApi({ request }), pet: createPetProfileApi({ request }), notifications: createNotificationsApi({ request }) };
+    return {
+      pets: createPetApi({ request }),
+      pet: createPetProfileApi({ request }),
+      notifications: createNotificationsApi({ request })
+    };
   }, [getCsrfToken]);
   if (page === 'pets') return <PetListPage api={apis.pets} />;
   if (page === 'pet') return <PetDetailsPage api={apis.pet} />;
   return <NotificationsPage api={apis.notifications} />;
 }
 
-export function AppRoutes({ publicPolicyRouteElements = publicPolicyFallbackRoutes }) {
-  return <Routes>
-    <Route element={<RequireSession roles={['ADMIN']} />}>
-      <Route element={<Workspace role="ADMIN" />}>
-        <Route path="admin/users" element={<AdminUsersPage />} />
-        <Route path="admin/settlements" element={<AdminSettlementRoute />} />
-        <Route path="admin/services" element={<AdminServicesPage />} />
-        <Route path="admin/service-prices" element={<AdminServicePricesPage />} />
-        <Route path="admin/system-settings" element={<AdminSystemSettingsPage />} />
-        <Route path="admin/sitter-applications" element={<SitterApplicationsPage />} />
-        <Route path="admin/sitter-applications/:applicationId" element={<SitterApplicationReviewPage />} />
+export function AppRoutes({
+  publicPolicyRouteElements = publicPolicyFallbackRoutes
+}) {
+  return (
+    <Routes>
+      <Route element={<RequireSession roles={['ADMIN']} />}>
+        <Route element={<Workspace role="ADMIN" />}>
+          <Route path="admin/users" element={<AdminUsersPage />} />
+          <Route path="admin/settlements" element={<AdminSettlementRoute />} />
+          <Route path="admin/services" element={<AdminServicesPage />} />
+          <Route
+            path="admin/service-prices"
+            element={<AdminServicePricesPage />}
+          />
+          <Route
+            path="admin/system-settings"
+            element={<AdminSystemSettingsPage />}
+          />
+          <Route
+            path="admin/sitter-applications"
+            element={<SitterApplicationsPage />}
+          />
+          <Route
+            path="admin/sitter-applications/:applicationId"
+            element={<SitterApplicationReviewPage />}
+          />
+        </Route>
       </Route>
-    </Route>
-    <Route element={<RequireSession />}>
-      <Route element={<AccountWorkspace />}>
-        <Route path="account" element={<AccountPage />} />
-        <Route path="account/settings" element={<AccountSettingsPage />} />
+      <Route element={<RequireSession />}>
+        <Route element={<AccountWorkspace />}>
+          <Route path="account" element={<AccountPage />} />
+          <Route path="account/settings" element={<AccountSettingsPage />} />
+        </Route>
       </Route>
-    </Route>
-    <Route element={<RequireSession roles={['CUSTOMER']} />}>
-      <Route element={<Workspace role="CUSTOMER" />}>
-        <Route path="account/profile" element={<CustomerProfilePage />} />
-        <Route path="account/addresses" element={<CustomerAddressesPage />} />
-        <Route path="account/pets" element={<CustomerFeaturePage page="pets" />} />
-        <Route path="account/pets/:petId" element={<CustomerFeaturePage page="pet" />} />
-        <Route path="account/bookings" element={<CustomerBookingsPage />} />
-        <Route path="account/notifications" element={<CustomerFeaturePage page="notifications" />} />
+      <Route element={<RequireSession roles={['CUSTOMER']} />}>
+        <Route element={<Workspace role="CUSTOMER" />}>
+          <Route path="account/profile" element={<CustomerProfilePage />} />
+          <Route path="account/addresses" element={<CustomerAddressesPage />} />
+          <Route
+            path="account/pets"
+            element={<CustomerFeaturePage page="pets" />}
+          />
+          <Route
+            path="account/pets/:petId"
+            element={<CustomerFeaturePage page="pet" />}
+          />
+          <Route path="account/bookings" element={<CustomerBookingsPage />} />
+          <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
+          <Route
+            path="account/notifications"
+            element={<CustomerFeaturePage page="notifications" />}
+          />
+        </Route>
       </Route>
-    </Route>
-    <Route element={<RequireSession roles={['PET_SITTER']} />}>
-      <Route element={<Workspace role="PET_SITTER" />}>
-        <Route path="sitter/availability" element={<SitterAvailabilityPage />} />
+      <Route element={<RequireSession roles={['PET_SITTER']} />}>
+        <Route element={<Workspace role="PET_SITTER" />}>
+          <Route
+            path="sitter/availability"
+            element={<SitterAvailabilityPage />}
+          />
+          <Route path="sitter/settlements" element={<SitterSettlementRoute />} />
+        </Route>
       </Route>
-    </Route>
-    <Route element={<PublicSiteLayout />}>
-      <Route index element={<HomePage />} />
-      <Route path="about" element={<AboutPage />} />
-      <Route path="contact" element={<ContactPage />} />
-      <Route path="services" element={<ServiceListPage />} />
-      <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
-      <Route path="service-areas" element={<ServiceAreasPage />} />
-      <Route path="sign-in" element={<SignInPage />} />
-      <Route path="register" element={<RegistrationPage />} />
-      <Route path="sitter/apply" element={<RegistrationPage initialSitter />} />
-    </Route>
-    <Route element={<FoundationLayout />}>
-      <Route path="sitter/application-status" element={<ApplicationStatusPage api={applicationStatusApi} />} />
-      {publicPolicyRouteElements}
-      <Route path="*" element={<section><h1>Không tìm thấy trang</h1>
-        <p>Hãy chọn một liên kết trong thanh điều hướng.</p></section>} />
-    </Route>
-  </Routes>;
+      <Route element={<PublicSiteLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="about" element={<AboutPage />} />
+        <Route path="contact" element={<ContactPage />} />
+        <Route path="services" element={<ServiceListPage />} />
+        <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
+        <Route path="service-areas" element={<ServiceAreasPage />} />
+        <Route path="sign-in" element={<SignInPage />} />
+        <Route path="register" element={<RegistrationPage />} />
+        <Route
+          path="sitter/apply"
+          element={<RegistrationPage initialSitter />}
+        />
+      </Route>
+      <Route element={<FoundationLayout />}>
+        <Route
+          path="sitter/application-status"
+          element={<ApplicationStatusPage api={applicationStatusApi} />}
+        />
+        {publicPolicyRouteElements}
+        <Route
+          path="*"
+          element={
+            <section>
+              <h1>Không tìm thấy trang</h1>
+              <p>Hãy chọn một liên kết trong thanh điều hướng.</p>
+            </section>
+          }
+        />
+      </Route>
+    </Routes>
+  );
 }

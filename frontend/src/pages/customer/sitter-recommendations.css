@@ -1,0 +1,7 @@
+.sitter-recommendations { max-width: 900px; margin: 0 auto; padding: 24px; }
+.sitter-recommendations form { display: grid; gap: 16px; margin: 20px 0; }
+.sitter-recommendations fieldset { display: grid; gap: 12px; border: 1px solid var(--pwc-border, #ddd); padding: 16px; }
+.sitter-recommendations summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.sitter-recommendations__setup { margin-bottom: 24px; }
+.sitter-recommendations ol { padding-left: 24px; }
+.sitter-recommendations ol > li { padding: 16px 0; border-bottom: 1px solid var(--pwc-border, #ddd); }

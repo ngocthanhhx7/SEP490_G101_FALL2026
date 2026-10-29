@@ -1,54 +1,33 @@
-import { AppError } from '../utils/app-error.js';
+import { loadEsmsConfig } from '../config/esms.js';
+export { loadEsmsConfig } from '../config/esms.js';
 import { createSmsDelivery } from './sms-delivery.service.js';
 
-function invalid(fields) {
-  throw new AppError(503, 'SMS_CONFIGURATION_INVALID', 'SMS configuration is invalid', { fields });
-}
-
-function safeCredential(value) {
-  return typeof value === 'string' && value.length > 0 && value.length <= 512
-    && value.trim() === value && !/[\x00-\x1f\x7f]/.test(value);
-}
-
-export function loadEsmsConfig(env = process.env) {
-  if (env.SMS_ENABLED === undefined || env.SMS_ENABLED === 'false') return null;
-  if (env.SMS_ENABLED !== 'true') invalid(['SMS_ENABLED']);
-
-  const fields = [];
-  if (!safeCredential(env.ESMS_API_KEY)) fields.push('ESMS_API_KEY');
-  if (!safeCredential(env.ESMS_SECRET_KEY)) fields.push('ESMS_SECRET_KEY');
-  if (typeof env.ESMS_BRANDNAME !== 'string'
-    || !/^[A-Za-z0-9][A-Za-z0-9 ._-]{0,10}$/.test(env.ESMS_BRANDNAME)) fields.push('ESMS_BRANDNAME');
-
-  const timeoutMs = Number(env.SMS_TIMEOUT_MS ?? '10000');
-  if (!Number.isInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 30000) fields.push('SMS_TIMEOUT_MS');
-  const sandboxValue = env.ESMS_SANDBOX ?? 'false';
-  if (!['true', 'false'].includes(sandboxValue)) fields.push('ESMS_SANDBOX');
-  if (fields.length) invalid(fields);
-
-  return {
-    apiKey: env.ESMS_API_KEY,
-    secretKey: env.ESMS_SECRET_KEY,
-    brandname: env.ESMS_BRANDNAME,
-    timeoutMs,
-    sandbox: sandboxValue === 'true'
-  };
-}
-
 // P34 composes this channel-specific contactDelivery with P11 and dispatches by command.channel.
-export function createSmsPortOverrides({ env = process.env, fetchImpl, clock, logger } = {}) {
+export function createSmsPortOverrides({
+  env = process.env,
+  fetchImpl,
+  clock,
+  logger
+} = {}) {
   const config = loadEsmsConfig(env);
   if (!config) return {}; // Keep P02's fail-closed PROVIDER_UNAVAILABLE default when disabled.
   const delivery = createSmsDelivery({ ...config, fetchImpl, clock, logger });
   return {
     contactDelivery: Object.freeze({
-      send: command => command?.channel === 'SMS' && command?.kind === 'OTP'
-        ? delivery.send(command)
-        : Promise.resolve(failureInvalidRequest())
+      send: (command) =>
+        command?.channel === 'SMS' && command?.kind === 'OTP'
+          ? delivery.send(command)
+          : Promise.resolve(failureInvalidRequest())
     })
   };
 }
 
 function failureInvalidRequest() {
-  return { status: 'FAILED', code: 'INVALID_REQUEST', retryable: false, uncertain: false, attempts: 0 };
+  return {
+    status: 'FAILED',
+    code: 'INVALID_REQUEST',
+    retryable: false,
+    uncertain: false,
+    attempts: 0
+  };
 }

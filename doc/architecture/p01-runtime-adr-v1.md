@@ -36,3 +36,10 @@ Server là nguồn auth/clock/cause/amount. Layer routes → validators/auth →
 Session contract: opaque server-side session qua Secure/HttpOnly cookie, SameSite=Lax ở same-site deployment; browser cookie mutation cần CSRF token và Origin validation. FE/BE cross-site hosting cần ADR auth amendment trước chọn SameSite=None/CORS credentials. Customer/Sitter30 ngày, Staff/Admin12 giờ là SRS baseline; TTL cleanup không thay check expiresAt/authEpoch tại mỗi request. OTP-only; không password/hash-password/reset-password model.
 
 P02/P03 cấu hình lint/build/test thực cùng manifest; Jest/Supertest/React Testing Library theo kế hoạch nguồn, exact test-tool versions do foundation owners ghi cùng lockfile và kiểm tra Node compatibility. P01 không tạo test chỉ để chứng minh file tồn tại hoặc báo CI pass. P04 giữ tokens/assets; P34 quản lý router/providers/manifest changes sau foundation. Runtime implementation và deployment vẫn INTEGRATION_PENDING.
+
+
+## Cập nhật runtime 24/10/2026
+
+Theo yêu cầu người dùng, cập nhật patch/minor trong Node 24 LTS từ 24.21.0/npm 11.19.0 lên **Node 24.22.1 x64 / npm 11.19.1**. Đối chiếu metadata chính thức tại https://nodejs.org/dist/index.json ngày 24/10/2026; bản 24.22.1 phát hành 20/10/2026, nhánh Krypton LTS. Không chuyển sang nhánh 26 Current. Cập nhật engines/packageManager và phần root metadata của lockfile; giữ nguyên dependency graph. Máy Windows dùng nvm-windows; có thể cần terminal mới để nhận biến NVM_HOME/NVM_SYMLINK.
+
+MongoDB local phục vụ phát triển dùng 8.0.34 replica set `pwc-local` ở cổng 27018, bind loopback, dữ liệu trong backend/storage/mongodb-8.0 (ignored). Không thay phiên bản hay dừng MongoDB 8.2 của người dùng ở cổng 27017. Cấu hình local không phải deployment production; không mở ra mạng.

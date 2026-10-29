@@ -35,6 +35,16 @@ function harness({ availability = { slots: [slotA, slotB], availabilityVersion: 
 }
 
 describe('directed sitter proposal gate', () => {
+  test('projects stored pet snapshots on create and owned read without private fields', async () => {
+    const { service } = harness();
+    const result = await service.createProposal({ actor: customer, visitId: 'visit-001', sitterId: 'sitter-001',
+      slots: [slotA], idempotencyKey: 'pet-snapshot-key-001',
+      petSnapshots: [{ id: 'pet-001', name: 'Miu', species: 'CAT', breed: 'Mixed', privateNotes: 'must not leak' }] });
+    expect(result.petSnapshots).toEqual([{ id: 'pet-001', name: 'Miu', species: 'CAT', breed: 'Mixed' }]);
+    expect(JSON.stringify(result)).not.toContain('must not leak');
+    const read = await service.getProposal({ actor: customer, proposalId: result.id });
+    expect(read.petSnapshots).toEqual(result.petSnapshots);
+  });
   test('reads availability and creates a pending customer proposal without an offer', async () => {
     const { service, availabilityRepository, proposalRepository } = harness();
     const result = await service.createProposal({ actor: customer, visitId: 'visit-001', sitterId: 'sitter-001',

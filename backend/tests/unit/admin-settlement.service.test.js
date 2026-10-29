@@ -20,6 +20,9 @@ function setup() {
     settleReservation: async () => { if (!state.reserved) return false;
       state.paid += state.reserved; state.reserved = 0; return true; },
     releaseReservation: async () => { state.reserved = 0; return true; },
+    assertReservationReady: async () => state.reserved > 0,
+    assertEvidenceOwnership: async () => true,
+    recordTransferAttempt: async () => true,
     listPayroll: async () => ({ items: [{ ...state.row, bankAccount: 'private' }], decisionIds: [] })
   };
   const unitOfWork = { run(callback) {
@@ -107,4 +110,25 @@ test('time must have offset and not precede submission or exceed server time', a
 test('private metadata is not serialized', async () => {
   const f = setup();
   expect(JSON.stringify(await f.service.list({ actor }))).not.toContain('private');
+});
+
+test('missing mandatory evidence, hold or transfer recording ports reject composition', () => {
+  for (const port of ['assertEvidenceOwnership', 'assertReservationReady', 'recordTransferAttempt']) {
+    const f = setup();
+    delete f.repository[port];
+    expect(() => createAdminSettlementService({ repository: f.repository,
+      unitOfWork: { run: async work => work({}) }, policy: f.policy })).toThrow(port);
+  }
+});
+
+test('unowned evidence and active holds prevent transfer or approval before money writes', async () => {
+  const f = setup();
+  f.repository.assertReservationReady = async () => false;
+  await expect(f.service.decide(f.decide)).rejects.toMatchObject({ code: 'RESERVATION_CONFLICT' });
+  f.repository.assertReservationReady = async () => true;
+  await f.service.decide(f.decide);
+  f.repository.assertEvidenceOwnership = async () => false;
+  await expect(f.service.recordTransfer(f.transfer)).rejects.toMatchObject({ code: 'EVIDENCE_UNAVAILABLE' });
+  expect(f.state().paid).toBe(0);
+  expect(f.state().reserved).toBe(123000);
 });
