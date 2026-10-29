@@ -47,14 +47,16 @@ export function payrollModels(connection) {
     employeeId: { type: oid, required: true }, contractId: { type: oid, required: true },
     periodStart: { type: Date, required: true }, periodEnd: { type: Date, required: true }, monthKey: { type: String, required: true },
     dueAt: { type: Date, required: true }, payCycle: { type: String, enum: ['MONTHLY', 'WEEKLY'], required: true },
-    status: { type: String, enum: ['PREPARED', 'APPROVED', 'PAID'], required: true }, version: { type: Number, default: 0 },
+    status: { type: String, enum: ['PREPARED', 'APPROVED', 'PAID', 'VOIDED'], required: true }, version: { type: Number, default: 0 },
     breakdown: { type: Schema.Types.Mixed, required: true }, assessment: { type: Schema.Types.Mixed, required: true, select: false },
     creditIds: [{ type: oid }], advanceIds: [{ type: oid }],
     preparedBy: { type: oid, required: true }, preparedAt: { type: Date, required: true },
     approvedBy: oid, approvedAt: Date, paidBy: oid, paidAt: Date,
+    voidedBy: oid, voidedAt: Date, voidReason: { type: String, maxlength: 1000 },
     transferReference: { type: String, maxlength: 160, select: false }
   }, options);
-  statements.index({ employeeId: 1, periodStart: 1, periodEnd: 1 }, { unique: true });
+  statements.index({ employeeId: 1, periodStart: 1, periodEnd: 1 }, { name: 'active_payroll_period', unique: true,
+    partialFilterExpression: { status: { $in: ['PREPARED', 'APPROVED', 'PAID'] } } });
   statements.index({ transferReference: 1 }, { unique: true, partialFilterExpression: { transferReference: { $type: 'string' } } });
   const claims = new Schema({ _id: String, statementId: oid, advanceId: oid }, options);
   const defs = { EmploymentContract: contracts, SalaryAdvance: advances, PayrollMonthGuard: guards, PayrollCommand: commands,
