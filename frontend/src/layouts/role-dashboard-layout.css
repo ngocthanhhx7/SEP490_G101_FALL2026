@@ -277,11 +277,6 @@
 .workspace-notification-bell:hover { background: #f0eaf8; }
 .workspace-notification-bell > span { position: absolute; top: -1px; right: -3px; min-width: 18px; padding: 1px 4px; border-radius: 10px; color: #fff; background: #a52232; font: 800 11px var(--pwc-font-body); text-align: center; }
 .workspace-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-.pwc-customer-account { background: #fff; }
-.pwc-customer-account__navigation { display: flex; gap: 8px; padding: 16px 24px; max-width: 1200px; margin: auto; overflow-x: auto; border-bottom: 1px solid #e8e3ec; }
-.pwc-customer-account__navigation a { flex-shrink: 0; display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 6px; text-decoration: none; color: var(--pwc-ink-muted); font-size: 14px; }
-.pwc-customer-account__navigation a[aria-current='page'] { color: var(--pwc-ink); background: #f0eaf8; font-weight: 800; }
-.pwc-customer-account__main { width: min(1200px, 100%); min-height: 60vh; margin: auto; padding: 28px 24px; }
 .pwc-workspace-shell .admin-system-settings, .pwc-workspace-shell .admin-service-prices, .pwc-workspace-shell .admin-services { max-width: none; padding: 0; margin: 0; background: transparent; }
 .pwc-workspace-shell .admin-settings-logo, .pwc-workspace-shell .admin-price-logo, .pwc-workspace-shell .admin-services-logo,
 .pwc-workspace-shell .admin-settings-provisional, .pwc-workspace-shell .admin-price-provisional, .pwc-workspace-shell .admin-services-provisional { display: none; }
@@ -300,6 +295,5 @@
   .pwc-workspace-shell .pwc-role-shell__header { grid-template-columns: minmax(0, 1fr) auto; }
   .pwc-workspace-shell .pwc-role-shell__drawer-backdrop { inset-block-start: 64px; }
   .pwc-workspace-shell .pwc-role-shell__mobile-nav-toggle { padding: 8px; width: 40px; }
-  .pwc-customer-account__main { padding: 24px 16px; }
 }
 @media (max-width: 400px) { .pwc-workspace-shell .pwc-role-shell__brand img { width: 120px; } .pwc-role-shell__header-actions { gap: 4px; } }
