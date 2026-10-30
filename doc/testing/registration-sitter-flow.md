@@ -42,3 +42,7 @@ Thay đổi chưa commit/push/PR. Khi tích hợp cần tạo index `ownerUserId
 - User yêu cầu cấu hình kho riêng: CreateBucket 200, PUT/GET 200, SHA256 khớp, private/no-store, unsigned request 400, xóa object smoke 204. Unsigned400 chỉ chứng minh request thử không đọc được, không thay bằng chứng dashboard r2.dev/custom-domain. Không bật public domain hoặc lifecycle xóa theo ngày.
 - Cấu hình chỉ lưu tại shared/.env VPS mode0600, backup riêng mode0600 trước sửa; container đang chạy chưa tự đổi env. Dùng lại quyền R2 server đã tồn tại cho bucket riêng, không tạo token mới hoặc cấp thêm quyền. Đây chưa phải credential mới chỉ scope bucket; nên rotate credential riêng khi có quyền quản trị Cloudflare. Không in hoặc chép secret về local.
 - Bằng chứng trước tích hợp remote là lịch sử; kết quả release ghi trong PR cuối. Chưa tự coi review trước sửa là approval cho SHA sau sửa.
+
+## Shared-bucket follow-up
+
+Theo yêu cầu dùng chung bucket, cấu hình giấy tờ kế thừa R2_* khi không có override, vẫn yêu cầu SITTER_DOCUMENTS_ENABLED=true. Prefix private-images/ và applicant-documents/ không đổi; collection, owner checks và quota không gộp. Kiểm thử provider dùng cùng bucket cho hai prefix, chặn upload/read/sign của prefix còn lại. Runtime integration đăng ký → upload → nộp → duyệt dùng cấu hình kế thừa. Kiểm tra trước chuyển đổi trên EC2 cho thấy bucket giấy tờ cũ và ApplicantDocument đều rỗng; chưa cần di chuyển object. Đây là trạng thái trước triển khai, không phải bằng chứng smoke test sau triển khai.
