@@ -1,0 +1,11 @@
+.sitter-public-profile { max-width: 54rem; padding: 1rem; margin: auto; overflow-wrap: anywhere; color: var(--pwc-ink); }
+.sitter-public-profile fieldset { border: 0; padding: 0; min-width: 0; }
+.sitter-public-profile label { display: grid; gap: .5rem; margin-block: 1rem; }
+.sitter-public-profile textarea, .sitter-public-profile select, .sitter-public-profile button { font: inherit; min-height: 44px; min-width: 0; max-width: 100%; }
+.sitter-public-profile textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.sitter-public-profile button { padding: .5rem 1rem; border: 1px solid var(--pwc-border); border-radius: 4px; background: var(--pwc-sun); color: var(--pwc-ink); }
+.sitter-public-profile article { border-bottom: 1px solid var(--pwc-border); padding-block: 1rem; }
+.sitter-public-profile h2 { font-size: 18px; }
+.sitter-public-profile .profile-bio { white-space: pre-wrap; }
+.sitter-public-profile :focus-visible { outline: 3px solid var(--pwc-focus); outline-offset: 3px; }
+.sitter-public-profile button:disabled { color: var(--pwc-disabled-ink); background: var(--pwc-disabled-surface); }

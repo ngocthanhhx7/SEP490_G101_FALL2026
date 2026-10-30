@@ -19,7 +19,9 @@ import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
+import { dashboardReadRuntimeModule } from './routes/dashboard-runtime.routes.js';
 import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
+import { sitterPublicProfileModule } from './routes/sitter-public-profile.routes.js';
 import { financeSourceRuntime } from './routes/finance-source-runtime.js';
 import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 
@@ -70,6 +72,8 @@ export function createApp({
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
+  const publicProfiles = auth && typeof connection?.model === 'function'
+    ? sitterPublicProfileModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
   const suppliedModules = moduleFactories.map((factory) => factory(context))
     .filter(module => module !== null && module !== undefined);
@@ -81,6 +85,17 @@ export function createApp({
     ? null : settlementRequestRuntimeModule(context);
   const adminSettlement = suppliedModules.some(module => module.name === 'admin-settlements')
     ? null : adminSettlementRuntimeModule(context);
+  const dashboards = suppliedModules.some(module => module.name === 'dashboard-read')
+    ? null : dashboardReadRuntimeModule({ ...context, sessionService: auth?.sessionService });
+  const suppliedDashboards = suppliedModules.filter(module => module.name === 'dashboard-read');
+  if (suppliedDashboards.length > 1) throw new TypeError('Duplicate dashboard module');
+  if (auth) {
+    const dashboard = dashboards ?? suppliedDashboards[0];
+    if (dashboard) {
+      if (dashboard.mount !== auth.mount) throw new TypeError('Dashboard must share the authenticated API mount');
+      auth.router.use(dashboard.router);
+    }
+  }
   registerModules(app, [
     contactModule(context),
     healthModule(context),
@@ -90,14 +105,16 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(publicProfiles ? [publicProfiles] : []),
     ...(payroll ? [payroll] : []),
     ...(settlement ? [settlement] : []),
+    ...(dashboards && !auth ? [dashboards] : []),
     ...(adminSettlement ? [adminSettlement] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),
     ...(ai ? [ai] : []),
-    ...suppliedModules
+    ...suppliedModules.filter(module => !auth || module.name !== 'dashboard-read')
   ]);
   app.use(notFound, errorHandler(logger));
   return app;

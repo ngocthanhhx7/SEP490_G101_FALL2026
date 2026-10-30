@@ -57,3 +57,10 @@ T minus that amount. Both the confirmed tax allocation and the sitter cost use
 stable largest remainders; each visit's platform cost is their difference. Do not
 halve each sitter's allocated tax again. Snapshot the allocation policy and both
 costs so later policy changes cannot recalculate prior earnings.
+
+## Public sitter profiles, approved 30 October 2026
+
+For PR #65 the user approved a separate sitter-authored public bio/work-area
+profile reviewed by Staff/Admin. Application text is not a publication source.
+Ratings aggregate only CUSTOMER_TO_SITTER reviews in PUBLISHED state; customer
+comments and identity are excluded from the directory.
