@@ -1,5 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Notice } from '../../components/ui/index.js';
+import { Link } from 'react-router-dom';
+import { Bell, Check, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import './notifications.css';
 
@@ -51,15 +53,15 @@ function NotificationCard({ item, onRead, busy }) {
       className={`notification-card${item.readAt ? '' : ' notification-card--unread'}`}
     >
       {item.deepLink ? (
-        <a className="notification-card__link" href={item.deepLink}>
+        <Link className="notification-card__link" to={item.deepLink} onClick={() => { if (!item.readAt) onRead(item.id); }}>
           {content}
-        </a>
+        </Link>
       ) : (
         <div className="notification-card__link">{content}</div>
       )}
       {!item.readAt && (
         <Button variant="ghost" onClick={() => onRead(item.id)} disabled={busy}>
-          Đánh dấu đã đọc
+          <Check size={16} aria-hidden="true" /> Đánh dấu đã đọc
         </Button>
       )}
     </li>
@@ -71,19 +73,22 @@ export function NotificationsPage({ api }) {
   const [rows, setRows] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [readStatus, setReadStatus] = useState(null);
-  const requestKey = useMemo(() => cursor || 'first', [cursor]);
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(null);
+  const requestKey = useMemo(() => `${unreadOnly}:${cursor || 'first'}`, [cursor, unreadOnly]);
   const load = useCallback(
     ({ signal }) => {
       if (typeof api?.list !== 'function')
         return Promise.resolve({ data: null, pending: true });
-      return Promise.resolve(api.list({ cursor, signal })).then((result) => ({
+      return Promise.resolve(api.list({ cursor, signal, unreadOnly })).then((result) => ({
         ...result,
         meta: { ...(result?.meta || {}), __requestKey: requestKey }
       }));
     },
-    [api, cursor, requestKey]
+    [api, cursor, requestKey, unreadOnly]
   );
   const resource = useApiResource(load);
+  useEffect(() => { setUnreadCount(resource.data?.unreadCount ?? null); }, [resource.data]);
   useEffect(() => {
     if (
       resource.status === 'loading' ||
@@ -94,7 +99,7 @@ export function NotificationsPage({ api }) {
       ? resource.data
       : resource.data?.items;
     const next = Array.isArray(incoming) ? incoming : [];
-    setRows((current) => (cursor ? [...current, ...next] : next));
+    setRows((current) => cursor ? [...new Map([...current, ...next].map(item => [item.id, item])).values()] : next);
   }, [cursor, requestKey, resource.data, resource.meta, resource.status]);
   const retry = useCallback(() => {
     setCursor(null);
@@ -103,7 +108,7 @@ export function NotificationsPage({ api }) {
   }, [resource.retry]);
   const read = useCallback(
     async (notificationId) => {
-      if (typeof api?.markRead !== 'function') return;
+      if (typeof api?.markRead !== 'function' || busyId) return;
       setBusyId(notificationId);
       setReadStatus(null);
       try {
@@ -118,17 +123,19 @@ export function NotificationsPage({ api }) {
         setRows((current) =>
           current.map((item) =>
             item.id === notificationId
-              ? { ...item, readAt: new Date().toISOString() }
+              ? { ...item, readAt: result.data?.readAt ?? new Date().toISOString() }
               : item
           )
         );
+        window.dispatchEvent(new window.Event('pwc:notifications-changed'));
+        setUnreadCount(count => count === null ? null : Math.max(0, count - 1));
       } catch {
         setReadStatus('error');
       } finally {
         setBusyId(null);
       }
     },
-    [api]
+    [api, busyId]
   );
   const nextCursor =
     resource.meta?.nextCursor ?? resource.data?.nextCursor ?? null;
@@ -136,14 +143,15 @@ export function NotificationsPage({ api }) {
     <main className="notifications-page" aria-labelledby="notifications-title">
       <header className="notifications-page__header">
         <div>
-          <p className="notifications-page__eyebrow">Paw World Care</p>
-          <h1 id="notifications-title">Thông báo</h1>
-          <p>Thông tin được phân quyền theo tài khoản của bạn.</p>
+          <h1 id="notifications-title"><Bell size={23} aria-hidden="true" /> Thông báo</h1>
         </div>
         <Button variant="secondary" onClick={retry}>
-          Tải lại
+          <RefreshCw size={16} aria-hidden="true" /> Tải lại
         </Button>
       </header>
+      <div className="workspace-tabs" role="group" aria-label="Lọc thông báo">{[[false, 'Tất cả'], [true, 'Chưa đọc']].map(([value, label]) =>
+        <button key={label} type="button" aria-pressed={unreadOnly === value} onClick={() => { setCursor(null); setRows([]); setUnreadOnly(value); }}>{label}</button>)}
+        <span className="notification-unread-count">{unreadCount ?? '—'} chưa đọc</span></div>
       {readStatus && (
         <PageNotice
           state={readStatus}
@@ -185,19 +193,19 @@ export function NotificationsPage({ api }) {
             Hãy kiểm tra kết nối rồi thử lại.
           </PageNotice>
         )}
-        {resource.status === 'empty' && !rows.length && (
+        {['empty', 'success'].includes(resource.status) && !rows.filter(item => !unreadOnly || !item.readAt).length && (
           <PageNotice state="empty" title="Chưa có thông báo">
             Thông báo mới sẽ xuất hiện ở đây.
           </PageNotice>
         )}
         {rows.length > 0 && (
           <ul className="notifications-page__list">
-            {rows.map((item) => (
+            {rows.filter(item => !unreadOnly || !item.readAt).map((item) => (
               <NotificationCard
                 key={item.id}
                 item={item}
                 onRead={read}
-                busy={busyId === item.id}
+                busy={Boolean(busyId)}
               />
             ))}
           </ul>

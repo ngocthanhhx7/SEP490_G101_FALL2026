@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { AvatarMenu } from '../common/AvatarMenu.jsx';
+import { NotificationBell } from '../common/NotificationBell.jsx';
 
 const links = [
   ['Trang chủ', '/'],
@@ -11,7 +12,7 @@ const links = [
   ['Liên hệ', '/contact'],
 ];
 
-export function PublicHeader() {
+export function PublicHeader({ notificationTo } = {}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -52,6 +53,7 @@ export function PublicHeader() {
           aria-current={location.pathname === to && !location.hash ? 'page' : undefined}>{label}</Link>)}
       </nav>
       <div className="pwc-header-actions">
+        {notificationTo && session.status === 'authenticated' && <NotificationBell to={notificationTo} />}
         {session.status === 'authenticated'
           ? <AvatarMenu user={session.user} role={role} iconOnly customerNavigation={role === 'CUSTOMER'}
               notificationTo={role === 'CUSTOMER' ? '/account/notifications' : undefined}

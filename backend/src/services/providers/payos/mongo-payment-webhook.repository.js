@@ -3,11 +3,13 @@ import { Types } from 'mongoose';
 import { createUnitOfWork } from '../../unit-of-work.service.js';
 import { financeSourceModels } from '../../../models/finance-source.model.js';
 import { assertFinanceSourceStorage } from '../../settlements/source-provisioning.js';
+import { createDomainNotifications } from '../../notifications/domain-notifications.service.js';
 
 // Called only after the provider signature verifier. Browser redirects cannot
 // reach this repository, and a verified signature still must match server intent.
 export function createMongoPaymentWebhookRepository({ connection, finance }) {
   const unitOfWork = createUnitOfWork(connection);
+  const notifications = createDomainNotifications({ connection });
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
   const col = name => connection.db.collection(name);
   const id = value => Types.ObjectId.isValid(value) ? new Types.ObjectId(value) : null;
@@ -71,6 +73,7 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
         }
         await events.create([{ _id: key, type: reason ? 'PaymentReconciliationRequired' : 'PaymentVerified',
           bookingId: booking ? String(booking._id) : null, resourceId: String(paymentId), actorId: null, at }], { session });
+        await notifications.payment({ eventId: key, booking, reconciliation: Boolean(reason) }, session);
         const result = reason ? { status: 'RECONCILIATION_REQUIRED', reason } : { status: 'APPLIED' };
         await commands.create([{ _id: key, fingerprint, result, createdAt: at }], { session });
         return result;

@@ -49,6 +49,6 @@ test('same-role account change clears prior payroll rows and command state', asy
     fireEvent.click(screen.getByRole('button', { name: 'Switch account' }));
     await waitFor(() => expect(screen.queryByRole('heading', { name: 'private-first' })).not.toBeInTheDocument());
     expect(await screen.findByRole('heading', { name: 'private-second' })).toBeVisible();
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch.mock.calls.filter(([url]) => !String(url).includes('/notifications?'))).toHaveLength(2);
   } finally { globalThis.fetch = original; }
 });

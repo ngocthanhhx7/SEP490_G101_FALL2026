@@ -35,5 +35,7 @@ export function pricingRuntimeModule({ config, connection, clock = Date.now }) {
   router.post('/basket-quotes', customer, csrf, c.basket);
   router.get('/quotes/:quoteId', customer, c.read);
   router.post('/policies', requireRoles('ADMIN'), csrf, c.policy);
+  router.get('/services/:serviceId/combo', requireRoles('ADMIN'), c.readCombo);
+  router.post('/services/:serviceId/combo', requireRoles('ADMIN'), csrf, c.updateCombo);
   return { name: 'pricing', mount: '/api/v1/pricing', router };
 }

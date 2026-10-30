@@ -20,7 +20,7 @@ test('authenticated role gets shared shell, role navigation, and route focus', a
     navigationItems: [{ key: 'pets', label: 'Thú cưng', to: '/customer/pets' }],
   });
   expect(await screen.findByRole('heading', { name: 'Trang tổng quan' })).toBeVisible();
-  expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/logo/ngang.svg');
+  expect(screen.getByRole('img', { name: 'Paw World Care' })).toHaveAttribute('src', '/assets/figma-public/header-Vector.svg');
   expect(screen.getByRole('navigation', { name: 'Điều hướng khách hàng' })).toBeVisible();
   expect(screen.getByRole('link', { name: 'Thú cưng' })).toHaveAttribute('href', '/customer/pets');
   await waitFor(() => expect(screen.getByRole('main')).toHaveFocus());
@@ -88,7 +88,8 @@ test('mobile navigation uses a dismissible drawer with focus return', async () =
   });
   try {
     const { container } = renderLayout({
-      result: { status: 'authenticated', user: { id: 'synthetic-user-1', displayName: 'Nguyễn An', roles: ['CUSTOMER'] } },
+      role: 'ADMIN',
+      result: { status: 'authenticated', user: { id: 'synthetic-user-1', displayName: 'Nguyễn An', roles: ['ADMIN'] } },
       navigationItems: [{ key: 'pets', label: 'Thú cưng', to: '/customer/pets' }],
     });
     expect(await screen.findByRole('heading', { name: 'Trang tổng quan' })).toBeVisible();

@@ -3,6 +3,7 @@ import { Types } from 'mongoose';
 import { canonicalizeContact } from './contact-crypto.service.js';
 import { AppError } from '../utils/app-error.js';
 import { identityModels } from '../models/identity.model.js';
+import { createDomainNotifications } from './notifications/domain-notifications.service.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REAPPLY_DELAY_MS = 30 * DAY_MS;
@@ -455,6 +456,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           $inc: { version: 1 }
         }, { returnDocument: 'after', session });
         if (!application) throw new AppError(409, 'VERSION_CONFLICT', 'Application changed before the decision was applied');
+        await createDomainNotifications({ connection, clock }).application({ applicationId: String(id),
+          ownerId: current.ownerUserId ?? user?._id, approved: action === 'APPROVE' }, session);
         await Audit.create([{
           actorId: new Types.ObjectId(actor.userId), actorRoles: [...actor.roles], action: 'APPLICATION_DECIDED',
           resourceId: id, occurredAt: new Date(now), state, decision: action,

@@ -9,6 +9,7 @@ import { calculateEmployeePayroll } from './payroll-calculation.service.js';
 import { assertPayrollStorage } from './payroll-storage.service.js';
 import { createScopedCursor } from '../../utils/scoped-cursor.js';
 import { createPayrollAdjustmentService, publicPayrollAdjustment } from './payroll-adjustment.service.js';
+import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const payrollMonth = at => new Date(at.getTime() + 7 * 3600000).toISOString().slice(0, 7);
@@ -21,6 +22,7 @@ const publicStatement = row => ({ id: String(row._id), employeeId: String(row.em
 export function createPayrollService({ connection, policy, clock = () => new Date(), cursorSecret }) {
   const models = payrollModels(connection), User = userModel(connection), { SitterStatus, SitterApplication } = sitterApplicationModels(connection);
   const uow = createUnitOfWork(connection);
+  const notifications = createDomainNotifications({ connection, clock: () => new Date(clock()).getTime() });
   const now = () => new Date(clock());
   const codec = cursorSecret ? createScopedCursor({ secret: cursorSecret, namespace: 'employee-payroll-history-v1', clock: () => now().getTime() }) : null;
   async function page(model, match, actor, input, field, kind, project, select = '') {
@@ -60,7 +62,8 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
     }
   }
   async function event(actor, employeeId, resourceId, type, reason, session) {
-    await models.PayrollEvent.create([{ actorId: actor.userId, employeeId, resourceId, type, reason, at: now() }], { session });
+    const [record] = await models.PayrollEvent.create([{ actorId: actor.userId, employeeId, resourceId, type, reason, at: now() }], { session });
+    await notifications.payroll({ eventId: String(record._id), employeeId, type }, session);
   }
   async function currentContract(employeeId, session, at = now()) {
     const contract = await models.EmploymentContract.findOne({ employeeId, effectiveAt: { $lte: at } }).sort({ version: -1 }).session(session ?? null).lean();

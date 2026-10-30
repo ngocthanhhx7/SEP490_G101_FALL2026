@@ -17,6 +17,9 @@ import { createSitterListService } from '../services/dashboards/sitter-list.serv
 import { createSitterProfileService } from '../services/dashboards/sitter-profile.service.js';
 import { createStaffDashboardService } from '../services/dashboards/staff-dashboard.service.js';
 import { createMongoDashboardRepositories } from '../services/dashboards/mongo-payroll.repository.js';
+import { createWorkspaceAnalytics } from '../services/dashboards/workspace-analytics.service.js';
+import { createWorkspaceAnalyticsController } from '../controllers/workspace-analytics.controller.js';
+import { requireSession } from '../middlewares/session.js';
 
 // The application registry composes durable readers. Missing primary collections
 // remain INTEGRATION_PENDING rather than becoming successful empty projections.
@@ -41,6 +44,9 @@ export function dashboardReadRuntimeModule({ config, connection, clock = Date.no
   };
   const childOptions = repositoryKey => ({ sessionPort: session, service: services[repositoryKey] });
   const router = Router();
+  router.get('/workspaces/:kind/analytics', requireSession(session), (_req, res, next) => {
+    res.set('Cache-Control', 'private, no-store'); res.vary('Cookie'); next();
+  }, createWorkspaceAnalyticsController(createWorkspaceAnalytics({ connection, clock })));
   router.use(createAdminDashboardRouter(childOptions('admin-dashboard')));
   router.use(createCustomerDashboardRouter(childOptions('customer-dashboard')));
   router.use(createEarningsRouter(childOptions('earnings')));
