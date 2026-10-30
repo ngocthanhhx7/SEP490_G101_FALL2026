@@ -178,13 +178,14 @@ Shortlist default5, cho phép5–20; chỉ người đủ gate/score>=60. Mỗi 
 
 Khác HouseBuddy huấn luyện trên synthetic labels của heuristic: PawWorld cung cấp additive model học từ kết quả đã xác minh, Python standard library, không cần cài ML runtime vào Express, không tải pickle. Mỗi feature normalized0–1; trọng số không âm và tổng100; từng đóng góp giải thích trực tiếp. Không có đủ dữ liệu thật thì giữ EXPLAINABLE_RULES, không tuyên bố đã train thành công trên dữ liệu khách thật.
 
-JSONL mỗi dòng chỉ cho phép:
+Nhãn được người dùng chốt ngày 30/10/2026 là điểm hài lòng đã xác minh,
+`VERIFIED_CUSTOMER_SATISFACTION_V1`: `(rating - 1) * 25`. JSONL v1 mỗi dòng chỉ cho phép:
 
 ```json
-{"groupId":"opaque_booking_group_001","occurredAt":"2026-10-01T00:00:00Z","features":{"fit":0.7,"travel":0.8,"quality":0.9,"reliability":0.95,"workload":0.6},"targetScore":82,"verified":true}
+{"groupId":"opaque_booking_group_001","observationId":"opaque_review_001","decisionAt":"2026-10-01T00:00:00Z","occurredAt":"2026-10-03T00:00:00Z","featuresAsOf":{"fit":"2026-10-01T00:00:00Z","travel":"2026-10-01T00:00:00Z","quality":"2026-10-01T00:00:00Z","reliability":"2026-10-01T00:00:00Z","workload":"2026-10-01T00:00:00Z"},"features":{"fit":0.7,"travel":0.8,"quality":0.9,"reliability":0.95,"workload":0.6},"rating":4,"targetScore":75,"labelVersion":"VERIFIED_CUSTOMER_SATISFACTION_V1","verified":true}
 ```
 
-Định nghĩa nhãn targetScore phải được nhóm duyệt và đối soát; không lấy chính heuristic score làm nhãn rồi gọi accuracy thực tế. Không email/địa chỉ/coordinates/CCCD trong dataset. >=200 observations, >=50 nhóm booking; chronological group split80/20, loại nhóm băng qua cutoff để tránh leakage; train>=100, test>=10 nhóm. File tối đa50MB.
+Rating phải xuất phát từ nguồn Customer đã xác minh sau booking hoàn tất; không lấy heuristic score làm nhãn. Observation ID trùng bị từ chối; mọi feature phải sẵn sàng trước hoặc tại decisionAt và outcome phải có sau decisionAt. Không tự thêm provenance cho legacy rows. Không email/địa chỉ/coordinates/CCCD trong dataset. >=200 observations, >=50 nhóm booking; chronological group split80/20, chỉ giữ training outcomes đã có trước quyết định sớm nhất trong test, loại nhóm băng qua cutoff; train>=100, test>=10 nhóm. File tối đa50MB. [Báo cáo và kế hoạch data](../testing/ai-real-data-2026-10-30.md) phân biệt dữ liệu đã tải với dữ liệu đủ điều kiện train.
 
 ```powershell
 python scripts/ai/train_model.py storage/ai/verified-outcomes.jsonl --version pwc-rank-v1 --output storage/ai/model-v1.json
@@ -204,7 +205,7 @@ python -m unittest discover -s tests/python -p test_train_model.py
 
 Integration tests tạo MongoDB8.0 replica set riêng và fake routing nội bộ, không đụng database .env; cover cookie/CSRF/ownership, quote policy/roundtrip, shortlist5, thiếu người, đình chỉ/trùng lịch, expiry, rules. Python tests dùng dữ liệu tổng hợp chỉ trong kiểm thử để chứng minh split/train, không publish model đó.
 
-Chưa hoàn tất: OSRM deployment, lịch/booking/offer/care ingestion tự động, training data và model thật, frontend booking consumption, performance benchmark cho 200 active users. Quote/match TTL cache không thay thế booking/financial audit. Customer requests tạo nhiều quyết định có TTL nhưng chưa có replay Idempotency-Key riêng; các endpoint import dùng unique source/version, người gọi phải giữ ID và đối soát duplicate 409.
+OSRM Hà Nội đã có runtime EC2; [kiểm tra ngày 30/10/2026](../testing/ai-real-data-2026-10-30.md) chỉ xác nhận smoke test đường tĩnh. Chưa hoàn tất: lịch/booking/offer/care ingestion tự động, training data và model thật, frontend booking consumption, performance benchmark cho 200 active users. Quote/match TTL cache không thay thế booking/financial audit hoặc feature store. Customer requests tạo nhiều quyết định có TTL nhưng chưa có replay Idempotency-Key riêng; các endpoint import dùng unique source/version, người gọi phải giữ ID và đối soát duplicate 409.
 
 
 ## Kết quả kiểm tra ngày 24/10/2026

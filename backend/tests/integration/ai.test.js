@@ -694,6 +694,42 @@ test('approved additive model is used only after hash and holdout checks, invali
   expect(result.body.data.rankingSource).toBe('EXPLAINABLE_RULES');
   expect(result.body.data.fallbackReason).toBe('MODEL_VALIDATION_FAILED');
 });
+test.each([
+  ['repeated pet IDs', { petIds: ['abcdef012345abcdef012345', 'abcdef012345abcdef012345'] }],
+  ['case variants of one pet ID', { petIds: ['abcdef012345abcdef012345', 'ABCDEF012345ABCDEF012345'] }],
+  ['repeated species', { species: ['CAT', 'CAT'] }]
+])('outcome imports reject %s before inflating ranking statistics', async (_label, duplicateScope) => {
+  const body = {
+    visitId: String(new Types.ObjectId()),
+    sitterId: String(new Types.ObjectId()),
+    serviceId: String(serviceId),
+    petIds: [String(petId)],
+    species: ['CAT'],
+    occurredAt: new Date(clockNow - 60000).toISOString(),
+    resolution: 'COMPLETED',
+    rating: 5,
+    onTime: true,
+    sourceRef: 'synthetic-outcome-scope-regression',
+    ...duplicateScope
+  };
+  const response = await request(app)
+    .post('/api/v1/ai/admin/outcomes')
+    .set(await authFor(admin))
+    .send(body)
+    .expect(422);
+  expect(response.body.error.code).toBe('VALIDATION_FAILED');
+  expect(await models.SitterVisitOutcome.countDocuments()).toBe(0);
+
+  // A corrected import with the same visit remains possible; rejection must not
+  // consume its unique visit ID or silently store a deduplicated partial row.
+  await request(app)
+    .post('/api/v1/ai/admin/outcomes')
+    .set(await authFor(admin))
+    .send({ ...body, petIds: [String(petId)], species: ['CAT'] })
+    .expect(201);
+  expect(await models.SitterVisitOutcome.countDocuments()).toBe(1);
+});
+
 test('Admin capability version conflict and schedule concurrency guard reject duplicate work', async () => {
   const ids = await seedSitters(1),
     userId = String(ids[0]),

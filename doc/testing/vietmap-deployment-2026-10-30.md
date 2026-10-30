@@ -34,16 +34,29 @@ The repeated run also verifies source-event uniqueness and the location TTL inde
 
 | Check | Result |
 | --- | --- |
-| Backend full suite | 109 suites, 956 tests passed |
-| Frontend full suite | 85 suites, 526 tests passed |
+| Backend full suite after integrating reviewed #91 | 112 suites, 965 tests passed |
+| Frontend full suite after integrating reviewed #91 | 86 suites, 527 tests passed |
 | Backend provider suites after default changed to Vietmap | 2 suites, 13 tests passed |
 | Backend and frontend lint | Passed |
 | Package architecture | Passed |
 | Frontend production build | Passed; 684.49 kB JavaScript bundle warning |
 | Diff whitespace | Passed |
+| Python AI/data tooling | 13 tests passed |
+| Python deployment tooling | 6 tests passed; synthetic activation only |
+| Backend production dependency audit | No vulnerabilities reported |
 
-The full suite ran before the final search-default edit; the two affected
-provider suites were rerun afterward. Existing authenticated desktop/mobile GPS
+The initial 109-suite backend and 85-suite frontend run preceded the #91 merge.
+After merging reviewed develop `88756f4`, one full run hit the unintended Jest
+five-second default during Mongo startup and a child-process runtime check. It
+was stopped and not counted as a pass. Project-specific setup now applies the
+intended 10-second unit and 180-second integration deadlines. The two affected
+integration suites then passed all 27 tests, and a fresh full run passed with
+the counts above, including the final Vietmap search default. No runtime timeout
+or domain assertion was relaxed.
+
+The local private `.env` now explicitly selects Vietmap for both search and
+routing, with no credentials changed. The VPS environment/release was not changed.
+Existing authenticated desktop/mobile GPS
 simulation evidence remains in the payroll/catalog integration report. These
 checks do not verify real-device GPS, the facility pin, the VPS provider or
 production data/index compatibility. Production activation still requires the

@@ -69,9 +69,10 @@ BOOKING_FACILITY_COORDINATES=
 AI_ROUTING_BOUNDS=
 ```
 
-Provision finance va employee-scheduling storage tren database demo rieng theo migration.
-Chay lai employee-scheduling-storage de tao EmployeeVisitTravel va TTL index; runtime
-khong provision storage. Mongo replica set can cho transaction. Dien toa do co so
+Local demo: provision finance va employee-scheduling tren database rieng theo migration.
+Release: ensure-indexes.js provision storage/indexes duoc bat bang flag truoc activation,
+bao gom EmployeeVisitTravel va TTL index; runtime khong provision storage. Mongo replica
+set can cho transaction. Dien toa do co so
 bang JSON [longitude,latitude] sau khi kiem tra ghim; khong dung trung tam Ha Noi.
 
 Luong: dia chi xac nhan -> quote -> booking snapshot -> prepay nhieu buoi/ngay trong

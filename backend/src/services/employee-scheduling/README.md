@@ -17,8 +17,9 @@ Staff proposals do not change operational times until the owning customer confir
 atomic command retains employee/price/duration, rechecks eligibility and creates an invitation.
 A boarding shift cannot be moved alone; changing the whole stay requires review/requote.
 
-`scheduling-storage.service.js` provisions additive collections/indexes only through the
-guarded development migration. Runtime does not create indexes or delete existing collections.
+`scheduling-storage.service.js` provisions additive collections/indexes through the guarded
+development migration or the explicit release `scripts/deployment/ensure-indexes.js` command.
+Runtime startup does not create indexes or delete existing collections.
 See [API and policy](../../../../doc/api/employee-scheduling-checkout.md).
 
 `visit-travel.service.js` scopes travel to the assigned employee, owning customer and Staff/Admin

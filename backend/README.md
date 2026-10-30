@@ -27,6 +27,11 @@ npm run test:unit
 npm run test:integration
 ```
 
+Jest uses `tests/unit/setup.js` and `tests/integration/setup.js` to apply the
+10-second unit and 180-second integration deadlines in each test environment.
+The root-only `testTimeout` option does not apply inside a multi-project entry;
+Mongo startup and unreachable-database checks must use the integration deadline.
+
 GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Auth routes chỉ mount khi được bật tường minh; REGISTER uses the transactional P07 handler when auth is enabled. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration dùng MongoDB replica set riêng, không đụng DB hiện có của user.
 
 ## Trách nhiệm
@@ -101,6 +106,11 @@ Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp n
 
 
 ## Báo giá backend và gợi ý sitter
+
+Trạng thái dữ liệu, nhãn hài lòng đã chốt và kế hoạch nối nguồn nghiệp vụ:
+[AI real data 30/10/2026](../doc/testing/ai-real-data-2026-10-30.md).
+Offline collection/quarantine, OSM audit và training có provenance nằm ở
+[scripts/ai](scripts/ai/README.md); không chạy từ Express startup.
 
 Bộ dữ liệu demo có tài khoản khách/sitter/Admin/Staff và trang quan sát thuật toán: [AI demo local](../doc/testing/ai-demo-accounts.md). Chạy tường minh `node scripts/demo-ai.js --apply`; database riêng, không gửi email/SMS thật.
 
