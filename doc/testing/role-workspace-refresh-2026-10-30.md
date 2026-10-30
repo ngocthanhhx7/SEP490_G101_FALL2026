@@ -12,14 +12,22 @@ and inherit shared workspace styling.
 
 ## Executed Checks
 
-- Backend full run: 117 suites, 1005 tests passed. Architecture and lint passed.
+- Backend full run on combined care/media/workspace source: 117 suites,
+  1009 tests passed. Architecture and lint passed.
 - Backend workspace integration rerun after ownership, concurrency and source
   guards: 4 tests passed, including missing source 503, CSRF 403, cross-role
   rejection, Customer booking ownership, snapshot aggregation, historical pricing
   preservation, stale combo 409, notification recipient/idempotency/rollback.
-- Frontend full run: 91 suites, 558 tests passed; lint and Vite build passed.
+- Frontend full run on combined source: 92 suites, 561 tests passed; lint and
+  Vite build passed.
   Service workspace regressions cover filtering/pagination, creation entry,
   price/combo integer payloads, independent versions and stale archive feedback.
+- Review reruns: backend workspace/scheduling/payOS service, 3 suites/43 tests;
+  frontend service workspace/role shell/notifications, 3 suites/14 tests passed.
+  An initial review command referenced a nonexistent webhook integration filename;
+  the corrected command used the configured payOS service suite and passed.
+- Python AI 13 tests and deployment 6 tests passed. Backend production dependency
+  audit reported zero vulnerabilities.
 - Chromium fixture run: 40 role/page/viewport combinations at 1440, 768, 390
   and 320 pixels. Admin overview/Users/services/notifications, Staff and Sitter
   overview/notifications, Customer overview/notifications. Checked page errors,
