@@ -18,10 +18,11 @@ function VerifiedSitterApplication({ api, displayName }) {
   </div>;
   const intake = resource.data;
   const previous = intake.application;
-  const canReapply = previous?.state === 'REJECTED' && previous.reapplyAt && Date.parse(previous.reapplyAt) <= Date.now();
-  return <SitterApplicationPage key={intake.contactValue} api={api}
+  const canReapply = previous?.state === 'REJECTED' && previous.canReapply === true;
+  return <SitterApplicationPage key={`${intake.contactValue}:${previous?.applicationCode ?? ''}:${canReapply}`} api={api}
     initialValues={{ displayName, contactChannel: 'EMAIL', contactValue: intake.contactValue }}
-    uploadsAvailable={intake.uploadsAvailable} previousApplication={canReapply ? null : previous} />;
+    uploadsAvailable={intake.uploadsAvailable} previousApplication={canReapply ? null : previous}
+    onRefreshApplication={resource.retry} />;
 }
 
 export function RegistrationPage({ initialSitter = false, registrationApi, applicationApi = sitterApplicationApi }) {

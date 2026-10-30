@@ -182,6 +182,7 @@ export function ApplicationStatusPage({ api }) {
             {status.canReapply ? 'Bạn đã đủ điều kiện nộp lại.' : 'Bạn có thể nộp lại từ '}
             {!status.canReapply && <time dateTime={status.reapplyEligibleAt}>{reapplyDate}</time>}
           </p>}
+          {status.canReapply === true && <Link to="/register?role=sitter">Nộp lại hồ sơ ứng tuyển →</Link>}
         </>}
         <Button type="button" variant="secondary" onClick={startOver}>Tra cứu hồ sơ khác</Button>
       </section>}

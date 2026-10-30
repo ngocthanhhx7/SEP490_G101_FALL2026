@@ -115,7 +115,7 @@ function validate({
 
 export function SitterApplicationPage({
   api = sitterApplicationApi,
-  initialValues, uploadsAvailable = api.uploadsAvailable, previousApplication
+  initialValues, uploadsAvailable = api.uploadsAvailable, previousApplication, onRefreshApplication
 }) {
   const policies = useRegistrationPolicies();
   const [agreementKey, setAgreementKey] = useState('');
@@ -300,16 +300,22 @@ export function SitterApplicationPage({
     const labels = { PENDING: 'Đã tiếp nhận hồ sơ', UNDER_REVIEW: 'Hồ sơ đang được xét duyệt', INTERVIEW: 'Đang ở bước phỏng vấn', APPROVED: 'Hồ sơ đã được duyệt', REJECTED: 'Hồ sơ chưa được duyệt' };
     return <section className="sitter-application" aria-labelledby="sitter-application-receipt-title">
       <div className="sitter-application__card sitter-application__receipt">
-        <span className="sitter-application__success-icon" aria-hidden="true">✓</span>
+        <span className="sitter-application__success-icon" aria-hidden="true">{receipt.state === 'REJECTED' ? '!' : '✓'}</span>
         <p className="sitter-application__eyebrow">PawWorld · Hồ sơ của bạn</p>
         <h2 id="sitter-application-receipt-title">{labels[receipt.state] || 'Đã tiếp nhận hồ sơ'}</h2>
         <p>Hồ sơ chỉ được cấp quyền Pet Sitter sau khi PawWorld xét duyệt. Bạn vẫn có thể sử dụng tài khoản khách hàng trong thời gian chờ.</p>
-        {receipt.reapplyAt && <p>Có thể nộp lại từ {new Date(receipt.reapplyAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}.</p>}
+        {receipt.state === 'REJECTED' && <>
+          <h3>Lý do từ chối</h3>
+          <p>{receipt.rejectionReason || 'Chưa có nội dung lý do được cung cấp.'}</p>
+          {receipt.reapplyAt && <p>Có thể nộp lại từ {new Date(receipt.reapplyAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} (giờ Việt Nam).</p>}
+          <p>Khi đến hạn, kiểm tra lại trạng thái để mở hồ sơ mới.</p>
+        </>}
         <div className="sitter-application__tracking">
           <span>Mã hồ sơ của bạn</span><strong>{receipt.applicationCode}</strong>
           <small>Giữ mã này để tra cứu cùng OTP gửi tới email đã xác minh. Bạn cũng có thể mở lại trang ứng tuyển để xem mã.</small>
         </div>
         <Link className="registration-submit" to="/sitter/application-status">Theo dõi hồ sơ →</Link>
+        {onRefreshApplication && <Button variant="secondary" onClick={onRefreshApplication}>Cập nhật trạng thái hồ sơ</Button>}
         <Link to="/account">Về tài khoản của tôi</Link>
       </div>
     </section>;

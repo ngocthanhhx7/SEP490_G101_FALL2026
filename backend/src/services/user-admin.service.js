@@ -180,5 +180,45 @@ export function createUserAdminService({ connection, User, Contact, Audit, sessi
     }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
   }
 
-  return Object.freeze({ list, getById, decide });
+  async function changeRoles({ userId, body, actor }) {
+    if (!actor?.userId || actor.state !== 'ACTIVE' || !actor.roles?.includes('ADMIN')) {
+      throw new AppError(403, 'FORBIDDEN', 'Action is not permitted');
+    }
+    if (!body || typeof body !== 'object' || Array.isArray(body)
+      || Object.keys(body).length !== 3 || !Object.hasOwn(body, 'roles')
+      || !Object.hasOwn(body, 'reason') || !Object.hasOwn(body, 'expectedVersion')
+      || !Array.isArray(body.roles) || body.roles.length < 1 || body.roles.length > ROLES.size
+      || body.roles.some(role => !ROLES.has(role)) || new Set(body.roles).size !== body.roles.length
+      || typeof body.reason !== 'string' || body.reason.trim().length < 3 || body.reason.trim().length > 1000
+      || !Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0
+      || !Types.ObjectId.isValid(userId)) invalid('Role decision is invalid');
+    if (userId.toString().toLowerCase() === actor.userId.toString().toLowerCase()) {
+      throw new AppError(409, 'SELF_ROLE_CHANGE_FORBIDDEN', 'Another Admin must change your roles');
+    }
+    const roles = [...body.roles].sort();
+    return connection.transaction(async session => {
+      // Serialize with concurrent demotion/locking of the acting Admin.
+      const admin = await User.findOneAndUpdate({ _id: actor.userId, roles: 'ADMIN', state: 'ACTIVE', synthetic: { $ne: true } },
+        { $inc: { version: 1 } }, { session, returnDocument: 'after' });
+      if (!admin) throw new AppError(403, 'FORBIDDEN', 'Administrator permission changed');
+      const target = await User.findOne({ _id: userId, synthetic: { $ne: true } }).session(session);
+      if (!target) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Account not found');
+      if (target.version !== body.expectedVersion) throw new AppError(409, 'VERSION_CONFLICT', 'Account changed before the decision was applied');
+      if (roles.includes('PET_SITTER') !== target.roles.includes('PET_SITTER')) {
+        throw new AppError(409, 'SITTER_ROLE_MANAGED', 'Pet Sitter access is managed through application review and Sitter status');
+      }
+      const previousRoles = [...target.roles].sort();
+      if (roles.join(',') === previousRoles.join(',')) invalid('Select different roles');
+      target.roles = roles;
+      target.authEpoch += 1;
+      target.version += 1;
+      await target.save({ session });
+      await sessionService.revokeUserSessions(target._id.toString(), { session });
+      await Audit.create([{ actorId: new Types.ObjectId(actor.userId), action: 'USER_ROLES_CHANGED', resourceType: 'user',
+        resourceId: target._id, reason: body.reason.trim(), previousRoles, roles, occurredAt: new Date(clock()) }], { session });
+      return { userId: target._id.toString(), roles: [...target.roles], version: target.version };
+    }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+  }
+
+  return Object.freeze({ list, getById, decide, changeRoles });
 }

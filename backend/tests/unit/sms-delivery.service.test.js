@@ -93,3 +93,7 @@ describe('eSMS SMS delivery adapter (fake HTTP provider only)', () => {
     expect(logger).toHaveBeenCalledWith({ event: 'SMS_ATTEMPT', status: 'ACCEPTED', code: 'ESMS_ACCEPTED' });
   });
 });
+
+test('legacy phone applicants can receive an application status OTP through the SMS adapter', async () => {
+  await expect(create().send(command({ purpose: 'APPLICATION_STATUS' }))).resolves.toMatchObject({ status: 'ACCEPTED' });
+});

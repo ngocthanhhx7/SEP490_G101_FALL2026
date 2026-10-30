@@ -57,3 +57,23 @@ describe('Admin sitter application review', () => {
     expect(screen.getByText(/P21 phải kiểm tra trạng thái trước khi phát offer/)).toBeInTheDocument();
   });
 });
+
+test('approval requires a decision reason and describes upgrading the verified account', async () => {
+  const application = { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Ứng viên thử nghiệm',
+    contact: { channel: 'EMAIL', value: 'applicant@example.test' }, ageEligible: true,
+    experience: 'Có kinh nghiệm chăm sóc.', requestedServices: ['Chăm sóc'], workAreas: ['Hà Nội'],
+    documents: [], state: 'INTERVIEW', version: 3 };
+  const api = { get: jest.fn(async () => ({ data: application })),
+    decide: jest.fn(async () => ({ data: { state: 'APPROVED' } })) };
+  render(<MemoryRouter initialEntries={[`/admin/applications/${application.id}`]}>
+    <Routes><Route path="/admin/applications/:applicationId" element={<SitterApplicationReviewPage api={api} />} /></Routes>
+  </MemoryRouter>);
+  await screen.findByText('applicant@example.test · EMAIL');
+  fireEvent.click(screen.getByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' }));
+  expect(await screen.findByText('Nhập lý do duyệt, tối thiểu 3 ký tự.')).toBeVisible();
+  expect(api.decide).not.toHaveBeenCalled();
+  fireEvent.change(screen.getByLabelText('Lý do quyết định'), { target: { value: 'Đã thẩm định và xác nhận hợp đồng ký.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' }));
+  expect(await screen.findByText(/Ứng viên có tài khoản đã xác minh cần đăng nhập lại/)).toBeVisible();
+  expect(api.decide).toHaveBeenCalledWith(expect.objectContaining({ action: 'APPROVE', expectedVersion: 3 }));
+});

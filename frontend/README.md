@@ -128,3 +128,11 @@ Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp n
 ## Đăng ký và hồ sơ ứng tuyển
 
 Form khách hàng và Pet Sitter tham khảo bố cục hai cột của ảnh HouseBuddy, giữ nhận diện PawWorld. OTP email tạo tài khoản trước; form Pet Sitter dùng email đã xác minh, nhóm dịch vụ từ catalog, vùng làm việc, kinh nghiệm và ảnh giấy tờ JPG/PNG. API hồ sơ được nối với applicant-documents và session/CSRF; trạng thái/receipt khôi phục từ server theo owner. Xem [luồng và kiểm tra](../doc/testing/registration-sitter-flow.md). PDF chưa được pipeline ảnh hỗ trợ.
+
+Sitter application Admin workspace uses server-provided overall state totals,
+filtered result counts and signed cursor pagination. Employment preference, service
+choices, work areas and Vietnam-local timestamps are shown without unmasking list
+contacts. Only the authorized detail endpoint exposes private fields. Legacy
+/admin/applications/:id links remain inside the Admin shell; new links use
+/admin/sitter-applications/:id. Email and SMS templates accept APPLICATION_STATUS,
+while the OTP service retains application scope, expiry and anti-enumeration rules.

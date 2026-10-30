@@ -57,7 +57,7 @@ export function sitterApplicationModule({
     encryptionKey: config.auth.contactEncryptionKey
   });
   const intake = authenticatedSubmission ? createApplicationIntakeService({ connection, contactCrypto,
-    media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable }) : null;
+    media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable, clock }) : null;
   const service = createSitterApplicationService({
     connection,
     Applicant: models.SitterApplication,

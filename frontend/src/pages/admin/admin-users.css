@@ -330,3 +330,13 @@
   .admin-nav-item, .admin-avatar, .admin-state-pill, .admin-role-tag { border: 1px solid CanvasText; }
   .admin-state-dot { background: CanvasText; }
 }
+
+.admin-role-form { display: grid; gap: 16px; }
+.admin-role-form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.admin-role-form legend { margin-bottom: 12px; font-weight: 700; }
+.admin-role-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.admin-role-options label { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px; border: 1px solid #ddd3e9; border-radius: 6px; }
+.admin-role-options input { flex: none; width: 18px; height: 18px; accent-color: #573285; }
+.admin-role-form .admin-muted { margin: 0; overflow-wrap: anywhere; line-height: 1.6; }
+.admin-role-reason { overflow-wrap: anywhere; }
+@media (max-width: 380px) { .admin-role-options { grid-template-columns: 1fr; } }

@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterApplicationAdminApi } from '../../services/sitter-application-api.js';
@@ -34,8 +34,8 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
   }
 
   async function decide(action) {
-    if (action === 'REJECT' && reason.trim().length < 3) {
-      setNotice({ state: 'error', message: 'Nhập lý do từ chối, tối thiểu 3 ký tự.' });
+    if (reason.trim().length < 3) {
+      setNotice({ state: 'error', message: action === 'REJECT' ? 'Nhập lý do từ chối, tối thiểu 3 ký tự.' : 'Nhập lý do duyệt, tối thiểu 3 ký tự.' });
       return;
     }
     setBusy(true); setNotice(null);
@@ -44,8 +44,8 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
         interviewNote: interviewNote.trim(), expectedVersion: resource.data.version });
       setNotice({ state: result.data?.state === 'REJECTED' ? 'pending' : 'success',
         message: result.data?.state === 'REJECTED'
-          ? `Đã lưu quyết định. Có thể nộp lại sau ${dateText(result.data.reapplyAt)}. Thông báo cho ứng viên đang chờ tích hợp.`
-          : 'Đã duyệt và tạo tài khoản Sitter. Liên kết liên hệ và kích hoạt đăng nhập còn chờ xác minh.' });
+          ? `Đã từ chối hồ sơ. Ứng viên có thể xem lý do và thời hạn nộp lại từ ${dateText(result.data.reapplyAt)} trong hồ sơ của mình.`
+          : 'Đã duyệt hồ sơ và cấp quyền Pet Sitter. Ứng viên có tài khoản đã xác minh cần đăng nhập lại để nhận quyền mới; hồ sơ cũ chưa liên kết liên hệ cần hoàn tất xác minh.' });
       resource.retry();
     } catch (error) {
       const message = error?.code === 'CSRF_NOT_READY' ? 'Bảo vệ phiên thao tác Admin chưa được kết nối.'
@@ -77,6 +77,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
   }
 
   return <main className="sitter-app-admin" aria-labelledby="sitter-review-title">
+    <nav aria-label="Đường dẫn hồ sơ"><Link to="/admin/sitter-applications">← Danh sách hồ sơ ứng tuyển</Link></nav>
     <header className="sitter-app-admin__header"><div>
       <p className="sitter-app-admin__eyebrow">Paw World Care · Thẩm định</p>
       <h1 id="sitter-review-title">Chi tiết hồ sơ ứng tuyển</h1>
@@ -87,11 +88,18 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
     {resource.status === 'error' && <Notice state="error" title="Không thể tải hồ sơ"><p>Hồ sơ không tồn tại hoặc chưa thể truy cập.</p>
       <Button variant="secondary" onClick={resource.retry}>Thử lại</Button></Notice>}
     {resource.status === 'success' && <>
+      <ol className="sitter-app-progress" aria-label="Tiến trình xét duyệt">
+        {[['PENDING', 'Tiếp nhận'], ['UNDER_REVIEW', 'Thẩm định'], ['INTERVIEW', 'Phỏng vấn'],
+          [resource.data.state === 'REJECTED' ? 'REJECTED' : 'APPROVED', 'Quyết định']].map(([state, label]) =>
+          <li key={state} aria-current={resource.data.state === state ? 'step' : undefined}>{label}</li>)}
+      </ol>
       <section className="sitter-app-detail" aria-label="Thông tin hồ sơ">
         <div className="sitter-app-detail__title"><div><h2>{resource.data.displayName}</h2>
           <p>{resource.data.contact.value} · {resource.data.contact.channel}</p></div>
           <StateLabel state={resource.data.state} /></div>
         <dl>
+          <div><dt>Ngày nộp</dt><dd>{dateText(resource.data.createdAt)}</dd></div>
+          <div><dt>Cập nhật gần nhất</dt><dd>{dateText(resource.data.updatedAt)}</dd></div>
           <div><dt>Đủ 18 tuổi</dt><dd>{resource.data.ageEligible ? 'Có' : 'Không'}</dd></div>
           <div><dt>Kinh nghiệm</dt><dd>{resource.data.experience}</dd></div>
           <div><dt>Hình thức làm việc mong muốn</dt><dd>{({ FULL_TIME: 'Toàn thời gian', PART_TIME: 'Bán thời gian' })[resource.data.employmentType] ?? 'Chưa cung cấp (hồ sơ cũ)'}</dd></div>
@@ -99,9 +107,10 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
           <div><dt>Khu vực mong muốn</dt><dd>{resource.data.workAreas.join(' · ')}</dd></div>
           <div><dt>Lý do quyết định</dt><dd>{resource.data.decisionReason || 'Chưa có'}</dd></div>
           <div><dt>Nộp lại từ</dt><dd>{dateText(resource.data.reapplyAt)}</dd></div>
+          <div><dt>Ghi chú phỏng vấn đã lưu (nội bộ)</dt><dd>{resource.data.interviewNote || 'Chưa ghi nhận'}</dd></div>
         </dl>
         <section aria-labelledby="sitter-app-documents-title">
-          <h3 id="sitter-app-documents-title">Tài liệu riêng tư</h3>
+          <h3 id="sitter-app-documents-title">Tài liệu riêng tư ({resource.data.documents.length})</h3>
           {resource.data.documents.length ? <ul>{resource.data.documents.map(document => <li key={document.documentId}>
             <span>{document.documentType === 'IDENTITY' ? 'Giấy tờ định danh' : 'Tài liệu bổ sung'}</span>
             <a href={api.documentUrl({ applicationId, documentId: document.documentId })} target="_blank" rel="noreferrer">
@@ -110,6 +119,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
           </li>)}</ul> : <p>Chưa có tài liệu.</p>}
         </section>
         {['PENDING', 'UNDER_REVIEW', 'INTERVIEW'].includes(resource.data.state) && <section className="sitter-app-review-form" aria-label="Ghi nhận thẩm định">
+          <p>Chỉ duyệt khi đã hoàn tất thẩm định và có hợp đồng đã ký. Hình thức làm việc trong hồ sơ là nguyện vọng; hợp đồng, ca làm và quyền nhận việc được quản lý riêng.</p>
           {resource.data.state === 'PENDING' && <Button variant="secondary" disabled={busy} onClick={startReview}>Bắt đầu thẩm định</Button>}
           {resource.data.state === 'UNDER_REVIEW' && <Button variant="secondary" disabled={busy} onClick={() => startReview(true)}>Chuyển sang phỏng vấn</Button>}
           <label className="sitter-app-admin__search" htmlFor="sitter-interview-note">
@@ -123,7 +133,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
               onChange={event => setReason(event.target.value)} />
           </label>
           <div className="sitter-app-review-form__actions">
-            <Button loading={busy} onClick={() => decide('APPROVE')}>Duyệt và tạo tài khoản</Button>
+            <Button loading={busy} onClick={() => decide('APPROVE')}>Duyệt và cấp quyền Pet Sitter</Button>
             <Button variant="danger" loading={busy} onClick={() => decide('REJECT')}>Từ chối hồ sơ</Button>
           </div>
         </section>}
