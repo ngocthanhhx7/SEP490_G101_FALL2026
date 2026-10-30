@@ -1,7 +1,7 @@
 import { DEFAULT_SMS_OTP_TEMPLATE, isSmsOtpTemplate } from '../validators/sms-template.validator.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE']);
+const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE', 'APPLICATION_STATUS']);
 
 export function normalizeVietnamPhone(value) {
   if (typeof value !== 'string' || value.length > 32) return null;

@@ -1,7 +1,7 @@
 import { isMailbox } from '../utils/mailbox.js';
 export { isMailbox } from '../utils/mailbox.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE']);
+const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE', 'APPLICATION_STATUS']);
 
 function escapeHtml(value) {
   return value.replace(
