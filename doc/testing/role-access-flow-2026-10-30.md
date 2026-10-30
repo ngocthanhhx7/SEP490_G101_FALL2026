@@ -49,3 +49,22 @@ No live OTP, customer account, booking or payment was created. Synthetic API
 responses do not establish authenticated production acceptance. Production
 SSH and public HTTPS checks timed out during this work; deployment and current
 VPS health must be established from fresh evidence before rollout.
+
+## Release Transaction Regression
+
+Combined release CI exposed an application transaction abort error: Mongoose
+tried to restore the default `__v` on strict document/consent subdocuments which
+do not persist that field. These subdocuments now explicitly disable that key;
+the application's domain `version`, strict validation and unique indexes remain.
+
+A deterministic integration regression throws a labelled transient Mongo error
+after the submission callback writes. It returned HTTP 500 before the fix; after
+the fix it returns 201 after two attempts, with one application, submission audit
+and mail queue record. Intake and application mail tests passed together locally
+(16 tests). The concurrent owner test still requires exactly 201/409.
+
+The runtime mail test waits for the fake delivery signal with a 10-second
+deadline, then checks shutdown commits `ACCEPTED`. Its former one-second polling
+window could expire on busy hosts. No SMTP delivery or real applicant mutation
+is performed by these tests. Final CI/review/deployment evidence stays in the
+release handoff; the local focused result does not establish release completion.

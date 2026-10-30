@@ -8,13 +8,13 @@ export function sitterApplicationModels(connection) {
     documentId: { type: String, required: true },
     documentType: { type: String, enum: ['IDENTITY', 'CERTIFICATE', 'OTHER'], required: true },
     storageRef: { type: String, required: true, select: false }
-  }, { _id: false, strict: 'throw' });
+  }, { _id: false, versionKey: false, strict: 'throw' });
 
   const applicantSchema = new Schema({
     ownerUserId: { type: Schema.Types.ObjectId, default: null, index: true },
     policyConsents: { type: [new Schema({
       slug: String, versionId: String, contentHash: String, effectiveAt: Date, consentedAt: Date, sourceRef: String
-    }, { _id: false, strict: 'throw' })], default: [], immutable: true },
+    }, { _id: false, versionKey: false, strict: 'throw' })], default: [], immutable: true },
     displayName: { type: String, required: true, maxlength: 100 },
     contactChannel: { type: String, enum: ['EMAIL', 'PHONE'], required: true },
     contactCiphertext: { type: String, required: true, select: false },

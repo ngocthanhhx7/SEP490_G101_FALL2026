@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { hasRole } from '../../utils/role-access.js';
 
 const ROLE_LABELS = {
   CUSTOMER: 'Khách hàng', PET_SITTER: 'Pet sitter', STAFF: 'Nhân viên', ADMIN: 'Quản trị viên'
@@ -54,8 +55,8 @@ export function AccountPage() {
         Trang này chỉ hiển thị thông tin tài khoản đang đăng nhập. Các thao tác cập nhật hồ sơ hoặc liên hệ cần luồng xác minh riêng.
       </Notice>
       <div className="account-overview-actions">
-        {roles.includes('CUSTOMER') && <Link className="account-overview-link" to="/account/profile">Quản lý hồ sơ</Link>}
-        {roles.includes('ADMIN') && <Link className="account-overview-link" to="/admin/users">Quản lý tài khoản người dùng</Link>}
+        {hasRole(user, 'CUSTOMER') && <Link className="account-overview-link" to="/account/profile">Quản lý hồ sơ</Link>}
+        {hasRole(user, 'ADMIN') && <Link className="account-overview-link" to="/admin/users">Quản lý tài khoản người dùng</Link>}
         <Button variant="secondary" loading={logoutPending} loadingLabel="Đang đăng xuất…" onClick={logout}>Đăng xuất</Button>
       </div>
     </div>
