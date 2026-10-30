@@ -2,6 +2,24 @@
 
 Date: 2026-10-30. Checkout: `feature/demo-service-catalog`.
 
+## Embedded Map Follow-up
+
+Live Tilemap street-style request returned HTTP 200 with the separately configured
+key. Playwright at 1440px and 390px rendered real street tiles/fonts through the
+authenticated proxy: 20 resource responses returned HTTP 200. Screenshots were
+inspected; cropped screenshot pixels contained 1,874/1,036 distinct sampled colors.
+WebGL direct readback was blank after compositing, so screenshot pixels were used.
+Both viewports changed the pin on click without horizontal overflow.
+Authenticated customer forms saved the selected coordinates into the isolated
+MongoDB fixture at both widths. Moving a confirmed pin cleared confirmation;
+neither viewport produced a page error. No production address was created.
+
+The latest combined run before dependency synchronization passed backend 113
+suites/977 tests and frontend 87 suites/530 tests. Frontend build passed with
+687.27 kB initial JS and a lazy 768.47 kB Vietmap SDK chunk; size warnings remain.
+Production dependency audit reports zero vulnerabilities. SDK installation reports
+five low-severity development dependency findings, which are not runtime packages.
+
 ## Provider Selection
 
 The owner selected Vietmap for address search, selected-place coordinates and

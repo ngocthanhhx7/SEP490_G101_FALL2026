@@ -9,14 +9,14 @@ Nguyen Ngoc Thanh dieu phoi review khi chua phan cong; van can approval doc lap.
 | --- | --- | --- |
 | Tim dia chi | Geocoding API | Search v4 -> Place v4 khi chon |
 | ETA | Routes computeRouteMatrix, DRIVE | Matrix v4, car |
-| Chi duong ngoai | Maps URLs, khong can key | Khong mo SDK |
+| Ban do nhung/chon ghim | Khong su dung | Vietmap GL JS, Tilemap key rieng |
 | GPS sitter | Browser Geolocation -> backend rieng | Cung luong |
 
 Chu du an chon dung rieng Vietmap: tim dia chi, resolve toa do va matrix ETA deu
 dung VIETMAP_REST_API_KEY. Khong can Google Cloud Billing hay Google server key.
 Adapter Google van la lua chon rieng khi duoc cau hinh ro rang. Khong goi ca hai cho
 moi ban tin GPS, khong tu chuyen provider khi loi, khong tron cache/nguon ETA.
-Chua nhung SDK/tiles hay keo ghim. Khong ve du lieu Google len tiles Vietmap.
+Ban do nhung dung `VIETMAP_TILEMAP_KEY` rieng tren backend. Khong ve du lieu Google len tiles Vietmap.
 Truoc khi dung that, doi chieu dieu khoan attribution, luu toa do va ket hop du lieu
 theo goi da ky. Luu dia chi booking lau dai can quyen luu tru phu hop; viec khach
 xac nhan toa do khong thay the dieu khoan provider.
@@ -131,6 +131,19 @@ khong duoc dung lam nguon ETA hay dieu kien van hanh cua cau hinh Vietmap.
 - Test tu dong dung provider gia lap. Can key that truoc production: search/resolve,
   tuyen hai chieu, quota/key loi, GPS desktop/mobile HTTPS, thu hoi quyen, doi phan cong,
   huy ca, het cua so va nhan loi moi khi lich doi. Khong chup key vao bang chung.
+
+## Ban do nhung
+
+Them `VIETMAP_TILEMAP_KEY` vao backend/.env va VPS shared/.env (key Tilemap,
+khac Services key). Tao lai container sau khi doi env. Khong dien key vao frontend.
+`MAPS_ENABLED=true` va auth can bat. `/api/v1/maps/render/*` chi phuc vu style
+duong pho Vietmap, vector tiles, font va sprite qua session da dang nhap.
+Proxy gioi han path/host, timeout, kich thuoc va so request; khong phai proxy URL tu do.
+Frontend tai SDK khi mo ban do; chon/keo ghim khong tu xac nhan dia chi hay khu vuc.
+Vi tri sitter chi hien khi backend cho phep va GPS con moi trong 90 giay.
+Tat chia se/het han thi go ban do; GPS van la quyen thiet bi va can HTTPS.
+Tile loads co the tinh phi theo goi Vietmap (tai lieu hien tai: 25 tile loads =
+1 transaction). Dat quota tai provider; gioi han ung dung khong thay quota tai khoan.
 
 ## Nguon chinh thuc
 

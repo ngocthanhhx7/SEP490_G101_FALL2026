@@ -32,6 +32,12 @@ server-priced baskets for owned pets; editing clears stale estimates. Transport 
 
 ## Responsibilities
 
+`components/common/VietmapView.jsx` renders the lazily loaded Vietmap GL SDK for
+explicit customer pin selection and fresh, authorized visit locations. The SDK
+only requests same-origin authenticated map resources; no provider key is bundled.
+Address confirmation and work-area selection remain explicit. Closing the address
+form or stopping/expiring visit sharing removes the map.
+
 Employee payroll pages live in `src/pages/sitter/EmployeePayrollPage.jsx` and
 `src/pages/admin/EmployeePayrollAdminPage.jsx`, with shared rendering in `src/components/payroll/`,
 request lifecycle in `src/hooks/usePayrollWorkspace.js` and same-origin transport in

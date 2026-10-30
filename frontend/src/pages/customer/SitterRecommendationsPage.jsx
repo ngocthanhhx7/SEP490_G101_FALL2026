@@ -5,6 +5,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
 import { createSitterRecommendationApi } from '../../services/sitter-recommendation-api.js';
 import { AddressSearch } from '../../components/common/AddressSearch.jsx';
+import { VietmapView } from '../../components/common/VietmapView.jsx';
 import './sitter-recommendations.css';
 
 function message(error) {
@@ -23,6 +24,13 @@ function CareSetup({ api, breeds, workAreas = [{ code: 'HN', label: 'Hà Nội' 
   const [feedback, setFeedback] = useState('');
   const [uncertain, setUncertain] = useState(false);
   const addressForm = useRef(null);
+  const [addressPoint, setAddressPoint] = useState(null);
+  const [addressOpen, setAddressOpen] = useState(false);
+  const selectPoint = point => {
+    setAddressPoint(point);
+    const fields = addressForm.current.elements;
+    fields.longitude.value = point[0]; fields.latitude.value = point[1]; fields.confirmed.checked = false;
+  };
   async function save(event, kind) {
     event.preventDefault();
     if (pending || uncertain) return;
@@ -37,7 +45,7 @@ function CareSetup({ api, breeds, workAreas = [{ code: 'HN', label: 'Hà Nội' 
           areaCode: fields.get('areaCode'), coordinates: [Number(fields.get('longitude')), Number(fields.get('latitude'))],
           pointConfirmed: fields.get('confirmed') === 'on' });
       if (result.pending) { setUncertain(true); setFeedback('Máy chủ đang xử lý. Tải lại dữ liệu để đối chiếu trước khi tạo lại.'); return; }
-      form.reset(); setFeedback('Đã lưu thông tin.'); onSaved();
+      form.reset(); if (kind === 'address') setAddressPoint(null); setFeedback('Đã lưu thông tin.'); onSaved();
     } catch (error) {
       if (['TIMEOUT', 'NETWORK_ERROR', 'ABORTED'].includes(error?.code)) {
         setUncertain(true);
@@ -58,19 +66,23 @@ function CareSetup({ api, breeds, workAreas = [{ code: 'HN', label: 'Hà Nội' 
         <Button type="submit" disabled={pending || uncertain}>Lưu thú cưng</Button>
       </form>
     </details>
-    <details><summary>Thêm địa chỉ có tọa độ tại Hà Nội</summary>
+    <details onToggle={event => setAddressOpen(event.currentTarget.open)}><summary>Thêm địa chỉ có tọa độ tại Hà Nội</summary>
       <p>Lấy tọa độ ghim chính xác từ bản đồ. Chỉ nhập địa chỉ bạn có quyền sử dụng; thông tin này không hiển thị trong danh sách gợi ý.</p>
       <form ref={addressForm} onSubmit={event => save(event, 'address')}>
         <AddressSearch search={api.searchAddress} resolve={api.resolveAddress} disabled={pending || uncertain} onSelect={item => {
           const fields = addressForm.current.elements;
-          fields.location.value = item.label; fields.longitude.value = item.coordinates[0]; fields.latitude.value = item.coordinates[1];
-          fields.confirmed.checked = false;
+          fields.location.value = item.label; selectPoint(item.coordinates);
         }} />
+        {addressOpen && <VietmapView coordinates={addressPoint} onSelect={selectPoint} disabled={pending || uncertain} />}
         <Input label="Tên địa chỉ" name="label" required maxLength={100} />
         <Input label="Địa chỉ chăm sóc" name="location" required maxLength={500} />
         <Select label="Khu vực phục vụ" name="areaCode" required>{workAreas.map(area => <option key={area.code} value={area.code}>{area.label}</option>)}</Select>
-        <Input label="Kinh độ" name="longitude" type="number" min="-180" max="180" step="any" required />
-        <Input label="Vĩ độ" name="latitude" type="number" min="-90" max="90" step="any" required />
+        <Input label="Kinh độ" name="longitude" type="number" min="-180" max="180" step="any" required onChange={event => {
+          selectPoint([Number(event.target.value), Number(addressForm.current.elements.latitude.value)]);
+        }} />
+        <Input label="Vĩ độ" name="latitude" type="number" min="-90" max="90" step="any" required onChange={event => {
+          selectPoint([Number(addressForm.current.elements.longitude.value), Number(event.target.value)]);
+        }} />
         <label><input type="checkbox" name="confirmed" required /> Tôi đã kiểm tra đúng vị trí ghim của địa chỉ này.</label>
         <Button type="submit" disabled={pending || uncertain}>Lưu địa chỉ</Button>
       </form>

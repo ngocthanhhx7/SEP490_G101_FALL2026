@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { LocateFixed, MapPin, Navigation, Pause, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/index.js';
+import { VietmapView } from './VietmapView.jsx';
 
 const states = { EN_ROUTE: 'Đang di chuyển', ARRIVED: 'Đã đến', STOPPED: 'Đã dừng chia sẻ', NOT_SHARING: 'Chưa chia sẻ vị trí' };
 const routeNames = { GOOGLE_DRIVE_STATIC_ROAD_ETA: 'Google Maps · Ô tô',
@@ -17,6 +18,8 @@ const locate = () => new Promise((resolve, reject) => {
 function TravelPanel({ api, visitId, employee }) {
   const [data, setData] = useState(null), [error, setError] = useState(''), [busy, setBusy] = useState(false), [eta, setEta] = useState(null), [active, setActive] = useState(null);
   const sequence = useRef(0), live = useRef(null), mounted = useRef(true);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const timer = globalThis.setInterval(() => setNow(Date.now()), 1000); return () => globalThis.clearInterval(timer); }, []);
   const refresh = async () => {
     try { const result = await api.travel(visitId); if (mounted.current) { setData(result.data); setError(''); } }
     catch (failure) { if (mounted.current) setError(errorText(failure)); }
@@ -83,13 +86,12 @@ function TravelPanel({ api, visitId, employee }) {
     catch (failure) { if (mounted.current) setError(errorText(failure)); }
     finally { if (mounted.current) setBusy(false); }
   };
-  const fresh = data?.fresh && data.location && Date.now() - Date.parse(data.location.observedAt) <= 90000;
+  const fresh = data?.sharing && data?.fresh && data.location && now - Date.parse(data.location.observedAt) <= 90000;
   return <div className="pwc-visit-travel">
     {!data && !error && <p role="status">Đang tải hành trình…</p>}
     {data && <><p>{states[data.state] || data.state}</p>
       {data.sharing && <p>{fresh ? `Cập nhật ${new Date(data.location.observedAt).toLocaleTimeString('vi-VN')} · Sai số ${Math.round(data.location.accuracyMeters)} m` : 'Chưa có vị trí mới.'}</p>}
-      {fresh && <p><a target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"
-        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([...data.location.coordinates].reverse().join(','))}`}>Vị trí nhân viên trên Google Maps</a></p>}
+      {fresh && <VietmapView coordinates={data.location.coordinates} label="Vị trí nhân viên trên Vietmap" />}
       {employee && data.available && <div className="employee-scheduling__actions">
         <Button disabled={busy || Boolean(active)} onClick={() => command('START')}><LocateFixed size={16} />Chia sẻ vị trí</Button>
         <Button variant="secondary" disabled={busy || !data.sharing} onClick={() => command('STOP')}><Pause size={16} />Dừng chia sẻ</Button>

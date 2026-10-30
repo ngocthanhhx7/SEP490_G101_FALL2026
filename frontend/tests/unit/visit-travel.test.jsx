@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { VisitTravel } from '../../src/components/common/VisitTravel.jsx';
 
+jest.mock('../../src/components/common/VietmapView.jsx', () => ({ VietmapView: () => <div data-testid="employee-map" /> }));
+
 afterEach(cleanup);
 const startAt = new Date(Date.now() + 1800000).toISOString(), endAt = new Date(Date.now() + 5400000).toISOString();
 const state = { visitId: 'visit', available: true, version: 0, state: 'NOT_SHARING', sharing: false, fresh: false, location: null };
@@ -48,4 +50,19 @@ test('closing the panel stops its active sharing session', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Chia sẻ vị trí' }));
   await waitFor(() => expect(api.travelLocation).toHaveBeenCalled()); result.unmount();
   expect(api.travelCommand).toHaveBeenLastCalledWith('visit', { action: 'STOP', expectedVersion: 1 });
+});
+
+test('fresh position disappears automatically after ninety seconds even without a poll response', async () => {
+  jest.useFakeTimers();
+  try {
+    const api = fixture();
+    api.travel.mockResolvedValueOnce({ data: { ...state, state: 'EN_ROUTE', sharing: true, fresh: true,
+      location: { coordinates: [105.85, 21.01], accuracyMeters: 10, observedAt: new Date().toISOString() } } })
+      .mockImplementation(() => new Promise(() => {}));
+    render(<VisitTravel api={api} visitId="visit" startAt={startAt} endAt={endAt} />); open();
+    await screen.findByTestId('employee-map');
+    const { act } = await import('@testing-library/react');
+    act(() => jest.advanceTimersByTime(91000));
+    expect(screen.queryByTestId('employee-map')).not.toBeInTheDocument();
+  } finally { cleanup(); jest.useRealTimers(); }
 });

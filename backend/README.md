@@ -9,6 +9,12 @@ a non-production `*_dev` database. See [approved rules](../doc/requirements/demo
 Customer/CSRF-protected `POST /api/v1/pricing/basket-quotes` validates owned pets and snapshots
 one combo/order fee across all rows. An estimate does not create bookings or collect payment.
 
+Reviewed production releases can run `scripts/deployment/provision-demo-catalog.js`.
+It defaults to dry-run; `--apply` requires `CONFIRMED_CATALOG_KEY` and
+`CONFIRMED_CATALOG_DATABASE` matching the approved catalog and configured database.
+Take a backup first. The provisioning service preserves Admin versions and historical
+snapshots, records its run and is idempotent; it creates no users or contracts.
+
 The opt-in [checkout and employee scheduling API](../doc/api/employee-scheduling-checkout.md)
 composes quote-to-booking snapshots, fifteen-minute prepay intents, care-plan finalization,
 self-registered areas/shifts, durable invitations and customer-confirmed directed rescheduling.

@@ -16,6 +16,7 @@
     "lint": "eslint src tests"
   },
   "dependencies": {
+    "@vietmap/vietmap-gl-js": "6.0.1",
     "lucide-react": "1.64.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",

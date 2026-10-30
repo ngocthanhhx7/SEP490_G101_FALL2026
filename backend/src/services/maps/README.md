@@ -1,5 +1,13 @@
 # Location Search
 
+`map-render.service.js` proxies the fixed Vietmap street style, dated vector tiles,
+fonts and sprites through authenticated read-only `/api/v1/maps/render/*` endpoints.
+It uses the separate backend `VIETMAP_TILEMAP_KEY`, rewrites resource URLs to the
+same origin, rejects arbitrary hosts/paths/query strings and caps body size/time.
+Rendering has a separate 600 requests/account/minute budget; the application IP
+limit also applies. Responses are private/no-store. Configure provider quotas too.
+A missing Tilemap key does not disable Search/Place/Matrix.
+
 `location-search.service.js` owns bounded Google geocoding and Vietmap v4 search with
 selected-place resolution, not saved customer addresses. Search and route providers are
 configured separately; no automatic cross-provider paid fallback is performed.
