@@ -34,8 +34,8 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
   }
 
   async function decide(action) {
-    if (action === 'REJECT' && reason.trim().length < 3) {
-      setNotice({ state: 'error', message: 'Nhập lý do từ chối, tối thiểu 3 ký tự.' });
+    if (reason.trim().length < 3) {
+      setNotice({ state: 'error', message: action === 'REJECT' ? 'Nhập lý do từ chối, tối thiểu 3 ký tự.' : 'Nhập lý do duyệt, tối thiểu 3 ký tự.' });
       return;
     }
     setBusy(true); setNotice(null);
@@ -44,8 +44,8 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
         interviewNote: interviewNote.trim(), expectedVersion: resource.data.version });
       setNotice({ state: result.data?.state === 'REJECTED' ? 'pending' : 'success',
         message: result.data?.state === 'REJECTED'
-          ? `Đã lưu quyết định. Có thể nộp lại sau ${dateText(result.data.reapplyAt)}. Thông báo cho ứng viên đang chờ tích hợp.`
-          : 'Đã duyệt và tạo tài khoản Sitter. Liên kết liên hệ và kích hoạt đăng nhập còn chờ xác minh.' });
+          ? `Đã từ chối hồ sơ. Ứng viên có thể xem lý do và thời hạn nộp lại từ ${dateText(result.data.reapplyAt)} trong hồ sơ của mình.`
+          : 'Đã duyệt hồ sơ và cấp quyền Pet Sitter. Ứng viên có tài khoản đã xác minh cần đăng nhập lại để nhận quyền mới; hồ sơ cũ chưa liên kết liên hệ cần hoàn tất xác minh.' });
       resource.retry();
     } catch (error) {
       const message = error?.code === 'CSRF_NOT_READY' ? 'Bảo vệ phiên thao tác Admin chưa được kết nối.'
@@ -110,6 +110,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
           </li>)}</ul> : <p>Chưa có tài liệu.</p>}
         </section>
         {['PENDING', 'UNDER_REVIEW', 'INTERVIEW'].includes(resource.data.state) && <section className="sitter-app-review-form" aria-label="Ghi nhận thẩm định">
+          <p>Chỉ duyệt khi đã hoàn tất thẩm định và có hợp đồng đã ký. Hình thức làm việc trong hồ sơ là nguyện vọng; hợp đồng, ca làm và quyền nhận việc được quản lý riêng.</p>
           {resource.data.state === 'PENDING' && <Button variant="secondary" disabled={busy} onClick={startReview}>Bắt đầu thẩm định</Button>}
           {resource.data.state === 'UNDER_REVIEW' && <Button variant="secondary" disabled={busy} onClick={() => startReview(true)}>Chuyển sang phỏng vấn</Button>}
           <label className="sitter-app-admin__search" htmlFor="sitter-interview-note">
@@ -123,7 +124,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
               onChange={event => setReason(event.target.value)} />
           </label>
           <div className="sitter-app-review-form__actions">
-            <Button loading={busy} onClick={() => decide('APPROVE')}>Duyệt và tạo tài khoản</Button>
+            <Button loading={busy} onClick={() => decide('APPROVE')}>Duyệt và cấp quyền Pet Sitter</Button>
             <Button variant="danger" loading={busy} onClick={() => decide('REJECT')}>Từ chối hồ sơ</Button>
           </div>
         </section>}

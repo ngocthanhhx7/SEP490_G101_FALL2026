@@ -36,3 +36,8 @@ AboutPage adapts Figma 2:2724 to at-home dog/cat care and the current five-membe
 SignInPage adapts Figma 2:5284 to the existing OTP flow. Email and SMS use the session adapter; Vietnamese local phone numbers are normalized to +84 before submission. sign-in.css owns all login styling, while auth-public.css retains registration/application styling. Header/footer remain owned by PublicSiteLayout. The registration link opens /register; social/password sign-in is outside this OTP flow. See [verification](../../../../doc/testing/login-email-sms-refresh.md).
 
 RegistrationPage owns role choice and progression. CustomerRegistrationPage validates account details/consent and sends email OTP directly; SitterApplicationPage opens after the session is re-read and its intake is loaded. Sitter forms use the verified owner email, dedicated applicant-document upload adapter, policy consent and server receipts. The application-status route now uses PublicSiteLayout. See [registration flow](../../../../doc/testing/registration-sitter-flow.md).
+
+Application receipts show the owner's rejection reason and Vietnam-local retry
+instant. The refresh action reads the server's canReapply flag before opening a
+new form; the device clock cannot bypass the waiting screen. Public OTP status
+provides a reapplication link when its server projection permits it.

@@ -206,3 +206,31 @@ test('photo R2 enabled with document flag off does not expose upload or enable i
     .expect(res => expect(res.body.data.uploadsAvailable).toBe(false));
   await request(disabled).post('/api/v1/applicant-documents').set({ ...base, Cookie: owner.cookie }).send({}).expect(404);
 });
+
+test('owner intake exposes rejection and server cooldown boundary, excludes internal notes and other owners', async () => {
+  const owner = await register();
+  const other = await register('unrelated@example.test');
+  const documentId = await upload(owner);
+  const created = await submit(owner, application(owner, documentId)).expect(201);
+  const { SitterApplication } = sitterApplicationModels(connection);
+  const reapplyAt = new Date(clockNow + 60000);
+  await SitterApplication.updateOne({ _id: created.body.data.id }, { $set: { state: 'REJECTED',
+    rejectedAt: new Date(clockNow - 30 * 86400000 + 60000), reapplyAt,
+    decisionReason: 'Cần bổ sung kinh nghiệm.', interviewNote: 'Synthetic private internal note' },
+    $unset: { activePendingOwnerUserId: 1, activePendingContactKey: 1, activePendingIdentityKey: 1 } });
+  const read = () => owner.agent.get('/api/v1/applications/intake').set(base).expect(200);
+  const before = await read();
+  expect(before.headers['cache-control']).toContain('no-store');
+  expect(before.body.data.application).toMatchObject({ state: 'REJECTED', canReapply: false,
+    rejectionReason: 'Cần bổ sung kinh nghiệm.', reapplyAt: reapplyAt.toISOString(), applicationCode: created.body.data.applicationCode });
+  expect(JSON.stringify(before.body)).not.toMatch(/interviewNote|Synthetic private|TEST12345678|1998-04-12|storageRef/);
+  await other.agent.get('/api/v1/applications/intake').expect(200)
+    .expect(res => expect(res.body.data.application).toBeNull());
+  clockNow = reapplyAt.getTime();
+  expect((await read()).body.data.application.canReapply).toBe(true);
+  const resubmitted = await submit(owner, application(owner, documentId), 'synthetic-after-cooldown-01').expect(201);
+  expect(resubmitted.body.data.applicationCode).not.toBe(created.body.data.applicationCode);
+  const latest = (await read()).body.data.application;
+  expect(latest).toMatchObject({ state: 'PENDING', canReapply: false, rejectionReason: null,
+    applicationCode: resubmitted.body.data.applicationCode });
+});

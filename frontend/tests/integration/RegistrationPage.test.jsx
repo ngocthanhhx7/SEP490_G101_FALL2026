@@ -169,3 +169,25 @@ test('oversize pixel count blocks upload and server field errors focus their fie
   await waitFor(() => expect(page.getByLabelText(/^Khu vực mong muốn/)).toHaveFocus());
   expect(page.getAllByText('Khu vực tối đa 80 ký tự.').length).toBeGreaterThan(0);
 });
+
+test('rejection uses server eligibility and refresh opens a new form without trusting the device date', async () => {
+  const rejected = { state: 'REJECTED', applicationCode: 'rejected-private-code',
+    rejectionReason: 'Cần bổ sung kinh nghiệm chăm sóc.', reapplyAt: '2020-01-01T00:00:00Z', canReapply: false };
+  const api = applicationApi({ loadIntake: jest.fn()
+    .mockResolvedValueOnce({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true, application: rejected } })
+    .mockResolvedValueOnce({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true, application: { ...rejected, canReapply: true } } }) });
+  view({ api });
+  expect(await screen.findByText(rejected.rejectionReason)).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Cập nhật trạng thái hồ sơ' }));
+  expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
+  expect(api.uploadDocument).not.toHaveBeenCalled();
+  expect(api.submit).not.toHaveBeenCalled();
+});
+
+test('pending decision details are not displayed as a rejection reason', async () => {
+  view({ api: applicationApi({ loadIntake: async () => ({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true,
+    application: { state: 'INTERVIEW', applicationCode: 'private-code', rejectionReason: 'Internal review note', canReapply: false } } }) }) });
+  await screen.findByRole('heading', { name: 'Đang ở bước phỏng vấn' });
+  expect(screen.queryByText('Internal review note')).not.toBeInTheDocument();
+});
