@@ -11,6 +11,80 @@ import { localDay } from '../../src/services/sitter-matching/scheduling.service.
 import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
 
 export const DEMO_DATABASE = 'paw_world_care_ai_demo';
+export const GROUNDED_DEMO_DATABASE = 'paw_world_care_ai_grounded_demo';
+export const GROUNDED_ROUTING_SOURCE = 'OSRM_STATIC_PUBLIC_SAMPLE_NOT_LIVE';
+
+export function validateGroundedSnapshot(input) {
+  // JSON data only. This validates an operator's captured evidence, not the
+  // truth of its provenance or the accuracy of OSRM against real journeys.
+  const snapshot = JSON.parse(JSON.stringify(input));
+  const fields = ['kind', 'source', 'observedAt', 'graphSha256', 'osmSha256',
+    'profile', 'bounds', 'points', 'durations', 'distances', 'snappingDistances',
+    'groundTruthTravelTimes', 'customerData', 'attribution', 'purpose', 'requestedPoints'];
+  if (!snapshot || Object.keys(snapshot).some(key => !fields.includes(key))
+    || snapshot.kind !== 'PWC_PUBLIC_OSRM_SAMPLE_V1' || snapshot.source !== 'OSRM_STATIC_ROAD_ETA'
+    || snapshot.profile !== 'OSRM_CAR_V2610' || snapshot.customerData !== false
+    || snapshot.groundTruthTravelTimes !== false
+    || ![snapshot.graphSha256, snapshot.osmSha256].every(hash => /^[a-f0-9]{64}$/.test(hash))
+    || typeof snapshot.observedAt !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(snapshot.observedAt)
+    || !Number.isFinite(Date.parse(snapshot.observedAt)) || Date.parse(snapshot.observedAt) > Date.now()
+    || ![snapshot.attribution, snapshot.purpose].every(value => typeof value === 'string' && value.length > 0 && value.length <= 1000)
+    || !Array.isArray(snapshot.bounds) || snapshot.bounds.length !== 4
+    || snapshot.bounds.some(value => typeof value !== 'number' || !Number.isFinite(value))
+    || snapshot.bounds[0] < 105.15 || snapshot.bounds[1] < 20.45
+    || snapshot.bounds[2] > 106.15 || snapshot.bounds[3] > 21.55
+    || snapshot.bounds[0] >= snapshot.bounds[2] || snapshot.bounds[1] >= snapshot.bounds[3]
+    || !Array.isArray(snapshot.points) || snapshot.points.length < 3 || snapshot.points.length > 50) {
+    throw new TypeError('Invalid grounded public OSRM provenance');
+  }
+  const validPoint = point => Array.isArray(point) && point.length === 2
+    && point.every(value => typeof value === 'number' && Number.isFinite(value))
+    && point[0] >= snapshot.bounds[0] && point[0] <= snapshot.bounds[2]
+    && point[1] >= snapshot.bounds[1] && point[1] <= snapshot.bounds[3];
+  const size = snapshot.points.length;
+  if (!snapshot.points.every(validPoint) || new Set(snapshot.points.map(point => JSON.stringify(point))).size !== size
+    || (snapshot.requestedPoints !== undefined && (!Array.isArray(snapshot.requestedPoints)
+      || snapshot.requestedPoints.length !== size || !snapshot.requestedPoints.every(validPoint)))
+    || !Array.isArray(snapshot.snappingDistances) || snapshot.snappingDistances.length !== size
+    || snapshot.snappingDistances.some(value => typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1000)) {
+    throw new TypeError('Invalid grounded public OSRM coordinates');
+  }
+  for (const [key, max] of [['durations', 86400], ['distances', 1000000]]) {
+    if (!Array.isArray(snapshot[key]) || snapshot[key].length !== size
+      || snapshot[key].some((row, i) => !Array.isArray(row) || row.length !== size || row[i] !== 0
+        || row.some(value => value !== null && (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > max)))) {
+      throw new TypeError('Invalid grounded public OSRM matrix');
+    }
+  }
+  if (snapshot.durations.some((row, i) => row.some((value, j) => (value === null) !== (snapshot.distances[i][j] === null)))) {
+    throw new TypeError('Inconsistent grounded unreachable evidence');
+  }
+  return snapshot;
+}
+
+export function groundedRoutingProvider(input) {
+  const snapshot = validateGroundedSnapshot(input);
+  const indexes = new Map(snapshot.points.map((point, i) => [JSON.stringify(point), i]));
+  const validatePoints = points => {
+    if (!Array.isArray(points) || !points.length || points.length > 50
+      || points.some(point => !indexes.has(JSON.stringify(point)))) {
+      const error = new Error('Public snapshot has no route evidence for these exact points');
+      error.code = 'ROUTING_UNAVAILABLE'; error.status = 503; throw error;
+    }
+  };
+  return Object.freeze({
+    validatePoints,
+    async matrix(points) {
+      validatePoints(points);
+      const map = new Map();
+      for (const a of points) for (const b of points) {
+        const seconds = snapshot.durations[indexes.get(JSON.stringify(a))][indexes.get(JSON.stringify(b))];
+        map.set(edgeKey(a, b), seconds === null ? null : seconds / 60);
+      }
+      return { map, source: GROUNDED_ROUTING_SOURCE, recordedAt: new Date(snapshot.observedAt) };
+    }
+  });
+}
 const fixtureId = (key) =>
   new Types.ObjectId(
     createHash('sha256')
@@ -26,9 +100,9 @@ const put = (Model, key, data) =>
     { upsert: true, returnDocument: 'after', runValidators: true }
   );
 
-export function assertDemoDatabase(connection) {
+export function assertDemoDatabase(connection, grounded = false) {
   if (
-    connection.name !== DEMO_DATABASE ||
+    connection.name !== (grounded ? GROUNDED_DEMO_DATABASE : DEMO_DATABASE) ||
     !['127.0.0.1', 'localhost'].includes(connection.host)
   ) {
     throw new Error(
@@ -37,10 +111,18 @@ export function assertDemoDatabase(connection) {
   }
 }
 
-export async function seedDemo(connection, config, clock = Date.now) {
-  assertDemoDatabase(connection);
+export async function seedDemo(connection, config, clock = Date.now, { groundedSnapshot } = {}) {
+  const grounded = groundedSnapshot !== undefined;
+  assertDemoDatabase(connection, grounded);
+  if (config.nodeEnv !== 'development') throw new Error('Demo seed requires development mode');
+  const snapshot = grounded ? validateGroundedSnapshot(groundedSnapshot) : null;
+  const samplePoint = index => [...snapshot.points[index % snapshot.points.length]];
   const models = platformDataModels(connection),
     User = userModel(connection);
+  if (grounded && (await models.SitterVisitOutcome.exists({}) || await models.SitterRankModel.exists({}))) {
+    throw new Error('Grounded demo refuses existing outcome/model history; use a clean dedicated database');
+  }
+  if (grounded) await models.RoutingMatrixCache.deleteMany({});
   const identity = identityModels(connection),
     apps = sitterApplicationModels(connection);
   const crypto = createContactCrypto({
@@ -71,7 +153,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       roles: [role],
       state: 'ACTIVE',
       synthetic: false,
-      fixtureKey: `ai-demo:${key}`,
+      fixtureKey: `${grounded ? 'ai-grounded-demo' : 'ai-demo'}:${key}`,
       authEpoch: 0,
       version: 0
     });
@@ -136,9 +218,9 @@ export async function seedDemo(connection, config, clock = Date.now) {
       const a = await put(models.CustomerAddress, `address:${i}:${suffix}`, {
         ownerId: customers[i]._id,
         label: `[DEMO] ${suffix === 'many' ? 'Khu nhiều sitter' : 'Khu chỉ hai sitter'}`,
-        location:
-          'Địa chỉ tổng hợp phục vụ kiểm thử; không phải nhà khách hàng',
-        point: point([105.8 + i * 0.002, 21]),
+        location: grounded ? 'Điểm đường công khai từ snapshot OSRM; không phải nhà khách'
+          : 'Địa chỉ tổng hợp phục vụ kiểm thử; không phải nhà khách hàng',
+        point: point(grounded ? samplePoint(i) : [105.8 + i * 0.002, 21]),
         areaCode,
         pointConfirmedAt: now,
         state: 'ACTIVE',
@@ -167,7 +249,9 @@ export async function seedDemo(connection, config, clock = Date.now) {
   ];
   const sitters = [];
   for (let i = 0; i < descriptions.length; i++) {
-    const [key, label, visits, rating, faults] = descriptions[i];
+    const [key, fixtureLabel, fixtureVisits, fixtureRating, fixtureFaults] = descriptions[i];
+    const label = grounded ? `${key} — năng lực/lịch khai báo mô phỏng, chưa có lịch sử` : fixtureLabel;
+    const visits = grounded ? 0 : fixtureVisits, rating = grounded ? null : fixtureRating, faults = grounded ? 0 : fixtureFaults;
     const user = await account(`sitter-${key}`, label, 'PET_SITTER');
     await put(apps.SitterApplication, `application:${key}`, {
       displayName: user.displayName,
@@ -218,7 +302,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
       starts: [
         {
           localDate: date,
-          point: point([105.801 + i * 0.001, 21.002]),
+          point: point(grounded ? samplePoint(i + 3) : [105.801 + i * 0.001, 21.002]),
           availableFrom: at('08:00'),
           availableUntil: at('18:00')
         }
@@ -261,7 +345,7 @@ export async function seedDemo(connection, config, clock = Date.now) {
         visitId: fixtureId(`scheduled:${key}`),
         startAt: at(occupied ? '10:00' : '09:00'),
         endAt: at(occupied ? '10:30' : '09:15'),
-        point: point([105.8005, 21.0005]),
+        point: point(grounded ? samplePoint(1) : [105.8005, 21.0005]),
         state: 'CONFIRMED',
         kind: 'VISIT',
         sourceRef: 'DEMO SYNTHETIC calendar',
@@ -287,8 +371,9 @@ export async function seedDemo(connection, config, clock = Date.now) {
   const clinic = await put(models.CustomerAddress, 'address:clinic', {
     ownerId: customers[0]._id,
     label: '[DEMO] Phòng khám tổng hợp',
-    location: 'Địa chỉ phòng khám tổng hợp, không phải cơ sở thật',
-    point: point([105.805, 21.001]),
+    location: grounded ? 'Điểm đường công khai dùng mô phỏng điểm đến; không xác nhận cơ sở thú y'
+      : 'Địa chỉ phòng khám tổng hợp, không phải cơ sở thật',
+    point: point(grounded ? samplePoint(1) : [105.805, 21.001]),
     areaCode: 'DEMO-HN',
     pointConfirmedAt: now,
     state: 'ACTIVE',
@@ -365,10 +450,20 @@ export async function seedDemo(connection, config, clock = Date.now) {
       returnToHome: true
     }
   );
+  if (grounded) {
+    scenarios.find(row => row.key === 'cat').label = 'Đổi sang mèo: lọc năng lực khai báo, không có lịch sử/rating';
+  }
   return {
-    database: DEMO_DATABASE,
+    database: grounded ? GROUNDED_DEMO_DATABASE : DEMO_DATABASE,
     date,
-    routing: 'SIMULATED_FIXTURE_NOT_OSRM',
+    routing: grounded ? GROUNDED_ROUTING_SOURCE : 'SIMULATED_FIXTURE_NOT_OSRM',
+    ...(grounded ? { mode: 'GROUNDED_PUBLIC_ROADS',
+      routingEvidence: { snapshotCanonicalSha256: createHash('sha256').update(JSON.stringify(snapshot)).digest('hex'),
+        graphSha256: snapshot.graphSha256, osmSha256: snapshot.osmSha256, profile: snapshot.profile,
+        observedAt: snapshot.observedAt, attribution: snapshot.attribution, groundTruthTravelTimes: false },
+      simulation: 'Accounts, pets, capabilities and schedules are declared simulations, not observed people or work.',
+      warnings: ['NO_VERIFIED_HISTORY_OR_SATISFACTION_LABELS', 'COLD_START_MAY_BE_BELOW_AUTOMATIC_THRESHOLD'],
+      trainingObservations: 0 } : {}),
     accounts,
     pets,
     addresses,

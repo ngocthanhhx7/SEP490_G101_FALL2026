@@ -10,20 +10,47 @@ from pathlib import Path
 
 FEATURES = ("fit", "travel", "quality", "reliability", "workload")
 BASELINE = [30.0, 25.0, 20.0, 15.0, 10.0]
+LABEL = "VERIFIED_CUSTOMER_SATISFACTION_V1"
 
 
-def load_rows(path):
+def past_instant(value):
+    if not isinstance(value, str):
+        raise ValueError("Timezone-aware timestamp required")
+    date = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if date.tzinfo is None or date > datetime.now(timezone.utc):
+        raise ValueError("Past timezone-aware timestamp required")
+    return date
+
+
+def opaque_id(value):
+    if not isinstance(value, str) or not 8 <= len(value) <= 80 or not all(c.isascii() and (c.isalnum() or c in "_-") for c in value):
+        raise ValueError("Opaque source ID required; no contact data")
+    return value
+
+
+def load_rows(path, data=None):
     if path.stat().st_size > 50_000_000:
         raise ValueError("Dataset exceeds 50 MB")
     rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    observations = set()
+    data = path.read_bytes() if data is None else data
+    if len(data) > 50_000_000:
+        raise ValueError("Dataset exceeds 50 MB")
+    for line in data.decode("utf-8").splitlines():
         if not line.strip():
             continue
         row = json.loads(line)
-        if set(row) != {"groupId", "occurredAt", "features", "targetScore", "verified"} or row["verified"] is not True:
-            raise ValueError("Only verified, explicitly scoped outcomes are permitted")
-        if not isinstance(row["groupId"], str) or not 8 <= len(row["groupId"]) <= 80 or not all(c.isalnum() or c in "_-" for c in row["groupId"]):
-            raise ValueError("Opaque booking group ID required; no contact data")
+        required = {"groupId", "observationId", "occurredAt", "decisionAt", "featuresAsOf",
+                    "features", "targetScore", "verified", "rating", "labelVersion"}
+        if not isinstance(row, dict) or set(row) != required or row["verified"] is not True or row["labelVersion"] != LABEL:
+            raise ValueError("Verified satisfaction v1 and point-in-time provenance required; legacy rows cannot train")
+        opaque_id(row["groupId"])
+        observation = opaque_id(row["observationId"])
+        if observation in observations:
+            raise ValueError("Duplicate outcome source; retries cannot inflate training observations")
+        observations.add(observation)
+        if not isinstance(row["features"], dict):
+            raise ValueError("Feature contract mismatch")
         if set(row["features"]) != set(FEATURES):
             raise ValueError("Feature contract mismatch")
         values = [row["features"][key] for key in FEATURES]
@@ -32,10 +59,16 @@ def load_rows(path):
         target = row["targetScore"]
         if isinstance(target, bool) or not isinstance(target, (int, float)) or not math.isfinite(target) or not 0 <= target <= 100:
             raise ValueError("Verified outcome target must be between 0 and 100")
-        date = datetime.fromisoformat(row["occurredAt"].replace("Z", "+00:00"))
-        if date.tzinfo is None or date > datetime.now(timezone.utc):
-            raise ValueError("Past timezone-aware outcome time required")
-        rows.append({"group": row["groupId"], "date": date, "x": values, "y": target})
+        rating = row["rating"]
+        if type(rating) is not int or not 1 <= rating <= 5 or target != (rating - 1) * 25:
+            raise ValueError("Target must derive from verified customer rating: (stars - 1) * 25")
+        date = past_instant(row["occurredAt"])
+        decision = past_instant(row["decisionAt"])
+        if not isinstance(row["featuresAsOf"], dict) or set(row["featuresAsOf"]) != set(FEATURES):
+            raise ValueError("Each feature needs its own availability timestamp")
+        if decision >= date or any(past_instant(at) > decision for at in row["featuresAsOf"].values()):
+            raise ValueError("Feature leakage: inputs must exist at decision time, before the outcome")
+        rows.append({"group": row["groupId"], "date": date, "decision": decision, "x": values, "y": target})
     if len(rows) < 200:
         raise ValueError("At least 200 verified observations required; do not generate fake training data")
     return rows
@@ -52,7 +85,9 @@ def temporal_split(rows):
     last_date = {group: max(r["date"] for r in entries) for group, entries in groups.items()}
     ordered = sorted(groups, key=last_date.__getitem__)
     test_groups = set(ordered[int(len(ordered) * 0.8):])
-    cutoff = min(r["date"] for group in test_groups for r in groups[group])
+    # Training outcomes must already exist at the earliest held-out decision.
+    # Splitting on outcome time alone can leak outcomes that arrive after prediction.
+    cutoff = min(r.get("decision", r["date"]) for group in test_groups for r in groups[group])
     train = [r for group in ordered if group not in test_groups and last_date[group] < cutoff for r in groups[group]]
     test = [r for group in test_groups for r in groups[group]]
     if len(train) < 100 or len(test_groups) < 10:
@@ -93,12 +128,31 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--version", required=True)
     args = parser.parse_args()
-    if args.output.exists():
+    evidence_path = args.output.with_suffix(args.output.suffix + ".evidence.json")
+    if args.output.exists() or evidence_path.exists():
         raise ValueError("Output exists; choose a new immutable model version")
-    artifact = train_model(load_rows(args.dataset), args.version)
-    args.output.write_text(json.dumps(artifact, ensure_ascii=False, indent=2), encoding="utf-8")
+    if args.dataset.stat().st_size > 50_000_000:
+        raise ValueError("Dataset exceeds 50 MB")
+    data = args.dataset.read_bytes()
+    rows = load_rows(args.dataset, data)
+    artifact = train_model(rows, args.version)
+    train, test, test_groups = temporal_split(rows)
+    serialized = json.dumps(artifact, ensure_ascii=False, indent=2)
+    evidence = {"labelVersion": LABEL, "datasetSha256": hashlib.sha256(data).hexdigest(),
+                "artifactSha256": hashlib.sha256(serialized.encode("utf-8")).hexdigest(),
+                "trainingRows": len(train), "testRows": len(test), "testGroups": test_groups,
+                "purgedRows": len(rows) - len(train) - len(test),
+                "latestTrainingOutcome": max(row["date"] for row in train).isoformat(),
+                "earliestTestDecision": min(row["decision"] for row in test).isoformat(),
+                "sourceVerification": "OPERATOR_ATTESTED_REQUIRES_INDEPENDENT_REVIEW",
+                "state": "DRAFT"}
+    with args.output.open("x", encoding="utf-8", newline="\n") as output:
+        output.write(serialized)
+    with evidence_path.open("x", encoding="utf-8", newline="\n") as output:
+        json.dump(evidence, output, ensure_ascii=False, indent=2)
     print(json.dumps({"state": "DRAFT", "trainingRows": artifact["trainingRows"], "testMae": artifact["testMae"], "baselineMae": artifact["baselineMae"],
-                      "datasetSha256": hashlib.sha256(args.dataset.read_bytes()).hexdigest(), "improved": artifact["testMae"] < artifact["baselineMae"]}))
+                      "labelVersion": LABEL, "datasetSha256": evidence["datasetSha256"],
+                      "improved": artifact["testMae"] < artifact["baselineMae"]}))
 
 
 if __name__ == "__main__":
