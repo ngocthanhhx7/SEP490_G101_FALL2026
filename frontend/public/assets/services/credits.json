@@ -51,5 +51,48 @@
     "license": "CC BY-SA 3.0",
     "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
     "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "nail-care.webp",
+    "title": "File:Dog nail clipping 20230817.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Dog_nail_clipping_20230817.jpg",
+    "artist": "Santeri Viinamäki",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "ear-care.webp",
+    "title": "File:Military Working Dog exam (6515565).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Military_Working_Dog_exam_(6515565).jpg",
+    "artist": "U.S. Army RHCE by Russell Toof",
+    "license": "Public domain",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "coat-care.webp",
+    "title": "File:Amsterdam - Singel - 0271.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Amsterdam_-_Singel_-_0271.jpg",
+    "artist": "Jorge Royan",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "recovery-care.webp",
+    "title": "File:Golden Retriever in Elizabethan collar, resting (2005).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Golden_Retriever_in_Elizabethan_collar,_resting_(2005).jpg",
+    "artist": "Ta bu shi da yu at English Wikipedia",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "pet-massage.webp",
+    "title": "File:FEMA - 4871 - Photograph by Jocelyn Augustino taken on 09-20-2001 in Virginia.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:FEMA_-_4871_-_Photograph_by_Jocelyn_Augustino_taken_on_09-20-2001_in_Virginia.jpg",
+    "artist": "Jocelyn Augustino",
+    "license": "Public domain",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
   }
 ]
