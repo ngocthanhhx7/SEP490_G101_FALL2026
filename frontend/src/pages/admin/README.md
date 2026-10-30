@@ -1,5 +1,10 @@
 # Admin pages
 
+`UserRolesDialog` adds versioned, reasoned role decisions from the User row menu
+and detail panel. It confirms before submission, reconciles uncertain responses
+through reload and refreshes list/detail after acknowledgement. Admins cannot
+change their own roles. Pet Sitter access stays in application/status review.
+
 `ServiceWorkspacePage` is the composed `/admin/services` route: searchable,
 filtered, sorted and paginated catalog table with current effective prices.
 Service edits/archive, price history, combo revisions and policy publication

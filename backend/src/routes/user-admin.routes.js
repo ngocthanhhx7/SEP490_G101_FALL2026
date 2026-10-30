@@ -65,5 +65,8 @@ export function userAdminModule({ config, connection, clock = Date.now } = {}) {
     createUserAdminController({ service }).createByIdLockDecisions
   );
 
+  router.post('/:id/role-decisions', ...authenticatedAdmin, csrfProtected,
+    createUserAdminController({ service }).changeRoles);
+
   return { name: 'user-admin', mount: '/api/v1/users', router };
 }

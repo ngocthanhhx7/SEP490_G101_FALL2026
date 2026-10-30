@@ -1,5 +1,9 @@
 # Domain services
 
+`user-admin.service.js` owns role decisions, transactionally rechecks the acting
+Admin, prevents self role changes and preserves Pet Sitter review boundaries.
+Changes increment authEpoch/version, revoke sessions and audit old/new roles.
+
 Services own domain decisions, data access orchestration and provider interactions. They import models/config/validators/utils/constants; never routes/controllers/middleware. Pricing is deterministic in `pricing/`; AI only recommends sitters in `sitter-matching/`. Shared owned-pet/service context has no pricing prerequisite. Private provider/default ports fail closed if unconfigured.
 
 `pet-care-management.service.js` owns Customer pet/address intake, owner-scoped

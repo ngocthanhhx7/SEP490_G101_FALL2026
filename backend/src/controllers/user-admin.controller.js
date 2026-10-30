@@ -6,6 +6,9 @@ import { AppError } from '../utils/app-error.js';
 
 export function createUserAdminController({ service } = {}) {
   return {
+    changeRoles: async (req, res) => respond(res, req, 200, await service.changeRoles({
+      userId: req.params.id, body: req.body, actor: req.auth
+    })),
     getRoot: async (req, res) => {
       const result = await service.list(req.query);
       return respond(res, req, 200, result);
