@@ -1,4 +1,4 @@
-import { createSitterApplicationApi, sitterApplicationApi } from '../../src/services/sitter-application-api.js';
+import { createSitterApplicationApi, sitterApplicationApi, sitterApplicationAdminApi, createSitterApplicationAdminApi } from '../../src/services/sitter-application-api.js';
 import { apiSessionAdapter } from '../../src/services/session-adapter.js';
 const response = (data, status = 200) => ({ ok: status < 400, status, json: async () => ({ meta: { schemaVersion: 1 }, data }) });
 
@@ -41,4 +41,35 @@ test('the real upload adapter sends raw image bytes and reuses its key for the s
     await expect(sitterApplicationApi.uploadDocument(new globalThis.File(['pdf'], 'bad.pdf', { type: 'application/pdf' }))).rejects.toMatchObject({ code: 'INVALID_DOCUMENT' });
     expect(fetchImpl.mock.calls.filter(([path]) => path.endsWith('/applicant-documents'))).toHaveLength(2);
   } finally { globalThis.fetch = original; }
+});
+
+test('production Admin adapter reads session CSRF for review, interview, approve/reject and status commands', async () => {
+  const original = globalThis.fetch;
+  const fetchImpl = jest.fn(async path => path.endsWith('/me')
+    ? response({ user: { id: 'a'.repeat(24), displayName: 'Synthetic Admin', roles: ['ADMIN'] }, csrfToken: 'synthetic-admin-csrf' })
+    : response({ state: 'APPROVED' }));
+  globalThis.fetch = fetchImpl;
+  try {
+    await apiSessionAdapter.resolve();
+    const input = { applicationId: 'b'.repeat(24), expectedVersion: 3 };
+    await sitterApplicationAdminApi.startReview(input);
+    await sitterApplicationAdminApi.startInterview(input);
+    for (const action of ['APPROVE', 'REJECT']) await sitterApplicationAdminApi.decide({ ...input, action, reason: 'Synthetic review' });
+    await sitterApplicationAdminApi.changeSitterStatus({ ...input, action: 'SUSPEND', reason: 'Synthetic status' });
+    const commands = fetchImpl.mock.calls.filter(([, options]) => options.method === 'POST');
+    expect(commands).toHaveLength(5);
+    for (const [, options] of commands) {
+      expect(options.headers.get('X-CSRF-Token')).toBe('synthetic-admin-csrf');
+      expect(options.headers.get('Idempotency-Key')).toBeTruthy();
+      expect(options.credentials).toBe('same-origin');
+    }
+  } finally { globalThis.fetch = original; }
+});
+
+test('Admin transport still blocks mutations before fetch when session CSRF is absent', async () => {
+  const fetchImpl = jest.fn();
+  const api = createSitterApplicationAdminApi({ fetchImpl, getCsrfToken: () => null });
+  await expect(api.decide({ applicationId: 'b'.repeat(24), action: 'APPROVE', reason: 'Synthetic', expectedVersion: 1 }))
+    .rejects.toMatchObject({ code: 'CSRF_NOT_READY' });
+  expect(fetchImpl).not.toHaveBeenCalled();
 });

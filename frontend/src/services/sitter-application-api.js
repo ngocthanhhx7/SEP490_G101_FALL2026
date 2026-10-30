@@ -99,7 +99,11 @@ async function uploadApplicantImage(file, { signal } = {}) {
 
 export const sitterApplicationApi = createSitterApplicationApi({ uploadDocumentImpl: uploadApplicantImage });
 
-export function createSitterApplicationAdminApi({ request = createApiClient({ fetchImpl: fetchFromCurrentRuntime }), keyFactory = idempotencyKey } = {}) {
+export function createSitterApplicationAdminApi({
+  fetchImpl = fetchFromCurrentRuntime,
+  getCsrfToken = () => apiSessionAdapter.getCsrfToken(),
+  request = createApiClient({ fetchImpl, getCsrfToken }), keyFactory = idempotencyKey
+} = {}) {
   if (typeof request !== 'function' || typeof keyFactory !== 'function') {
     throw new TypeError('Admin application API dependencies are invalid');
   }

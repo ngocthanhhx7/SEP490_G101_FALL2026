@@ -58,3 +58,7 @@ Bản tiếp tục trên `feature/sitter-registration-completion`:
 - PASS: backend intake integration 9 tests, gồm chu kỳ đăng ký/upload/nộp/OTP/duyệt/đăng nhập cùng user và biên cooldown/nộp lại; frontend full 93 suites / 578 tests; architecture, lint hai package và build.
 - PASS: browser fixture 1440/390/320 cho từ chối → refresh → mở form mới; không upload/mutation chỉ từ refresh, không JS error/overflow. Đã xem ảnh desktop/mobile. Browser fixture ảnh/Full-time/Part-time/14 dịch vụ/lỗi từng trường cũng đạt.
 - Không gửi OTP thật, dùng giấy tờ thật, duyệt hồ sơ thật hoặc tạo hợp đồng thật trong kiểm tra này. Runtime Mongo tests dùng replica set và provider tổng hợp; browser fixture chặn API. Build vẫn có cảnh báo bundle > 500 kB.
+
+### Lỗi transport Admin tìm thấy trong browser follow-up
+
+Kiểm tra trình duyệt với adapter mặc định phát hiện lệnh duyệt dừng ở `CSRF_NOT_READY`: factory Admin tạo API client mà chưa nối `apiSessionAdapter.getCsrfToken`. Đã nối nguồn token phiên vào client dùng cho review/interview/decisions/sitter-status; giữ fail-closed khi token chưa có. Regression test gọi adapter production qua fetch giả, kiểm tra cả CSRF và idempotency headers; không chỉ mock hàm decide của component. Không có yêu cầu production nào được gửi khi tái hiện bằng browser fixture.
