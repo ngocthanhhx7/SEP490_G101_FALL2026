@@ -104,10 +104,10 @@ test('directory cursor binds identity/search and profile reads stay self-only', 
     .resolves.toMatchObject({ pending: true });
 });
 
-test('missing moderation collection remains pending; no implicit publication from application', async () => {
+test('missing moderation collection keeps approved profiles readable with unknown ratings', async () => {
   await submit(); await approve(1);
   await connection.db.collection('reviews').drop();
-  try { expect(await createSitterListService({ repository: directory }).read({ actor: staff })).toMatchObject({ pending: true }); }
+  try { expect(await createSitterListService({ repository: directory }).read({ actor: staff })).toMatchObject({ data: { items: [{ reviewsAvailable: false, reviewCount: null, rating: null }] } }); }
   finally { await connection.db.createCollection('reviews'); }
 });
 

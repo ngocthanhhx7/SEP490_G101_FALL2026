@@ -5,7 +5,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { Button, Notice } from '../../components/ui/index.js';
 import './customer-bookings.css';
 
-const labels = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', UNPAID: 'Chờ thanh toán', PAID: 'Đã thanh toán' };
+const labels = { PENDING: 'Chờ xác nhận', CONFIRMED: 'Đã xác nhận', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', UNPAID: 'Chờ thanh toán', PAID: 'Đã thanh toán', AWAITING_PAYMENT: 'Chờ thanh toán trước', PAYMENT_EXPIRED: 'Hết hạn thanh toán', CARE_PLAN_PENDING: 'Chờ xác nhận kế hoạch', DISPATCH_PENDING: 'Chờ người chăm sóc', ASSIGNED: 'Đã phân công' };
 export function CustomerBookingsPage({ request: suppliedRequest }) {
   const { getCsrfToken } = useSession();
   const request = useMemo(() => suppliedRequest || createApiClient({ getCsrfToken }), [suppliedRequest, getCsrfToken]);
@@ -25,6 +25,7 @@ export function CustomerBookingsPage({ request: suppliedRequest }) {
     {resource.status === 'success' && <ul className="customer-bookings__list">{resource.data.map(item => <li key={item.id}>
       <h2>{item.reference || item.id}</h2><p>{item.serviceName || 'Lịch chăm sóc thú cưng'}</p>
       <span>{labels[item.state] || item.state}</span>
+      <a href={`/services?booking=${encodeURIComponent(item.id)}`}>Xem chi tiết</a>
     </li>)}</ul>}
     <div className="customer-bookings__pagination">
       {cursor && <Button variant="secondary" onClick={() => setCursor(null)}>Về đơn mới nhất</Button>}

@@ -1,11 +1,8 @@
 import { useMemo } from 'react';
-import { PetListPage } from '../pages/customer/PetListPage.jsx';
-import { PetDetailsPage } from '../pages/customer/PetDetailsPage.jsx';
+import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
 import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
-import { createPetApi } from '../services/pet-api.js';
-import { createPetProfileApi } from '../services/pet-profile-api.js';
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
@@ -30,7 +27,6 @@ import { AdminServicePricesPage } from '../pages/admin/AdminServicePricesPage.js
 import { AdminSystemSettingsPage } from '../pages/admin/AdminSystemSettingsPage.jsx';
 import { SitterApplicationsPage } from '../pages/admin/SitterApplicationsPage.jsx';
 import { SitterApplicationReviewPage } from '../pages/admin/SitterApplicationReviewPage.jsx';
-import { CustomerAddressesPage } from '../pages/customer/CustomerAddressesPage.jsx';
 import { SitterAvailabilityPage } from '../pages/sitter/SitterAvailabilityPage.jsx';
 import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
@@ -163,13 +159,10 @@ function CustomerFeaturePage({ page }) {
   const apis = useMemo(() => {
     const request = createApiClient({ getCsrfToken });
     return {
-      pets: createPetApi({ request }),
-      pet: createPetProfileApi({ request }),
       notifications: createNotificationsApi({ request })
     };
   }, [getCsrfToken]);
-  if (page === 'pets') return <PetListPage api={apis.pets} />;
-  if (page === 'pet') return <PetDetailsPage api={apis.pet} />;
+  if (page === 'pets' || page === 'pet') return <CustomerCarePage />;
   return <NotificationsPage api={apis.notifications} />;
 }
 
@@ -216,7 +209,7 @@ export function AppRoutes({
           <Route path="customer" element={<CustomerDashboardPage />} />
           <Route path="sitters" element={<SitterListPage />} />
           <Route path="account/profile" element={<CustomerProfilePage />} />
-          <Route path="account/addresses" element={<CustomerAddressesPage />} />
+          <Route path="account/addresses" element={<CustomerCarePage kind="addresses" />} />
           <Route
             path="account/pets"
             element={<CustomerFeaturePage page="pets" />}

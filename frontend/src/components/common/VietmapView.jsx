@@ -38,7 +38,7 @@ export function VietmapView({ coordinates, onSelect, disabled = false, label = '
     marker.current.setDraggable(Boolean(onSelect) && !disabled);
     if (valid([longitude, latitude])) {
       marker.current.setLngLat([longitude, latitude]).addTo(map.current);
-      map.current.easeTo({ center: [longitude, latitude], duration: 300 });
+      map.current.easeTo({ center: [longitude, latitude], zoom: Math.max(map.current.getZoom?.() ?? 11, 15), duration: 300 });
     } else marker.current.remove();
   }, [longitude, latitude, disabled, onSelect, ready]);
   return <div className="pwc-vietmap">

@@ -8,3 +8,8 @@ The caller clears results when the input changes and must reconcile uncertain
 pet/address creates before issuing another non-idempotent create command.
 
 sitter-application-api.js sends authenticated/CSRF application commands and raw private-image uploads. Upload keys are stable per File and submission keys are retained across uncertain acknowledgements. It loads the owner's intake/receipt and never sends raw storage paths or stores personal data in browser storage.
+
+`customer-care-api.js` adapts `/pet-care` catalog/pets and owner-only
+`/pet-care/addresses/manage`, versioned edit/archive commands and same-origin map
+search/place resolution. Callers retain operation keys/payloads after uncertain
+responses; private care/address data is not saved in browser storage.

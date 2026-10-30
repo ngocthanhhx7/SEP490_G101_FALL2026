@@ -29,6 +29,7 @@ import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 import { bookingCheckoutRuntimeModule } from './routes/booking-checkout.routes.js';
 import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.routes.js';
 import { mapsRuntimeModule } from './routes/maps.routes.js';
+import { customerReadRuntime } from './routes/customer-read-runtime.js';
 
 
 export function createApp({
@@ -71,6 +72,9 @@ export function createApp({
   const pricing = pricingRuntimeModule(context);
   const petCare = petCareRuntimeModule(context);
   const auth = authenticationModule({ ...context, logger });
+  if (auth && typeof connection?.model === 'function') {
+    auth.router.use(customerReadRuntime({ ...context, sessionService: auth.sessionService }).router);
+  }
   const financeSources = financeSourceRuntime(context);
   if (auth && financeSources) auth.router.use(financeSources.router);
   app.locals.financeSources = financeSources?.service ?? null;
