@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { MapPin, Search } from 'lucide-react';
 import { Button, Input } from '../ui/index.js';
-const providerNames = { GOOGLE: 'Google Maps', GOONG: 'Goong', VIETMAP: 'Vietmap' };
+const providerNames = { GOOGLE: 'Google Maps', VIETMAP: 'Vietmap' };
 
 export function AddressSearch({ search, resolve, onSelect, disabled }) {
   const [query, setQuery] = useState(''), [items, setItems] = useState([]), [busy, setBusy] = useState(false), [error, setError] = useState('');

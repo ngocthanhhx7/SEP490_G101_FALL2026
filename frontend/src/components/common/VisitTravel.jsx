@@ -3,7 +3,7 @@ import { LocateFixed, MapPin, Navigation, Pause, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/index.js';
 
 const states = { EN_ROUTE: 'Đang di chuyển', ARRIVED: 'Đã đến', STOPPED: 'Đã dừng chia sẻ', NOT_SHARING: 'Chưa chia sẻ vị trí' };
-const routeNames = { GOOGLE_DRIVE_STATIC_ROAD_ETA: 'Google Maps · Ô tô', GOONG_CAR_STATIC_ROAD_ETA: 'Goong · Ô tô',
+const routeNames = { GOOGLE_DRIVE_STATIC_ROAD_ETA: 'Google Maps · Ô tô',
   VIETMAP_V4_CAR_STATIC_ROAD_ETA: 'Vietmap · Ô tô', OSRM_STATIC_ROAD_ETA: 'OSRM · Ô tô' };
 const errorText = error => error?.code === 'TRAVEL_WINDOW_CLOSED' ? 'Ngoài thời gian di chuyển của ca.' :
   error?.code === 'VERSION_CONFLICT' ? 'Trạng thái đã đổi. Vui lòng tải lại.' :

@@ -3,10 +3,10 @@ import { readRoutingBody } from '../sitter-matching/routing.service.js';
 import { URLSearchParams } from 'node:url';
 
 export function createLocationSearchService({ env = {}, fetchImpl = globalThis.fetch, timeoutMs = 5000 } = {}) {
-  const kind = env.MAPS_SEARCH_PROVIDER || 'goong';
-  if (!['goong', 'google', 'vietmap'].includes(kind)) throw new TypeError('Invalid MAPS_SEARCH_PROVIDER');
+  const kind = env.MAPS_SEARCH_PROVIDER || 'vietmap';
+  if (!['google', 'vietmap'].includes(kind)) throw new TypeError('Invalid MAPS_SEARCH_PROVIDER');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 8000) throw new TypeError('Invalid search timeout');
-  const key = { goong: env.GOONG_REST_API_KEY, google: env.GOOGLE_MAPS_SERVER_KEY, vietmap: env.VIETMAP_REST_API_KEY }[kind];
+  const key = { google: env.GOOGLE_MAPS_SERVER_KEY, vietmap: env.VIETMAP_REST_API_KEY }[kind];
   const provider = kind.toUpperCase();
   const label = value => {
     if (typeof value !== 'string' || !value.trim() || value.length > 500) throw new Error('Invalid address');
@@ -17,9 +17,9 @@ export function createLocationSearchService({ env = {}, fetchImpl = globalThis.f
     if (!key?.trim()) fail('MAPS_UNAVAILABLE', 'Address search is not configured', 503);
     const controller = new globalThis.AbortController(); let timer;
     const work = async () => {
-      const base = { goong: 'https://rsapi.goong.io', google: 'https://maps.googleapis.com', vietmap: 'https://maps.vietmap.vn' }[kind];
+      const base = { google: 'https://maps.googleapis.com', vietmap: 'https://maps.vietmap.vn' }[kind];
       const url = new URL(path, base);
-      url.search = new URLSearchParams({ ...params, [{ goong: 'api_key', google: 'key', vietmap: 'apikey' }[kind]]: key });
+      url.search = new URLSearchParams({ ...params, [kind === 'google' ? 'key' : 'apikey']: key });
       const response = await fetchImpl(url, { signal: controller.signal, redirect: 'error' });
       if (!response.ok) throw new Error('Provider unavailable');
       return readRoutingBody(response, controller.signal);
@@ -37,7 +37,7 @@ export function createLocationSearchService({ env = {}, fetchImpl = globalThis.f
       if (typeof body.query !== 'string' || body.query.trim().length < 3 || body.query.length > 200)
         fail('VALIDATION_FAILED', 'Address query must contain between 3 and 200 characters');
       const query = body.query.trim();
-      const data = await request({ goong: '/geocode', google: '/maps/api/geocode/json', vietmap: '/api/search/v4' }[kind],
+      const data = await request({ google: '/maps/api/geocode/json', vietmap: '/api/search/v4' }[kind],
         kind === 'vietmap' ? { text: query, display_type: '5' } : { address: query, ...(kind === 'google' ? { language: 'vi', region: 'vn' } : {}) });
       try {
         if (kind === 'vietmap') {

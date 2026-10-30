@@ -2,7 +2,7 @@
 
 This folder contains reusable application components that are not part of the P04 design-system controls.
 
-`AddressSearch.jsx` renders configured Google/Goong/Vietmap address search and selection with stale-response
+`AddressSearch.jsx` renders configured Google/Vietmap address search and selection with stale-response
 protection. It calls the supplied API adapter, does not save/confirm addresses and leaves the
 existing manual coordinate form available when the provider is disabled. External Google
 navigation links are constructed by `utils/maps.js`, never from provider-controlled URLs.

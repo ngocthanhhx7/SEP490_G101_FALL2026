@@ -8,7 +8,7 @@ The composed demo includes customer quote/checkout, separate employee area and s
 invitations, Staff dispatch and customer confirmation of a directed schedule proposal.
 `pages/public/BookingCheckout.jsx` owns checkout presentation; `pages/staff/EmployeeDispatchPage.jsx`
 owns Staff presentation, and `services/employee-scheduling-api.js` owns transport only.
-Google/Goong/Vietmap address search, route ETA and foreground visit travel are configured through the backend; see
+Google/Vietmap address search, route ETA and foreground visit travel are configured through the backend; see
 [maps setup](../doc/deployment/google-goong-maps.md) and [scheduling API](../doc/api/employee-scheduling-checkout.md).
 
 ```bash

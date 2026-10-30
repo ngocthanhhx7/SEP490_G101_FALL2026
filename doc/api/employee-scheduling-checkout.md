@@ -25,11 +25,11 @@ care completion, automatic assignment change or financial effect. The window is 
 120 minutes through endAt; freshness is 90 seconds and maximum accuracy error is 100 m.
 
 Map API `/api/v1/maps/search` accepts POST `{query}` with `MAPS_ENABLED=true`. Configured
-Google/Goong returns at most five `{label, coordinates}` results. Vietmap returns
+Google returns at most five `{label, coordinates}` results. Vietmap returns
 `{label, provider:'VIETMAP', refId}` and requires POST `/api/v1/maps/places/resolve`
 with `{provider, refId}` for the selected suggestion. Both endpoints share a ten-request budget
 per account/minute/instance. Suggestions do not save or confirm customer addresses.
-See [three-provider setup](../deployment/google-goong-maps.md).
+See [provider setup](../deployment/google-goong-maps.md).
 
 ## Checkout
 
@@ -99,7 +99,7 @@ mapping before employee dispatch; no silent migration changes private customer a
 ## Maps And Storage
 
 POST `/api/v1/maps/search`, authenticated roles and CSRF, body `{ "query": "..." }`.
-Opt-in `MAPS_ENABLED=true`. Returns Goong suggestions only; saving an address still requires
+Opt-in `MAPS_ENABLED=true`. Returns configured Google/Vietmap suggestions; saving an address still requires
 explicit owner confirmation. See [provider setup and live-check limitations](../deployment/google-goong-maps.md).
 
 Run `node scripts/migrations/employee-scheduling-storage.js` to preview the additive storage plan.

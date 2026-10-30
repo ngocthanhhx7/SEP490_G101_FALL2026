@@ -5,7 +5,7 @@ import { mapsRuntimeModule } from '../../src/routes/maps.routes.js';
 import { errorHandler, requestId } from '../../src/middlewares/http.js';
 
 test('maps search requires active session and CSRF, has private responses and a per-account provider budget', async () => {
-  const service = { search: jest.fn(async () => ({ provider: 'GOONG', items: [] })) };
+  const service = { search: jest.fn(async () => ({ provider: 'GOOGLE', items: [] })) };
   const sessionService = {
     authenticate: async req => req.get('x-test-actor') ? { userId: req.get('x-test-actor'), roles: ['CUSTOMER'], state: 'ACTIVE', expiresAt: Date.now() + 60000 } : null,
     verifyCsrf: async (_actor, token) => token === 'synthetic-csrf'

@@ -1,21 +1,22 @@
-# Google Maps, Goong va Vietmap
+# Vietmap (Google Maps tuy chon)
 
-Huong dan demo 30/10/2026. Go map duoc hieu la **Goong Maps**.
+Huong dan demo 30/10/2026. Goong da duoc bo theo yeu cau cua chu du an.
 Nguyen Ngoc Thanh dieu phoi review khi chua phan cong; van can approval doc lap.
 
 ## Chuc nang
 
-| Chuc nang | Google Maps | Goong | Vietmap |
-| --- | --- | --- | --- |
-| Tim dia chi | Geocoding API | Geocoding REST | Search v4 -> Place v4 khi chon |
-| ETA | Routes computeRouteMatrix, DRIVE | Distance Matrix, car | Matrix v4, car |
-| Chi duong ngoai | Maps URLs, khong can key | Khong mo SDK | Khong mo SDK |
-| GPS sitter | Browser Geolocation -> backend rieng | Cung luong | Cung luong |
+| Chuc nang | Google Maps | Vietmap |
+| --- | --- | --- |
+| Tim dia chi | Geocoding API | Search v4 -> Place v4 khi chon |
+| ETA | Routes computeRouteMatrix, DRIVE | Matrix v4, car |
+| Chi duong ngoai | Maps URLs, khong can key | Khong mo SDK |
+| GPS sitter | Browser Geolocation -> backend rieng | Cung luong |
 
-Co the cai ca ba bo key; moi chuc nang chon mot provider. Vi du tim dia chi bang
-Vietmap, tinh tuyen bang Goong, mo chi duong bang Google Maps. Khong goi ca ba cho moi
-ban tin GPS, khong tu chuyen provider khi loi, khong tron cache/nguon ETA.
-Chua nhung SDK/tiles hay keo ghim. Khong ve du lieu Google len tiles Goong/Vietmap.
+Chu du an chon dung rieng Vietmap: tim dia chi, resolve toa do va matrix ETA deu
+dung VIETMAP_REST_API_KEY. Khong can Google Cloud Billing hay Google server key.
+Adapter Google van la lua chon rieng khi duoc cau hinh ro rang. Khong goi ca hai cho
+moi ban tin GPS, khong tu chuyen provider khi loi, khong tron cache/nguon ETA.
+Chua nhung SDK/tiles hay keo ghim. Khong ve du lieu Google len tiles Vietmap.
 Truoc khi dung that, doi chieu dieu khoan attribution, luu toa do va ket hop du lieu
 theo goi da ky. Luu dia chi booking lau dai can quyen luu tru phu hop; viec khach
 xac nhan toa do khong thay the dieu khoan provider.
@@ -27,10 +28,6 @@ bat **Routes API** khi tinh tuyen va **Geocoding API** khi tim dia chi. Tao serv
 gioi han cac API nay va IP egress backend. Maps URLs khong can key. SDK Maps JavaScript
 neu bo sung sau can browser key rieng va HTTP referrer restrictions. Khong dung server
 key trong VITE_*. Khong can Distance Matrix API legacy.
-
-**Goong**: vao <https://account.goong.io/>, tao REST API key cho Geocoding/Distance Matrix.
-Maptiles key la key khac. Dat quota va gioi han key theo tuy chon tai khoan ho tro;
-REST key chi o backend. Adapter dung https://rsapi.goong.io/geocode va /distancematrix.
 
 **Vietmap**: vao <https://maps.vietmap.vn/>, dang ky tai khoan/du an trong Console,
 tao API key cho Search v4, Place v4 va Matrix v4. Kiem tra quyen API, IP/domain restriction
@@ -46,15 +43,18 @@ production de thu provider chua nghiem thu.
 AUTH_ENABLED=true
 MAPS_ENABLED=true
 MAPS_SEARCH_PROVIDER=vietmap
-MAPS_ROUTING_PROVIDER=goong
-GOOGLE_MAPS_SERVER_KEY=<SERVER_KEY>
-GOONG_REST_API_KEY=<REST_KEY>
+MAPS_ROUTING_PROVIDER=vietmap
+GOOGLE_MAPS_SERVER_KEY=
 VIETMAP_REST_API_KEY=<REST_KEY>
 ```
 
-MAPS_SEARCH_PROVIDER nhan google/goong/vietmap; MAPS_ROUTING_PROVIDER nhan
-osrm/google/goong/vietmap. OSRM can AI_ROUTING_URL. MAPS_ENABLED bat tim dia chi;
+MAPS_SEARCH_PROVIDER nhan google/vietmap; MAPS_ROUTING_PROVIDER nhan
+osrm/google/vietmap. OSRM can AI_ROUTING_URL. MAPS_ENABLED bat tim dia chi;
 AI_ENABLED va EMPLOYEE_SCHEDULING_ENABLED la cac cong tac nghiep vu rieng.
+Voi local va VPS da co key Vietmap, chi doi hai bien provider sang vietmap; khong
+can xoa key Google da luu. Restart/recreate container backend de nap lai env.
+Khong bat cac flag booking/dieu phoi tren release cu; storage va code moi phai
+duoc kiem tra truoc. Mau env khong tu cap nhat .env dang chay.
 
 ## 2. Booking va dieu phoi
 
@@ -111,7 +111,9 @@ Staff/Admin: Dieu phoi ca cham soc -> Ca dang den diem cham soc (co phan trang).
   credit hoa hong, thu tien hay tra luong. Van can bang chung nghiep vu.
 
 Geolocation can HTTPS (localhost duoc mien) va quyen nguoi dung. GPS co the bi gia lap,
-khong phai bang chung danh tinh/hoan thanh. Nut chi duong mo Google Maps ben ngoai.
+khong phai bang chung danh tinh/hoan thanh. Link Google Maps ben ngoai la tuy chon
+khong can API key/billing, chi gui toa do sang trang do khi nguoi dung bam link;
+khong duoc dung lam nguon ETA hay dieu kien van hanh cua cau hinh Vietmap.
 
 ## 4. Quota va nghiem thu
 
@@ -123,7 +125,7 @@ khong phai bang chung danh tinh/hoan thanh. Nut chi duong mo Google Maps ben ngo
   dat quota provider va theo doi billing. Budget alert khong tu chan chi phi.
 - Google matrix tinh theo elements/SKU. Trang gia 30/10/2026 liet ke Essentials
   10.000 free usage cap va tier dau $5/1.000; doi chieu lai ngay kich hoat va tai khoan.
-  Vietmap matrix tinh origins x destinations transactions; Goong theo goi tai khoan.
+  Vietmap matrix tinh origins x destinations transactions.
 - Loi/quota/mat key -> khong co ETA xac minh; khong thay bang duong chim/ETA=0.
 - Test tu dong dung provider gia lap. Can key that truoc production: search/resolve,
   tuyen hai chieu, quota/key loi, GPS desktop/mobile HTTPS, thu hoi quyen, doi phan cong,
@@ -133,7 +135,6 @@ khong phai bang chung danh tinh/hoan thanh. Nut chi duong mo Google Maps ben ngo
 
 - [Vietmap docs](https://maps.vietmap.vn/docs/vi/)
 - [Vietmap OpenAPI v4](https://maps.vietmap.vn/docs/openapi.json)
-- [Goong Help](https://help.goong.io/)
 - [Google computeRouteMatrix](https://developers.google.com/maps/documentation/routes/compute_route_matrix)
 - [Google Geocoding](https://developers.google.com/maps/documentation/geocoding/overview)
 - [Google Maps URLs](https://developers.google.com/maps/documentation/urls/guide)
@@ -141,4 +142,8 @@ khong phai bang chung danh tinh/hoan thanh. Nut chi duong mo Google Maps ben ngo
 - [Google Routes policies](https://developers.google.com/maps/documentation/routes/policies)
 - [Google API security](https://developers.google.com/maps/api-security-best-practices)
 
-Da doc tai lieu cong khai; chua goi API tinh phi bang key that cua du an.
+Ngay 30/10/2026: smoke local Vietmap that da dat Search v4 (5 goi y), Place v4
+(resolve goi y da chon) va Matrix v4 (4 elements, co ETA hop le). Chi dung dia chi
+cong khai tong hop de kiem tra; chua xac minh ghim co so, GPS thiet bi that hay
+nghiem thu provider tren VPS. Google bi REQUEST_DENIED lien quan billing; chu du
+an da chon Vietmap, khong can tiep tuc nap Google Billing cho luong nay.

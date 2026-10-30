@@ -15,7 +15,7 @@ describe('address maps', () => {
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith(selected));
     expect(resolve).toHaveBeenCalledWith({ provider: 'VIETMAP', refId: item.refId });
   });
-  it('selects a Goong suggestion explicitly', async () => {
+  it('selects a coordinate suggestion explicitly', async () => {
     const item = { label: 'Synthetic Hanoi address', coordinates: [105.85, 21.01] }, onSelect = jest.fn();
     render(<AddressSearch search={jest.fn(async () => ({ data: { items: [item] } }))} onSelect={onSelect} />);
     fireEvent.change(screen.getByLabelText('Tìm địa chỉ'), { target: { value: 'Hanoi' } });

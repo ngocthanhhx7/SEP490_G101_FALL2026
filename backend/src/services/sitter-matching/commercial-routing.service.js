@@ -4,11 +4,11 @@ import { createRoutingProvider, edgeKey, readRoutingBody } from './routing.servi
 
 export function createConfiguredRoutingProvider({ env = {}, config = {}, clock = Date.now, fetchImpl = globalThis.fetch, timeoutMs = 8000 } = {}) {
   const kind = env.MAPS_ROUTING_PROVIDER || 'osrm';
-  if (!['osrm', 'goong', 'google', 'vietmap'].includes(kind)) throw new TypeError('Invalid MAPS_ROUTING_PROVIDER');
+  if (!['osrm', 'google', 'vietmap'].includes(kind)) throw new TypeError('Invalid MAPS_ROUTING_PROVIDER');
   if (kind === 'osrm') return createRoutingProvider({ baseUrl: config.ai?.routingUrl, bounds: config.ai?.routingBounds, clock, fetchImpl, timeoutMs });
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 8000) throw new TypeError('Invalid routing timeout');
-  const key = { goong: env.GOONG_REST_API_KEY, google: env.GOOGLE_MAPS_SERVER_KEY, vietmap: env.VIETMAP_REST_API_KEY }[kind];
-  const source = { goong: 'GOONG_CAR_STATIC_ROAD_ETA', google: 'GOOGLE_DRIVE_STATIC_ROAD_ETA', vietmap: 'VIETMAP_V4_CAR_STATIC_ROAD_ETA' }[kind];
+  const key = { google: env.GOOGLE_MAPS_SERVER_KEY, vietmap: env.VIETMAP_REST_API_KEY }[kind];
+  const source = { google: 'GOOGLE_DRIVE_STATIC_ROAD_ETA', vietmap: 'VIETMAP_V4_CAR_STATIC_ROAD_ETA' }[kind];
   const keyFor = (a, b) => edgeKey(a, b, `${source}_V1`);
   const coverage = createRoutingProvider({ bounds: config.ai?.routingBounds });
   const validatePoints = points => {
@@ -24,12 +24,7 @@ export function createConfiguredRoutingProvider({ env = {}, config = {}, clock =
       let timer;
       const request = async () => {
         let url, options;
-        if (kind === 'goong') {
-          url = new URL('https://rsapi.goong.io/distancematrix');
-          const locations = points.map(([lng, lat]) => `${lat},${lng}`).join('|');
-          url.search = new URLSearchParams({ origins: locations, destinations: locations, vehicle: 'car', api_key: key });
-          options = {};
-        } else if (kind === 'vietmap') {
+        if (kind === 'vietmap') {
           url = new URL('https://maps.vietmap.vn/api/matrix/v4');
           url.search = new URLSearchParams({ apikey: key, vehicle: 'car', sources: 'all', destinations: 'all', annotation: 'duration' });
           points.forEach(([lng, lat]) => url.searchParams.append('point', `${lat},${lng}`));
@@ -48,16 +43,7 @@ export function createConfiguredRoutingProvider({ env = {}, config = {}, clock =
           if (seconds !== null && (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0 || seconds > 86400)) throw new Error('Invalid duration');
           map.set(keyFor(points[i], points[j]), seconds === null ? null : seconds / 60);
         };
-        if (kind === 'goong') {
-          if ((body.status !== undefined && body.status !== 'OK') || body.error || body.rows?.length !== points.length) throw new Error('Invalid matrix');
-          body.rows.forEach((row, i) => {
-            if (row.elements?.length !== points.length) throw new Error('Invalid matrix row');
-            row.elements.forEach((entry, j) => {
-              if (!['OK', 'ZERO_RESULTS'].includes(entry.status)) throw new Error('Invalid matrix element');
-              put(i, j, entry.status === 'OK' ? entry.duration?.value : null);
-            });
-          });
-        } else if (kind === 'vietmap') {
+        if (kind === 'vietmap') {
           if (body.code !== 'OK' || !Array.isArray(body.durations) || body.durations.length !== points.length) throw new Error('Invalid matrix');
           body.durations.forEach((row, i) => {
             if (!Array.isArray(row) || row.length !== points.length) throw new Error('Invalid matrix row');

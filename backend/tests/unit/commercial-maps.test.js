@@ -5,19 +5,16 @@ import { createLocationSearchService } from '../../src/services/maps/location-se
 
 const points = [[105.85, 21.01], [105.86, 21.02]];
 const response = data => ({ ok: true, headers: new Map(), json: async () => data });
-const goongBody = { status: 'OK', rows: [
-  { elements: [{ status: 'OK', duration: { value: 0 } }, { status: 'OK', duration: { value: 600 } }] },
-  { elements: [{ status: 'ZERO_RESULTS' }, { status: 'OK', duration: { value: 0 } }] }
-] };
+const matrixBody = { code: 'OK', durations: [[0, 600], [null, 0]] };
 
-test('Goong uses lat,lng and asymmetric car durations without persisting provider content', async () => {
-  const fetchImpl = jest.fn(async () => response(goongBody));
-  const provider = createConfiguredRoutingProvider({ env: { MAPS_ROUTING_PROVIDER: 'goong', GOONG_REST_API_KEY: 'synthetic-key' }, fetchImpl });
+test('Vietmap uses lat,lng and asymmetric car durations without persisting provider content', async () => {
+  const fetchImpl = jest.fn(async () => response(matrixBody));
+  const provider = createConfiguredRoutingProvider({ env: { MAPS_ROUTING_PROVIDER: 'vietmap', VIETMAP_REST_API_KEY: 'synthetic-key' }, fetchImpl });
   const Routing = { find: jest.fn(), bulkWrite: jest.fn() };
   const matrix = await cachedMatrix({ points, provider, Routing });
   const url = fetchImpl.mock.calls[0][0];
-  expect(url.origin).toBe('https://rsapi.goong.io');
-  expect(url.searchParams.get('origins')).toBe('21.01,105.85|21.02,105.86');
+  expect(url.origin).toBe('https://maps.vietmap.vn');
+  expect(url.searchParams.getAll('point')).toEqual(['21.01,105.85', '21.02,105.86']);
   expect(url.searchParams.get('vehicle')).toBe('car');
   expect(matrix(...points)).toBe(10); expect(matrix(points[1], points[0])).toBeNull();
   expect(provider.edgeKey(...points)).not.toBe(edgeKey(...points));
@@ -41,7 +38,7 @@ test('Google Routes handles unordered elements, field mask, omitted zero indexes
   expect(result.map.get(provider.edgeKey(points[1], points[0]))).toBeNull();
 });
 
-test.each(['goong', 'google', 'vietmap'])('%s missing credentials, coverage and matrix limits fail before a paid request', async kind => {
+test.each(['google', 'vietmap'])('%s missing credentials, coverage and matrix limits fail before a paid request', async kind => {
   const fetchImpl = jest.fn(), provider = createConfiguredRoutingProvider({ env: { MAPS_ROUTING_PROVIDER: kind }, fetchImpl });
   await expect(provider.matrix(points)).rejects.toMatchObject({ code: 'ROUTING_UNAVAILABLE' });
   await expect(provider.matrix(Array.from({ length: 11 }, () => points[0]))).rejects.toMatchObject({ code: 'ROUTING_LIMIT' });
@@ -49,11 +46,11 @@ test.each(['goong', 'google', 'vietmap'])('%s missing credentials, coverage and 
 });
 
 test('provider errors cannot expose secret URLs, and invalid durations fail closed', async () => {
-  const provider = createConfiguredRoutingProvider({ env: { MAPS_ROUTING_PROVIDER: 'goong', GOONG_REST_API_KEY: 'secret-value' },
+  const provider = createConfiguredRoutingProvider({ env: { MAPS_ROUTING_PROVIDER: 'vietmap', VIETMAP_REST_API_KEY: 'secret-value' },
     fetchImpl: async () => { throw new Error('https://example.invalid/?api_key=secret-value'); } });
   await expect(provider.matrix(points)).rejects.toMatchObject({ code: 'ROUTING_UNAVAILABLE', message: 'Routing provider could not verify this route' });
-  const invalid = createConfiguredRoutingProvider({ env: { MAPS_ROUTING_PROVIDER: 'goong', GOONG_REST_API_KEY: 'synthetic' },
-    fetchImpl: async () => response({ ...goongBody, rows: [{ elements: [{ status: 'OK', duration: { value: -1 } }] }] }) });
+  const invalid = createConfiguredRoutingProvider({ env: { MAPS_ROUTING_PROVIDER: 'vietmap', VIETMAP_REST_API_KEY: 'synthetic' },
+    fetchImpl: async () => response({ code: 'OK', durations: [[-1]] }) });
   await expect(invalid.matrix([points[0]])).rejects.toMatchObject({ code: 'ROUTING_UNAVAILABLE' });
 });
 
@@ -63,14 +60,14 @@ test('commercial routing deadline includes a stalled JSON body', async () => {
   await expect(provider.matrix(points)).rejects.toMatchObject({ code: 'ROUTING_UNAVAILABLE' });
 });
 
-test('Goong search validates input and returns bounded suggestions without confirming an address', async () => {
+test('Google search validates input and returns bounded suggestions without confirming an address', async () => {
   const fetchImpl = jest.fn(async () => response({ status: 'OK', results: [{ formatted_address: 'Synthetic Hanoi address', geometry: { location: { lat: 21.01, lng: 105.85 } } }] }));
-  const service = createLocationSearchService({ env: { GOONG_REST_API_KEY: 'synthetic' }, fetchImpl });
+  const service = createLocationSearchService({ env: { MAPS_SEARCH_PROVIDER: 'google', GOOGLE_MAPS_SERVER_KEY: 'synthetic' }, fetchImpl });
   await expect(service.search({ query: 'ab' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   await expect(service.search({ query: 'Hanoi', url: 'https://example.invalid' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   const result = await service.search({ query: 'Hanoi' });
-  expect(result).toEqual({ provider: 'GOONG', items: [{ label: 'Synthetic Hanoi address', coordinates: points[0] }] });
-  expect(fetchImpl.mock.calls[0][0].pathname).toBe('/geocode');
+  expect(result).toEqual({ provider: 'GOOGLE', items: [{ label: 'Synthetic Hanoi address', coordinates: points[0] }] });
+  expect(fetchImpl.mock.calls[0][0].pathname).toBe('/maps/api/geocode/json');
 });
 
 test('Vietmap matrix v4 uses repeated lat,lng points, seconds and separate cache namespace', async () => {
@@ -88,11 +85,11 @@ test('Vietmap matrix v4 uses repeated lat,lng points, seconds and separate cache
 test('Vietmap resolves only the selected prefixed reference and rejects provider mismatch', async () => {
   const fetchImpl = jest.fn().mockResolvedValueOnce(response([{ display: 'Synthetic Hanoi', ref_id: 'geocode:sample' }]))
     .mockResolvedValueOnce(response({ display: 'Synthetic Hanoi', lat: 21.01, lng: 105.85 }));
-  const service = createLocationSearchService({ env: { MAPS_SEARCH_PROVIDER: 'vietmap', VIETMAP_REST_API_KEY: 'synthetic' }, fetchImpl });
+  const service = createLocationSearchService({ env: { VIETMAP_REST_API_KEY: 'synthetic' }, fetchImpl });
   const result = await service.search({ query: 'Synthetic Hanoi' });
   expect(result.items).toEqual([{ label: 'Synthetic Hanoi', provider: 'VIETMAP', refId: 'geocode:sample' }]);
   expect(fetchImpl).toHaveBeenCalledTimes(1);
-  await expect(service.resolve({ provider: 'GOONG', refId: 'geocode:sample' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  await expect(service.resolve({ provider: 'GOOGLE', refId: 'geocode:sample' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   expect(await service.resolve({ provider: 'VIETMAP', refId: 'geocode:sample' })).toMatchObject({ coordinates: points[0] });
   expect(fetchImpl.mock.calls[1][0].searchParams.get('refid')).toBe('geocode:sample');
   expect(fetchImpl.mock.calls[1][0].pathname).toBe('/api/place/v4');
