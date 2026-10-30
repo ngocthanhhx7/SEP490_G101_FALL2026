@@ -19,6 +19,7 @@ export function sitterApplicationModels(connection) {
     contactCiphertext: { type: String, required: true, select: false },
     contactLookupKey: { type: String, required: true, select: false },
     identityLookupKey: { type: String, required: true, select: false },
+    activePendingOwnerUserId: { type: Schema.Types.ObjectId, select: false },
     activePendingContactKey: { type: String, select: false },
     activePendingIdentityKey: { type: String, select: false },
     ageEligible: { type: Boolean, required: true, enum: [true] },
@@ -38,6 +39,7 @@ export function sitterApplicationModels(connection) {
     submissionKeyDigest: { type: String, required: true, select: false },
     submissionPayloadDigest: { type: String, required: true, select: false }
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
+  applicantSchema.index({ activePendingOwnerUserId: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ activePendingContactKey: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ activePendingIdentityKey: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ state: 1, createdAt: -1, _id: -1 });

@@ -176,3 +176,7 @@ Official references read 15–16/10/2026:
 - [CORS](https://developers.cloudflare.com/r2/buckets/cors/)
 - [Sharp constructor/input safety](https://sharp.pixelplumbing.com/api-constructor/)
 - [Sharp output/metadata](https://sharp.pixelplumbing.com/api-output/)
+
+## Applicant documents follow-up (30/10/2026)
+
+Authenticated application images use a separate bucket/provider, `applicant-documents/` namespace and ApplicantDocument collections. They do not accept PrivateImage IDs. Default gate is `SITTER_DOCUMENTS_ENABLED=false`; explicit SITTER_DOCUMENTS_R2_* configuration is required. Both transports share the same image decoder/admission limits per connection. See [rollout evidence and credential limits](../../testing/registration-sitter-flow.md). PDF/care/settlement evidence remain outside this image flow.

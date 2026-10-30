@@ -12,7 +12,7 @@ import { createSessionService } from '../services/session.service.js';
 import { createSitterApplicationService } from '../services/sitter-application.service.js';
 import { AppError } from '../utils/app-error.js';
 import { createApplicationIntakeService } from '../services/applications/application-intake.service.js';
-import { loadR2Config } from '../config/r2.js';
+import { loadApplicantDocumentConfig } from '../config/r2.js';
 import { createRegistrationPolicyService } from '../services/registration-policy.service.js';
 
 function requireSameOrigin(req, _res, next) {
@@ -57,7 +57,7 @@ export function sitterApplicationModule({
     encryptionKey: config.auth.contactEncryptionKey
   });
   const intake = authenticatedSubmission ? createApplicationIntakeService({ connection, contactCrypto,
-    media: ports.privateMedia, secret: config.auth.contactLookupSecret, uploadsAvailable }) : null;
+    media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable }) : null;
   const service = createSitterApplicationService({
     connection,
     Applicant: models.SitterApplication,
@@ -151,5 +151,5 @@ export function sitterApplicationModule({
 export function sitterApplicationRuntimeModule(context) {
   if (!context.config.auth?.enabled) return null;
   return sitterApplicationModule({ ...context, authenticatedSubmission: true,
-    uploadsAvailable: Boolean(loadR2Config(context.env)) });
+    uploadsAvailable: Boolean(loadApplicantDocumentConfig(context.env)) });
 }

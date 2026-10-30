@@ -81,7 +81,7 @@ async function uploadApplicantImage(file, { signal } = {}) {
   signal?.addEventListener('abort', abort, { once: true });
   const timer = setTimeout(abort, 20000);
   try {
-    const response = await fetchFromCurrentRuntime('/api/v1/private-images', {
+    const response = await fetchFromCurrentRuntime('/api/v1/applicant-documents', {
       method: 'POST', body: file, credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: controller.signal,
       headers: { Accept: 'application/json', 'Content-Type': file.type, 'X-CSRF-Token': csrf, 'Idempotency-Key': uploadKeys.get(file) }
     });

@@ -1,6 +1,6 @@
 ﻿import { Schema } from 'mongoose';
 
-export function privateImageModels(connection) {
+function ownedImageModels(connection, imageName, quotaName) {
   const imageSchema = new Schema({
     _id: { type: String }, ownerId: { type: Schema.Types.ObjectId, required: true },
     inputDigest: { type: String, required: true, select: false },
@@ -12,7 +12,10 @@ export function privateImageModels(connection) {
   const quotaSchema = new Schema({ _id: { type: Schema.Types.ObjectId },
     count: { type: Number, required: true, min: 0 } }, { strict: 'throw', autoIndex: false });
   return {
-    PrivateImage: connection.models.PrivateImage ?? connection.model('PrivateImage', imageSchema),
-    PrivateImageQuota: connection.models.PrivateImageQuota ?? connection.model('PrivateImageQuota', quotaSchema)
+    PrivateImage: connection.models[imageName] ?? connection.model(imageName, imageSchema),
+    PrivateImageQuota: connection.models[quotaName] ?? connection.model(quotaName, quotaSchema)
   };
 }
+
+export const privateImageModels = connection => ownedImageModels(connection, 'PrivateImage', 'PrivateImageQuota');
+export const applicantDocumentModels = connection => ownedImageModels(connection, 'ApplicantDocument', 'ApplicantDocumentQuota');

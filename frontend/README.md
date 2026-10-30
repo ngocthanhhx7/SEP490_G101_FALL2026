@@ -116,4 +116,4 @@ Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp n
 
 ## Đăng ký và hồ sơ ứng tuyển
 
-Form khách hàng và Pet Sitter tham khảo bố cục hai cột của ảnh HouseBuddy, giữ nhận diện PawWorld. OTP email tạo tài khoản trước; form Pet Sitter dùng email đã xác minh, nhóm dịch vụ từ catalog, vùng làm việc, kinh nghiệm và ảnh giấy tờ JPG/PNG. API hồ sơ được nối với private-images và session/CSRF; trạng thái/receipt khôi phục từ server theo owner. Xem [luồng và kiểm tra](../doc/testing/registration-sitter-flow.md). PDF chưa được pipeline ảnh hỗ trợ.
+Form khách hàng và Pet Sitter tham khảo bố cục hai cột của ảnh HouseBuddy, giữ nhận diện PawWorld. OTP email tạo tài khoản trước; form Pet Sitter dùng email đã xác minh, nhóm dịch vụ từ catalog, vùng làm việc, kinh nghiệm và ảnh giấy tờ JPG/PNG. API hồ sơ được nối với applicant-documents và session/CSRF; trạng thái/receipt khôi phục từ server theo owner. Xem [luồng và kiểm tra](../doc/testing/registration-sitter-flow.md). PDF chưa được pipeline ảnh hỗ trợ.

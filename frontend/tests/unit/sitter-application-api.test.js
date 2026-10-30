@@ -34,11 +34,11 @@ test('the real upload adapter sends raw image bytes and reuses its key for the s
     const file = new globalThis.File(['synthetic'], 'test.png', { type: 'image/png' });
     await expect(sitterApplicationApi.uploadDocument(file)).resolves.toEqual({ documentId: 'a'.repeat(64), storageRef: 'a'.repeat(64) });
     await sitterApplicationApi.uploadDocument(file);
-    const uploads = fetchImpl.mock.calls.filter(([path]) => path.endsWith('/private-images'));
+    const uploads = fetchImpl.mock.calls.filter(([path]) => path.endsWith('/applicant-documents'));
     expect(uploads).toHaveLength(2);
     expect(uploads[0][1]).toMatchObject({ body: file, headers: { 'Content-Type': 'image/png', 'X-CSRF-Token': 'synthetic-upload-csrf' } });
     expect(uploads[0][1].headers['Idempotency-Key']).toBe(uploads[1][1].headers['Idempotency-Key']);
     await expect(sitterApplicationApi.uploadDocument(new globalThis.File(['pdf'], 'bad.pdf', { type: 'application/pdf' }))).rejects.toMatchObject({ code: 'INVALID_DOCUMENT' });
-    expect(fetchImpl.mock.calls.filter(([path]) => path.endsWith('/private-images'))).toHaveLength(2);
+    expect(fetchImpl.mock.calls.filter(([path]) => path.endsWith('/applicant-documents'))).toHaveLength(2);
   } finally { globalThis.fetch = original; }
 });

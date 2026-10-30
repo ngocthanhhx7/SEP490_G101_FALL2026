@@ -4,15 +4,23 @@ import { createSessionService } from '../services/session.service.js';
 import { createPrivateImageService } from '../services/private-image.service.js';
 import { createPrivateImageController } from '../controllers/private-image.controller.js';
 import { MAX_IMAGE_BYTES } from '../services/r2-private-media.service.js';
-import { loadR2Config } from '../config/r2.js';
+import { loadR2Config, loadApplicantDocumentConfig } from '../config/r2.js';
+import { applicantDocumentModels } from '../models/private-image.model.js';
 import { AppError } from '../utils/app-error.js';
 
+const admissionByConnection = new WeakMap();
+
 export function privateImageModule({ connection, media, secret, maxImagesPerUser,
-  requireAuthenticated, csrf, maxInFlight = 4 }) {
-  const service = createPrivateImageService({ connection, media, secret, maxImagesPerUser });
+  requireAuthenticated, csrf, maxInFlight = 4, imageModels, storagePrefix = 'private-images',
+  name = 'private-images', mount = '/api/v1/private-images' }) {
+  const service = createPrivateImageService({ connection, media, secret, maxImagesPerUser, imageModels, storagePrefix });
   const controller = createPrivateImageController({ service });
   const router = Router();
-  const admission = createMediaAdmission({ limit: maxInFlight });
+  let admission = admissionByConnection.get(connection);
+  if (!admission) {
+    admission = createMediaAdmission({ limit: maxInFlight });
+    admissionByConnection.set(connection, admission);
+  }
   const parseImage = express.raw({ type: ['image/png', 'image/jpeg'], limit: MAX_IMAGE_BYTES });
   const upload = admitted(admission, async (req, res) => {
     await parseBody(parseImage, req, res);
@@ -30,7 +38,7 @@ export function privateImageModule({ connection, media, secret, maxImagesPerUser
   }, requireAuthenticated);
   router.post('/', csrf, upload);
   router.get('/:id/content', read);
-  return { name: 'private-images', mount: '/api/v1/private-images', router };
+  return { name, mount, router };
 }
 
 export function createMediaAdmission({ limit = 4 } = {}) {
@@ -119,5 +127,18 @@ export function privateImageRuntimeModule({ config, connection, ports, env, cloc
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   return privateImageModule({ connection, media: ports.privateMedia, secret: config.auth.tokenSecret,
     maxImagesPerUser: r2.maxImagesPerUser, requireAuthenticated: requireSession(session, { clock }),
+    csrf: requireCsrf(session) });
+}
+
+export function applicantDocumentRuntimeModule({ config, connection, ports, env, clock = Date.now }) {
+  if (!config.auth?.enabled) return null;
+  const documents = loadApplicantDocumentConfig(env);
+  if (!documents) return null;
+  const session = createSessionService({ connection, clock,
+    tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
+  return privateImageModule({ connection, media: ports.applicantDocuments, secret: config.auth.tokenSecret,
+    imageModels: applicantDocumentModels(connection), storagePrefix: 'applicant-documents',
+    name: 'applicant-documents', mount: '/api/v1/applicant-documents',
+    maxImagesPerUser: documents.maxImagesPerUser, requireAuthenticated: requireSession(session, { clock }),
     csrf: requireCsrf(session) });
 }

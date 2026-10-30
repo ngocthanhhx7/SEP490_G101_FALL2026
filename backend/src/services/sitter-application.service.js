@@ -218,12 +218,13 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
 
     const tooEarly = await Applicant.exists({
-      $or: [{ contactLookupKey: contact.lookupKey }, { identityLookupKey }],
+      $or: [{ contactLookupKey: contact.lookupKey }, { identityLookupKey }, ...(actor?.userId ? [{ ownerUserId: actor.userId }] : [])],
       state: 'REJECTED', reapplyAt: { $gt: new Date(now) }
     });
     if (tooEarly) throw new AppError(409, 'REAPPLY_NOT_AVAILABLE', 'An application cannot be submitted at this time');
     const duplicate = await Applicant.exists({ $or: [
-      { activePendingContactKey: contact.lookupKey }, { activePendingIdentityKey: identityLookupKey }
+      { activePendingContactKey: contact.lookupKey }, { activePendingIdentityKey: identityLookupKey },
+      ...(actor?.userId ? [{ ownerUserId: actor.userId, state: { $in: ACTIVE_STATES } }] : [])
     ] });
     if (duplicate) throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time');
     if (typeof privateMedia?.verifyApplicantDocuments !== 'function') {
@@ -251,6 +252,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         }
         const [created] = await Applicant.create([{
           ownerUserId: actor?.userId ?? null,
+          ...(actor?.userId ? { activePendingOwnerUserId: actor.userId } : {}),
           policyConsents,
           displayName, contactChannel, contactCiphertext: contactCrypto.encrypt(contact.canonicalValue),
           contactLookupKey: contact.lookupKey, identityLookupKey,
@@ -281,7 +283,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         return { id: replay._id.toString(), state: replay.state, submittedAt: replay.createdAt.toISOString(), applicationCode, replayed: true };
       }
       const duplicatePending = await Applicant.exists({ $or: [
-        { activePendingContactKey: contact.lookupKey }, { activePendingIdentityKey: identityLookupKey }
+        { activePendingContactKey: contact.lookupKey }, { activePendingIdentityKey: identityLookupKey },
+      ...(actor?.userId ? [{ ownerUserId: actor.userId, state: { $in: ACTIVE_STATES } }] : [])
       ] });
       if (duplicatePending || error?.code === 11000) {
         throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time');
@@ -448,7 +451,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         const application = await Applicant.findOneAndUpdate({ _id: id, state: { $in: ACTIVE_STATES }, version: expectedVersion }, {
           $set: { state, interviewNote, decisionReason: reason, rejectedAt, reapplyAt,
             provisionedUserId: user?._id ?? null },
-          $unset: { activePendingContactKey: 1, activePendingIdentityKey: 1 },
+          $unset: { activePendingContactKey: 1, activePendingIdentityKey: 1, activePendingOwnerUserId: 1 },
           $inc: { version: 1 }
         }, { returnDocument: 'after', session });
         if (!application) throw new AppError(409, 'VERSION_CONFLICT', 'Application changed before the decision was applied');

@@ -19,3 +19,24 @@ export function loadR2Config(env = process.env) {
     credentials: { accessKeyId: env.R2_ACCESS_KEY_ID, secretAccessKey: env.R2_SECRET_ACCESS_KEY },
     maxImagesPerUser });
 }
+
+// Identity documents require their own bucket and explicit credentials. The owner
+// photo flag never enables application intake as a side effect.
+export function loadApplicantDocumentConfig(env = process.env) {
+  if (env.SITTER_DOCUMENTS_ENABLED === undefined || env.SITTER_DOCUMENTS_ENABLED === 'false') return null;
+  const prefix = 'SITTER_DOCUMENTS_';
+  try {
+    if (env.SITTER_DOCUMENTS_ENABLED !== 'true') throw new Error('Invalid document flag');
+    const config = loadR2Config({
+      R2_ENABLED: 'true', R2_ACCOUNT_ID: env.SITTER_DOCUMENTS_R2_ACCOUNT_ID,
+      R2_BUCKET: env.SITTER_DOCUMENTS_R2_BUCKET, R2_ACCESS_KEY_ID: env.SITTER_DOCUMENTS_R2_ACCESS_KEY_ID,
+      R2_SECRET_ACCESS_KEY: env.SITTER_DOCUMENTS_R2_SECRET_ACCESS_KEY,
+      R2_MAX_IMAGES_PER_USER: env.SITTER_DOCUMENTS_MAX_FILES_PER_USER ?? '20'
+    });
+    if (config.bucket === env.R2_BUCKET) throw new Error('Dedicated bucket required');
+    return config;
+  } catch {
+    throw new AppError(503, 'SITTER_DOCUMENTS_CONFIGURATION_INVALID', 'Private document configuration is invalid',
+      { fields: [`${prefix}ENABLED`, `${prefix}R2_ACCOUNT_ID`, `${prefix}R2_BUCKET`, `${prefix}R2_ACCESS_KEY_ID`, `${prefix}R2_SECRET_ACCESS_KEY`, `${prefix}MAX_FILES_PER_USER`] });
+  }
+}

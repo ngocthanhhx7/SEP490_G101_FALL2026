@@ -1,14 +1,14 @@
 import { createHmac } from 'node:crypto';
 import { identityModels } from '../../models/identity.model.js';
-import { privateImageModels } from '../../models/private-image.model.js';
+import { applicantDocumentModels } from '../../models/private-image.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
 import { AppError } from '../../utils/app-error.js';
 
 // Applicant documents use the existing authenticated, decoded/re-encoded image
-// pipeline and its durable quota. They never accept client-authored object keys.
+// pipeline, in a dedicated collection/bucket/quota. They never accept client-authored object keys.
 export function createApplicationIntakeService({ connection, contactCrypto, media, secret, uploadsAvailable }) {
   const { Contact } = identityModels(connection);
-  const { PrivateImage } = privateImageModels(connection);
+  const { PrivateImage } = applicantDocumentModels(connection);
   const { SitterApplication } = sitterApplicationModels(connection);
   async function verifiedContact(actor, contactLookupKey) {
     if (!actor?.roles?.includes('CUSTOMER') || actor.roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role))) {

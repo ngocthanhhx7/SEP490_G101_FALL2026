@@ -8,12 +8,16 @@ import { connectDatabase } from '../../src/config/database.js';
 import { userModel } from '../../src/models/user.model.js';
 import { publicPolicyVersionModel } from '../../src/models/public-policy-version.model.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
+import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
+import { identityModels } from '../../src/models/identity.model.js';
+import { privateImageModels, applicantDocumentModels } from '../../src/models/private-image.model.js';
 import { createSessionService } from '../../src/services/session.service.js';
 
 const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true',
   OTP_HMAC_SECRET: 'a'.repeat(32), SESSION_TOKEN_SECRET: 'b'.repeat(32), SESSION_CSRF_SECRET: 'c'.repeat(32),
   CONTACT_LOOKUP_SECRET: 'd'.repeat(32), CONTACT_ENCRYPTION_KEY: 'e'.repeat(32), R2_ENABLED: 'true',
-  R2_ACCOUNT_ID: 'a'.repeat(32), R2_BUCKET: 'synthetic-private', R2_ACCESS_KEY_ID: 'b'.repeat(32), R2_SECRET_ACCESS_KEY: 'c'.repeat(64) };
+  R2_ACCOUNT_ID: 'a'.repeat(32), R2_BUCKET: 'synthetic-private', R2_ACCESS_KEY_ID: 'b'.repeat(32), R2_SECRET_ACCESS_KEY: 'c'.repeat(64), SITTER_DOCUMENTS_ENABLED: 'true', SITTER_DOCUMENTS_R2_ACCOUNT_ID: 'a'.repeat(32),
+  SITTER_DOCUMENTS_R2_BUCKET: 'synthetic-applicant-documents', SITTER_DOCUMENTS_R2_ACCESS_KEY_ID: 'f'.repeat(32), SITTER_DOCUMENTS_R2_SECRET_ACCESS_KEY: 'a'.repeat(64) };
 const base = { Host: '127.0.0.1', Origin: 'http://127.0.0.1' };
 const policyVersions = { terms: 'synthetic-v1', privacy: 'synthetic-v1' };
 let replica, connection, app, sent, png, writes, unavailable;
@@ -26,10 +30,10 @@ async function register(email = 'applicant@example.test') {
     channel: 'EMAIL', contact: email, purpose: 'REGISTER', challengeId: challenge.body.data.challengeId,
     code: sent.at(-1).code, displayName: 'Ứng viên kiểm thử', policyVersions
   }).expect(200);
-  return { agent, csrf: result.body.data.csrfToken, id: result.body.data.user.id, email };
+  return { agent, csrf: result.body.data.csrfToken, id: result.body.data.user.id, email, cookie: result.headers['set-cookie'][0].split(';')[0] };
 }
 async function upload(owner, key = 'synthetic-image-key-0001', status = 201) {
-  const response = await owner.agent.post('/api/v1/private-images').set({ ...base, 'X-CSRF-Token': owner.csrf,
+  const response = await owner.agent.post('/api/v1/applicant-documents').set({ ...base, 'X-CSRF-Token': owner.csrf,
     'Idempotency-Key': key, 'Content-Type': 'image/png' }).send(png).expect(status);
   return response.body.data.id;
 }
@@ -49,7 +53,7 @@ beforeAll(async () => {
   const objects = new Map();
   app = createApp({ config: loadConfig(env), connection, lifecycle: { draining: false }, env, clock: () => clockNow, portOverrides: {
     contactDelivery: { send: async command => { sent.push(command); return { status: 'ACCEPTED' }; } },
-    privateMedia: {
+    applicantDocuments: {
       upload: async ({ storageRef, body, contentType }) => { if (unavailable) throw new Error('synthetic unavailable'); writes++; objects.set(storageRef, { body, contentType }); },
       read: async ({ storageRef }) => objects.get(storageRef),
       createReadCapability: async () => ({ url: 'https://private.example.test/short-lived', expiresAt: new Date(Date.now() + 60000).toISOString() })
@@ -122,7 +126,7 @@ test('guest/CSRF/contact/foreign-file/underage/tampered-file checks prevent subm
   await submit(owner, { ...application(owner, documentId), contactValue: 'unverified@example.test' }).expect(403);
   const other = await register('other@example.test');
   await submit(other, application(other, documentId), 'synthetic-other-application-01').expect(403);
-  await owner.agent.post('/api/v1/private-images').set({ ...base, 'X-CSRF-Token': owner.csrf,
+  await owner.agent.post('/api/v1/applicant-documents').set({ ...base, 'X-CSRF-Token': owner.csrf,
     'Idempotency-Key': 'synthetic-bad-image-0001', 'Content-Type': 'image/png' }).send(Buffer.from('not an image')).expect(422);
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(0);
 });
@@ -131,10 +135,10 @@ test('provider failure keeps the durable upload key retryable and never creates 
   const owner = await register();
   unavailable = true;
   const headers = { ...base, 'X-CSRF-Token': owner.csrf, 'Idempotency-Key': 'synthetic-image-retry-01', 'Content-Type': 'image/png' };
-  await owner.agent.post('/api/v1/private-images').set(headers).send(png).expect(503);
+  await owner.agent.post('/api/v1/applicant-documents').set(headers).send(png).expect(503);
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(0);
   unavailable = false;
-  const response = await owner.agent.post('/api/v1/private-images').set(headers).send(png).expect(201);
+  const response = await owner.agent.post('/api/v1/applicant-documents').set(headers).send(png).expect(201);
   expect(response.body.data.state).toBe('READY');
 });
 
@@ -145,4 +149,58 @@ test('missing or unapproved policy consent blocks application persistence', asyn
   await submit(owner, { ...application(owner, documentId), policyVersions: undefined }).expect(409);
   await submit(owner, { ...application(owner, documentId), policyVersions: { terms: 'unapproved', privacy: 'synthetic-v1' } }).expect(409);
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(0);
+});
+
+
+async function anotherVerifiedEmail(owner, email) {
+  const crypto = createContactCrypto({ lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY });
+  const canonical = crypto.lookup('EMAIL', email);
+  await identityModels(connection).Contact.create({ userId: owner.id, channel: 'EMAIL', state: 'VERIFIED',
+    verifiedAt: new Date(clockNow), lookupKey: canonical.lookupKey, canonicalCiphertext: crypto.encrypt(canonical.canonicalValue) });
+  return { ...owner, email };
+}
+
+test('owner cooldown survives verified email and identity changes after rejection', async () => {
+  const owner = await register();
+  const documentId = await upload(owner);
+  const created = await submit(owner, application(owner, documentId)).expect(201);
+  const admin = await userModel(connection).create({ displayName: 'Synthetic Admin', roles: ['ADMIN'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false });
+  const sessions = createSessionService({ connection, clock: () => clockNow, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
+  let issued;
+  await connection.transaction(async session => { issued = await sessions.issueInTransaction(admin, session); });
+  await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...base, Cookie: `pwc_session=${issued.token}`,
+    'X-CSRF-Token': issued.csrfToken, 'Idempotency-Key': 'synthetic-reject-owner-01' }).send({ action: 'REJECT', expectedVersion: 0, reason: 'Synthetic rejected application' }).expect(200);
+  const changed = await anotherVerifiedEmail(owner, 'changed@example.test');
+  await identityModels(connection).Contact.updateOne({ userId: owner.id, channel: 'EMAIL', lookupKey: createContactCrypto({
+    lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY }).lookup('EMAIL', owner.email).lookupKey }, { $set: { state: 'REPLACED' } });
+  await submit(changed, { ...application(changed, documentId), identityNumber: 'DIFFERENT12345' }, 'synthetic-reapply-owner-01').expect(409)
+    .expect(res => expect(res.body.error.code).toBe('REAPPLY_NOT_AVAILABLE'));
+  expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
+});
+
+test('concurrent commands with distinct verified emails and identities create at most one pending application per owner', async () => {
+  const owner = await register();
+  const second = await anotherVerifiedEmail(owner, 'second@example.test');
+  const documentId = await upload(owner);
+  const results = await Promise.all([submit(owner, application(owner, documentId), 'concurrent-owner-command-01'),
+    submit(second, { ...application(second, documentId), identityNumber: 'SECOND12345678' }, 'concurrent-owner-command-02')]);
+  expect(results.map(result => result.status).sort()).toEqual([201, 409]);
+  expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
+});
+
+test('owned photo IDs cannot be submitted as applicant documents', async () => {
+  const owner = await register();
+  const id = 'e'.repeat(64);
+  await privateImageModels(connection).PrivateImage.create({ _id: id, ownerId: owner.id, state: 'READY', inputDigest: 'f'.repeat(64), storageRef: `private-images/${id}` });
+  await submit(owner, application(owner, id)).expect(403);
+  expect(await applicantDocumentModels(connection).PrivateImage.countDocuments()).toBe(0);
+});
+
+test('photo R2 enabled with document flag off does not expose upload or enable intake', async () => {
+  const owner = await register();
+  const envWithoutDocuments = { ...env, SITTER_DOCUMENTS_ENABLED: 'false' };
+  const disabled = createApp({ config: loadConfig(envWithoutDocuments), connection, lifecycle: { draining: false }, env: envWithoutDocuments, clock: () => clockNow });
+  await request(disabled).get('/api/v1/applications/intake').set({ ...base, Cookie: owner.cookie }).expect(200)
+    .expect(res => expect(res.body.data.uploadsAvailable).toBe(false));
+  await request(disabled).post('/api/v1/applicant-documents').set({ ...base, Cookie: owner.cookie }).send({}).expect(404);
 });

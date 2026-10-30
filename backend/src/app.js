@@ -17,7 +17,7 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
-import { privateImageRuntimeModule } from './routes/private-image.routes.js';
+import { privateImageRuntimeModule, applicantDocumentRuntimeModule } from './routes/private-image.routes.js';
 import { sitterApplicationRuntimeModule } from './routes/sitter-application.routes.js';
 
 import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
@@ -78,6 +78,7 @@ export function createApp({
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
+  const applicantDocuments = applicantDocumentRuntimeModule(context);
   const publicProfiles = auth && typeof connection?.model === 'function'
     ? sitterPublicProfileModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
@@ -120,6 +121,7 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(applicantDocuments ? [applicantDocuments] : []),
     ...(sitterApplications ? [sitterApplications] : []),
     ...(publicProfiles ? [publicProfiles] : []),
     ...(payroll ? [payroll] : []),
