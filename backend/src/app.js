@@ -19,6 +19,7 @@ import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
 import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
+import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
 import { financeSourceRuntime } from './routes/finance-source-runtime.js';
 import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 
@@ -78,6 +79,8 @@ export function createApp({
   );
   const settlement = suppliedModules.some(module => module.name === 'settlement-requests')
     ? null : settlementRequestRuntimeModule(context);
+  const adminSettlement = suppliedModules.some(module => module.name === 'admin-settlements')
+    ? null : adminSettlementRuntimeModule(context);
   registerModules(app, [
     contactModule(context),
     healthModule(context),
@@ -89,6 +92,7 @@ export function createApp({
     ...(privateImages ? [privateImages] : []),
     ...(payroll ? [payroll] : []),
     ...(settlement ? [settlement] : []),
+    ...(adminSettlement ? [adminSettlement] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),

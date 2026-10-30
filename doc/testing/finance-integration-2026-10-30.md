@@ -27,6 +27,30 @@ held reservation withdrawal and a separate post-payout adjustment review item.
 
 ## Remaining operational integration
 
+## Admin settlement integration
+
+PR #64 integrates the #63 foundation and current develop. Owner: Thanh.
+Mandatory evidence ownership, reservation readiness and transfer-attempt ports
+now fail composition when omitted. The Admin route uses its own controller;
+rejection audit no longer mislabels held money as available.
+
+Actual checks on this integration: backend lint/architecture PASS; full backend
+81 suites / 757 tests PASS; frontend lint PASS, full frontend 75 suites / 466
+tests PASS, frontend build PASS with the existing bundle-size warning.
+The first focused unit run exposed outdated doubles missing the now-mandatory
+ports; the doubles and regressions were updated, then all suites passed.
+
+## Remaining source gates
+
+Private transfer evidence integration now uses the existing image uploader and
+owner-only content endpoint. READY metadata is rechecked inside the transfer
+transaction; its deterministic reference binds one image to one request. Failed
+transfers roll back evidence links, and UNKNOWN can reconcile with the same image.
+Checks after this change: backend lint/architecture PASS, 81 suites / 759 tests
+PASS; frontend lint PASS, 75 suites / 467 tests PASS; focused Admin UI/route
+9 tests PASS; frontend build PASS (existing bundle warning). Test media is isolated
+and synthetic. R2 and all production operations remain unchanged.
+
 The approved [FIN-07/08 decision](../requirements/finance-decisions-2026-10-30.md)
 does not supply booking payment allocations or tax assessments. The current base
 still lacks the primary persisted booking/completion, receipt/allocation and

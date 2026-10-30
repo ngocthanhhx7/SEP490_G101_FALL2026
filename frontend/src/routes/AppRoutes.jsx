@@ -38,9 +38,20 @@ import { ApplicationStatusPage } from '../pages/public/application-status/Applic
 import { applicationStatusApi } from '../services/application-status-api.js';
 import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
 import { createSettlementApi } from '../services/settlement-api.js';
+import AdminSettlementsPage from '../pages/admin/AdminSettlementsPage.jsx';
+import { createAdminSettlementApi } from '../services/admin-settlement-api.js';
+import { createPrivateImageApi } from '../services/private-image-api.js';
 import { createEmployeePayrollApi } from '../services/employee-payroll-api.js';
 import { EmployeePayrollPage } from '../pages/sitter/EmployeePayrollPage.jsx';
 import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPage.jsx';
+
+function AdminSettlementRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createAdminSettlementApi(createApiClient({ getCsrfToken }), {
+    privateImages: createPrivateImageApi({ getCsrfToken })
+  }), [getCsrfToken]);
+  return <AdminSettlementsPage key={user?.id} api={api} />;
+}
 
 function EmployeePayrollRoute({ admin = false }) {
   const { getCsrfToken, user } = useSession();
@@ -62,7 +73,8 @@ const navigationByRole = {
     ['Dịch vụ', '/admin/services'],
     ['Giá dịch vụ', '/admin/service-prices'],
     ['Cấu hình', '/admin/system-settings'],
-    ['Hồ sơ ứng tuyển', '/admin/sitter-applications']
+    ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
+    ['Duyệt tất toán', '/admin/settlements']
   ],
   CUSTOMER: [
     ['Tài khoản', '/account'],
@@ -129,6 +141,7 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['ADMIN']} />}>
         <Route element={<Workspace role="ADMIN" />}>
           <Route path="admin/users" element={<AdminUsersPage />} />
+          <Route path="admin/settlements" element={<AdminSettlementRoute />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
           <Route path="admin/services" element={<AdminServicesPage />} />
           <Route
