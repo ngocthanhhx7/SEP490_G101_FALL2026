@@ -28,7 +28,8 @@ Provision its additive indexes explicitly using
 `scripts/migrations/sitter-public-profile-storage.js --apply` in local/test only.
 Profile/directory readers join APPROVED profiles with active users and status,
 then aggregate only PUBLISHED CUSTOMER_TO_SITTER ratings. An absent `reviews`
-moderation collection stays pending. Signed directory/review cursors bind scope.
+moderation collection gives unknown ratings (`reviewsAvailable: false`, null
+rating/count) while approved eligible profiles remain visible. Signed directory/review cursors bind scope.
 No application text, review comment, customer identity or private document appears.
 
 Dashboard routes now wire an HTTP controller; the service imports role rules from

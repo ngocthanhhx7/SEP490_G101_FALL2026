@@ -31,7 +31,7 @@ function CustomerBasket({ services, session }) {
     } catch { if (id === requestId.current) setStatus('error'); }
   }
   if (pets.status === 'loading') return <p role="status">Đang tải hồ sơ thú cưng…</p>;
-  if (pets.status === 'empty') return <p><Link to="/account/sitter-recommendations">Thêm hồ sơ thú cưng</Link></p>;
+  if (pets.status === 'empty') return <p><Link to="/account/pets">Thêm hồ sơ thú cưng</Link></p>;
   if (pets.status !== 'success') return <div><p role="alert">Chưa tải được hồ sơ thú cưng.</p><button type="button" onClick={pets.retry}>Thử lại</button></div>;
   return <><BookingConfirmation api={api} /><form onSubmit={submit} className="pwc-service-basket">
     {rows.map((row, index) => {

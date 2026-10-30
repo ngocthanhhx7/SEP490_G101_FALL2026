@@ -9,7 +9,8 @@ function validRow(row, kind) {
   if (['startsAt', 'completedAt', 'transferRecordedAt'].some(key => row[key] !== undefined && row[key] !== null && !validDate(row[key]))) return false;
   if (['sitter-profile', 'sitter-list'].includes(kind)) return typeof row.displayName === 'string'
     && typeof row.bio === 'string' && Array.isArray(row.areas) && row.areas.every(area => typeof area === 'string')
-    && amount(row.reviewCount) && (row.reviewCount === 0 ? row.rating === null : Number.isFinite(row.rating) && row.rating >= 1 && row.rating <= 5);
+    && ((row.reviewsAvailable === false && row.reviewCount === null && row.rating === null)
+      || (amount(row.reviewCount) && (row.reviewCount === 0 ? row.rating === null : Number.isFinite(row.rating) && row.rating >= 1 && row.rating <= 5)));
   if (kind === 'earnings') return identifier(row.visitId) && validDate(row.completedAt)
     && ['accrued', 'pending', 'available', 'held', 'reserved', 'paid'].every(key => amount(row[key]))
     && typeof row.explanation === 'string' && typeof row.ledgerReference === 'string';

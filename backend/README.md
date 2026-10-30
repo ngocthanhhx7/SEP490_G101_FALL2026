@@ -106,6 +106,12 @@ Public contact form: `POST /api/v1/contact/messages` sends a consented request t
 Service catalog runtime: createApp mounts the existing catalog, price and visibility modules against MongoDB. See doc/deployment/service-catalog-live-handoff.md. For the owner-authorized initial three services, run node --env-file-if-exists=.env scripts/seeds/service-catalog.js (dry run), adding --apply to provision once; later Admin changes are preserved. This offline migration does not create an Admin account.
 
 
+## Customer care runtime
+
+Pet/address management, booking history and durable notifications are composed
+in runtime. See [Customer flow checks and release gates](../doc/testing/customer-flow-completion-2026-10-30.md)
+for APIs, storage provisioning and remaining care/AI integration boundaries.
+
 ## Đăng ký email và phiên ghi nhớ
 
 Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp nhận hồ sơ](../doc/testing/p34-registration-email-and-session.md). Đăng ký dùng OTP email; đăng nhập hỗ trợ OTP email và SMS cho liên hệ đã xác minh. SMS cần provider phía server được cấu hình và bật. Xem [kiểm tra giao diện và luồng đăng nhập](../doc/testing/login-email-sms-refresh.md). Tùy chọn ghi nhớ dành cho Customer/Pet Sitter tối đa 30 ngày; đăng xuất thu hồi phiên phía server.

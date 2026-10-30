@@ -6,6 +6,7 @@ import { fail, id, digest } from '../../validators/pet-care.validator.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
 import { financeSourceModels } from '../../models/finance-source.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
+import { notificationModels } from '../../models/notification.model.js';
 import { serviceVersionModel } from '../../models/service-version.model.js';
 import { servicePolicyVersionModel } from '../../models/service-policy-version.model.js';
 import { servicePriceVersionModel } from '../../models/service-price-version.model.js';
@@ -18,6 +19,7 @@ import { checkoutVisitMoney, CHECKOUT_POLICY_VERSION, PREPAY_WINDOW_MS } from '.
 
 export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
+  const { Notification } = notificationModels(connection);
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
   const Version = serviceVersionModel(connection), Policy = servicePolicyVersionModel(connection), Price = servicePriceVersionModel(connection),
     Presentation = servicePresentationModel(connection), Setting = systemSettingVersionModel(connection), { PricingPolicy } = pricingModels(connection);
@@ -169,6 +171,10 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           { _id: quoteClaim, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at }], { session, ordered: true });
         await events.create([{ _id: `booking-created:${bookingId}`, type: 'BookingCreated', bookingId: String(bookingId),
           actorId: actor.userId, resourceId: String(bookingId), at }], { session });
+        await Notification.create([{ _id: digest(['BOOKING_CREATED', String(bookingId)]), eventId: `booking:${bookingId}`,
+          recipientId: actor.userId, role: 'CUSTOMER', eventType: 'BOOKING_CREATED', title: 'Đã tiếp nhận đơn chăm sóc',
+          message: prepay ? 'Đơn đã được tạo. Vui lòng hoàn tất bước thanh toán trong thời hạn của đơn.' : 'Đơn đã được tạo và đang chờ xác nhận kế hoạch chăm sóc.',
+          deepLink: '/account/bookings', createdAt: at }], { session });
         return view(booking, session);
       });
     },

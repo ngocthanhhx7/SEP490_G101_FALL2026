@@ -34,7 +34,12 @@ export function petCareRuntimeModule({ config, connection, clock = Date.now, env
   router.get('/catalog', c.catalog);
   router.get('/pets', customer, c.pets);
   router.get('/addresses', customer, c.addresses);
+  router.get('/addresses/manage', customer, c.managedAddresses);
   router.post('/pets', customer, csrf, c.pet);
   router.post('/addresses', customer, csrf, c.address);
+  router.patch('/pets/:id', customer, csrf, c.updatePet);
+  router.patch('/addresses/:id', customer, csrf, c.updateAddress);
+  router.post('/pets/:id/archives', customer, csrf, c.archivePet);
+  router.post('/addresses/:id/archives', customer, csrf, c.archiveAddress);
   return { name: 'pet-care', mount: '/api/v1/pet-care', router };
 }

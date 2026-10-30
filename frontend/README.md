@@ -23,6 +23,12 @@ npm audit
 
 These commands were exercised locally on Windows with the ADR runtime. Stop dev/preview before `npm ci` on Windows: the running process can lock the native bundler dependency. Production needs SPA fallback to index.html for frontend routes and a separate /api/v1 upstream; Vite preview is a local build check. No deployment or CI workflow is configured by P03.
 
+## Customer care runtime
+
+Customer pet/address pages share checkout/matching data and include map
+search/pin confirmation plus care intake. Booking history and notification pages
+have runtime readers. See [checks and remaining gates](../doc/testing/customer-flow-completion-2026-10-30.md).
+
 ## Demo Catalogue
 
 Public service pages display category/location/duration and local photographs, with category,

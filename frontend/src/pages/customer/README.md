@@ -1,34 +1,36 @@
-This folder contains Customer-owned profile, service-address, pet, and unpaid-booking screens. Each page uses shared P04 controls and a domain adapter from `src/services`; API ownership and role authorization remain server responsibilities.
+# Customer pages
 
-`SitterRecommendationsPage` is registered at `/account/sitter-recommendations`
-behind the Customer guard. It uses `/pet-care` owned pets/confirmed addresses,
-separate from the unmounted legacy `/pets` adapter. Customers can add basic
-confirmed care context and request a Vietnam-time slot; shortlist displays
-explanations, limited history/search, routing failure and expiry. It never sends
-an offer or computes money. Persistent booking/proposal/offer integration and
-an actual trusted Hanoi routing dataset remain release dependencies.
+Customer-owned profile, service-address, pet and booking presentation belongs here.
+Shared transport belongs in `../../services`; backend enforces ownership.
 
-`CustomerUnpaidBookingsPage` renders the server-projected unpaid-booking list and starts a payment-intent command for multi-visit prepayment through an injected API adapter. Single-visit postpay bills need a separate P01/P34 command. The page does not infer payment success from query parameters or browser return URLs, and fails closed when server clock metadata is unavailable.
+## Current runtime
 
-P14 registers `CustomerProfilePage` at `/account/profile` behind the Customer role guard. It uses the runtime session/CSRF adapter and `/api/v1/me/profile` for display-name updates and masked verified contacts. The backend derives ownership from the current session; version conflicts require reloading before retrying.
+- `CustomerCarePage` serves `/account/pets`, `/account/pets/:petId` and
+  `/account/addresses` using `customer-care-api.js` and shared `/pet-care` data
+  consumed by checkout/matching. Create/edit/archive commands retain operation
+  keys after uncertain responses and edits/archives check expected versions.
+- Pet intake includes breed, species-specific traits, weight, approximate age,
+  sex and known/unknown/not-provided care notes. These are owner declarations,
+  not verified medical records. Confirmation resets during edits.
+- Address intake uses `AddressSearch` and `VietmapView`, work areas, full address,
+  coordinates, explicit pin confirmation and private access notes. Changing
+  location/area/pin resets confirmation. Owner management uses
+  `/pet-care/addresses/manage`; the matching list stays minimal.
+- `CustomerBookingsPage` reads owner-scoped `/bookings` across all states with
+  cursor pagination; details open the existing checkout confirmation.
+  `/account/notifications` uses durable notifications and read receipts.
+- `CustomerProfilePage` uses `/me/profile` and session/CSRF. The separate
+  `CustomerUnpaidBookingsPage` displays unpaid projections/payment intents;
+  browser return URLs cannot establish payment success.
 
-Customer-facing pages that manage a Customer's own Paw World Care data belong here. The pet list is WBS-014; pet details and editing belong to WBS-015.
+Legacy pet/address pages and adapters remain for import compatibility. Their
+old `/pets` and `/addresses` contracts are not the current management source.
 
-`PetListPage` and `PetDetailsPage` are registered behind the Customer guard in `AppRoutes`. P34 injects the current session/CSRF adapter. Its default detail links point to `/account/pets/:petId`; P34 may supply the `detailsPath` prop when integrating the final route. The page uses the same-origin API client through `services/pet-api.js` and has no product mock or fallback data.
+## Remaining boundaries
 
-`DirectedBookingProposalPage` renders the Customer confirmation boundary for a
-Customer-selected sitter. It reads a server proposal, displays only the
-server-projected slot and booking snapshots, and sends one idempotent
-confirmation command before an offer can be shown. It is intentionally not
-registered in `AppRoutes`; P34 owns the final route and live booking adapter.
-The page stays `INTEGRATION_PENDING` until the proposal repository, payment
-gate and offer dispatch transaction are mounted in the runtime.
-
-**UI status: PROVISIONAL.** It uses the P04 token and component contract; no P15-specific Figma frame was supplied or inspected.
-
-**Integration status: INTEGRATION_PENDING.** The P01/P14/P50 work is not all on `origin/develop`, and end-to-end route/provider verification is pending. This branch includes injected services and unit tests, but no Pet schema, controller, route registration, or live session/CSRF wiring. Before wiring a live provider, confirm the server's list envelope with P01; the adapter currently accepts either `data: PetView[]` or `data: { items: PetView[], nextCursor }` and rejects other shapes instead of presenting them as an empty list. Mutations require the existing in-memory CSRF adapter and return a real server acknowledgement before the UI reports success.
-
-
-`CustomerBookingsPage` at `/account/bookings` requests the complete history without a payment/state filter and supports cursor pagination. The expected projection is `{id, state, reference?, serviceName?}` in `data: []` or `data.items`, plus an optional `nextCursor`. HTTP failures are shown as unavailable, never as an empty history. This read contract still needs the P01 booking endpoint in the default backend runtime. `/account/notifications` reuses the existing notifications page/API, with the same current-session CSRF wiring.
-
-Frontend routes are connected; runtime backend Pet and Notification repository/routes and Booking reads are still pending integration. No production mock data or fake success is supplied.
+`SitterRecommendationsPage` displays an advisory shortlist from shared owned
+pets/confirmed addresses; it never sets prices or sends offers.
+`DirectedBookingProposalPage` remains unregistered pending its final live
+proposal/payment/offer integration. Owner care notes do not yet constitute a
+care snapshot accessible to the assigned sitter. See
+[checks and remaining gates](../../../../doc/testing/customer-flow-completion-2026-10-30.md).
