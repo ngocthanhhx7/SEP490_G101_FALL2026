@@ -35,6 +35,18 @@ test('wrong role fails closed with a forbidden state', async () => {
   expect(screen.queryByRole('banner')).not.toBeInTheDocument();
 });
 
+test.each(['ADMIN', 'STAFF', 'PET_SITTER'])('operational %s navigation has named groups and no redundant header label or chevron', async role => {
+ const { container } = renderLayout({ role,
+   result: { status: 'authenticated', user: { id: 'operator', displayName: 'Nguyễn An', roles: [role] } },
+   navigationItems: [{ label: 'Tổng quan', to: '/overview', group: 'Công việc' }, { label: 'Tài khoản của tôi', to: '/account', group: 'Cá nhân' }]
+ });
+ await screen.findByRole('heading', { name: 'Trang tổng quan' });
+ expect(screen.getByRole('heading', { name: 'Công việc', level: 3 })).toBeVisible();
+ expect(screen.getByRole('heading', { name: 'Cá nhân', level: 3 })).toBeVisible();
+ expect(container.querySelector('.pwc-role-shell__workspace')).not.toBeInTheDocument();
+ expect(container.querySelector('.pwc-avatar-menu__chevron')).not.toBeInTheDocument();
+});
+
 test('Customer mobile menu expands inline, closes on Escape and returns focus', async () => {
   const previous = window.matchMedia;
   window.matchMedia = jest.fn().mockReturnValue({ matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn() });

@@ -203,7 +203,6 @@ export function RoleDashboardLayout({
       <Link to="/" className="pwc-role-shell__brand" aria-label="Paw World Care — Trang chủ">
         <BrandLogo />
       </Link>
-      <p className="pwc-role-shell__workspace">{config.workspace}</p>
       <div className="pwc-role-shell__header-actions">
         <NotificationBell to={notificationTo} />
         <button ref={mobileNavToggleRef} className="pwc-role-shell__mobile-nav-toggle"
@@ -232,12 +231,15 @@ export function RoleDashboardLayout({
         <h2 className="pwc-role-shell__sidebar-title"><Building2 size={15} aria-hidden="true" />{config.label}</h2>
         {safeNavigationItems.length > 0
           ? <nav className="pwc-role-shell__navigation" aria-label={config.navigation}>
-            {safeNavigationItems.map((item) => <NavLink key={item.key ?? item.to}
+            {[...new Set(safeNavigationItems.map(item => item.group || 'Điều hướng'))].map(group => <section className="pwc-role-shell__nav-group" key={group}>
+              <h3>{group}</h3>
+              {safeNavigationItems.filter(item => (item.group || 'Điều hướng') === group).map((item) => <NavLink key={item.key ?? item.to}
               to={item.to} end={item.end} className={({ isActive }) =>
                 'pwc-role-shell__nav-link' + (isActive ? ' is-active' : '')}
               onClick={() => setMobileNavOpen(false)}>
               <NavigationIcon to={item.to} />{item.label}
             </NavLink>)}
+            </section>)}
           </nav>
           : <p className="pwc-role-shell__navigation-empty" role="status">
             Chưa có trang điều hướng trong khu vực này.

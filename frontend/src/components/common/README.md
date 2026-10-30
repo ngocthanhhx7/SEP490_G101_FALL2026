@@ -25,3 +25,12 @@ This component is presentation and navigation only. Server-side authorization re
 plots and an accessible daily data table. `RowActionMenu` renders a portal menu
 with keyboard focus and viewport positioning. `NotificationBell` reads durable
 unread counts and refreshes after read receipts and document visibility changes.
+
+`NotificationBell` now renders an accessible hover/click/keyboard preview through
+a viewport-positioned portal. `NotificationToast` announces newly discovered unread
+records at the top right. Both consume `NotificationContext` under the App session;
+it polls the existing owner-scoped API every 30 seconds while visible, listens for
+read-receipt events, aborts obsolete requests and resets private state on account or
+role changes. Initial history does not produce toasts; unread dots use server counts.
+Receipt retries retain the same idempotency key and use the current session CSRF.
+The account trigger keeps its hover/click behavior without the decorative chevron.

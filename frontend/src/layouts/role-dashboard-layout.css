@@ -261,7 +261,7 @@
 
 .pwc-workspace-shell { background: #f6f7f9; --pwc-radius-control: 6px; --pwc-radius-panel: 8px; --pwc-text-heading: 26px; }
 .pwc-workspace-shell h1, .pwc-workspace-shell h2, .pwc-workspace-shell h3 { font-family: var(--pwc-font-body); }
-.pwc-workspace-shell .pwc-role-shell__header { min-height: 68px; position: sticky; top: 0; gap: 28px; padding: 8px 24px; border-color: #e0e3e8; }
+.pwc-workspace-shell .pwc-role-shell__header { grid-template-columns: minmax(0, 1fr) auto; min-height: 68px; position: sticky; top: 0; gap: 28px; padding: 8px 24px; border-color: #e0e3e8; }
 .pwc-workspace-shell .pwc-role-shell__brand img { width: 155px; }
 .pwc-workspace-shell .pwc-role-shell__workspace { font-size: 14px; }
 .pwc-workspace-shell .pwc-role-shell__body { grid-template-columns: 236px minmax(0, 1fr); }
@@ -273,9 +273,9 @@
 .pwc-workspace-shell .pwc-role-shell__nav-link.is-active svg { color: #7351ac; }
 .pwc-workspace-shell .pwc-role-shell__main { padding: 28px; }
 .pwc-workspace-shell .pwc-role-shell__footer { padding: 12px 24px; border-color: #e0e3e8; font-size: 12px; }
-.workspace-notification-bell { display: inline-flex; position: relative; align-items: center; justify-content: center; width: 40px; height: 40px; color: var(--pwc-ink); border-radius: 6px; text-decoration: none; }
-.workspace-notification-bell:hover { background: #f0eaf8; }
-.workspace-notification-bell > span { position: absolute; top: -1px; right: -3px; min-width: 18px; padding: 1px 4px; border-radius: 10px; color: #fff; background: #a52232; font: 800 11px var(--pwc-font-body); text-align: center; }
+.pwc-role-shell__nav-group { display: grid; gap: 2px; padding-bottom: 12px; }
+.pwc-role-shell__nav-group + .pwc-role-shell__nav-group { border-top: 1px solid #edf0f3; padding-top: 12px; }
+.pwc-workspace-shell .pwc-role-shell__nav-group h3 { margin: 0 12px 6px; font-size: 12px; font-weight: 800; color: #667080; }
 .workspace-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .pwc-workspace-shell .admin-system-settings, .pwc-workspace-shell .admin-service-prices, .pwc-workspace-shell .admin-services { max-width: none; padding: 0; margin: 0; background: transparent; }
 .pwc-workspace-shell .admin-settings-logo, .pwc-workspace-shell .admin-price-logo, .pwc-workspace-shell .admin-services-logo,
