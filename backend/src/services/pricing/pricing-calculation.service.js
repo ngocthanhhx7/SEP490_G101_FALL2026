@@ -2,7 +2,7 @@ import { exact, fail, number } from '../../validators/pet-care.validator.js';
 export function validatePricingPolicy(policy) {
   if (
     policy.billingMode !== undefined &&
-    !['PER_UNIT', 'PER_VISIT'].includes(policy.billingMode)
+    !['PER_UNIT', 'PER_VISIT', 'PER_DAY', 'PER_KM'].includes(policy.billingMode)
   )
     fail('VALIDATION_FAILED', 'Invalid billing mode');
   number(policy.unitMinutes, 1, 1440, true);
@@ -12,6 +12,10 @@ export function validatePricingPolicy(policy) {
   number(policy.orderStepVnd, 1, Number.MAX_SAFE_INTEGER, true);
   number(policy.orderStepBps, 0, 10000, true);
   number(policy.maxOrderTierBps, 0, 50000, true);
+  if (policy.groupStrategy !== undefined && !['REJECT', 'MAX'].includes(policy.groupStrategy))
+    fail('VALIDATION_FAILED', 'Invalid group strategy');
+  number(policy.comboPerVisitBps ?? 0, 0, 1000, true);
+  number(policy.comboMaxBps ?? 0, 0, 1000, true);
   if (
     !Array.isArray(policy.rules) ||
     policy.rules.length > 50 ||
@@ -49,7 +53,9 @@ export function validatePricingPolicy(policy) {
       'breedCodes',
       'traitCode',
       'minWeightKg',
-      'maxWeightKg'
+      'maxWeightKg',
+      'minWeightExclusive',
+      'maxWeightInclusive'
     ]);
     if (rule.when.species && !['DOG', 'CAT'].includes(rule.when.species))
       fail('VALIDATION_FAILED', 'Invalid species');
@@ -73,6 +79,9 @@ export function validatePricingPolicy(policy) {
       number(rule.when.minWeightKg, 0, 150);
     if (rule.when.maxWeightKg !== undefined)
       number(rule.when.maxWeightKg, 0, 150);
+    for (const key of ['minWeightExclusive', 'maxWeightInclusive'])
+      if (rule.when[key] !== undefined && typeof rule.when[key] !== 'boolean')
+        fail('VALIDATION_FAILED', 'Invalid weight boundary');
     if (
       rule.when.minWeightKg !== undefined &&
       rule.when.maxWeightKg !== undefined &&
@@ -93,8 +102,8 @@ function matches(pet, when) {
     (!when.species || pet.species === when.species) &&
     (!when.breedCodes?.length || when.breedCodes.includes(pet.breedCode)) &&
     (!when.traitCode || pet.traits.includes(when.traitCode)) &&
-    (when.minWeightKg === undefined || pet.weightKg >= when.minWeightKg) &&
-    (when.maxWeightKg === undefined || pet.weightKg < when.maxWeightKg)
+    (when.minWeightKg === undefined || (when.minWeightExclusive ? pet.weightKg > when.minWeightKg : pet.weightKg >= when.minWeightKg)) &&
+    (when.maxWeightKg === undefined || (when.maxWeightInclusive ? pet.weightKg <= when.maxWeightKg : pet.weightKg < when.maxWeightKg))
   );
 }
 export function calculateQuote({
@@ -103,26 +112,38 @@ export function calculateQuote({
   policy,
   pets,
   durationMinutes,
-  visitCount = 1
+  visitCount = 1,
+  dayCount,
+  distanceMeters,
+  deferOrderAdjustments = false
 }) {
   validatePricingPolicy(policy);
   number(baseAmountVnd, 1, Number.MAX_SAFE_INTEGER, true);
   number(durationMinutes, 1, 1440, true);
   number(visitCount, 1, 60, true);
+  if (policy.billingMode === 'PER_DAY') number(dayCount, 1, 60, true);
+  else if (dayCount !== undefined) fail('VALIDATION_FAILED', 'Days only apply to daily services');
+  if (policy.billingMode === 'PER_KM') number(distanceMeters, 1, 1000000, true);
+  else if (distanceMeters !== undefined) fail('VALIDATION_FAILED', 'Distance only applies to transport');
   if (!Array.isArray(pets) || !pets.length || pets.length > policy.maxPets)
     fail('PET_LIMIT', 'Unsupported pet count');
   const units =
-    policy.billingMode === 'PER_VISIT'
+    policy.billingMode === 'PER_DAY' ? dayCount : policy.billingMode === 'PER_KM' ? distanceMeters : policy.billingMode === 'PER_VISIT'
       ? 1
       : Math.ceil(durationMinutes / policy.unitMinutes);
-  const visitBase = safe(BigInt(baseAmountVnd) * BigInt(units));
+  const visitBase = safe(policy.billingMode === 'PER_KM'
+    ? (BigInt(baseAmountVnd) * BigInt(distanceMeters) + 500n) / 1000n
+    : BigInt(baseAmountVnd) * BigInt(units));
   const base = safe(BigInt(visitBase) * BigInt(visitCount));
   const lines = [
     {
       code: 'BASE',
       amountVnd: base,
       basisVnd: base,
-      explanation: `${visitCount} lượt × ${units} đơn vị thời lượng × ${baseAmountVnd} VND; làm tròn lên theo đơn vị ${policy.unitMinutes} phút.`
+      explanation: policy.billingMode === 'PER_KM' ? `${visitCount} lượt × ${distanceMeters} mét × ${baseAmountVnd} VND/km.`
+        : policy.billingMode === 'PER_DAY' ? `${visitCount} lượt × ${dayCount} ngày × ${baseAmountVnd} VND/ngày.`
+        : policy.billingMode === 'PER_VISIT' ? `${visitCount} lượt × ${baseAmountVnd} VND/lượt.`
+        : `${visitCount} lượt × ${units} đơn vị thời lượng × ${baseAmountVnd} VND; làm tròn lên theo đơn vị ${policy.unitMinutes} phút.`
     }
   ];
   const extraBps = policy.extraPetBps * (pets.length - 1);
@@ -135,7 +156,7 @@ export function calculateQuote({
       explanation: 'Công chăm sóc pet bổ sung theo chính sách dịch vụ.'
     });
   let totalBps = extraBps;
-  const groups = new Set();
+  const groups = new Map(), candidates = [];
   for (const rule of policy.rules) {
     const matching = pets.filter((p) => matches(p, rule.when));
     const targets =
@@ -146,16 +167,14 @@ export function calculateQuote({
         : matching;
     for (const pet of targets) {
       const group = rule.exclusiveGroup && `${pet._id}:${rule.exclusiveGroup}`;
-      if (group && groups.has(group))
+      if (group && groups.has(group) && policy.groupStrategy !== 'MAX')
         fail(
           'PRICING_RULE_CONFLICT',
           'Overlapping exclusive surcharge rules',
           409
         );
-      if (group) groups.add(group);
-      totalBps += rule.bps;
       const fixed = safe(BigInt(rule.flatVnd) * BigInt(visitCount));
-      lines.push({
+      const line = {
         code: rule.code,
         petId: rule.scope === 'PET' ? String(pet._id) : undefined,
         label: rule.label,
@@ -163,20 +182,30 @@ export function calculateQuote({
         basisVnd: base,
         amountVnd: safe(BigInt(fee(base, rule.bps)) + BigInt(fixed)),
         explanation: rule.explanation
-      });
+      };
+      if (group) {
+        const prior = groups.get(group);
+        if (!prior || line.amountVnd > prior.amountVnd || (line.amountVnd === prior.amountVnd && line.code < prior.code)) groups.set(group, line);
+      } else candidates.push(line);
     }
   }
+  for (const line of [...candidates, ...groups.values()]) { lines.push(line); totalBps += line.bps; }
   if (totalBps > policy.maxSurchargeBps)
     fail(
       'SURCHARGE_REVIEW_REQUIRED',
       'Surcharges exceed automatic quote cap',
       409
     );
-  const subtotal = safe(
+  const grossSubtotal = safe(
     lines.reduce((sum, line) => sum + BigInt(line.amountVnd), 0n)
   );
+  const comboBps = deferOrderAdjustments ? 0 : Math.min(visitCount * (policy.comboPerVisitBps ?? 0), policy.comboMaxBps ?? 0);
+  const discount = fee(base, comboBps);
+  if (comboBps) lines.push({ code: 'COMBO_DISCOUNT', bps: comboBps, basisVnd: base, amountVnd: -discount,
+    explanation: 'Giảm theo tổng lượt dịch vụ, tối đa 10%, trên tiền dịch vụ trước phụ phí.' });
+  const subtotal = grossSubtotal - discount;
   const tiers = Math.floor(subtotal / policy.orderStepVnd),
-    tierBps = tiers * policy.orderStepBps;
+    tierBps = deferOrderAdjustments ? 0 : tiers * policy.orderStepBps;
   if (tierBps > policy.maxOrderTierBps)
     fail('ORDER_TIER_REVIEW_REQUIRED', 'Order tier exceeds approved cap', 409);
   const orderFee = fee(subtotal, tierBps);
@@ -196,7 +225,9 @@ export function calculateQuote({
     priceVersion,
     policyVersion: policy.version,
     rounding: 'HALF_UP_VND_PER_LINE',
-    durationUnits: units,
+    durationUnits: policy.billingMode === 'PER_KM' ? undefined : units,
+    ...(distanceMeters !== undefined ? { distanceMeters } : {}),
+    ...(dayCount !== undefined ? { dayCount } : {}),
     visitCount,
     kind: 'ESTIMATE',
     paymentMode: visitCount === 1 ? 'POSTPAY' : 'PREPAY',

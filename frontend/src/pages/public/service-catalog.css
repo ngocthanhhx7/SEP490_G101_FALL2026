@@ -1,8 +1,23 @@
 .pwc-service-list-page { max-width: 1280px; padding: 64px 40px 80px; }
 .pwc-service-list-page .pwc-page-intro { text-align: center; max-width: 850px; margin: 0 auto 28px; padding-block: 16px 24px; }
-.pwc-service-list-page .pwc-page-intro h1 { font-size: clamp(36px,4vw,54px); line-height: 1.15; color: #2c0050; }
+.pwc-service-list-page .pwc-page-intro h1 { font-size: 40px; line-height: 1.15; color: #2c0050; }
 .pwc-service-list-page .pwc-page-intro .pwc-lead { color: #5c5261; font-size: 18px; }
-.pwc-service-list-page .pwc-catalog-filters { max-width: 860px; margin: 0 auto 28px; padding: 0; border: 0; background: transparent; align-items: end; }
+.pwc-service-list-page .pwc-catalog-filters { max-width: none; margin: 0 auto 28px; padding: 0; border: 0; background: transparent; align-items: end; flex-wrap: wrap; }
+.pwc-service-list-page .pwc-catalog-filters label { display: grid; gap: 8px; min-width: 150px; }
+.pwc-service-facts { display: flex; flex-wrap: wrap; gap: 8px 16px; color: #5c5261; font-size: 14px; line-height: 22px; }
+.pwc-service-facts span { border-bottom: 1px solid #e0d8e5; }
+.pwc-service-basket-section { margin-top: 48px; padding-block: 24px; border-block: 1px solid #d5c9dc; }
+.pwc-basket-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin-bottom: 16px; }
+.pwc-basket-row label { display: grid; flex: 1 1 150px; min-width: 0; gap: 6px; }
+.pwc-basket-row select, .pwc-basket-row input { min-width: 0; width: 100%; height: 44px; font: inherit; border: 1px solid #d5c9dc; border-radius: 8px; background: white; padding: 8px; }
+.pwc-service-basket button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid #d5c9dc; background: white; border-radius: 8px; padding: 8px 12px; color: #2c0050; font: inherit; cursor: pointer; }
+.pwc-basket-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.pwc-basket-actions button[type='submit'] { background: #ffcd34; }
+.pwc-service-basket button:disabled { opacity: .55; cursor: default; }
+.pwc-basket-total { max-width: 540px; margin-top: 24px; }
+.pwc-basket-total dl > div { display: flex; justify-content: space-between; gap: 20px; padding: 8px 0; }
+.pwc-basket-total dd { margin: 0; white-space: nowrap; }
+.pwc-basket-total dl > div:last-child { border-top: 1px solid #d5c9dc; font-weight: 800; font-size: 20px; }
 .pwc-service-list-page .pwc-filter-search { flex: 1; }
 .pwc-service-list-page .pwc-catalog-filters input, .pwc-service-list-page .pwc-catalog-filters select { background: white; border: 1px solid #d5c9dc; border-radius: 100px; min-height: 50px; padding: 12px 20px; font: inherit; }
 .pwc-service-result-count { color: #665a6c; margin: 0 0 20px; font-size: 14px; }
@@ -90,3 +105,15 @@
  .pwc-catalog-help { flex-direction: column; align-items: start; padding: 24px; }
  .pwc-service-list-page .pwc-service-card-photo > img { height: 240px; }
 }
+.pwc-booking-checkout, .pwc-booking-confirmation { margin: 2rem 0; border-top: 1px solid #d4dcd8; padding-top: 1.25rem; overflow-wrap: anywhere; }
+.pwc-booking-checkout fieldset { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
+.pwc-checkout-visit { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #d4dcd8; }
+.pwc-checkout-visit h4 { grid-column: 1 / -1; margin: 0; font-size: 1rem; }
+.pwc-checkout-visit label { display: grid; gap: .4rem; min-width: 0; }
+.pwc-checkout-visit input, .pwc-checkout-visit select { min-width: 0; width: 100%; box-sizing: border-box; padding: .6rem; border: 1px solid #849a90; border-radius: 4px; background: white; font: inherit; color: #202b28; }
+.pwc-checkout-consent { display: flex; align-items: start; gap: .6rem; margin-top: 1rem; }
+.pwc-checkout-consent input { flex: none; margin-top: .3rem; }
+.pwc-checkout-policy { white-space: pre-line; }
+.pwc-booking-checkout button, .pwc-booking-confirmation button, .pwc-booking-confirmation > a { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-height: 44px; padding: .6rem .8rem; margin: .5rem .5rem 0 0; border: 1px solid #28644b; border-radius: 4px; background: white; color: #20563f; font: inherit; cursor: pointer; }
+.pwc-booking-checkout button[type=submit] { background: #28644b; color: white; }
+.pwc-booking-confirmation li { margin: .75rem 0; }

@@ -8,3 +8,5 @@ Thư mục chứa hợp đồng REST, DTO/events, quyền và lỗi để review
 - P37-B ghi [SDS/API và sơ đồ đồng bộ](../architecture/p37-sds-api-diagram-synchronization-v1.md), bao gồm phân biệt module đã mount với module export chờ P34.
 
 - [AI v1: báo giá, shortlist sitter và hướng dẫn test](ai-pricing-matching-v1.md).
+- [Employee scheduling, checkout and dispatch](employee-scheduling-checkout.md).
+- [Google Maps / Goong setup](../deployment/google-goong-maps.md).

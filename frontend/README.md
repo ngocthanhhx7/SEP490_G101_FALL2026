@@ -4,6 +4,13 @@ P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/archit
 
 From `frontend/`:
 
+The composed demo includes customer quote/checkout, separate employee area and shift screens,
+invitations, Staff dispatch and customer confirmation of a directed schedule proposal.
+`pages/public/BookingCheckout.jsx` owns checkout presentation; `pages/staff/EmployeeDispatchPage.jsx`
+owns Staff presentation, and `services/employee-scheduling-api.js` owns transport only.
+Google/Vietmap address search, route ETA and foreground visit travel are configured through the backend; see
+[maps setup](../doc/deployment/google-goong-maps.md) and [scheduling API](../doc/api/employee-scheduling-checkout.md).
+
 ```bash
 npm ci
 npm run dev -- --host 127.0.0.1
@@ -16,7 +23,28 @@ npm audit
 
 These commands were exercised locally on Windows with the ADR runtime. Stop dev/preview before `npm ci` on Windows: the running process can lock the native bundler dependency. Production needs SPA fallback to index.html for frontend routes and a separate /api/v1 upstream; Vite preview is a local build check. No deployment or CI workflow is configured by P03.
 
+## Demo Catalogue
+
+Public service pages display category/location/duration and local photographs, with category,
+location, species and search filters. `ServiceBasket.jsx` lets signed-in Customers request
+server-priced baskets for owned pets; editing clears stale estimates. Transport lives in
+`services/service-basket-api.js`; source/license metadata lives with the service assets.
+
 ## Responsibilities
+
+`components/common/VietmapView.jsx` renders the lazily loaded Vietmap GL SDK for
+explicit customer pin selection and fresh, authorized visit locations. The SDK
+only requests same-origin authenticated map resources; no provider key is bundled.
+Address confirmation and work-area selection remain explicit. Closing the address
+form or stopping/expiring visit sharing removes the map.
+
+Employee payroll pages live in `src/pages/sitter/EmployeePayrollPage.jsx` and
+`src/pages/admin/EmployeePayrollAdminPage.jsx`, with shared rendering in `src/components/payroll/`,
+request lifecycle in `src/hooks/usePayrollWorkspace.js` and same-origin transport in
+`src/services/employee-payroll-api.js`. Backend owns every financial calculation. Unknown mutation
+acknowledgements retain the same operation key for an identical retry. No bank transfer is performed.
+`components/payroll/PayrollAdjustmentForms.jsx` owns Admin correction and evidence forms; both
+role workspaces read paginated adjustment history without changing original salary statements.
 
 `demo-ai/` là trang HTML/JS quan sát AI độc lập chỉ phục vụ bởi backend/scripts/demo-ai.js trên loopback3011; không nằm trong bundle sản phẩm. Xem [bộ tài khoản và tình huống demo](../doc/testing/ai-demo-accounts.md).
 

@@ -1,0 +1,13 @@
+.pwc-projection { color: var(--pwc-ink); max-width: var(--pwc-content-width); min-width: 0; }
+.pwc-projection h1 { font-family: var(--pwc-font-display); font-weight: 400; }
+.pwc-projection__filters { display: flex; flex-wrap: wrap; align-items: end; gap: 1rem; margin-block: 1.5rem; }
+.pwc-projection__filters label { display: grid; gap: .5rem; min-width: 0; }
+.pwc-projection input { box-sizing: border-box; min-height: var(--pwc-target); max-width: 100%; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); padding: .5rem; font: inherit; color: inherit; }
+.pwc-projection__metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 1rem; }
+.pwc-projection__metrics > div, .pwc-projection__items > li { background: var(--pwc-surface); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); padding: 1rem; overflow-wrap: anywhere; }
+.pwc-projection dd { margin: .25rem 0 1rem; font-weight: 700; }
+.pwc-projection__items { display: grid; gap: 1rem; padding: 0; list-style: none; }
+.pwc-projection__items h2 { font-size: var(--pwc-text-large); }
+.pwc-projection__pagination { display: flex; flex-wrap: wrap; gap: 1rem; }
+.pwc-projection :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
+@media (max-width: 30rem) { .pwc-projection__filters { display: grid; } .pwc-projection input { width: 100%; } }

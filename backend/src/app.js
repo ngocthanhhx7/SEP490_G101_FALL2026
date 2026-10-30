@@ -18,6 +18,15 @@ import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
+import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
+import { dashboardReadRuntimeModule } from './routes/dashboard-runtime.routes.js';
+import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
+import { sitterPublicProfileModule } from './routes/sitter-public-profile.routes.js';
+import { financeSourceRuntime } from './routes/finance-source-runtime.js';
+import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
+import { bookingCheckoutRuntimeModule } from './routes/booking-checkout.routes.js';
+import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.routes.js';
+import { mapsRuntimeModule } from './routes/maps.routes.js';
 
 export function createApp({
   config,
@@ -59,15 +68,43 @@ export function createApp({
   const pricing = pricingRuntimeModule(context);
   const petCare = petCareRuntimeModule(context);
   const auth = authenticationModule({ ...context, logger });
+  const financeSources = financeSourceRuntime(context);
+  if (auth && financeSources) auth.router.use(financeSources.router);
+  app.locals.financeSources = financeSources?.service ?? null;
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
-  const suppliedModules = moduleFactories.map((factory) => factory(context));
+  const publicProfiles = auth && typeof connection?.model === 'function'
+    ? sitterPublicProfileModule({ ...context, sessionService: auth.sessionService }) : null;
+  const payroll = payrollRuntimeModule(context);
+  const checkout = bookingCheckoutRuntimeModule(context);
+  const employeeScheduling = employeeSchedulingRuntimeModule(context);
+  const maps = mapsRuntimeModule(context);
+  if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_DISPATCH_AGENT_ENABLED)) throw new TypeError('Invalid EMPLOYEE_DISPATCH_AGENT_ENABLED');
+  if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' && !employeeScheduling) throw new TypeError('Employee dispatch agent requires employee scheduling');
+  app.locals.employeeDispatch = env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' ? employeeScheduling.dispatch : null;
+  const suppliedModules = moduleFactories.map((factory) => factory(context))
+    .filter(module => module !== null && module !== undefined);
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
     (module) =>
       !suppliedModules.some((supplied) => supplied.name === module.name)
   );
+  const settlement = suppliedModules.some(module => module.name === 'settlement-requests')
+    ? null : settlementRequestRuntimeModule(context);
+  const adminSettlement = suppliedModules.some(module => module.name === 'admin-settlements')
+    ? null : adminSettlementRuntimeModule(context);
+  const dashboards = suppliedModules.some(module => module.name === 'dashboard-read')
+    ? null : dashboardReadRuntimeModule({ ...context, sessionService: auth?.sessionService });
+  const suppliedDashboards = suppliedModules.filter(module => module.name === 'dashboard-read');
+  if (suppliedDashboards.length > 1) throw new TypeError('Duplicate dashboard module');
+  if (auth) {
+    const dashboard = dashboards ?? suppliedDashboards[0];
+    if (dashboard) {
+      if (dashboard.mount !== auth.mount) throw new TypeError('Dashboard must share the authenticated API mount');
+      auth.router.use(dashboard.router);
+    }
+  }
   registerModules(app, [
     contactModule(context),
     healthModule(context),
@@ -77,11 +114,19 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(publicProfiles ? [publicProfiles] : []),
+    ...(payroll ? [payroll] : []),
+    ...(checkout ? [checkout] : []),
+    ...(employeeScheduling ? [employeeScheduling] : []),
+    ...(maps ? [maps] : []),
+    ...(settlement ? [settlement] : []),
+    ...(dashboards && !auth ? [dashboards] : []),
+    ...(adminSettlement ? [adminSettlement] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),
     ...(ai ? [ai] : []),
-    ...suppliedModules
+    ...suppliedModules.filter(module => !auth || module.name !== 'dashboard-read')
   ]);
   app.use(notFound, errorHandler(logger));
   return app;

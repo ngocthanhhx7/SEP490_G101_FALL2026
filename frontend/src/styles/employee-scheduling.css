@@ -1,0 +1,20 @@
+.employee-scheduling { width: 100%; max-width: 1100px; margin: 0 auto; padding: 24px; color: #263b32; }
+.employee-scheduling > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.employee-scheduling h1 { font-size: 26px; }
+.employee-scheduling h2 { font-size: 20px; }
+.employee-scheduling h3 { font-size: 17px; }
+.employee-scheduling p, .employee-scheduling h3 { margin: 6px 0; overflow-wrap: anywhere; }
+.employee-scheduling label { display: grid; gap: 6px; max-width: 280px; }
+.employee-scheduling input { min-height: 42px; padding: 8px; border: 1px solid #a3b3ab; border-radius: 4px; }
+.employee-scheduling__rows { list-style: none; padding: 0; margin: 16px 0 32px; }
+.employee-scheduling__rows > li { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; border-bottom: 1px solid #d5ddd8; }
+.employee-scheduling__rows > li > div { min-width: 0; }
+.employee-scheduling__rows button { flex-shrink: 0; }
+.employee-scheduling__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.employee-scheduling__preview { padding: 16px 0; border-block: 1px solid #99a99e; }
+.employee-scheduling button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+@media (max-width: 640px) {
+  .employee-scheduling { padding: 16px; }
+  .employee-scheduling h1 { font-size: 23px; }
+  .employee-scheduling__rows > li { align-items: flex-start; flex-direction: column; }
+}

@@ -92,7 +92,7 @@ export function createPetCareContext(connection, clock = Date.now) {
         fail('RESOURCE_NOT_FOUND', 'Confirmed owned address unavailable', 404);
       if (input.clinicAddressId && (!clinic || !clinic.pointConfirmedAt))
         fail('RESOURCE_NOT_FOUND', 'Confirmed clinic address unavailable', 404);
-      return { service, version, pets, address, clinic };
+      return { service, version, servicePolicy, pets, address, clinic };
     }
   };
 }

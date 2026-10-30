@@ -2,6 +2,15 @@
 
 This folder contains reusable application components that are not part of the P04 design-system controls.
 
+`AddressSearch.jsx` renders configured Google/Vietmap address search and selection with stale-response
+protection. It calls the supplied API adapter, does not save/confirm addresses and leaves the
+existing manual coordinate form available when the provider is disabled. External Google
+navigation links are constructed by `utils/maps.js`, never from provider-controlled URLs.
+
+`VisitTravel.jsx` renders scoped foreground location sharing and manual travel/arrival status.
+GPS starts on explicit employee action and stops on panel cleanup. Customer and employee
+pages share the component and `services/visit-travel-api.js`. Travel cannot complete care/payment.
+
 ## AvatarMenu
 
 AvatarMenu.jsx renders the authenticated user's account trigger and role-aware account options. It derives initials from the real session display name and does not invent an avatar image or identity.

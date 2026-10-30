@@ -4,6 +4,8 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
 import { createSitterRecommendationApi } from '../../services/sitter-recommendation-api.js';
+import { AddressSearch } from '../../components/common/AddressSearch.jsx';
+import { VietmapView } from '../../components/common/VietmapView.jsx';
 import './sitter-recommendations.css';
 
 function message(error) {
@@ -17,10 +19,18 @@ function message(error) {
     ?? 'Chưa thực hiện được yêu cầu. Vui lòng kiểm tra thông tin hoặc thử lại sau.';
 }
 
-function CareSetup({ api, breeds, onSaved }) {
+function CareSetup({ api, breeds, workAreas = [{ code: 'HN', label: 'Hà Nội' }], onSaved }) {
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [uncertain, setUncertain] = useState(false);
+  const addressForm = useRef(null);
+  const [addressPoint, setAddressPoint] = useState(null);
+  const [addressOpen, setAddressOpen] = useState(false);
+  const selectPoint = point => {
+    setAddressPoint(point);
+    const fields = addressForm.current.elements;
+    fields.longitude.value = point[0]; fields.latitude.value = point[1]; fields.confirmed.checked = false;
+  };
   async function save(event, kind) {
     event.preventDefault();
     if (pending || uncertain) return;
@@ -32,10 +42,10 @@ function CareSetup({ api, breeds, onSaved }) {
         species: fields.get('species'), breedCode: fields.get('breedCode'), weightKg: Number(fields.get('weightKg')),
         traits: [], careNeedsConfirmed: fields.get('confirmed') === 'on' })
         : await api.createAddress({ label: fields.get('label'), location: fields.get('location'),
-          areaCode: 'HN', coordinates: [Number(fields.get('longitude')), Number(fields.get('latitude'))],
+          areaCode: fields.get('areaCode'), coordinates: [Number(fields.get('longitude')), Number(fields.get('latitude'))],
           pointConfirmed: fields.get('confirmed') === 'on' });
       if (result.pending) { setUncertain(true); setFeedback('Máy chủ đang xử lý. Tải lại dữ liệu để đối chiếu trước khi tạo lại.'); return; }
-      form.reset(); setFeedback('Đã lưu thông tin.'); onSaved();
+      form.reset(); if (kind === 'address') setAddressPoint(null); setFeedback(''); onSaved('Đã lưu thông tin.');
     } catch (error) {
       if (['TIMEOUT', 'NETWORK_ERROR', 'ABORTED'].includes(error?.code)) {
         setUncertain(true);
@@ -56,13 +66,23 @@ function CareSetup({ api, breeds, onSaved }) {
         <Button type="submit" disabled={pending || uncertain}>Lưu thú cưng</Button>
       </form>
     </details>
-    <details><summary>Thêm địa chỉ có tọa độ tại Hà Nội</summary>
+    <details onToggle={event => setAddressOpen(event.currentTarget.open)}><summary>Thêm địa chỉ có tọa độ tại Hà Nội</summary>
       <p>Lấy tọa độ ghim chính xác từ bản đồ. Chỉ nhập địa chỉ bạn có quyền sử dụng; thông tin này không hiển thị trong danh sách gợi ý.</p>
-      <form onSubmit={event => save(event, 'address')}>
+      <form ref={addressForm} onSubmit={event => save(event, 'address')}>
+        <AddressSearch search={api.searchAddress} resolve={api.resolveAddress} disabled={pending || uncertain} onSelect={item => {
+          const fields = addressForm.current.elements;
+          fields.location.value = item.label; selectPoint(item.coordinates);
+        }} />
+        {addressOpen && <VietmapView coordinates={addressPoint} onSelect={selectPoint} disabled={pending || uncertain} />}
         <Input label="Tên địa chỉ" name="label" required maxLength={100} />
         <Input label="Địa chỉ chăm sóc" name="location" required maxLength={500} />
-        <Input label="Kinh độ" name="longitude" type="number" min="-180" max="180" step="any" required />
-        <Input label="Vĩ độ" name="latitude" type="number" min="-90" max="90" step="any" required />
+        <Select label="Khu vực phục vụ" name="areaCode" required>{workAreas.map(area => <option key={area.code} value={area.code}>{area.label}</option>)}</Select>
+        <Input label="Kinh độ" name="longitude" type="number" min="-180" max="180" step="any" required onChange={event => {
+          selectPoint([Number(event.target.value), Number(addressForm.current.elements.latitude.value)]);
+        }} />
+        <Input label="Vĩ độ" name="latitude" type="number" min="-90" max="90" step="any" required onChange={event => {
+          selectPoint([Number(addressForm.current.elements.longitude.value), Number(event.target.value)]);
+        }} />
         <label><input type="checkbox" name="confirmed" required /> Tôi đã kiểm tra đúng vị trí ghim của địa chỉ này.</label>
         <Button type="submit" disabled={pending || uncertain}>Lưu địa chỉ</Button>
       </form>
@@ -81,6 +101,7 @@ export function SitterRecommendationsForm({ api }) {
   const [error, setError] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [expired, setExpired] = useState(false);
+  const [savedMessage, setSavedMessage] = useState('');
   const active = useRef(null);
   const generation = useRef(0);
   const vet = data?.services.find(service => service.id === serviceId)?.code === 'vet-escort';
@@ -115,10 +136,14 @@ export function SitterRecommendationsForm({ api }) {
   return <main className="sitter-recommendations">
     <h1>Tìm pet sitter phù hợp</h1>
     <p>Chọn dịch vụ, thú cưng và lịch chăm sóc tại Hà Nội. Gợi ý xét năng lực, lịch làm việc và thời gian di chuyển.</p>
+    {savedMessage && <Notice title="Thông tin chăm sóc">{savedMessage}</Notice>}
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải thông tin" />}
     {['error', 'forbidden'].includes(resource.status) && <Notice state="error" title="Chưa tải được thông tin" action={<Button onClick={resource.retry}>Tải lại</Button>}>Kiểm tra phiên đăng nhập hoặc thử lại sau.</Notice>}
     {data && <>
-      <CareSetup api={api} breeds={data.breeds} onSaved={() => { invalidate(); resource.retry(); }} />
+      <CareSetup api={api} breeds={data.breeds} workAreas={data.workAreas} onSaved={message => {
+        if (typeof message === 'string') setSavedMessage(message);
+        invalidate(); resource.retry();
+      }} />
       <form onSubmit={recommend} onChange={invalidate}>
         <Select label="Dịch vụ" required value={serviceId} onChange={event => setServiceId(event.target.value)}>
           <option value="">Chọn dịch vụ</option>{data.services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}

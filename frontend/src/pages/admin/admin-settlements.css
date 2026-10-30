@@ -1,0 +1,8 @@
+.admin-settlements { max-width: 54rem; padding: 1rem; margin: auto; color: var(--pwc-ink); overflow-wrap: anywhere; }
+.admin-settlements article { border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); margin-block: 1rem; padding: 1rem; background: var(--pwc-surface); }
+.admin-settlements fieldset { min-width: 0; }
+.admin-settlements label { display: grid; gap: .5rem; margin-block: 1rem; }
+.admin-settlements input, .admin-settlements select, .admin-settlements button { min-height: 44px; min-width: 0; max-width: 100%; font: inherit; }
+.admin-settlements button { padding: .5rem 1rem; color: var(--pwc-ink); background: var(--pwc-sun); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); }
+.admin-settlements button:disabled { color: var(--pwc-disabled-ink); background: var(--pwc-disabled-surface); }
+.admin-settlements :focus-visible { outline: 3px solid var(--pwc-focus); outline-offset: 3px; }

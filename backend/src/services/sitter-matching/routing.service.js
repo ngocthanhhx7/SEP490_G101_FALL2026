@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { fail, point } from '../../validators/pet-care.validator.js';
 import { parseRoutingBounds } from '../../validators/routing.validator.js';
 
-async function readRoutingBody(response, signal) {
+export async function readRoutingBody(response, signal) {
   const length = Number(response.headers.get('content-length'));
   if (length > 1000000) fail('ROUTING_UNAVAILABLE', 'Routing response too large', 503);
   // Native fetch supplies a stream; injected unit adapters may expose json only.
@@ -28,9 +28,9 @@ async function readRoutingBody(response, signal) {
     reader.releaseLock();
   }
 }
-export const edgeKey = (a, b) =>
+export const edgeKey = (a, b, namespace = 'OSRM_DRIVING_V1') =>
   createHash('sha256')
-    .update(JSON.stringify([a, b, 'OSRM_DRIVING_V1']))
+    .update(JSON.stringify([a, b, namespace]))
     .digest('hex');
 export function createRoutingProvider({
   baseUrl,
@@ -160,8 +160,9 @@ export async function cachedMatrix({
   ];
   if (unique.length > 50) fail('ROUTING_LIMIT', 'Daily route too large', 409);
   provider.validatePoints?.(unique); // Cached rows cannot bypass the deployed dataset boundary.
-  const keys = unique.flatMap((a) => unique.map((b) => edgeKey(a, b)));
-  const rows = await Routing.find({
+  const keyFor = provider.edgeKey ?? edgeKey;
+  const keys = unique.flatMap((a) => unique.map((b) => keyFor(a, b)));
+  const rows = provider.cacheTtlMs === 0 ? [] : await Routing.find({
     key: { $in: keys },
     expiresAt: { $gt: new Date(clock()) }
   }).lean();
@@ -171,7 +172,7 @@ export async function cachedMatrix({
     const ops = [];
     for (const [key, minutes] of result.map) {
       map.set(key, minutes);
-      if (minutes !== null)
+      if (minutes !== null && provider.cacheTtlMs !== 0)
         ops.push({
           updateOne: {
             filter: { key },
@@ -189,5 +190,5 @@ export async function cachedMatrix({
     }
     if (ops.length) await Routing.bulkWrite(ops, { ordered: false });
   }
-  return (a, b) => map.get(edgeKey(a, b)) ?? null;
+  return (a, b) => map.get(keyFor(a, b)) ?? null;
 }

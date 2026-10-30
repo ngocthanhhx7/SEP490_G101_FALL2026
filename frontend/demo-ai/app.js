@@ -192,8 +192,13 @@ el('match').addEventListener('click', () =>
 );
 async function init() {
   state = await request('/demo/state');
+  const grounded = state.mode === 'GROUNDED_PUBLIC_ROADS';
   el('db').textContent =
-    `Database: ${state.database} · Ngày lịch demo: ${state.date} · ETA MÔ PHỎNG`;
+    `Database: ${state.database} · Ngày lịch demo: ${state.date} · ${grounded ? 'OSRM SNAPSHOT · KHÔNG LIVE TRAFFIC' : 'ETA MÔ PHỎNG'}`;
+  if (grounded) {
+    el('demo-intro').textContent = 'Tài khoản, thú cưng, năng lực và lịch là mô phỏng. Điểm đường và thời gian là snapshot OSRM từ dữ liệu OSM Hà Nội; không phải chuyến đi đã đo, nhà khách hoặc giao thông trực tiếp. Không tạo rating/lịch sử chăm sóc hoặc nhãn huấn luyện. Chưa có lịch sử có thể khiến mọi ứng viên dưới ngưỡng tự động; demo giữ nguyên ngưỡng và báo thiếu thật.';
+    el('demo-routing-notice').textContent = `Nguồn ${state.routing} · chụp ${state.routingEvidence.observedAt} · profile ${state.routingEvidence.profile}. ${state.routingEvidence.attribution}. Chỉ nhận đúng điểm đã thu thập; không tự bù tuyến thiếu. Chưa có dữ liệu đo sai số ETA.`;
+  }
   for (const a of state.accounts) {
     const option = node('option', `${a.role} · ${a.name}`);
     option.value = a.key;
@@ -215,7 +220,8 @@ async function init() {
       ),
       node(
         'p',
-        `${s.rating} sao/lượt mẫu · ${s.faults} lỗi đã đối soát`,
+        grounded ? 'Chưa có đánh giá/lịch sử thật · LIMITED_HISTORY; năng lực và lịch là khai báo mô phỏng'
+          : `${s.rating} sao/lượt mẫu · ${s.faults} lỗi đã đối soát`,
         'muted'
       )
     );

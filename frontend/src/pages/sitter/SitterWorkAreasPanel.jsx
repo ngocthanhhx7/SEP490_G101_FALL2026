@@ -7,7 +7,7 @@ export const MAX_SITTER_WORK_AREA_CODES = 20;
 
 const LEVELS = Object.freeze([
   { code: 'CITY', label: 'Thành phố' },
-  { code: 'DISTRICT', label: 'Quận / huyện' },
+  { code: 'DISTRICT', label: 'Khu vực phục vụ' },
 ]);
 const SAFE_CODE = /^(CITY|DISTRICT)_[A-Z0-9][A-Z0-9_-]{0,55}$/;
 const HAS_LETTER = /[\p{L}]/u;
@@ -170,8 +170,7 @@ export function SitterWorkAreasPanel({ api }) {
   const heading = <header className="sitter-work-areas__header">
     <p className="sitter-work-areas__eyebrow">Hồ sơ Pet Sitter</p>
     <h1 id="sitter-work-areas-title">Khu vực phục vụ</h1>
-    <p>Chọn thành phố hoặc quận, huyện bạn có thể nhận yêu cầu chăm sóc.</p>
-    <p className="sitter-work-areas__privacy">Chỉ lưu mã khu vực hành chính. Không nhập địa chỉ nhà, vị trí bản đồ hoặc tọa độ.</p>
+    <p>Chọn khu vực bạn có thể nhận ca chăm sóc.</p>
     <p className="sitter-work-areas__conflict">Thay đổi khu vực không tự hủy buổi đã xác nhận. Nếu lịch có xung đột, nhân viên cần rà soát.</p>
   </header>;
 

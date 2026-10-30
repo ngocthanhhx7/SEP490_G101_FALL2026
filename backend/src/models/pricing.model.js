@@ -17,7 +17,7 @@ export function pricingModels(connection) {
         approvalSource: String,
         billingMode: {
           type: String,
-          enum: ['PER_UNIT', 'PER_VISIT'],
+          enum: ['PER_UNIT', 'PER_VISIT', 'PER_DAY', 'PER_KM'],
           default: 'PER_UNIT'
         },
         unitMinutes: { ...integer(1, 1440), required: true },
@@ -27,6 +27,9 @@ export function pricingModels(connection) {
         maxPets: { ...integer(1, 10), default: 4 },
         extraPetBps: { ...integer(0, 20000), default: 0 },
         maxSurchargeBps: { ...integer(0, 50000), default: 20000 },
+        groupStrategy: { type: String, enum: ['REJECT', 'MAX'], default: 'REJECT' },
+        comboPerVisitBps: { ...integer(0, 1000), default: 0 },
+        comboMaxBps: { ...integer(0, 1000), default: 0 },
         rules: {
           type: [
             sub({
@@ -43,7 +46,9 @@ export function pricingModels(connection) {
                   breedCodes: { type: [String], default: undefined },
                   traitCode: String,
                   minWeightKg: { type: Number, min: 0 },
-                  maxWeightKg: { type: Number, min: 0 }
+                  maxWeightKg: { type: Number, min: 0 },
+                  minWeightExclusive: Boolean,
+                  maxWeightInclusive: Boolean
                 })
               }
             })

@@ -1,6 +1,26 @@
 ﻿# Deployment tools
 
 Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
+
+`provision-demo-catalog.js` installs the owner-approved 13-service sheet catalog.
+Dry-run is the default. After backup, use the reviewed image with `--apply` and
+explicit `CONFIRMED_CATALOG_KEY=pawworld-demo-sheet-2026-10-30-v1` plus
+`CONFIRMED_CATALOG_DATABASE` equal to that environment's `MONGO_DB`. The service
+records an idempotent migration and preserves Admin-created versions and existing
+booking snapshots. It creates no accounts, contracts, assessments or transactions.
+The development seed remains forbidden on production.
+
+`ensure-indexes.js` registers runtime models, creates their collections/indexes,
+and provisions raw finance/scheduling storage when their feature flags are enabled.
+It verifies the required payroll, finance and scheduling indexes before reporting
+`INDEXES_READY`. Run it with the release image and the target environment after
+backup and before activation (the activation script already does this). This is
+additive storage provisioning: no demo users, contracts, catalog edits or business
+transactions are inserted. Conflicting indexes, duplicate data and the obsolete
+all-history payroll period index stop deployment for a reviewed migration; this
+command never drops or replaces an existing index. A failed run may leave additive
+collections/indexes in place and is safe to repeat after the conflict is resolved.
+
 `extract-hanoi-routing.py` clips an operator-supplied public OSM PBF using
 separately installed osmium 4.3.2, preserving routing tags, complete references
 and relevant turn restrictions. It refuses existing output, emits hashes and

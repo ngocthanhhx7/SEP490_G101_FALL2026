@@ -1,5 +1,10 @@
 # P51-A — Hợp đồng tài chính và chính sách hủy v1.0
 
+> Cập nhật 30/10/2026: [quyết định FIN-07/FIN-08](finance-decisions-2026-10-30.md)
+> đã chốt điều kiện eligibility, hold, adjustment sau payout và giới hạn sửa/rút
+> request. Các mục bên dưới là lịch sử hợp đồng; source/payment/allocation và
+> assessment thuế cụ thể vẫn phải được xác minh trước khi tạo tiền khả dụng.
+
 Ngày 14/10/2026, Asia/Ho_Chi_Minh. Phạm vi EXT-FINANCIAL; contributor được giao Nguyễn Hữu Anh Nhật, reviewer Đoàn Tiến Đạt, merge cuối Nguyễn Ngọc Thành. Đây là hợp đồng thiết kế, chưa có runtime, provider hoặc schema triển khai. Approval PR xác nhận chất lượng tài liệu; không tự đóng các quyết định nghiệp vụ còn mở.
 
 ## Nguồn, phiên bản và hiệu lực
@@ -97,3 +102,10 @@ Race và acceptance đầy đủ ở [API contract](../api/p51-financial-api-v1.
 ## Bàn giao theo gói
 
 P01 chuẩn hóa schema/DTO/enums/error codes/atomic strategy từ các đề xuất này; P17/P45 version policy đã chốt và không publish proposal; P19/P21/P42 dùng payment/confirmation/assignment gates riêng; P25 dùng cancellation/reschedule; P31 ledger/callback/bill; P32 refund; P41 weekly settlement. P34 quản lý wiring và final integration. FIN còn mở được giữ ở bảng trên và trong [handoff](p51-handoff.md); không sửa shared schema/router hoặc tự triển khai các gói đó trong P51.
+
+## Bổ sung ngày 16/10/2026
+
+Người dùng đã chốt phí lũy tiến 10%/9%/8%/7% theo booking hoàn tất mỗi tuần
+Việt Nam, không hồi tố các booking trước. Xem [quyết định và nghiên cứu thuế](p41-weekly-commission-and-tax-2026-10-16.md).
+Mục này chốt bậc phí, đơn vị đếm và rounding half-up VND/đồng thuế lẻ do nền tảng chịu; chưa đóng eligibility, hold, cơ sở
+và tax-regime gate. Không dùng 10% cố định hay một tỷ lệ thuế chung cho mọi sitter.

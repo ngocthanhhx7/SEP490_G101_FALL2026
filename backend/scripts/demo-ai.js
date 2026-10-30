@@ -4,27 +4,32 @@ import { createServer } from 'node:http';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { readFile, stat } from 'node:fs/promises';
 import { loadConfig } from '../src/config/environment.js';
 import { connectDatabase } from '../src/config/database.js';
-import { seedDemo, DEMO_DATABASE } from './demo-ai/fixtures.js';
+import { seedDemo, DEMO_DATABASE, GROUNDED_DEMO_DATABASE, validateGroundedSnapshot } from './demo-ai/fixtures.js';
 import { createDemoApp } from './demo-ai/server.js';
 
+const grounded = process.argv.includes('--grounded');
+const snapshotIndex = process.argv.indexOf('--snapshot');
 if (
   !process.argv.includes('--apply') ||
   process.env.NODE_ENV === 'production'
 ) {
   console.log(
-    'Explicit local demo: node scripts/demo-ai.js --apply (separate DB, port 3011, no real email/SMS)'
+    'Explicit local demo: node scripts/demo-ai.js --apply; grounded: --grounded --apply --snapshot PATH (separate DB, ports 3011/3012, no real email/SMS)'
   );
 } else {
   const root = fileURLToPath(new URL('..', import.meta.url));
+  const port = grounded ? 3012 : 3011;
+  const database = grounded ? GROUNDED_DEMO_DATABASE : DEMO_DATABASE;
   const demoEnv = {
     ...process.env,
     NODE_ENV: 'development',
     HOST: '127.0.0.1',
-    PORT: '3011',
+    PORT: String(port),
     MONGO_URI: 'mongodb://127.0.0.1:27018/?replicaSet=pwc-local',
-    MONGO_DB: DEMO_DATABASE,
+    MONGO_DB: database,
     AUTH_ENABLED: 'true',
     AI_ENABLED: 'true',
     AI_ROUTING_URL: '',
@@ -37,8 +42,15 @@ if (
     CONTACT_LOOKUP_SECRET: randomBytes(32).toString('hex'),
     CONTACT_ENCRYPTION_KEY: randomBytes(16).toString('hex')
   };
-  let connection, server, app;
+  let connection, server, app, groundedSnapshot;
   try {
+    if (grounded) {
+      const path = process.argv[snapshotIndex + 1];
+      if (snapshotIndex < 0 || !path || path.startsWith('--') || (await stat(path)).size > 1000000) {
+        throw new TypeError('Grounded demo requires a bounded JSON snapshot');
+      }
+      groundedSnapshot = validateGroundedSnapshot(JSON.parse(await readFile(path, 'utf8')));
+    } else if (snapshotIndex >= 0) throw new TypeError('Snapshot requires --grounded');
     // Reserve the port BEFORE writing fixtures: a second launch must never
     // rotate contacts/secrets underneath an already-running demo process.
     server = createServer((req, res) => {
@@ -48,7 +60,7 @@ if (
     });
     await new Promise((resolve, reject) => {
       server.once('error', reject);
-      server.listen(3011, '127.0.0.1', resolve);
+      server.listen(port, '127.0.0.1', resolve);
     });
     for (const seed of [
       'service-catalog.js',
@@ -67,14 +79,14 @@ if (
       );
     const config = loadConfig(demoEnv);
     connection = await connectDatabase(config);
-    const manifest = await seedDemo(connection, config);
-    const origin = 'http://127.0.0.1:3011';
-    app = createDemoApp({ config, connection, manifest, origin });
+    const manifest = await seedDemo(connection, config, Date.now, { groundedSnapshot });
+    const origin = `http://127.0.0.1:${port}`;
+    app = createDemoApp({ config, connection, manifest, origin, groundedSnapshot });
     console.log(
       JSON.stringify({
         state: 'DEMO_READY',
         url: origin,
-        database: DEMO_DATABASE,
+        database,
         accounts: manifest.accounts.length,
         sitters: manifest.sitters.length,
         date: manifest.date,
