@@ -108,3 +108,8 @@ test('a late unauthorized session read cannot erase a successful login CSRF', as
   await pending;
   expect(adapter.getCsrfToken()).toBe('new-csrf');
 });
+
+test('preserves registration guidance only after successful OTP verification', async () => {
+ const adapter = createApiSessionAdapter({ request: async () => ({status:200,data:{authenticated:false,reason:'REGISTRATION_REQUIRED'}}) });
+ await expect(adapter.login()).resolves.toEqual({status:'guest',reason:'REGISTRATION_REQUIRED'});
+});

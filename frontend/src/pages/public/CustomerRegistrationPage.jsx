@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { otpFeedback } from '../../utils/otp-feedback.js';
 import { useRegistrationPolicies } from '../../contexts/PublicPolicyContext.jsx';
 import { customerRegistrationApi, normalizeDisplayName, normalizeRegistrationContact } from '../../services/customer-registration-api.js';
 import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
@@ -21,7 +22,7 @@ function messageForError(error) {
     const wait = Number.isSafeInteger(error.retryAfterSeconds) ? ` Thử lại sau ${error.retryAfterSeconds} giây.` : '';
     return `Bạn đã yêu cầu mã quá nhanh.${wait}`;
   }
-  if (error.code === 'OTP_INVALID_OR_EXPIRED') return 'Mã OTP không đúng hoặc đã hết hạn. Kiểm tra mã hoặc gửi mã mới.';
+  if (otpFeedback(error.code)) return otpFeedback(error.code);
   if (error.code === 'CONTACT_ALREADY_LINKED' || error.code === 'CONTACT_UNAVAILABLE') {
     return 'Thông tin liên hệ này không thể dùng để đăng ký. Hãy đăng nhập bằng OTP nếu bạn đã có tài khoản.';
   }

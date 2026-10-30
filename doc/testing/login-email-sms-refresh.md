@@ -24,3 +24,11 @@ Môi trường trình duyệt chỉ dùng tài khoản tổng hợp trong databa
 ## Trạng thái bàn giao
 
 Thay đổi chưa commit/push, chưa có PR/review/merge/deploy. Cần cấu hình SMS/SMTP thật ở môi trường đích và xác minh nhận OTP trên người nhận cụ thể trước khi kết luận delivery thực tế. Các thay đổi này cần được review theo quy trình dự án trước khi đưa lên production.
+
+## Hotfix 30/10/2026: thông báo OTP và readiness đăng ký
+
+API production trả catalog rỗng khiến consent của cả Customer và ứng viên Sitter bị khóa. Đã công bố lại đúng hai phiên bản `registration-2026-10-15-v1` từ nguồn đã ghi nhận phê duyệt `doc/requirements/registration-terms-privacy-proposal-v1.md`; giữ hash nội dung, không dùng fixture và không bỏ kiểm tra consent. Public endpoint đã trả đủ `terms`/`privacy` có hiệu lực. Không tạo tài khoản hay gửi OTP thật trong kiểm tra này.
+
+OTP đúng với liên hệ chưa đăng ký trước đây được tiêu thụ nhưng chỉ trả `authenticated:false`, khiến người dùng tiếp tục nhập lại mã đã dùng. Hotfix thêm `REGISTRATION_REQUIRED` sau khi xác minh đúng mã và hiển thị liên kết đăng ký, đóng form xác thực đã tiêu thụ. Không tiết lộ tình trạng đăng ký trước khi chứng minh quyền nhận OTP. Tài khoản không đủ điều kiện đăng nhập không được tự chuyển thành tài khoản mới.
+
+Lỗi xác thực phân biệt mã sai, hết hạn (khi còn bản ghi), đã sử dụng, đã bị thay bằng mã mới và lỗi gửi. Challenge không tìm thấy hoặc sai contact/purpose/session vẫn trả mã lỗi chung với lời nhắn trung tính, không kết luận hết hạn. TTL có thể xóa bản ghi hết hạn nên không thể luôn khôi phục nguyên nhân chính xác. Giữ nguyên giới hạn gửi/nhập, thời hạn 5 phút và chống replay.

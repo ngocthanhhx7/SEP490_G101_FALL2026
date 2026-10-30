@@ -137,3 +137,11 @@ describe('auth route module HTTP contract', () => {
     expect(sessionService.revoke).toHaveBeenCalledTimes(1);
   });
 });
+
+test('valid OTP for an unregistered contact returns registration guidance without a session cookie', async () => {
+ const {server,otpService}=appFixture();
+ otpService.verify.mockResolvedValue({status:'VERIFIED',authenticated:false,reason:'REGISTRATION_REQUIRED'});
+ const response=await request(server).post('/api/v1/sessions').send({challengeId:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',channel:'EMAIL',contact:'new@example.test',purpose:'LOGIN',code:'123456'}).expect(200);
+ expect(response.body.data).toEqual({authenticated:false,reason:'REGISTRATION_REQUIRED'});
+ expect(response.headers['set-cookie']).toBeUndefined();
+});
