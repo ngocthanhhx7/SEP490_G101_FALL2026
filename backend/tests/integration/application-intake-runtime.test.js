@@ -16,8 +16,7 @@ import { createSessionService } from '../../src/services/session.service.js';
 const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true',
   OTP_HMAC_SECRET: 'a'.repeat(32), SESSION_TOKEN_SECRET: 'b'.repeat(32), SESSION_CSRF_SECRET: 'c'.repeat(32),
   CONTACT_LOOKUP_SECRET: 'd'.repeat(32), CONTACT_ENCRYPTION_KEY: 'e'.repeat(32), R2_ENABLED: 'true',
-  R2_ACCOUNT_ID: 'a'.repeat(32), R2_BUCKET: 'synthetic-private', R2_ACCESS_KEY_ID: 'b'.repeat(32), R2_SECRET_ACCESS_KEY: 'c'.repeat(64), SITTER_DOCUMENTS_ENABLED: 'true', SITTER_DOCUMENTS_R2_ACCOUNT_ID: 'a'.repeat(32),
-  SITTER_DOCUMENTS_R2_BUCKET: 'synthetic-applicant-documents', SITTER_DOCUMENTS_R2_ACCESS_KEY_ID: 'f'.repeat(32), SITTER_DOCUMENTS_R2_SECRET_ACCESS_KEY: 'a'.repeat(64) };
+  R2_ACCOUNT_ID: 'a'.repeat(32), R2_BUCKET: 'synthetic-private', R2_ACCESS_KEY_ID: 'b'.repeat(32), R2_SECRET_ACCESS_KEY: 'c'.repeat(64), SITTER_DOCUMENTS_ENABLED: 'true' };
 const base = { Host: '127.0.0.1', Origin: 'http://127.0.0.1' };
 const policyVersions = { terms: 'synthetic-v1', privacy: 'synthetic-v1' };
 let replica, connection, app, sent, png, writes, unavailable;

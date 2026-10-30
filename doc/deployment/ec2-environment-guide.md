@@ -114,3 +114,19 @@ là kiểm tra provider bằng request ký S3; chưa phải end-to-end API/UI c�
 Đọc tiếp [R2 acceptance](aws/r2-private-media.md), [SMS](p12-sms-runbook.md)
 và [production](ec2-production.md). UI upload, attachment evidence và retention
 vẫn cần công việc riêng; credentials đầy đủ không tự bổ sung những tính năng đó.
+
+## Dùng chung bucket cho ảnh và giấy tờ
+
+Cấu hình mặc định sau bản sửa dùng một bucket private:
+
+```text
+pwc-private-production/
+  private-images/<id>
+  applicant-documents/<id>
+```
+
+Giữ nguyên `R2_*` đang có. Bật `SITTER_DOCUMENTS_ENABLED=true` và đặt `SITTER_DOCUMENTS_MAX_FILES_PER_USER=20`. Để trống hoặc bỏ cả bốn biến `SITTER_DOCUMENTS_R2_ACCOUNT_ID`, `SITTER_DOCUMENTS_R2_BUCKET`, `SITTER_DOCUMENTS_R2_ACCESS_KEY_ID`, `SITTER_DOCUMENTS_R2_SECRET_ACCESS_KEY` để kế thừa R2 hiện tại. Không điền một phần: một cấu hình ghi đè chỉ hợp lệ khi đủ cả bốn giá trị. Cấu hình cũ dùng bucket riêng vẫn được hỗ trợ.
+
+Trên local, chỉnh backend/.env và khởi động lại backend. Trên EC2, chỉnh /opt/pawworldcare/shared/.env rồi tạo lại container bằng activate-release.py của SHA main đã review; docker restart không nạp lại env. Không bật public URL cho bucket và không đổi các khóa OTP/session/contact.
+
+Trước khi chuyển bucket ở một môi trường đã có hồ sơ, phải sao chép và kiểm tra các object applicant-documents/ được tham chiếu trước khi đổi cấu hình; không tự xóa bucket cũ. Prefix không thay thế quyền truy cập: các endpoint, kiểm tra owner/Admin, signed URL, collection và quota vẫn riêng.
