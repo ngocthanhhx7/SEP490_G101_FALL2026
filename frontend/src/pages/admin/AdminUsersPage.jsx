@@ -14,7 +14,8 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
 import { WorkspaceAnalytics } from '../../components/common/WorkspaceAnalytics.jsx';
 import { RowActionMenu } from '../../components/common/RowActionMenu.jsx';
-import { Eye, LockKeyhole, UnlockKeyhole } from 'lucide-react';
+import { Eye, LockKeyhole, UnlockKeyhole, UserCog } from 'lucide-react';
+import { UserRolesDialog } from './UserRolesDialog.jsx';
 
 const ROLE_LABELS = {
   CUSTOMER: 'Khách hàng',
@@ -180,6 +181,7 @@ function AccountDetail({
   resource,
   user,
   onDecision,
+  onRoles,
   actionsDisabled = false
 }) {
   if (!user)
@@ -290,6 +292,7 @@ function AccountDetail({
               </div>
             </dl>
           </div>
+          {onRoles && <Button variant="secondary" className="admin-detail-action" disabled={actionsDisabled} onClick={() => onRoles(user)}>Đổi vai trò</Button>}
           {user.state === 'ACTIVE' && (
             <Button
               variant="danger"
@@ -342,6 +345,8 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
   const [cursorHistory, setCursorHistory] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [decision, setDecision] = useState(null);
+  const [roleUser, setRoleUser] = useState(null);
+  const [roleResult, setRoleResult] = useState('');
   const [reason, setReason] = useState('');
   const [reasonError, setReasonError] = useState('');
   const [commandPending, setCommandPending] = useState(false);
@@ -573,6 +578,7 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
             </section>
 
             {embedded && <WorkspaceAnalytics key={analyticsRevision} kind="users" />}
+            {roleResult && <Notice state="success" title="Đã cập nhật vai trò">Máy chủ đã xác nhận thay đổi vai trò cho {roleResult}. Các phiên cũ của tài khoản đã bị thu hồi.</Notice>}
             {decisionResult?.state && (
               <Notice
                 state="success"
@@ -808,6 +814,7 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
                               <td data-label="Chi tiết">
                                 {embedded ? <RowActionMenu label={`Thao tác ${user.displayName}`} actions={[
                                   { label: 'Xem chi tiết', icon: Eye, onClick: () => setSelectedId(user.id) },
+                                  ...(user.id !== currentAdmin?.id ? [{ label: 'Đổi vai trò', icon: UserCog, onClick: () => { setRoleResult(''); setRoleUser(user); } }] : []),
                                   ...(user.state === 'ACTIVE' ? [{ label: 'Khóa tài khoản', icon: LockKeyhole, onClick: () => openDecision('LOCK', user) }]
                                     : user.state === 'LOCKED' ? [{ label: 'Mở khóa tài khoản', icon: UnlockKeyhole, onClick: () => openDecision('UNLOCK', user) }] : [])
                                 ]} /> : <Button
@@ -866,6 +873,7 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
                 resource={detail}
                 user={selectedUser}
                 onDecision={openDecision}
+                onRoles={selectedUser?.id !== currentAdmin?.id ? user => { setRoleResult(''); setRoleUser(user); } : undefined}
                 actionsDisabled={Boolean(decisionPending) || commandPending}
               />}
             </div>
@@ -880,6 +888,9 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
         </main>
       </div>
 
+      {roleUser && <UserRolesDialog key={roleUser.id + ':' + roleUser.version} user={roleUser} request={request}
+        onClose={() => setRoleUser(null)} onReload={() => { setRoleUser(null); list.retry(); if (selectedId) detail.retry(); }}
+        onChanged={user => { setRoleUser(null); setRoleResult(user.displayName); setAnalyticsRevision(value => value + 1); list.retry(); if (selectedId) detail.retry(); }} />}
       <Dialog
         open={Boolean(decision)}
         onClose={() => {
