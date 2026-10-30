@@ -1,27 +1,53 @@
-.pwc-registration-hub { background: #fcf9f8; padding: 48px 20px 64px; }
-.pwc-auth-welcome { max-width: 850px; margin: auto auto 32px; text-align: center; }
-.pwc-auth-welcome > img { margin: auto auto 16px; }
-.pwc-auth-welcome h1 { font-size: 40px; color: #2c0050; margin: 0 0 16px; }
-.pwc-auth-welcome p { font-size: 18px; color: #665a6c; line-height: 28px; }
-.pwc-registration-role-picker { display: grid; grid-template-columns: 1fr 1fr; background: #ede5f6; padding: 6px; border-radius: 18px; max-width: 850px; margin: auto auto 32px; gap: 8px; }
-.pwc-registration-role-picker button { border: 0; border-radius: 14px; padding: 16px; color: #2c0050; background: transparent; font: 800 18px/26px Nunito,sans-serif; cursor: pointer; }
-.pwc-registration-role-picker button[aria-pressed='true'] { background: #ffcd34; }
+.pwc-registration-hub { background: #f8f7fc; padding: 48px 24px 64px; color: #453c4c; }
+.pwc-registration-shell { width: min(100%, 880px); margin: 0 auto; }
+.pwc-auth-welcome { margin: 0 auto 30px; text-align: center; }
+.pwc-auth-welcome > img { display: block; margin: 0 auto 14px; }
+.pwc-auth-eyebrow { margin: 0 0 8px !important; color: #80638d !important; font-size: 10px !important; font-weight: 800; letter-spacing: .18em; }
+.pwc-auth-welcome h1 { margin: 0 0 12px; color: #2c0050; font: 400 clamp(32px, 4vw, 42px)/1.2 var(--pwc-font-display); }
+.pwc-auth-welcome > p:last-child { margin: 0; color: #736b7b; font-size: 16px; line-height: 1.6; }
+.pwc-registration-role-picker { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; background: #eeE8f6; border-radius: 14px; margin: 0 0 24px; }
+.pwc-registration-role-picker button { min-width: 0; min-height: 48px; border: 0; border-radius: 10px; padding: 10px 16px; background: transparent; color: #5f4b70; font: 800 16px/1.5 var(--pwc-font-body); cursor: pointer; }
+.pwc-registration-role-picker button[aria-pressed='true'] { background: #ffcd34; color: #2c0050; box-shadow: 0 2px 8px #3f2a6b09; }
+.pwc-registration-steps { display: flex; justify-content: center; gap: 20px; list-style: none; margin: 0 0 32px; padding: 0; }
+.pwc-registration-steps li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #82768e; }
+.pwc-registration-steps li > span { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid #d9d0e3; border-radius: 50%; font-weight: 800; }
+.pwc-registration-steps .is-current { color: #3f2a6b; font-weight: 800; }
+.pwc-registration-steps .is-current > span { color: white; background: #3f2a6b; border-color: #3f2a6b; }
+.pwc-registration-steps .is-done > span { color: #216443; border-color: #9bc9ad; background: #dcf2e8; }
 .pwc-registration-hub .customer-registration { width: 100%; margin: 0; min-height: 0; padding: 0; background: transparent; }
 .pwc-registration-hub .customer-registration::before, .pwc-registration-hub .customer-registration::after, .pwc-registration-hub .registration-tape { display: none; }
-.pwc-registration-hub .registration-card { width: min(100%,850px); max-width: 850px; border: 1px solid #e5d7ee; border-radius: 24px; padding: 40px; box-shadow: 0 12px 40px #2c005008; }
-.pwc-registration-hub .registration-header { text-align: left; }
-.pwc-registration-hub .registration-header h1 { font-size: 34px; }
-.pwc-registration-hub .registration-form { margin-top: 28px; }
-.pwc-registration-hub .registration-role { font-size: 15px; line-height: 25px; }
-.pwc-public-root .sign-in-page { width: 100%; margin: 0; padding: 64px 24px; min-height: 65vh; background: #fcf9f8; }
-.pwc-public-root .sign-in-card { max-width: 600px; border-radius: 24px; box-shadow: 0 12px 40px #2c005008; }
-.pwc-public-root .sign-in-channel label:has(input:disabled) { color: #777; }
-.pwc-public-root .sign-in-remember { display: flex; align-items: start; gap: 12px; font-size: 15px; line-height: 24px; margin: 20px 0 8px; }
-.pwc-public-root .sign-in-remember input { width: 20px; height: 20px; flex: none; accent-color: #5c3283; }
-.pwc-public-root .sign-in-trust-hint { font-size: 13px; line-height: 21px; color: #665a6c; margin: 0 0 20px; }
-@media(max-width:640px) { .pwc-registration-hub { padding: 32px 16px 40px; } .pwc-registration-hub .registration-card { padding: 24px 20px; } .pwc-registration-role-picker button { font-size: 15px; padding: 12px; } .pwc-auth-welcome h1 { font-size: 32px; } }
-
-.pwc-sitter-intake-notice { max-width: 850px; margin: 0 auto 24px; padding: 16px 20px; border: 1px solid #e4cc90; border-radius: 14px; background: #fff7df; color: #574315; line-height: 1.6; }
-.sitter-application__service-choices { display: grid; grid-template-columns: 1fr; gap: 12px; }
-.sitter-application__service-choices label { display: flex; align-items: center; gap: 10px; border: 1px solid #e5d7ee; padding: 12px; border-radius: 12px; }
-.sitter-application__service-choices input { width: 20px; height: 20px; }
+.pwc-registration-hub .registration-card { width: 100%; max-width: none; padding: 32px; border: 1px solid #e8e2ee; border-radius: 20px; background: white; box-shadow: 0 6px 24px #2c005004; }
+.pwc-registration-hub .registration-header { display: block; text-align: left; }
+.pwc-registration-hub .registration-header .registration-eyebrow { display: none; }
+.pwc-registration-hub .registration-header h2 { margin: 0; color: #3f2a6b; font: 800 22px/1.4 var(--pwc-font-body); }
+.pwc-registration-hub .registration-intro { margin: 8px 0 0; text-align: left; font-size: 14px; }
+.pwc-registration-hub .registration-form { margin-top: 26px; gap: 24px; }
+.registration-details-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 24px; }
+.pwc-registration-hub .registration-field > label, .pwc-registration-hub .registration-contact-fieldset legend { font-size: 14px; text-transform: none; letter-spacing: 0; font-weight: 700; color: #453c4c; }
+.pwc-registration-hub .registration-field input, .pwc-registration-hub .registration-contact-fieldset > input { min-height: 54px; padding: 14px 16px; border: 1px solid #d4e4dc; border-radius: 12px; background: #f1f9f5; color: #453c4c; }
+.pwc-registration-hub .registration-contact-fieldset { gap: 9px; }
+.pwc-registration-hub .registration-contact-fieldset legend { margin: 0 0 8px; }
+.pwc-registration-hub .registration-hint { font-size: 12px; line-height: 1.5; color: #79717f; }
+.pwc-registration-hub .registration-consent { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: start; gap: 10px 12px; font-size: 14px; color: #665a6c; }
+.pwc-registration-hub .registration-consent input { width: 20px; height: 20px; margin: 1px 0 0; accent-color: #3f2a6b; }
+.pwc-registration-hub .registration-consent > :not(input):not(label) { grid-column: 2; }
+.pwc-registration-hub .policy-context-links { display: flex; flex-wrap: wrap; justify-content: start; gap: 8px 16px; margin: 0; padding: 0; border: 0; }
+.pwc-registration-hub .policy-context-links a { min-height: 24px; font-size: 12px; color: #715284; text-underline-offset: 3px; }
+.pwc-registration-hub .registration-submit { min-height: 56px; border: 0; border-radius: 99px; box-shadow: none; background: #ffcd34; color: #2c0050; font-size: 16px; }
+.pwc-registration-hub .registration-submit:disabled { background: #ebe6ef; color: #82738d; }
+.pwc-registration-hub .registration-footer { margin-top: 24px; padding-top: 20px; font-size: 14px; }
+.pwc-registration-hub .registration-footer a { color: #994700; }
+.pwc-registration-fineprint { margin: 20px auto 0; max-width: 640px; font-size: 13px; line-height: 1.7; color: #7a6b86; text-align: center; }
+.pwc-application-lookup { display: block; width: fit-content; margin: 20px auto 0; color: #5c3283 !important; font-size: 14px; text-underline-offset: 4px; }
+.pwc-registration-state { padding: 32px; border: 1px solid #e8e2ee; border-radius: 20px; background: white; line-height: 1.7; text-align: center; }
+.pwc-registration-state h2 { font-size: 24px; color: #3f2a6b; }
+.pwc-registration-hub :is(button, a, input, textarea):focus-visible { outline: 3px solid #3f2a6b; outline-offset: 4px; }
+@media(max-width: 640px) {
+  .pwc-registration-hub { padding: 32px 16px 40px; }
+  .pwc-registration-hub .registration-card { padding: 24px 18px; }
+  .registration-details-grid { grid-template-columns: 1fr; gap: 20px; }
+  .pwc-registration-role-picker button { font-size: 14px; padding: 10px 8px; }
+  .pwc-registration-steps { gap: 8px; justify-content: space-between; }
+  .pwc-registration-steps li { flex: 1; flex-direction: column; text-align: center; gap: 6px; font-size: 11px; }
+  .pwc-auth-welcome > p:last-child { font-size: 14px; }
+}

@@ -10,6 +10,7 @@ const notFound = () => new AppError(404, 'RESOURCE_NOT_FOUND', 'Private image no
 const invalid = () => new AppError(422, 'VALIDATION_FAILED', 'A valid PNG or JPEG image is required');
 export const MAX_IMAGE_PIXELS = 4_000_000;
 export const MAX_IMAGE_PROCESSING = 1;
+const processingByConnection = new WeakMap();
 
 function createImageProcessingGate(limit) {
   let active = 0;
@@ -29,21 +30,26 @@ function createImageProcessingGate(limit) {
 }
 
 export function createPrivateImageService({ connection, media, secret, maxImagesPerUser = 20,
-  maxConcurrentDecoders = MAX_IMAGE_PROCESSING }) {
-  const { PrivateImage, PrivateImageQuota } = privateImageModels(connection);
+  maxConcurrentDecoders = MAX_IMAGE_PROCESSING, imageModels = privateImageModels(connection), storagePrefix = 'private-images' }) {
+  if (!['private-images', 'applicant-documents'].includes(storagePrefix)) throw new TypeError('Invalid private image namespace');
+  const { PrivateImage, PrivateImageQuota } = imageModels;
   if (!Number.isInteger(maxConcurrentDecoders) || maxConcurrentDecoders < 1 || maxConcurrentDecoders > 4) {
     throw new TypeError('Invalid image decoder capacity');
   }
-  const imageProcessing = createImageProcessingGate(maxConcurrentDecoders);
+  let imageProcessing = processingByConnection.get(connection);
+  if (!imageProcessing) {
+    imageProcessing = createImageProcessingGate(maxConcurrentDecoders);
+    processingByConnection.set(connection, imageProcessing);
+  }
   async function upload({ actor, body, contentType, idempotencyKey }) {
     if (!Types.ObjectId.isValid(actor?.userId)) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) throw invalid();
     if (!Buffer.isBuffer(body) || !body.length || body.length > MAX_IMAGE_BYTES
       || !['image/png', 'image/jpeg'].includes(contentType)) throw invalid();
     const ownerId = new Types.ObjectId(actor.userId);
-    const id = createHmac('sha256', secret).update(`private-image-v1\0${ownerId}\0${idempotencyKey}`).digest('hex');
+    const id = createHmac('sha256', secret).update(`${storagePrefix === 'private-images' ? 'private-image-v1' : 'applicant-document-v1'}\0${ownerId}\0${idempotencyKey}`).digest('hex');
     const inputDigest = digest(Buffer.concat([Buffer.from(`${contentType}\0`), body]));
-    const storageRef = `private-images/${id}`;
+    const storageRef = `${storagePrefix}/${id}`;
     let record = await PrivateImage.findById(id).select('+inputDigest').lean();
     if (record && record.inputDigest !== inputDigest) throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'Upload key was already used');
     if (record?.state === 'READY') return { id, state: 'READY', replayed: true };

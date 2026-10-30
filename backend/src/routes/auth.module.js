@@ -7,11 +7,12 @@ import { createRegistrationPolicyService } from '../services/registration-policy
 import { requireCsrf, requireSession } from '../middlewares/session.js';
 import { authModule } from './auth.routes.js';
 
-export function authenticationModule({ config, connection, ports, logger = () => {} }) {
+export function authenticationModule({ config, connection, ports, logger = () => {}, clock = Date.now }) {
   if (!config.auth?.enabled) return null;
 
   const sessionService = createSessionService({
     connection,
+    clock,
     tokenSecret: config.auth.tokenSecret,
     csrfSecret: config.auth.csrfSecret
   });
@@ -20,15 +21,17 @@ export function authenticationModule({ config, connection, ports, logger = () =>
     encryptionKey: config.auth.contactEncryptionKey
   });
   const accountSettingsService = createAccountSettingsService({ connection, contactCrypto });
-  const registrationPolicyService = createRegistrationPolicyService({ connection });
+  const registrationPolicyService = createRegistrationPolicyService({ connection, clock });
   const registerHandler = createCustomerRegistrationHandler({
     connection,
+    clock,
     sessionService,
     contactCrypto,
     registrationPolicyService
   });
   const otpService = createOtpService({
     connection,
+    clock,
     contactDelivery: ports.contactDelivery,
     sessionService,
     contactCrypto,
@@ -41,7 +44,7 @@ export function authenticationModule({ config, connection, ports, logger = () =>
     otpService,
     sessionService,
     accountSettingsService,
-    requireAuthenticated: requireSession(sessionService),
+    requireAuthenticated: requireSession(sessionService, { clock }),
     requireCsrf: requireCsrf(sessionService),
     secureCookies: config.secureCookies
   });

@@ -10,11 +10,16 @@ export function sitterApplicationModels(connection) {
   }, { _id: false, strict: 'throw' });
 
   const applicantSchema = new Schema({
+    ownerUserId: { type: Schema.Types.ObjectId, default: null, index: true },
+    policyConsents: { type: [new Schema({
+      slug: String, versionId: String, contentHash: String, effectiveAt: Date, consentedAt: Date, sourceRef: String
+    }, { _id: false, strict: 'throw' })], default: [], immutable: true },
     displayName: { type: String, required: true, maxlength: 100 },
     contactChannel: { type: String, enum: ['EMAIL', 'PHONE'], required: true },
     contactCiphertext: { type: String, required: true, select: false },
     contactLookupKey: { type: String, required: true, select: false },
     identityLookupKey: { type: String, required: true, select: false },
+    activePendingOwnerUserId: { type: Schema.Types.ObjectId, select: false },
     activePendingContactKey: { type: String, select: false },
     activePendingIdentityKey: { type: String, select: false },
     ageEligible: { type: Boolean, required: true, enum: [true] },
@@ -34,6 +39,7 @@ export function sitterApplicationModels(connection) {
     submissionKeyDigest: { type: String, required: true, select: false },
     submissionPayloadDigest: { type: String, required: true, select: false }
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
+  applicantSchema.index({ activePendingOwnerUserId: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ activePendingContactKey: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ activePendingIdentityKey: 1 }, { unique: true, sparse: true });
   applicantSchema.index({ state: 1, createdAt: -1, _id: -1 });

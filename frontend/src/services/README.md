@@ -6,3 +6,5 @@ Same-origin transport, endpoint adapters and DTO normalization belong here. `pub
 shortlists from `/ai/recommendations`; it does not request prices or send offers.
 The caller clears results when the input changes and must reconcile uncertain
 pet/address creates before issuing another non-idempotent create command.
+
+sitter-application-api.js sends authenticated/CSRF application commands and raw private-image uploads. Upload keys are stable per File and submission keys are retained across uncertain acknowledgements. It loads the owner's intake/receipt and never sends raw storage paths or stores personal data in browser storage.

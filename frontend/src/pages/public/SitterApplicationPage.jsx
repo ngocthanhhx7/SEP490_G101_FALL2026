@@ -6,10 +6,12 @@ import { sitterApplicationApi } from '../../services/sitter-application-api.js';
 import './sitter-application.css';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
+import { useRegistrationPolicies } from '../../contexts/PublicPolicyContext.jsx';
+import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024;
 const MAX_SUPPORTING_FILES = 5;
-const ACCEPTED_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png']);
+const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png']);
 
 function lines(value) {
   return [
@@ -23,6 +25,10 @@ function lines(value) {
 }
 
 function errorMessage(error) {
+  if (error?.code === 'POLICY_NOT_AVAILABLE') return 'Chính sách đăng ký đã thay đổi hoặc chưa có hiệu lực. Vui lòng tải lại trang và xác nhận chính sách hiện hành.';
+  if (error?.code === 'UNAUTHENTICATED' || error?.code === 'CSRF_UNAVAILABLE') return 'Phiên đăng nhập cần được xác nhận lại. Vui lòng đăng nhập rồi mở lại hồ sơ.';
+  if (error?.code === 'MEDIA_QUOTA_EXCEEDED') return 'Tài khoản đã đạt giới hạn lưu trữ 20 ảnh. Vui lòng liên hệ PawWorld để được hỗ trợ.';
+  if (error?.code === 'INVALID_DOCUMENT') return 'Chọn ảnh JPG hoặc PNG hợp lệ, tối đa 5 MB.';
   if (error?.code === 'PROVIDER_UNAVAILABLE')
     return 'Chưa thể tải giấy tờ lên kho riêng tư. Hồ sơ chưa được gửi; vui lòng thử lại sau.';
   if (error?.code === 'AGE_REQUIREMENT_NOT_MET')
@@ -74,7 +80,7 @@ function validate({
       'Dùng số điện thoại dạng quốc tế, ví dụ +84912345678.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))
     errors.dateOfBirth = 'Chọn ngày sinh hợp lệ.';
-  if (!identityNumber.trim())
+  if (!/^[A-Z0-9]{8,20}$/.test(identityNumber.normalize('NFKC').replace(/[\s-]/g, '').toUpperCase()))
     errors.identityNumber = 'Nhập số CCCD hoặc giấy tờ định danh.';
   if (experience.trim().length < 10)
     errors.experience = 'Mô tả ít nhất 10 ký tự về kinh nghiệm chăm sóc.';
@@ -83,7 +89,7 @@ function validate({
   if (!lines(areas).length)
     errors.areas = 'Nhập ít nhất một khu vực mong muốn.';
   if (!identityFile)
-    errors.identityFile = 'Chọn ảnh hoặc PDF giấy tờ định danh.';
+    errors.identityFile = 'Chọn ảnh giấy tờ định danh.';
   const files = [identityFile, ...supportingFiles].filter(Boolean);
   if (supportingFiles.length > MAX_SUPPORTING_FILES)
     errors.supportingFiles = `Tối đa ${MAX_SUPPORTING_FILES} giấy tờ bổ sung.`;
@@ -95,15 +101,17 @@ function validate({
         file.size > MAX_FILE_BYTES
     )
   ) {
-    errors.files = 'Mỗi tệp phải là PDF, JPG hoặc PNG và không quá 5 MB.';
+    errors.files = 'Mỗi tệp phải là JPG hoặc PNG và không quá 5 MB.';
   }
   return errors;
 }
 
 export function SitterApplicationPage({
   api = sitterApplicationApi,
-  initialValues
+  initialValues, uploadsAvailable = api.uploadsAvailable, previousApplication
 }) {
+  const policies = useRegistrationPolicies();
+  const [agreementKey, setAgreementKey] = useState('');
   const catalog = useApiResource(loadPublicCatalog);
   const [form, setForm] = useState({
     displayName: '',
@@ -122,7 +130,7 @@ export function SitterApplicationPage({
   const [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [receipt, setReceipt] = useState(false);
+  const [receipt, setReceipt] = useState(previousApplication ?? false);
   const idempotencyKey = useRef(null);
 
   function update(field, value) {
@@ -139,10 +147,10 @@ export function SitterApplicationPage({
 
   function focusFirst(nextErrors) {
     const ids = {
-      displayName: 'sitter-applicant-name',
-      contactValue: 'sitter-applicant-contact',
-      dateOfBirth: 'sitter-applicant-birth-date',
-      identityNumber: 'sitter-applicant-id',
+      displayName: 'sitter-applicant-displayName',
+      contactValue: 'sitter-applicant-contactValue',
+      dateOfBirth: 'sitter-applicant-dateOfBirth',
+      identityNumber: 'sitter-applicant-identityNumber',
       experience: 'sitter-applicant-experience',
       services: 'sitter-applicant-services',
       areas: 'sitter-applicant-areas',
@@ -154,6 +162,7 @@ export function SitterApplicationPage({
 
   async function submit(event) {
     event.preventDefault();
+    if (busy) return;
     const nextErrors = validate({
       ...form,
       services: form.services,
@@ -161,6 +170,7 @@ export function SitterApplicationPage({
       identityFile,
       supportingFiles
     });
+    if (!policies.current().ready || agreementKey !== policies.current().key) nextErrors.agreement = 'Bạn cần đồng ý với các chính sách đang có hiệu lực.';
     setErrors(nextErrors);
     if (Object.values(nextErrors).some(Boolean)) {
       setNotice(null);
@@ -207,7 +217,8 @@ export function SitterApplicationPage({
           experience: form.experience.trim(),
           requestedServices: lines(form.services),
           workAreas: lines(form.areas),
-          documents
+          documents,
+          policyVersions: policies.current().versions
         },
         { key: idempotencyKey.current }
       );
@@ -239,361 +250,110 @@ export function SitterApplicationPage({
   }
 
   if (receipt) {
-    return (
-      <section
-        className="sitter-application"
-        aria-labelledby="sitter-application-receipt-title"
-      >
-        <div className="sitter-application__card sitter-application__receipt">
-          <p className="sitter-application__eyebrow">
-            Paw World Care · Ứng tuyển Sitter
-          </p>
-          <h1 id="sitter-application-receipt-title">Đã tiếp nhận hồ sơ</h1>
-          <p>
-            Hồ sơ đang chờ Admin xem xét. Việc gửi hồ sơ chưa tạo tài khoản hoặc
-            phiên Sitter.
-          </p>
-          <Notice state="pending" title="Theo dõi hồ sơ">
-            Giữ bí mật mã tra cứu: <strong>{receipt.applicationCode}</strong>.
-            Dùng mã này và OTP gửi về kênh liên hệ đã nộp để tra cứu.
-          </Notice>
-          <Link to="/sitter/application-status">Tra cứu trạng thái hồ sơ</Link>
+    const labels = { PENDING: 'Đã tiếp nhận hồ sơ', UNDER_REVIEW: 'Hồ sơ đang được xét duyệt', INTERVIEW: 'Đang ở bước phỏng vấn', APPROVED: 'Hồ sơ đã được duyệt', REJECTED: 'Hồ sơ chưa được duyệt' };
+    return <section className="sitter-application" aria-labelledby="sitter-application-receipt-title">
+      <div className="sitter-application__card sitter-application__receipt">
+        <span className="sitter-application__success-icon" aria-hidden="true">✓</span>
+        <p className="sitter-application__eyebrow">PawWorld · Hồ sơ của bạn</p>
+        <h2 id="sitter-application-receipt-title">{labels[receipt.state] || 'Đã tiếp nhận hồ sơ'}</h2>
+        <p>Hồ sơ chỉ được cấp quyền Pet Sitter sau khi PawWorld xét duyệt. Bạn vẫn có thể sử dụng tài khoản khách hàng trong thời gian chờ.</p>
+        {receipt.reapplyAt && <p>Có thể nộp lại từ {new Date(receipt.reapplyAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}.</p>}
+        <div className="sitter-application__tracking">
+          <span>Mã hồ sơ của bạn</span><strong>{receipt.applicationCode}</strong>
+          <small>Giữ mã này để tra cứu cùng OTP gửi tới email đã xác minh. Bạn cũng có thể mở lại trang ứng tuyển để xem mã.</small>
         </div>
-      </section>
-    );
+        <Link className="registration-submit" to="/sitter/application-status">Theo dõi hồ sơ →</Link>
+        <Link to="/account">Về tài khoản của tôi</Link>
+      </div>
+    </section>;
   }
 
-  const apiUnavailable = !api?.uploadDocument || api.uploadsAvailable === false;
-  return (
-    <section
-      className="sitter-application"
-      aria-labelledby="sitter-application-title"
-    >
-      <div className="sitter-application__card">
-        <header className="sitter-application__header">
-          <p className="sitter-application__eyebrow">
-            Paw World Care · Cơ hội đồng hành
-          </p>
-          <h1 id="sitter-application-title">Ứng tuyển Pet Sitter</h1>
-          <p>
-            Gửi thông tin để đội ngũ xem xét. Xác thực email trước khi hoàn tất
-            hồ sơ. Chỉ được cấp quyền Pet Sitter sau khi hồ sơ được duyệt.
-          </p>
-          <Notice state="info" title="Bảo vệ thông tin của bạn">
-            Số định danh chỉ được dùng để phát hiện hồ sơ trùng và không hiển
-            thị trong danh sách Admin. Tệp giấy tờ cần được tải lên kho riêng
-            tư.
-          </Notice>
-        </header>
-
-        {apiUnavailable && (
-          <Notice state="pending" title="Chưa mở tiếp nhận giấy tờ">
-            Bạn có thể xem các thông tin cần chuẩn bị. PawWorld sẽ mở nộp hồ sơ
-            khi kho giấy tờ riêng tư sẵn sàng; hiện chưa thể gửi hồ sơ.
-          </Notice>
-        )}
-        <form className="sitter-application__form" noValidate onSubmit={submit}>
+  const apiUnavailable = !api?.uploadDocument || uploadsAvailable === false;
+  function field(name, label, options = {}) {
+    return <label className="sitter-application__field" htmlFor={`sitter-applicant-${name}`}>
+      <span>{label} <b aria-hidden="true">*</b></span>
+      <input id={`sitter-applicant-${name}`} autoComplete="off" required {...options} value={form[name]}
+        aria-invalid={!!errors[name]} aria-describedby={errors[name] ? `sitter-error-${name}` : undefined}
+        onChange={event => update(name, event.target.value)} />
+      {errors[name] && <small className="sitter-application__error" id={`sitter-error-${name}`}>{errors[name]}</small>}
+    </label>;
+  }
+  return <section className="sitter-application" aria-labelledby="sitter-application-title">
+    <div className="sitter-application__card">
+      <header className="sitter-application__header">
+        <p className="sitter-application__eyebrow">PawWorld · Pet Sitter</p>
+        <h2 id="sitter-application-title">Kể chúng mình nghe về bạn</h2>
+        <p>Hoàn thiện hồ sơ để bắt đầu hành trình chăm sóc những người bạn nhỏ.</p>
+        <span className="sitter-application__verified">✓ Email đã xác minh · {form.contactValue}</span>
+      </header>
+      {apiUnavailable && <Notice state="pending" title="Chưa mở tiếp nhận giấy tờ">Kho giấy tờ riêng tư hiện chưa sẵn sàng. Bạn có thể chuẩn bị thông tin; hồ sơ chỉ được gửi khi hệ thống tiếp nhận hoạt động.</Notice>}
+      <form className="sitter-application__form" noValidate onSubmit={submit}>
+        <fieldset className="sitter-application__body" disabled={busy}>
+          <legend className="pwc-visually-hidden">Thông tin ứng tuyển</legend>
+          <div className="sitter-application__section-heading"><span>01</span><h3>Thông tin cá nhân</h3><small>Cần đủ 18 tuổi để ứng tuyển</small></div>
           <div className="sitter-application__grid">
-            <label
-              className="sitter-application__field"
-              htmlFor="sitter-applicant-name"
-            >
-              <span>Họ và tên</span>
-              <input
-                id="sitter-applicant-name"
-                name="displayName"
-                autoComplete="name"
-                maxLength="100"
-                required
-                value={form.displayName}
-                aria-invalid={Boolean(errors.displayName)}
-                onChange={(event) => update('displayName', event.target.value)}
-              />
-              {errors.displayName && (
-                <span className="sitter-application__error">
-                  {errors.displayName}
-                </span>
-              )}
-            </label>
-
-            <fieldset className="sitter-application__contact">
-              <legend>Kênh liên hệ</legend>
-              <div className="sitter-application__contact-options">
-                <label>
-                  <input
-                    type="radio"
-                    name="contactChannel"
-                    value="EMAIL"
-                    checked={form.contactChannel === 'EMAIL'}
-                    onChange={() => update('contactChannel', 'EMAIL')}
-                  />{' '}
-                  Email
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name="contactChannel"
-                    value="PHONE"
-                    checked={false}
-                    disabled
-                  />{' '}
-                  SMS — chưa khả dụng
-                </label>
-              </div>
-              <label
-                className="sitter-application__field"
-                htmlFor="sitter-applicant-contact"
-              >
-                <span>
-                  {form.contactChannel === 'EMAIL' ? 'Email' : 'Số điện thoại'}
-                </span>
-                <input
-                  id="sitter-applicant-contact"
-                  type={form.contactChannel === 'EMAIL' ? 'email' : 'tel'}
-                  readOnly={Boolean(initialValues?.contactValue)}
-                  autoComplete={
-                    form.contactChannel === 'EMAIL' ? 'email' : 'tel'
-                  }
-                  inputMode={
-                    form.contactChannel === 'PHONE' ? 'tel' : undefined
-                  }
-                  required
-                  value={form.contactValue}
-                  aria-invalid={Boolean(errors.contactValue)}
-                  onChange={(event) =>
-                    update('contactValue', event.target.value)
-                  }
-                />
-                {errors.contactValue && (
-                  <span className="sitter-application__error">
-                    {errors.contactValue}
-                  </span>
-                )}
-              </label>
-            </fieldset>
-
-            <label
-              className="sitter-application__field"
-              htmlFor="sitter-applicant-birth-date"
-            >
-              <span>Ngày sinh</span>
-              <input
-                id="sitter-applicant-birth-date"
-                type="date"
-                autoComplete="bday"
-                required
-                value={form.dateOfBirth}
-                aria-invalid={Boolean(errors.dateOfBirth)}
-                onChange={(event) => update('dateOfBirth', event.target.value)}
-              />
-              {errors.dateOfBirth && (
-                <span className="sitter-application__error">
-                  {errors.dateOfBirth}
-                </span>
-              )}
-            </label>
-            <label
-              className="sitter-application__field"
-              htmlFor="sitter-applicant-id"
-            >
-              <span>Số CCCD hoặc giấy tờ định danh</span>
-              <input
-                id="sitter-applicant-id"
-                name="identityNumber"
-                autoComplete="off"
-                required
-                value={form.identityNumber}
-                aria-invalid={Boolean(errors.identityNumber)}
-                onChange={(event) =>
-                  update('identityNumber', event.target.value)
-                }
-              />
-              {errors.identityNumber && (
-                <span className="sitter-application__error">
-                  {errors.identityNumber}
-                </span>
-              )}
-            </label>
+            {field('displayName', 'Họ và tên', { autoComplete: 'name', maxLength: 100, placeholder: 'Nguyễn Văn A' })}
+            {field('contactValue', 'Email', { type: 'email', readOnly: true, autoComplete: 'email' })}
+            {field('dateOfBirth', 'Ngày sinh', { type: 'date', autoComplete: 'bday' })}
+            {field('identityNumber', 'Số CCCD hoặc giấy tờ định danh', { maxLength: 24, placeholder: 'Nhập số trên giấy tờ của bạn' })}
           </div>
-
-          <label className="sitter-application__field">
-            <span>Kinh nghiệm chăm sóc thú cưng</span>
-            <textarea
-              id="sitter-applicant-experience"
-              rows="4"
-              maxLength="2000"
-              required
-              value={form.experience}
-              aria-invalid={Boolean(errors.experience)}
-              onChange={(event) => update('experience', event.target.value)}
-            />
-            {errors.experience && (
-              <span className="sitter-application__error">
-                {errors.experience}
-              </span>
-            )}
-          </label>
-
-          <div className="sitter-application__grid">
-            <div
-              className="sitter-application__field"
-              role="group"
-              aria-labelledby="sitter-service-label"
-            >
-              <label
-                id="sitter-service-label"
-                htmlFor="sitter-applicant-services"
-              >
-                Dịch vụ mong muốn <small>(mỗi dòng một mục)</small>
-              </label>
-              {catalog.data?.available && catalog.data.services.length > 0 ? (
-                <span className="pwc-sitter-service-choices">
-                  {catalog.data.services.map((service) => (
-                    <label key={service.id}>
-                      <input
-                        type="checkbox"
-                        checked={lines(form.services).includes(service.name)}
-                        onChange={(event) =>
-                          update(
-                            'services',
-                            (event.target.checked
-                              ? [...lines(form.services), service.name]
-                              : lines(form.services).filter(
-                                  (name) => name !== service.name
-                                )
-                            ).join('\n')
-                          )
-                        }
-                      />
-                      {service.name}
-                    </label>
-                  ))}
-                </span>
-              ) : (
-                <textarea
-                  id="sitter-applicant-services"
-                  rows="3"
-                  maxLength="1000"
-                  required
-                  value={form.services}
-                  aria-invalid={Boolean(errors.services)}
-                  onChange={(event) => update('services', event.target.value)}
-                />
-              )}
-              {errors.services && (
-                <span className="sitter-application__error">
-                  {errors.services}
-                </span>
-              )}
-            </div>
-            <label className="sitter-application__field">
-              <span>
-                Khu vực mong muốn <small>(quận/huyện hoặc địa bàn)</small>
-              </span>
-              <textarea
-                id="sitter-applicant-areas"
-                rows="3"
-                maxLength="1000"
-                required
-                value={form.areas}
-                aria-invalid={Boolean(errors.areas)}
-                onChange={(event) => update('areas', event.target.value)}
-              />
-              {errors.areas && (
-                <span className="sitter-application__error">
-                  {errors.areas}
-                </span>
-              )}
-            </label>
-          </div>
-
-          <fieldset className="sitter-application__files">
-            <legend>Giấy tờ ứng tuyển</legend>
-            <p>
-              PDF, JPG hoặc PNG; tối đa 5 MB mỗi tệp. Tệp sẽ không được công
-              khai.
-            </p>
-            <label className="sitter-application__field">
-              <span>
-                Giấy tờ định danh <strong aria-hidden="true">*</strong>
-              </span>
-              <input
-                id="sitter-applicant-id-file"
-                type="file"
-                accept=".pdf,image/jpeg,image/png"
-                required
-                aria-invalid={Boolean(errors.identityFile || errors.files)}
-                onChange={(event) => {
-                  setIdentityFile(event.target.files?.[0] ?? null);
-                  setUploadedDocuments(null);
-                  idempotencyKey.current = null;
-                  setErrors((previous) => ({
-                    ...previous,
-                    identityFile: undefined,
-                    files: undefined
-                  }));
-                  setNotice(null);
-                }}
-              />
-              {errors.identityFile && (
-                <span className="sitter-application__error">
-                  {errors.identityFile}
-                </span>
-              )}
-            </label>
-            <label className="sitter-application__field">
-              <span>
-                Chứng chỉ hoặc tài liệu bổ sung <small>(không bắt buộc)</small>
-              </span>
-              <input
-                type="file"
-                accept=".pdf,image/jpeg,image/png"
-                multiple
-                onChange={(event) => {
-                  setSupportingFiles(Array.from(event.target.files ?? []));
-                  setUploadedDocuments(null);
-                  idempotencyKey.current = null;
-                  setErrors((previous) => ({
-                    ...previous,
-                    supportingFiles: undefined,
-                    files: undefined
-                  }));
-                  setNotice(null);
-                }}
-              />
-              {errors.supportingFiles && (
-                <span className="sitter-application__error">
-                  {errors.supportingFiles}
-                </span>
-              )}
-            </label>
-            {errors.files && (
-              <p className="sitter-application__error" role="alert">
-                {errors.files}
-              </p>
-            )}
+          <div className="sitter-application__section-heading"><span>02</span><h3>Công việc mong muốn</h3></div>
+          <fieldset className="sitter-application__services" id="sitter-applicant-services" tabIndex={-1}>
+            <legend>Nhóm dịch vụ có thể làm việc <b aria-hidden="true">*</b></legend>
+            {catalog.data?.available && catalog.data.services.length ? <div className="sitter-application__service-choices">
+              {catalog.data.services.map(service => <label key={service.id} className={lines(form.services).includes(service.name) ? 'is-selected' : ''}>
+                <input type="checkbox" checked={lines(form.services).includes(service.name)} onChange={event => update('services',
+                  (event.target.checked ? [...lines(form.services), service.name] : lines(form.services).filter(name => name !== service.name)).join('\n'))} />
+                <span>{service.name}</span>
+              </label>)}
+            </div> : <label className="sitter-application__field"><span>Dịch vụ mong muốn (mỗi dòng một mục)</span>
+              <textarea rows={2} maxLength={800} value={form.services} onChange={event => update('services', event.target.value)} placeholder="Nhập dịch vụ chăm sóc thú cưng bạn có thể thực hiện" />
+            </label>}
+            {errors.services && <p className="sitter-application__error">{errors.services}</p>}
           </fieldset>
-
-          <Notice state="pending" title="Trạng thái tải giấy tờ">
-            Tích hợp kho lưu trữ riêng tư đang chờ hoàn tất. Nếu tệp chưa tải
-            lên được, hồ sơ chưa được gửi.
-          </Notice>
-
-          {notice && (
-            <Notice state={notice.state} title={notice.title}>
-              <p>{notice.message}</p>
-            </Notice>
-          )}
-          <Button
-            type="submit"
-            loading={busy}
-            loadingLabel="Đang gửi hồ sơ…"
-            disabled={apiUnavailable}
-          >
-            Gửi hồ sơ ứng tuyển
-          </Button>
-        </form>
-      </div>
-    </section>
-  );
+          <div className="sitter-application__grid">
+            <label className="sitter-application__field"><span>Thành phố</span><input value="Hà Nội" readOnly /><small>Khu vực phục vụ hiện tại của PawWorld</small></label>
+            <label className="sitter-application__field"><span>Khu vực mong muốn <b aria-hidden="true">*</b></span>
+              <textarea id="sitter-applicant-areas" rows={2} maxLength={800} required value={form.areas} placeholder="Nhập phường/xã bạn muốn làm việc, mỗi dòng một khu vực"
+                aria-invalid={!!errors.areas} onChange={event => update('areas', event.target.value)} />
+              {errors.areas && <small className="sitter-application__error">{errors.areas}</small>}
+            </label>
+          </div>
+          <label className="sitter-application__field"><span>Kinh nghiệm chăm sóc thú cưng <b aria-hidden="true">*</b></span>
+            <textarea id="sitter-applicant-experience" rows={4} minLength={10} maxLength={2000} required value={form.experience}
+              placeholder="Bạn đã từng chăm sóc chó, mèo như thế nào? Chia sẻ kinh nghiệm và những điều bạn tự tin nhất."
+              aria-invalid={!!errors.experience} onChange={event => update('experience', event.target.value)} />
+            <small className="sitter-application__counter">Tối thiểu 10 ký tự · {form.experience.length}/2000</small>
+            {errors.experience && <small className="sitter-application__error">{errors.experience}</small>}
+          </label>
+          <div className="sitter-application__section-heading"><span>03</span><h3>Giấy tờ ứng tuyển</h3></div>
+          <p className="sitter-application__file-hint">Ảnh JPG hoặc PNG, tối đa 5 MB/tệp, tối đa 20 ảnh/tài khoản. Giấy tờ được lưu riêng tư, chỉ bạn và người xét duyệt có quyền xem.</p>
+          <label className="sitter-application__upload"><span>Ảnh giấy tờ định danh <b aria-hidden="true">*</b></span>
+            <small>Ảnh rõ nét, đầy đủ thông tin trên giấy tờ</small>
+            <input id="sitter-applicant-id-file" type="file" accept="image/jpeg,image/png" required aria-invalid={!!(errors.identityFile || errors.files)}
+              onChange={event => { setIdentityFile(event.target.files?.[0] ?? null); setUploadedDocuments(null); idempotencyKey.current = null; setErrors({}); setNotice(null); }} />
+            {errors.identityFile && <small className="sitter-application__error">{errors.identityFile}</small>}
+          </label>
+          <label className="sitter-application__upload"><span>Ảnh chứng chỉ hoặc tài liệu bổ sung <small>(không bắt buộc)</small></span>
+            <small>Tối đa 5 ảnh bổ sung về kinh nghiệm hoặc chứng chỉ của bạn</small>
+            <input type="file" accept="image/jpeg,image/png" multiple
+              onChange={event => { setSupportingFiles(Array.from(event.target.files ?? [])); setUploadedDocuments(null); idempotencyKey.current = null; setErrors({}); setNotice(null); }} />
+            {supportingFiles.length > 0 && <small>Đã chọn {supportingFiles.length} ảnh</small>}
+          </label>
+          {(errors.files || errors.supportingFiles) && <p className="sitter-application__error" role="alert">{errors.files || errors.supportingFiles}</p>}
+          <div className="registration-consent">
+            <input id="sitter-agreement" type="checkbox" checked={agreementKey === policies.key && policies.ready} disabled={!policies.ready}
+              onChange={event => { setAgreementKey(event.target.checked ? policies.current().key : ''); setErrors(previous => ({ ...previous, agreement: undefined })); }} />
+            <label htmlFor="sitter-agreement">Tôi đồng ý với Điều khoản dịch vụ và Chính sách quyền riêng tư của PawWorld.</label>
+            <PolicyContextLinks context="sitterApplication" />
+            {!policies.ready && <p role="status">Chính sách đăng ký hiện chưa sẵn sàng. Vui lòng thử lại sau.</p>}
+            {errors.agreement && <p className="sitter-application__error" role="alert">{errors.agreement}</p>}
+          </div>
+        </fieldset>
+        {notice && <Notice state={notice.state} title={notice.title}>{notice.message}</Notice>}
+        <Button className="sitter-application__submit" type="submit" loading={busy} loadingLabel="Đang gửi hồ sơ…" disabled={apiUnavailable || !policies.ready}>Gửi hồ sơ ứng tuyển →</Button>
+        <p className="sitter-application__review-hint">PawWorld sẽ kiểm tra hồ sơ và liên hệ với bạn về bước tiếp theo.</p>
+      </form>
+    </div>
+  </section>;
 }

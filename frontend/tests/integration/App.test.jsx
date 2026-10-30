@@ -22,7 +22,7 @@ test('public route is readable before session resolution and uses brand asset', 
 
 test('guest is redirected to OTP integration placeholder', async () => {
   renderApp('/account', adapter({ status: 'guest' }));
-  expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Chào mừng trở lại' })).toBeVisible();
   expect(screen.queryByRole('heading', { name: 'Tài khoản' })).not.toBeInTheDocument();
 });
 
@@ -48,7 +48,7 @@ test('failed session can retry and fails closed for unknown roles', async () => 
   renderApp('/account', { resolve });
   expect(await screen.findByRole('alert')).toHaveTextContent('Không thể kiểm tra phiên');
   fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-  expect(await screen.findByRole('heading', { name: 'Đăng nhập' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Chào mừng trở lại' })).toBeVisible();
 });
 
 test.each([['ADMIN', true], ['STAFF', true], ['CUSTOMER', false], ['PET_SITTER', false], ['UNKNOWN', false]])

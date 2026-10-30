@@ -44,7 +44,7 @@ function appFixture({ authenticated = false } = {}) {
 }
 
 describe('auth route module HTTP contract', () => {
-  test('rejects SMS for new login/registration and validates the remember-device flag', async () => {
+  test('keeps SMS registration gated and validates the remember-device flag', async () => {
     const { server, otpService } = appFixture();
     await request(server).post('/api/v1/otp-challenges').send({ channel: 'PHONE', contact: '+84912345678', purpose: 'REGISTER' }).expect(503);
     expect(otpService.begin).not.toHaveBeenCalled();
@@ -54,6 +54,18 @@ describe('auth route module HTTP contract', () => {
     expect(otpService.verify).not.toHaveBeenCalled();
     await request(server).post('/api/v1/sessions').send({ ...body, rememberDevice: true }).expect(200);
     expect(otpService.verify).toHaveBeenCalledWith({ ...body, rememberDevice: true });
+  });
+  test.each(['EMAIL', 'PHONE'])('allows %s login challenge and creates an HttpOnly session', async channel => {
+    const { server, otpService } = appFixture();
+    const contact = channel === 'EMAIL' ? 'person@example.test' : '+84912345678';
+    const challenge = await request(server).post('/api/v1/otp-challenges')
+      .send({ channel, contact, purpose: 'LOGIN' }).expect(202);
+    expect(otpService.begin).toHaveBeenCalledWith({ channel, contact, purpose: 'LOGIN' });
+    const verification = { challengeId: challenge.body.data.challengeId, channel, contact, purpose: 'LOGIN', code: '123456' };
+    const response = await request(server).post('/api/v1/sessions').send(verification).expect(200);
+    expect(otpService.verify).toHaveBeenCalledWith({ ...verification, rememberDevice: false });
+    expect(response.headers['set-cookie'][0]).toMatch(/HttpOnly/i);
+    expect(response.body.data.authenticated).toBe(true);
   });
   test('returns the authenticated user and masked verified contacts from GET /me', async () => {
     const { server, accountSettingsService } = appFixture({ authenticated: true });

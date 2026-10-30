@@ -17,7 +17,9 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
-import { privateImageRuntimeModule } from './routes/private-image.routes.js';
+import { privateImageRuntimeModule, applicantDocumentRuntimeModule } from './routes/private-image.routes.js';
+import { sitterApplicationRuntimeModule } from './routes/sitter-application.routes.js';
+
 import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
 import { dashboardReadRuntimeModule } from './routes/dashboard-runtime.routes.js';
 import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
@@ -27,6 +29,7 @@ import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 import { bookingCheckoutRuntimeModule } from './routes/booking-checkout.routes.js';
 import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.routes.js';
 import { mapsRuntimeModule } from './routes/maps.routes.js';
+
 
 export function createApp({
   config,
@@ -75,6 +78,7 @@ export function createApp({
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
+  const applicantDocuments = applicantDocumentRuntimeModule(context);
   const publicProfiles = auth && typeof connection?.model === 'function'
     ? sitterPublicProfileModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
@@ -86,6 +90,9 @@ export function createApp({
   app.locals.employeeDispatch = env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' ? employeeScheduling.dispatch : null;
   const suppliedModules = moduleFactories.map((factory) => factory(context))
     .filter(module => module !== null && module !== undefined);
+  const sitterApplications = config.auth?.enabled && !suppliedModules.some(module => module.name === 'sitter-applications')
+    ? sitterApplicationRuntimeModule(context) : null;
+
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
     (module) =>
       !suppliedModules.some((supplied) => supplied.name === module.name)
@@ -114,6 +121,8 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(applicantDocuments ? [applicantDocuments] : []),
+    ...(sitterApplications ? [sitterApplications] : []),
     ...(publicProfiles ? [publicProfiles] : []),
     ...(payroll ? [payroll] : []),
     ...(checkout ? [checkout] : []),

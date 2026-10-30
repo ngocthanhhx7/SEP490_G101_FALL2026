@@ -108,7 +108,7 @@ Service catalog runtime: createApp mounts the existing catalog, price and visibi
 
 ## Đăng ký email và phiên ghi nhớ
 
-Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp nhận hồ sơ](../doc/testing/p34-registration-email-and-session.md). Đăng ký/đăng nhập hiện chỉ dùng OTP email; không bật SMS. Tùy chọn ghi nhớ dành cho Customer/Pet Sitter tối đa 30 ngày; đăng xuất thu hồi phiên phía server.
+Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp nhận hồ sơ](../doc/testing/p34-registration-email-and-session.md). Đăng ký dùng OTP email; đăng nhập hỗ trợ OTP email và SMS cho liên hệ đã xác minh. SMS cần provider phía server được cấu hình và bật. Xem [kiểm tra giao diện và luồng đăng nhập](../doc/testing/login-email-sms-refresh.md). Tùy chọn ghi nhớ dành cho Customer/Pet Sitter tối đa 30 ngày; đăng xuất thu hồi phiên phía server.
 
 
 ## Báo giá backend và gợi ý sitter
@@ -121,3 +121,7 @@ Offline collection/quarantine, OSM audit và training có provenance nằm ở
 Bộ dữ liệu demo có tài khoản khách/sitter/Admin/Staff và trang quan sát thuật toán: [AI demo local](../doc/testing/ai-demo-accounts.md). Chạy tường minh `node scripts/demo-ai.js --apply`; database riêng, không gửi email/SMS thật.
 
 Matching tại src/services/sitter-matching bật bằng AI_ENABLED=true (cần auth); pricing tại src/services/pricing độc lập với AI. Xem [API, MongoDB local, seeds và cách test](../doc/api/ai-pricing-matching-v1.md). Dữ liệu giống/traits do script seeds/ai.js nạp tường minh, không tự seed khi server chạy. Node 24.22.1/npm11.19.1; local Mongo8.0.34 replica-set tại27018, không ảnh hưởng Mongo8.2 tại27017.
+
+## Tiếp nhận hồ sơ Pet Sitter
+
+Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu phiên Customer, CSRF, email đã xác minh thuộc phiên, ảnh READY thuộc cùng owner và consent terms/privacy được kiểm tra trong transaction. Hồ sơ mới lưu ownerUserId; Admin duyệt nâng quyền cùng user và tăng authEpoch. Giấy tờ dùng applicant-documents với bucket/collection/quota riêng (JPG/PNG, 5 MB, quota 20 ảnh/tài khoản); SITTER_DOCUMENTS_ENABLED chưa bật hoặc thiếu cấu hình riêng thì intake báo chưa mở. Không tự seed policy, tạo tài khoản hay bật provider. Xem [bằng chứng và giới hạn](../doc/testing/registration-sitter-flow.md).

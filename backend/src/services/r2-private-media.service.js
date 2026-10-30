@@ -1,13 +1,12 @@
 ﻿import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { AppError } from '../utils/app-error.js';
-import { loadR2Config } from '../config/r2.js';
+import { loadR2Config, loadApplicantDocumentConfig } from '../config/r2.js';
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const keyPattern = /^private-images\/[a-f0-9]{64}$/;
 const unavailable = () => new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private media is unavailable');
-function validKey(key) {
-  if (!keyPattern.test(key ?? '')) throw new AppError(422, 'VALIDATION_FAILED', 'Invalid private media reference');
+function validKey(key, prefix) {
+  if (!new RegExp(`^${prefix}/[a-f0-9]{64}$`).test(key ?? '')) throw new AppError(422, 'VALIDATION_FAILED', 'Invalid private media reference');
 }
 
 // Transport boundary only: authorization and durable object metadata belong to
@@ -16,7 +15,8 @@ export function createR2PrivateMedia({ config, client = new S3Client({
   region: 'auto', endpoint: config.endpoint, credentials: config.credentials,
   maxAttempts: 1, requestHandler: { connectionTimeout: 3000, requestTimeout: 10000 },
   requestChecksumCalculation: 'WHEN_REQUIRED', responseChecksumValidation: 'WHEN_REQUIRED'
-}), clock = Date.now, timeoutMs = 10000 } = {}) {
+}), clock = Date.now, timeoutMs = 10000, keyPrefix = 'private-images' } = {}) {
+  if (!['private-images', 'applicant-documents'].includes(keyPrefix)) throw new TypeError('Invalid private media namespace');
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) throw new TypeError('Invalid R2 timeout');
   async function bounded(work) {
     const controller = new globalThis.AbortController();
@@ -29,7 +29,7 @@ export function createR2PrivateMedia({ config, client = new S3Client({
   }
   return Object.freeze({
     async upload({ storageRef, body, contentType }) {
-      validKey(storageRef);
+      validKey(storageRef, keyPrefix);
       if (!Buffer.isBuffer(body) || body.length === 0 || body.length > MAX_IMAGE_BYTES
         || !['image/png', 'image/jpeg'].includes(contentType)) {
         throw new AppError(422, 'VALIDATION_FAILED', 'Invalid private image');
@@ -41,7 +41,7 @@ export function createR2PrivateMedia({ config, client = new S3Client({
       } catch { throw unavailable(); } // Never expose SDK error, request URL or credential.
     },
     async read({ storageRef }) {
-      validKey(storageRef);
+      validKey(storageRef, keyPrefix);
       return bounded(async signal => {
        let result;
        const destroy = () => result?.Body?.destroy?.();
@@ -65,7 +65,7 @@ export function createR2PrivateMedia({ config, client = new S3Client({
       });
     },
     async createReadCapability({ storageRef, expiresInSeconds = 60 }) {
-      validKey(storageRef);
+      validKey(storageRef, keyPrefix);
       if (!Number.isInteger(expiresInSeconds) || expiresInSeconds < 1 || expiresInSeconds > 60) {
         throw new AppError(422, 'VALIDATION_FAILED', 'Invalid private media lifetime');
       }
@@ -81,5 +81,7 @@ export function createR2PrivateMedia({ config, client = new S3Client({
 
 export function createR2PortOverrides({ env = process.env } = {}) {
   const config = loadR2Config(env);
-  return config ? { privateMedia: createR2PrivateMedia({ config }) } : {};
+  const documents = loadApplicantDocumentConfig(env);
+  return { ...(config ? { privateMedia: createR2PrivateMedia({ config }) } : {}),
+    ...(documents ? { applicantDocuments: createR2PrivateMedia({ config: documents, keyPrefix: 'applicant-documents' }) } : {}) };
 }
