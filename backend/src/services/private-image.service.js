@@ -65,6 +65,8 @@ export function createPrivateImageService({ connection, media, secret, maxImages
         return normalized;
       } catch (error) {
         if (error instanceof AppError) throw error;
+        if (/pixel limit/i.test(error.message ?? '')) throw new AppError(422, 'IMAGE_DIMENSIONS_EXCEEDED',
+          'Image exceeds the supported pixel count', { fieldErrors: { documents: 'Ảnh vượt 4 megapixel. Hãy giảm kích thước ảnh, ví dụ 2000 × 2000 hoặc 2560 × 1440 pixel.' } });
         throw invalid();
       }
     });
