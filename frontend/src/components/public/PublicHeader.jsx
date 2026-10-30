@@ -32,7 +32,7 @@ export function PublicHeader() {
   return <header className="pwc-public-header">
     <div className="pwc-public-header-inner">
       <Link className="pwc-public-brand" to="/" onClick={closeMenu} aria-label="Paw World Care — Trang chủ">
-        <img src="/assets/figma-public/header-Vector.svg" alt="Paw World Care" /><span>PawWorld</span>
+        <img src="/assets/figma-public/header-Vector.svg" alt="Paw World Care" /><span>PawWorld<span className="pwc-brand-care">Care</span></span>
       </Link>
       <button
         className="pwc-menu-toggle"

@@ -123,7 +123,8 @@ export function createAuthController({
       }
       const result = await otpService.verify({ ...body, rememberDevice });
       if (!result.authenticated)
-        return respond(res, req, 200, { authenticated: false });
+        return respond(res, req, 200, { authenticated: false,
+          ...(result.reason === 'REGISTRATION_REQUIRED' ? { reason: result.reason } : {}) });
       sessionService.setCookie(res, result.session, {
         secure: secureCookies,
         persistent: rememberDevice

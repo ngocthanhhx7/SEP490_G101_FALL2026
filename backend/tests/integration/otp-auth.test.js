@@ -53,12 +53,12 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const challenge = await otpService.begin({ channel, contact, purpose: 'LOGIN' });
     expect(sent[0]).toMatchObject({ channel, purpose: 'LOGIN', code: '004201' });
     await expect(otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '999999' }))
-      .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ code: 'OTP_INCORRECT' });
     const verified = await otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '004201', rememberDevice: true });
     const req = { headers: { cookie: `${sessionService.cookieName}=${verified.session.token}` } };
     await expect(sessionService.authenticate(req)).resolves.toMatchObject({ userId: user._id.toString(), roles: ['CUSTOMER'] });
     await expect(otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '004201' }))
-      .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ code: 'OTP_ALREADY_USED' });
     await sessionService.revoke(req);
     await expect(sessionService.authenticate(req)).resolves.toBeNull();
   });
@@ -76,7 +76,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
 
     clockNow += 300000;
     await expect(otpService.verify({ ...started, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
-      .rejects.toMatchObject({ status: 400, code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ status: 400, code: 'OTP_EXPIRED' });
   });
 
   test('enforces resend cooldown and invalidates the previous challenge', async () => {
@@ -88,7 +88,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     clockNow += 60000;
     const second = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
     await expect(otpService.verify({ ...first, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
-      .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ code: 'OTP_REPLACED' });
     await expect(otpService.verify({ ...second, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
       .resolves.toMatchObject({ status: 'VERIFIED', authenticated: true });
   });
@@ -124,7 +124,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const challenge = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
     for (let index = 0; index < 5; index += 1) {
       await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '999999' }))
-        .rejects.toMatchObject({ status: 400, code: 'OTP_INVALID_OR_EXPIRED' });
+        .rejects.toMatchObject({ status: 400, code: 'OTP_INCORRECT' });
     }
     const throttle = await models.OtpThrottle.findOne({}).lean();
     expect(throttle.failedCount).toBe(5);
@@ -154,7 +154,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const login = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
     await otpService.verify({ ...login, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' });
     await expect(otpService.verify({ ...login, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
-      .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ code: 'OTP_ALREADY_USED' });
     expect(await models.AuthSession.countDocuments({})).toBe(2);
   });
 
@@ -167,7 +167,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const oldContact = contactCrypto.lookup('PHONE', '+84912345678');
     expect(await models.Contact.countDocuments({ userId: user._id, channel: 'PHONE', state: 'VERIFIED' })).toBe(1);
     await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '999999', actor }))
-      .rejects.toMatchObject({ status: 400, code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ status: 400, code: 'OTP_INCORRECT' });
     expect(await models.Contact.countDocuments({ userId: user._id, channel: 'PHONE', state: 'VERIFIED' })).toBe(1);
     await otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor });
     const contacts = await models.Contact.find({ userId: user._id, channel: 'PHONE' }).select('+canonicalCiphertext +lookupKey').lean();
@@ -249,7 +249,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     clockNow += 5 * 60 * 1000;
 
     await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor }))
-      .rejects.toMatchObject({ status: 400, code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ status: 400, code: 'OTP_EXPIRED' });
     expect(await models.Contact.countDocuments({ userId: user._id, state: 'VERIFIED' })).toBe(1);
     expect(await connection.collection('account_contact_audit_events').countDocuments({})).toBe(0);
   });
@@ -350,7 +350,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     expect(JSON.stringify(logger.mock.calls)).not.toContain('person@example.test');
     expect(JSON.stringify(logger.mock.calls)).toContain('OTP_DELIVERY');
     await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
-      .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
+      .rejects.toMatchObject({ code: 'OTP_DELIVERY_UNAVAILABLE' });
   });
 });
 
@@ -392,4 +392,15 @@ test('CSRF resume migrates legacy sessions once and rejects expiry and mismatche
     expect(await sessionService.authenticate(req)).toBeNull();
     await expect(sessionService.resumeCsrf(req, auth)).rejects.toMatchObject({ status: 401 });
   } finally { update.mockRestore(); }
+});
+
+test('unknown contact receives registration guidance only after proving the OTP and cannot replay it', async () => {
+ const {otpService}=fixture();
+ const input={channel:'EMAIL',contact:'unregistered@example.test',purpose:'LOGIN'};
+ const challenge=await otpService.begin(input);
+ expect(challenge).not.toHaveProperty('reason');
+ await expect(otpService.verify({...input,...challenge,code:'999999'})).rejects.toMatchObject({code:'OTP_INCORRECT'});
+ await expect(otpService.verify({...input,...challenge,code:'004201'})).resolves.toMatchObject({authenticated:false,reason:'REGISTRATION_REQUIRED'});
+ expect(await models.AuthSession.countDocuments({})).toBe(0);
+ await expect(otpService.verify({...input,...challenge,code:'004201'})).rejects.toMatchObject({code:'OTP_ALREADY_USED'});
 });

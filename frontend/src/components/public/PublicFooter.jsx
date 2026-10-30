@@ -5,7 +5,7 @@ export function PublicFooter() {
   return <footer className="pwc-public-footer" id="contact">
     <div className="pwc-public-footer-inner">
       <div className="pwc-footer-identity">
-        <Link className="pwc-footer-wordmark" to="/" aria-label="PawWorld — Trang chủ">PawWorld</Link>
+        <Link className="pwc-footer-wordmark" to="/" aria-label="PawWorldCare — Trang chủ">PawWorld<span className="pwc-brand-care">Care</span></Link>
         <p>Mỗi lượt chăm sóc<br />Một vòng tay an tâm.</p>
         <div className="pwc-footer-socials" aria-label="Mạng xã hội">
           <img src={a + 'footer-IcBaselineFacebook.svg'} alt="Facebook" />

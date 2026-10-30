@@ -73,7 +73,7 @@ test('wrong or expired OTP can be retried and resend replaces the challenge', as
   const otp = await screen.findByLabelText('Mã OTP 6 chữ số');
   fireEvent.change(otp, { target: { value: '111111' } });
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Mã OTP không đúng hoặc đã hết hạn.');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Không thể xác thực mã này.');
   fireEvent.click(screen.getByRole('button', { name: 'Gửi lại mã' }));
   await waitFor(() => expect(otp).toHaveValue(''));
   fireEvent.change(otp, { target: { value: '123456' } });
@@ -113,4 +113,38 @@ test('shows validation and provider errors without attempting login', async () =
 test.each([['CUSTOMER', 'Home'], ['ADMIN', 'Account']])('an existing %s session uses the correct landing page', async (role, expected) => {
   renderPage({ resolve: async () => ({ status: 'authenticated', user: { id: 'synthetic', displayName: 'Synthetic', roles: [role] } }) });
   expect(await screen.findByText(expected)).toBeVisible();
+});
+
+test('a verified OTP without an account directs the user to registration and cannot be resubmitted', async () => {
+  const adapter = {
+    resolve: async () => ({ status: 'guest' }),
+    requestLoginOtp: async () => ({ challengeId: 'new-contact', resendAfterSeconds: 60 }),
+    login: jest.fn(async () => ({ status: 'guest', reason: 'REGISTRATION_REQUIRED' }))
+  };
+  renderPage(adapter);
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'person@example.test' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
+  fireEvent.change(await screen.findByLabelText('Mã OTP 6 chữ số'), { target: { value: '123456' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
+  expect(await screen.findByText(/Liên hệ này chưa được đăng ký/)).toBeVisible();
+  expect(screen.queryByLabelText('Mã OTP 6 chữ số')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('link', { name: 'Đăng ký tài khoản' }));
+  expect(await screen.findByText('Registration')).toBeVisible();
+  expect(adapter.login).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  ['OTP_INCORRECT', 'Mã OTP không đúng.'],
+  ['OTP_EXPIRED', 'Mã OTP đã hết hạn sau 5 phút.'],
+  ['OTP_ALREADY_USED', 'Mã OTP này đã được sử dụng.'],
+  ['OTP_REPLACED', 'Bạn đã yêu cầu mã mới.'],
+])('shows the server-confirmed %s reason', async (code, message) => {
+  renderPage({ resolve: async () => ({ status: 'guest' }),
+    requestLoginOtp: async () => ({ challengeId: 'challenge', resendAfterSeconds: 60 }),
+    login: async () => { throw { code }; } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'person@example.test' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
+  fireEvent.change(await screen.findByLabelText('Mã OTP 6 chữ số'), { target: { value: '123456' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(message);
 });
