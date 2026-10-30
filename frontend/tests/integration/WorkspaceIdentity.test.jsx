@@ -2,11 +2,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { App } from '../../src/app/App.jsx';
 
-jest.mock('../../src/pages/account/AccountPage.jsx', () => {
+jest.mock('../../src/pages/customer/CustomerProfilePage.jsx', () => {
   const React = jest.requireActual('react');
   const { useSession } = jest.requireActual('../../src/contexts/SessionContext.jsx');
   return {
-    AccountPage: function AccountProbe() {
+    CustomerProfilePage: function AccountProbe() {
       const { user, login } = useSession();
       const [draft, setDraft] = React.useState('');
       return (

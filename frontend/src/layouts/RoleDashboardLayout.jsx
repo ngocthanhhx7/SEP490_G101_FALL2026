@@ -12,6 +12,7 @@ import { PublicFooter } from '../components/public/PublicFooter.jsx';
 import '../styles/public-site.css';
 import '../styles/workspaces.css';
 import './role-dashboard-layout.css';
+import './customer-account-layout.css';
 
 function NavigationIcon({ to }) {
   const Icon = /notification/.test(to) ? Bell : /settings/.test(to) ? Settings : /users|sitters/.test(to) ? Users
@@ -170,10 +171,29 @@ export function RoleDashboardLayout({
   const page = children ?? outlet;
 
   if (role === 'CUSTOMER') return <div className="pwc-public-root pwc-customer-account">
+    <a className="pwc-role-shell__skip" href="#pwc-role-main">Đến nội dung chính</a>
     <PublicHeader notificationTo={notificationTo} />
-    <nav className="pwc-customer-account__navigation" aria-label={config.navigation}>{safeNavigationItems.map(item =>
-      <NavLink key={item.to} to={item.to} end={item.end}><NavigationIcon to={item.to} />{item.label}</NavLink>)}</nav>
-    <main id="pwc-role-main" className="pwc-customer-account__main" ref={mainRef} tabIndex={-1}>{page || <Notice state="empty" title="Chưa có trang trong khu vực này" />}</main>
+    <div className="pwc-customer-account__body">
+      <aside ref={sidebarRef} tabIndex={-1} className="pwc-customer-account__sidebar" aria-label="Tài khoản khách hàng">
+        <div className="pwc-customer-account__identity">
+          <span className="pwc-customer-account__avatar" aria-hidden="true">{session.user.displayName?.trim().split(/\s+/).slice(-2).map(part => part[0]).join('').toUpperCase() || 'PW'}</span>
+          <div><strong>{session.user.displayName}</strong><Link to="/account/profile">Hồ sơ của tôi</Link></div>
+        </div>
+        <button ref={mobileNavToggleRef} className="pwc-customer-account__toggle" type="button" aria-expanded={mobileNavOpen}
+          aria-controls="pwc-customer-navigation" onClick={() => setMobileNavOpen(open => !open)}>
+          <Menu size={18} aria-hidden="true" />Menu tài khoản<span aria-hidden="true">{mobileNavOpen ? '−' : '+'}</span>
+        </button>
+        <nav id="pwc-customer-navigation" className="pwc-customer-account__navigation" data-open={mobileNavOpen}
+          inert={isMobile && !mobileNavOpen ? true : undefined} aria-hidden={isMobile && !mobileNavOpen ? 'true' : undefined}
+          aria-label={config.navigation}>
+          {[...new Set(safeNavigationItems.map(item => item.group || 'Tài khoản của tôi'))].map(group => <div className="pwc-customer-account__group" key={group}>
+            <h2>{group}</h2>{safeNavigationItems.filter(item => (item.group || 'Tài khoản của tôi') === group).map(item =>
+              <NavLink key={item.to} to={item.to} end={item.end} onClick={() => setMobileNavOpen(false)}><NavigationIcon to={item.to} />{item.label}</NavLink>)}
+          </div>)}
+        </nav>
+      </aside>
+      <main id="pwc-role-main" className="pwc-customer-account__main" ref={mainRef} tabIndex={-1}>{page || <Notice state="empty" title="Chưa có trang trong khu vực này" />}</main>
+    </div>
     <PublicFooter />
   </div>;
 

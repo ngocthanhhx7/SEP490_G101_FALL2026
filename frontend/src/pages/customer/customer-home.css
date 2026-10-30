@@ -1,0 +1,46 @@
+.customer-home { display: grid; gap: 24px; min-width: 0; }
+.customer-home__heading { display: flex; justify-content: space-between; align-items: start; gap: 12px; border-bottom: 1px solid #e6e4ea; padding-bottom: 20px; }
+.customer-home__heading h1 { margin: 0 0 6px; }
+.customer-home__heading p { margin: 0; color: #73697c; font-size: 14px; }
+.customer-home__heading button { flex: 0 0 40px; width: 40px; padding: 8px; }
+.customer-home__welcome { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px; background: #faf7ef; border-left: 3px solid #efca54; overflow: hidden; }
+.customer-home__welcome > div { min-width: 0; }
+.customer-home__welcome h2 { font-size: 22px; line-height: 1.5; margin: 6px 0; }
+.customer-home__welcome p { font-size: 13px; color: #706678; margin: 0 0 18px; }
+.customer-home__eyebrow { font-size: 10px; font-weight: 800; color: #87713a; }
+.customer-home__welcome img { flex: 0 0 160px; width: 160px; height: 150px; object-fit: cover; border-radius: 6px; }
+.customer-home__book { display: inline-flex; align-items: center; gap: 8px; padding: 11px 16px; border-radius: 6px; background: #ffcf38; color: #442967; font-size: 14px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.customer-home__summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-bottom: 1px solid #e6e4ea; }
+.customer-home__summary > div { display: flex; align-items: center; gap: 16px; justify-content: space-between; padding: 0 20px 20px 0; }
+.customer-home__summary > div + div { padding-left: 20px; border-left: 1px solid #e6e4ea; }
+.customer-home__summary dt { color: #73697c; font-size: 13px; }
+.customer-home__summary dd { margin: 0; font-size: 24px; font-weight: 800; }
+.customer-home__section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.customer-home__section-heading h2 { font-size: 17px; margin: 0; }
+.customer-home__section-heading a, .customer-home__empty a { display: inline-flex; gap: 6px; align-items: center; color: #705193; font-size: 13px; text-decoration: none; }
+.customer-home__filters { font-size: 13px; margin-top: -12px; }
+.customer-home__filters summary { display: flex; align-items: center; gap: 8px; cursor: pointer; min-height: 36px; color: #776d80; }
+.customer-home__filters form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto auto; align-items: end; gap: 12px; padding: 12px 0; }
+.customer-home__filters form > * { min-width: 0; }
+.customer-home__visits { list-style: none; margin: 0; padding: 0; }
+.customer-home__visits li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto 32px; align-items: center; gap: 12px; padding: 18px 0; border-bottom: 1px solid #eeecf1; font-size: 13px; }
+.customer-home__visit-icon { display: grid; place-items: center; width: 40px; height: 40px; background: #eef6f4; color: #388878; border-radius: 6px; }
+.customer-home__visits time { display: block; margin-top: 5px; color: #766d80; font-size: 12px; }
+.customer-home__visits a { display: grid; place-items: center; width: 32px; height: 40px; color: #705193; }
+.customer-home__status { color: #72617d; font-size: 12px; padding: 5px 8px; background: #f3eff8; border-radius: 4px; }
+.customer-home__status--COMPLETED { color: #287e6d; background: #eaf6f0; }
+.customer-home__empty { display: grid; justify-items: center; text-align: center; padding: 28px 16px 40px; color: #998aa9; }
+.customer-home__empty h3 { font-size: 16px; margin: 12px 0 8px; color: #544261; }
+.customer-home__empty p { font-size: 13px; margin: 0 0 18px; color: #7b7185; max-width: 340px; }
+.customer-home__pagination { display: flex; justify-content: flex-end; align-items: center; gap: 12px; font-size: 13px; }
+.customer-home__pet-link { display: flex; align-items: center; gap: 12px; border-top: 1px solid #e6e4ea; padding-top: 20px; color: #645070; font-size: 14px; text-decoration: none; }
+.customer-home__pet-link > span { flex: 1; }
+@media (max-width: 650px) {
+ .customer-home__welcome { padding: 18px; } .customer-home__welcome img { flex-basis: 100px; width: 100px; height: 120px; }
+ .pwc-customer-account .customer-home__welcome img { display: none; }
+ .customer-home__welcome h2 { font-size: 18px; } .customer-home__filters form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .customer-home__visits li { grid-template-columns: 36px minmax(0, 1fr) 32px; }
+ .customer-home__status { grid-column: 2; justify-self: start; } .customer-home__visits a { grid-column: 3; grid-row: 1 / span 2; }
+ .customer-home__summary > div { display: grid; gap: 6px; padding-right: 12px; }
+}
+@media (max-width: 400px) { .customer-home__welcome img { display: none; } .customer-home__pagination { flex-wrap: wrap; } }
