@@ -5,6 +5,15 @@ import { SESSION_INVALIDATED_EVENT } from '../services/api-client.js';
 const SessionContext = createContext(null);
 const ROLES = ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'];
 
+function validateSession(result) {
+  if (!['guest', 'authenticated', 'pending'].includes(result?.status)) throw new Error('Invalid session result');
+  if (result.status === 'authenticated') {
+    const roles = Array.isArray(result.user?.roles) ? result.user.roles : [result.user?.role];
+    if (!roles.length || roles.some(role => !ROLES.includes(role))) throw new Error('Invalid session role');
+  }
+  return result;
+}
+
 export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
   const [session, setSession] = useState({ status: 'loading' });
   const [revision, setRevision] = useState(0);
@@ -20,14 +29,7 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
     Promise.resolve().then(() => adapter.resolve({ signal: controller.signal }))
       .then((result) => {
         if (controller.signal.aborted || generation.current !== current) return;
-        if (result?.status === 'authenticated') {
-          const roles = Array.isArray(result.user?.roles) ? result.user.roles : [result.user?.role];
-          if (!roles.length || roles.some(role => !ROLES.includes(role))) throw new Error('Invalid session role');
-        }
-        if (!['guest', 'authenticated', 'pending'].includes(result?.status)) {
-          throw new Error('Invalid session result');
-        }
-        setSession(result);
+        setSession(validateSession(result));
       }).catch(() => {
         if (!controller.signal.aborted && generation.current === current) setSession({ status: 'error' });
       });
@@ -63,8 +65,9 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
     }
     const current = ++generation.current;
     resolution.current?.abort();
-    const result = await action(input);
-    if (generation.current === current && result?.status === 'authenticated') setSession(result);
+    const result = validateSession(await action(input));
+    if (generation.current !== current) return { status: 'guest' };
+    if (result.status === 'authenticated') setSession(result);
     return result;
   }, []);
   const logout = useCallback(async () => {

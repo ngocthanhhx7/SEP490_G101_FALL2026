@@ -7,7 +7,8 @@ Directed availability uses the backend's employee eligibility checks for every
 visit, and confirmation rechecks them transactionally. Optional MATCH snapshots
 prioritize advisory invitations; they never reserve or assign an employee.
 Private draft fields stay in memory; uncertain confirmation retains its key/body.
-Login and Customer registration now return to Home; sitter intake keeps its
+Login uses role-specific workspaces and a validated authorized return path;
+Customer defaults to Home. Sitter intake keeps its
 verified-account application step. Catalogue and detail booking actions open
 the selected-service route, not the login screen.
 

@@ -3,7 +3,7 @@ import { Router } from 'express';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
-import { requireCsrf, requireSession, hasRole } from '../../src/middlewares/session.js';
+import { requireCsrf, requireSession, requireRoles, hasRole } from '../../src/middlewares/session.js';
 import { createAuthorizationService, requireResourceAuthorization } from '../../src/services/authorization.service.js';
 
 const RESOURCE_ID = 'aaaaaaaaaaaaaaaaaaaaaaaa';
@@ -11,6 +11,13 @@ const allowedResource = { _id: RESOURCE_ID, ownerId: 'customer-1', state: 'ACTIV
 const actor = (userId, roles) => ({ userId, roles, state: 'ACTIVE', expiresAt: Date.now() + 60_000 });
 
 describe('session role middleware', () => {
+  test.each(['PET_SITTER', 'STAFF', 'ADMIN'])('retained Customer membership cannot authorize purchases for %s', role => {
+    expect(hasRole(['CUSTOMER', role], 'CUSTOMER')).toBe(false);
+    expect(hasRole(['CUSTOMER', role], role)).toBe(true);
+    const next = jest.fn();
+    requireRoles('CUSTOMER')({ auth: actor('employee', ['CUSTOMER', role]) }, {}, next);
+    expect(next).toHaveBeenCalledWith(expect.objectContaining({ status: 403, code: 'FORBIDDEN' }));
+  });
   test('Admin inherits Staff only and unsupported roles fail closed', () => {
     expect(hasRole(['ADMIN'], 'STAFF')).toBe(true);
     expect(hasRole(['ADMIN'], 'CUSTOMER')).toBe(false);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CalendarCheck, Check, RefreshCw, Users, UserRound, Sparkles } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { hasRole } from '../../utils/role-access.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createServiceBasketApi } from '../../services/service-basket-api.js';
 import { createSitterRecommendationApi } from '../../services/sitter-recommendation-api.js';
@@ -173,8 +174,8 @@ export function ServiceBookingPage({ loadCatalog = loadPublicCatalog }) {
   const visual = serviceVisual(service);
   return <main className="pwc-page service-booking"><nav aria-label="Đường dẫn"><Link to="/services">Dịch vụ</Link> / <Link to={'/services/'+service.id}>{service.name}</Link> / Đặt lịch</nav>
     <header className="booking-service"><img src={visual.src} alt={visual.alt} /><div><p>Đặt dịch vụ</p><h1>{service.name}</h1><p>{formatCatalogPrice(service.price)}</p></div></header>
-    {params.get('booking') ? <BookingConfirmation api={api} /> : session.status === 'authenticated' && session.user.roles.includes('CUSTOMER')
-      ? <BookingFlow key={session.user.id+service.id} service={service} api={api} matching={matching} onBooked={booking => { setParams({ booking: booking.id }); globalThis.scrollTo?.({ top: 0, behavior: 'smooth' }); }} />
+    {session.status === 'authenticated' && hasRole(session.user, 'CUSTOMER') ? params.get('booking') ? <BookingConfirmation api={api} />
+      : <BookingFlow key={session.user.id+service.id} service={service} api={api} matching={matching} onBooked={booking => { setParams({ booking: booking.id }); globalThis.scrollTo?.({ top: 0, behavior: 'smooth' }); }} />
       : <section><h2>{session.status === 'loading' ? 'Đang kiểm tra phiên…' : 'Đăng nhập để đặt dịch vụ'}</h2><Link className="pwc-button pwc-button-primary" to="/sign-in">Đăng nhập</Link></section>}
   </main>;
 }

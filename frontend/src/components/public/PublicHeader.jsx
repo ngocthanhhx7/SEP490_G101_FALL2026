@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { AvatarMenu } from '../common/AvatarMenu.jsx';
 import { NotificationBell } from '../common/NotificationBell.jsx';
+import { primaryRole } from '../../utils/role-access.js';
 
 const links = [
   ['Trang chủ', '/'],
@@ -21,8 +22,7 @@ export function PublicHeader({ notificationTo } = {}) {
   const session = useSession();
   const location = useLocation();
   const navigate = useNavigate();
-  const roles = session.user?.roles ?? [session.user?.role];
-  const role = ['ADMIN', 'STAFF', 'PET_SITTER', 'CUSTOMER'].find(value => roles.includes(value));
+  const role = primaryRole(session.user);
   useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [location.key]);
   useEffect(() => { if (searchOpen) searchInput.current?.focus(); }, [searchOpen]);
 
