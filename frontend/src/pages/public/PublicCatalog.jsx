@@ -106,9 +106,9 @@ export function PublicServiceCards({ services, actionLabel = 'Xem chi tiết' })
               <div className="pwc-card-price"><span>Giá dịch vụ</span><strong>{price || 'Giá chưa được công bố'}</strong></div>
               <Link
                 className="pwc-button pwc-button-secondary"
-                to={'/services/' + encodeURIComponent(service.id)}
+                to={'/booking/' + encodeURIComponent(service.id)}
               >
-                {actionLabel}<ArrowUpRight size={17} aria-hidden="true" />
+                {actionLabel === 'Xem chi tiết' ? 'Đặt dịch vụ' : actionLabel}<ArrowUpRight size={17} aria-hidden="true" />
               </Link>
             </div>
           </article>

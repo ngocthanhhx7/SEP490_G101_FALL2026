@@ -1,0 +1,39 @@
+.service-booking { max-width: 1080px; margin: auto; padding-bottom: 4rem; }
+.service-booking nav { margin: 1rem 0; font-size: .9rem; overflow-wrap: anywhere; }
+.booking-service { display: flex; gap: 1.5rem; align-items: center; border-bottom: 1px solid #d5ddd8; padding: 1.5rem 0; }
+.booking-service img { width: 144px; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 6px; }
+.service-booking .booking-service h1 { font: 800 2rem/1.3 Nunito, sans-serif; letter-spacing: 0; margin: .4rem 0; overflow-wrap: anywhere; }
+.booking-service p { margin: .5rem 0; }
+.booking-steps { display: flex; list-style: none; padding: 1.5rem 0; gap: 1.5rem; border-bottom: 1px solid #d5ddd8; }
+.booking-steps li { display: flex; align-items: center; gap: .5rem; font-size: .95rem; }
+.booking-steps span { display: grid; place-items: center; border: 1px solid #9caeaa; width: 28px; height: 28px; flex: none; border-radius: 50%; }
+.booking-steps [aria-current] { font-weight: 700; color: #205e48; }
+.booking-steps [aria-current] span { background: #205e48; color: white; }
+.service-booking .booking-flow h2 { font: 800 1.45rem/1.4 Nunito, sans-serif; letter-spacing: 0; margin: 1.5rem 0; }
+.service-booking .booking-flow h3 { font: 700 1.1rem/1.4 Nunito, sans-serif; letter-spacing: 0; margin: 1rem 0 .5rem; }
+.booking-flow fieldset { min-width: 0; border: 0; padding: 0; margin: 1.5rem 0; }
+.booking-flow legend { font-weight: 700; margin-bottom: .75rem; }
+.booking-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.booking-fields label { display: grid; gap: .5rem; }
+.booking-flow input:not([type=checkbox]):not([type=radio]), .booking-flow select { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #91a29b; padding: .75rem; background: white; color: #213c32; border-radius: 4px; font: inherit; }
+.booking-check { display: flex; align-items: start; gap: .6rem; margin: 1rem 0; }
+.booking-check input, .booking-modes input, .booking-sitters input { width: 18px; height: 18px; flex: none; accent-color: #24684f; }
+.booking-refresh { display: inline-flex; align-items: center; gap: .35rem; margin-left: 1rem; background: transparent; border: 0; color: #205e48; cursor: pointer; }
+.booking-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.booking-modes label { display: flex; align-items: center; gap: .75rem; padding: 1.2rem; border: 1px solid #a5b8ae; border-radius: 6px; cursor: pointer; }
+.booking-modes .is-selected { background: #e7f2ec; border-color: #24684f; }
+.booking-sitters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin-top: 1.25rem; }
+.booking-sitters label { display: flex; align-items: center; gap: .65rem; padding: .75rem 0; border-bottom: 1px solid #d5ddd8; }
+.booking-review { max-width: 700px; }
+.booking-review > div { display: flex; justify-content: space-between; gap: 1rem; padding: .65rem 0; border-bottom: 1px solid #d5ddd8; }
+.booking-review dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+.booking-actions { display: flex; justify-content: space-between; gap: 1rem; margin-top: 1.5rem; }
+.booking-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; }
+.booking-actions > button:not(.pwc-button) { background: transparent; border: 0; font: inherit; color: #24684f; cursor: pointer; }
+.booking-flow button:disabled { opacity: .6; cursor: default; }
+.booking-expiry { color: #52685d; font-size: .9rem; border-top: 1px solid #d5ddd8; margin-top: 1.5rem; padding-top: 1rem; }
+.booking-error { color: #9a2330; border-left: 3px solid #9a2330; padding: .75rem; background: #fff0f1; }
+.booking-shortlist { padding-left: 1.25rem; }
+.booking-flow section > button:not(.pwc-button) { font: inherit; color: #205e48; background: transparent; border: 0; padding: .5rem 0; text-decoration: underline; cursor: pointer; }
+@media(max-width: 600px) { .booking-service { gap: .8rem; } .booking-service img { width: 90px; } .booking-service h1 { font-size: 1.5rem; } .booking-fields, .booking-modes, .booking-sitters { grid-template-columns: minmax(0, 1fr); } .booking-steps { gap: .65rem; } .booking-steps li { flex: 1; align-items: start; flex-direction: column; font-size: .8rem; } .booking-flow h2 { font-size: 1.25rem; } .booking-actions .pwc-button { padding: .75rem; } }
+@media(max-width: 600px) { .service-booking .booking-service h1 { font-size: 1.5rem; } .service-booking .booking-flow h2 { font-size: 1.25rem; } }

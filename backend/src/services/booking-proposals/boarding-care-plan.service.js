@@ -20,6 +20,7 @@ export function boardingCarePlan(booking, shiftMinutes) {
       const end = new Date(start.getTime() + duration * 60000);
       shifts.push({ sequence: shifts.length, customerVisitId: String(visit._id), serviceId: visit.serviceId, petIds: visit.petIds,
         location: visit.location, areaCode: visit.areaCode, requestedSitterId: visit.requestedSitterId,
+        bookingMode: visit.bookingMode,
         ...(visit.recommendationRef ? { recommendationRef: visit.recommendationRef } : {}),
         ...(visit.addressId ? { addressId: visit.addressId } : {}), startAt: start, endAt: end, snapshots: { ...visit.snapshots,
           employeeServiceNetVnd: Number(amounts[index].amount), careMinutes: duration, allocationVersion: 'PWC-BOARDING-SHIFT-2026-10-30-v1' } });

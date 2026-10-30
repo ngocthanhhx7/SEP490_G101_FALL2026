@@ -246,6 +246,17 @@ test('HTTP routes enforce role, ownership, CSRF and private no-store responses',
   await request(app).post('/api/v1/employee-scheduling/visits/000000000000000000000000/invitations').set('x-test-actor', sitter.userId).set('x-csrf-token', 'synthetic-csrf').send({ expectedVersion: 0 }).expect(403);
 });
 
+test('dispatch follows advisory ordering only among currently eligible employees', async () => {
+  const preferred = await employee(), unavailable = await employee();
+  await payroll.EmploymentContract.deleteMany({ employeeId: unavailable.userId });
+  const row = await visit({ start: '2026-11-05T02:00:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { bookingMode: 'SYSTEM',
+    recommendationRef: { candidateIds: [unavailable.userId, preferred.userId], advisory: true } } });
+  const result = await module.dispatch.invite(staff, String(row._id), { expectedVersion: 0 }, 'advisory-priority');
+  expect(result.sitterId).toBe(preferred.userId);
+  expect((await connection.collection('visits').findOne({ _id: row._id })).sitterId).toBeNull();
+});
+
 test('agent resumes durable queue without duplicate invitations, skips payment/plan gates and sends expired directed offers to Staff review', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-11-10T02:00:00Z', requestedSitterId: sitter.userId });
   const unpaid = await visit({ start: '2026-11-11T02:00:00Z', prepay: true, requestedSitterId: sitter.userId });

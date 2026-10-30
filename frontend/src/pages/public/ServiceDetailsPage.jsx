@@ -101,7 +101,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
           <div className="pwc-service-detail-actions">
             <Link
               className="pwc-button pwc-button-primary"
-              to={'/sign-in?serviceId=' + encodeURIComponent(service.id)}
+              to={'/booking/' + encodeURIComponent(service.id)}
             >
               Đặt dịch vụ này
             </Link>

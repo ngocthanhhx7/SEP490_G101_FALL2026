@@ -111,6 +111,9 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       try { evidence.set(row._id, await eligible(row._id, visit)); allowed.push(row._id); } catch (error) { if (error.status !== 409) throw error; }
     }
     allowed.sort((a, b) => {
+      const shortlist = visit.recommendationRef?.candidateIds ?? [];
+      const order = value => shortlist.includes(value) ? shortlist.indexOf(value) : shortlist.length;
+      if (order(a) !== order(b)) return order(a) - order(b);
       const x = evidence.get(a), y = evidence.get(b);
       const knownX = Number.isFinite(x.adjacentTravelMinutes), knownY = Number.isFinite(y.adjacentTravelMinutes);
       if (knownX !== knownY) return knownX ? -1 : 1;
