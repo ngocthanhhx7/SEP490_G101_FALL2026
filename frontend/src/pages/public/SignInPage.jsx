@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { otpFeedback } from '../../utils/otp-feedback.js';
 import './auth-public.css';
 import './sign-in.css';
-
-function destination(user, from) {
-  const roles = user?.roles ?? [user?.role];
-  return roles.includes('CUSTOMER') && !roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role)) ? '/' : (from || '/account');
-}
 
 const CHANNELS = { EMAIL: 'email', PHONE: 'phone' };
 
@@ -30,7 +25,6 @@ function messageFor(error) {
 export function SignInPage() {
   const session = useSession();
   const navigate = useNavigate();
-  const location = useLocation();
   const [channel, setChannel] = useState(CHANNELS.EMAIL);
   const [contact, setContact] = useState('');
   const [challengeId, setChallengeId] = useState('');
@@ -53,8 +47,8 @@ export function SignInPage() {
   }
 
   useEffect(() => {
-    if (session.status === 'authenticated') navigate(destination(session.user, location.state?.from), { replace: true });
-  }, [session.status, session.user, navigate, location.state]);
+    if (session.status === 'authenticated') navigate('/', { replace: true });
+  }, [session.status, navigate]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -95,7 +89,7 @@ export function SignInPage() {
         setStep('contact'); setCode(''); setChallengeId('');
         setError('Mã đã được xác minh nhưng tài khoản chưa thể đăng nhập. Vui lòng liên hệ hỗ trợ.'); return;
       }
-      navigate(destination(result.user, location.state?.from), { replace: true });
+      navigate('/', { replace: true });
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
   }

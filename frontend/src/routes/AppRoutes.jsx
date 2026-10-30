@@ -15,6 +15,7 @@ import { ContactPage } from '../pages/public/ContactPage.jsx';
 import { ServiceAreasPage } from '../pages/public/ServiceAreasPage.jsx';
 import { ServiceDetailsPage } from '../pages/public/ServiceDetailsPage.jsx';
 import { ServiceListPage } from '../pages/public/ServiceListPage.jsx';
+import { ServiceBookingPage } from '../pages/public/ServiceBookingPage.jsx';
 import { SignInPage } from '../pages/public/SignInPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
 import { AccountPage } from '../pages/account/AccountPage.jsx';
@@ -258,6 +259,7 @@ export function AppRoutes({
         <Route path="contact" element={<ContactPage />} />
         <Route path="services" element={<ServiceListPage />} />
         <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
+        <Route path="booking/:serviceId" element={<ServiceBookingPage />} />
         <Route path="service-areas" element={<ServiceAreasPage />} />
         <Route path="sign-in" element={<SignInPage />} />
         <Route path="register" element={<RegistrationPage />} />

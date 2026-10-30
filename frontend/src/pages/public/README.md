@@ -1,5 +1,16 @@
 # Public pages
 
+`ServiceBookingPage.jsx` owns the selected-service flow at `/booking/:serviceId`:
+owned pets, confirmed address and per-visit schedule, system dispatch or explicit
+employee selection, then a deterministic quote/consent/checkout confirmation.
+Directed availability uses the backend's employee eligibility checks for every
+visit, and confirmation rechecks them transactionally. Optional MATCH snapshots
+prioritize advisory invitations; they never reserve or assign an employee.
+Private draft fields stay in memory; uncertain confirmation retains its key/body.
+Login and Customer registration now return to Home; sitter intake keeps its
+verified-account application step. Catalogue and detail booking actions open
+the selected-service route, not the login screen.
+
 `BookingCheckout.jsx` imports shared component-specific `booking-checkout.css`
 so the same controls render in catalog and recommendation flows. Customer
 completion ratings remain separate from public profile moderation.

@@ -44,7 +44,7 @@ test('SMS normalizes Vietnamese numbers and verifies the same PHONE contact', as
   expect(screen.getByRole('button', { name: 'Gửi lại sau 60s' })).toBeDisabled();
   fireEvent.change(screen.getByLabelText('Mã OTP 6 chữ số'), { target: { value: '123456' } });
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
-  expect(await screen.findByText('Account')).toBeVisible();
+  expect(await screen.findByText('Home')).toBeVisible();
   expect(adapter.login).toHaveBeenCalledWith({ challengeId: 'phone-challenge', channel: 'PHONE', contact: '+84912345678', code: '123456', rememberDevice: false });
 });
 
@@ -110,7 +110,7 @@ test('shows validation and provider errors without attempting login', async () =
 });
 
 
-test.each([['CUSTOMER', 'Home'], ['ADMIN', 'Account']])('an existing %s session uses the correct landing page', async (role, expected) => {
+test.each([['CUSTOMER', 'Home'], ['ADMIN', 'Home'], ['STAFF', 'Home'], ['PET_SITTER', 'Home']])('an existing %s session uses the correct landing page', async (role, expected) => {
   renderPage({ resolve: async () => ({ status: 'authenticated', user: { id: 'synthetic', displayName: 'Synthetic', roles: [role] } }) });
   expect(await screen.findByText(expected)).toBeVisible();
 });

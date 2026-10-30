@@ -1,5 +1,9 @@
 # Employee Scheduling
 
+System bookings may carry a MATCH candidate order into dispatch. Only employees
+passing current authoritative eligibility are ordered by that advice; directed
+bookings retain the chosen employee and no ranker can replace that choice.
+
 Assigned care routes compose `care/assigned-care.service.js` separately from the
 bounded invitation and assignment DTOs. Offers never include full care profiles,
 emergency contacts or private entry notes. Dispatch still rechecks authoritative

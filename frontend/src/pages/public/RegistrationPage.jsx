@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -31,6 +31,9 @@ export function RegistrationPage({ initialSitter = false, registrationApi, appli
   const session = useSession();
   const [phase, setPhase] = useState('details');
   const authenticated = session.status === 'authenticated';
+  useEffect(() => {
+    if (authenticated && !sitter) navigate('/', { replace: true });
+  }, [authenticated, sitter, navigate]);
   const eligible = authenticated && session.user.roles.includes('CUSTOMER')
     && !session.user.roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role));
   return <div className="pwc-registration-hub">
@@ -54,7 +57,7 @@ export function RegistrationPage({ initialSitter = false, registrationApi, appli
           : authenticated ? <div className="pwc-registration-state">
             <h2>{sitter ? 'Bạn đã có tài khoản PawWorld' : `Xin chào, ${session.user.displayName}`}</h2>
             <p>{sitter ? 'Tài khoản hiện tại không cần tạo thêm hồ sơ ứng tuyển Pet Sitter.' : 'Tài khoản của bạn đã sẵn sàng. Hãy bắt đầu chăm sóc bé yêu cùng PawWorld.'}</p>
-            <Link className="registration-submit" to="/account">Đến tài khoản của tôi</Link>
+            <Link className="registration-submit" to="/">Về trang chủ</Link>
           </div>
             : <CustomerRegistrationPage key={sitter ? 'sitter' : 'customer'} intent={sitter ? 'PET_SITTER' : 'CUSTOMER'} api={registrationApi} onPhaseChange={setPhase} />}
       {sitter && !authenticated && <p className="pwc-registration-fineprint">Xác minh email để tiếp tục hồ sơ. Quyền Pet Sitter được cấp sau khi PawWorld xét duyệt.</p>}
