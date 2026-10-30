@@ -31,6 +31,16 @@
 .sitter-application__service-choices input { flex: none; width: 18px; height: 18px; accent-color: #3f2a6b; }
 .sitter-application__file-hint { margin: -10px 0 0; color: #82768e; font-size: 13px; line-height: 1.7; }
 .sitter-application__upload { display: grid; gap: 8px; min-width: 0; padding: 18px; border: 1px dashed #d1c1df; border-radius: 14px; background: #fcfaff; }
+.sitter-application__upload > label { font-size: 14px; font-weight: 700; }
+.application-image-preview { display: flex; align-items: center; gap: 12px; min-width: 0; padding-top: 8px; }
+.application-image-preview > div { min-width: 0; display: grid; gap: 4px; }
+.application-image-preview strong { font-size: 13px; overflow-wrap: anywhere; }
+.application-image-preview__thumbnail { position: relative; flex: 0 0 100px; width: 100px; height: 80px; padding: 0; border: 1px solid #d1c1df; background: white; border-radius: 6px; overflow: hidden; cursor: zoom-in; }
+.application-image-preview__thumbnail img { width: 100%; height: 100%; object-fit: contain; }
+.application-image-preview__thumbnail svg { position: absolute; bottom: 3px; right: 3px; padding: 2px; background: white; color: #3f2a6b; }
+.application-image-preview__remove { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; margin-left: auto; border: 1px solid #d1c1df; background: white; color: #a52232; border-radius: 6px; cursor: pointer; }
+.application-image-dialog { width: min(900px, calc(100% - 24px)); border-radius: 8px; }
+.application-image-dialog img { width: 100%; max-height: 65dvh; object-fit: contain; }
 .sitter-application__upload input { width: 100%; min-width: 0; font: 400 12px/1.6 var(--pwc-font-body); color: #82768e; }
 .sitter-application__upload input::file-selector-button { padding: 8px 14px; border: 1px solid #e2d9ec; border-radius: 8px; background: white; color: #5c3283; font: 700 12px/1.6 var(--pwc-font-body); margin-right: 12px; cursor: pointer; }
 .sitter-application__error, .sitter-application__field small.sitter-application__error { color: #a52232; font-size: 12px; line-height: 1.6; }

@@ -7,7 +7,7 @@ describe('Admin sitter application review', () => {
   test('requires a rejection reason and sends a versioned Admin decision', async () => {
     const application = { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Nguyễn Văn A',
       contact: { channel: 'EMAIL', value: 'sitter@example.test' }, ageEligible: true,
-      experience: 'Có kinh nghiệm chăm sóc chó mèo.', requestedServices: ['Cho mèo ăn'], workAreas: ['Quận 1'],
+      employmentType: 'PART_TIME', experience: 'Có kinh nghiệm chăm sóc chó mèo.', requestedServices: ['Cho mèo ăn'], workAreas: ['Quận 1'],
       documents: [], state: 'UNDER_REVIEW', version: 2, decisionReason: null, rejectedAt: null, reapplyAt: null };
     const api = { get: jest.fn(async () => ({ data: application })),
       startReview: jest.fn(),
@@ -17,6 +17,7 @@ describe('Admin sitter application review', () => {
       <Routes><Route path="/admin/applications/:applicationId" element={<SitterApplicationReviewPage api={api} />} /></Routes>
     </MemoryRouter>);
     await screen.findByText('sitter@example.test · EMAIL');
+    expect(screen.getByText('Bán thời gian')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Từ chối hồ sơ' }));
     expect(await screen.findByText('Nhập lý do từ chối, tối thiểu 3 ký tự.')).toBeInTheDocument();
     expect(api.decide).not.toHaveBeenCalled();
@@ -44,6 +45,7 @@ describe('Admin sitter application review', () => {
       <Routes><Route path="/admin/applications/:applicationId" element={<SitterApplicationReviewPage api={api} />} /></Routes>
     </MemoryRouter>);
     await screen.findByText('Đang hoạt động');
+    expect(screen.getByText('Chưa cung cấp (hồ sơ cũ)')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Tạm ngưng Sitter' }));
     expect(await screen.findByText('Nhập lý do trạng thái, tối thiểu 3 ký tự.')).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Lý do thay đổi trạng thái'), { target: { value: 'Đang rà soát hồ sơ cập nhật.' } });

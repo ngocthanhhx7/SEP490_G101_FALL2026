@@ -1,5 +1,11 @@
 # Public pages
 
+`SitterApplicationPage` collects Full-time/Part-time preference and previews
+selected private images locally through `ApplicationImagePreview`. Blob URLs are
+released when files change or the preview unmounts; selecting/viewing a file does
+not upload it. Images are limited to JPG/PNG, 5 MB and 4 megapixel. Submission
+errors identify the affected field/file and preserve input for correction.
+
 `BookingCheckout.jsx` imports shared component-specific `booking-checkout.css`
 so the same controls render in catalog and recommendation flows. Customer
 completion ratings remain separate from public profile moderation.
