@@ -136,7 +136,10 @@ describe('private image runtime with real persisted sessions, CSRF and Mongo tra
       .send(nearLimitJpeg).expect(201);
     await request(app).post('/api/v1/private-images')
       .set({ ...headers(actors.b), 'Content-Type': 'image/png', 'Idempotency-Key': 'private-image-pixels-01' })
-      .send(tooManyPixelsPng).expect(422);
+      .send(tooManyPixelsPng).expect(422).expect(res => {
+        expect(res.body.error.code).toBe('IMAGE_DIMENSIONS_EXCEEDED');
+        expect(res.body.error.fieldErrors.documents).toContain('4 megapixel');
+      });
   });
 
   test('lost acknowledgement reuses the same object and quota; concurrent same-key requests converge', async () => {

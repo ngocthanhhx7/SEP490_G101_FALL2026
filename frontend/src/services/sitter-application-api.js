@@ -86,7 +86,7 @@ async function uploadApplicantImage(file, { signal } = {}) {
       headers: { Accept: 'application/json', 'Content-Type': file.type, 'X-CSRF-Token': csrf, 'Idempotency-Key': uploadKeys.get(file) }
     });
     const result = await response.json();
-    if (!response.ok) throw new ApiError(result?.error?.code ?? 'HTTP_ERROR', response.status);
+    if (!response.ok) throw new ApiError(result?.error?.code ?? 'HTTP_ERROR', response.status, { fieldErrors: result?.error?.fieldErrors });
     if (result?.meta?.schemaVersion !== 1 || result.data?.state !== 'READY' || !/^[a-f0-9]{64}$/.test(result.data?.id)) {
       throw new ApiError('INVALID_RESPONSE');
     }

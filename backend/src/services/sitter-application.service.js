@@ -13,7 +13,18 @@ const ACTIVE_STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW'];
 const PAGE_LIMIT = 50;
 
 function invalid(message = 'Application request is invalid') {
-  throw new AppError(422, 'VALIDATION_FAILED', message);
+  const field = ['displayName', 'contactValue', 'dateOfBirth', 'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'employmentType']
+    .find(key => message.startsWith(key));
+  const labels = {
+    displayName: 'Nhập họ và tên hợp lệ, tối đa 100 ký tự.',
+    dateOfBirth: 'Chọn ngày sinh hợp lệ.', identityNumber: 'Kiểm tra số giấy tờ định danh (8 đến 20 chữ hoặc số).',
+    experience: 'Mô tả kinh nghiệm từ 10 đến 2.000 ký tự.',
+    requestedServices: 'Chọn từ 1 đến 30 dịch vụ, không chọn trùng.',
+    workAreas: 'Nhập từ 1 đến 10 khu vực, mỗi khu vực tối đa 80 ký tự.',
+    documents: 'Kiểm tra ảnh giấy tờ: một ảnh định danh và tối đa 5 ảnh bổ sung, không trùng ảnh.',
+    employmentType: 'Chọn toàn thời gian hoặc bán thời gian.'
+  };
+  throw new AppError(422, 'VALIDATION_FAILED', message, field ? { fieldErrors: { [field]: labels[field] ?? 'Kiểm tra thông tin này.' } } : {});
 }
 
 function hash(secret, value) {
@@ -40,7 +51,7 @@ function safeText(value, { min = 1, max, field }) {
 }
 
 function stringList(value, field) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 10) invalid(`${field} is invalid`);
+  if (!Array.isArray(value) || value.length < 1 || value.length > (field === 'requestedServices' ? 30 : 10)) invalid(`${field} is invalid`);
   const items = value.map(item => safeText(item, { max: 80, field }));
   if (new Set(items.map(item => item.toLocaleLowerCase('vi'))).size !== items.length) invalid(`${field} contains duplicates`);
   return items;
@@ -150,6 +161,7 @@ function applicationView(application, contactValue, { includePrivate = false } =
       : { channel: application.contactChannel, maskedValue: maskContact(application.contactChannel, contactValue) },
     ageEligible: application.ageEligible, experience: application.experience,
     requestedServices: [...application.requestedServices], workAreas: [...application.workAreas],
+    employmentType: application.employmentType ?? null,
     documents: application.privateDocuments.map(document => ({ documentId: document.documentId, documentType: document.documentType })),
     state: application.state, interviewNote: application.interviewNote,
     decisionReason: application.decisionReason,
@@ -176,7 +188,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
   async function submit({ body, idempotencyKey, correlationId, actor }) {
     if (!body || typeof body !== 'object' || Array.isArray(body)
       || Object.keys(body).some(key => !['displayName', 'contactChannel', 'contactValue', 'dateOfBirth',
-        'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'policyVersions'].includes(key))) invalid();
+        'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'policyVersions', 'employmentType'].includes(key))) invalid();
+    const employmentType = body.employmentType;
+    if (employmentType !== undefined && !['FULL_TIME', 'PART_TIME'].includes(employmentType)) invalid('employmentType is invalid');
     const displayName = safeText(body.displayName, { max: 100, field: 'displayName' });
     const contactChannel = body.contactChannel;
     const contactValue = canonicalizeContact(contactChannel, body.contactValue);
@@ -199,6 +213,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     const normalizedPayload = {
       displayName, contactChannel, contactLookupKey: contact.lookupKey, identityLookupKey,
       dateOfBirth: body.dateOfBirth, experience, requestedServices, workAreas,
+      ...(employmentType ? { employmentType } : {}),
       ...(registrationPolicyService ? { policyVersions: body.policyVersions } : {}),
       documents: documents.map(({ documentId, documentType, storageRef }) => ({ documentId, documentType, storageRef }))
     };
@@ -259,6 +274,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           contactLookupKey: contact.lookupKey, identityLookupKey,
           activePendingContactKey: contact.lookupKey, activePendingIdentityKey: identityLookupKey,
           ageEligible: true, ageCheckedAt: new Date(now), experience, requestedServices, workAreas,
+          ...(employmentType ? { employmentType } : {}),
           privateDocuments: verifiedDocuments, state: 'PENDING', version: 0,
           trackingCodeDigest, submissionKeyDigest, submissionPayloadDigest
         }], { session });

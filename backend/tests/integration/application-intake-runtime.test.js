@@ -80,6 +80,7 @@ test('registration → private upload → application → scoped OTP status → 
   await upload(owner, 'synthetic-image-key-0001', 200);
   expect(writes).toBe(1);
   const body = application(owner, documentId);
+  body.employmentType = 'FULL_TIME';
   const created = await submit(owner, body).expect(201);
   expect(created.body.data.state).toBe('PENDING');
   expect(JSON.stringify(created.body)).not.toMatch(/TEST12345678|1998-04-12|private-images/);
@@ -102,6 +103,8 @@ test('registration → private upload → application → scoped OTP status → 
   let adminSession;
   await connection.transaction(async mongoSession => { adminSession = await sessions.issueInTransaction(admin, mongoSession); });
   const adminHeaders = { ...base, Cookie: `pwc_session=${adminSession.token}`, 'X-CSRF-Token': adminSession.csrfToken };
+  await request(app).get(`/api/v1/applications/${created.body.data.id}`).set(adminHeaders).expect(200)
+    .expect(res => expect(res.body.data.employmentType).toBe('FULL_TIME'));
   await request(app).get(`/api/v1/applications/${created.body.data.id}/documents/${documentId}`).set(adminHeaders).expect(302);
   await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-approve-0001' })
     .send({ action: 'APPROVE', expectedVersion: 0, reason: 'Synthetic review completed' }).expect(200)
