@@ -38,7 +38,7 @@ the provider cannot call a localhost URL. Use a separate channel for local tests
 to avoid replacing the production channel webhook.
 
 Recreate the backend container through the
-[reviewed release procedure](ec2-environment-guide.md#ap-dung-cau-hinh-sau-khi-sua)
+[reviewed release procedure](ec2-environment-guide.md)
 after changing VPS env; Docker restart does not reload `--env-file`. Verify the
 public webhook configuration and signed callback behavior before claiming live
 payment acceptance. Tests use synthetic signatures; never send a real payment
