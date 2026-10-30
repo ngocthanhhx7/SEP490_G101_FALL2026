@@ -4,6 +4,11 @@ P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/archit
 
 From `frontend/`:
 
+Recommendation selection can request a deterministic quote and confirm an owned
+MATCH-bound home-care checkout. Assigned employees can open/acknowledge care and
+request window-scoped entry notes. Completed booking details collect verified
+Customer ratings. See [evidence and limits](../doc/testing/care-matching-outcomes-2026-10-30.md).
+
 The composed demo includes customer quote/checkout, separate employee area and shift screens,
 invitations, Staff dispatch and customer confirmation of a directed schedule proposal.
 `pages/public/BookingCheckout.jsx` owns checkout presentation; `pages/staff/EmployeeDispatchPage.jsx`

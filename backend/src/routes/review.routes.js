@@ -17,7 +17,8 @@ export function createReviewRouter({
   service,
   sessionPort,
   sessionService,
-  allowedOrigins
+  allowedOrigins,
+  clock = Date.now
 } = {}) {
   ensure(service);
   const session = sessionPort ?? sessionService;
@@ -30,7 +31,7 @@ export function createReviewRouter({
     res.vary('Cookie');
     next();
   });
-  router.use(requireSession(session));
+  router.use(requireSession(session, { clock }));
   router.param('visitId', (req, _res, next, value) =>
     ID.test(value)
       ? next()

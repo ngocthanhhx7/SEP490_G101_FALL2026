@@ -4,6 +4,9 @@ Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1
 
 ## Demo Catalogue
 
+Assigned care, recommendation checkout and verified satisfaction collection use
+the existing authenticated runtime. See [integration evidence](../doc/testing/care-matching-outcomes-2026-10-30.md).
+
 `node scripts/seeds/demo-services.js` previews the13 sheet offerings; `--apply` only targets
 a non-production `*_dev` database. See [approved rules](../doc/requirements/demo-service-catalog-2026-10-30.md).
 Customer/CSRF-protected `POST /api/v1/pricing/basket-quotes` validates owned pets and snapshots
@@ -130,4 +133,4 @@ Matching tại src/services/sitter-matching bật bằng AI_ENABLED=true (cần 
 
 ## Tiếp nhận hồ sơ Pet Sitter
 
-Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu phiên Customer, CSRF, email đã xác minh thuộc phiên, ảnh READY thuộc cùng owner và consent terms/privacy được kiểm tra trong transaction. Hồ sơ mới lưu ownerUserId; Admin duyệt nâng quyền cùng user và tăng authEpoch. Giấy tờ dùng applicant-documents với bucket/collection/quota riêng (JPG/PNG, 5 MB, quota 20 ảnh/tài khoản); SITTER_DOCUMENTS_ENABLED chưa bật hoặc thiếu cấu hình riêng thì intake báo chưa mở. Không tự seed policy, tạo tài khoản hay bật provider. Xem [bằng chứng và giới hạn](../doc/testing/registration-sitter-flow.md).
+Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu phiên Customer, CSRF, email đã xác minh thuộc phiên, ảnh READY thuộc cùng owner và consent terms/privacy được kiểm tra trong transaction. Hồ sơ mới lưu ownerUserId; Admin duyệt nâng quyền cùng user và tăng authEpoch. Giấy tờ dùng applicant-documents với tiền tố applicant-documents/ và collection/quota riêng trong bucket R2 dùng chung (JPG/PNG, 5 MB, quota 20 ảnh/tài khoản); SITTER_DOCUMENTS_ENABLED chưa bật thì intake báo chưa mở. Khi bật, mặc định kế thừa R2_*; bốn biến SITTER_DOCUMENTS_R2_* chỉ dùng khi cần ghi đè đầy đủ cho cấu hình cũ. Không tự seed policy, tạo tài khoản hay bật provider. Xem [bằng chứng và giới hạn](../doc/testing/registration-sitter-flow.md).

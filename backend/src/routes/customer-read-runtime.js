@@ -5,6 +5,9 @@ import { createCustomerBookingsService } from '../services/customer-bookings.ser
 import { createNotificationService } from '../services/notifications/notification.service.js';
 import { createMongoNotificationRepository } from '../services/notifications/mongo-notification.repository.js';
 import { createNotificationRouter } from './notification.routes.js';
+import { createMongoCustomerReviewRepository } from '../services/reviews/mongo-customer-review.repository.js';
+import { createReviewService } from '../services/reviews/review.service.js';
+import { createReviewRouter } from './review.routes.js';
 
 export function customerReadRuntime({ config, connection, sessionService, env, clock }) {
   const router = Router();
@@ -15,5 +18,9 @@ export function customerReadRuntime({ config, connection, sessionService, env, c
   const notifications = createNotificationService({ repository: createMongoNotificationRepository({ connection,
     cursorSecret: config.auth.tokenSecret, clock }), clock });
   router.use('/notifications', createNotificationRouter({ service: notifications, sessionPort: sessionService, clock }));
+  if (env.FINANCE_SOURCES_ENABLED === 'true' && env.EMPLOYEE_SCHEDULING_ENABLED === 'true') {
+    const reviews = createReviewService({ repository: createMongoCustomerReviewRepository({ connection }), clock });
+    router.use('/reviews', createReviewRouter({ service: reviews, sessionService, clock }));
+  }
   return { router };
 }

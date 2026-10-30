@@ -6,6 +6,7 @@ import { createApiClient } from '../../services/api-client.js';
 import { createSitterRecommendationApi } from '../../services/sitter-recommendation-api.js';
 import { AddressSearch } from '../../components/common/AddressSearch.jsx';
 import { VietmapView } from '../../components/common/VietmapView.jsx';
+import { RecommendationCheckout } from './RecommendationCheckout.jsx';
 import './sitter-recommendations.css';
 
 function message(error) {
@@ -129,7 +130,7 @@ export function SitterRecommendationsForm({ api }) {
     const ticket = ++generation.current;
     active.current?.abort(); active.current = new AbortController();
     setPending(true); setResult(null); setError('');
-    try { const next = await api.recommend(body, { signal: active.current.signal }); if (ticket === generation.current) setResult(next); }
+    try { const next = await api.recommend(body, { signal: active.current.signal }); if (ticket === generation.current) setResult({ ...next, selection: body }); }
     catch (failure) { if (ticket === generation.current) setError(message(failure)); }
     finally { if (ticket === generation.current) setPending(false); }
   }
@@ -172,6 +173,8 @@ export function SitterRecommendationsForm({ api }) {
         <h3>{sitter.displayName}</h3><p>Điểm phù hợp: {sitter.score}/100 · Di chuyển tăng thêm: {Math.ceil(sitter.plan.extraTravelMinutes)} phút</p>
         {sitter.confidence === 'LIMITED_HISTORY' && <p>Lịch sử chăm sóc còn ít; điểm không phải cam kết chất lượng.</p>}
         <details><summary>Vì sao sitter này phù hợp?</summary><ul>{sitter.breakdown.map((line, index) => <li key={index}>{line.explanation} ({line.points.toFixed(1)} điểm)</li>)}</ul></details>
+        {!expired && <RecommendationCheckout selection={result.selection} sitter={sitter} matchId={result.matchId}
+          expiresAt={result.expiresAt} service={data.services.find(service => service.id === result.selection.serviceId)} />}
       </li>)}</ol>
       <p>Danh sách gợi ý chưa gửi lời mời hoặc xác nhận đặt lịch. Sitter chỉ nhận việc sau quy trình xác nhận và kiểm tra lịch hiện tại.</p>
     </section>}

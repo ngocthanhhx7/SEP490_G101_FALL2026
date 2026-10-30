@@ -3,6 +3,11 @@
 `workspace-api.js` validates aggregate metric, trend and distribution responses
 from `/workspaces/:kind/analytics`; it never calculates financial figures.
 
+`employee-scheduling-api.js` owns assigned care/acknowledgement/access-note
+transport. `service-basket-api.js` owns quote, checkout and Customer rating calls;
+pending or malformed acknowledgements retain the caller's operation key. Neither
+adapter persists private care in browser storage or supplies authoritative prices.
+
 Same-origin transport, endpoint adapters and DTO normalization belong here. `public-catalog-api.js` owns public catalog/policy requests; reusable price/date formatting belongs in `../utils/catalog-format.js`. Services cannot import presentation packages or React state owners. Authenticated requests use the shared API client, session/CSRF boundaries and explicit pending states.
 
 `sitter-recommendation-api.js` loads matching-owned care context and validates

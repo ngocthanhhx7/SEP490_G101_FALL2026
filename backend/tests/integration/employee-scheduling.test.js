@@ -13,12 +13,15 @@ import { createBookingFinanceSourceService } from '../../src/services/settlement
 import { createAiRepository } from '../../src/services/sitter-matching/matching.repository.js';
 import { createVisitTravelService } from '../../src/services/employee-scheduling/visit-travel.service.js';
 import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
+import { createMongoCustomerReviewRepository } from '../../src/services/reviews/mongo-customer-review.repository.js';
+import { createReviewService } from '../../src/services/reviews/review.service.js';
+import { createReviewRouter } from '../../src/routes/review.routes.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
 const staff = actor('STAFF'), customer = actor('CUSTOMER');
 const windows = Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '08:00', endLocalTime: '18:00' }));
-let replica, connection, module, app, payroll;
+let replica, connection, module, app, payroll, reviewApp, reviewNow = clock();
 const serviceId = oid();
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
@@ -33,6 +36,13 @@ beforeAll(async () => {
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   module = employeeSchedulingRuntimeModule({ connection, config: { auth: { enabled: true } }, clock, sessionService, env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: 'true' } });
   app = express(); app.use(express.json(), requestId); app.use(module.mount, module.router); app.use(errorHandler(() => {}));
+  const reviewClock = () => reviewNow;
+  const reviews = createReviewService({ repository: createMongoCustomerReviewRepository({ connection }), clock: reviewClock });
+  reviewApp = express(); reviewApp.use(express.json(), requestId);
+  reviewApp.use('/reviews', createReviewRouter({ service: reviews, clock: reviewClock, sessionService: {
+    ...sessionService, authenticate: async req => { const value = await sessionService.authenticate(req); return value && { ...value, expiresAt: reviewNow + 60000 }; }
+  } })); reviewApp.use(errorHandler(() => {}));
+  for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
@@ -102,6 +112,36 @@ test('travel access is scoped, location is ordered, stop invalidates in-flight u
   expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).paymentState).toBe('UNPAID');
   const indexes = await module.repository.models.EmployeeVisitTravel.collection.listIndexes().toArray();
   expect(indexes.some(index => index.key.expiresAt === 1 && index.expireAfterSeconds === 0)).toBe(true);
+});
+
+test('care snapshot is assigned-only, excludes access notes, requires acknowledgement and revokes reassigned access', async () => {
+  const sitter = await employee(), other = await employee(), row = await visit({ start: '2026-10-30T03:30:00Z' });
+  const visitId = String(row._id), root = `/api/v1/employee-scheduling/visits/${visitId}`;
+  const care = { schemaVersion: 1, capturedAt: new Date(clock()), privateAccessNotes: 'Synthetic private entry',
+    pets: [{ id: String(oid()), name: 'Synthetic dog', weightKg: 4, careProfile: { allergies: { status: 'UNKNOWN' } } }] };
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { state: 'ASSIGNED', sitterId: new mongoose.Types.ObjectId(sitter.userId), 'snapshots.care': care } });
+  const get = (actor, path = '/care') => request(app).get(root + path).set('x-test-actor', actor.userId);
+  await get(other).expect(404); await get(customer).expect(403); await get(staff).expect(403);
+  const result = await get(sitter).expect(200);
+  expect(result.body.data).toMatchObject({ source: 'OWNER_DECLARED_AT_CHECKOUT', acknowledged: false, pets: care.pets });
+  expect(JSON.stringify(result.body)).not.toContain('Synthetic private entry');
+  await get(sitter, '/access-notes').expect(403);
+  const acknowledge = () => request(app).post(root + '/care/acknowledgements').set('x-test-actor', sitter.userId).set('Host', 'localhost')
+    .set('Origin', 'http://localhost').set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'snapshot-ack-001').send({ version: result.body.data.version });
+  await acknowledge().expect(200); await acknowledge().expect(200);
+  expect((await get(sitter, '/access-notes').expect(200)).body.data.privateAccessNotes).toBe('Synthetic private entry');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { sitterId: new mongoose.Types.ObjectId(other.userId) } });
+  await get(sitter).expect(404); await get(sitter, '/access-notes').expect(404);
+  await get(other, '/access-notes').expect(403);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { handoverRequired: true, handoverAccepted: false } });
+  await get(other).expect(403);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { handoverRequired: false, state: 'COMPLETED' } });
+  await get(other).expect(404);
+  const early = await visit({ start: '2026-11-03T03:30:00Z' });
+  await connection.collection('visits').updateOne({ _id: early._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId), state: 'ASSIGNED', 'snapshots.care': care } });
+  await request(app).get(`/api/v1/employee-scheduling/visits/${early._id}/access-notes`).set('x-test-actor', sitter.userId).expect(403);
+  await connection.collection('visits').updateOne({ _id: early._id }, { $unset: { 'snapshots.care': 1 } });
+  await request(app).get(`/api/v1/employee-scheduling/visits/${early._id}/care`).set('x-test-actor', sitter.userId).expect(503);
 });
 
 test('travel rejects poor accuracy/future times, hides completed/reassigned/cancelled work, and honors end cutoff', async () => {
@@ -245,11 +285,17 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { carePlanState: 'NEEDS_REVIEW', state: 'DISPATCH_PENDING', paymentState: 'PAID' } });
   await connection.collection('visits').updateOne({ _id: row._id }, { $set: { 'snapshots.checklistItemIds': ['care'] } });
   row.snapshots.checklistItemIds = ['care'];
+  row.snapshots.care = { schemaVersion: 1, capturedAt: new Date(clock()), privateAccessNotes: 'Synthetic boarding care secret', pets: [{ careProfile: { allergies: { status: 'UNKNOWN' } } }] };
   await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { 'checkoutSnapshot.customerVisits': [row] } });
   await connection.collection('payments').insertOne({ bookingId: row.bookingId, provider: 'SYNTHETIC', providerEventId: String(oid()), state: 'VERIFIED',
     receiptMoney: { amountVnd: 100001, currency: 'VND' }, verifiedAt: new Date(clock()) });
   const plan = await module.carePlans.finalize(staff, String(row.bookingId), { expectedVersion: 0, shiftMinutes: 60 }, 'care-to-payroll-plan');
   const first = await module.dispatch.invite(staff, plan.visits[0].id, { sitterId: sitter.userId, expectedVersion: 0 }, 'care-to-payroll-invite-0');
+  const careShift = await connection.collection('visits').findOne({ _id: new mongoose.Types.ObjectId(plan.visits[0].id) });
+  expect(careShift.snapshots.care).toEqual(row.snapshots.care);
+  const offerSnapshot = await module.repository.models.EmployeeVisitOffer.findById(first.offerId).lean();
+  expect(JSON.stringify(offerSnapshot)).not.toContain('Synthetic boarding care secret');
+  expect(JSON.stringify(offerSnapshot)).not.toContain('careProfile');
   await module.dispatch.offers.accept(sitter, first.offerId, 0, 'care-to-payroll-accept-0');
   let at = new Date(row.startAt);
   const finance = createBookingFinanceSourceService({ connection, clock: () => at });
@@ -273,7 +319,28 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   const credits = await payroll.PayrollServiceCredit.find({ bookingId: row.bookingId }).lean();
   expect(credits).toHaveLength(2); expect(credits.reduce((sum, credit) => sum + credit.serviceNetVnd, 0)).toBe(100001);
   expect(credits.map(credit => credit.careMinutes)).toEqual([60, 60]);
+  const ratingUrl = `/reviews/visits/${plan.visits[0].id}/ratings`;
   expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('COMPLETED');
+  reviewNow = at.getTime() + 60000;
+  const rate = actor => request(reviewApp).post(ratingUrl).set('x-test-actor', actor.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+    .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'verified-rating-001');
+  await rate(sitter).send({ rating: 4 }).expect(403);
+  const body = { rating: 4, expectedVersion: credits[0].sourceVersion };
+  const [a, b] = await Promise.all([rate(customer).send(body), rate(customer).send(body)]);
+  expect(a.status).toBe(201); expect(b.status).toBe(201); expect(a.body.data).toEqual(b.body.data);
+  expect(a.body.data.review.state).toBe('SUBMITTED');
+  const outcome = await connection.models.SitterVisitOutcome.findOne({ visitId: plan.visits[0].id }).select('+provenance').lean();
+  expect(outcome).toMatchObject({ rating: 4, resolution: 'COMPLETED', sourceRef: `customer-review:${a.body.data.review.id}:0`,
+    provenance: { bookingId: String(row.bookingId), creditId: String(credits[0]._id), trainingEligible: false } });
+  await rate(customer).send({ ...body, rating: 5 }).expect(409);
+  expect(await connection.models.SitterVisitOutcome.countDocuments({ visitId: plan.visits[0].id })).toBe(1);
+  const stranger = actor('CUSTOMER'); await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(stranger.userId), ...stranger });
+  await rate(stranger).send(body).expect(404);
+  const second = `/reviews/visits/${plan.visits[1].id}/ratings`;
+  await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { state: 'IN_PROGRESS' } });
+  await request(reviewApp).post(second).set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+    .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'unverified-rating-002').send({ rating: 5 }).expect(409);
+  expect(await connection.models.SitterVisitOutcome.countDocuments({ visitId: plan.visits[1].id })).toBe(0);
 });
 
 test('Staff proposes a new directed time; only the owning customer may confirm before an atomic invitation is created', async () => {
