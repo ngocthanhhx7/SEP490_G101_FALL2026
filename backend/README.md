@@ -2,6 +2,27 @@
 
 Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và runtime REGISTER handler. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
 
+## Demo Catalogue
+
+`node scripts/seeds/demo-services.js` previews the13 sheet offerings; `--apply` only targets
+a non-production `*_dev` database. See [approved rules](../doc/requirements/demo-service-catalog-2026-10-30.md).
+Customer/CSRF-protected `POST /api/v1/pricing/basket-quotes` validates owned pets and snapshots
+one combo/order fee across all rows. An estimate does not create bookings or collect payment.
+
+Reviewed production releases can run `scripts/deployment/provision-demo-catalog.js`.
+It defaults to dry-run; `--apply` requires `CONFIRMED_CATALOG_KEY` and
+`CONFIRMED_CATALOG_DATABASE` matching the approved catalog and configured database.
+Take a backup first. The provisioning service preserves Admin versions and historical
+snapshots, records its run and is idempotent; it creates no users or contracts.
+
+The opt-in [checkout and employee scheduling API](../doc/api/employee-scheduling-checkout.md)
+composes quote-to-booking snapshots, fifteen-minute prepay intents, care-plan finalization,
+self-registered areas/shifts, durable invitations and customer-confirmed directed rescheduling.
+`src/services/employee-scheduling/` owns these employee adapters; `jobs/employee-dispatch.job.js`
+owns worker lifecycle. Provision storage before enabling the documented flags.
+`src/services/maps/` owns Google/Vietmap address search; commercial route adapters remain in
+`sitter-matching/`. See [Google Maps / Vietmap configuration](../doc/deployment/google-goong-maps.md).
+
 ## Chạy và kiểm tra
 
 Từ backend, npm ci --ignore-scripts; điền URI Atlas và MONGO_DB trong .env local rồi npm start (npm run dev cho watch). Config thiếu/sai dừng trước listen. Không commit .env hoặc bất kỳ .env.* ở bất kỳ depth nào; chỉ .env.example chứa placeholders được push. Không force-add env hoặc đưa credential thật vào example.
@@ -11,6 +32,11 @@ npm run lint
 npm run test:unit
 npm run test:integration
 ```
+
+Jest uses `tests/unit/setup.js` and `tests/integration/setup.js` to apply the
+10-second unit and 180-second integration deadlines in each test environment.
+The root-only `testTimeout` option does not apply inside a multi-project entry;
+Mongo startup and unreachable-database checks must use the integration deadline.
 
 GET /health chỉ liveness process/HTTP; GET /ready cần DB connected+ping,503 khi draining/mất DB. Readiness không chứng minh full provider/business flow. Auth routes chỉ mount khi được bật tường minh; REGISTER uses the transactional P07 handler when auth is enabled. Source JS không transpile nên không có build script giả. Jest ESM VM Modules có warning; integration dùng MongoDB replica set riêng, không đụng DB hiện có của user.
 

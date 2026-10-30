@@ -16,7 +16,7 @@ const text = (value, max = 100) => {
   return value.trim();
 };
 
-export function createPetCareManagement({ repository, clock = Date.now }) {
+export function createPetCareManagement({ repository, clock = Date.now, coverageAreas = [] }) {
   const { models } = repository;
   return {
     async catalog() {
@@ -32,7 +32,7 @@ export function createPetCareManagement({ repository, clock = Date.now }) {
           .limit(100)
           .lean()
       ]);
-      return { breeds, traits };
+      return { breeds, traits, workAreas: coverageAreas.map(({ code, label }) => ({ code, label })) };
     },
     async listPets(ownerId) {
       return models.Pet.find({ ownerId, state: 'ACTIVE' })
@@ -109,6 +109,8 @@ export function createPetCareManagement({ repository, clock = Date.now }) {
       text(body.label);
       text(body.location, 500);
       text(body.areaCode, 80);
+      if (coverageAreas.length && !coverageAreas.some(row => row.code === body.areaCode))
+        fail('VALIDATION_FAILED', 'Choose a supported work area');
       if (body.pointConfirmed !== true)
         fail('ADDRESS_CONFIRMATION_REQUIRED', 'Confirm the map pin');
       const doc = await models.CustomerAddress.create({

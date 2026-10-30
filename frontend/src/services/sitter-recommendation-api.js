@@ -24,10 +24,13 @@ export function createSitterRecommendationApi({ request = createApiClient() } = 
           confirmed: pet.careNeedsConfirmed === true })),
         addresses: addresses.data.map(address => ({ id: identity(address), label: String(address.label ?? ''),
           confirmed: Boolean(address.pointConfirmedAt) })),
-        breeds: care.data.breeds.map(breed => ({ code: breed.code, name: breed.name, species: breed.species })) };
+        breeds: care.data.breeds.map(breed => ({ code: breed.code, name: breed.name, species: breed.species })),
+        workAreas: care.data.workAreas?.length ? care.data.workAreas : [{ code: 'HN', label: 'Hà Nội' }] };
     },
     async createPet(body) { return request('/pet-care/pets', { method: 'POST', body }); },
     async createAddress(body) { return request('/pet-care/addresses', { method: 'POST', body }); },
+    async searchAddress(query) { return request('/maps/search', { method: 'POST', body: { query } }); },
+    async resolveAddress(body) { return request('/maps/places/resolve', { method: 'POST', body }); },
     async recommend(body, { signal } = {}) {
       const response = await request('/ai/recommendations', { method: 'POST', body, signal });
       const result = response.data;

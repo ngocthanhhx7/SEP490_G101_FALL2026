@@ -58,3 +58,15 @@ test('vet waiting limits agree with the backend contract', async () => {
   const waiting = screen.getByLabelText('Thời gian chờ dự kiến (phút)', { exact: false });
   expect([waiting.min, waiting.max, waiting.step]).toEqual(['15', '240', '1']);
 });
+
+test('successful address acknowledgement remains visible after setup reloads', async () => {
+  const api = apiFor(jest.fn());
+  api.createAddress.mockResolvedValue({ data: { id } });
+  render(<SitterRecommendationsForm api={api} />);
+  const button = await screen.findByText('Lưu địa chỉ');
+  fireEvent.submit(button.closest('form'));
+  await screen.findByText('Đã lưu thông tin.');
+  await screen.findByRole('checkbox', { name: 'Miu' });
+  expect(screen.getByText('Đã lưu thông tin.')).toBeInTheDocument();
+  expect(api.createAddress).toHaveBeenCalledTimes(1);
+});

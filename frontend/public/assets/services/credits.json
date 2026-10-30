@@ -1,0 +1,55 @@
+[
+  {
+    "file": "bathing.webp",
+    "title": "File:MWD Spa Day (9568307).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:MWD_Spa_Day_(9568307).jpg",
+    "artist": "U.S. Army photo by Sgt. 1st Class Tanisha Karn",
+    "license": "Public domain",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "grooming.webp",
+    "title": "File:Grooming Poodle.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Grooming_Poodle.jpg",
+    "artist": "daveynin",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "health.webp",
+    "title": "File:Close-up of a veterinarian examining a maltese dog with a stethoscope. (51687314898).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Close-up_of_a_veterinarian_examining_a_maltese_dog_with_a_stethoscope._(51687314898).jpg",
+    "artist": "Nenad Stojkovic",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "training.webp",
+    "title": "File:Dog training in Dovedale - geograph.org.uk - 701827.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Dog_training_in_Dovedale_-_geograph.org.uk_-_701827.jpg",
+    "artist": "David Lally",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "boarding.webp",
+    "title": "File:A cat sleeping in a cat bed.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:A_cat_sleeping_in_a_cat_bed.jpg",
+    "artist": "JW2009",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  },
+  {
+    "file": "transport.webp",
+    "title": "File:Dogtainers Pet Transport Clipper Cat Cage Plastic Travel Crate Labelled.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Dogtainers_Pet_Transport_Clipper_Cat_Cage_Plastic_Travel_Crate_Labelled.jpg",
+    "artist": "Chachacha369",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "changes": "Resized and converted to WebP; displayed with object-fit cover."
+  }
+]

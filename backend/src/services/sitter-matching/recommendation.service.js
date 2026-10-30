@@ -320,7 +320,7 @@ export function createAiService({
       fallbackReason,
       candidates: selected,
       exclusions,
-      routingSource: 'OSRM_STATIC_ROAD_ETA_WITH_BUFFERS',
+      routingSource: `${routingProvider.source ?? 'OSRM_STATIC_ROAD_ETA'}_WITH_BUFFERS`,
       warnings: [
         'RECOMMENDATION_IS_NOT_ASSIGNMENT',
         'REVALIDATE_PAYMENT_ELIGIBILITY_AND_OCCUPANCY_AT_OFFER_ACCEPTANCE',

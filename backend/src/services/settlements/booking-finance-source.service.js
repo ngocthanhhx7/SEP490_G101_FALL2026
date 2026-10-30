@@ -86,11 +86,12 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
     const status = await statuses.findOne({ userId: oid(current.userId), status: 'ACTIVE' }).session(session).lean();
     if (!status) fail(403, 'SITTER_NOT_ACTIVE');
     const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
-    if (!booking || !Array.isArray(booking.visitIds) || booking.visitIds.length !== booking.originalVisitCount
+    const careVisitCount = compensationModel === 'EMPLOYEE' && booking?.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? booking.careVisitCount : booking?.originalVisitCount;
+    if (!booking || !Array.isArray(booking.visitIds) || booking.visitIds.length !== careVisitCount
       || booking.visitIds.length < 1 || booking.visitIds.length > 60
       || new Set(booking.visitIds.map(String)).size !== booking.visitIds.length
       || !booking.visitIds.some(id => String(id) === visitId)
-      || !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.state)) fail(409, 'INVALID_STATE');
+      || !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', ...(booking?.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? ['DISPATCH_PENDING'] : [])].includes(booking.state)) fail(409, 'INVALID_STATE');
     if (booking.originalVisitCount > 1 && booking.paymentMode !== 'PREPAY') fail(409, 'PREPAYMENT_REQUIRED');
     return { visit, booking };
   }
@@ -109,7 +110,8 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
   }
   async function completeWholeBooking(booking, session) {
     const visits = await col('visits').find({ bookingId: booking._id, _id: { $in: booking.visitIds } }, { session }).limit(61).toArray();
-    if (visits.length !== booking.originalVisitCount || visits.some(row => row.state !== 'COMPLETED')) return;
+    const count = compensationModel === 'EMPLOYEE' && booking.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? booking.careVisitCount : booking.originalVisitCount;
+    if (visits.length !== count || visits.some(row => row.state !== 'COMPLETED')) return;
     const completed = await touch(booking, session, { state: 'COMPLETED', completedAt: now() });
     if (compensationModel === 'EMPLOYEE') {
       await recordEmployeeServiceCompletion({ connection, visits, session });
@@ -127,7 +129,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
     return command({ actor: current, operation, resourceId: visitId, expectedVersion, idempotencyKey,
       payload: { mediaId, items }, authorize: session => visitContext(current, visitId, session),
       work: async ({ visit, booking }, session) => {
-        if (!['ASSIGNED', 'IN_PROGRESS'].includes(booking.state)) fail(409, 'INVALID_STATE');
+        if (!['ASSIGNED', 'IN_PROGRESS', ...(booking.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? ['DISPATCH_PENDING'] : [])].includes(booking.state)) fail(409, 'INVALID_STATE');
         if (visit.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
         const at = now();
         let fields;
@@ -138,11 +140,14 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
           if (at.getTime() < visit.startAt.getTime() - 30 * 60 * 1000) fail(409, 'CHECK_IN_TOO_EARLY');
           if (at > visit.endAt) fail(409, 'INVALID_STATE');
           if (visit.handoverRequired && visit.handoverAccepted !== true) fail(409, 'HANDOVER_REQUIRED');
-          if (booking.originalVisitCount > 1) {
+          if (booking.originalVisitCount > 1 || booking.paymentMode === 'PREPAY') {
             const receipt = await col('payments').find({ bookingId: booking._id, state: 'VERIFIED' }, { session }).limit(2).toArray();
             if (receipt.length !== 1) fail(409, 'PREPAYMENT_REQUIRED');
             const priceVisits = await col('visits').find({ bookingId: booking._id, _id: { $in: booking.visitIds } }, { session }).limit(61).toArray();
-            if (priceVisits.length !== booking.originalVisitCount || priceVisits.some(row => !Number.isSafeInteger(row.snapshots?.serviceBasisVnd) || row.snapshots.serviceBasisVnd < 0)) fail(409, 'SOURCE_RECONCILIATION_REQUIRED');
+            const count = compensationModel === 'EMPLOYEE' && booking.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1'
+              ? booking.careVisitCount : booking.originalVisitCount;
+            if (priceVisits.length !== count || (compensationModel === 'LEGACY_PARTNER' &&
+              priceVisits.some(row => !Number.isSafeInteger(row.snapshots?.serviceBasisVnd) || row.snapshots.serviceBasisVnd < 0))) fail(409, 'SOURCE_RECONCILIATION_REQUIRED');
             const paid = receipt[0];
             const paymentSnapshot = booking.paymentSnapshot;
             if (compensationModel === 'EMPLOYEE' && (paymentSnapshot?.currency !== 'VND' ||

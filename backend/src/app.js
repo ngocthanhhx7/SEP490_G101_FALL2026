@@ -24,6 +24,9 @@ import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.
 import { sitterPublicProfileModule } from './routes/sitter-public-profile.routes.js';
 import { financeSourceRuntime } from './routes/finance-source-runtime.js';
 import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
+import { bookingCheckoutRuntimeModule } from './routes/booking-checkout.routes.js';
+import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.routes.js';
+import { mapsRuntimeModule } from './routes/maps.routes.js';
 
 export function createApp({
   config,
@@ -75,6 +78,12 @@ export function createApp({
   const publicProfiles = auth && typeof connection?.model === 'function'
     ? sitterPublicProfileModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
+  const checkout = bookingCheckoutRuntimeModule(context);
+  const employeeScheduling = employeeSchedulingRuntimeModule(context);
+  const maps = mapsRuntimeModule(context);
+  if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_DISPATCH_AGENT_ENABLED)) throw new TypeError('Invalid EMPLOYEE_DISPATCH_AGENT_ENABLED');
+  if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' && !employeeScheduling) throw new TypeError('Employee dispatch agent requires employee scheduling');
+  app.locals.employeeDispatch = env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' ? employeeScheduling.dispatch : null;
   const suppliedModules = moduleFactories.map((factory) => factory(context))
     .filter(module => module !== null && module !== undefined);
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
@@ -107,6 +116,9 @@ export function createApp({
     ...(privateImages ? [privateImages] : []),
     ...(publicProfiles ? [publicProfiles] : []),
     ...(payroll ? [payroll] : []),
+    ...(checkout ? [checkout] : []),
+    ...(employeeScheduling ? [employeeScheduling] : []),
+    ...(maps ? [maps] : []),
     ...(settlement ? [settlement] : []),
     ...(dashboards && !auth ? [dashboards] : []),
     ...(adminSettlement ? [adminSettlement] : []),

@@ -12,7 +12,10 @@ import { serviceAuditModel } from '../models/service-audit.model.js';
 export async function provisionInitialCatalog({
   config,
   connection,
-  clock = Date.now
+  clock = Date.now,
+  entries = initialServiceCatalog,
+  runKey = 'pawworld-initial-three-services-v1',
+  authorization = 'Project owner requested the three services and editable initial prices in this session'
 }) {
   void config;
   [
@@ -45,7 +48,7 @@ export async function provisionInitialCatalog({
   await runs.createIndex({ key: 1 }, { unique: true });
   return connection.transaction(async (session) => {
     const prior = await runs.findOne(
-      { key: 'pawworld-initial-three-services-v1' },
+      { key: runKey },
       { session }
     );
     if (prior) return { state: 'ALREADY_APPLIED', created: [] };
@@ -54,7 +57,7 @@ export async function provisionInitialCatalog({
     const reason =
       'Owner-authorized initial catalog provisioning; actorId identifies the system migration run, not a user account';
     const created = [];
-    for (const item of initialServiceCatalog) {
+    for (const item of entries) {
       if (await models.Service.exists({ code: item.code }).session(session))
         continue;
       const serviceId = new Types.ObjectId();
@@ -205,10 +208,9 @@ export async function provisionInitialCatalog({
     await runs.insertOne(
       {
         _id: actorId,
-        key: 'pawworld-initial-three-services-v1',
+        key: runKey,
         actorKind: 'SYSTEM_MIGRATION',
-        authorization:
-          'Project owner requested the three services and editable initial prices in this session',
+        authorization,
         createdAt: now,
         created
       },
