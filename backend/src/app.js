@@ -18,6 +18,9 @@ import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
+import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
+import { financeSourceRuntime } from './routes/finance-source-runtime.js';
+import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 
 export function createApp({
   config,
@@ -59,15 +62,22 @@ export function createApp({
   const pricing = pricingRuntimeModule(context);
   const petCare = petCareRuntimeModule(context);
   const auth = authenticationModule({ ...context, logger });
+  const financeSources = financeSourceRuntime(context);
+  if (auth && financeSources) auth.router.use(financeSources.router);
+  app.locals.financeSources = financeSources?.service ?? null;
   const customerProfile = customerProfileRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
-  const suppliedModules = moduleFactories.map((factory) => factory(context));
+  const payroll = payrollRuntimeModule(context);
+  const suppliedModules = moduleFactories.map((factory) => factory(context))
+    .filter(module => module !== null && module !== undefined);
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
     (module) =>
       !suppliedModules.some((supplied) => supplied.name === module.name)
   );
+  const settlement = suppliedModules.some(module => module.name === 'settlement-requests')
+    ? null : settlementRequestRuntimeModule(context);
   registerModules(app, [
     contactModule(context),
     healthModule(context),
@@ -77,6 +87,8 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(payroll ? [payroll] : []),
+    ...(settlement ? [settlement] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),
