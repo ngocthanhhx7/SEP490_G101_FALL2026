@@ -52,6 +52,6 @@ test('same-role account change clears prior private rows and reloads the API', a
     fireEvent.click(screen.getByRole('button', { name: 'Switch account' }));
     await waitFor(() => expect(screen.queryByText(/private-first/)).not.toBeInTheDocument());
     expect(await screen.findByText(/private-second/)).toBeVisible();
-    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(globalThis.fetch.mock.calls.filter(([url]) => !String(url).includes('/notifications?'))).toHaveLength(2);
   } finally { globalThis.fetch = original; }
 });

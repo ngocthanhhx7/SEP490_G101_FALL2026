@@ -3,11 +3,13 @@ import { createSitterOfferService } from '../sitter-offer.service.js';
 import { fail, id, digest } from '../../validators/pet-care.validator.js';
 import { invitationInput, schedulingKey } from '../../validators/employee-scheduling.validator.js';
 import { assertEmployeeSchedulingStorage } from './scheduling-storage.service.js';
+import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 
 const oid = value => new Types.ObjectId(value);
 const offerView = row => row && ({ ...row, id: String(row._id), visitId: String(row.visitId), sitterId: row.sitterId });
 export function createEmployeeDispatchService({ repository, clock = Date.now, ranker }) {
   const { models, col, uow, employeeGuard, eligible } = repository;
+  const notifications = createSchedulingNotifications({ col, clock });
   const agentActor = Object.freeze({ userId: 'SYSTEM_DISPATCH', roles: ['SYSTEM'], state: 'ACTIVE' });
   async function command(actor, operation, payload, key, execute) {
     schedulingKey(key); await assertEmployeeSchedulingStorage(models.EmployeeVisitOffer.db);
@@ -39,7 +41,10 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     }
     return visit;
   }
-  async function event(value, session) { await models.EmployeeScheduleEvent.create([{ ...value, at: new Date(clock()) }], { session }); }
+  async function event(value, session) {
+    await models.EmployeeScheduleEvent.create([{ ...value, at: new Date(clock()) }], { session });
+    await notifications.publish(value, session);
+  }
   const offers = createSitterOfferService({ clock, repository: {
     async listOffers({ sitterId, limit, cursor, state }) {
       if (cursor) id(cursor);

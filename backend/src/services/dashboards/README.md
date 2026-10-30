@@ -1,5 +1,11 @@
 # P28 read projections
 
+`workspace-analytics.service.js` aggregates authoritative counts, daily trends
+and distributions over 7/30/90 Vietnam calendar days in a snapshot transaction.
+Customer reads join owned bookings; Sitter reads constrain assignment owner.
+Sources missing collections return 503, distinct from an actual zero. Analytics
+are independent of table pagination and never calculate revenue or compensation.
+
 ## Integration update, 2026-10-30
 
 `mongo-earnings.repository.js` now reads booking-level Earning records, immutable

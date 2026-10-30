@@ -101,5 +101,10 @@ export function createServicePriceService({ connection, PriceVersion, Audit, ser
     } catch (error) { duplicateConflict(error); }
   }
 
-  return Object.freeze({ list, latestVersion, getActivePrice, createVersion });
+  async function getActivePrices(serviceIds, at = new Date(clock())) {
+    const rows = await PriceVersion.aggregate([{ $match: { serviceId: { $in: serviceIds.map(serviceObjectId) }, effectiveAt: { $lte: at } } },
+      { $sort: { effectiveAt: -1, version: -1 } }, { $group: { _id: '$serviceId', price: { $first: '$$ROOT' } } }]).option({ maxTimeMS: 5000 });
+    return new Map(rows.map(row => [String(row._id), priceView(row.price)]));
+  }
+  return Object.freeze({ list, latestVersion, getActivePrice, getActivePrices, createVersion });
 }

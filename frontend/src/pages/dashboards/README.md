@@ -1,5 +1,10 @@
 # P28 pages
 
+`OperationalDashboard` now composes Admin/Staff/Sitter overview analytics, queue
+metrics and bounded visit pages with date filters. Customer retains a public
+site/account composition without operational charts. Both representations use
+the existing authoritative projection adapters and session ownership boundaries.
+
 ProjectionPage renders bounded, private, read-only DTOs with P04 tokens and controls.
 Role-specific entry pages use session authorization and reset reads on account changes.
 `useApiResource` cancels obsolete reads and handles loading/pending/forbidden/error.

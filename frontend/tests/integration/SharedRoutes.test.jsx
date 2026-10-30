@@ -28,7 +28,7 @@ test('account uses the merged P48 shell with only registered destinations', asyn
     user: { id: 'synthetic-admin', displayName: 'Synthetic Admin', roles: ['ADMIN'] } }) } });
   const navigation = await screen.findByRole('navigation', { name: 'Điều hướng quản trị' });
   expect(navigation).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Dịch vụ', exact: true })).toHaveAttribute('href', '/admin/services');
+  expect(screen.getByRole('link', { name: 'Dịch vụ và giá', exact: true })).toHaveAttribute('href', '/admin/services');
   expect(screen.queryByRole('navigation', { name: 'Điều hướng chính' })).not.toBeInTheDocument();
 });
 

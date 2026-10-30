@@ -1,5 +1,8 @@
 # API services
 
+`workspace-api.js` validates aggregate metric, trend and distribution responses
+from `/workspaces/:kind/analytics`; it never calculates financial figures.
+
 `employee-scheduling-api.js` owns assigned care/acknowledgement/access-note
 transport. `service-basket-api.js` owns quote, checkout and Customer rating calls;
 pending or malformed acknowledgements retain the caller's operation key. Neither

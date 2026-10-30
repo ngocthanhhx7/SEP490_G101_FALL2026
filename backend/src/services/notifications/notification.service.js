@@ -77,7 +77,7 @@ function normalizeNotification(row, actor) {
   if (!row || typeof row !== 'object' || Array.isArray(row)) return null;
   if (String(row.recipientId ?? row.userId) !== actor.userId) return null;
   const role = row.role ?? row.recipientRole;
-  if (role !== undefined && (!ROLES.has(role) || !actor.roles.includes(role))) return null;
+  if (role !== undefined && role !== null && (!ROLES.has(role) || !actor.roles.includes(role))) return null;
   const id = row.id ?? row._id ?? row.notificationId;
   if (typeof id !== 'string') return null;
   const createdAt = row.createdAt ? instant(row.createdAt, 'createdAt').toISOString() : null;

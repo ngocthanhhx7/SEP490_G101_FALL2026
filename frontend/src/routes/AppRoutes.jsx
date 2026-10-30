@@ -22,8 +22,7 @@ import { AccountSettingsPage } from '../pages/account/AccountSettingsPage.jsx';
 import { RequireSession } from './RequireSession.jsx';
 import { publicPolicyFallbackRoutes } from './PublicPolicyRoutes.jsx';
 import { RegistrationPage } from '../pages/public/RegistrationPage.jsx';
-import { AdminServicesPage } from '../pages/admin/AdminServicesPage.jsx';
-import { AdminServicePricesPage } from '../pages/admin/AdminServicePricesPage.jsx';
+import { ServiceWorkspacePage } from '../pages/admin/ServiceWorkspacePage.jsx';
 import { AdminSystemSettingsPage } from '../pages/admin/AdminSystemSettingsPage.jsx';
 import { SitterApplicationsPage } from '../pages/admin/SitterApplicationsPage.jsx';
 import { SitterApplicationReviewPage } from '../pages/admin/SitterApplicationReviewPage.jsx';
@@ -95,20 +94,19 @@ function PublicProfileRoute({ review = false }) {
 
 const navigationByRole = {
   ADMIN: [
-    ['Dashboard', '/admin/dashboard'], ['Sitter list', '/admin/sitters'],
+    ['Tổng quan', '/admin/dashboard'], ['Người chăm sóc', '/admin/sitters'],
     ['Tài khoản', '/account'],
     ['Người dùng', '/admin/users'],
     ['Quản lý lương', '/admin/payroll'],
     ['Điều phối ca', '/staff/dispatch'],
-    ['Dịch vụ', '/admin/services'],
-    ['Giá dịch vụ', '/admin/service-prices'],
+    ['Dịch vụ và giá', '/admin/services'],
     ['Cấu hình', '/admin/system-settings'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
     ['Duyệt tất toán', '/admin/settlements'],
-    ['Hồ sơ công khai', '/staff/sitter-profiles']
+    ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Thông báo', '/account/notifications']
   ],
   CUSTOMER: [
-    ['Dashboard', '/customer'], ['Sitter list', '/sitters'],
+    ['Chăm sóc của bạn', '/customer'], ['Người chăm sóc', '/sitters'],
     ['Tài khoản', '/account'],
     ['Hồ sơ', '/account/profile'],
     ['Địa chỉ', '/account/addresses'],
@@ -118,15 +116,15 @@ const navigationByRole = {
     ['Thông báo', '/account/notifications']
   ],
   PET_SITTER: [
-    ['Dashboard', '/sitter'], ['Profile', '/sitter/profile'],
+    ['Công việc của tôi', '/sitter'], ['Hồ sơ', '/sitter/profile'],
     ['Tài khoản', '/account'],
     ['Lịch làm việc', '/sitter/availability'],
     ['Khu vực làm việc', '/sitter/work-areas'],
     ['Lời mời nhận việc', '/sitter/invitations'],
     ['Lương và tạm ứng', '/sitter/payroll'],
-    ['Hồ sơ công khai', '/sitter/public-profile']
+    ['Hồ sơ công khai', '/sitter/public-profile'], ['Thông báo', '/account/notifications']
   ],
-  STAFF: [['Dashboard', '/staff'], ['Điều phối ca', '/staff/dispatch'], ['Sitter list', '/staff/sitters'], ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Tài khoản', '/account']]
+  STAFF: [['Tổng quan', '/staff'], ['Điều phối ca', '/staff/dispatch'], ['Người chăm sóc', '/staff/sitters'], ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Thông báo', '/account/notifications'], ['Tài khoản', '/account']]
 };
 Object.values(navigationByRole).forEach((items) => {
   items.splice(1, 0, ['Cài đặt', '/account/settings']);
@@ -137,6 +135,7 @@ function Workspace({ role }) {
     <RoleDashboardLayout
       key={user?.id}
       role={role}
+      notificationTo="/account/notifications"
       navigationItems={(navigationByRole[role] || []).map(([label, to]) => ({
         label,
         to,
@@ -173,16 +172,16 @@ export function AppRoutes({
     <Routes>
       <Route element={<RequireSession roles={['ADMIN']} />}>
         <Route element={<Workspace role="ADMIN" />}>
-          <Route path="admin/users" element={<AdminUsersPage />} />
+          <Route path="admin/users" element={<AdminUsersPage embedded />} />
           <Route path="admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="admin/settlement-history" element={<AdminPayrollPage />} />
           <Route path="admin/sitters" element={<SitterListPage />} />
           <Route path="admin/settlements" element={<AdminSettlementRoute />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
-          <Route path="admin/services" element={<AdminServicesPage />} />
+          <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
             path="admin/service-prices"
-            element={<AdminServicePricesPage />}
+            element={<Navigate replace to="/admin/services" />}
           />
           <Route
             path="admin/system-settings"
@@ -202,6 +201,7 @@ export function AppRoutes({
         <Route element={<AccountWorkspace />}>
           <Route path="account" element={<AccountPage />} />
           <Route path="account/settings" element={<AccountSettingsPage />} />
+          <Route path="account/notifications" element={<CustomerFeaturePage page="notifications" />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['CUSTOMER']} />}>
@@ -221,10 +221,6 @@ export function AppRoutes({
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
-          <Route
-            path="account/notifications"
-            element={<CustomerFeaturePage page="notifications" />}
-          />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['PET_SITTER']} />}>

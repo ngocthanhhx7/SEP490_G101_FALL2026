@@ -20,3 +20,8 @@ The menu opens on mouse/pen hover and keyboard focus. Its click trigger pins or 
 The consumer passes the user, the current shell role, and the session's onLogout callback. Until P08 supplies that callback, logout remains visibly disabled and marked pending. A notifications destination is optional; no fake notification count or route is supplied. The menu links to the existing /account route and deliberately has no change-password action.
 
 This component is presentation and navigation only. Server-side authorization remains authoritative.
+
+`WorkspaceAnalytics` presents role-scoped server metrics, 7/30/90-day Chart.js
+plots and an accessible daily data table. `RowActionMenu` renders a portal menu
+with keyboard focus and viewport positioning. `NotificationBell` reads durable
+unread counts and refreshes after read receipts and document visibility changes.
