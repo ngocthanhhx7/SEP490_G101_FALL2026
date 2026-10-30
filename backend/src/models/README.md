@@ -9,6 +9,10 @@ Mongoose schemas/indexes and physical collection compatibility belong here. Pet-
 
 SitterApplication's new ownerUserId identifies the authenticated applicant for receipt recovery and same-account role promotion. Immutable policyConsents record the approved versions accepted at submission; existing legacy records retain a null owner and empty consent list. Collection names remain unchanged.
 
+Application document and consent subdocuments disable Mongoose version keys like
+their parent. This keeps transaction abort/retry restoration from assigning an
+undeclared `__v` under `strict: 'throw'`; domain concurrency uses `version`.
+
 `pet-care.model.js` adds owner-declared care fields, private address access notes
 and durable `PetCareCommand` replay without renaming existing collections.
 `notification.model.js` defines recipient/role-scoped notifications/event replay.

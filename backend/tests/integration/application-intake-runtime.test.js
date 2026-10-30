@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, expect, jest, test } from '@jest/globa
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
 import sharp from 'sharp';
+import mongoose from 'mongoose';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
@@ -200,6 +201,30 @@ test('owner cooldown survives verified email and identity changes after rejectio
   await submit(changed, { ...application(changed, documentId), identityNumber: 'DIFFERENT12345' }, 'synthetic-reapply-owner-01').expect(409)
     .expect(res => expect(res.body.error.code).toBe('REAPPLY_NOT_AVAILABLE'));
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
+});
+
+test('a transient failure after application writes retries without losing the submission or duplicating mail', async () => {
+  const owner = await register();
+  const documentId = await upload(owner);
+  const transaction = connection.transaction.bind(connection);
+  let attempts = 0;
+  const retry = jest.spyOn(connection, 'transaction').mockImplementation((callback, options) =>
+    transaction(async session => {
+      const result = await callback(session);
+      if (++attempts === 1) {
+        const error = new mongoose.mongo.MongoServerError({ message: 'Synthetic transaction retry', code: 112 });
+        error.addErrorLabel('TransientTransactionError');
+        throw error;
+      }
+      return result;
+    }, options));
+  try { await submit(owner, application(owner, documentId)).expect(201); }
+  finally { retry.mockRestore(); }
+  expect(attempts).toBe(2);
+  const { SitterApplication, SitterApplicationAudit, ApplicationMail } = sitterApplicationModels(connection);
+  expect(await SitterApplication.countDocuments()).toBe(1);
+  expect(await SitterApplicationAudit.countDocuments({ action: 'APPLICATION_SUBMITTED' })).toBe(1);
+  expect(await ApplicationMail.countDocuments()).toBe(1);
 });
 
 test('concurrent commands with distinct verified emails and identities create at most one pending application per owner', async () => {
