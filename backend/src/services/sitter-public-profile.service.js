@@ -92,10 +92,12 @@ export function createSitterPublicProfileService({ connection, cursorSecret, clo
       const row = await profiles.findOne({ userId: actor.userId }).select('+reason').lean();
       return { profile: row ? { ...project(row), reason: row.reason ?? null } : null };
     },
-    async listPending({ actor, cursor }) {
+    async listPending({ actor, cursor, userId }) {
       authorize(actor, 'STAFF');
-      const context = { actorId: actor.userId, state: 'SUBMITTED' };
+      if (userId !== undefined && (typeof userId !== 'string' || !/^[a-f0-9]{24}$/i.test(userId))) fail(422, 'VALIDATION_FAILED');
+      const context = { actorId: actor.userId, state: 'SUBMITTED', ...(userId ? { userId } : {}) };
       const match = { state: 'SUBMITTED' };
+      if (userId) match.userId = new Types.ObjectId(userId);
       if (cursor !== undefined) {
         const last = cursorCodec.decode(cursor, context);
         if (!Types.ObjectId.isValid(last.userId) || !Number.isFinite(Date.parse(last.updatedAt))) fail(422, 'VALIDATION_FAILED');

@@ -24,6 +24,7 @@ import { settlementRequestRuntimeModule } from './routes/settlement-runtime.js';
 import { dashboardReadRuntimeModule } from './routes/dashboard-runtime.routes.js';
 import { adminSettlementRuntimeModule } from './routes/admin-settlement-runtime.js';
 import { sitterPublicProfileModule } from './routes/sitter-public-profile.routes.js';
+import { sitterManagementModule } from './routes/sitter-management.routes.js';
 import { financeSourceRuntime } from './routes/finance-source-runtime.js';
 import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 import { bookingCheckoutRuntimeModule } from './routes/booking-checkout.routes.js';
@@ -85,6 +86,8 @@ export function createApp({
   const applicantDocuments = applicantDocumentRuntimeModule(context);
   const publicProfiles = auth && typeof connection?.model === 'function'
     ? sitterPublicProfileModule({ ...context, sessionService: auth.sessionService }) : null;
+  const sitterManagement = auth && typeof connection?.model === 'function'
+    ? sitterManagementModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
@@ -128,6 +131,7 @@ export function createApp({
     ...(applicantDocuments ? [applicantDocuments] : []),
     ...(sitterApplications ? [sitterApplications] : []),
     ...(publicProfiles ? [publicProfiles] : []),
+    ...(sitterManagement ? [sitterManagement] : []),
     ...(payroll ? [payroll] : []),
     ...(checkout ? [checkout] : []),
     ...(employeeScheduling ? [employeeScheduling] : []),

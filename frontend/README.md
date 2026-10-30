@@ -30,6 +30,12 @@ These commands were exercised locally on Windows with the ADR runtime. Stop dev/
 
 ## Customer care runtime
 
+Admin/Staff sitter management uses `pages/staff/SitterManagementPage.jsx` and
+`SitterManagementDetailPage.jsx`, separate from the Customer public directory.
+`services/sitter-management-api.js` validates operational projections and reuses
+the existing Admin status command with a stable operation key. See
+[API and access boundaries](../doc/api/sitter-management.md).
+
 Customer pet/address pages share checkout/matching data and include map
 search/pin confirmation plus care intake. Booking history and notification pages
 have runtime readers. See [checks and remaining gates](../doc/testing/customer-flow-completion-2026-10-30.md).

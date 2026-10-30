@@ -116,6 +116,13 @@ Service catalog runtime: createApp mounts the existing catalog, price and visibi
 
 ## Customer care runtime
 
+`services/sitter-management.service.js` owns Staff/Admin sitter directory filters,
+snapshot reports and operational details at `/api/v1/sitter-management`. It preserves
+legacy collections, excludes private documents/contacts/locations/payroll amounts,
+and separates coursework fixtures from real profiles. Existing application commands
+remain responsible for audited Admin suspension/reinstatement. See
+[API contract](../doc/api/sitter-management.md).
+
 Pet/address management, booking history and durable notifications are composed
 in runtime. See [Customer flow checks and release gates](../doc/testing/customer-flow-completion-2026-10-30.md)
 for APIs, storage provisioning and remaining care/AI integration boundaries.
