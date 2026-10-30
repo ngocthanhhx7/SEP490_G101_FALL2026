@@ -2,6 +2,60 @@
 
 Ngày 24/10/2026. Đây là sandbox tổng hợp để quan sát module AI thực xử lý; không phải dữ liệu khách, đánh giá hay sitter thật.
 
+## Demo local dùng snapshot đường Hà Nội, 30/10/2026
+
+Chế độ mới chạy riêng tại **http://127.0.0.1:3012/**, database chính xác
+`paw_world_care_ai_grounded_demo`. Chế độ tổng hợp 3011 bên dưới vẫn giữ nguyên.
+Từ `backend/` của checkout chứa snapshot đã thu thập:
+
+```powershell
+node scripts/demo-ai.js --grounded --apply --snapshot storage/ai-public/2026-10-30/hanoi-osrm-snapped-samples.json
+```
+
+Runner chỉ dùng Mongo loopback 27018/pwc-local, từ chối NODE_ENV production,
+giữ bí mật phiên trong bộ nhớ, không gọi email/SMS hay đổi `.env`. Port được
+giữ trước khi seed để lần chạy trùng không thay dữ liệu/secret phiên đang chạy.
+Cookie riêng `pwc_grounded_session` tránh ghi đè cookie của demo 3011 và ứng dụng
+local; chỉ khác port không tự cô lập cookie trong trình duyệt.
+
+- Có 16 tài khoản `[DEMO]`, fixtureKey `ai-grounded-demo:*`, 6 pet và 11 profile.
+  Các vai trò/email/nút OTP giống bảng bên dưới; năng lực, phê duyệt và lịch đều
+  là **khai báo mô phỏng**, không phải người hoặc công việc đã quan sát.
+- Không tạo outcome, rating, lỗi sitter, lịch sử chăm sóc hoặc model học máy.
+  `rating=null`, số lượt/lỗi bằng 0. Chế độ này từ chối database đã có outcome/model
+  và chặn API Admin import outcome/model; không xóa lịch sử để vượt gate.
+- Tất cả vị trí xuất phát, địa chỉ, lịch và điểm đến clinic lấy đúng các điểm
+  công khai đã snap lên đường trong snapshot 16×16. Điểm clinic chỉ là điểm đến
+  mô phỏng, không xác nhận đó là cơ sở thú y hay nhà khách.
+- Provider đọc ma trận bất đối xứng đã chụp, giữ `null` cho tuyến không có bằng
+  chứng, từ chối tọa độ ngoài tập điểm; không tính đường chim bay hoặc gọi provider
+  khác để bù dữ liệu. Source cache/header/response:
+  `OSRM_STATIC_PUBLIC_SAMPLE_NOT_LIVE`. Có thời điểm chụp, profile car, hash graph,
+  hash OSM và attribution OSM/ODbL. `snapshotCanonicalSha256` là hash JSON canonical
+  nội bộ (`JSON.stringify`), không phải hash byte của file đã tải.
+- Đây là replay OSRM tĩnh, không phải live traffic, thời gian chuyến đi thực tế,
+  dữ liệu hài lòng hay kết quả huấn luyện. Quarantine Kaggle không được nhập thành
+  rating/lịch sử. Xem [nguồn dữ liệu và kế hoạch](ai-real-data-2026-10-30.md).
+
+Smoke local với snapshot thật ngày 30/10/2026: OTP/session thành công; cả sáu
+tình huống trả HTTP 201 và source đúng. Tất cả trả 0 ứng viên, thiếu 5; lý do
+chủ yếu `BELOW_AUTOMATIC_THRESHOLD`, cùng loại trùng lịch/đình chỉ/năng lực.
+Đây là giới hạn cold start của chính sách hiện tại: không có lịch sử thì fit
+bằng 0 và tổng điểm có thể dưới 60 dù tuyến khả thi. Demo không hạ ngưỡng hoặc
+thêm rating giả để làm đủ Top 5. Cần quyết định cold-start riêng trước khi đổi
+chính sách production; không diễn giải các prior làm đánh giá công khai.
+
+Regression ở `backend/tests/integration/grounded-demo.test.js` dùng snapshot
+synthetic ghi rõ chỉ để test guard/replay/asymmetry/null/không có lịch sử và luồng
+OTP/session thật trên Mongo replica set cách ly. Snapshot công khai thật ở storage
+được ignore; không phải fixture training hoặc dữ liệu khách production.
+
+Kiểm tra local cuối của chế độ mới: backend lint và architecture PASS; 4 test
+grounded integration PASS. Bộ 5 integration test demo cũ PASS. Frontend lint,
+lint trực tiếp script demo, 4 DOM test demo cũ/mới và build PASS; build vẫn báo
+chunk ứng dụng lớn hơn 500 kB. Không có deployment hoặc đánh giá chất lượng
+model từ những kết quả kiểm thử này.
+
 ## Mở và khởi động lại
 
 Trang demo: **http://127.0.0.1:3011/**. Máy chủ chỉ bind loopback, không dùng localhost thay cho 127.0.0.1 vì có kiểm tra Host/Origin.
