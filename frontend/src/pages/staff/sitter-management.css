@@ -1,0 +1,45 @@
+.sitter-management { font-size: 14px; }
+.sitter-management h2 { font: 800 17px/1.4 var(--pwc-font-body); margin: 0 0 16px; }
+.sitter-management-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 20px 0; border-top: 1px solid #dce0e6; border-bottom: 1px solid #dce0e6; }
+.sitter-filter-actions { display: flex; gap: 8px; align-items: end; }
+.sitter-filter-actions .workspace-icon-button { height: 44px; width: 44px; }
+.sitter-report-details { border-block: 1px solid #dce0e6; padding: 14px 0; }
+.sitter-report-details > summary { cursor: pointer; font-weight: 800; }
+.sitter-report-details[open] > summary { margin-bottom: 20px; }
+.sitter-report-columns { display: grid; grid-template-columns: 1fr 1.3fr; gap: 32px; }
+.sitter-report-columns > * { min-width: 0; }
+.sitter-coverage { list-style: none; padding: 0; margin: 0; max-height: 260px; overflow-y: auto; display: grid; gap: 10px; }
+.sitter-coverage li { display: grid; grid-template-columns: minmax(100px, 1.5fr) minmax(40px, 1fr) 30px; align-items: center; gap: 12px; }
+.sitter-coverage meter { width: 100%; height: 12px; accent-color: #168978; }
+.sitter-work-counts { display: grid; gap: 12px; margin: 0; }
+.sitter-work-counts > div { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e0e3e8; padding: 10px 0; }
+.sitter-work-counts dd { margin: 0; font-weight: 800; }
+.sitter-table-caption h2 { display: flex; gap: 8px; align-items: center; }
+.sitter-table-caption h2 span, .sitter-source { border-radius: 4px; background: #eaf3f3; color: #286c68; padding: 3px 8px; font-size: 12px; }
+.workspace-page .sitter-table { min-width: 1040px; }
+.sitter-table td:first-child { min-width: 210px; }
+.sitter-table td:nth-child(4) { max-width: 250px; }
+.sitter-name { font-weight: 800; text-decoration: none; color: var(--pwc-ink); }
+.sitter-name:hover { text-decoration: underline; }
+.sitter-back { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; width: fit-content; }
+.sitter-profile-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.sitter-profile-toolbar .workspace-heading-actions a { display: inline-flex; align-items: center; gap: 6px; color: var(--pwc-ink); padding: 10px 0; margin-right: 12px; }
+.sitter-profile-sections { display: grid; gap: 28px; }
+.sitter-profile-sections > section + section { border-top: 1px solid #dce0e6; padding-top: 24px; }
+.sitter-profile-facts { margin: 0 0 20px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+.sitter-profile-facts dt { color: #667080; font-size: 12px; margin-bottom: 6px; }
+.sitter-profile-facts dd { margin: 0; overflow-wrap: anywhere; }
+.sitter-profile-bio { white-space: pre-wrap; line-height: 1.7; overflow-wrap: anywhere; }
+.sitter-management .workspace-tabs { margin-bottom: 0; }
+.workspace-page.sitter-management .sitter-schedule-table { min-width: 0; }
+.sitter-schedule-table td { white-space: nowrap; }
+.workspace-status--SUSPENDED, .workspace-status--REJECTED { background: #fff0f1; color: #a52232; }
+.workspace-status--APPROVED { background: #e9f7f0; color: #216443; }
+.workspace-status--SUBMITTED, .workspace-status--MISSING { background: #fff6dc; color: #856000; }
+@media (max-width: 900px) { .sitter-management-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .sitter-management-filters, .sitter-profile-facts, .sitter-report-columns { grid-template-columns: minmax(0, 1fr); }
+  .sitter-profile-toolbar .workspace-heading-actions { display: grid; }
+  .sitter-management .workspace-table { min-width: 560px; }
+  .sitter-management .sitter-table { min-width: 1040px; }
+}

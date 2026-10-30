@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import '../sitter/sitter-public-profile.css';
 
 function ProfileReview({ row, api, refresh }) {
@@ -32,7 +33,7 @@ function ProfileReview({ row, api, refresh }) {
   </article>;
 }
 
-export function SitterProfileReviewsPage({ api }) {
+export function SitterProfileReviewsPage({ api, userId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [cursor, setCursor] = useState(null);
@@ -40,11 +41,12 @@ export function SitterProfileReviewsPage({ api }) {
   useEffect(() => {
     const controller = new AbortController();
     setData(null); setError('');
-    api.list({ cursor, signal: controller.signal }).then(result => { if (!controller.signal.aborted) setData(result); })
+    api.list({ cursor, userId, signal: controller.signal }).then(result => { if (!controller.signal.aborted) setData(result); })
       .catch(failure => { if (!controller.signal.aborted) setError(failure.code || 'NETWORK_ERROR'); });
     return () => controller.abort();
-  }, [api, cursor, revision]);
+  }, [api, cursor, revision, userId]);
   return <section className="sitter-public-profile"><h1>Duyệt hồ sơ công khai</h1>
+    {userId && <p><Link to={'/staff/sitters/' + userId}>Hồ sơ người chăm sóc</Link> · <Link to="/staff/sitter-profiles">Tất cả hồ sơ chờ duyệt</Link></p>}
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p role="status">Đang tải…</p>}
     <button type="button" onClick={() => setRevision(value => value + 1)}>Tải lại</button>
