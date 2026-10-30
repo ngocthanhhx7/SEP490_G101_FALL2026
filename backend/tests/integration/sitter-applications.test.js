@@ -92,6 +92,17 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P16 public sitter application submission', () => {
+  test('accepts all 14 services, persists work preference and returns field-specific limits', async () => {
+    const instance = app();
+    const services = Array.from({ length: 14 }, (_, i) => `Synthetic service ${i}`);
+    const created = await submit(instance, applicationBody({ requestedServices: services, employmentType: 'PART_TIME' })).expect(201);
+    const record = await sitterApplicationModels(connection).SitterApplication.findById(created.body.data.id).lean();
+    expect(record.employmentType).toBe('PART_TIME'); expect(record.requestedServices).toHaveLength(14);
+    const bad = await submit(instance, applicationBody({ employmentType: 'INVALID' }), 'bad-preference-001').expect(422);
+    expect(bad.body.error.fieldErrors.employmentType).toBeTruthy();
+    const tooMany = await submit(instance, applicationBody({ requestedServices: Array.from({ length: 31 }, (_, i) => `Service ${i}`) }), 'bad-services-0001').expect(422);
+    expect(tooMany.body.error.fieldErrors.requestedServices).toBeTruthy();
+  });
   test('accepts a Guest application without creating a User, Contact or session; encrypts contact and omits raw ID/date of birth', async () => {
     const response = await submit(app(), applicationBody()).expect(201);
     expect(response.body.data).toMatchObject({ state: 'PENDING', replayed: false });

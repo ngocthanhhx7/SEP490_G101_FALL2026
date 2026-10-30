@@ -94,6 +94,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
         <dl>
           <div><dt>Đủ 18 tuổi</dt><dd>{resource.data.ageEligible ? 'Có' : 'Không'}</dd></div>
           <div><dt>Kinh nghiệm</dt><dd>{resource.data.experience}</dd></div>
+          <div><dt>Hình thức làm việc mong muốn</dt><dd>{({ FULL_TIME: 'Toàn thời gian', PART_TIME: 'Bán thời gian' })[resource.data.employmentType] ?? 'Chưa cung cấp (hồ sơ cũ)'}</dd></div>
           <div><dt>Dịch vụ mong muốn</dt><dd>{resource.data.requestedServices.join(' · ')}</dd></div>
           <div><dt>Khu vực mong muốn</dt><dd>{resource.data.workAreas.join(' · ')}</dd></div>
           <div><dt>Lý do quyết định</dt><dd>{resource.data.decisionReason || 'Chưa có'}</dd></div>

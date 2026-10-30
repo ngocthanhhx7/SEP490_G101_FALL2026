@@ -25,6 +25,7 @@ export function sitterApplicationModels(connection) {
     ageEligible: { type: Boolean, required: true, enum: [true] },
     ageCheckedAt: { type: Date, required: true },
     experience: { type: String, required: true, maxlength: 2000 },
+    employmentType: { type: String, enum: ['FULL_TIME', 'PART_TIME', null], default: null },
     requestedServices: { type: [String], required: true, validate: value => value.length > 0 },
     workAreas: { type: [String], required: true, validate: value => value.length > 0 },
     privateDocuments: { type: [documentSchema], required: true, validate: value => value.length > 0 },
