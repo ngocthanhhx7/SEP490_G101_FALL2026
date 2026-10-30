@@ -4,7 +4,9 @@ HomePage implements Figma 280:7416 using local exported images/icons and FC DK C
 
 ServiceListPage reads the `q` query parameter so header search and footer service links share the same Vietnamese search behavior. Only published catalog entries carry real prices and service-detail actions. The empty/error states remain explicit; illustrative care cards do not create unpublished offers.
 
-The catalog uses photo cards, price badges, server-owned scope lists and detail links. service-visuals.js maps stable catalog codes to local PawWorld photos, with name/species fallbacks for other services. The current offerings are home-visit, dog-walking and vet-escort; editable prices come from the API. Header label: Dịch vụ. frontend/index.html explicitly selects the PawWorld paw SVG favicon.
+The catalog uses photo cards, price badges, server-owned scope lists and detail links. service-visuals.js gives each of the 13 demo service codes its own local photograph, shared by list cards and detail pages; name/species fallbacks remain for other published services. Photo sources and licenses are recorded in public/assets/services/credits.json and credits.html. Editable prices come from the API. Header label: Dịch vụ. frontend/index.html explicitly selects the PawWorld paw SVG favicon.
+
+`PublicServiceCards` and `service-cards.css` own the shared published-service cards on Home and the catalogue: fixed-ratio photographs, category/species, duration/location, description, server price and detail action. Home uses the full image URL without assuming a Figma asset directory and selects home care, walking and bathing when published. The catalogue also supports resetting filters and sorting by base price or Vietnamese name. Descriptions are shown once; complete scope remains on the detail page.
 
 PublicSiteLayout handles cross-route Home anchors and focus. Responsive checks cover desktop and 320/390px widths; role dashboards keep their own layout.
 

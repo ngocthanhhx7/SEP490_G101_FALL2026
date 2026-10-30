@@ -1,9 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
-import { CatalogState, CatalogEmpty } from './PublicCatalog.jsx';
+import { CatalogState, CatalogEmpty, PublicServiceCards } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
-import { formatCatalogPrice } from '../../utils/catalog-format.js';
-import { serviceVisual } from './service-visuals.js';
 
 const a = '/assets/figma-public/';
 const illustrations = [
@@ -96,6 +94,8 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
     catalog.status === 'success' && catalog.data?.available
       ? catalog.data.services
       : [];
+  const featured = ['home-care', 'dog-walking', 'pet-bathing'].map(code => services.find(service => service.code === code)).filter(Boolean);
+  const homeServices = [...featured, ...services.filter(service => !featured.includes(service))].slice(0, 3);
   return (
     <div className="pwc-home-design">
       <section
@@ -237,15 +237,10 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
           </div>
           <Link to="/services">Xem tất cả dịch vụ</Link>
         </header>
-        <div className="pwc-design-service-grid">
-          {(services.length ? services.slice(0, 3) : illustrations).map(
+        {services.length > 0 ? <PublicServiceCards services={homeServices} actionLabel="Đặt ngay" /> : <div className="pwc-design-service-grid">
+          {illustrations.map(
             (service, i) => {
-              const visual = service.id
-                ? {
-                    image: serviceVisual(service).src.slice(a.length),
-                    title: serviceVisual(service).alt
-                  }
-                : illustrations[i];
+              const visual = illustrations[i];
               return (
                 <article
                   className="pwc-design-service-card"
@@ -284,14 +279,11 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
                       {service.id ? 'Đặt ngay' : 'Khám phá'}
                     </Link>
                   </div>
-                  {service.id && (
-                    <small>{formatCatalogPrice(service.price)}</small>
-                  )}
                 </article>
               );
             }
           )}
-        </div>
+        </div>}
         {!services.length && (
           <div className="pwc-design-catalog-state">
             {catalog.status === 'success' && !catalog.data?.available ? (
