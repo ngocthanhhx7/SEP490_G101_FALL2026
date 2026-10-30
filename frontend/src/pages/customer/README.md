@@ -28,9 +28,14 @@ old `/pets` and `/addresses` contracts are not the current management source.
 
 ## Remaining boundaries
 
+`RecommendationCheckout.jsx` bridges supported home-care shortlist selections to
+the ordinary quote/checkout API with a MATCH reference. Specialized clinic,
+distance and boarding plans retain Staff review. `VerifiedVisitRating.jsx` uses
+the verified completed-visit command and preserves uncertain retry payloads.
+
 `SitterRecommendationsPage` displays an advisory shortlist from shared owned
 pets/confirmed addresses; it never sets prices or sends offers.
 `DirectedBookingProposalPage` remains unregistered pending its final live
-proposal/payment/offer integration. Owner care notes do not yet constitute a
-care snapshot accessible to the assigned sitter. See
-[checks and remaining gates](../../../../doc/testing/customer-flow-completion-2026-10-30.md).
+proposal/payment/offer integration. New checkout care snapshots are accessible
+through the assigned employee care endpoints; legacy visits fail unavailable.
+See [checks and remaining gates](../../../../doc/testing/care-matching-outcomes-2026-10-30.md).

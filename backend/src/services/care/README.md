@@ -1,5 +1,13 @@
 # Care instructions and handover
 
+`assigned-care.service.js` reads immutable checkout care snapshots for the
+current active assigned employee. It stores an acknowledgement bound to employee
+and snapshot hash; private access notes require that acknowledgement, an active
+booking/assignment, confirmed replacement handover and the existing one-hour
+window. It does not rebuild legacy visits from mutable owner profiles. Owner
+declarations remain unverified medical information. This read/acknowledgement
+runtime does not replace the instruction-revision/handover adapters below.
+
 This folder owns the P26 business boundaries for WBS-035 and WBS-036:
 
 - `care-instructions.service.js` validates Customer instruction revisions, the

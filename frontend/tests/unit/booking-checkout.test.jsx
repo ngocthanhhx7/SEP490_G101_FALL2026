@@ -51,3 +51,17 @@ test('expired booking has no payment command', async () => {
   render(<MemoryRouter initialEntries={['/services?booking=booking']}><BookingConfirmation api={api} /></MemoryRouter>);
   await screen.findByText('Đã hết hạn thanh toán'); expect(screen.queryByText('Tạo link thanh toán')).toBeNull();
 });
+
+test('recommended checkout freezes the selected service schedule and carries only the match reference', async () => {
+  const api = apiFixture();
+  const recommendation = { matchId: 'match', requestedSitterId: 'sitter', displayName: 'Sitter đã chọn', addressId: 'address', startAt: '2026-11-03T02:00:00Z' };
+  render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={jest.fn()} recommendation={recommendation} /></MemoryRouter>);
+  await screen.findByText('Nhà đã xác nhận');
+  expect(screen.getByLabelText('Bắt đầu (giờ Việt Nam)')).toHaveAttribute('readonly');
+  expect(screen.getByLabelText('Địa chỉ đã lưu')).toBeDisabled();
+  expect(screen.getByLabelText('Địa chỉ đã lưu')).toHaveValue('address');
+  fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
+  fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+  await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+  expect(api.confirm.mock.calls[0][0].visits).toEqual([{ itemIndex: 0, location: 'HOME', addressId: 'address', startAt: recommendation.startAt, requestedSitterId: 'sitter', matchId: 'match' }]);
+});

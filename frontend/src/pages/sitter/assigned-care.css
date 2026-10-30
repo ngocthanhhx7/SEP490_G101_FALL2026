@@ -1,0 +1,7 @@
+.assigned-care { min-width: 0; padding: 16px 0; border-block: 1px solid #d4dcd8; margin-top: 12px; overflow-wrap: anywhere; }
+.assigned-care dl { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr); gap: 12px 16px; }
+.assigned-care dl > div { display: contents; }
+.assigned-care dt { font-weight: 700; }
+.assigned-care dd { margin: 0; white-space: pre-wrap; }
+.assigned-care button { margin: 8px 8px 8px 0; }
+@media (max-width: 640px) { .assigned-care dl { grid-template-columns: minmax(0, 1fr); gap: 6px; } .assigned-care dd { margin-bottom: 12px; } }
