@@ -9,5 +9,7 @@ P34 owns root/router registration. Consumers should pass real navigationItems ({
 Both layouts use the P04 brand logo, fonts, tokens, and Notice component. No shared P04 token/component files are changed here.
 
 Operational roles now use one compact workspace shell with a mobile drawer.
-Customer routes use PublicHeader/PublicFooter and horizontal account navigation.
+Customer routes use PublicHeader/PublicFooter with grouped vertical account
+navigation and an inline expandable mobile menu. Customer-only styling lives in
+`customer-account-layout.css`; it does not alter operational role shells.
 The common account/notifications route selects the highest authorized shell.

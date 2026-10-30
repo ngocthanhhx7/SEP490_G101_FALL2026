@@ -3,6 +3,12 @@
 Customer-owned profile, service-address, pet and booking presentation belongs here.
 Shared transport belongs in `../../services`; backend enforces ownership.
 
+`CustomerDashboardPage` owns the Customer care overview, separate from operational
+dashboards: authoritative counters, visit list, date filters and server cursors.
+`CustomerProfilePage` presents the existing versioned profile form and masked
+contacts with links to OTP-protected contact settings. Account navigation/layout
+belongs in layouts and routes; see the Customer account UI plan under doc/ui-ux.
+
 ## Current runtime
 
 - `CustomerCarePage` serves `/account/pets`, `/account/pets/:petId` and

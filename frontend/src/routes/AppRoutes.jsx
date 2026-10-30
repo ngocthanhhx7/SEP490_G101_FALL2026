@@ -118,14 +118,15 @@ const navigationByRole = {
     ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Thông báo', '/account/notifications']
   ],
   CUSTOMER: [
-    ['Chăm sóc của bạn', '/customer'], ['Người chăm sóc', '/sitters'],
-    ['Tài khoản', '/account'],
-    ['Hồ sơ', '/account/profile'],
-    ['Địa chỉ', '/account/addresses'],
-    ['Thú cưng', '/account/pets'],
-    ['Đơn hàng', '/account/bookings'],
-    ['Tìm sitter', '/account/sitter-recommendations'],
-    ['Thông báo', '/account/notifications']
+    ['Hồ sơ', '/account/profile', 'Tài khoản của tôi'],
+    ['Liên hệ & bảo mật', '/account/settings', 'Tài khoản của tôi'],
+    ['Địa chỉ', '/account/addresses', 'Tài khoản của tôi'],
+    ['Thú cưng của tôi', '/account/pets', 'Tài khoản của tôi'],
+    ['Chăm sóc của bạn', '/customer', 'Dịch vụ của tôi'],
+    ['Đơn chăm sóc', '/account/bookings', 'Dịch vụ của tôi'],
+    ['Thông báo', '/account/notifications', 'Dịch vụ của tôi'],
+    ['Người chăm sóc', '/sitters', 'Khám phá'],
+    ['Tìm sitter phù hợp', '/account/sitter-recommendations', 'Khám phá']
   ],
   PET_SITTER: [
     ['Công việc của tôi', '/sitter'], ['Hồ sơ', '/sitter/profile'],
@@ -138,7 +139,7 @@ const navigationByRole = {
   ],
   STAFF: [['Tổng quan', '/staff'], ['Điều phối ca', '/staff/dispatch'], ['Người chăm sóc', '/staff/sitters'], ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Thông báo', '/account/notifications'], ['Tài khoản', '/account']]
 };
-Object.values(navigationByRole).forEach((items) => {
+Object.entries(navigationByRole).filter(([role]) => role !== 'CUSTOMER').forEach(([, items]) => {
   items.splice(1, 0, ['Cài đặt', '/account/settings']);
 });
 function Workspace({ role }) {
@@ -148,9 +149,10 @@ function Workspace({ role }) {
       key={user?.id}
       role={role}
       notificationTo="/account/notifications"
-      navigationItems={(navigationByRole[role] || []).map(([label, to]) => ({
+      navigationItems={(navigationByRole[role] || []).map(([label, to, group]) => ({
         label,
         to,
+        group,
         end: true
       }))}
     />
@@ -163,6 +165,13 @@ function AccountWorkspace() {
     roles.includes(value)
   );
   return <Workspace role={role} />;
+}
+
+function AccountHome() {
+  const { user } = useSession();
+  const roles = user?.roles || [user?.role];
+  return roles.includes('CUSTOMER') && !roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role))
+    ? <Navigate replace to="/account/profile" /> : <AccountPage />;
 }
 
 function CustomerFeaturePage({ page }) {
@@ -214,7 +223,7 @@ export function AppRoutes({
       </Route>
       <Route element={<RequireSession />}>
         <Route element={<AccountWorkspace />}>
-          <Route path="account" element={<AccountPage />} />
+          <Route path="account" element={<AccountHome />} />
           <Route path="account/settings" element={<AccountSettingsPage />} />
           <Route path="account/notifications" element={<CustomerFeaturePage page="notifications" />} />
         </Route>

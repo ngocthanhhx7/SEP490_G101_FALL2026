@@ -1,0 +1,40 @@
+.pwc-public-root.pwc-customer-account { background: #f5f6f8; --pwc-radius-panel: 8px; --pwc-radius-control: 6px; }
+.pwc-customer-account__body { display: grid; grid-template-columns: 222px minmax(0, 1fr); align-items: start; gap: 32px; width: min(1240px, calc(100% - 48px)); margin: 32px auto 56px; }
+.pwc-customer-account__sidebar { min-width: 0; padding-top: 8px; }
+.pwc-customer-account__identity { display: flex; gap: 12px; align-items: center; padding: 0 0 22px; margin-bottom: 14px; border-bottom: 1px solid #e1e3e8; }
+.pwc-customer-account__avatar { flex: 0 0 44px; height: 44px; display: grid; place-items: center; background: #e8e1f2; color: var(--pwc-ink); border-radius: 50%; font-size: 15px; font-weight: 800; }
+.pwc-customer-account__identity > div { display: grid; gap: 4px; min-width: 0; font-size: 14px; }
+.pwc-customer-account__identity strong { overflow-wrap: anywhere; }
+.pwc-customer-account__identity a { color: #6c6577; font-size: 12px; text-underline-offset: 3px; }
+.pwc-customer-account__navigation { display: grid; gap: 24px; max-width: none; margin: 0; padding: 0; overflow: visible; border: 0; }
+.pwc-customer-account__group { display: grid; gap: 3px; }
+.pwc-customer-account__group h2 { margin: 0 0 5px; padding: 0 12px; font: 700 12px/1.6 var(--pwc-font-body); color: #77727f; }
+.pwc-customer-account__navigation a { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 9px 12px; font-size: 14px; line-height: 1.5; border-radius: 6px; color: #494052; text-decoration: none; }
+.pwc-customer-account__navigation a svg { flex: 0 0 18px; }
+.pwc-customer-account__navigation a:hover { background: #eeedf1; }
+.pwc-customer-account__navigation a[aria-current='page'] { color: var(--pwc-ink); background: #ebe4f5; font-weight: 800; box-shadow: inset 3px 0 0 #74509c; }
+.pwc-customer-account__main { min-width: 0; width: 100%; min-height: 650px; margin: 0; padding: 28px 32px 36px; background: #fff; overflow-wrap: anywhere; }
+.pwc-customer-account__main h1 { font: 800 24px/1.4 var(--pwc-font-body); margin-top: 0; }
+.pwc-customer-account__main h2 { font-family: var(--pwc-font-body); }
+.pwc-customer-account__main .pwc-button { border-radius: 6px; gap: 8px; }
+.pwc-customer-account__main .pwc-field input, .pwc-customer-account__main .pwc-field select { min-height: 42px; }
+.pwc-customer-account__main > .customer-profile, .pwc-customer-account__main > .customer-care,
+.pwc-customer-account__main > .customer-bookings { padding: 0; max-width: none; margin: 0; }
+.pwc-customer-account__main .account-settings { max-width: none; }
+.pwc-customer-account__main .account-settings-card { border: 0; border-top: 1px solid #e6e4ea; border-radius: 0; box-shadow: none; padding: 24px 0; }
+.pwc-customer-account__main .account-settings-heading h1 { font: 800 24px/1.4 var(--pwc-font-body); }
+.pwc-customer-account__main .account-settings-eyebrow { display: none; }
+.pwc-customer-account__main .customer-care h1 { font-size: 24px; }
+.pwc-customer-account__toggle { display: none; }
+@media (max-width: 1000px) { .pwc-customer-account__body { grid-template-columns: 190px minmax(0, 1fr); gap: 20px; } .pwc-customer-account__main { padding: 24px; } }
+@media (max-width: 48rem) {
+  .pwc-customer-account__body { grid-template-columns: minmax(0, 1fr); gap: 16px; width: min(100% - 24px, 640px); margin: 16px auto 32px; }
+  .pwc-customer-account__sidebar { padding: 0; }
+  .pwc-customer-account__identity { padding-bottom: 12px; margin-bottom: 12px; }
+  .pwc-customer-account__toggle { width: 100%; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 12px; border: 1px solid #dedbe3; border-radius: 6px; background: #fff; color: var(--pwc-ink); font: 700 14px var(--pwc-font-body); cursor: pointer; }
+  .pwc-customer-account__toggle > span { margin-left: auto; }
+  .pwc-customer-account__navigation { display: none; padding: 20px 0 8px; }
+  .pwc-customer-account__navigation[data-open='true'] { display: grid; }
+  .pwc-customer-account__main { padding: 20px 16px 28px; min-height: 480px; }
+  .pwc-customer-account__main h1 { font-size: 22px; }
+}

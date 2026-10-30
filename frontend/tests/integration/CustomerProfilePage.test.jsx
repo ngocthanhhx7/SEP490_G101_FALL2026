@@ -38,7 +38,8 @@ test('loads the self profile with masked contacts and saves using the current ve
   });
   renderProfile(apiRequest);
 
-  expect(await screen.findByRole('heading', { name: 'Hồ sơ Customer' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Hồ sơ của tôi' })).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Thay đổi' })).toHaveAttribute('href', '/account/settings');
   expect(screen.getByText('l•••@example.test')).toBeVisible();
   expect(screen.queryByText('linh@example.test')).not.toBeInTheDocument();
   const name = await screen.findByRole('textbox', { name: 'Họ và tên' });

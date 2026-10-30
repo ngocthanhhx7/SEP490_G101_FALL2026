@@ -104,7 +104,7 @@ test('actual Customer profile route loads its runtime API and appears in role na
     show('/account/profile', { sessionAdapter: { resolve: async () => ({ status: 'authenticated',
       user: { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Runtime Customer', roles: ['CUSTOMER'] } }),
       getCsrfToken: () => 'synthetic-csrf' } });
-    expect(await screen.findByRole('heading', { name: 'Hồ sơ Customer' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: 'Hồ sơ của tôi' })).toBeVisible();
     expect(await screen.findByDisplayValue('Runtime Customer')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Hồ sơ', exact: true })).toHaveAttribute('href', '/account/profile');
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/me/profile', expect.objectContaining({ credentials: 'same-origin' }));

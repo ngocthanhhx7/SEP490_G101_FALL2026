@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Mail, Phone, ShieldCheck } from 'lucide-react';
 import { Button, Input, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -69,9 +71,8 @@ export function CustomerProfilePage({ apiRequest }) {
 
   return <section className="customer-profile" aria-labelledby="customer-profile-title">
     <div className="customer-profile-heading">
-      <span className="customer-profile-eyebrow">TÀI KHOẢN CỦA BẠN</span>
-      <h1 id="customer-profile-title">Hồ sơ Customer</h1>
-      <p>Cập nhật tên hiển thị và xem các kênh liên hệ đã xác minh.</p>
+      <h1 id="customer-profile-title">Hồ sơ của tôi</h1>
+      <p>Quản lý thông tin cá nhân và liên hệ của bạn.</p>
     </div>
 
     {profile.status === 'loading' && <div className="customer-profile-loading" role="status" aria-label="Đang tải hồ sơ">
@@ -95,17 +96,14 @@ export function CustomerProfilePage({ apiRequest }) {
     {profile.status === 'success' && <div className="customer-profile-grid">
       <section className="customer-profile-card" aria-labelledby="profile-details-title">
         <div className="customer-profile-card-heading">
-          <span className="customer-profile-mark" aria-hidden="true">01</span>
-          <div><span className="customer-profile-eyebrow">THÔNG TIN CÁ NHÂN</span>
-            <h2 id="profile-details-title">Thông tin hồ sơ</h2></div>
+          <h2 id="profile-details-title">Thông tin cá nhân</h2>
         </div>
         <form className="customer-profile-form" onSubmit={submit}>
           <Input label="Họ và tên" value={displayName} onChange={event => {
             setDraft({ value: event.target.value, version: profile.data.version });
             setSaveError('');
             setSaved(false);
-          }} autoComplete="name" maxLength={100} required
-          hint="Tên được chuẩn hóa và kiểm tra lại ở máy chủ." />
+          }} autoComplete="name" maxLength={100} required />
           <Button type="submit" loading={savePending} loadingLabel="Đang lưu…"
             disabled={displayName.trim() === profile.data.displayName || !displayName.trim() || displayName.length > 100}>
             Lưu thay đổi
@@ -126,21 +124,20 @@ export function CustomerProfilePage({ apiRequest }) {
 
       <section className="customer-profile-card" aria-labelledby="profile-contacts-title">
         <div className="customer-profile-card-heading">
-          <span className="customer-profile-mark customer-profile-mark--contact" aria-hidden="true">02</span>
-          <div><span className="customer-profile-eyebrow">LIÊN HỆ</span>
-            <h2 id="profile-contacts-title">Kênh liên hệ đã xác minh</h2></div>
+          <h2 id="profile-contacts-title">Thông tin liên hệ</h2>
         </div>
         {profile.data.contacts?.length ? <ul className="customer-profile-contacts">
           {profile.data.contacts.map((contact, index) => <li key={`${contact.channel}-${index}`}>
-            <span className="customer-profile-contact-icon" aria-hidden="true">{contact.channel === 'EMAIL' ? 'EM' : 'TEL'}</span>
+            <span className="customer-profile-contact-icon" aria-hidden="true">{contact.channel === 'EMAIL' ? <Mail size={18} /> : <Phone size={18} />}</span>
             <span><strong>{contact.channel === 'EMAIL' ? 'Email' : 'Điện thoại'}</strong>
               <small>{verifiedDate(contact.verifiedAt)}</small></span>
             <b>{contact.maskedValue}</b>
+            <Link to="/account/settings">Thay đổi</Link>
           </li>)}
         </ul> : <Notice state="empty" title="Chưa có kênh liên hệ đã xác minh">
           Thông tin liên hệ sẽ hiển thị sau khi được xác minh.
         </Notice>}
-        <p className="customer-profile-private-note">Thông tin liên hệ được che để bảo vệ tài khoản. Thay đổi email hoặc số điện thoại sẽ khả dụng trong phần cài đặt tài khoản.</p>
+        <p className="customer-profile-private-note"><ShieldCheck size={18} aria-hidden="true" />Liên hệ được che để bảo vệ tài khoản. Thay đổi cần xác minh bằng OTP.</p>
       </section>
     </div>}
   </section>;

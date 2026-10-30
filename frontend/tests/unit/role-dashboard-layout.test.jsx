@@ -35,6 +35,26 @@ test('wrong role fails closed with a forbidden state', async () => {
   expect(screen.queryByRole('banner')).not.toBeInTheDocument();
 });
 
+test('Customer mobile menu expands inline, closes on Escape and returns focus', async () => {
+  const previous = window.matchMedia;
+  window.matchMedia = jest.fn().mockReturnValue({ matches: true, addEventListener: jest.fn(), removeEventListener: jest.fn() });
+  try {
+    const { container } = renderLayout({ result: { status: 'authenticated', user: { id: 'synthetic', displayName: 'An', roles: ['CUSTOMER'] } },
+      navigationItems: [{ label: 'Hồ sơ', to: '/account/profile', group: 'Tài khoản của tôi' }] });
+    await screen.findByRole('heading', { name: 'Trang tổng quan' });
+    const menu = container.querySelector('#pwc-customer-navigation');
+    const toggle = screen.getByRole('button', { name: /Menu tài khoản/ });
+    expect(menu).toHaveAttribute('inert');
+    fireEvent.click(toggle);
+    expect(menu).not.toHaveAttribute('inert');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('link', { name: 'Hồ sơ', exact: true })).toHaveAttribute('href', '/account/profile');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(toggle).toHaveFocus();
+    expect(menu).toHaveAttribute('inert');
+  } finally { window.matchMedia = previous; }
+});
+
 test('Admin may use the Staff shell where Staff UX is allowed', async () => {
   renderLayout({
     role: 'STAFF',
