@@ -35,3 +35,10 @@ test('six visits receive six percent on base only; ten percent cap and prepay', 
   expect(result.totalVnd).toBe(1800000);
   expect(result.paymentMode).toBe('PREPAY');
 });
+
+test('owner-approved leash handling rule acknowledges capability without adding a fee', () => {
+  const base = quote('dog-walking', {}, { ...pet, weightKg: 15 });
+  const handling = quote('dog-walking', {}, { ...pet, weightKg: 15, traits: ['leash-handling'] });
+  expect(handling.totalVnd).toBe(base.totalVnd);
+  expect(handling.lines.find(line => line.code === 'leash-handling').amountVnd).toBe(0);
+});

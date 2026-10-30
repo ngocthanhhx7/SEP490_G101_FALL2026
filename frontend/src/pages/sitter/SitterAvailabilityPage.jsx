@@ -45,6 +45,9 @@ function newOperationKey() {
 }
 
 function messageFor(error) {
+  if (error?.code === 'CONTRACT_REQUIRED') return 'Chưa có hợp đồng đã được Admin xác minh bao phủ ngày áp dụng. Hãy liên hệ Admin để xác minh hợp đồng, sau đó lưu lại lịch.';
+  if (error?.code === 'SITTER_NOT_ELIGIBLE') return 'Tài khoản Pet Sitter chưa đủ điều kiện hoạt động. Hãy liên hệ Admin kiểm tra trạng thái hồ sơ.';
+  if (error?.status === 422) return 'Kiểm tra ngày áp dụng và các khung giờ đã nhập trước khi lưu lại.';
   if (error?.code === 'CONFIRMED_VISIT_CONFLICT') {
     return 'Lịch có buổi đã xác nhận. Lịch cũ vẫn được giữ nguyên; Staff cần xem và xử lý xung đột trước khi thay đổi.';
   }
@@ -76,7 +79,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
   useEffect(() => {
     if (!resource.data || typeof resource.data !== 'object') return;
     setWindows((resource.data.workingWindows ?? []).map((window, index) => ({ ...window, rowId: `saved-${index}` })));
-    setEffectiveFrom(resource.data.effectiveFrom || today);
+    setEffectiveFrom(resource.data.effectiveFrom && resource.data.effectiveFrom > today ? resource.data.effectiveFrom : today);
   }, [resource.data, today]);
 
   const currentVersion = Number.isSafeInteger(resource.data?.expectedVersion) ? resource.data.expectedVersion : 0;
@@ -230,7 +233,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
         </div>
         <div className="sitter-availability__actions">
           <Button variant="secondary" onClick={addWindow} disabled={fieldsDisabled}>Thêm khung giờ</Button>
-          <Input label="Áp dụng từ ngày" type="date" value={effectiveFrom}
+          <Input label="Áp dụng từ ngày" type="date" value={effectiveFrom} min={today}
             onChange={event => { setEffectiveFrom(event.target.value); operation.current = null; setCommandStatus(null); }} required disabled={fieldsDisabled} />
           <Button type="submit" loading={saving} loadingLabel="Đang lưu…" disabled={typeof api?.saveAvailability !== 'function'}>
             {pendingAcknowledgement ? 'Kiểm tra yêu cầu' : 'Lưu lịch'}

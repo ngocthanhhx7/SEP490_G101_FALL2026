@@ -57,6 +57,46 @@ test('Admin verifies contract with explicit workplace and approved monthly gross
   expect(api.contract.mock.calls[0][0]).toMatchObject({ monthlyBaseVnd: 10000000, salaryBasis: 'GROSS', payCycle: 'MONTHLY', workplaceRegion: 1 });
 });
 
+test('Admin contract form resolves the selected employee and version instead of accepting a guessed version', async () => {
+  const api = apiFixture(), employeeApi = { get: jest.fn().mockResolvedValue({ data: {
+    id: employeeId, displayName: 'Synthetic employee', contractVersion: 0, permissions: { manageContract: true }
+  } }) };
+  render(<EmployeePayrollAdminPage api={api} employeeApi={employeeApi} />);
+  await screen.findByText('Không có đề nghị chờ xử lý.');
+  const form = screen.getByText('Lưu hợp đồng đã xác minh').closest('form');
+  expect(form.querySelector('button[type=submit]')).toBeDisabled();
+  fireEvent.change(form.elements.employeeId, { target: { value: employeeId } });
+  await screen.findByText('Nhân viên: Synthetic employee');
+  expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveValue(0);
+  expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveAttribute('readonly');
+  fill('Phút làm việc mỗi tuần', '2400'); fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-30');
+  fill('Mã hồ sơ hợp đồng đã ký', 'synthetic-signed'); fill('Vùng lương nơi làm việc', '1'); fill('Phường/xã và căn cứ xác định vùng', 'Synthetic workplace');
+  fireEvent.submit(form);
+  await waitFor(() => expect(api.contract).toHaveBeenCalledWith(expect.objectContaining({ employeeId, expectedVersion: 0 }), expect.any(String)));
+});
+
+test.each([{ pending: true }, { data: { id: employeeId, version: 4 } }, { data: null }])('contract transport rejects unconfirmed acknowledgement %j', async result => {
+  const api = createEmployeePayrollApi(jest.fn().mockResolvedValue(result));
+  await expect(api.contract({ expectedVersion: 0 }, 'stable-contract-key')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
+
+test('Admin payroll freezes an uncertain contract and retries the same payload and key', async () => {
+  const api = apiFixture(); api.contract.mockRejectedValueOnce({ code: 'TIMEOUT' });
+  render(<EmployeePayrollAdminPage api={api} />);
+  await screen.findByText('Không có đề nghị chờ xử lý.');
+  const form = screen.getByText('Lưu hợp đồng đã xác minh').closest('form');
+  fireEvent.change(form.elements.employeeId, { target: { value: employeeId } });
+  fill('Phút làm việc mỗi tuần', '2400'); fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-02');
+  fill('Mã hồ sơ hợp đồng đã ký', 'synthetic-contract'); fill('Vùng lương nơi làm việc', '1');
+  fill('Phường/xã và căn cứ xác định vùng', 'Synthetic workplace');
+  fireEvent.submit(form);
+  await screen.findByText(/TIMEOUT/);
+  expect(screen.getByLabelText('Mã nhân viên', { selector: 'fieldset input' })).toBeDisabled();
+  fireEvent.submit(form);
+  await waitFor(() => expect(api.contract).toHaveBeenCalledTimes(2));
+  expect(api.contract.mock.calls[0]).toEqual(api.contract.mock.calls[1]);
+});
+
 test('API uses payroll endpoints and preserves CSRF/idempotency transport contract', async () => {
   const request = jest.fn().mockResolvedValue({ data: { id: 'record' } }); const api = createEmployeePayrollApi(request);
   const body = { action: 'APPROVE', expectedVersion: 2 };

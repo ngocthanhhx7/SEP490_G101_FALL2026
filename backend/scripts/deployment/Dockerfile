@@ -6,5 +6,6 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY src ./src
 COPY scripts/deployment/ensure-indexes.js ./scripts/deployment/ensure-indexes.js
 COPY scripts/deployment/provision-demo-catalog.js ./scripts/deployment/provision-demo-catalog.js
+COPY scripts/migrations/leash-handling-policy.js ./scripts/migrations/leash-handling-policy.js
 USER node
 CMD ["node", "src/server.js"]

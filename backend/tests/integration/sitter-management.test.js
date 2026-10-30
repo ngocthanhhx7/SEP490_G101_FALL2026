@@ -84,9 +84,11 @@ test('reports count full filtered population, current contracts, Vietnam period 
 test('detail exposes operational fields while keeping documents, money and private locations behind existing permissions', async () => {
   const staffView = (await request(app).get(root + '/' + employee.user.id).set(headers(staff)).expect(200)).body.data;
   expect(staffView.application.id).toBeUndefined(); expect(staffView.permissions.manageStatus).toBe(false);
+  expect(staffView.permissions.manageContract).toBe(false); expect(staffView.contractVersion).toBeUndefined();
   expect(staffView.availability.workingWindows[0]).toEqual({ weekday: 2, startLocalTime: '08:00', endLocalTime: '12:00' });
   const adminView = (await request(app).get(root + '/' + employee.user.id).set(headers(admin)).expect(200)).body.data;
   expect(adminView.permissions.manageStatus).toBe(true); expect(adminView.application.id).toMatch(/^[a-f0-9]{24}$/);
+  expect(adminView.permissions.manageContract).toBe(true); expect(adminView.contractVersion).toBe(1);
   for (const text of ['private-contact', 'private-identity', 'secret-document', 'private-contract', 'private-location', 'private-window', 'monthlyBaseVnd', 'authEpoch']) {
     expect(JSON.stringify(adminView)).not.toContain(text); expect(JSON.stringify(staffView)).not.toContain(text);
   }
@@ -114,6 +116,21 @@ test('contract revisions select the latest effective version and do not fall bac
   await col('employmentcontracts').deleteOne({ _id: result.insertedId });
   await col('employmentcontracts').updateMany({ employeeId }, { $set: { endsAt: new Date(0) } });
   expect((await request(app).get(root + '/' + employee.user.id).set(headers(admin))).body.data.employmentType).toBe('MISSING');
+});
+
+test('Admin contract version includes future and expired records while unconfigured employees start at zero', async () => {
+  const target = new mongoose.Types.ObjectId(employee.user.id);
+  const latest = await col('employmentcontracts').insertOne({ employeeId: target, signedAt: new Date(),
+    effectiveAt: new Date(Date.now() + 86400000), version: 7, employmentType: 'FULL_TIME' });
+  try {
+    const detail = (await request(app).get(root + '/' + employee.user.id).set(headers(admin)).expect(200)).body.data;
+    expect(detail.contractVersion).toBe(7);
+    expect(detail.contracts.every(contract => contract.version !== 7)).toBe(true);
+    const demo = await col('users').findOne({ fixtureKey: 'coursework-demo:0' });
+    const empty = (await request(app).get(root + '/' + demo._id).set(headers(admin)).expect(200)).body.data;
+    expect(empty.contractVersion).toBe(0);
+    expect(empty.permissions.manageContract).toBe(false);
+  } finally { await col('employmentcontracts').deleteOne({ _id: latest.insertedId }); }
 });
 
 test('published customer ratings alone contribute; moderated queue can target the selected sitter', async () => {

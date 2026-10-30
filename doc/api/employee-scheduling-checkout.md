@@ -80,6 +80,11 @@ eight ordinary hours/day and fresh route/buffer evidence. Directed invitations c
 substitute a different employee. Missing evidence requires Staff review. Ordinary work hour
 checks do not authorize overtime or replace attendance/payroll assessment.
 
+Checkout automatically finalizes the care plan in its transaction; Staff approval is
+not a prerequisite. The worker recovers compatible legacy orders at NEEDS_REVIEW.
+Staff can send invitations only after a dispatch escalation. GET /dispatch exposes
+dispatchState SYSTEM_SEARCHING/AWAITING_RESPONSE/NEEDS_STAFF and pendingInvitationCount.
+
 Boarding retains the original customer stay/price/combo count and is finalized into continuous
 unassigned care shifts <=8 hours. Commission basis is allocated by shift duration; actual
 attendance is recorded by check-in/out. Employees can start accepted shifts while future shifts
@@ -87,7 +92,18 @@ await dispatch. Moving a single boarding shift is rejected: whole-stay changes n
 
 `EMPLOYEE_DISPATCH_AGENT_ENABLED=true` starts the runtime worker. It resumes from persisted
 visits/offers after restart; pending/declined/expired offers are not repeatedly sent to the same
-candidate automatically. Staff may explicitly reinvite. Optional advisory ranking cannot
+candidate automatically. System bookings target five concurrent eligible invitees,
+replenishing declines where possible. Fewer are permitted only for a smaller eligible
+pool within the bounded search (100 employees, four concurrent checks). Directed bookings
+retain their single customer-selected sitter. Automatic selection requires declared
+daily origins and route feasibility, including return before the origin's availableUntil.
+MATCH advice keeps its original score >=60 rule; operational route ordering can invite
+eligible newcomers without fabricating scores or verified history. It is not a trained
+quality prediction. The first accepted invitation revokes the others transactionally.
+When no eligible untried candidate and no live invitation remain, the transaction records
+DispatchReviewRequired and an in-app message for each active Staff/Admin, once per episode.
+A single decline does not notify operators while the system can continue.
+Staff may explicitly reinvite after escalation. Optional advisory ranking cannot
 bypass eligibility or create assignments. HouseBuddy was a read-only reference for the
 two-screen workflow, not a source of its contract/edit-frequency policies.
 

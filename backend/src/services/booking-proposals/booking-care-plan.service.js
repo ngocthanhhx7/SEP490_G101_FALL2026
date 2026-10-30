@@ -13,6 +13,7 @@ const publicShift = row => ({ sequence: row.sequence, startAt: row.startAt, endA
 export function createBookingCarePlanService({ connection, clock = Date.now }) {
   const col = name => connection.db.collection(name), uow = createUnitOfWork(connection);
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
+  const systemActor = Object.freeze({ userId: 'SYSTEM_DISPATCH' });
   function staff(actor) {
     if (actor?.state !== 'ACTIVE' || actor.synthetic === true) fail('UNAUTHENTICATED', 'Authentication required', 401);
     id(actor.userId); if (!actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
@@ -24,7 +25,18 @@ export function createBookingCarePlanService({ connection, clock = Date.now }) {
     if (booking.carePlanState !== 'NEEDS_REVIEW' || !['AWAITING_PAYMENT', 'DISPATCH_PENDING'].includes(booking.state)) fail('INVALID_STATE', 'Care plan already decided', 409);
     return booking;
   }
-  return {
+  const service = {
+    async runBatch({ limit = 10 } = {}) {
+      if (!Number.isInteger(limit) || limit < 1 || limit > 20) fail('VALIDATION_FAILED', 'Invalid care plan batch limit');
+      await assertFinanceSourceStorage(connection);
+      const rows = await col('bookings').find({ carePlanState: 'NEEDS_REVIEW',
+        'checkoutSnapshot.policyVersion': CHECKOUT_POLICY_VERSION, state: { $in: ['AWAITING_PAYMENT', 'DISPATCH_PENDING'] },
+        'checkoutSnapshot.customerVisits.startAt': { $gt: new Date(clock()) } }).sort({ createdAt: 1, _id: 1 }).limit(limit).maxTimeMS(5000).toArray();
+      for (const row of rows) {
+        try { await service.finalize(systemActor, String(row._id), { expectedVersion: row.version, shiftMinutes: 480 }, `system-plan:${row._id}`); }
+        catch (error) { if (!['VERSION_CONFLICT', 'INVALID_STATE', 'CARE_PLAN_REVIEW_REQUIRED'].includes(error.code)) throw error; }
+      }
+    },
     async list(actor) {
       staff(actor); await assertFinanceSourceStorage(connection);
       const records = await col('bookings').find({ carePlanState: 'NEEDS_REVIEW' }).sort({ createdAt: 1, _id: 1 }).limit(20).maxTimeMS(5000).toArray();
@@ -37,7 +49,8 @@ export function createBookingCarePlanService({ connection, clock = Date.now }) {
       return { bookingId, version: booking.version, shifts: boardingCarePlan(booking, input.shiftMinutes).map(publicShift) };
     },
     async finalize(actor, bookingId, body, key) {
-      staff(actor); id(bookingId); const input = carePlanInput(body);
+      if (actor !== systemActor) staff(actor);
+      id(bookingId); const input = carePlanInput(body);
       if (typeof key !== 'string' || !/^[A-Za-z0-9_:-]{8,128}$/.test(key)) fail('VALIDATION_FAILED', 'Idempotency key required');
       await assertFinanceSourceStorage(connection);
       const commandId = digest([actor.userId, 'CARE_PLAN_FINALIZE', bookingId, key]), fingerprint = digest(input);
@@ -67,4 +80,5 @@ export function createBookingCarePlanService({ connection, clock = Date.now }) {
       }
     }
   };
+  return service;
 }

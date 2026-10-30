@@ -17,6 +17,9 @@ import { createCheckoutAvailabilityService } from '../../src/services/booking-pr
 import { createEmployeeScheduleRepository } from '../../src/services/employee-scheduling/employee-schedule.repository.js';
 import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
 import { DEMO_WORK_AREAS } from '../../src/constants/demo-work-areas.js';
+import { applyLeashHandlingDecision } from '../../src/services/pricing/leash-handling-policy.service.js';
+import { createEmployeeDispatchService } from '../../src/services/employee-scheduling/employee-dispatch.service.js';
+import { createBookingCarePlanService } from '../../src/services/booking-proposals/booking-care-plan.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const owner = { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' }, other = { ...owner, userId: String(oid()) };
@@ -229,6 +232,35 @@ test('provider link is created once from server amount and replayed without auth
   const receipt = { orderCode: Number(intent.providerReference), reference: 'synthetic-checkout-bank', amount: intent.amountVnd, currency: 'VND', code: '00', paymentLinkId: 'synthetic-provider-link' };
   expect(await webhook.handleWebhook(receipt)).toMatchObject({ status: 'PAYMENT_VERIFIED' });
   expect((await checkout.read(owner, booking.id)).state).toBe('DISPATCH_PENDING');
+});
+
+test('approved zero-fee handling policy repairs quoting and automatically plans dispatch without assigning work', async () => {
+  const targetService = services.find(service => service.code === 'dog-walking');
+  const policyModel = connection.models.PricingPolicy;
+  const original = await policyModel.findOne({ serviceId: targetService._id }).sort({ version: -1 }).lean();
+  await policyModel.updateOne({ _id: original._id }, { $pull: { rules: { code: 'leash-handling' } } });
+  const ownPet = await connection.models.Pet.create({ ownerId: owner.userId, name: 'Synthetic handling dog', species: 'DOG',
+    breedCode: pet.breedCode, weightKg: 15, traits: ['leash-handling'], careNeedsConfirmed: true });
+  const selections = { items: [{ serviceId: String(targetService._id), petIds: [String(ownPet._id)], durationMinutes: 30, visitCount: 1 }] };
+  await expect(pricing.basket(owner.userId, selections)).rejects.toMatchObject({ code: 'PRICING_REVIEW_REQUIRED' });
+  const policyClock = () => at.getTime() - 1000;
+  expect(await applyLeashHandlingDecision({ connection, clock: policyClock })).toMatchObject({ state: 'DRY_RUN', changed: 1 });
+  expect((await policyModel.findById(original._id).lean()).rules.some(rule => rule.code === 'leash-handling')).toBe(false);
+  expect(await applyLeashHandlingDecision({ connection, apply: true, clock: policyClock })).toMatchObject({ state: 'APPLIED', changed: 1 });
+  expect(await applyLeashHandlingDecision({ connection, apply: true, clock: policyClock })).toMatchObject({ changed: 0 });
+  const q = await pricing.basket(owner.userId, selections), request = input(q, 'OUTDOOR');
+  const booked = await checkout.confirm(owner, request, 'handled-dog-booking');
+  expect(await checkout.confirm(owner, request, 'handled-dog-booking')).toEqual(booked);
+  const staff = { userId: String(oid()), roles: ['STAFF'], state: 'ACTIVE' };
+  const plans = createBookingCarePlanService({ connection, clock: () => at.getTime() });
+  expect((await plans.list(staff)).items.some(row => row.id === booked.id)).toBe(false);
+  const dispatch = createEmployeeDispatchService({ repository: scheduling, clock: () => at.getTime() });
+  const saved = await connection.collection('bookings').findOne({ _id: new mongoose.Types.ObjectId(booked.id) });
+  expect(saved).toMatchObject({ carePlanState: 'APPROVED', carePlanSnapshot: { source: 'SYSTEM_CHECKOUT', approvedBy: 'SYSTEM_DISPATCH' } });
+  expect((await dispatch.queue(staff)).items.some(row => row.bookingId === booked.id)).toBe(true);
+  expect(await connection.collection('visits').countDocuments({ bookingId: new mongoose.Types.ObjectId(booked.id), sitterId: { $ne: null } })).toBe(0);
+  await connection.models.Pet.updateOne({ _id: ownPet._id }, { $set: { traits: ['unapproved-care-need'] } });
+  await expect(pricing.basket(owner.userId, selections)).rejects.toMatchObject({ code: 'PRICING_REVIEW_REQUIRED' });
 });
 
 test('expired and uncertain provider requests never create another link or revive an unpaid order', async () => {

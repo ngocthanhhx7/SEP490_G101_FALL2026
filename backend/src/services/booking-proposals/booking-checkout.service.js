@@ -18,6 +18,7 @@ import { createUnitOfWork } from '../unit-of-work.service.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
 import { checkoutVisitMoney, CHECKOUT_POLICY_VERSION, PREPAY_WINDOW_MS } from './checkout-snapshot.service.js';
 import { assertMatchSelection } from './match-selection.service.js';
+import { boardingCarePlan } from './boarding-care-plan.service.js';
 
 export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
@@ -181,9 +182,15 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
           paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },
           ...(prepay ? { paymentDeadlineAt: deadline } : {}), version: 0, financeGuardVersion: 0, createdAt: at,
-          carePlanState: 'NEEDS_REVIEW', careVisitCount: visits.length,
+          carePlanState: 'APPROVED', careVisitCount: visits.length,
           checkoutSnapshot: { quote: result, selections, customerVisits: visits, consentAt: at, policyVersion: CHECKOUT_POLICY_VERSION } };
-        await col('bookings').insertOne(booking, { session }); await col('visits').insertMany(visits, { session });
+        const shifts = boardingCarePlan(booking, 480).map(row => ({ ...row, _id: new Types.ObjectId(), bookingId,
+          customerId: booking.customerId, sitterId: null, state: 'SCHEDULED', version: 0, evidenceRefs: [] }));
+        booking.careVisitCount = shifts.length;
+        booking.visitIds = shifts.map(row => row._id);
+        booking.carePlanSnapshot = { shiftMinutes: 480, approvedBy: 'SYSTEM_DISPATCH', approvedAt: at,
+          allocationVersion: 'PWC-BOARDING-SHIFT-2026-10-30-v1', source: 'SYSTEM_CHECKOUT' };
+        await col('bookings').insertOne(booking, { session }); await col('visits').insertMany(shifts, { session });
         if (prepay) await col('paymentintents').insertOne({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), provider: 'PAYOS',
           providerReference: String(randomInt(1000000000000, 200000000000000)), amountVnd: result.totalVnd, currency: 'VND',
           state: 'PENDING', version: 0, expiresAt: deadline, createdAt: at }, { session });
@@ -194,7 +201,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           actorId: actor.userId, resourceId: String(bookingId), at }], { session });
         await Notification.create([{ _id: digest(['BOOKING_CREATED', String(bookingId)]), eventId: `booking:${bookingId}`,
           recipientId: actor.userId, role: 'CUSTOMER', eventType: 'BOOKING_CREATED', title: 'Đã tiếp nhận đơn chăm sóc',
-          message: prepay ? 'Đơn đã được tạo. Vui lòng hoàn tất bước thanh toán trong thời hạn của đơn.' : 'Đơn đã được tạo và đang chờ xác nhận kế hoạch chăm sóc.',
+          message: prepay ? 'Đơn đã được tạo. Vui lòng hoàn tất bước thanh toán trong thời hạn của đơn.' : 'Đơn đã được tạo. Hệ thống đang tìm người chăm sóc phù hợp.',
           deepLink: '/account/bookings', createdAt: at }], { session });
         return view(booking, session);
       });
