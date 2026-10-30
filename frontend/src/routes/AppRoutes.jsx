@@ -55,6 +55,21 @@ import { createPrivateImageApi } from '../services/private-image-api.js';
 import { createEmployeePayrollApi } from '../services/employee-payroll-api.js';
 import { EmployeePayrollPage } from '../pages/sitter/EmployeePayrollPage.jsx';
 import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPage.jsx';
+import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api.js';
+import { SitterWorkAreasPanel } from '../pages/sitter/SitterWorkAreasPanel.jsx';
+import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
+import { EmployeeInvitationsPage } from '../pages/sitter/EmployeeInvitationsPage.jsx';
+import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingProposalPage.jsx';
+
+function EmployeeScheduleRoute({ view }) {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createEmployeeSchedulingApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
+  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} />;
+  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} />;
+  if (view === 'proposal') return <DirectedBookingProposalPage key={user?.id} api={api} />;
+  return <SitterAvailabilityPage key={user?.id} api={api} />;
+}
 
 function AdminSettlementRoute() {
   const { getCsrfToken, user } = useSession();
@@ -88,6 +103,7 @@ const navigationByRole = {
     ['Tài khoản', '/account'],
     ['Người dùng', '/admin/users'],
     ['Quản lý lương', '/admin/payroll'],
+    ['Điều phối ca', '/staff/dispatch'],
     ['Dịch vụ', '/admin/services'],
     ['Giá dịch vụ', '/admin/service-prices'],
     ['Cấu hình', '/admin/system-settings'],
@@ -109,10 +125,12 @@ const navigationByRole = {
     ['Dashboard', '/sitter'], ['Profile', '/sitter/profile'],
     ['Tài khoản', '/account'],
     ['Lịch làm việc', '/sitter/availability'],
+    ['Khu vực làm việc', '/sitter/work-areas'],
+    ['Lời mời nhận việc', '/sitter/invitations'],
     ['Lương và tạm ứng', '/sitter/payroll'],
     ['Hồ sơ công khai', '/sitter/public-profile']
   ],
-  STAFF: [['Dashboard', '/staff'], ['Sitter list', '/staff/sitters'], ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Tài khoản', '/account']]
+  STAFF: [['Dashboard', '/staff'], ['Điều phối ca', '/staff/dispatch'], ['Sitter list', '/staff/sitters'], ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Tài khoản', '/account']]
 };
 Object.values(navigationByRole).forEach((items) => {
   items.splice(1, 0, ['Cài đặt', '/account/settings']);
@@ -208,6 +226,7 @@ export function AppRoutes({
             element={<CustomerFeaturePage page="pet" />}
           />
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
+          <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
           <Route
             path="account/notifications"
@@ -224,10 +243,12 @@ export function AppRoutes({
           <Route path="sitter/partner-earnings" element={<SitterEarningsPage />} />
           <Route
             path="sitter/availability"
-            element={<SitterAvailabilityPage />}
+            element={<EmployeeScheduleRoute />}
           />
           <Route path="sitter/settlements" element={<SitterSettlementRoute />} />
           <Route path="sitter/payroll" element={<EmployeePayrollRoute />} />
+          <Route path="sitter/work-areas" element={<EmployeeScheduleRoute view="areas" />} />
+          <Route path="sitter/invitations" element={<EmployeeScheduleRoute view="invitations" />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['STAFF']} />}>
@@ -239,6 +260,7 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['STAFF', 'ADMIN']} />}>
         <Route element={<AccountWorkspace />}>
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
+          <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
         </Route>
       </Route>
       <Route element={<PublicSiteLayout />}>

@@ -512,7 +512,9 @@ export function createDirectedSitterProposalService({
           replay = await proposalRepository.findConfirmationByIdempotency({
             customerId,
             proposalId: proposal,
-            idempotencyKey: operationKey
+            idempotencyKey: operationKey,
+            expectedVersion,
+            selectedSlot: slot
           });
         } catch (error) {
           if (error instanceof AppError) throw error;
@@ -612,7 +614,8 @@ export function createDirectedSitterProposalService({
           expectedVersion,
           selectedSlot: slot,
           idempotencyKey: operationKey,
-          availabilityVersion: current.availabilityVersion
+          availabilityVersion: current.availabilityVersion,
+          authEpoch: actor.authEpoch
         });
       } catch (error) {
         if (error instanceof AppError) throw error;

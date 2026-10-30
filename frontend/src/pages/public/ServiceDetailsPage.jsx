@@ -8,6 +8,7 @@ import {
   formatPolicyDate
 } from '../../utils/catalog-format.js';
 import { serviceVisual } from './service-visuals.js';
+import { ServiceFacts } from './ServiceFacts.jsx';
 import './service-catalog.css';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
@@ -91,6 +92,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
             {service.species.map((item) => SPECIES_LABELS[item]).join(' · ')}
           </p>
           <h1 id="pwc-service-title">{service.name}</h1>
+      <ServiceFacts service={service} />
           <p className="pwc-lead">{service.description}</p>
           <p className="pwc-service-detail-price">
             <strong>{price || 'Giá chưa được công bố'}</strong>

@@ -516,6 +516,8 @@ export function createServiceCatalogService({
         item.serviceId.toString(),
         {
           preparation: item.preparation,
+            ...(item.category ? { category: item.category, locations: item.locations,
+              ...(item.durationMinutes ? { durationMinutes: item.durationMinutes } : {}) } : {}),
           exclusions: item.exclusions,
           faq: item.faq.map(({ question, answer }) => ({ question, answer }))
         }

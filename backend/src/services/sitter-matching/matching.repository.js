@@ -6,12 +6,16 @@ import { createPetCareContext } from '../pet-care-context.service.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
 import { userModel } from '../../models/user.model.js';
 import { fail } from '../../validators/pet-care.validator.js';
+import { employeeSchedulingModels } from '../../models/employee-scheduling.model.js';
+import { payrollModels } from '../../models/payroll.model.js';
+import { matchingWindows, workAreaKeys } from '../employee-scheduling/schedule-policy.service.js';
+import { DEMO_WORK_AREAS } from '../../constants/demo-work-areas.js';
 const approvedAt = (now) => ({
   status: 'APPROVED',
   approvedAt: { $lte: now, $ne: null },
   effectiveAt: { $lte: now }
 });
-export function createAiRepository(connection, clock = Date.now) {
+export function createAiRepository(connection, clock = Date.now, { employeeSchedulingEnabled = false } = {}) {
   const models = {
       ...matchingModels(connection),
       ...petCareModels(connection),
@@ -24,16 +28,19 @@ export function createAiRepository(connection, clock = Date.now) {
     connection,
     context: createPetCareContext(connection, clock).context,
     async candidates(context, slot) {
+      const registered = employeeSchedulingEnabled ? await employeeSchedulingModels(connection).EmployeeAvailability.find({
+        areas: { $in: workAreaKeys(context.address.areaCode, DEMO_WORK_AREAS) }, state: 'ACTIVE'
+      }).sort({ _id: 1 }).limit(201).lean() : null;
       const profiles = await models.SitterMatchingProfile.find({
         active: true,
         serviceIds: context.service._id,
-        areaCodes: context.address.areaCode
+        ...(registered ? { userId: { $in: registered.map(row => row._id) } } : { areaCodes: context.address.areaCode })
       })
         .sort({ userId: 1 })
         .limit(201)
         .select('+starts')
         .lean();
-      const truncated = profiles.length > 200;
+      const truncated = profiles.length > 200 || (registered?.length ?? 0) > 200;
       profiles.length = Math.min(profiles.length, 200);
       const ids = profiles.map((p) => p.userId),
         now = new Date(clock());
@@ -162,8 +169,36 @@ export function createAiRepository(connection, clock = Date.now) {
         }
       ]).option({ maxTimeMS: 5000 });
       const statisticsSnapshot = { ...facet, asOf: now.toISOString() };
+      let readyProfiles = profiles.filter((p) => can.has(String(p.userId)));
+      if (employeeSchedulingEnabled) {
+        const scheduling = employeeSchedulingModels(connection);
+        const revisions = await scheduling.EmployeeAvailabilityRevision.aggregate([
+          { $match: { sitterId: { $in: ids.map(String) }, effectiveFrom: { $lte: slot.localDate } } },
+          { $sort: { effectiveFrom: -1, version: -1 } }, { $group: { _id: '$sitterId', value: { $first: '$$ROOT' } } }
+        ]);
+        const contracts = await payrollModels(connection).EmploymentContract.find({ employeeId: { $in: ids }, effectiveAt: { $lt: new Date(slot.end) } })
+          .sort({ effectiveAt: -1, version: -1 }).limit(2001).lean();
+        if (contracts.length > 2000) fail('SCHEDULE_LIMIT', 'Contract history requires operational review', 409);
+        const assigned = await connection.db.collection('visits').find({ sitterId: { $in: ids }, state: { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] },
+          startAt: { $lt: new Date(slot.end + 86400000) }, endAt: { $gt: new Date(slot.start - 86400000) } }).limit(6001).toArray();
+        if (assigned.length > 6000) fail('SCHEDULE_LIMIT', 'Employee schedule requires operational review', 409);
+        readyProfiles = readyProfiles.flatMap(profile => {
+          const employeeId = String(profile.userId), revision = revisions.find(row => row._id === employeeId)?.value;
+          const ownContracts = contracts.filter(row => String(row.employeeId) === employeeId);
+          const contract = ownContracts.find(row => row.effectiveAt <= new Date(slot.start));
+          const visits = assigned.filter(row => String(row.sitterId) === employeeId);
+          if (!revision || !contract || contract.signedAt > now || (contract.endsAt && contract.endsAt < new Date(slot.end)) ||
+            ownContracts.some(row => row.effectiveAt > new Date(slot.start) && row.effectiveAt < new Date(slot.end)) ||
+            visits.some(row => !row.snapshots?.point)) return [];
+          for (const visit of visits) if (!blocks.some(block => String(block.visitId) === String(visit._id))) blocks.push({
+            sitterId: profile.userId, visitId: visit._id, state: 'CONFIRMED', kind: 'VISIT', startAt: visit.startAt,
+            endAt: visit.endAt, point: visit.snapshots.point
+          });
+          return [{ ...profile, windows: matchingWindows(revision.workingWindows) }];
+        });
+      }
       return {
-        profiles: profiles.filter((p) => can.has(String(p.userId))),
+        profiles: readyProfiles,
         users,
         blocks,
         truncated,

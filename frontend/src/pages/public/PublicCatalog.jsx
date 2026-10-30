@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { formatCatalogPrice } from '../../utils/catalog-format.js';
 import { serviceVisual } from './service-visuals.js';
+import { ServiceFacts } from './ServiceFacts.jsx';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
 
@@ -88,6 +89,7 @@ export function PublicServiceCards({ services }) {
             </div>
             <div className="pwc-service-card-copy">
               <p className="pwc-eyebrow">{species}</p>
+          <ServiceFacts service={service} />
               <h3>
                 <Link to={'/services/' + encodeURIComponent(service.id)}>
                   {service.name}

@@ -32,6 +32,7 @@ export function pricingRuntimeModule({ config, connection, clock = Date.now }) {
     requireSession(session, { clock })
   );
   router.post('/quotes', customer, csrf, c.quote);
+  router.post('/basket-quotes', customer, csrf, c.basket);
   router.get('/quotes/:quoteId', customer, c.read);
   router.post('/policies', requireRoles('ADMIN'), csrf, c.policy);
   return { name: 'pricing', mount: '/api/v1/pricing', router };
