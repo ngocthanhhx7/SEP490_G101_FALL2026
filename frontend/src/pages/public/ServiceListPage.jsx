@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Search, X } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import {
   CatalogEmpty,
@@ -37,11 +38,14 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
   const [species, setSpecies] = useState('ALL');
   const [category, setCategory] = useState('ALL');
   const [location, setLocation] = useState('ALL');
+  const [sort, setSort] = useState('DEFAULT');
+  const hasFilters = query.trim() || species !== 'ALL' || category !== 'ALL' || location !== 'ALL';
+  const resetFilters = () => { setQuery(''); setSpecies('ALL'); setCategory('ALL'); setLocation('ALL'); };
   const services = catalog.data?.services || [];
   const categories = [...new Set(services.map(s => s.details?.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   const filtered = useMemo(() => {
     const term = normalizeSearch(query.trim());
-    return services.filter((service) => {
+    const matches = services.filter((service) => {
       const matchesText =
         !term ||
         normalizeSearch(
@@ -57,7 +61,11 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
       return matchesText && matchesSpecies && (category === 'ALL' || service.details?.category === category) &&
         (location === 'ALL' || service.details?.locations?.includes(location));
     });
-  }, [services, query, species, category, location]);
+    if (sort === 'PRICE_ASC') matches.sort((a, b) => a.price.amountVnd - b.price.amountVnd);
+    if (sort === 'PRICE_DESC') matches.sort((a, b) => b.price.amountVnd - a.price.amountVnd);
+    if (sort === 'NAME') matches.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+    return matches;
+  }, [services, query, species, category, location, sort]);
 
   return (
     <div className="pwc-page pwc-service-list-page">
@@ -65,8 +73,8 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         className="pwc-page-intro"
         aria-labelledby="pwc-service-list-title"
       >
-        <p className="pwc-eyebrow">Paw World Care</p>
-        <h1 id="pwc-service-list-title">Dịch vụ PawWorld dành cho bé</h1>
+        <p className="pwc-eyebrow">Chăm chút từng ngày</p>
+        <h1 id="pwc-service-list-title">Dịch vụ PawWorld Care</h1>
         <p className="pwc-lead">
           Chăm sóc, làm đẹp, lưu trú và vận động dành cho chó, mèo.
         </p>
@@ -79,14 +87,15 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
       >
         <label className="pwc-filter-search">
           <span>Tìm dịch vụ</span>
-          <input
+          <span className="pwc-filter-input"><Search size={18} aria-hidden="true" /><input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             type="search"
+            aria-label="Tìm dịch vụ"
             maxLength={120}
             autoComplete="off"
             placeholder="Bạn cần dịch vụ gì cho bé?"
-          />
+          />{query && <button type="button" aria-label="Xóa từ khóa" title="Xóa từ khóa" onClick={() => setQuery('')}><X size={16} aria-hidden="true" /></button>}</span>
         </label>
         <label className="pwc-filter-species">
           <span>Đối tượng</span>
@@ -111,9 +120,12 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
       {catalog.status === 'success' &&
         catalog.data?.available &&
         services.length > 0 && (
-          <p className="pwc-service-result-count" role="status">
+          <div className="pwc-catalog-summary"><p className="pwc-service-result-count" role="status">
             {filtered.length} dịch vụ phù hợp
-          </p>
+          </p>{hasFilters && filtered.length > 0 && <button className="pwc-clear-filters" type="button" onClick={resetFilters}><X size={14} aria-hidden="true" />Xóa bộ lọc</button>}
+          <label className="pwc-catalog-sort"><span>Sắp xếp</span><select aria-label="Sắp xếp" value={sort} onChange={event => setSort(event.target.value)}>
+            <option value="DEFAULT">Mặc định</option><option value="PRICE_ASC">Giá cơ bản tăng dần</option><option value="PRICE_DESC">Giá cơ bản giảm dần</option><option value="NAME">Tên dịch vụ A–Z</option>
+          </select></label></div>
         )}
 
       {catalog.status !== 'success' ? (
@@ -142,12 +154,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
             <button
               className="pwc-text-button"
               type="button"
-              onClick={() => {
-                setQuery('');
-                setSpecies('ALL');
-                setCategory('ALL');
-                setLocation('ALL');
-              }}
+              onClick={resetFilters}
             >
               Xóa bộ lọc
             </button>
@@ -155,7 +162,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         />
       )}
 
-      {catalog.data?.available && <><p><a href="/assets/services/credits.html">Nguồn ảnh dịch vụ</a></p><ServiceBasket services={services} /></>}
+      {catalog.data?.available && <><p className="pwc-photo-credits"><a href="/assets/services/credits.html">Nguồn ảnh dịch vụ</a></p><ServiceBasket services={services} /></>}
       <section className="pwc-catalog-help">
         <div>
           <h2>Bạn cần tìm dịch vụ phù hợp?</h2>
