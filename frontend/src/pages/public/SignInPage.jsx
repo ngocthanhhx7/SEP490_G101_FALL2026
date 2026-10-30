@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { otpFeedback } from '../../utils/otp-feedback.js';
 import './auth-public.css';
 import './sign-in.css';
 
@@ -12,9 +13,9 @@ function destination(user, from) {
 const CHANNELS = { EMAIL: 'email', PHONE: 'phone' };
 
 function messageFor(error) {
+  if (otpFeedback(error?.code)) return otpFeedback(error.code);
   const messages = {
     OTP_RATE_LIMITED: 'Bạn đã yêu cầu quá nhiều mã. Vui lòng thử lại sau.',
-    OTP_INVALID_OR_EXPIRED: 'Mã OTP không đúng hoặc đã hết hạn.',
     VALIDATION_FAILED: 'Thông tin đăng nhập chưa đúng định dạng.',
     NETWORK_ERROR: 'Không thể kết nối máy chủ. Vui lòng thử lại.',
     TIMEOUT: 'Kết nối quá thời gian. Vui lòng thử lại.',
@@ -87,7 +88,13 @@ export function SignInPage() {
     setBusy(true);
     try {
       const result = await session.login({ challengeId, channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: loginContact(), code, rememberDevice });
-      if (result?.status !== 'authenticated') { setError('Thông tin chưa được xác thực.'); return; }
+      if (result?.reason === 'REGISTRATION_REQUIRED') {
+        setStep('registration-required'); setCode(''); setChallengeId(''); return;
+      }
+      if (result?.status !== 'authenticated') {
+        setStep('contact'); setCode(''); setChallengeId('');
+        setError('Mã đã được xác minh nhưng tài khoản chưa thể đăng nhập. Vui lòng liên hệ hỗ trợ.'); return;
+      }
       navigate(destination(result.user, location.state?.from), { replace: true });
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
@@ -118,7 +125,11 @@ export function SignInPage() {
       <p className="sign-in-eyebrow">ĐĂNG NHẬP · PAW WORLD CARE</p>
       <h1 id="sign-in-title">Chào mừng<br />trở lại</h1>
       <p className="sign-in-description">Đăng nhập an toàn bằng mã OTP gửi tới liên hệ đã xác minh.</p>
-      {step === 'contact' ? <form onSubmit={requestCode} noValidate>
+      {step === 'registration-required' ? <div role="status">
+        <p>Mã OTP đã được xác minh. Liên hệ này chưa được đăng ký tài khoản Paw World Care.</p>
+        <p><Link to="/register">Đăng ký tài khoản</Link> để tiếp tục với vai trò Khách hàng hoặc ứng tuyển Pet Sitter.</p>
+        <button type="button" className="sign-in-link" onClick={() => { setStep('contact'); setError(''); }}>Dùng liên hệ khác</button>
+      </div> : step === 'contact' ? <form onSubmit={requestCode} noValidate>
         <fieldset className="sign-in-channel"><legend>Nhận mã bằng</legend>
           <label><input type="radio" name="channel" value="email" checked={channel === CHANNELS.EMAIL} onChange={() => changeChannel(CHANNELS.EMAIL)} disabled={busy} /> Email</label>
           <label><input type="radio" name="channel" value="phone" checked={channel === CHANNELS.PHONE} onChange={() => changeChannel(CHANNELS.PHONE)} disabled={busy} /> SMS</label>

@@ -88,7 +88,7 @@ test('uses email registration and keeps an invalid OTP error visible', async () 
   expect(api.requestOtp).toHaveBeenCalledWith({ channel: 'EMAIL', contact: 'person@example.test' });
   fireEvent.change(screen.getByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '999999' } });
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & hoàn tất đăng ký' }));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Mã OTP không đúng hoặc đã hết hạn');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Không thể xác thực mã này.');
   expect(screen.queryByRole('heading', { name: 'Đăng ký thành công!' })).not.toBeInTheDocument();
 });
 

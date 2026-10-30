@@ -48,7 +48,8 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
         method: 'POST', body: { challengeId, channel, contact, purpose: 'LOGIN', code,
           ...(rememberDevice !== undefined ? { rememberDevice } : {}) }, csrfBootstrap: true
       });
-      if (response.data?.authenticated !== true) return { status: 'guest' };
+      if (response.data?.authenticated !== true) return { status: 'guest',
+        ...(response.data?.reason === 'REGISTRATION_REQUIRED' ? { reason: 'REGISTRATION_REQUIRED' } : {}) };
       const user = mapUser(response);
       if (typeof response.data.csrfToken !== 'string' || !response.data.csrfToken) {
         throw new ApiError('INVALID_RESPONSE', response.status);

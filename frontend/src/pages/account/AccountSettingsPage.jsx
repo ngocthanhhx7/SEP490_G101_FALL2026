@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { otpFeedback } from '../../utils/otp-feedback.js';
 import { normalizeRegistrationContact } from '../../services/customer-registration-api.js';
 import { createApiClient } from '../../services/api-client.js';
 import { createAccountSettingsApi } from '../../services/account-settings-api.js';
@@ -22,9 +23,7 @@ function errorMessage(error) {
   if (error?.code === 'PROVIDER_UNAVAILABLE') {
     return 'Chưa gửi được mã xác minh. Liên hệ hiện tại vẫn hoạt động; hãy thử lại sau.';
   }
-  if (error?.code === 'OTP_INVALID_OR_EXPIRED') {
-    return 'Mã không đúng hoặc đã hết hạn. Kiểm tra mã hoặc yêu cầu mã mới.';
-  }
+  if (otpFeedback(error?.code)) return otpFeedback(error.code);
   if (error?.code === 'OTP_RATE_LIMITED') {
     return 'Bạn đã yêu cầu hoặc nhập mã quá nhiều lần. Hãy chờ một lúc rồi thử lại.';
   }

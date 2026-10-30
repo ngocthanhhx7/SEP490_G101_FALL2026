@@ -170,18 +170,21 @@ export function createOtpService({ connection, User, models = identityModels(con
       const lockedUntil = throttle?.lockedUntil?.getTime?.() ?? 0;
       if (lockedUntil > now) return { failure: 'RATE_LIMITED', retryAfterMs: lockedUntil - now };
       const challenge = await models.OtpChallenge.findOne({
-        challengeId, contactLookup, purpose, usedAt: null
+        challengeId, contactLookup, purpose
       }).select('+contactLookup +codeDigest +requesterSessionId +requesterUserId').session(mongoSession).lean();
       if (!challenge) return { failure: 'INVALID' };
+      if (challenge.requesterSessionId && (challenge.requesterSessionId !== actor?.sessionId
+        || challenge.requesterUserId !== actor?.userId)) return { failure: 'INVALID' };
+      if (challenge.usedAt) {
+        const reasons = { RESENT: 'REPLACED', EXPIRED: 'EXPIRED', DELIVERY_FAILED: 'DELIVERY_FAILED', LOCKED: 'INVALID' };
+        return { failure: reasons[challenge.invalidationReason] ?? 'USED' };
+      }
       if (challenge.expiresAt.getTime() <= now) {
         await models.OtpChallenge.updateOne({ _id: challenge._id, usedAt: null }, {
           $set: { usedAt: new Date(now), invalidationReason: 'EXPIRED' }
         }, { session: mongoSession });
-        return { failure: 'INVALID' };
+        return { failure: 'EXPIRED' };
       }
-      if (challenge.requesterSessionId && (challenge.requesterSessionId !== actor?.sessionId
-        || challenge.requesterUserId !== actor?.userId)) return { failure: 'INVALID' };
-
       const expected = codeDigest({ challengeId, contactLookup, purpose, code });
       if (!safeEqual(challenge.codeDigest, expected)) {
         const failedCount = (throttle?.failedCount ?? 0) + 1;
@@ -198,7 +201,7 @@ export function createOtpService({ connection, User, models = identityModels(con
             $set: { usedAt: new Date(now), invalidationReason: 'LOCKED' }
           }, { session: mongoSession });
         }
-        return { failure: 'INVALID' };
+        return { failure: 'INCORRECT' };
       }
 
       const consumed = await models.OtpChallenge.updateOne({ _id: challenge._id, usedAt: null }, {
@@ -216,7 +219,7 @@ export function createOtpService({ connection, User, models = identityModels(con
       if (purpose === 'LOGIN') {
         const contactRecord = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })
           .select('+lookupKey').session(mongoSession).lean();
-        if (!contactRecord) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
+        if (!contactRecord) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false, reason: 'REGISTRATION_REQUIRED' }) };
         const user = await userStore.findById(contactRecord.userId).session(mongoSession);
         if (!user || user.state !== 'ACTIVE' || user.synthetic === true) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
         const session = await sessionService.issueInTransaction(user, mongoSession, { rememberDevice });
@@ -284,6 +287,8 @@ export function createOtpService({ connection, User, models = identityModels(con
       throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be completed');
     }
     if (outcome.failure === 'RATE_LIMITED') limitedOtp(outcome.retryAfterMs);
+    const failureCodes = { INCORRECT: 'OTP_INCORRECT', EXPIRED: 'OTP_EXPIRED', USED: 'OTP_ALREADY_USED', REPLACED: 'OTP_REPLACED', DELIVERY_FAILED: 'OTP_DELIVERY_UNAVAILABLE' };
+    if (failureCodes[outcome.failure]) throw new AppError(400, failureCodes[outcome.failure], 'Verification could not be completed');
     if (outcome.failure) throw invalidOtp();
     return outcome.result;
   }
