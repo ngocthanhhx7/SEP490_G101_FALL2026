@@ -25,6 +25,6 @@ test.each([
   const api = { read: jest.fn(async () => ({ pending: true })) };
   render(<MemoryRouter><Page api={api} /></MemoryRouter>);
   expect(screen.getByRole('heading', { name: title })).toBeInTheDocument();
-  await screen.findByText([AdminDashboardPage, CustomerDashboardPage, SitterDashboardPage, StaffDashboardPage].includes(Page) ? 'Chưa có dữ liệu vận hành' : 'Đang chờ tích hợp dữ liệu');
+  await screen.findByText(Page === CustomerDashboardPage ? 'Chưa tải được lịch chăm sóc' : [AdminDashboardPage, SitterDashboardPage, StaffDashboardPage].includes(Page) ? 'Chưa có dữ liệu vận hành' : 'Đang chờ tích hợp dữ liệu');
   expect(api.read).toHaveBeenCalledTimes(1);
 });
