@@ -24,7 +24,6 @@ function fillNameAndEmail() {
 function sendAfterDetails() {
   if (!screen.getByRole('checkbox').checked) fireEvent.click(screen.getByRole('checkbox'));
   fireEvent.click(screen.getByRole('button', { name: 'Đăng ký', exact: true }));
-  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP qua email' }));
 }
 
 test('renders accessible customer registration fields and OTP-only language', () => {
@@ -75,7 +74,7 @@ test('registers with normalized contact and name only after code and consent', a
   await waitFor(() => expect(sessionAdapter.resolve).toHaveBeenCalledTimes(2));
 });
 
-test('offers only email while SMS is disabled and keeps an invalid OTP error visible', async () => {
+test('uses email registration and keeps an invalid OTP error visible', async () => {
   const api = {
     requestOtp: jest.fn().mockResolvedValue({ challengeId: 'challenge-3', expiresInSeconds: 300, resendAfterSeconds: 60 }),
     verifyAndRegister: jest.fn().mockRejectedValue(Object.assign(new Error('safe'), { code: 'OTP_INVALID_OR_EXPIRED' })),
@@ -85,7 +84,7 @@ test('offers only email while SMS is disabled and keeps an invalid OTP error vis
   fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'person@example.test' } });
   sendAfterDetails();
   await screen.findByRole('status');
-  expect(screen.getByRole('radio', { name: 'SMS — chưa khả dụng' })).toBeDisabled();
+  expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   expect(api.requestOtp).toHaveBeenCalledWith({ channel: 'EMAIL', contact: 'person@example.test' });
   fireEvent.change(screen.getByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '999999' } });
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & hoàn tất đăng ký' }));

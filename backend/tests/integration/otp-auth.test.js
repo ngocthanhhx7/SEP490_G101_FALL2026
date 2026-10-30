@@ -47,6 +47,21 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P06 OTP policy using an isolated MongoDB replica set', () => {
+  test.each([['EMAIL', 'person@example.test'], ['PHONE', '+84912345678']])('%s login persists a session and logout revokes it', async (channel, contact) => {
+    const { user } = await createActiveUser({ channel, contact });
+    const { otpService, sessionService, sent } = fixture();
+    const challenge = await otpService.begin({ channel, contact, purpose: 'LOGIN' });
+    expect(sent[0]).toMatchObject({ channel, purpose: 'LOGIN', code: '004201' });
+    await expect(otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '999999' }))
+      .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
+    const verified = await otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '004201', rememberDevice: true });
+    const req = { headers: { cookie: `${sessionService.cookieName}=${verified.session.token}` } };
+    await expect(sessionService.authenticate(req)).resolves.toMatchObject({ userId: user._id.toString(), roles: ['CUSTOMER'] });
+    await expect(otpService.verify({ ...challenge, channel, contact, purpose: 'LOGIN', code: '004201' }))
+      .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
+    await sessionService.revoke(req);
+    await expect(sessionService.authenticate(req)).resolves.toBeNull();
+  });
   test('stores only digests, sends six digits, and expires at five minutes', async () => {
     await createActiveUser();
     const { otpService, sent } = fixture();

@@ -1,4 +1,5 @@
 import { ApiError, createApiClient } from './api-client.js';
+import { apiSessionAdapter } from './session-adapter.js';
 
 function fetchFromCurrentRuntime(...args) {
   if (typeof globalThis.fetch !== 'function') throw new ApiError('NETWORK_ERROR');
@@ -13,13 +14,14 @@ function idempotencyKey() {
 }
 
 export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime, uploadDocumentImpl, keyFactory = idempotencyKey,
+  getCsrfToken = () => apiSessionAdapter.getCsrfToken(),
   timeoutMs = 15000 } = {}) {
   if (typeof fetchImpl !== 'function' || (uploadDocumentImpl !== undefined && typeof uploadDocumentImpl !== 'function')
     || typeof keyFactory !== 'function') throw new TypeError('Sitter application API dependencies are invalid');
 
-  async function uploadDocument(file, { signal } = {}) {
+  async function uploadDocument(file, { signal, documentType } = {}) {
     if (!uploadDocumentImpl) throw new ApiError('PROVIDER_UNAVAILABLE', 503);
-    return uploadDocumentImpl(file, { signal });
+    return uploadDocumentImpl(file, { signal, documentType });
   }
 
   async function submit(body, { signal, key = keyFactory() } = {}) {
@@ -30,9 +32,11 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
     let timedOut = false;
     const timer = setTimeout(() => { timedOut = true; abort(); }, timeoutMs);
     try {
+      const csrfToken = getCsrfToken();
+      if (!csrfToken) throw new ApiError('CSRF_UNAVAILABLE');
       const response = await fetchImpl('/api/v1/applications', {
         method: 'POST',
-        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': key },
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'Idempotency-Key': key, 'X-CSRF-Token': csrfToken },
         credentials: 'same-origin', cache: 'no-store', redirect: 'error',
         signal: controller.signal, body: JSON.stringify(body)
       });
@@ -42,7 +46,9 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
       if (!response.ok) throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
         fieldErrors: envelope?.error?.fieldErrors
       });
-      if (envelope?.meta?.schemaVersion !== 1 || !envelope?.data || typeof envelope.data.id !== 'string') {
+      if (envelope?.meta?.schemaVersion !== 1 || !envelope?.data || typeof envelope.data.id !== 'string'
+        || !/^[A-Za-z0-9_-]{22,128}$/.test(envelope.data.applicationCode ?? '')
+        || !['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'].includes(envelope.data.state)) {
         throw new ApiError('INVALID_RESPONSE', response.status);
       }
       return { ...envelope.data, status: response.status };
@@ -56,10 +62,42 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
     }
   }
 
-  return Object.freeze({ uploadDocument, submit, createIdempotencyKey: keyFactory, uploadsAvailable: Boolean(uploadDocumentImpl) });
+  const request = createApiClient({ fetchImpl, getCsrfToken });
+  return Object.freeze({ uploadDocument, submit, createIdempotencyKey: keyFactory, uploadsAvailable: Boolean(uploadDocumentImpl),
+    async loadIntake({ signal } = {}) { return request('/applications/intake', { signal }); } });
 }
 
-export const sitterApplicationApi = createSitterApplicationApi();
+const uploadKeys = new WeakMap();
+async function uploadApplicantImage(file, { signal } = {}) {
+  if (!['image/jpeg', 'image/png'].includes(file.type) || !file.size || file.size > 5 * 1024 * 1024) {
+    throw new ApiError('INVALID_DOCUMENT', 422);
+  }
+  const csrf = apiSessionAdapter.getCsrfToken();
+  if (!csrf) throw new ApiError('CSRF_UNAVAILABLE');
+  if (!uploadKeys.has(file)) uploadKeys.set(file, idempotencyKey());
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  signal?.addEventListener('abort', abort, { once: true });
+  const timer = setTimeout(abort, 20000);
+  try {
+    const response = await fetchFromCurrentRuntime('/api/v1/applicant-documents', {
+      method: 'POST', body: file, credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: controller.signal,
+      headers: { Accept: 'application/json', 'Content-Type': file.type, 'X-CSRF-Token': csrf, 'Idempotency-Key': uploadKeys.get(file) }
+    });
+    const result = await response.json();
+    if (!response.ok) throw new ApiError(result?.error?.code ?? 'HTTP_ERROR', response.status);
+    if (result?.meta?.schemaVersion !== 1 || result.data?.state !== 'READY' || !/^[a-f0-9]{64}$/.test(result.data?.id)) {
+      throw new ApiError('INVALID_RESPONSE');
+    }
+    return { documentId: result.data.id, storageRef: result.data.id };
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(signal?.aborted ? 'ABORTED' : controller.signal.aborted ? 'TIMEOUT' : 'NETWORK_ERROR');
+  } finally { clearTimeout(timer); signal?.removeEventListener('abort', abort); }
+}
+
+export const sitterApplicationApi = createSitterApplicationApi({ uploadDocumentImpl: uploadApplicantImage });
 
 export function createSitterApplicationAdminApi({ request = createApiClient({ fetchImpl: fetchFromCurrentRuntime }), keyFactory = idempotencyKey } = {}) {
   if (typeof request !== 'function' || typeof keyFactory !== 'function') {

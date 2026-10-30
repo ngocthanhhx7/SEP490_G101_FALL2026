@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Input, Notice } from '../../../components/ui/index.js';
 import './application-status.css';
 
@@ -124,7 +125,7 @@ export function ApplicationStatusPage({ api }) {
   const reapplyDate = status?.state === 'REJECTED' ? formatVietnamDate(status.reapplyEligibleAt) : null;
   const submittedDate = status ? formatVietnamDate(status.submittedAt) : null;
 
-  return <main className="application-status">
+  return <div className="application-status">
     <section className="application-status__panel" aria-labelledby="application-status-title">
       <p className="application-status__eyebrow">Paw World Care</p>
       <h1 id="application-status-title">Theo dõi hồ sơ ứng tuyển</h1>
@@ -171,6 +172,7 @@ export function ApplicationStatusPage({ api }) {
         <h2 id="application-status-result-title">Trạng thái hồ sơ</h2>
         <p className="application-status__state">{STATUS_LABELS[status.state]}</p>
         {submittedDate && <p>Ngày nộp: <time dateTime={status.submittedAt}>{submittedDate}</time></p>}
+        {status.state === 'APPROVED' && <p>Hồ sơ đã được duyệt. <Link to="/sign-in">Đăng nhập bằng email đã xác minh</Link> để sử dụng quyền Pet Sitter.</p>}
         {status.state === 'REJECTED' && <>
           <div className="application-status__reason">
             <h3>Lý do từ chối</h3>
@@ -184,5 +186,5 @@ export function ApplicationStatusPage({ api }) {
         <Button type="button" variant="secondary" onClick={startOver}>Tra cứu hồ sơ khác</Button>
       </section>}
     </section>
-  </main>;
+  </div>;
 }

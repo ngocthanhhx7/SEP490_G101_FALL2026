@@ -1,7 +1,7 @@
 ﻿import { describe, expect, test } from '@jest/globals';
 import { Readable } from 'node:stream';
 import { S3Client } from '@aws-sdk/client-s3';
-import { loadR2Config } from '../../src/config/r2.js';
+import { loadR2Config, loadApplicantDocumentConfig } from '../../src/config/r2.js';
 import { createR2PrivateMedia, MAX_IMAGE_BYTES } from '../../src/services/r2-private-media.service.js';
 
 const env = { R2_ENABLED: 'true', R2_ACCOUNT_ID: 'a'.repeat(32), R2_BUCKET: 'synthetic-private',
@@ -88,5 +88,28 @@ describe('R2 private transport and safe configuration', () => {
         Body: Readable.from(chunks) }) } });
       await expect(media.read({ storageRef: key })).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
     }
+  });
+});
+
+
+describe('dedicated applicant-document configuration', () => {
+  const dedicated = { SITTER_DOCUMENTS_ENABLED: 'true', SITTER_DOCUMENTS_R2_ACCOUNT_ID: 'a'.repeat(32),
+    SITTER_DOCUMENTS_R2_BUCKET: 'synthetic-identity-documents', SITTER_DOCUMENTS_R2_ACCESS_KEY_ID: 'e'.repeat(32),
+    SITTER_DOCUMENTS_R2_SECRET_ACCESS_KEY: 'f'.repeat(64), R2_BUCKET: 'synthetic-owner-photos' };
+  test('general R2 never enables document intake; dedicated bucket/credentials are mandatory', () => {
+    expect(loadApplicantDocumentConfig(env)).toBeNull();
+    expect(loadApplicantDocumentConfig({ ...env, SITTER_DOCUMENTS_ENABLED: 'false' })).toBeNull();
+    expect(() => loadApplicantDocumentConfig({ ...env, SITTER_DOCUMENTS_ENABLED: 'true' })).toThrow();
+    expect(() => loadApplicantDocumentConfig({ ...dedicated, R2_BUCKET: dedicated.SITTER_DOCUMENTS_R2_BUCKET })).toThrow();
+    expect(loadApplicantDocumentConfig(dedicated).bucket).toBe('synthetic-identity-documents');
+  });
+  test('document transport accepts only its isolated namespace', async () => {
+    const calls = [];
+    const media = createR2PrivateMedia({ config: loadApplicantDocumentConfig(dedicated), keyPrefix: 'applicant-documents',
+      client: { send: async command => { calls.push(command.input); return {}; } } });
+    await expect(media.upload({ storageRef: key, body: Buffer.from('png'), contentType: 'image/png' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await media.upload({ storageRef: `applicant-documents/${'d'.repeat(64)}`, body: Buffer.from('png'), contentType: 'image/png' });
+    expect(calls[0].Bucket).toBe('synthetic-identity-documents');
+    expect(calls[0].Key).toMatch(/^applicant-documents\//);
   });
 });

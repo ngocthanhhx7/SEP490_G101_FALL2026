@@ -276,12 +276,12 @@ export function AppRoutes({
           path="sitter/apply"
           element={<RegistrationPage initialSitter />}
         />
-      </Route>
-      <Route element={<FoundationLayout />}>
         <Route
           path="sitter/application-status"
           element={<ApplicationStatusPage api={applicationStatusApi} />}
         />
+      </Route>
+      <Route element={<FoundationLayout />}>
         {publicPolicyRouteElements}
         <Route
           path="*"

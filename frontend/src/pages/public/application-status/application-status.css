@@ -105,3 +105,8 @@
   .application-status *::before,
   .application-status *::after { scroll-behavior: auto !important; }
 }
+
+/* The status lookup is part of the public registration flow. */
+.pwc-public-root .application-status { min-height: 65vh; padding: 48px 20px 64px; background: #f8f7fc; }
+.pwc-public-root .application-status__panel { border-color: #e8e2ee; border-radius: 20px; box-shadow: none; }
+.pwc-public-root .application-status__button { border: 0; border-radius: 99px; background: #ffcd34; color: #2c0050; min-height: 54px; }

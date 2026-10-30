@@ -112,4 +112,8 @@ P34 now hosts the merged P48 role shell for account and registered Admin/Custome
 
 ## Đăng ký email và phiên ghi nhớ
 
-Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp nhận hồ sơ](../doc/testing/p34-registration-email-and-session.md). Đăng ký/đăng nhập hiện chỉ dùng OTP email; không bật SMS. Tùy chọn ghi nhớ dành cho Customer/Pet Sitter tối đa 30 ngày; đăng xuất thu hồi phiên phía server.
+Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp nhận hồ sơ](../doc/testing/p34-registration-email-and-session.md). Đăng ký dùng OTP email; đăng nhập hỗ trợ OTP email và SMS cho liên hệ đã xác minh. SMS cần provider phía server được cấu hình và bật. Xem [kiểm tra giao diện và luồng đăng nhập](../doc/testing/login-email-sms-refresh.md). Tùy chọn ghi nhớ dành cho Customer/Pet Sitter tối đa 30 ngày; đăng xuất thu hồi phiên phía server.
+
+## Đăng ký và hồ sơ ứng tuyển
+
+Form khách hàng và Pet Sitter tham khảo bố cục hai cột của ảnh HouseBuddy, giữ nhận diện PawWorld. OTP email tạo tài khoản trước; form Pet Sitter dùng email đã xác minh, nhóm dịch vụ từ catalog, vùng làm việc, kinh nghiệm và ảnh giấy tờ JPG/PNG. API hồ sơ được nối với applicant-documents và session/CSRF; trạng thái/receipt khôi phục từ server theo owner. Xem [luồng và kiểm tra](../doc/testing/registration-sitter-flow.md). PDF chưa được pipeline ảnh hỗ trợ.

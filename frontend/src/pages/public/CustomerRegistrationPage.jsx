@@ -43,11 +43,11 @@ function validateName(value) {
   return '';
 }
 
-export function CustomerRegistrationPage({ api = customerRegistrationApi, intent = 'CUSTOMER', onVerified }) {
+export function CustomerRegistrationPage({ api = customerRegistrationApi, intent = 'CUSTOMER', onVerified, onPhaseChange }) {
   const { refresh } = useSession();
   const policies = useRegistrationPolicies();
   const [displayName, setDisplayName] = useState('');
-  const [channel, setChannel] = useState('EMAIL');
+  const channel = 'EMAIL';
   const [contact, setContact] = useState('');
   const [code, setCode] = useState('');
   const [agreement, setAgreement] = useState(false);
@@ -63,6 +63,8 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
   const contactRef = useRef(null);
   const codeRef = useRef(null);
   const agreementRef = useRef(null);
+
+  useEffect(() => { onPhaseChange?.(phase); }, [phase, onPhaseChange]);
 
   useEffect(() => { setAgreement(false); }, [policies.key]);
 
@@ -89,15 +91,6 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
     clearNotice();
   }
 
-  function changeChannel(next) {
-    if (next === channel) return;
-    setChannel(next);
-    setContact('');
-    setChallenge(null);
-    setCode('');
-    clearNotice();
-  }
-
   function focusInvalid(nextErrors) {
     const first = nextErrors.displayName ? nameRef : nextErrors.contact ? contactRef : nextErrors.code
       ? codeRef : nextErrors.agreement ? agreementRef : null;
@@ -115,7 +108,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
   }
 
   async function requestOtp() {
-    if (!policies.current().ready) return;
+    if (busy || !policies.current().ready) return;
     const { nextErrors, normalizedContact } = validateContact();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
@@ -153,6 +146,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
 
   async function submitRegistration(event) {
     event.preventDefault();
+    if (busy) return;
     const currentPolicies = policies.current();
     if (!currentPolicies.ready) {
       setNotice({ state: 'error', title: 'Chính sách chưa sẵn sàng',
@@ -210,7 +204,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
     if (!agreement || agreementKey !== policies.current().key) nextErrors.agreement = 'Bạn cần xác nhận đồng ý để tiếp tục.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) { focusInvalid(nextErrors); return; }
-    if (policies.current().ready) setPhase('verification');
+    requestOtp();
   }
 
   if (completed) {
@@ -233,34 +227,26 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
       <span className="registration-tape registration-tape--bottom" aria-hidden="true" />
       <header className="registration-header">
         <p className="registration-eyebrow">PawWorld · {intent === 'PET_SITTER' ? 'Ứng tuyển Pet Sitter' : 'Khách hàng'}</p>
-        <h1 id="registration-title">Đăng ký tài khoản mới</h1>
-        <p className="registration-intro">Gia nhập đại gia đình chăm sóc thú cưng chu đáo PawWorld 🐾</p>
-        <div className="registration-role" aria-label="Loại tài khoản đang đăng ký">
-          <span aria-hidden="true">🐾</span> {intent === 'PET_SITTER' ? 'Xác minh email trước khi hoàn tất hồ sơ ứng tuyển. Quyền Pet Sitter chỉ được cấp sau khi hồ sơ được duyệt.' : 'Khách hàng (Pet Parent)'}
-        </div>
+        <h2 id="registration-title">{phase === 'otp' ? 'Xác minh email của bạn' : 'Đăng ký tài khoản mới'}</h2>
+        <p className="registration-intro">{phase === 'otp' ? 'Chỉ một bước nữa để bắt đầu đồng hành cùng PawWorld.' : 'Điền thông tin bên dưới để bắt đầu. Bạn sẽ đăng nhập bằng mã OTP.'}</p>
       </header>
 
-      <form className="registration-form" noValidate onSubmit={phase === 'details' ? continueRegistration : phase === 'verification' ? event => { event.preventDefault(); requestOtp(); } : submitRegistration}>
+      <form className="registration-form" noValidate onSubmit={phase === 'details' ? continueRegistration : submitRegistration}>
+        <div className="registration-details-grid">
         <div className="registration-field">
           <label htmlFor="registration-name">Họ và tên của bạn</label>
           <input ref={nameRef} id="registration-name" name="displayName" autoComplete="name" required
-            value={displayName} maxLength={120} placeholder="Nguyễn Văn A"
+            value={displayName} maxLength={100} placeholder="Nguyễn Văn A" disabled={busy} readOnly={Boolean(challenge)}
             aria-invalid={Boolean(errors.displayName)} aria-describedby={errors.displayName ? 'registration-name-error' : undefined}
             onChange={event => { setDisplayName(event.target.value); clearNotice(); }} />
           {errors.displayName && <span id="registration-name-error" className="registration-field-error">{errors.displayName}</span>}
         </div>
 
         <fieldset className="registration-contact-fieldset">
-          <legend>{phase === 'details' ? 'Email đăng ký' : 'Chọn phương thức xác thực'}</legend>
-          {phase !== 'details' && <div className="registration-contact-options">
-            <label><input type="radio" name="channel" value="EMAIL" checked={channel === 'EMAIL'}
-              disabled={Boolean(challenge)} onChange={() => changeChannel('EMAIL')} /> Email</label>
-            <label><input type="radio" name="channel" value="PHONE"
-              disabled checked={false} /> SMS — chưa khả dụng</label>
-          </div>}
+          <legend>Email đăng ký</legend>
           <input ref={contactRef} id="registration-contact" name="contact" type={contactType}
             autoComplete={channel === 'EMAIL' ? 'email' : 'tel'} inputMode={channel === 'PHONE' ? 'tel' : undefined}
-            value={contact} readOnly={Boolean(challenge)} placeholder={channel === 'EMAIL' ? 'hello@pawworld.com' : '+84 912 345 678'}
+            value={contact} disabled={busy} required readOnly={Boolean(challenge)} placeholder={channel === 'EMAIL' ? 'hello@pawworld.com' : '+84 912 345 678'}
             aria-label={contactLabel} aria-invalid={Boolean(errors.contact)}
             aria-describedby={errors.contact ? 'registration-contact-error' : 'registration-contact-hint'}
             onChange={event => changeContact(event.target.value)} />
@@ -268,10 +254,11 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
           {!errors.contact && <span id="registration-contact-hint" className="registration-hint">
             {channel === 'EMAIL' ? 'Mã sẽ được gửi đến email này.' : 'Nhập số Việt Nam hoặc số quốc tế có mã vùng.'}
           </span>}
-          {challenge && <button className="registration-text-button" type="button" onClick={() => {
+          {challenge && <button className="registration-text-button" type="button" disabled={busy} onClick={() => {
             setChallenge(null); setCode(''); setPhase('details'); clearNotice();
           }}>Thay đổi thông tin liên hệ</button>}
         </fieldset>
+        </div>
 
         {phase === 'otp' && <section className="registration-otp" aria-labelledby="registration-otp-title">
           <div className="registration-otp-heading">
@@ -282,7 +269,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
           </div>
           <div className="registration-otp-row">
             <input ref={codeRef} id="registration-code" name="code" type="text" inputMode="numeric"
-              autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code}
+              autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} disabled={busy}
               placeholder="•  •  •  •  •  •" aria-label="Mã OTP gồm 6 chữ số"
               aria-invalid={Boolean(errors.code)} aria-describedby={errors.code ? 'registration-code-error' : 'registration-code-hint'}
               onChange={event => { setCode(event.target.value.replace(/\D/g, '').slice(0, 6)); clearNotice(); }} />
@@ -299,7 +286,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
         </section>}
 
         <div className="registration-consent">
-          <input ref={agreementRef} id="registration-agreement" type="checkbox" checked={agreement} disabled={!policies.ready}
+          <input ref={agreementRef} id="registration-agreement" type="checkbox" checked={agreement} disabled={busy || !policies.ready}
             aria-invalid={Boolean(errors.agreement)} aria-describedby={errors.agreement ? 'registration-agreement-error' : undefined}
             onChange={event => { setAgreement(event.target.checked); setAgreementKey(policies.current().key); clearNotice(); }} />
           <label htmlFor="registration-agreement">Tôi đồng ý với các chính sách áp dụng của Paw World Care.</label>
@@ -314,7 +301,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
         </div>}
 
         <button className="registration-submit" type="submit" disabled={busy || !policies.ready} aria-busy={busy}>
-          {busy ? 'Đang xử lý…' : phase === 'details' ? 'Đăng ký' : phase === 'verification' ? 'Gửi mã OTP qua email' : 'Xác thực & hoàn tất đăng ký'} <span aria-hidden="true">→</span>
+          {busy ? 'Đang xử lý…' : phase === 'details' ? 'Đăng ký' : 'Xác thực & hoàn tất đăng ký'} <span aria-hidden="true">→</span>
         </button>
       </form>
 

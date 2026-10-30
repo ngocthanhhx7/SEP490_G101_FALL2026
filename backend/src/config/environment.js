@@ -1,7 +1,7 @@
 import { loadEsmsConfig } from './esms.js';
 import { loadSmtpConfig } from './smtp.js';
 import { isMailbox } from '../utils/mailbox.js';
-import { loadR2Config } from './r2.js';
+import { loadR2Config, loadApplicantDocumentConfig } from './r2.js';
 import { parseRoutingBounds } from '../validators/routing.validator.js';
 
 export class ConfigurationError extends Error {
@@ -78,7 +78,7 @@ export function loadConfig(env = process.env) {
     }
   }
 
-  for (const loadProviderConfig of [loadSmtpConfig, loadEsmsConfig, loadR2Config]) {
+  for (const loadProviderConfig of [loadSmtpConfig, loadEsmsConfig, loadR2Config, loadApplicantDocumentConfig]) {
     try {
       loadProviderConfig(env);
     } catch (error) {

@@ -87,8 +87,13 @@ credentials, retention/quota approval and a live provider check are complete.
 Direct R2 provider smoke and isolated Linux memory evidence are recorded in the
 [R2 runbook](aws/r2-private-media.md); new-runtime privacy/cache/evidence gates
 remain separate from those checks.
-Applicant documents, care evidence and public images remain separate workflows;
-never share their objects or public domains with this bucket.
+Applicant documents now use `/api/v1/applicant-documents`, a dedicated bucket,
+`ApplicantDocument`/`ApplicantDocumentQuota` collections and `applicant-documents/`
+namespace. `SITTER_DOCUMENTS_ENABLED` defaults to false and requires its own
+`SITTER_DOCUMENTS_R2_*` configuration; enabling owner photos does not enable intake.
+Never share document objects with owner photos or care/settlement evidence. Both
+image endpoints share one four-request admission and one decoder budget per app
+connection. See [document rollout](../testing/registration-sitter-flow.md).
 
 After changing environment values, redeploy the same reviewed SHA using the
 activation command below. Docker restart alone retains the old container env.
