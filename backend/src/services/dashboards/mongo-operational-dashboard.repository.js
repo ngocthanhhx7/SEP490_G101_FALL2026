@@ -3,8 +3,8 @@ import { createScopedCursor } from '../../utils/scoped-cursor.js';
 import { AppError } from '../../utils/app-error.js';
 
 const dependencies = {
-  'customer-dashboard': ['visits', 'bookings', 'bills'],
-  'sitter-dashboard': ['visits', 'offers'],
+  'customer-dashboard': ['visits', 'bookings'],
+  'sitter-dashboard': ['visits', 'employeevisitoffers'],
   'staff-dashboard': ['visits', 'cases'],
   'admin-dashboard': ['visits', 'sitterapplications']
 };
@@ -49,17 +49,13 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
       const metrics = {};
       if (scope.kind === 'customer-dashboard') {
         metrics.upcomingVisits = await countVisits({ state: { $in: ['SCHEDULED', 'ASSIGNED'] }, startAt: { $gte: asOf } });
-        const billRange = Object.keys(timeRange).length ? { dueAt: timeRange } : {};
-        const bills = await connection.db.collection('bills').aggregate([
-          { $match: { state: { $in: ['ISSUED', 'ON_HOLD'] }, ...billRange } },
-          { $lookup: { from: 'bookings', localField: 'bookingId', foreignField: '_id', as: 'booking' } },
-          { $match: { 'booking.customerId': userId } }, { $count: 'count' }
-        ], options).toArray();
-        metrics.unpaidBills = bills[0]?.count ?? 0;
+        const bookingRange = Object.keys(timeRange).length ? { createdAt: timeRange } : {};
+        metrics.awaitingPaymentBookings = await connection.db.collection('bookings').countDocuments({ customerId: userId,
+          state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: { $gt: asOf }, ...bookingRange }, options);
       } else if (scope.kind === 'sitter-dashboard') {
         metrics.assignedVisits = await countVisits({ state: { $in: ['ASSIGNED', 'IN_PROGRESS'] } });
-        const offers = await connection.db.collection('offers').aggregate([
-          { $match: { sitterId: userId, state: 'PENDING', deadline: { $gt: asOf } } },
+        const offers = await connection.db.collection('employeevisitoffers').aggregate([
+          { $match: { sitterId: scope.userId, state: 'PENDING', deadline: { $gt: asOf } } },
           { $lookup: { from: 'visits', localField: 'visitId', foreignField: '_id', as: 'visit' } },
           { $unwind: '$visit' }, ...(Object.keys(timeRange).length ? [{ $match: { 'visit.startAt': timeRange } }] : []),
           { $count: 'count' }
@@ -85,7 +81,7 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
       const rows = await visits.aggregate([...pipeline, ...paging, { $sort: { startAt: 1, _id: 1 } }, { $limit: query.limit + 1 },
         { $project: { _id: 1, state: 1, startAt: 1, sitterId: 1 } }], options).toArray();
       const page = rows.slice(0, query.limit);
-      if (page.some(row => !['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED'].includes(row.state)
+      if (page.some(row => !['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED', 'SUPERSEDED'].includes(row.state)
         || !(row.startAt instanceof Date) || !Number.isFinite(row.startAt.getTime()))) invalid();
       const last = page.at(-1);
       return { ready: true, scope, metrics, asOf: asOf.toISOString(), sourceVersion: `p01-operational/v1/${asOf.toISOString()}`,

@@ -48,7 +48,7 @@ function ProjectionContent({ api, title, description, kind, targetId, searchable
         {item.startsAt && <p>Lịch chăm sóc: {time(item.startsAt)}</p>}
         {item.bio && <p>{item.bio}</p>}
         {item.areas && <p>Khu vực: {item.areas.join(', ')}</p>}
-        {item.reviewCount !== undefined && <p>{item.reviewCount > 0 ? `${item.rating} / 5 (${item.reviewCount} đánh giá)` : 'Chưa có đánh giá'}</p>}
+        {item.reviewCount !== undefined && <p>{item.reviewsAvailable === false ? 'Chưa có dữ liệu đánh giá đã xác minh' : item.reviewCount > 0 ? `${item.rating} / 5 (${item.reviewCount} đánh giá)` : 'Chưa có đánh giá'}</p>}
         {kind === 'earnings' && <>
           <dl>{[['accrued', 'Đã kiếm được'], ['pending', 'Chờ đủ điều kiện'], ['available', 'Khả dụng'], ['held', 'Đang giữ'], ['reserved', 'Đã dành tất toán'], ['paid', 'Đã quyết toán']].map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{format(item[key])} VND</dd></div>)}</dl>
           <p>{item.explanation}</p><p>Tham chiếu sổ: {item.ledgerReference}</p>

@@ -22,9 +22,9 @@ export function createMongoSitterProfileRepository({ connection, cursorSecret })
       if (!Types.ObjectId.isValid(last.userId)) throw new AppError(422, 'VALIDATION_FAILED', 'Invalid profile cursor');
       match.$and = [{ userId: { $gt: new Types.ObjectId(last.userId) } }];
     }
-    // A missing moderation source is unknown, not a zero-review rating.
+    // Profiles remain readable when moderation is unavailable; ratings stay unknown.
     const registered = await connection.db.listCollections({ name: 'reviews' }, { nameOnly: true }).toArray();
-    if (!registered.length) return { ready: false };
+    const reviewsAvailable = registered.length > 0;
     return connection.transaction(async session => {
       const pipeline = [{ $match: match },
         { $lookup: { from: users.collection.name, localField: 'userId', foreignField: '_id', as: 'user' } },
@@ -40,20 +40,20 @@ export function createMongoSitterProfileRepository({ connection, cursorSecret })
       const rows = await profiles.aggregate(pipeline).session(session).option({ maxTimeMS: 5000 });
       const page = rows.slice(0, query.limit);
       const ids = page.map(row => row.userId);
-      const ratings = await connection.db.collection('reviews').aggregate([
+      const ratings = reviewsAvailable ? await connection.db.collection('reviews').aggregate([
         { $match: { direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', sitterId: { $in: [...ids, ...ids.map(String)] } } },
         { $group: { _id: { $toString: '$sitterId' }, count: { $sum: 1 }, rating: { $avg: '$rating' },
           invalid: { $sum: { $cond: [{ $and: [{ $isNumber: '$rating' }, { $gte: ['$rating', 1] },
             { $lte: ['$rating', 5] }, { $eq: [{ $mod: [{ $convert: { input: '$rating', to: 'double', onError: null, onNull: null } }, 1] }, 0] }] }, 0, 1] } },
           updatedAt: { $max: '$updatedAt' } } }
-      ], { session, maxTimeMS: 5000 }).toArray();
+      ], { session, maxTimeMS: 5000 }).toArray() : [];
       if (ratings.some(row => row.invalid)) throw new AppError(503, 'INVALID_PROJECTION', 'Invalid published rating');
       const asOf = new Date();
       return { ready: true, scope, asOf: asOf.toISOString(), sourceVersion: `sitter-public-profile/v1/${asOf.toISOString()}`,
         metrics: [], items: page.map(row => {
           const rating = ratings.find(value => value._id === String(row.userId));
           return { id: String(row.userId), displayName: row.displayName, bio: row.bio, areas: row.areas,
-            approved: true, reviewCount: rating?.count ?? 0, rating: rating?.rating ?? null };
+            approved: true, reviewsAvailable, reviewCount: reviewsAvailable ? rating?.count ?? 0 : null, rating: rating?.rating ?? null };
         }), nextCursor: rows.length > query.limit ? codec.encode({ userId: String(page.at(-1).userId) }, context) : null };
     }, { readConcern: { level: 'snapshot' }, readPreference: 'primary' });
   } });

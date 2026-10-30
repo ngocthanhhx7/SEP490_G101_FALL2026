@@ -6,7 +6,7 @@ const row = { id, customerId: id, sitterId: id, state: 'ASSIGNED', startsAt: '20
 function setup(patch = {}) {
   const repository = { readSnapshot: jest.fn(async ({ scope }) => ({ ready: true, scope,
     sourceVersion: 'synthetic-v1', asOf: '2026-10-15T02:00:00Z', policyVersion: 'approved-test', decisionIds: [],
-    metrics: {"upcomingVisits": 1, "unpaidBills": 0}, items: [row], nextCursor: null, ...patch })) };
+    metrics: {"upcomingVisits": 1, "awaitingPaymentBookings": 0}, items: [row], nextCursor: null, ...patch })) };
   return { repository, service: createCustomerDashboardService({ repository }) };
 }
 test('customer-dashboard: scoped projection does not expose private fields', async () => {

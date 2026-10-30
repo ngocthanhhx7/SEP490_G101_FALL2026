@@ -57,6 +57,9 @@ test('confirms one immutable booking for concurrent identical retries and preser
   const booking = await connection.collection('bookings').findOne({ _id: new mongoose.Types.ObjectId(results[0].id) });
   expect(booking.paymentDeadlineAt.getTime() - booking.createdAt.getTime()).toBe(15 * 60000);
   expect(await connection.collection('bookings').countDocuments({ quoteId: booking.quoteId })).toBe(1);
+  const notifications = await connection.models.Notification.find({ eventId: `booking:${booking._id}` }).lean();
+  expect(notifications).toHaveLength(1);
+  expect(notifications[0]).toMatchObject({ recipientId: owner.userId, role: 'CUSTOMER', eventType: 'BOOKING_CREATED', deepLink: '/account/bookings' });
   const visits = await connection.collection('visits').find({ bookingId: booking._id }).sort({ sequence: 1 }).toArray();
   expect(visits.map(row => row.snapshots.employeeServiceNetVnd)).toEqual([94000, 94000, 94000, 112800, 112800, 112800]);
   expect(visits.every(row => row.sitterId === null && row.state === 'SCHEDULED')).toBe(true);
@@ -69,6 +72,7 @@ test('confirms one immutable booking for concurrent identical retries and preser
 
 test('rejects changed price/policy/pets, expired quote, missing consent, overlap and foreign address without writing orders', async () => {
   const q = await quote(), body = input(q), before = await connection.collection('bookings').countDocuments();
+  const notificationsBefore = await connection.models.Notification.countDocuments();
   await expect(checkout.confirm(owner, { ...body, acceptServicePolicies: false }, 'checkout-no-consent')).rejects.toMatchObject({ code: 'SERVICE_POLICY_CONSENT_REQUIRED' });
   await expect(checkout.confirm(other, body, 'checkout-foreign-quote')).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
   await expect(checkout.confirm(owner, { ...body, visits: body.visits.map(row => ({ ...row, addressId: String(oid()) })) }, 'checkout-foreign-address')).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
@@ -84,6 +88,7 @@ test('rejects changed price/policy/pets, expired quote, missing consent, overlap
   await connection.models.ServicePolicyVersion.create({ ...fields, version: current.version + 1, effectiveAt: at, title: 'Synthetic new conditions' });
   await expect(checkout.confirm(owner, input(oldPolicy), 'checkout-changed-policy')).rejects.toMatchObject({ code: 'QUOTE_CHANGED' });
   expect(await connection.collection('bookings').countDocuments()).toBe(before);
+  expect(await connection.models.Notification.countDocuments()).toBe(notificationsBefore);
 });
 
 test('single visit postpay can await dispatch without a payment intent; guarded HTTP endpoints enforce session and CSRF', async () => {
