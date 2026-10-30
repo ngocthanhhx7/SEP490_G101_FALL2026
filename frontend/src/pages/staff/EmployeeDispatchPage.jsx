@@ -8,7 +8,8 @@ import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import '../../styles/employee-scheduling.css';
 
 const time = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-export function EmployeeDispatchPage({ api }) {
+export function EmployeeDispatchPage({ api, selectedSitter }) {
+  const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const load = useCallback(({ signal }) => api.queue({ signal }), [api]);
   const plansLoad = useCallback(({ signal }) => api.plans({ signal }), [api]);
   const queue = useApiResource(load), plans = useApiResource(plansLoad), [preview, setPreview] = useState(null);
@@ -18,6 +19,7 @@ export function EmployeeDispatchPage({ api }) {
   const planInput = row => ({ expectedVersion: row.version, shiftMinutes });
   return <section className="employee-scheduling">
     <header><h1>Điều phối ca chăm sóc</h1><Button variant="ghost" title="Tải lại lịch điều phối" aria-label="Tải lại lịch điều phối" onClick={() => { queue.retry(); plans.retry(); }}><RefreshCw size={18} /></Button></header>
+    {selectedSitter && <p>{validSelection ? <>Người chăm sóc đã chọn: <Link to={'/staff/sitters/' + selectedSitter}>{selectedSitter}</Link></> : 'Mã người chăm sóc không hợp lệ.'} · <Link to="/staff/dispatch">Bỏ chọn</Link></p>}
     {command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại yêu cầu</Button>}
     {proposal && <p>Đề xuất chờ khách xác nhận: <Link to={`/account/schedule-proposals/${proposal.id}`}>{proposal.id}</Link></p>}
@@ -54,7 +56,8 @@ export function EmployeeDispatchPage({ api }) {
           </form>
         </details></>}</div>
       {row.pendingInvitation ? <p>Đang chờ phản hồi · {time(row.pendingInvitation.deadline)}</p> :
-        <Button disabled={command.busy || command.pending} onClick={() => command.execute(key => api.invite(row.id, row.version, key))}><Send size={18} />Gửi lời mời</Button>}
+        <Button disabled={command.busy || command.pending || !validSelection || Boolean(selectedSitter && row.requestedSitterId && row.requestedSitterId !== selectedSitter)}
+          onClick={() => command.execute(key => api.invite(row.id, row.version, key, selectedSitter || undefined))}><Send size={18} />{selectedSitter ? 'Mời người đã chọn' : 'Gửi lời mời'}</Button>}
     </li>)}</ul>
     {api.travelVisits && <StaffTravelMonitor api={api} />}
   </section>;

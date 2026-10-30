@@ -6,7 +6,7 @@ import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx'
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
 import { HomePage } from '../pages/public/HomePage.jsx';
@@ -38,6 +38,9 @@ import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.jsx';
 import { AdminPayrollPage } from '../pages/admin/AdminPayrollPage.jsx';
 import { CustomerDashboardPage } from '../pages/customer/CustomerDashboardPage.jsx';
 import { SitterListPage } from '../pages/customer/SitterListPage.jsx';
+import { SitterManagementPage } from '../pages/staff/SitterManagementPage.jsx';
+import { SitterManagementDetailPage } from '../pages/staff/SitterManagementDetailPage.jsx';
+import { createSitterManagementApi } from '../services/sitter-management-api.js';
 import { SitterDashboardPage } from '../pages/sitter/SitterDashboardPage.jsx';
 import { SitterEarningsPage } from '../pages/sitter/SitterEarningsPage.jsx';
 import { SitterProfilePage } from '../pages/sitter/SitterProfilePage.jsx';
@@ -57,11 +60,18 @@ import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
 import { EmployeeInvitationsPage } from '../pages/sitter/EmployeeInvitationsPage.jsx';
 import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingProposalPage.jsx';
 
+function SitterManagementRoute({ detail = false }) {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createSitterManagementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return detail ? <SitterManagementDetailPage key={user?.id} api={api} /> : <SitterManagementPage key={user?.id} api={api} />;
+}
+
 function EmployeeScheduleRoute({ view }) {
+  const [params] = useSearchParams();
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createEmployeeSchedulingApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
-  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} />;
+  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined} />;
   if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} />;
   if (view === 'proposal') return <DirectedBookingProposalPage key={user?.id} api={api} />;
   return <SitterAvailabilityPage key={user?.id} api={api} />;
@@ -88,9 +98,10 @@ function SitterSettlementRoute() {
 }
 
 function PublicProfileRoute({ review = false }) {
+  const [params] = useSearchParams();
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createSitterPublicProfileApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
-  return review ? <SitterProfileReviewsPage key={user?.id} api={api} /> : <SitterPublicProfilePage key={user?.id} api={api} />;
+  return review ? <SitterProfileReviewsPage key={user?.id} api={api} userId={params.get('userId') || undefined} /> : <SitterPublicProfilePage key={user?.id} api={api} />;
 }
 
 const navigationByRole = {
@@ -176,7 +187,8 @@ export function AppRoutes({
           <Route path="admin/users" element={<AdminUsersPage embedded />} />
           <Route path="admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="admin/settlement-history" element={<AdminPayrollPage />} />
-          <Route path="admin/sitters" element={<SitterListPage />} />
+          <Route path="admin/sitters" element={<SitterManagementRoute />} />
+          <Route path="admin/sitters/:userId" element={<SitterManagementRoute detail />} />
           <Route path="admin/settlements" element={<AdminSettlementRoute />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
@@ -244,7 +256,8 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['STAFF']} />}>
         <Route element={<Workspace role="STAFF" />}>
           <Route path="staff" element={<StaffDashboardPage />} />
-          <Route path="staff/sitters" element={<SitterListPage />} />
+          <Route path="staff/sitters" element={<SitterManagementRoute />} />
+          <Route path="staff/sitters/:userId" element={<SitterManagementRoute detail />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['STAFF', 'ADMIN']} />}>
