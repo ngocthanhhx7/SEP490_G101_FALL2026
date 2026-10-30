@@ -20,7 +20,8 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   if (env.VISIT_TRAVEL_ENABLED !== undefined && !['true', 'false'].includes(env.VISIT_TRAVEL_ENABLED)) throw new TypeError('Invalid VISIT_TRAVEL_ENABLED');
   const routingProvider = createConfiguredRoutingProvider({ env, config, clock });
   const repository = createEmployeeScheduleRepository({ connection, clock, coverageAreas, routingProvider });
-  const dispatch = createEmployeeDispatchService({ repository, clock }), carePlans = createBookingCarePlanService({ connection, clock });
+  const carePlans = createBookingCarePlanService({ connection, clock });
+  const dispatch = createEmployeeDispatchService({ repository, clock, carePlans });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const proposals = createEmployeeScheduleProposalService({ repository, dispatch, clock });
   const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals }), router = Router();

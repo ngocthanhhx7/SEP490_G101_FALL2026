@@ -32,6 +32,18 @@ test('pending setup stays recoverable instead of rendering incomplete customer d
   expect(screen.queryByText('Tiếp tục')).not.toBeInTheDocument();
 });
 
+test('quote policy review failure explains why no booking was created and keeps the pet selection', async () => {
+  const api = fixture(); api.quote.mockRejectedValue({ code: 'PRICING_REVIEW_REQUIRED', status: 409 });
+  render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.submit(screen.getByText('Tiếp tục').closest('form'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('chưa có quy tắc giá được duyệt');
+  expect(screen.getByLabelText('Milo · 4 kg')).toBeChecked();
+  expect(api.confirm).not.toHaveBeenCalled();
+});
+
 test('system booking creates the selected service schedule without a directed employee', async () => {
   const api = fixture(), booked = jest.fn(); await chooseSchedule(api, {}, booked); await reviewAndConfirm();
   await waitFor(() => expect(booked).toHaveBeenCalledWith({ id: 'booking' }));

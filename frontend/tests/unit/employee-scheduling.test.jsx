@@ -53,12 +53,17 @@ test('uncertain invitation response freezes other commands and repeats exactly t
   expect(api.respond.mock.calls[0]).toEqual(api.respond.mock.calls[1]);
 });
 
-test('Staff previews and confirms an unassigned care plan before any invitation', async () => {
-  const api = fixture(); render(<EmployeeDispatchPage api={api} />);
-  fireEvent.click(await screen.findByRole('button', { name: 'Xem ca' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận kế hoạch' }));
-  await waitFor(() => expect(api.finalize).toHaveBeenCalledWith('booking', { expectedVersion: 3, shiftMinutes: 480 }, expect.any(String)));
-  expect(api.invite).not.toHaveBeenCalled();
+test('Staff sees automatic search and only intervenes on a dispatch escalation', async () => {
+  const api = fixture(); api.queue.mockResolvedValue({ data: { items: [
+    { id: 'searching', serviceName: 'Ca hệ thống', dispatchState: 'SYSTEM_SEARCHING', startAt: '2026-11-03T01:00:00Z', endAt: '2026-11-03T02:00:00Z' },
+    { id: 'review', serviceName: 'Ca cần xử lý', version: 3, dispatchState: 'NEEDS_STAFF', reviewCode: 'STAFF_REVIEW_REQUIRED', startAt: '2026-11-03T03:00:00Z', endAt: '2026-11-03T04:00:00Z' }
+  ] } });
+  render(<EmployeeDispatchPage api={api} />);
+  expect(await screen.findByText('Hệ thống đang tìm người nhận ca')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Xác nhận kế hoạch' })).not.toBeInTheDocument();
+  expect(api.plans).not.toHaveBeenCalled(); expect(api.finalize).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Thử tìm lại' }));
+  await waitFor(() => expect(api.invite).toHaveBeenCalledWith('review', 3, expect.any(String), undefined));
 });
 
 test('two registration adapters use separate endpoints, cookie transport, shared expected versions and stable keys', async () => {

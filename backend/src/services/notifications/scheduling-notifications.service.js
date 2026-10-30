@@ -4,7 +4,7 @@ import { digest } from '../../validators/pet-care.validator.js';
 const messages = {
   OfferCreated: ['Lời mời chăm sóc mới', 'Bạn có lời mời nhận ca đang chờ phản hồi.'],
   OfferAccepted: ['Đã nhận ca chăm sóc', 'Người chăm sóc đã xác nhận nhận ca.'],
-  OfferDeclined: ['Cần điều phối lại ca', 'Lời mời đã bị từ chối. Ca cần được kiểm tra và điều phối tiếp.'],
+  DispatchReviewRequired: ['Ca chăm sóc cần điều phối', 'Hệ thống chưa tìm được người nhận ca. Vui lòng kiểm tra và sắp xếp người chăm sóc.'],
   ScheduleProposed: ['Xác nhận lịch chăm sóc mới', 'Nhân viên đã đề xuất lịch thay thế. Vui lòng kiểm tra và xác nhận.'],
   CustomerScheduleConfirmed: ['Đã xác nhận lịch thay thế', 'Khách hàng đã xác nhận lịch mới. Lời mời nhận ca đã được tạo.']
 };
@@ -21,12 +21,12 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
     if (event.type === 'OfferCreated' || event.type === 'CustomerScheduleConfirmed') recipients.push({ id: event.sitterId, role: 'PET_SITTER', to: '/sitter/invitations' });
     if (['OfferAccepted', 'ScheduleProposed'].includes(event.type) && booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER',
       to: event.type === 'ScheduleProposed' ? '/account/schedule-proposals/' + event.detail.proposalId : '/account/bookings' });
-    if (event.type !== 'OfferCreated') {
+    if (event.type === 'DispatchReviewRequired') {
       const staff = await col('users').find({ state: 'ACTIVE', roles: { $in: ['STAFF', 'ADMIN'] } },
         { session, projection: { _id: 1, roles: 1 }, maxTimeMS: 5000 }).toArray();
       for (const user of staff) recipients.push({ id: String(user._id), role: user.roles.includes('ADMIN') ? 'ADMIN' : 'STAFF', to: '/staff/dispatch' });
     }
-    const eventId = digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId]);
+    const eventId = digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId ?? event.detail?.version]);
     const [title, message] = messages[event.type];
     for (const recipient of recipients) {
       await col('notifications').updateOne({ _id: digest([eventId, recipient.id, recipient.role]) }, { $setOnInsert: {

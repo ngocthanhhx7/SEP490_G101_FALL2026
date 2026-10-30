@@ -42,14 +42,14 @@ describe('SitterAvailabilityPage', () => {
     const updated = { ...currentAvailability, expectedVersion: 5,
       workingWindows: [{ weekday: 1, startLocalTime: '10:00', endLocalTime: '13:00' }] };
     const api = buildApi({ saveAvailability: jest.fn(async () => ({ status: 200, data: updated })) });
-    render(<SitterAvailabilityPage api={api} createOperationKey={() => 'operation-key-0001'} />);
+    render(<SitterAvailabilityPage api={api} now={new Date('2026-10-30T03:00:00Z')} createOperationKey={() => 'operation-key-0001'} />);
     await screen.findByRole('heading', { name: 'Giờ có thể nhận việc' });
     await screen.findByLabelText(/Bắt đầu/);
     fireEvent.change(screen.getByLabelText(/Bắt đầu/), { target: { value: '10:00' } });
     fireEvent.change(screen.getByLabelText(/Kết thúc/), { target: { value: '13:00' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }));
     await waitFor(() => expect(api.saveAvailability).toHaveBeenCalledWith({
-      zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-14', expectedVersion: 4,
+      zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30', expectedVersion: 4,
       idempotencyKey: 'operation-key-0001',
       workingWindows: [{ weekday: 1, startLocalTime: '10:00', endLocalTime: '13:00' }]
     }));
@@ -116,5 +116,18 @@ describe('SitterAvailabilityPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }));
     expect(await screen.findByRole('button', { name: /ki.*m tra y.*u c.*u/i })).toBeEnabled();
     expect(screen.queryByText('Máy chủ đã xác nhận thay đổi lịch.')).not.toBeInTheDocument();
+  });
+
+  test('keeps a future effective date and explains the missing contract without claiming a save', async () => {
+    const api = buildApi({ data: { ...currentAvailability, effectiveFrom: '2026-11-05' },
+      saveAvailability: jest.fn().mockRejectedValue({ status: 409, code: 'CONTRACT_REQUIRED' }) });
+    render(<SitterAvailabilityPage api={api} now={new Date('2026-10-30T03:00:00Z')} />);
+    const date = await screen.findByLabelText(/Áp dụng từ ngày/);
+    await waitFor(() => expect(date).toHaveValue('2026-11-05'));
+    expect(date).toHaveAttribute('min', '2026-10-30');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }));
+    expect(await screen.findByText(/Hãy liên hệ Admin để xác minh hợp đồng/)).toBeVisible();
+    expect(screen.queryByText('Máy chủ đã xác nhận thay đổi lịch.')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Bắt đầu/)).toHaveValue('09:00');
   });
 });

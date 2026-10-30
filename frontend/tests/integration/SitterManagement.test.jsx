@@ -25,15 +25,15 @@ function fixture() {
       profile: { bio: 'Giới thiệu mẫu', state: 'APPROVED', areas: [area.code] }, capabilities: { active: true, maxPets: 2, maxWeightKg: 15, species: ['DOG'], areas: [area.code], allowedTraits: [], services: [] },
       rating: { available: true, count: 0, average: null },
       availability: { state: 'ACTIVE', workingWindows: [{ weekday: 2, startLocalTime: '08:00', endLocalTime: '12:00' }], areas: [area.code], dayOffDates: [] },
-      audit: [], permissions: { manageStatus: true, reviewApplication: true } } }),
+      audit: [], contractVersion: 1, permissions: { manageContract: true, manageStatus: true, reviewApplication: true } } }),
     activity: jest.fn().mockResolvedValue({ data: { items: [], from: '2026-10-01', to: '2026-10-30', nextCursor: null, asOf } }),
     changeStatus: jest.fn().mockResolvedValue({ data: { status: 'SUSPENDED', version: 3 } })
   };
 }
-function mount(api, detail = false) {
+function mount(api, detail = false, payrollApi) {
   render(<MemoryRouter initialEntries={[detail ? '/admin/sitters/' + id : '/admin/sitters']}><Routes>
     <Route path="/admin/sitters" element={<SitterManagementPage api={api} />} />
-    <Route path="/admin/sitters/:userId" element={<SitterManagementDetailPage api={api} />} />
+    <Route path="/admin/sitters/:userId" element={<SitterManagementDetailPage api={api} payrollApi={payrollApi} />} />
   </Routes></MemoryRouter>);
 }
 test('operational table, truthful source counts, filters, cursor reset and detail navigation', async () => {
@@ -76,6 +76,8 @@ test('Staff projection hides Admin commands and application link', async () => {
   await screen.findByText('Kinh nghiệm mẫu');
   expect(screen.queryByRole('button', { name: 'Tạm ngưng' })).not.toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Hồ sơ ứng tuyển' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  expect(screen.queryByRole('button', { name: 'Xác minh hợp đồng đã ký' })).not.toBeInTheDocument();
 });
 test('API adapter rejects malformed projections and status pending responses', async () => {
   const request = jest.fn().mockResolvedValue({ data: { asOf, items: [], total: -1 } }); const api = createSitterManagementApi(request);
@@ -83,11 +85,36 @@ test('API adapter rejects malformed projections and status pending responses', a
   request.mockResolvedValue({ pending: true });
   await expect(api.changeStatus({ applicationId: appId, idempotencyKey: 'stable-key' })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });
+
+test('Admin records a contract for the selected sitter with the server version and retries the same uncertain command', async () => {
+  const api = fixture(), data = (await api.get()).data;
+  data.contracts = []; data.contractVersion = 3; api.get.mockResolvedValue({ data });
+  const payroll = { contract: jest.fn().mockRejectedValueOnce({ code: 'TIMEOUT' }).mockResolvedValueOnce({ id: appId, version: 4 }) };
+  mount(api, true, payroll);
+  await screen.findByText('Kinh nghiệm mẫu');
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh hợp đồng đã ký' }));
+  expect(screen.getByLabelText('Mã nhân viên')).toHaveValue(id);
+  expect(screen.getByLabelText('Mã nhân viên')).toHaveAttribute('readonly');
+  expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveValue(3);
+  const form = screen.getByText('Lưu hợp đồng đã xác minh').closest('form');
+  for (const [name, value] of Object.entries({ weeklyMinutes: '2400', signedAt: '2026-10-01', effectiveAt: '2026-10-30',
+    contractReference: 'synthetic-signed', workplaceRegion: '1', workplaceReference: 'Synthetic verified workplace' }))
+    fireEvent.change(form.elements[name], { target: { value } });
+  fireEvent.submit(form);
+  await screen.findByText('Chưa lưu hợp đồng');
+  expect(screen.getByLabelText('Ngày ký')).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại cùng yêu cầu' }));
+  await waitFor(() => expect(payroll.contract).toHaveBeenCalledTimes(2));
+  expect(payroll.contract.mock.calls[0]).toEqual(payroll.contract.mock.calls[1]);
+  expect(payroll.contract.mock.calls[0][0]).toMatchObject({ employeeId: id, expectedVersion: 3 });
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
+});
 test('selected sitter reaches invitation command and cannot replace customer directed choice', async () => {
   const invite = jest.fn().mockResolvedValue({ data: { state: 'PENDING' } }), api = { invite,
     plans: async () => ({ data: { items: [] } }), queue: async () => ({ data: { items: [
-      { id: 'visit1', version: 4, serviceName: 'Ca hệ thống', startAt: asOf, endAt: asOf },
-      { id: 'visit2', version: 5, serviceName: 'Ca chỉ định khác', requestedSitterId: appId, startAt: asOf, endAt: asOf }
+      { id: 'visit1', version: 4, dispatchState: 'NEEDS_STAFF', serviceName: 'Ca hệ thống', startAt: asOf, endAt: asOf },
+      { id: 'visit2', version: 5, dispatchState: 'NEEDS_STAFF', serviceName: 'Ca chỉ định khác', requestedSitterId: appId, startAt: asOf, endAt: asOf }
     ] } }) };
   render(<MemoryRouter><EmployeeDispatchPage api={api} selectedSitter={id} /></MemoryRouter>);
   const buttons = await screen.findAllByRole('button', { name: 'Mời người đã chọn' });

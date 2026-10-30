@@ -148,6 +148,12 @@ export function SitterWorkAreasPanel({ api }) {
         setReconcileRequired(true);
         setSaveNotice({ state: 'forbidden', title: 'Không thể lưu khu vực',
           message: 'Phiên hiện tại không có quyền cập nhật khu vực phục vụ.' });
+      } else if (error?.code === 'CONTRACT_REQUIRED') {
+        setSaveNotice({ state: 'warning', title: 'Cần xác minh hợp đồng',
+          message: 'Chưa có hợp đồng đã được Admin xác minh đang có hiệu lực. Hãy liên hệ Admin để xác minh hợp đồng, sau đó lưu lại khu vực. Khu vực đã lưu vẫn được giữ nguyên.' });
+      } else if (error?.code === 'SITTER_NOT_ELIGIBLE') {
+        setSaveNotice({ state: 'warning', title: 'Cần kiểm tra trạng thái Pet Sitter',
+          message: 'Tài khoản Pet Sitter chưa đủ điều kiện hoạt động. Hãy liên hệ Admin kiểm tra trạng thái hồ sơ.' });
       } else if (error?.code === 'VERSION_CONFLICT') {
         setReconcileRequired(true);
         setSaveNotice({ state: 'error', title: '\u004c\u1ecbch \u0111\u00e3 thay \u0111\u1ed5i', message: '\u0054\u1ea3i l\u1ea1i khu v\u1ef1c v\u00e0 phi\u00ean b\u1ea3n l\u1ecbch tr\u01b0\u1edbc khi l\u01b0u.' });
