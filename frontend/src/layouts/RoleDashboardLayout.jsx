@@ -5,7 +5,21 @@ import { Button } from '../components/ui/Button.jsx';
 import { BrandLogo } from '../components/ui/BrandLogo.jsx';
 import { Notice } from '../components/ui/Notice.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
+import { LayoutDashboard, Users, CalendarDays, Bell, Settings, UserRound, BriefcaseBusiness, MapPin, Wallet, ClipboardList, PawPrint, Menu, Building2, FileCheck } from 'lucide-react';
+import { NotificationBell } from '../components/common/NotificationBell.jsx';
+import { PublicHeader } from '../components/public/PublicHeader.jsx';
+import { PublicFooter } from '../components/public/PublicFooter.jsx';
+import '../styles/public-site.css';
+import '../styles/workspaces.css';
 import './role-dashboard-layout.css';
+
+function NavigationIcon({ to }) {
+  const Icon = /notification/.test(to) ? Bell : /settings/.test(to) ? Settings : /users|sitters/.test(to) ? Users
+    : /payroll|settlement/.test(to) ? Wallet : /services/.test(to) ? BriefcaseBusiness : /applications|profiles/.test(to) ? FileCheck
+    : /dispatch|invitations/.test(to) ? ClipboardList : /availability|bookings/.test(to) ? CalendarDays
+    : /areas|addresses/.test(to) ? MapPin : /pets/.test(to) ? PawPrint : /account|profile/.test(to) ? UserRound : LayoutDashboard;
+  return <Icon size={18} aria-hidden="true" />;
+}
 
 const ROLE_CONFIG = Object.freeze({
   CUSTOMER: {
@@ -68,7 +82,7 @@ export function RoleDashboardLayout({
   const canEnter = config && config.allows.some((allowedRole) => currentRoles.includes(allowedRole));
 
   useEffect(() => {
-    mainRef.current?.focus();
+    mainRef.current?.focus({ preventScroll: true });
   }, [location.pathname, session.status]);
 
   useEffect(() => {
@@ -155,7 +169,15 @@ export function RoleDashboardLayout({
     : [];
   const page = children ?? outlet;
 
-  return <div className="pwc-role-shell">
+  if (role === 'CUSTOMER') return <div className="pwc-public-root pwc-customer-account">
+    <PublicHeader notificationTo={notificationTo} />
+    <nav className="pwc-customer-account__navigation" aria-label={config.navigation}>{safeNavigationItems.map(item =>
+      <NavLink key={item.to} to={item.to} end={item.end}><NavigationIcon to={item.to} />{item.label}</NavLink>)}</nav>
+    <main id="pwc-role-main" className="pwc-customer-account__main" ref={mainRef} tabIndex={-1}>{page || <Notice state="empty" title="Chưa có trang trong khu vực này" />}</main>
+    <PublicFooter />
+  </div>;
+
+  return <div className="pwc-role-shell pwc-workspace-shell">
     <a className="pwc-role-shell__skip" href="#pwc-role-main">Đến nội dung chính</a>
     <header className="pwc-role-shell__header">
       <Link to="/" className="pwc-role-shell__brand" aria-label="Paw World Care — Trang chủ">
@@ -163,11 +185,12 @@ export function RoleDashboardLayout({
       </Link>
       <p className="pwc-role-shell__workspace">{config.workspace}</p>
       <div className="pwc-role-shell__header-actions">
+        <NotificationBell to={notificationTo} />
         <button ref={mobileNavToggleRef} className="pwc-role-shell__mobile-nav-toggle"
           type="button" aria-expanded={mobileNavOpen} aria-controls="pwc-role-sidebar"
           onClick={() => setMobileNavOpen((open) => !open)}>
-          <span aria-hidden="true">☰</span>
-          {mobileNavOpen ? 'Đóng điều hướng' : 'Mở điều hướng'}
+          <Menu size={20} aria-hidden="true" />
+          <span className="workspace-sr-only">{mobileNavOpen ? 'Đóng điều hướng' : 'Mở điều hướng'}</span>
         </button>
         <AvatarMenu user={session.user} role={role} onLogout={session.logout}
           notificationTo={notificationTo} />
@@ -186,14 +209,14 @@ export function RoleDashboardLayout({
         inert={isMobile && !mobileNavOpen ? true : undefined}
         aria-hidden={isMobile && !mobileNavOpen ? 'true' : undefined}
         aria-label={config.navigation + ' — thanh bên'}>
-        <h2 className="pwc-role-shell__sidebar-title">{config.label}</h2>
+        <h2 className="pwc-role-shell__sidebar-title"><Building2 size={15} aria-hidden="true" />{config.label}</h2>
         {safeNavigationItems.length > 0
           ? <nav className="pwc-role-shell__navigation" aria-label={config.navigation}>
             {safeNavigationItems.map((item) => <NavLink key={item.key ?? item.to}
               to={item.to} end={item.end} className={({ isActive }) =>
                 'pwc-role-shell__nav-link' + (isActive ? ' is-active' : '')}
               onClick={() => setMobileNavOpen(false)}>
-              {item.label}
+              <NavigationIcon to={item.to} />{item.label}
             </NavLink>)}
           </nav>
           : <p className="pwc-role-shell__navigation-empty" role="status">

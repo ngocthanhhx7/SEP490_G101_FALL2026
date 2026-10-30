@@ -15,3 +15,9 @@
 .notifications-page__more { display: flex; justify-content: center; margin-top: var(--pwc-space-4); }
 .notifications-page :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
 @media (max-width: 42rem) { .notifications-page { padding: var(--pwc-space-4) var(--pwc-space-3) var(--pwc-space-6); } .notifications-page__header > .pwc-button, .notification-card > .pwc-button { width: 100%; } }
+.notifications-page { max-width: 100%; margin: 0; }
+.notifications-page h1 { display: flex; gap: 10px; align-items: center; font: 800 26px var(--pwc-font-body); }
+.notification-unread-count { margin-left: auto; padding: 8px; font-size: 13px; color: #667080; }
+.notification-card { border-radius: 8px; }
+.notifications-page { width: 100%; padding: 0; }
+.notifications-page .notification-card { box-shadow: none; border-color: #e0e3e8; }

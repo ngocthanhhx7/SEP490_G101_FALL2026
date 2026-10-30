@@ -12,6 +12,9 @@ import {
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
+import { WorkspaceAnalytics } from '../../components/common/WorkspaceAnalytics.jsx';
+import { RowActionMenu } from '../../components/common/RowActionMenu.jsx';
+import { Eye, LockKeyhole, UnlockKeyhole } from 'lucide-react';
 
 const ROLE_LABELS = {
   CUSTOMER: 'Khách hàng',
@@ -318,11 +321,11 @@ function AccountDetail({
   );
 }
 
-export function AdminUsersPage({ apiRequest }) {
+export function AdminUsersPage({ apiRequest, embedded = false }) {
   const session = useSession();
   const mainRef = useRef(null);
   useEffect(() => {
-    mainRef.current?.focus();
+    mainRef.current?.focus({ preventScroll: true });
   }, []);
   const request = useMemo(
     () =>
@@ -344,6 +347,7 @@ export function AdminUsersPage({ apiRequest }) {
   const [commandPending, setCommandPending] = useState(false);
   const [commandError, setCommandError] = useState('');
   const [decisionResult, setDecisionResult] = useState(null);
+  const [analyticsRevision, setAnalyticsRevision] = useState(0);
   const [decisionPending, setDecisionPending] = useState(null);
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutError, setLogoutError] = useState('');
@@ -440,6 +444,7 @@ export function AdminUsersPage({ apiRequest }) {
         state: response.data?.state
       });
       setDecision(null);
+      setAnalyticsRevision(value => value + 1);
       list.retry();
       if (selectedId) detail.retry();
     } catch (error) {
@@ -469,11 +474,11 @@ export function AdminUsersPage({ apiRequest }) {
   const displayName = currentAdmin?.displayName ?? 'Quản trị viên';
 
   return (
-    <div className="admin-page">
+    <div className={'admin-page' + (embedded ? ' admin-page--embedded' : '')}>
       <a className="admin-skip-link" href="#admin-main">
         Đến nội dung quản trị
       </a>
-      <header className="admin-topbar">
+      {!embedded && <header className="admin-topbar">
         <Link
           to="/"
           className="admin-brand"
@@ -494,10 +499,10 @@ export function AdminUsersPage({ apiRequest }) {
             logoutError={logoutError}
           />
         </div>
-      </header>
+      </header>}
 
       <div className="admin-frame">
-        <aside className="admin-sidebar">
+        {!embedded && <aside className="admin-sidebar">
           <div className="admin-sidebar-heading">
             <span className="admin-eyebrow">KHÔNG GIAN LÀM VIỆC</span>
             <h2>Quản trị</h2>
@@ -538,7 +543,7 @@ export function AdminUsersPage({ apiRequest }) {
               <strong>Paw World Care</strong>
             </span>
           </div>
-        </aside>
+        </aside>}
 
         <main
           className="admin-main"
@@ -567,6 +572,7 @@ export function AdminUsersPage({ apiRequest }) {
               </div>
             </section>
 
+            {embedded && <WorkspaceAnalytics key={analyticsRevision} kind="users" />}
             {decisionResult?.state && (
               <Notice
                 state="success"
@@ -800,14 +806,18 @@ export function AdminUsersPage({ apiRequest }) {
                                 <StatePill state={user.state} />
                               </td>
                               <td data-label="Chi tiết">
-                                <Button
+                                {embedded ? <RowActionMenu label={`Thao tác ${user.displayName}`} actions={[
+                                  { label: 'Xem chi tiết', icon: Eye, onClick: () => setSelectedId(user.id) },
+                                  ...(user.state === 'ACTIVE' ? [{ label: 'Khóa tài khoản', icon: LockKeyhole, onClick: () => openDecision('LOCK', user) }]
+                                    : user.state === 'LOCKED' ? [{ label: 'Mở khóa tài khoản', icon: UnlockKeyhole, onClick: () => openDecision('UNLOCK', user) }] : [])
+                                ]} /> : <Button
                                   variant="ghost"
                                   className="admin-view-button"
                                   aria-label={`Xem chi tiết ${user.displayName}`}
                                   onClick={() => setSelectedId(user.id)}
                                 >
                                   Chi tiết <span aria-hidden="true">›</span>
-                                </Button>
+                                </Button>}
                               </td>
                             </tr>
                           ))}
@@ -852,20 +862,20 @@ export function AdminUsersPage({ apiRequest }) {
                 )}
               </section>
 
-              <AccountDetail
+              {(!embedded || selectedId) && <AccountDetail
                 resource={detail}
                 user={selectedUser}
                 onDecision={openDecision}
                 actionsDisabled={Boolean(decisionPending) || commandPending}
-              />
+              />}
             </div>
-            <footer className="admin-page-footer">
+            {!embedded && <footer className="admin-page-footer">
               Paw World Care <span aria-hidden="true">·</span> Trung tâm quản
               trị
               <span className="admin-footer-version">
                 Chỉ thông tin cần thiết được hiển thị
               </span>
-            </footer>
+            </footer>}
           </div>
         </main>
       </div>

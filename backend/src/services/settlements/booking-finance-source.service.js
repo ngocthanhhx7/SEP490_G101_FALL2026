@@ -9,6 +9,7 @@ import { createEarningAccrualService } from './earning-accrual.service.js';
 import { assertFinanceSourceStorage } from './source-provisioning.js';
 import { recordEmployeeServiceCompletion } from '../payroll/completion-payroll-source.service.js';
 import { assertPayrollStorage } from '../payroll/payroll-storage.service.js';
+import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const fail = (status, code) => { throw new AppError(status, code, code); };
@@ -189,6 +190,8 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         const updatedBooking = await touch(booking, session, { state: 'IN_PROGRESS' });
         if (operation === 'CHECK_OUT') await completeWholeBooking(updatedBooking, session);
         await event(`Visit${operation}`, updatedBooking, current.userId, `${visitId}:${saved.version}`, session);
+        await createDomainNotifications({ connection, clock: () => now().getTime() }).visit({ visitId, version: saved.version,
+          customerId: booking.customerId, operation }, session);
         return { visitId, state: saved.state, version: saved.version };
       } });
   }

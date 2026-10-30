@@ -3,11 +3,13 @@ import { createDirectedSitterProposalService } from '../directed-proposal.servic
 import { exact, id, instant, number, fail, digest } from '../../validators/pet-care.validator.js';
 import { schedulingKey } from '../../validators/employee-scheduling.validator.js';
 import { assertEmployeeSchedulingStorage } from './scheduling-storage.service.js';
+import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 
 const oid = value => new Types.ObjectId(value);
 const view = row => row && ({ ...row, id: String(row._id), expiresAt: row.expiresAt.toISOString() });
 export function createEmployeeScheduleProposalService({ repository, dispatch, clock = Date.now }) {
   const { models, col, uow, eligible, employeeGuard } = repository;
+  const notifications = createSchedulingNotifications({ col, clock });
   const commandId = (customerId, proposalId, key) => digest([customerId, 'CONFIRM_SCHEDULE_PROPOSAL', proposalId, key]);
   const fingerprint = input => digest({ expectedVersion: input.expectedVersion, selectedSlot: input.selectedSlot });
   async function transact(work) {
@@ -88,6 +90,7 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
       await models.EmployeeScheduleCommand.create([{ _id: command, fingerprint: hash, result, createdAt: at }], { session });
       await models.EmployeeScheduleEvent.create([{ type: 'CustomerScheduleConfirmed', actorId: input.customerId, sitterId,
         visitId: proposal.visitId, offerId: String(offer._id), at, detail: { proposalId: input.proposalId, startAt: revised.startAt, endAt: revised.endAt } }], { session });
+      await notifications.publish({ type: 'CustomerScheduleConfirmed', sitterId, visitId: proposal.visitId, offerId: String(offer._id) }, session);
       return result;
     })
   };
@@ -122,6 +125,7 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
         await models.EmployeeScheduleCommand.create([{ _id: command, fingerprint: hash, result, createdAt: new Date(clock()) }], { session });
         await models.EmployeeScheduleEvent.create([{ type: 'ScheduleProposed', actorId: actor.userId, sitterId: record.sitterId,
           visitId, at: new Date(clock()), detail: { proposalId: result.id } }], { session });
+        await notifications.publish({ type: 'ScheduleProposed', sitterId: record.sitterId, visitId, detail: { proposalId: result.id } }, session);
         return result;
       });
     }

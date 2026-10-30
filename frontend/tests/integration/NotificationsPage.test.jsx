@@ -1,6 +1,8 @@
 ﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, jest, test } from '@jest/globals';
-import { NotificationsPage } from '../../src/pages/notifications/NotificationsPage.jsx';
+import { MemoryRouter } from 'react-router-dom';
+import { NotificationsPage as NotificationView } from '../../src/pages/notifications/NotificationsPage.jsx';
+const NotificationsPage = props => <MemoryRouter><NotificationView {...props} /></MemoryRouter>;
 
 const item = {
   id: 'notice-1',

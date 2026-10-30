@@ -6,4 +6,11 @@ This directory contains the recipient-scoped notification domain port. `notifica
 signed scope/filter-bound pagination and snapshot-consistent unread counts.
 Runtime composes the authenticated router; missing list storage is unavailable.
 Checkout writes a booking-created Customer notification in its transaction.
-Other event producers, preferences and web-push integration remain pending.
+`scheduling-notifications.service.js` writes invitation/response/rescheduling
+messages in the domain transaction. `domain-notifications.service.js` handles
+verified payment/reconciliation, payroll events, application decisions and care
+check-in/out. Stable event/recipient ids prevent duplicate messages; rollback
+removes both domain changes and notifications. Account-wide messages use null
+role and remain recipient scoped. No private financial detail is copied into
+notification text. Preferences, email/SMS and web-push delivery remain separate
+provider gates and are not established by the in-app centre.

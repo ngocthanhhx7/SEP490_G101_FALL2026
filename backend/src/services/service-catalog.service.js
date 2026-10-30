@@ -445,6 +445,8 @@ export function createServiceCatalogService({
       policies = map(policyRows),
       latestPolicies = map(latestRows);
     const output = [];
+    const prices = typeof priceProvider.getActivePrices === 'function'
+      ? await priceProvider.getActivePrices(ids.map(String), at) : null;
     for (const service of services) {
       const key = service._id.toString();
       const version = versions.get(key),
@@ -478,7 +480,8 @@ export function createServiceCatalogService({
         state: version.state,
         effectiveAt: version.effectiveAt.toISOString(),
         latestPolicyVersion: latestPolicyVersion?.version ?? 0,
-        policy
+        policy,
+        ...(prices ? { price: prices.get(key) ?? null } : {})
       });
     }
     return output;
