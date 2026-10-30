@@ -1,5 +1,6 @@
 import { ApiError, createApiClient } from './api-client.js';
 import { apiSessionAdapter } from './session-adapter.js';
+import { createPrivateImageApi } from './private-image-api.js';
 
 function fetchFromCurrentRuntime(...args) {
   if (typeof globalThis.fetch !== 'function') throw new ApiError('NETWORK_ERROR');
@@ -143,6 +144,11 @@ export function createSitterApplicationAdminApi({
         throw new ApiError('INVALID_API_PATH');
       }
       return `/api/v1/applications/${applicationId}/documents/${encodeURIComponent(documentId)}`;
+    },
+    readDocument({ applicationId, documentId, signal }) {
+      if (!/^[a-f\d]{24}$/i.test(applicationId)) throw new ApiError('INVALID_RESOURCE_ID', 422);
+      return createPrivateImageApi({ fetchImpl, readPath: id => `/applications/${applicationId}/documents/${id}` })
+        .read(documentId, { signal });
     }
   });
 }

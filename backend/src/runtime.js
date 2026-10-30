@@ -4,12 +4,13 @@ import { connectDatabase } from './config/database.js';
 import { createApp } from './app.js';
 import { startEarningAccrualWorker } from './jobs/earning-accrual.job.js';
 import { startEmployeeDispatchWorker } from './jobs/employee-dispatch.job.js';
+import { startApplicationMailWorker } from './jobs/application-mail.job.js';
 
 export async function startRuntime({ env = process.env, logger = () => {}, ...appOptions } = {}) {
   const config = loadConfig(env);
   const connection = await connectDatabase(config);
   const lifecycle = { draining: false };
-  let server, accrualWorker, dispatchWorker;
+  let server, accrualWorker, dispatchWorker, applicationMailWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
     server = createServer(app);
@@ -21,6 +22,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     });
     if (app.locals.financeSources) accrualWorker = startEarningAccrualWorker({ service: app.locals.financeSources, logger });
     if (app.locals.employeeDispatch) dispatchWorker = startEmployeeDispatchWorker({ service: app.locals.employeeDispatch, logger });
+    if (app.locals.applicationMail) applicationMailWorker = startApplicationMailWorker({ service: app.locals.applicationMail, logger });
   } catch {
     await connection.close();
     throw new Error('HTTP server failed to start');
@@ -33,7 +35,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       let forced = false;
       const timer = setTimeout(() => { forced = true; server.closeAllConnections(); }, config.shutdownTimeoutMs);
       try { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); }
-      finally { clearTimeout(timer); await dispatchWorker?.stop(); await accrualWorker?.stop(); await connection.close(); }
+      finally { clearTimeout(timer); await applicationMailWorker?.stop(); await dispatchWorker?.stop(); await accrualWorker?.stop(); await connection.close(); }
       logger({ event: 'shutdown_complete', forced });
     })();
     return stopping;

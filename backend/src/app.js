@@ -99,6 +99,7 @@ export function createApp({
     .filter(module => module !== null && module !== undefined);
   const sitterApplications = config.auth?.enabled && !suppliedModules.some(module => module.name === 'sitter-applications')
     ? sitterApplicationRuntimeModule(context) : null;
+  app.locals.applicationMail = env.EMAIL_ENABLED === 'true' ? (sitterApplications ?? suppliedModules.find(module => module.name === 'sitter-applications'))?.applicationMail : null;
 
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
     (module) =>

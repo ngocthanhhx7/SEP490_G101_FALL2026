@@ -170,3 +170,19 @@ test('application status OTP is rendered and handed to the SMTP transport', asyn
   expect(await service.send({ ...command, purpose: 'APPLICATION_STATUS' })).toMatchObject({ status: 'ACCEPTED', attempts: 1 });
   expect(transport.sendMail.mock.calls[0][0].text).toContain('APPLICATION_STATUS');
 });
+
+test.each(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'])('branded application mail renders %s without private attachments', async applicationState => {
+  const { service, transport } = fixture();
+  expect(await service.send({ kind: 'SYSTEM', channel: 'EMAIL', to: command.to, operationId: command.operationId,
+    template: 'SITTER_APPLICATION_STATUS', applicationState, webOrigin: 'https://pawworldvn.shop' })).toMatchObject({ status: 'ACCEPTED' });
+  const mail = transport.sendMail.mock.calls[0][0];
+  expect(mail.html).toContain('PawWorld'); expect(mail.html).toContain('https://pawworldvn.shop/sitter/application-status');
+  expect(mail.attachments).toBeUndefined();
+  if (applicationState === 'APPROVED') { expect(mail.subject).toContain('Chúc mừng'); expect(mail.html).toContain('/sign-in'); }
+});
+test.each(['UNKNOWN', 'toString', '__proto__'])('unknown application mail state %s is rejected before transport', async applicationState => {
+  const { service, transport } = fixture();
+  expect(await service.send({ ...command, kind: 'SYSTEM', template: 'SITTER_APPLICATION_STATUS', applicationState, webOrigin: 'https://pawworldvn.shop' }))
+    .toMatchObject({ status: 'FAILED', code: 'INVALID_REQUEST', attempts: 0 });
+  expect(transport.sendMail).not.toHaveBeenCalled();
+});

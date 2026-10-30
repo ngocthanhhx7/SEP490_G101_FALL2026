@@ -46,11 +46,11 @@ export function createApplicationIntakeService({ connection, contactCrypto, medi
       }
       return documents;
     },
-    async createReadCapability({ storageRef, expiresInSeconds }) {
+    async readDocument({ storageRef }) {
       if (!/^[a-f0-9]{64}$/.test(storageRef ?? '')) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Document not found');
       const record = await PrivateImage.findOne({ _id: storageRef, state: 'READY' }).select('+storageRef').lean();
       if (!record) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Document not found');
-      return media.createReadCapability({ storageRef: record.storageRef, expiresInSeconds });
+      return media.read({ storageRef: record.storageRef });
     }
   });
 }

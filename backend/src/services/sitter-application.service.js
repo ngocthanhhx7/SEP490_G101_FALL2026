@@ -175,7 +175,7 @@ function applicationView(application, contactValue, { includePrivate = false } =
 }
 
 export function createSitterApplicationService({ connection, Applicant, User, Audit, DownloadQuota, SitterStatus,
-  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, clock = Date.now }) {
+  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, clock = Date.now }) {
   if (!connection?.transaction || !Applicant || !User || !Audit || !DownloadQuota || !SitterStatus
     || typeof contactCrypto?.lookup !== 'function' || typeof contactCrypto?.encrypt !== 'function'
     || typeof contactCrypto?.decrypt !== 'function' || typeof lookupSecret !== 'string'
@@ -278,6 +278,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           privateDocuments: verifiedDocuments, state: 'PENDING', version: 0,
           trackingCodeDigest, submissionKeyDigest, submissionPayloadDigest
         }], { session });
+        await applicationMail?.enqueue(created, session);
         await Audit.create([{
           actorRoles: [], action: 'APPLICATION_SUBMITTED', resourceId: created._id,
           occurredAt: new Date(now), state: 'PENDING', correlationId: correlationId ?? null
@@ -366,6 +367,14 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       action: 'APPLICATION_VIEWED', resourceId: id, occurredAt: new Date(now), state: application.state,
       correlationId: correlationId ?? null });
     const result = applicationView(application, contactCrypto.decrypt(application.contactCiphertext), { includePrivate: true });
+    const transitions = await Audit.find({ resourceId: id, action: { $in: ['APPLICATION_REVIEW_STARTED', 'APPLICATION_DECIDED'] } })
+      .sort({ occurredAt: 1, _id: 1 }).select('state occurredAt').lean();
+    result.timeline = [{ state: 'PENDING', occurredAt: application.createdAt.toISOString() },
+      ...transitions.map(row => ({ state: row.state, occurredAt: row.occurredAt.toISOString() }))];
+    result.emailNotifications = applicationMail ? (await applicationMail.list(id)).map(row => ({
+      state: row.applicationState, version: row.applicationVersion, deliveryState: row.deliveryState,
+      createdAt: row.createdAt.toISOString(), acceptedAt: row.acceptedAt?.toISOString() ?? null, failureCode: row.failureCode
+    })) : [];
     if (application.provisionedUserId) {
       const sitterStatus = await SitterStatus.findOne({ userId: application.provisionedUserId })
         .select('+statusReason').lean();
@@ -398,12 +407,13 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     try {
       return await connection.transaction(async session => {
         const application = await Applicant.findOneAndUpdate({ _id: id, state: targetState === 'INTERVIEW' ? 'UNDER_REVIEW' : 'PENDING', version: expectedVersion },
-          { $set: { state: targetState }, $inc: { version: 1 } }, { returnDocument: 'after', session });
+          { $set: { state: targetState }, $inc: { version: 1 } }, { returnDocument: 'after', session }).select('+contactCiphertext');
         if (!application) {
           const found = await Applicant.exists({ _id: id }).session(session);
           if (!found) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
           throw new AppError(409, 'VERSION_CONFLICT', 'Application changed before review started');
         }
+        await applicationMail?.enqueue(application, session);
         await Audit.create([{
           actorId: new Types.ObjectId(actor.userId), actorRoles: [...actor.roles], action: 'APPLICATION_REVIEW_STARTED',
           resourceId: id, occurredAt: new Date(now), state: application.state, idempotencyDigest, payloadDigest,
@@ -445,12 +455,13 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     try {
       return await connection.transaction(async session => {
         const current = await Applicant.findOne({ _id: id, state: { $in: ACTIVE_STATES }, version: expectedVersion })
-          .select('+contactLookupKey').session(session).lean();
+          .select('+contactLookupKey +contactCiphertext').session(session).lean();
         if (!current) {
           const found = await Applicant.exists({ _id: id }).session(session);
           if (!found) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
           throw new AppError(409, 'VERSION_CONFLICT', 'Application is no longer awaiting a decision');
         }
+        if (current.state !== 'INTERVIEW') throw new AppError(409, 'APPLICATION_STAGE_REQUIRED', 'Complete review and interview before a decision');
         let user = null;
         if (action === 'APPROVE') {
           if (current.ownerUserId) {
@@ -480,6 +491,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           $inc: { version: 1 }
         }, { returnDocument: 'after', session });
         if (!application) throw new AppError(409, 'VERSION_CONFLICT', 'Application changed before the decision was applied');
+        await applicationMail?.enqueue({ ...current, state, version: application.version }, session);
         await createDomainNotifications({ connection, clock }).application({ applicationId: String(id),
           ownerId: current.ownerUserId ?? user?._id, approved: action === 'APPROVE' }, session);
         await Audit.create([{
@@ -571,12 +583,12 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
   }
 
-  async function documentReadCapability({ applicationId, documentId, actor, correlationId }) {
+  async function readDocument({ applicationId, documentId, actor, correlationId }) {
     assertAdmin(actor);
     if (!Types.ObjectId.isValid(applicationId) || typeof documentId !== 'string' || documentId.length > 128) {
       throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Document not found');
     }
-    if (typeof privateMedia?.createReadCapability !== 'function') {
+    if (typeof privateMedia?.readDocument !== 'function') {
       throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document storage is not configured');
     }
     const id = new Types.ObjectId(applicationId);
@@ -608,16 +620,19 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         if (error?.code !== 11000 || attempt > 0) throw error;
       }
     }
-    const capability = await privateMedia.createReadCapability({ storageRef: document.storageRef, expiresInSeconds: 60 });
-    if (!capability || typeof capability.url !== 'string' || !capability.url.startsWith('https://')) {
+    let content;
+    try { content = await privateMedia.readDocument({ storageRef: document.storageRef }); }
+    catch { throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document storage is unavailable'); }
+    if (!Buffer.isBuffer(content?.body) || content.body.length === 0 || content.body.length > 5 * 1024 * 1024
+      || !['image/jpeg', 'image/png'].includes(content.contentType)) {
       throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document storage is unavailable');
     }
-    return { url: capability.url, expiresAt: capability.expiresAt ?? null };
+    return content;
   }
 
   async function startInterview(input) {
     assertAdmin(input.actor);
     return changeToReview({ ...input, targetState: 'INTERVIEW' });
   }
-  return Object.freeze({ submit, list, get, startReview, startInterview, decide, changeSitterStatus, documentReadCapability });
+  return Object.freeze({ submit, list, get, startReview, startInterview, decide, changeSitterStatus, readDocument });
 }

@@ -110,10 +110,23 @@ test('registration → private upload → application → scoped OTP status → 
   const adminHeaders = { ...base, Cookie: `pwc_session=${adminSession.token}`, 'X-CSRF-Token': adminSession.csrfToken };
   await request(app).get(`/api/v1/applications/${created.body.data.id}`).set(adminHeaders).expect(200)
     .expect(res => expect(res.body.data.employmentType).toBe('FULL_TIME'));
-  await request(app).get(`/api/v1/applications/${created.body.data.id}/documents/${documentId}`).set(adminHeaders).expect(302);
+  await request(app).get(`/api/v1/applications/${created.body.data.id}/documents/${documentId}`).set(adminHeaders).expect(200)
+    .expect(res => { expect(res.headers.location).toBeUndefined(); expect(res.body.equals(png)).toBe(true); });
+  await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-premature-decision' })
+    .send({ action: 'APPROVE', expectedVersion: 0, reason: 'Synthetic premature decision' }).expect(409)
+    .expect(res => expect(res.body.error.code).toBe('APPLICATION_STAGE_REQUIRED'));
+  for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    await request(app).post(`/api/v1/applications/${created.body.data.id}/${stage}`).set(adminHeaders)
+      .set('Idempotency-Key', `synthetic-stage-${stage}`).send({ expectedVersion }).expect(200);
+  }
   await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-approve-0001' })
-    .send({ action: 'APPROVE', expectedVersion: 0, reason: 'Synthetic review completed' }).expect(200)
+    .send({ action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic review completed' }).expect(200)
     .expect(res => expect(res.body.data.userId).toBe(owner.id));
+  const reviewed = await request(app).get(`/api/v1/applications/${created.body.data.id}`).set(adminHeaders).expect(200);
+  expect(reviewed.body.data.timeline.map(row => row.state)).toEqual(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED']);
+  expect(reviewed.body.data.emailNotifications.map(row => row.state)).toEqual(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED']);
+  expect(reviewed.body.data.emailNotifications.every(row => row.deliveryState === 'PENDING')).toBe(true);
+  expect(JSON.stringify(reviewed.body.data.emailNotifications)).not.toMatch(/contactCiphertext|operationId|@/);
   expect(await userModel(connection).countDocuments()).toBe(2);
   await owner.agent.get('/api/v1/me').expect(401);
   clockNow += 61000; // Respect the real resend cooldown before the new login.
@@ -175,8 +188,12 @@ test('owner cooldown survives verified email and identity changes after rejectio
   const sessions = createSessionService({ connection, clock: () => clockNow, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
   let issued;
   await connection.transaction(async session => { issued = await sessions.issueInTransaction(admin, session); });
+  for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    await request(app).post(`/api/v1/applications/${created.body.data.id}/${stage}`).set({ ...base, Cookie: `pwc_session=${issued.token}`, 'X-CSRF-Token': issued.csrfToken })
+      .set('Idempotency-Key', `synthetic-stage-${stage}`).send({ expectedVersion }).expect(200);
+  }
   await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...base, Cookie: `pwc_session=${issued.token}`,
-    'X-CSRF-Token': issued.csrfToken, 'Idempotency-Key': 'synthetic-reject-owner-01' }).send({ action: 'REJECT', expectedVersion: 0, reason: 'Synthetic rejected application' }).expect(200);
+    'X-CSRF-Token': issued.csrfToken, 'Idempotency-Key': 'synthetic-reject-owner-01' }).send({ action: 'REJECT', expectedVersion: 2, reason: 'Synthetic rejected application' }).expect(200);
   const changed = await anotherVerifiedEmail(owner, 'changed@example.test');
   await identityModels(connection).Contact.updateOne({ userId: owner.id, channel: 'EMAIL', lookupKey: createContactCrypto({
     lookupSecret: env.CONTACT_LOOKUP_SECRET, encryptionKey: env.CONTACT_ENCRYPTION_KEY }).lookup('EMAIL', owner.email).lookupKey }, { $set: { state: 'REPLACED' } });

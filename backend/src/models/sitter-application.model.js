@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { applicationMailModel } from './application-mail.model.js';
 
 const STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'];
 
@@ -93,6 +94,7 @@ export function sitterApplicationModels(connection) {
   sitterStatusSchema.index({ userId: 1 }, { unique: true });
 
   return Object.freeze({
+    ApplicationMail: applicationMailModel(connection),
     SitterApplication: connection.models.SitterApplication ?? connection.model('SitterApplication', applicantSchema),
     SitterApplicationAudit: connection.models.SitterApplicationAudit ?? connection.model('SitterApplicationAudit', auditSchema),
     SitterApplicationDownloadQuota: connection.models.SitterApplicationDownloadQuota

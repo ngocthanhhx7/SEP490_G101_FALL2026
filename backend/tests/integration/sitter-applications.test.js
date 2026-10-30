@@ -63,6 +63,14 @@ function submit(appInstance, body, key = 'submit-key-0001') {
     .set('Idempotency-Key', key).send(body);
 }
 
+async function advanceToInterview(instance, admin, applicationId) {
+  for (const [path, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    await request(instance).post(`/api/v1/applications/${applicationId}/${path}`)
+      .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
+      .set('Idempotency-Key', `stage-${path}-${applicationId}`).send({ expectedVersion }).expect(200);
+  }
+}
+
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' },
     replSet: { count: 1, storageEngine: 'wiredTiger' } });
@@ -85,7 +93,7 @@ beforeEach(async () => {
   await User.deleteMany({});
   mediaPort = {
     verifyApplicantDocuments: async ({ documents }) => documents,
-    createReadCapability: async ({ storageRef }) => ({ url: `https://private.example.test/${storageRef}`, expiresAt: new Date(clockNow + 60_000).toISOString() })
+    readDocument: async () => ({ body: Buffer.from('synthetic-private-image'), contentType: 'image/png' })
   };
 });
 
@@ -130,7 +138,7 @@ describe('P16 public sitter application submission', () => {
   });
 
   test('requires provider verification for private document references', async () => {
-    await submit(app({ privateMedia: { createReadCapability: mediaPort.createReadCapability } }), applicationBody()).expect(503);
+    await submit(app({ privateMedia: { readDocument: mediaPort.readDocument } }), applicationBody()).expect(503);
     expect(await sitterApplicationModels(connection).SitterApplication.countDocuments({})).toBe(0);
   });
 
@@ -168,10 +176,11 @@ describe('P16 public sitter application submission', () => {
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
+    await advanceToInterview(application, admin, submitted.body.data.id);
     await request(application).post(`/api/v1/applications/${submitted.body.data.id}/decisions`)
       .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .set('Idempotency-Key', 'decision-reject-0001')
-      .send({ action: 'REJECT', reason: 'Cần bổ sung hồ sơ kinh nghiệm.', expectedVersion: 0 }).expect(200);
+      .send({ action: 'REJECT', reason: 'Cần bổ sung hồ sơ kinh nghiệm.', expectedVersion: 2 }).expect(200);
     const eligibleAt = clockNow + 30 * 24 * 60 * 60 * 1000;
     await submit(application, applicationBody(), 'submit-key-after-reject').expect(409);
     clockNow = eligibleAt;
@@ -210,11 +219,12 @@ describe('P16 Admin application review and private documents', () => {
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
+    await advanceToInterview(application, admin, submitted.body.data.id);
     const path = `/api/v1/applications/${submitted.body.data.id}/decisions`;
     const sendDecision = body => request(application).post(path).set('Cookie', admin.cookie)
       .set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .set('Idempotency-Key', 'decision-approve-001').send(body);
-    const decision = { action: 'APPROVE', reason: 'Phỏng vấn và hồ sơ đạt yêu cầu.', expectedVersion: 0 };
+    const decision = { action: 'APPROVE', reason: 'Phỏng vấn và hồ sơ đạt yêu cầu.', expectedVersion: 2 };
     const first = await sendDecision(decision).expect(200);
     expect(first.body.data).toMatchObject({ state: 'APPROVED', replayed: false, onboarding: 'CONTACT_VERIFICATION_PENDING' });
     const sitter = await User.findOne({ roles: ['PET_SITTER'], state: 'ACTIVE' });
@@ -236,10 +246,11 @@ describe('P16 Admin application review and private documents', () => {
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
+    await advanceToInterview(application, admin, submitted.body.data.id);
     await request(application).post(`/api/v1/applications/${submitted.body.data.id}/decisions`)
       .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .set('Idempotency-Key', 'decision-approve-status')
-      .send({ action: 'APPROVE', reason: 'Hồ sơ đạt yêu cầu.', expectedVersion: 0 }).expect(200);
+      .send({ action: 'APPROVE', reason: 'Hồ sơ đạt yêu cầu.', expectedVersion: 2 }).expect(200);
 
     const sitter = await User.findOne({ roles: ['PET_SITTER'] });
     const sessionService = createSessionService({ connection, User, models,
@@ -277,10 +288,11 @@ describe('P16 Admin application review and private documents', () => {
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
+    await advanceToInterview(application, admin, submitted.body.data.id);
     const path = `/api/v1/applications/${submitted.body.data.id}/decisions`;
     const decide = (key, action) => request(application).post(path).set('Cookie', admin.cookie)
       .set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1').set('Idempotency-Key', key)
-      .send({ action, reason: 'Không phù hợp tiêu chí hiện tại.', expectedVersion: 0 });
+      .send({ action, reason: 'Không phù hợp tiêu chí hiện tại.', expectedVersion: 2 });
     const responses = await Promise.all([decide('decision-race-0001', 'REJECT'), decide('decision-race-0002', 'APPROVE')]);
     expect(responses.map(response => response.status)).toEqual(expect.arrayContaining([200, 409]));
     const saved = await sitterApplicationModels(connection).SitterApplication.findById(submitted.body.data.id).lean();
@@ -289,7 +301,7 @@ describe('P16 Admin application review and private documents', () => {
   });
 
   test('requires Admin for private documents, audits access, returns no-store short-lived capabilities and enforces a view limit', async () => {
-    const mediaSpy = jest.spyOn(mediaPort, 'createReadCapability');
+    const mediaSpy = jest.spyOn(mediaPort, 'readDocument');
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
@@ -299,15 +311,17 @@ describe('P16 Admin application review and private documents', () => {
     expect(mediaSpy).not.toHaveBeenCalled();
 
     const first = await request(application).get(path).set('Cookie', admin.cookie);
-    expect(first.status).toBe(302);
-    expect(first.headers.location).toBe(`https://private.example.test/${IDENTITY_REF}`);
+    expect(first.status).toBe(200);
+    expect(first.headers.location).toBeUndefined();
+    expect(first.headers['content-type']).toContain('image/png');
+    expect(first.body.equals(Buffer.from('synthetic-private-image'))).toBe(true);
     expect(first.headers['cache-control']).toMatch(/no-store/);
     expect(first.headers['referrer-policy']).toBe('no-referrer');
     expect(mediaSpy).toHaveBeenCalledTimes(1);
     expect(await sitterApplicationModels(connection).SitterApplicationAudit.countDocuments({
       resourceId: submitted.body.data.id, action: 'APPLICATION_DOCUMENT_REQUESTED'
     })).toBe(1);
-    for (let index = 1; index < 20; index += 1) await request(application).get(path).set('Cookie', admin.cookie).expect(302);
+    for (let index = 1; index < 20; index += 1) await request(application).get(path).set('Cookie', admin.cookie).expect(200);
     await request(application).get(path).set('Cookie', admin.cookie).expect(429);
     expect(mediaSpy).toHaveBeenCalledTimes(20);
   });
@@ -483,4 +497,15 @@ test('Admin overview counts all applications while filters and cursor pagination
   await request(application).get('/api/v1/applications?employmentType=INVALID').set('Cookie', admin.cookie).expect(422);
   await request(application).get('/api/v1/applications?employmentType=PART_TIME&limit=1&cursor=' + encodeURIComponent(first.nextCursor))
     .set('Cookie', admin.cookie).expect(422);
+});
+
+test('private document provider errors return a controlled JSON error instead of redirecting to XML', async () => {
+  const application = app({ privateMedia: { ...mediaPort, readDocument: async () => { throw Error('<Error>AccessDenied</Error>'); } } });
+  const submitted = await submit(application, applicationBody()).expect(201);
+  const admin = await login('ADMIN');
+  const path = `/api/v1/applications/${submitted.body.data.id}/documents/identity-document`;
+  const failed = await request(application).get(path).set('Cookie', admin.cookie).expect(503);
+  expect(failed.headers.location).toBeUndefined();
+  expect(failed.body.error.code).toBe('PROVIDER_UNAVAILABLE');
+  expect(JSON.stringify(failed.body)).not.toMatch(/AccessDenied|document-ref|cloudflarestorage/);
 });

@@ -70,3 +70,23 @@ Kiểm tra trình duyệt với adapter mặc định phát hiện lệnh duyệ
 - Workspace tuyển dụng có thống kê toàn bộ hồ sơ theo trạng thái từ backend, bộ lọc tên/trạng thái/hình thức, thông tin dịch vụ/khu vực/ngày nộp/cập nhật, nút mở chi tiết và cursor pagination tiến/lùi. Tổng hồ sơ phù hợp không thay đổi theo cursor; thống kê tổng tách khỏi bộ lọc. Không tính tổng bằng số hàng của trang hiện tại.
 - Chi tiết giữ dashboard, thêm đường quay lại danh sách, tiến trình hiện tại, ngày nộp/cập nhật và ghi chú phỏng vấn đã lưu; tài liệu riêng tư vẫn qua authorization/audit.
 - Browser fixture desktop1440/mobile390/320 PASS; hình minh họa dùng dữ liệu tổng hợp, không phải số hồ sơ production. Provider delivery thật chưa được xác nhận; không gửi tin mới tự động để thử.
+
+## Sửa giấy tờ và hoàn thiện bốn bước/email
+
+- Phản ánh XML AccessDenied được đối chiếu: đọc cùng ảnh từ VPS qua SDK thành công,
+  signed URL gọi từ VPS200; không khẳng định nguyên nhân IP policy cụ thể. Đổi sang
+  API đọc ảnh có quyền, giữ bucket riêng tư, không thay env/quyền R2. Không lưu hay
+  sao chép giấy tờ thật vào Git hoặc artifact.
+- Người dùng xác nhận cần đủ bốn bước và email mỗi trạng thái. Quyết định sớm bị
+  chặn ở backend; UI chỉ mở hành động phù hợp, có thời gian audit và kết quả email.
+- Mail có thiết kế PawWorld, HTML và plain text, CTA an toàn và thư chúc mừng khi
+  được cấp quyền. Queue commit cùng trạng thái; SMTP chạy sau commit, kiểm tra lại
+  email đã xác minh, retry có giới hạn, kết quả không chắc không gửi lại mù quáng.
+- Kiểm tra source: backend full 121 suites / 1049 tests, frontend 95 suites / 593 tests đạt;
+  lint hai package/architecture/build đạt. Integration kiểm tra binary read,
+  guard/quota/audit, đủ bước, queue/replay/rollback/contact replacement/retry,
+  runtime worker và template. Provider SMTP trong test là tổng hợp, không gửi thật.
+- Browser production build local 1440/390/320 đạt cho xem ảnh riêng tư, provider lỗi
+  rồi thử lại, đủ bước tới cả Duyệt và Từ chối; không có request trình duyệt sang R2,
+  JS error hoặc overflow. Chín ảnh xem trước email đạt kiểm tra desktop/mobile.
+  Ảnh giấy tờ/browser/mẫu mail đều là dữ liệu kiểm thử. Inbox thật chưa xác nhận.
