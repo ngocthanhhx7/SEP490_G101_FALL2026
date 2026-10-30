@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, expect, test } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
 import sharp from 'sharp';
@@ -206,9 +206,19 @@ test('concurrent commands with distinct verified emails and identities create at
   const owner = await register();
   const second = await anotherVerifiedEmail(owner, 'second@example.test');
   const documentId = await upload(owner);
-  const results = await Promise.all([submit(owner, application(owner, documentId), 'concurrent-owner-command-01'),
-    submit(second, { ...application(second, documentId), identityNumber: 'SECOND12345678' }, 'concurrent-owner-command-02')]);
-  expect(results.map(result => result.status).sort()).toEqual([201, 409]);
+  const failures = [];
+  const transaction = connection.transaction.bind(connection);
+  const capture = jest.spyOn(connection, 'transaction').mockImplementation(async (...args) => {
+    try { return await transaction(...args); }
+    catch (error) { failures.push({ name: error.name, code: error.code, message: error.message }); throw error; }
+  });
+  let results;
+  try {
+    results = await Promise.all([submit(owner, application(owner, documentId), 'concurrent-owner-command-01'),
+      submit(second, { ...application(second, documentId), identityNumber: 'SECOND12345678' }, 'concurrent-owner-command-02')]);
+  } finally { capture.mockRestore(); }
+  const statuses = results.map(result => result.status).sort();
+  expect(statuses.includes(500) ? { statuses, failures } : statuses).toEqual([201, 409]);
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
 });
 
