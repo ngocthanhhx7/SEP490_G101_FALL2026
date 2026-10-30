@@ -277,3 +277,6 @@
  .pwc-public-header .pwc-avatar-menu__panel,
  .pwc-public-header .pwc-avatar-menu__error { left: 16px; right: 16px; width: auto; }
 }
+.pwc-public-root .pwc-public-brand .pwc-brand-care, .pwc-public-root .pwc-footer-wordmark .pwc-brand-care { color: #8b65a4; font: inherit; }
+.pwc-public-brand > span, .pwc-footer-wordmark { white-space: nowrap; }
+@media (max-width: 400px) { .pwc-public-root .pwc-public-brand > span { font-size: 22px; } .pwc-public-root .pwc-public-brand { gap: 8px; } }
