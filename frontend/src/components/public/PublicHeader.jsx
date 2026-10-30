@@ -53,10 +53,10 @@ export function PublicHeader({ notificationTo } = {}) {
           aria-current={location.pathname === to && !location.hash ? 'page' : undefined}>{label}</Link>)}
       </nav>
       <div className="pwc-header-actions">
-        {notificationTo && session.status === 'authenticated' && <NotificationBell to={notificationTo} />}
+        {session.status === 'authenticated' && <NotificationBell to={notificationTo} />}
         {session.status === 'authenticated'
           ? <AvatarMenu user={session.user} role={role} iconOnly customerNavigation={role === 'CUSTOMER'}
-              notificationTo={role === 'CUSTOMER' ? '/account/notifications' : undefined}
+              notificationTo="/account/notifications"
               onLogout={async () => { await session.logout(); navigate('/', { replace: true }); }} />
           : <><Link className="pwc-auth-login" to="/sign-in" onClick={closeMenu}>Đăng nhập</Link>
               <Link className="pwc-auth-register" to="/register" onClick={closeMenu}>Đăng ký</Link></>}

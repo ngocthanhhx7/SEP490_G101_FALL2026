@@ -106,16 +106,19 @@ function PublicProfileRoute({ review = false }) {
 
 const navigationByRole = {
   ADMIN: [
-    ['Tổng quan', '/admin/dashboard'], ['Người chăm sóc', '/admin/sitters'],
-    ['Tài khoản', '/account'],
-    ['Người dùng', '/admin/users'],
-    ['Quản lý lương', '/admin/payroll'],
-    ['Điều phối ca', '/staff/dispatch'],
-    ['Dịch vụ và giá', '/admin/services'],
-    ['Cấu hình', '/admin/system-settings'],
-    ['Hồ sơ ứng tuyển', '/admin/sitter-applications'],
-    ['Duyệt tất toán', '/admin/settlements'],
-    ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Thông báo', '/account/notifications']
+    ['Tổng quan', '/admin/dashboard', 'Công việc'],
+    ['Điều phối ca', '/staff/dispatch', 'Công việc'],
+    ['Người chăm sóc', '/admin/sitters', 'Nhân sự & hồ sơ'],
+    ['Người dùng', '/admin/users', 'Nhân sự & hồ sơ'],
+    ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
+    ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
+    ['Quản lý lương', '/admin/payroll', 'Tài chính'],
+    ['Duyệt tất toán', '/admin/settlements', 'Tài chính'],
+    ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
+    ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
+    ['Tài khoản của tôi', '/account', 'Cá nhân'],
+    ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
+    ['Thông báo', '/account/notifications', 'Cá nhân']
   ],
   CUSTOMER: [
     ['Hồ sơ', '/account/profile', 'Tài khoản của tôi'],
@@ -129,27 +132,36 @@ const navigationByRole = {
     ['Tìm sitter phù hợp', '/account/sitter-recommendations', 'Khám phá']
   ],
   PET_SITTER: [
-    ['Công việc của tôi', '/sitter'], ['Hồ sơ', '/sitter/profile'],
-    ['Tài khoản', '/account'],
-    ['Lịch làm việc', '/sitter/availability'],
-    ['Khu vực làm việc', '/sitter/work-areas'],
-    ['Lời mời nhận việc', '/sitter/invitations'],
-    ['Lương và tạm ứng', '/sitter/payroll'],
-    ['Hồ sơ công khai', '/sitter/public-profile'], ['Thông báo', '/account/notifications']
+    ['Công việc của tôi', '/sitter', 'Công việc'],
+    ['Lời mời nhận việc', '/sitter/invitations', 'Công việc'],
+    ['Lịch làm việc', '/sitter/availability', 'Công việc'],
+    ['Khu vực làm việc', '/sitter/work-areas', 'Công việc'],
+    ['Lương và tạm ứng', '/sitter/payroll', 'Tài chính'],
+    ['Hồ sơ người chăm sóc', '/sitter/profile', 'Hồ sơ của tôi'],
+    ['Hồ sơ công khai', '/sitter/public-profile', 'Hồ sơ của tôi'],
+    ['Tài khoản của tôi', '/account', 'Cá nhân'],
+    ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
+    ['Thông báo', '/account/notifications', 'Cá nhân']
   ],
-  STAFF: [['Tổng quan', '/staff'], ['Điều phối ca', '/staff/dispatch'], ['Người chăm sóc', '/staff/sitters'], ['Hồ sơ công khai', '/staff/sitter-profiles'], ['Thông báo', '/account/notifications'], ['Tài khoản', '/account']]
+  STAFF: [
+    ['Tổng quan', '/staff', 'Công việc'],
+    ['Điều phối ca', '/staff/dispatch', 'Công việc'],
+    ['Người chăm sóc', '/staff/sitters', 'Nhân sự & hồ sơ'],
+    ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
+    ['Tài khoản của tôi', '/account', 'Cá nhân'],
+    ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
+    ['Thông báo', '/account/notifications', 'Cá nhân']
+  ]
 };
-Object.entries(navigationByRole).filter(([role]) => role !== 'CUSTOMER').forEach(([, items]) => {
-  items.splice(1, 0, ['Cài đặt', '/account/settings']);
-});
 function Workspace({ role }) {
   const { user } = useSession();
+  const shellRole = role === 'STAFF' && (user?.roles || [user?.role]).includes('ADMIN') ? 'ADMIN' : role;
   return (
     <RoleDashboardLayout
       key={user?.id}
-      role={role}
+      role={shellRole}
       notificationTo="/account/notifications"
-      navigationItems={(navigationByRole[role] || []).map(([label, to, group]) => ({
+      navigationItems={(navigationByRole[shellRole] || []).map(([label, to, group]) => ({
         label,
         to,
         group,
