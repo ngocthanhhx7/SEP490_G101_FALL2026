@@ -1,16 +1,87 @@
-.sign-in-page { display: grid; place-items: center; min-height: 55vh; padding: var(--pwc-space-4); }
-.sign-in-card { width: min(100%, 28rem); padding: var(--pwc-space-8); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); background: var(--pwc-surface); }
-.sign-in-eyebrow { margin: 0 0 var(--pwc-space-2); color: var(--pwc-ink); font-size: .8rem; font-weight: 700; letter-spacing: .08em; }
-.sign-in-card h1 { margin: 0; }
-.sign-in-description { margin-block: var(--pwc-space-2) var(--pwc-space-6); }
-.sign-in-channel { display: flex; gap: var(--pwc-space-4); margin: 0 0 var(--pwc-space-4); border: 0; padding: 0; }
-.sign-in-channel legend { width: 100%; margin-bottom: var(--pwc-space-2); font-weight: 700; }
-.sign-in-channel label { display: inline-flex; align-items: center; gap: .4rem; }
-.sign-in-field { display: grid; gap: .4rem; margin-bottom: var(--pwc-space-4); font-weight: 700; }
-.sign-in-field input { min-height: var(--pwc-target); padding: .65rem .75rem; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); font: inherit; }
-.sign-in-card form > button { width: 100%; min-height: var(--pwc-target); border: 0; border-radius: var(--pwc-radius-control); background: var(--pwc-ink); color: var(--pwc-cream); font: inherit; font-weight: 700; cursor: pointer; }
+.sign-in-page,
+.pwc-public-root .sign-in-page {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  margin: 0;
+  min-height: 760px;
+  padding: 72px 24px 88px;
+  overflow: hidden;
+  background: #f0dbff;
+}
+.sign-in-card,
+.pwc-public-root .sign-in-card {
+  position: relative;
+  width: min(100%, 480px);
+  max-width: 480px;
+  padding: 44px 48px 40px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--pwc-surface);
+  box-shadow: none;
+  color: #584235;
+}
+.sign-in-eyebrow { margin: 0 0 14px; text-align: center; color: var(--pwc-ink); font-size: 11px; font-weight: 800; letter-spacing: .12em; }
+.sign-in-card h1 { margin: 0; color: #1c1b1b; font: 400 clamp(44px, 5vw, 60px)/1 var(--pwc-font-display); text-align: center; letter-spacing: -1.5px; }
+.sign-in-description { margin: 22px 0 28px; text-align: center; font-size: 15px; line-height: 1.6; color: #665a6c; }
+.sign-in-channel { display: flex; gap: 12px; margin: 0 0 24px; border: 0; padding: 0; min-width: 0; }
+.sign-in-channel legend { margin-bottom: 10px; font-size: 13px; font-weight: 800; text-transform: uppercase; }
+.sign-in-channel label { display: flex; flex: 1; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 1px solid #e0d6e7; border-radius: 12px; cursor: pointer; font-weight: 700; }
+.sign-in-channel label:has(input:checked) { border-color: var(--pwc-ink); background: #f7effd; color: var(--pwc-ink); }
+.sign-in-channel input { margin: 0; width: 16px; height: 16px; accent-color: var(--pwc-ink); }
+.sign-in-field { display: grid; gap: 8px; margin-bottom: 20px; min-width: 0; font-size: 14px; font-weight: 700; }
+.sign-in-field > span { text-transform: uppercase; }
+.sign-in-field input { width: 100%; min-width: 0; min-height: 56px; padding: 14px 16px; border: 1px solid transparent; border-radius: 16px; background: #dcf2e8; color: #35283d; font: 400 18px/1.5 var(--pwc-font-body); }
+.sign-in-field input::placeholder { color: #72766e; opacity: 1; }
+.sign-in-field input[aria-invalid='true'] { border-color: var(--pwc-error); }
+.sign-in-field input.sign-in-otp { text-align: center; letter-spacing: .4em; font-size: 24px; font-weight: 800; }
+.sign-in-card form > button { width: 100%; min-height: 58px; margin-top: 4px; border: 0; border-radius: 74px; background: #ffcd34; color: #171717; font: 800 14px/1.5 var(--pwc-font-body); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+.sign-in-card form > button:hover:not(:disabled) { background: var(--pwc-sun-hover); }
 .sign-in-card button:disabled { cursor: not-allowed; opacity: .6; }
-.sign-in-error { margin: 0 0 var(--pwc-space-3); color: var(--pwc-error); }
-.sign-in-sent { overflow-wrap: anywhere; }
-.sign-in-actions { display: flex; justify-content: space-between; gap: var(--pwc-space-3); margin-top: var(--pwc-space-3); }
-.sign-in-link { border: 0; background: transparent; color: var(--pwc-ink); text-decoration: underline; cursor: pointer; font: inherit; }
+.sign-in-card :is(button, input, a):focus-visible { outline: 3px solid var(--pwc-focus); outline-offset: 4px; }
+.sign-in-error { margin: 0 0 16px; padding: 12px; border-radius: 10px; background: var(--pwc-error-surface); color: var(--pwc-error); font-size: 14px; }
+.sign-in-sent { overflow-wrap: anywhere; font-size: 14px; line-height: 1.6; margin: 0 0 22px; }
+.sign-in-contact-hint { margin: -8px 0 20px; color: #665a6c; font-size: 13px; line-height: 1.6; }
+.sign-in-actions { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.sign-in-link { min-height: 44px; padding: 4px 0; border: 0; background: transparent; color: var(--pwc-ink); text-decoration: underline; cursor: pointer; font: inherit; font-size: 14px; }
+.sign-in-remember { display: flex; align-items: start; gap: 10px; font-size: 14px; line-height: 1.6; margin: 20px 0 8px; }
+.sign-in-remember input { width: 20px; height: 20px; flex: none; accent-color: var(--pwc-ink); }
+.sign-in-trust-hint { font-size: 12px; line-height: 1.6; color: #665a6c; margin: 0 0 20px; }
+.sign-in-register { margin: 30px 0 0; padding-top: 26px; border-top: 1px solid #eee6f1; text-align: center; font-size: 16px; line-height: 1.8; }
+.sign-in-register a, .pwc-public-root .sign-in-register a { color: #994700; font-weight: 800; text-decoration: underline; text-underline-offset: 5px; white-space: nowrap; }
+.sign-in-paw { position: absolute; z-index: -1; pointer-events: none; }
+.sign-in-paw--left { top: 90px; left: -36px; transform: rotate(-12deg); }
+.sign-in-paw--right { right: -60px; bottom: 38px; transform: rotate(12deg); }
+@media (max-width: 600px) {
+  .sign-in-page, .pwc-public-root .sign-in-page { min-height: 0; padding: 44px 16px 56px; }
+  .sign-in-card, .pwc-public-root .sign-in-card { padding: 36px 24px 30px; }
+  .sign-in-card h1 { font-size: 46px; }
+  .sign-in-register { font-size: 14px; }
+  .sign-in-paw { opacity: .45; }
+}
+.sign-in-tape { position: absolute; pointer-events: none; display: grid; place-items: center; width: 206px; height: 190px; transform: scale(.8); transform-origin: center; }
+.sign-in-tape--top { top: -60px; left: -70px; }
+.sign-in-tape--bottom { bottom: -64px; right: -70px; }
+.sign-in-tape img { position: absolute; max-width: none; }
+.sign-in-tape-pattern { position: absolute; inset: 0; mask-repeat: no-repeat; mask-mode: alpha; }
+.sign-in-tape-cat { position: relative; display: block; width: 49.355px; height: 230.717px; transform: rotate(48.7deg); }
+.sign-in-tape-cat .sign-in-tape-base { top: 11.7px; left: 0; }
+.sign-in-tape-cat .sign-in-tape-pattern { mask-image: url('/assets/sign-in/cat-mask.svg'); mask-size: 49.3634px 201.751px; mask-position: 0 11.7px; }
+.sign-in-tape-cat .sign-in-tape-pattern img { top: 0; left: 4.63px; }
+.sign-in-tape-heart { position: relative; display: block; width: 229.4px; height: 87.01px; transform: rotate(-44.46deg); }
+.sign-in-tape-heart .sign-in-tape-base { top: 9.38px; left: 11.45px; }
+.sign-in-tape-heart .sign-in-tape-pattern { mask-image: url('/assets/sign-in/heart-mask.svg'); mask-size: 190.7px 66.35px; mask-position: 11.45px 9.38px; }
+.sign-in-tape-heart .sign-in-tape-pattern img { top: 0; left: 0; }
+@media (max-width: 600px) {
+  .sign-in-tape { transform: scale(.55); }
+  .sign-in-tape--top { top: -62px; left: -70px; }
+  .sign-in-tape--bottom { bottom: -64px; right: -70px; }
+}
+
+@media (max-width: 360px) {
+  .sign-in-card h1 { font-size: 38px; }
+  .sign-in-eyebrow { font-size: 9px; }
+  .sign-in-tape--top { top: -70px; left: -78px; }
+}

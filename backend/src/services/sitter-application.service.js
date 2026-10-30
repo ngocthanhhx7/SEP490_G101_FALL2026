@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { canonicalizeContact } from './contact-crypto.service.js';
 import { AppError } from '../utils/app-error.js';
+import { identityModels } from '../models/identity.model.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REAPPLY_DELAY_MS = 30 * DAY_MS;
@@ -161,7 +162,7 @@ function applicationView(application, contactValue, { includePrivate = false } =
 }
 
 export function createSitterApplicationService({ connection, Applicant, User, Audit, DownloadQuota, SitterStatus,
-  contactCrypto, privateMedia, lookupSecret, cursorSecret, clock = Date.now }) {
+  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, clock = Date.now }) {
   if (!connection?.transaction || !Applicant || !User || !Audit || !DownloadQuota || !SitterStatus
     || typeof contactCrypto?.lookup !== 'function' || typeof contactCrypto?.encrypt !== 'function'
     || typeof contactCrypto?.decrypt !== 'function' || typeof lookupSecret !== 'string'
@@ -171,10 +172,10 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
   }
   const cursors = cursorCodec(cursorSecret);
 
-  async function submit({ body, idempotencyKey, correlationId }) {
+  async function submit({ body, idempotencyKey, correlationId, actor }) {
     if (!body || typeof body !== 'object' || Array.isArray(body)
       || Object.keys(body).some(key => !['displayName', 'contactChannel', 'contactValue', 'dateOfBirth',
-        'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents'].includes(key))) invalid();
+        'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'policyVersions'].includes(key))) invalid();
     const displayName = safeText(body.displayName, { max: 100, field: 'displayName' });
     const contactChannel = body.contactChannel;
     const contactValue = canonicalizeContact(contactChannel, body.contactValue);
@@ -197,12 +198,16 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     const normalizedPayload = {
       displayName, contactChannel, contactLookupKey: contact.lookupKey, identityLookupKey,
       dateOfBirth: body.dateOfBirth, experience, requestedServices, workAreas,
+      ...(registrationPolicyService ? { policyVersions: body.policyVersions } : {}),
       documents: documents.map(({ documentId, documentType, storageRef }) => ({ documentId, documentType, storageRef }))
     };
     const submissionPayloadDigest = hashPayload(lookupSecret, normalizedPayload);
 
     const priorSubmission = await Applicant.findOne({ submissionKeyDigest }).select('+submissionPayloadDigest').lean();
     if (priorSubmission) {
+      if (priorSubmission.ownerUserId && priorSubmission.ownerUserId.toString() !== actor?.userId) {
+        throw new AppError(403, 'FORBIDDEN', 'Application does not belong to this applicant');
+      }
       if (!sameDigest(priorSubmission.submissionPayloadDigest, submissionPayloadDigest)) {
         throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
       }
@@ -225,7 +230,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document storage is not configured');
     }
     const verifiedDocuments = await privateMedia.verifyApplicantDocuments({
-      documents, contactLookupKey: contact.lookupKey, identityLookupKey
+      documents, contactLookupKey: contact.lookupKey, identityLookupKey, actor
     });
     if (!Array.isArray(verifiedDocuments) || verifiedDocuments.length !== documents.length
       || verifiedDocuments.some(document => !documents.some(input => input.documentId === document.documentId
@@ -235,7 +240,18 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
 
     try {
       const application = await connection.transaction(async session => {
+        const policyConsents = registrationPolicyService
+          ? await registrationPolicyService.validateAndBuildReceipt({ policyVersions: body.policyVersions, session, now }) : [];
+        if (actor?.userId) {
+          const { Contact } = identityModels(connection);
+          const verified = await Contact.exists({ userId: actor.userId, channel: contactChannel,
+            lookupKey: contact.lookupKey, state: 'VERIFIED' }).session(session);
+          const owner = await User.exists({ _id: actor.userId, state: 'ACTIVE', roles: ['CUSTOMER'], synthetic: false }).session(session);
+          if (!verified || !owner) throw new AppError(403, 'FORBIDDEN', 'Applicant account or contact is no longer eligible');
+        }
         const [created] = await Applicant.create([{
+          ownerUserId: actor?.userId ?? null,
+          policyConsents,
           displayName, contactChannel, contactCiphertext: contactCrypto.encrypt(contact.canonicalValue),
           contactLookupKey: contact.lookupKey, identityLookupKey,
           activePendingContactKey: contact.lookupKey, activePendingIdentityKey: identityLookupKey,
@@ -254,6 +270,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     } catch (error) {
       const replay = await Applicant.findOne({ submissionKeyDigest }).select('+submissionPayloadDigest').lean();
       if (replay) {
+        if (replay.ownerUserId && replay.ownerUserId.toString() !== actor?.userId) {
+          throw new AppError(403, 'FORBIDDEN', 'Application does not belong to this applicant');
+        }
         if (!sameDigest(replay.submissionPayloadDigest, submissionPayloadDigest)) {
           throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
         }
@@ -398,7 +417,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     try {
       return await connection.transaction(async session => {
         const current = await Applicant.findOne({ _id: id, state: { $in: ACTIVE_STATES }, version: expectedVersion })
-          .session(session).lean();
+          .select('+contactLookupKey').session(session).lean();
         if (!current) {
           const found = await Applicant.exists({ _id: id }).session(session);
           if (!found) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
@@ -406,9 +425,19 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         }
         let user = null;
         if (action === 'APPROVE') {
-          [user] = await User.create([{
-            displayName: current.displayName, roles: ['PET_SITTER'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
-          }], { session });
+          if (current.ownerUserId) {
+            const { Contact } = identityModels(connection);
+            const verifiedContact = await Contact.exists({ userId: current.ownerUserId, channel: current.contactChannel,
+              lookupKey: current.contactLookupKey, state: 'VERIFIED' }).session(session);
+            if (!verifiedContact) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Applicant contact is no longer verified');
+            user = await User.findOneAndUpdate({ _id: current.ownerUserId, state: 'ACTIVE', roles: ['CUSTOMER'], synthetic: false },
+              { $addToSet: { roles: 'PET_SITTER' }, $inc: { authEpoch: 1, version: 1 } }, { returnDocument: 'after', session });
+            if (!user) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Applicant account is no longer eligible');
+          } else {
+            [user] = await User.create([{
+              displayName: current.displayName, roles: ['PET_SITTER'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+            }], { session });
+          }
           await SitterStatus.create([{
             userId: user._id, status: 'ACTIVE', statusReason: null, changedAt: new Date(now), version: 0
           }], { session });

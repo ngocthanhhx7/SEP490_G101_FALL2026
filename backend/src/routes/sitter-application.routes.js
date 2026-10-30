@@ -11,6 +11,9 @@ import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { createSitterApplicationService } from '../services/sitter-application.service.js';
 import { AppError } from '../utils/app-error.js';
+import { createApplicationIntakeService } from '../services/applications/application-intake.service.js';
+import { loadR2Config } from '../config/r2.js';
+import { createRegistrationPolicyService } from '../services/registration-policy.service.js';
 
 function requireSameOrigin(req, _res, next) {
   const origin = req.get('origin');
@@ -39,7 +42,9 @@ export function sitterApplicationModule({
   config,
   connection,
   ports,
-  clock = Date.now
+  clock = Date.now,
+  authenticatedSubmission = false,
+  uploadsAvailable = false
 } = {}) {
   if (!config?.auth?.enabled || !connection || !ports?.privateMedia) {
     throw new TypeError(
@@ -47,6 +52,12 @@ export function sitterApplicationModule({
     );
   }
   const models = sitterApplicationModels(connection);
+  const contactCrypto = createContactCrypto({
+    lookupSecret: config.auth.contactLookupSecret,
+    encryptionKey: config.auth.contactEncryptionKey
+  });
+  const intake = authenticatedSubmission ? createApplicationIntakeService({ connection, contactCrypto,
+    media: ports.privateMedia, secret: config.auth.contactLookupSecret, uploadsAvailable }) : null;
   const service = createSitterApplicationService({
     connection,
     Applicant: models.SitterApplication,
@@ -54,11 +65,9 @@ export function sitterApplicationModule({
     Audit: models.SitterApplicationAudit,
     DownloadQuota: models.SitterApplicationDownloadQuota,
     SitterStatus: models.SitterStatus,
-    contactCrypto: createContactCrypto({
-      lookupSecret: config.auth.contactLookupSecret,
-      encryptionKey: config.auth.contactEncryptionKey
-    }),
-    privateMedia: ports.privateMedia,
+    contactCrypto,
+    privateMedia: intake ?? ports.privateMedia,
+    registrationPolicyService: authenticatedSubmission ? createRegistrationPolicyService({ connection, clock }) : undefined,
     lookupSecret: config.auth.contactLookupSecret,
     cursorSecret: config.auth.tokenSecret,
     clock
@@ -75,10 +84,14 @@ export function sitterApplicationModule({
   ];
   const csrf = requireCsrf(sessionService);
   const router = Router();
+  router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
+  if (intake) router.get('/intake', requireSession(sessionService, { clock }),
+    createSitterApplicationController({ intake }).getIntake);
 
   router.post(
     '/',
     requireSameOrigin,
+    ...(authenticatedSubmission ? [requireSession(sessionService, { clock }), csrf] : []),
     createSitterApplicationController({ service }).createRoot
   );
 
@@ -133,4 +146,10 @@ export function sitterApplicationModule({
   );
 
   return { name: 'sitter-applications', mount: '/api/v1/applications', router };
+}
+
+export function sitterApplicationRuntimeModule(context) {
+  if (!context.config.auth?.enabled) return null;
+  return sitterApplicationModule({ ...context, authenticatedSubmission: true,
+    uploadsAvailable: Boolean(loadR2Config(context.env)) });
 }

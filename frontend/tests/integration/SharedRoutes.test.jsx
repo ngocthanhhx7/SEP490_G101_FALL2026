@@ -116,7 +116,7 @@ test.each(['/register', '/sitter/apply'])('registration entry %s keeps PawWorld 
   show(path);
   expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Khách hàng', exact: true })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Ứng tuyển Pet Sitter', exact: true })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Pet Sitter', exact: true })).toBeVisible();
   expect(screen.getByText(/2026 PawWorld. All rights reserved/)).toBeVisible();
-  if (path === '/sitter/apply') expect(screen.getByText(/Xác minh email trước khi hoàn tất hồ sơ/)).toBeVisible();
+  if (path === '/sitter/apply') expect(screen.getByText(/Xác minh email để tiếp tục hồ sơ/)).toBeVisible();
 });

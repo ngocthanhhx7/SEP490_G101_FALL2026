@@ -45,7 +45,7 @@ export function createAuthController({
       }
       if (
         req.body.channel === 'PHONE' &&
-        ['REGISTER', 'LOGIN'].includes(req.body.purpose)
+        req.body.purpose === 'REGISTER'
       ) {
         throw new AppError(
           503,
@@ -121,12 +121,6 @@ export function createAuthController({
           message: 'Session request is invalid'
         });
       }
-      if (body.channel === 'PHONE')
-        throw new AppError(
-          503,
-          'SMS_UNAVAILABLE',
-          'SMS verification is not currently available'
-        );
       const result = await otpService.verify({ ...body, rememberDevice });
       if (!result.authenticated)
         return respond(res, req, 200, { authenticated: false });

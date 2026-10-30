@@ -3,13 +3,15 @@ function respond(res, req, status, data) {
   res.status(status).json({ data, meta: metadata(req) });
 }
 
-export function createSitterApplicationController({ service } = {}) {
+export function createSitterApplicationController({ service, intake } = {}) {
   return {
+    getIntake: async (req, res) => respond(res, req, 200, await intake.getIntake({ actor: req.auth })),
     createRoot: async (req, res) => {
       const result = await service.submit({
         body: req.body,
         idempotencyKey: req.get('idempotency-key'),
-        correlationId: req.requestId
+        correlationId: req.requestId,
+        actor: req.auth
       });
       return respond(res, req, result.replayed ? 200 : 201, result);
     },

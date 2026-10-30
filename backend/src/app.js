@@ -18,6 +18,7 @@ import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
 import { privateImageRuntimeModule } from './routes/private-image.routes.js';
+import { sitterApplicationRuntimeModule } from './routes/sitter-application.routes.js';
 
 export function createApp({
   config,
@@ -64,6 +65,8 @@ export function createApp({
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
   const suppliedModules = moduleFactories.map((factory) => factory(context));
+  const sitterApplications = config.auth?.enabled && !suppliedModules.some(module => module?.name === 'sitter-applications')
+    ? sitterApplicationRuntimeModule(context) : null;
   const catalogModules = serviceCatalogRuntimeModules(context).filter(
     (module) =>
       !suppliedModules.some((supplied) => supplied.name === module.name)
@@ -77,6 +80,7 @@ export function createApp({
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
+    ...(sitterApplications ? [sitterApplications] : []),
     ...catalogModules,
     ...(pricing ? [pricing] : []),
     ...(petCare ? [petCare] : []),

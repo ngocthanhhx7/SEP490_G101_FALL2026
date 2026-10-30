@@ -10,6 +10,10 @@ export function sitterApplicationModels(connection) {
   }, { _id: false, strict: 'throw' });
 
   const applicantSchema = new Schema({
+    ownerUserId: { type: Schema.Types.ObjectId, default: null, index: true },
+    policyConsents: { type: [new Schema({
+      slug: String, versionId: String, contentHash: String, effectiveAt: Date, consentedAt: Date, sourceRef: String
+    }, { _id: false, strict: 'throw' })], default: [], immutable: true },
     displayName: { type: String, required: true, maxlength: 100 },
     contactChannel: { type: String, enum: ['EMAIL', 'PHONE'], required: true },
     contactCiphertext: { type: String, required: true, select: false },

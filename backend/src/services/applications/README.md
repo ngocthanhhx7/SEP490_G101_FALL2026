@@ -1,5 +1,7 @@
-# Applicant status
+# Application services
 
-`application-status.service.js` validates the narrow status contract. The runtime module at `../../routes/application-status.routes.js` uses indexed application-code digests and the transactional OTP kernel with `APPLICATION_STATUS` scope. General auth endpoints cannot supply that scope.
+`application-status.service.js` owns the narrow applicant status projection and scoped OTP contract. `application-status-runtime.service.js` connects it to the existing application collection and OTP service.
 
-Secrets are POST bodies only; responses are no-store. Only state, submitted date, rejection reason and the 30-day server deadline are public after OTP verification. No document, internal interview note, contact, user account or session is returned. Unknown codes receive the same challenge shape without sending a message.
+`application-intake.service.js` reads the authenticated Customer's verified email and most recent owned application. It verifies READY private-image references against that owner and adapts the existing R2 capability transport for Admin-reviewed application documents. It does not trust client-authored object keys, grant Pet Sitter roles or set policy readiness. Submission/consent/approval transactions remain in `../sitter-application.service.js`.
+
+The runtime mounts the existing sitter application router with authenticated submission and CSRF. Its legacy factory option remains for historical Guest contracts/tests; the default application composition explicitly enables the authenticated path. Document uploads use the existing private-images service and its 20-image owner quota; each application references at most six images. PDF is not supported by this pipeline. See [registration verification](../../../../doc/testing/registration-sitter-flow.md).
