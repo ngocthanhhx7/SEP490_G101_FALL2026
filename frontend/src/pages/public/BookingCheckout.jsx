@@ -4,11 +4,15 @@ import { CalendarCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { googleMapsDirections } from '../../utils/maps.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
+import { VerifiedVisitRating } from '../customer/VerifiedVisitRating.jsx';
+import './booking-checkout.css';
 
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cơ sở', OUTDOOR: 'Ngoài trời' };
 const statuses = { AWAITING_PAYMENT: 'Chờ thanh toán', PAYMENT_EXPIRED: 'Đã hết hạn thanh toán', DISPATCH_PENDING: 'Chờ phân công', ASSIGNED: 'Đã phân công', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn tất' };
 const errorText = code => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ sơ đã thay đổi. Vui lòng lấy báo giá mới.',
+  MATCH_EXPIRED: 'Gợi ý đã hết hạn. Vui lòng tìm lại sitter.', MATCH_CHANGED: 'Hồ sơ hoặc lịch khác với gợi ý. Vui lòng tìm lại sitter.',
+  MATCH_ALREADY_USED: 'Gợi ý này đã tạo đơn. Kiểm tra đơn của bạn trước khi tìm lại.',
   RESOURCE_NOT_FOUND: 'Báo giá, địa chỉ hoặc đơn không còn khả dụng.', QUOTE_ALREADY_USED: 'Báo giá này đã được dùng để đặt dịch vụ.',
   VISIT_SCHEDULE_OVERLAP: 'Lịch của cùng thú cưng đang bị trùng giờ.', BOARDING_CARE_PLAN_REQUIRED: 'Lịch lưu trú cần được nhân viên xác nhận kế hoạch ca chăm sóc.',
   PAYMENT_PROVIDER_UNAVAILABLE: 'Chưa thể tạo link thanh toán. Đơn vẫn đang chờ thanh toán.',
@@ -16,12 +20,12 @@ const errorText = code => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s�
   COMMAND_PENDING: 'Yêu cầu đang được xử lý.', INVALID_STATE: 'Đơn không còn ở trạng thái có thể thanh toán.',
   VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[code] || 'Chưa xác nhận được thao tác. Vui lòng thử lại.';
 
-export function BookingCheckoutForm({ quote, services, api, onConfirmed }) {
+export function BookingCheckoutForm({ quote, services, api, onConfirmed, recommendation }) {
   const addresses = useApiResource(api.addresses), options = useApiResource(api.checkoutOptions), [busy, setBusy] = useState(false), [error, setError] = useState(null), [uncertain, setUncertain] = useState(false);
   const command = useRef(null), locked = useRef(false);
   const visits = quote.items.flatMap((item, itemIndex) => Array.from({ length: item.visitCount }, (_, index) => ({ itemIndex, index,
     service: services.find(service => service.id === item.serviceId) })));
-  const [selectedLocations, setSelectedLocations] = useState(() => visits.map(row => row.service?.details?.locations?.[0] || 'HOME'));
+  const [selectedLocations, setSelectedLocations] = useState(() => visits.map(row => recommendation ? 'HOME' : row.service?.details?.locations?.[0] || 'HOME'));
   const submit = async event => {
     event.preventDefault(); if (locked.current) return;
     if (!uncertain) {
@@ -29,29 +33,33 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed }) {
       const body = { quoteId: quote.quoteId, acceptServicePolicies: data.get('consent') === 'on', visits: visits.map((row, index) => ({
         itemIndex: row.itemIndex, startAt: `${data.get(`start:${index}`)}:00+07:00`, location: selectedLocations[index],
         ...(data.get(`sitter:${index}`) ? { requestedSitterId: data.get(`sitter:${index}`) } : {}),
-        ...(selectedLocations[index] !== 'FACILITY' ? { addressId: data.get(`address:${index}`) } : {}) })) };
+        ...(selectedLocations[index] !== 'FACILITY' ? { addressId: data.get(`address:${index}`) } : {}),
+        ...(recommendation ? { matchId: recommendation.matchId, requestedSitterId: recommendation.requestedSitterId,
+          addressId: recommendation.addressId, startAt: recommendation.startAt, location: 'HOME' } : {}) })) };
       const fingerprint = JSON.stringify(body);
       if (command.current?.fingerprint !== fingerprint) command.current = { body, fingerprint, key: `checkout:${globalThis.crypto.randomUUID()}` };
     }
     locked.current = true; setBusy(true); setError(null);
     try { const response = await api.confirm(command.current.body, command.current.key); onConfirmed(response); }
-    catch (failure) { setError(errorText(failure.code)); setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR'].includes(failure.code)); }
+    catch (failure) { setError(errorText(failure.code)); setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(failure.code) || failure.status >= 500); }
     finally { locked.current = false; setBusy(false); }
   };
   return <form className="pwc-booking-checkout" onSubmit={submit}><h3>Lịch chăm sóc</h3>
     <fieldset disabled={busy || uncertain}>
       {visits.map((row, index) => <div className="pwc-checkout-visit" key={index}>
         <h4>{row.service?.name} · Buổi {row.index + 1}</h4>
-        <label>Bắt đầu (giờ Việt Nam)<input type="datetime-local" name={`start:${index}`} required /></label>
-        <label>Địa điểm<select value={selectedLocations[index]} onChange={event => setSelectedLocations(current => current.map((value, i) => i === index ? event.target.value : value))}>
+        <label>Bắt đầu (giờ Việt Nam)<input type="datetime-local" name={`start:${index}`} required readOnly={Boolean(recommendation)} defaultValue={recommendation ? new Date(Date.parse(recommendation.startAt) + 7 * 3600000).toISOString().slice(0, 16) : ''} /></label>
+        <label>Địa điểm<select disabled={Boolean(recommendation)} value={selectedLocations[index]} onChange={event => setSelectedLocations(current => current.map((value, i) => i === index ? event.target.value : value))}>
           {(row.service?.details?.locations || ['HOME']).map(value => <option key={value} value={value}>{locations[value]}</option>)}
         </select></label>
-        <label>Nhân viên chăm sóc<select name={`sitter:${index}`} defaultValue="">
+        <label>Nhân viên chăm sóc<select name={`sitter:${index}`} disabled={Boolean(recommendation)} defaultValue={recommendation?.requestedSitterId ?? ''}>
+          {recommendation && <option value={recommendation.requestedSitterId}>{recommendation.displayName}</option>}
           <option value="">Paw World Care sắp xếp</option>
           {(options.data?.sitters || []).map(sitter => <option key={sitter.id} value={sitter.id}>{sitter.displayName}</option>)}
         </select></label>
         {selectedLocations[index] === 'FACILITY' && <p>{options.data?.facilityAddress || 'Chưa có địa chỉ cơ sở được xác nhận.'}</p>}
-        {selectedLocations[index] !== 'FACILITY' && <label>Địa chỉ đã lưu<select name={`address:${index}`} required defaultValue="">
+        {selectedLocations[index] !== 'FACILITY' && <label>Địa chỉ đã lưu<select name={`address:${index}`} required disabled={Boolean(recommendation)}
+          value={recommendation?.addressId} defaultValue={recommendation ? undefined : ''}>
           <option value="">Chọn địa chỉ</option>{(addresses.data || []).map(address => <option key={address.id || address._id} value={address.id || address._id}>{address.label}</option>)}
         </select></label>}
       </div>)}
@@ -91,7 +99,9 @@ function BookingConfirmationDetail({ bookingId, api, load }) {
     <ul>{booking.visits.map(row => <li key={row.id}><strong>{row.serviceName}</strong> · {new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<br />{locations[row.location]}: {row.serviceAddress}
       {googleMapsDirections(row.serviceAddress) && <p><a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a></p>}
       </li>)}</ul>
-    {(booking.careShifts || []).map(row => <div key={row.id}><VisitTravel api={api} visitId={row.id} startAt={row.startAt} endAt={row.endAt} /></div>)}
+    {(booking.careShifts || []).map(row => <div key={row.id}>{booking.state === 'COMPLETED' && row.state === 'COMPLETED'
+      ? <VerifiedVisitRating api={api} visit={row} />
+      : <VisitTravel api={api} visitId={row.id} startAt={row.startAt} endAt={row.endAt} />}</div>)}
     {(booking.scheduleProposals || []).filter(row => row.state === 'PENDING_CUSTOMER_CONFIRMATION' && new Date(row.expiresAt) > new Date()).map(row =>
       <p key={row.id}><Link to={`/account/schedule-proposals/${row.id}`}>Xem đề xuất lịch chăm sóc</Link></p>)}
     {awaiting && (link ? <a href={link} rel="noopener noreferrer">Thanh toán qua payOS</a> : <button type="button" disabled={busy} onClick={pay}><CreditCard size={18} />{busy ? 'Đang tạo link…' : 'Tạo link thanh toán'}</button>)}

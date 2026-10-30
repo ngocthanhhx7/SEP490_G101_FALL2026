@@ -16,6 +16,7 @@ import { pricingModels } from '../../models/pricing.model.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
 import { checkoutVisitMoney, CHECKOUT_POLICY_VERSION, PREPAY_WINDOW_MS } from './checkout-snapshot.service.js';
+import { assertMatchSelection } from './match-selection.service.js';
 
 export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
@@ -42,8 +43,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
   async function view(booking, session) {
     const visits = booking.checkoutSnapshot?.customerVisits ?? await col('visits').find({ bookingId: booking._id }, { session }).sort({ sequence: 1 }).limit(60).toArray();
     const actual = await col('visits').find({ _id: { $in: booking.visitIds ?? [] }, customerScheduleConsent: { $exists: true } }, { session }).limit(60).toArray();
-    const careShifts = await col('visits').find({ _id: { $in: booking.visitIds ?? [] }, state: { $in: ['ASSIGNED', 'IN_PROGRESS'] } },
-      { session, projection: { _id: 1, startAt: 1, endAt: 1, 'snapshots.serviceName': 1 } }).sort({ startAt: 1 }).limit(200).toArray();
+    const careShifts = await col('visits').find({ _id: { $in: booking.visitIds ?? [] }, state: { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] } },
+      { session, projection: { _id: 1, startAt: 1, endAt: 1, state: 1, version: 1, 'snapshots.serviceName': 1 } }).sort({ startAt: 1 }).limit(200).toArray();
     const proposals = await col('employeescheduleproposals').find({ bookingId: String(booking._id), customerId: String(booking.customerId) }, { session,
       projection: { _id: 1, state: 1, expiresAt: 1 } }).sort({ _id: -1 }).limit(20).toArray();
     const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt <= now();
@@ -51,7 +52,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       paymentState: booking.paymentState, paymentMode: booking.paymentMode, totalVnd: booking.paymentSnapshot.amountVnd,
       currency: 'VND', paymentDeadlineAt: booking.paymentDeadlineAt, quoteId: String(booking.quoteId),
       scheduleProposals: proposals.map(row => ({ id: String(row._id), state: row.state, expiresAt: row.expiresAt })),
-      careShifts: careShifts.map(row => ({ id: String(row._id), startAt: row.startAt, endAt: row.endAt, serviceName: row.snapshots?.serviceName })),
+      careShifts: careShifts.map(row => ({ id: String(row._id), state: row.state, version: row.version,
+        startAt: row.startAt, endAt: row.endAt, serviceName: row.snapshots?.serviceName })),
       visits: visits.map(row => ({ id: String(row._id), state: row.state,
         startAt: actual.find(visit => visit.customerVisitId === String(row._id))?.startAt ?? row.startAt,
         endAt: actual.find(visit => visit.customerVisitId === String(row._id))?.endAt ?? row.endAt,
@@ -82,6 +84,9 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         }
         const quoteClaim = `checkout-quote:${input.quoteId}`;
         if (await commands.exists({ _id: quoteClaim }).session(session)) fail('QUOTE_ALREADY_USED', 'Quote already confirmed', 409);
+        const matchClaims = [...new Set(input.visits.filter(row => row.matchId).map(row => `checkout-match:${actor.userId}:${row.matchId}`))];
+        if (matchClaims.length && await commands.exists({ _id: { $in: matchClaims } }).session(session))
+          fail('MATCH_ALREADY_USED', 'Recommendation already used for a booking; search again', 409);
         const at = now();
         const quote = await DecisionSnapshot.findOne({ _id: input.quoteId, ownerId: actor.userId, kind: 'QUOTE', expiresAt: { $gt: at } }).select('+snapshot').session(session).lean();
         if (!quote) fail('RESOURCE_NOT_FOUND', 'Quote unavailable or expired', 404);
@@ -125,13 +130,16 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             }
             if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
             if (row.startAt <= (prepay ? deadline : at)) fail('VALIDATION_FAILED', 'Visit must start after payment window');
+            let privateAccessNotes = '', selectedAddress;
             let serviceAddress = facilityAddress, areaCode = 'DISTRICT_HAI_BA_TRUNG', point = facilityCoordinates ? { type: 'Point', coordinates: [...facilityCoordinates] } : undefined;
             if (row.location !== 'FACILITY') {
-              const address = await CustomerAddress.findOne({ _id: row.addressId, ownerId: actor.userId, state: 'ACTIVE', pointConfirmedAt: { $ne: null } }).select('+location +point').session(session).lean();
+              const address = await CustomerAddress.findOne({ _id: row.addressId, ownerId: actor.userId, state: 'ACTIVE', pointConfirmedAt: { $ne: null } }).select('+location +point +privateAccessNotes').session(session).lean();
               if (!address) fail('RESOURCE_NOT_FOUND', 'Owned confirmed address unavailable', 404);
               serviceAddress = address.location;
               areaCode = address.areaCode;
               point = address.point;
+              privateAccessNotes = address.privateAccessNotes ?? '';
+              selectedAddress = address;
               if (!seenAddresses.has(String(address._id))) {
                 const changed = await CustomerAddress.collection.updateOne({ _id: address._id, version: address.version, state: 'ACTIVE' }, { $inc: { bookingGuard: 1 } }, { session });
                 if (!changed.matchedCount) fail('QUOTE_CHANGED', 'Address changed', 409); seenAddresses.add(String(address._id));
@@ -140,15 +148,21 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             if (typeof serviceAddress !== 'string' || !serviceAddress.trim()) fail('FACILITY_ADDRESS_REQUIRED', 'Facility address must be configured', 409);
             const boarding = pricing.billingMode === 'PER_DAY';
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
+            await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
             visits.push({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), serviceId: oid(selection.serviceId),
               petIds: pets.map(p => p._id), sitterId: null, state: 'SCHEDULED', version: 0, sequence: visits.length,
               areaCode, requestedSitterId: row.requestedSitterId ? oid(row.requestedSitterId) : null,
+              ...(row.matchId ? { recommendationRef: { matchId: row.matchId, selectedAt: at, advisory: true } } : {}),
               location: row.location, ...(row.addressId ? { addressId: oid(row.addressId) } : {}), startAt: row.startAt, endAt,
               evidenceRefs: [], snapshots: { ...amounts[index], boarding, serviceName: version.name, serviceAddress, ...(point ? { point } : {}),
                 serviceScope: version.scope, checklistItemIds: ['service-scope', 'pet-condition'],
                 checklistItems: [{ itemId: 'service-scope', label: version.scope }, { itemId: 'pet-condition', label: 'Ghi nhận tình trạng thú cưng sau chăm sóc' }],
                 serviceVersion: version.version, servicePolicyVersion: policy.version, priceVersion: price.version, pricingPolicyVersion: pricing.version,
                 careMinutes: selection.durationMinutes, ...(selection.dayCount ? { dayCount: selection.dayCount } : {}),
+                care: { schemaVersion: 1, capturedAt: at, privateAccessNotes,
+                  pets: pets.map(p => ({ id: String(p._id), name: p.name, species: p.species, weightKg: p.weightKg,
+                    ageMonths: p.ageMonths ?? null, sex: p.sex ?? 'UNKNOWN', traits: p.traits, version: p.version,
+                    careNeedsConfirmed: p.careNeedsConfirmed === true, careProfile: p.careProfile ?? {} })) },
                 ...(selection.distanceMeters ? { distanceMeters: selection.distanceMeters } : {}),
                 pets: pets.map(p => ({ id: String(p._id), name: p.name, species: p.species, weightKg: p.weightKg, traits: p.traits, version: p.version })) } });
           }
@@ -168,7 +182,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           providerReference: String(randomInt(1000000000000, 200000000000000)), amountVnd: result.totalVnd, currency: 'VND',
           state: 'PENDING', version: 0, expiresAt: deadline, createdAt: at }, { session });
         await commands.create([{ _id: commandId, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at },
-          { _id: quoteClaim, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at }], { session, ordered: true });
+          { _id: quoteClaim, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at },
+          ...matchClaims.map(_id => ({ _id, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at }))], { session, ordered: true });
         await events.create([{ _id: `booking-created:${bookingId}`, type: 'BookingCreated', bookingId: String(bookingId),
           actorId: actor.userId, resourceId: String(bookingId), at }], { session });
         await Notification.create([{ _id: digest(['BOOKING_CREATED', String(bookingId)]), eventId: `booking:${bookingId}`,

@@ -5,6 +5,7 @@ import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button } from '../../components/ui/index.js';
 import { googleMapsDirections } from '../../utils/maps.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
+import { AssignedCare } from './AssignedCare.jsx';
 import '../../styles/employee-scheduling.css';
 
 const time = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -43,6 +44,7 @@ export function EmployeeInvitationsPage({ api }) {
       {row.serviceAddress && <p>{row.serviceAddress}</p>}
       {googleMapsDirections(row.serviceAddress) && <a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
       <VisitTravel api={api} visitId={row.id} employee startAt={row.startAt} endAt={row.endAt} />
+      {['ASSIGNED', 'IN_PROGRESS'].includes(row.state) && <AssignedCare api={api} visitId={row.id} />}
     </div></li>)}</ul>
     <nav className="employee-scheduling__actions" aria-label="Trang ca đã nhận">
       <Button variant="ghost" aria-label="Trang ca trước" title="Trang ca trước" disabled={!assignmentPages.length || assignments.status === 'loading'} onClick={() => setAssignmentPages(rows => rows.slice(0, -1))}><ChevronLeft size={18} /></Button>
