@@ -46,3 +46,15 @@ Thay đổi chưa commit/push/PR. Khi tích hợp cần tạo index `ownerUserId
 ## Shared-bucket follow-up
 
 Theo yêu cầu dùng chung bucket, cấu hình giấy tờ kế thừa R2_* khi không có override, vẫn yêu cầu SITTER_DOCUMENTS_ENABLED=true. Prefix private-images/ và applicant-documents/ không đổi; collection, owner checks và quota không gộp. Kiểm thử provider dùng cùng bucket cho hai prefix, chặn upload/read/sign của prefix còn lại. Runtime integration đăng ký → upload → nộp → duyệt dùng cấu hình kế thừa. Kiểm tra trước chuyển đổi trên EC2 cho thấy bucket giấy tờ cũ và ApplicantDocument đều rỗng; chưa cần di chuyển object. Đây là trạng thái trước triển khai, không phải bằng chứng smoke test sau triển khai.
+
+
+## Hoàn thiện sau xét duyệt — 30/10/2026
+
+Bản tiếp tục trên `feature/sitter-registration-completion`:
+
+- Intake của Customer trả lý do từ chối của chính chủ và `canReapply` theo giờ server; không trả ghi chú phỏng vấn nội bộ. Chọn hồ sơ mới nhất có thứ tự `_id` khi trùng timestamp.
+- Biên nhận có nút cập nhật trạng thái. Chỉ mở form mới khi server xác nhận đủ điều kiện; không dùng đồng hồ thiết bị để quyết định. Thời hạn hiển thị cả giờ Việt Nam. Tra cứu OTP có liên kết nộp lại khi đủ hạn.
+- Admin nhập lý do cho cả duyệt/từ chối; thông báo phù hợp việc cấp quyền cho tài khoản đã xác minh. Nhắc điều kiện hợp đồng đã ký; phần nhắc này không phải cơ chế xác minh hợp đồng tự động hoặc bằng chứng hợp đồng thật.
+- PASS: backend intake integration 9 tests, gồm chu kỳ đăng ký/upload/nộp/OTP/duyệt/đăng nhập cùng user và biên cooldown/nộp lại; frontend full 93 suites / 578 tests; architecture, lint hai package và build.
+- PASS: browser fixture 1440/390/320 cho từ chối → refresh → mở form mới; không upload/mutation chỉ từ refresh, không JS error/overflow. Đã xem ảnh desktop/mobile. Browser fixture ảnh/Full-time/Part-time/14 dịch vụ/lỗi từng trường cũng đạt.
+- Không gửi OTP thật, dùng giấy tờ thật, duyệt hồ sơ thật hoặc tạo hợp đồng thật trong kiểm tra này. Runtime Mongo tests dùng replica set và provider tổng hợp; browser fixture chặn API. Build vẫn có cảnh báo bundle > 500 kB.

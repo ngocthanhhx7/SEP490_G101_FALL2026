@@ -93,3 +93,17 @@ test('does not create a session or redirect when the application is approved', a
   expect(window.location.pathname).toBe('/');
   expect(api.verifyAndReadStatus).not.toHaveReturnedWith(expect.objectContaining({ session: expect.anything() }));
 });
+
+test.each([false, true])('verified rejection offers reapplication only when server permits: %s', async canReapply => {
+  renderPage({ requestVerification: async () => ({ challengeId: 'synthetic-challenge', resendAfterSeconds: 0 }),
+    verifyAndReadStatus: async () => ({ state: 'REJECTED', submittedAt: '2026-09-01',
+      rejectionReason: 'Cần bổ sung thông tin.', reapplyEligibleAt: '2026-10-01', canReapply }) });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Mã hồ sơ' }), { target: { value: 'opaque-application-code' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã xác minh' }));
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '012345' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh và xem trạng thái' }));
+  await screen.findByText('Từ chối');
+  const link = screen.queryByRole('link', { name: 'Nộp lại hồ sơ ứng tuyển →' });
+  if (canReapply) expect(link).toHaveAttribute('href', '/register?role=sitter');
+  else expect(link).not.toBeInTheDocument();
+});

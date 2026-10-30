@@ -6,7 +6,7 @@ import { AppError } from '../../utils/app-error.js';
 
 // Applicant documents use the existing authenticated, decoded/re-encoded image
 // pipeline, in a dedicated collection/bucket/quota. They never accept client-authored object keys.
-export function createApplicationIntakeService({ connection, contactCrypto, media, secret, uploadsAvailable }) {
+export function createApplicationIntakeService({ connection, contactCrypto, media, secret, uploadsAvailable, clock = Date.now }) {
   const { Contact } = identityModels(connection);
   const { PrivateImage } = applicantDocumentModels(connection);
   const { SitterApplication } = sitterApplicationModels(connection);
@@ -23,10 +23,12 @@ export function createApplicationIntakeService({ connection, contactCrypto, medi
     async getIntake({ actor }) {
       const contact = await verifiedContact(actor);
       const previous = await SitterApplication.findOne({ ownerUserId: actor.userId })
-        .sort({ createdAt: -1 }).select('state createdAt reapplyAt +submissionKeyDigest').lean();
+        .sort({ createdAt: -1, _id: -1 }).select('state createdAt reapplyAt decisionReason +submissionKeyDigest').lean();
       const application = previous ? {
         state: previous.state, submittedAt: previous.createdAt.toISOString(),
         reapplyAt: previous.reapplyAt?.toISOString() ?? null,
+        rejectionReason: previous.state === 'REJECTED' ? previous.decisionReason ?? null : null,
+        canReapply: previous.state === 'REJECTED' && !!previous.reapplyAt && previous.reapplyAt.getTime() <= clock(),
         applicationCode: createHmac('sha256', secret).update(`application-receipt\0${previous.submissionKeyDigest}`).digest('base64url')
       } : null;
       return { contactChannel: 'EMAIL', contactValue: contactCrypto.decrypt(contact.canonicalCiphertext),
