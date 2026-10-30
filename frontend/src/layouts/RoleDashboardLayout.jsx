@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button.jsx';
 import { BrandLogo } from '../components/ui/BrandLogo.jsx';
 import { Notice } from '../components/ui/Notice.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
+import { hasRole } from '../utils/role-access.js';
 import { LayoutDashboard, Users, CalendarDays, Bell, Settings, UserRound, BriefcaseBusiness, MapPin, Wallet, ClipboardList, PawPrint, Menu, Building2, FileCheck } from 'lucide-react';
 import { NotificationBell } from '../components/common/NotificationBell.jsx';
 import { PublicHeader } from '../components/public/PublicHeader.jsx';
@@ -55,11 +56,6 @@ function StateScreen({ state, title, children, action }) {
   </main>;
 }
 
-function getRoles(user) {
-  if (Array.isArray(user?.roles)) return user.roles;
-  return user?.role ? [user.role] : [];
-}
-
 export function RoleDashboardLayout({
   role,
   navigationItems = [],
@@ -79,8 +75,7 @@ export function RoleDashboardLayout({
       && window.matchMedia('(max-width: 48rem)').matches
   ));
   const config = ROLE_CONFIG[role];
-  const currentRoles = getRoles(session.user);
-  const canEnter = config && config.allows.some((allowedRole) => currentRoles.includes(allowedRole));
+  const canEnter = config && hasRole(session.user, role);
 
   useEffect(() => {
     mainRef.current?.focus({ preventScroll: true });

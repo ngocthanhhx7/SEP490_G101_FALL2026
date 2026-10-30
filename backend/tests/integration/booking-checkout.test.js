@@ -48,7 +48,9 @@ beforeAll(async () => {
   address = await repository.models.CustomerAddress.create({ ownerId: owner.userId, label: 'Synthetic home', location: 'Synthetic private address',
     point: { type: 'Point', coordinates: [105.85, 21.02] }, pointConfirmedAt: at, areaCode: 'DISTRICT_HAI_BA_TRUNG', version: 0 });
   const session = { authenticate: async req => {
-    const actor = ({ owner, other })[req.get('x-test-actor')]; return actor ? { ...actor, expiresAt: at.getTime() + 60000 } : null;
+    const name = req.get('x-test-actor');
+    const actor = ['ADMIN', 'STAFF', 'PET_SITTER'].includes(name) ? { ...owner, roles: ['CUSTOMER', name] } : ({ owner, other })[name];
+    return actor ? { ...actor, expiresAt: at.getTime() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   const module = bookingCheckoutRuntimeModule({ config: { auth: { enabled: true } }, connection, clock: () => at.getTime(), provider, sessionService: session,
     env: { BOOKING_CHECKOUT_ENABLED: 'true', BOOKING_WEB_ORIGIN: 'http://127.0.0.1:5188', BOOKING_FACILITY_ADDRESS: 'Synthetic facility address' } });
@@ -67,6 +69,18 @@ async function employeeForCheckout(sitterId, serviceId) {
   await scheduling.models.EmployeeAvailability.create({ _id: id, areas: ['DISTRICT_HAI_BA_TRUNG'], state: 'ACTIVE', dayOffDates: [], workingWindows: windows, version: 1 });
   await scheduling.models.EmployeeAvailabilityRevision.create({ sitterId: id, effectiveFrom: '2026-10-01', version: 1, workingWindows: windows });
 }
+
+test.each(['ADMIN', 'STAFF', 'PET_SITTER'])('checkout service rejects retained Customer membership for %s before reading a quote', async role => {
+  await expect(checkout.confirm({ ...owner, roles: ['CUSTOMER', role] }, {}, 'synthetic-denied-checkout'))
+    .rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+  for (const path of ['/options', '/bookings/aaaaaaaaaaaaaaaaaaaaaaaa']) {
+    const response = await request(app).get('/api/v1/checkout' + path).set('x-test-actor', role).expect(403);
+    expect(response.body.error.code).toBe('FORBIDDEN');
+  }
+  const response = await request(app).post('/api/v1/checkout/bookings').set('x-test-actor', role)
+    .set('Origin', 'http://127.0.0.1:5188').set('X-CSRF-Token', 'synthetic-csrf').send({}).expect(403);
+  expect(response.body.error.code).toBe('FORBIDDEN');
+});
 
 test('confirms one immutable booking for concurrent identical retries and preserves exact post-combo commission', async () => {
   const q = await pricing.basket(owner.userId, { items: [item('pet-bathing', 3), item('home-care', 3)] });

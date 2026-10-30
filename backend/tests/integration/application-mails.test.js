@@ -74,14 +74,23 @@ test('parallel workers claim a mail only once, and replaced email is never used'
 });
 test('enabled runtime starts the durable mail worker and shutdown finishes the batch', async () => {
   await connection.transaction(session => service.enqueue(application('APPROVED', 3), session));
+  let acknowledge;
+  const delivered = new Promise(resolve => { acknowledge = resolve; });
+  delivery.send.mockImplementation(async () => {
+    acknowledge();
+    return { status: 'ACCEPTED' };
+  });
   const runtime = await startRuntime({ env: { NODE_ENV: 'test', PORT: '0', MONGO_URI: replica.getUri(), MONGO_DB: 'application_mail_test',
     AUTH_ENABLED: 'true', OTP_HMAC_SECRET: 'o'.repeat(32), SESSION_TOKEN_SECRET: 't'.repeat(32), SESSION_CSRF_SECRET: 'c'.repeat(32),
     CONTACT_LOOKUP_SECRET: 'l'.repeat(32), CONTACT_ENCRYPTION_KEY: 'e'.repeat(32),
     EMAIL_ENABLED: 'true', SMTP_HOST: 'smtp.example.invalid', SMTP_PORT: '587', SMTP_USER: 'synthetic', SMTP_PASSWORD: 'synthetic', EMAIL_FROM: 'noreply@example.test' },
     portOverrides: { notificationDelivery: delivery } });
+  let deadline;
   try {
-    for (let attempt = 0; attempt < 50 && !delivery.send.mock.calls.length; attempt++) await new Promise(resolve => setTimeout(resolve, 20));
+    await Promise.race([delivered, new Promise((_, reject) => {
+      deadline = setTimeout(() => reject(new Error('Application mail worker did not deliver within 10 seconds')), 10000);
+    })]);
     expect(delivery.send).toHaveBeenCalledWith(expect.objectContaining({ applicationState: 'APPROVED', template: 'SITTER_APPLICATION_STATUS' }));
-  } finally { await runtime.stop(); }
+  } finally { clearTimeout(deadline); await runtime.stop(); }
   expect((await Mail.findOne().lean()).deliveryState).toBe('ACCEPTED');
 });

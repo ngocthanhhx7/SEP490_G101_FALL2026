@@ -1,7 +1,8 @@
-import { afterAll, beforeAll, beforeEach, expect, test } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
 import sharp from 'sharp';
+import mongoose from 'mongoose';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
@@ -202,13 +203,47 @@ test('owner cooldown survives verified email and identity changes after rejectio
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
 });
 
+test('a transient failure after application writes retries without losing the submission or duplicating mail', async () => {
+  const owner = await register();
+  const documentId = await upload(owner);
+  const transaction = connection.transaction.bind(connection);
+  let attempts = 0;
+  const retry = jest.spyOn(connection, 'transaction').mockImplementation((callback, options) =>
+    transaction(async session => {
+      const result = await callback(session);
+      if (++attempts === 1) {
+        const error = new mongoose.mongo.MongoServerError({ message: 'Synthetic transaction retry', code: 112 });
+        error.addErrorLabel('TransientTransactionError');
+        throw error;
+      }
+      return result;
+    }, options));
+  try { await submit(owner, application(owner, documentId)).expect(201); }
+  finally { retry.mockRestore(); }
+  expect(attempts).toBe(2);
+  const { SitterApplication, SitterApplicationAudit, ApplicationMail } = sitterApplicationModels(connection);
+  expect(await SitterApplication.countDocuments()).toBe(1);
+  expect(await SitterApplicationAudit.countDocuments({ action: 'APPLICATION_SUBMITTED' })).toBe(1);
+  expect(await ApplicationMail.countDocuments()).toBe(1);
+});
+
 test('concurrent commands with distinct verified emails and identities create at most one pending application per owner', async () => {
   const owner = await register();
   const second = await anotherVerifiedEmail(owner, 'second@example.test');
   const documentId = await upload(owner);
-  const results = await Promise.all([submit(owner, application(owner, documentId), 'concurrent-owner-command-01'),
-    submit(second, { ...application(second, documentId), identityNumber: 'SECOND12345678' }, 'concurrent-owner-command-02')]);
-  expect(results.map(result => result.status).sort()).toEqual([201, 409]);
+  const failures = [];
+  const transaction = connection.transaction.bind(connection);
+  const capture = jest.spyOn(connection, 'transaction').mockImplementation(async (...args) => {
+    try { return await transaction(...args); }
+    catch (error) { failures.push({ name: error.name, code: error.code, message: error.message }); throw error; }
+  });
+  let results;
+  try {
+    results = await Promise.all([submit(owner, application(owner, documentId), 'concurrent-owner-command-01'),
+      submit(second, { ...application(second, documentId), identityNumber: 'SECOND12345678' }, 'concurrent-owner-command-02')]);
+  } finally { capture.mockRestore(); }
+  const statuses = results.map(result => result.status).sort();
+  expect(statuses.includes(500) ? { statuses, failures } : statuses).toEqual([201, 409]);
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
 });
 

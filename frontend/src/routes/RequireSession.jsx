@@ -1,5 +1,6 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Link, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useSession } from '../contexts/SessionContext.jsx';
+import { hasRole, primaryRole, roleLanding } from '../utils/role-access.js';
 
 export function RequireSession({ roles }) {
   const session = useSession();
@@ -13,13 +14,12 @@ export function RequireSession({ roles }) {
     <h1>Không thể kiểm tra phiên</h1>
     <button onClick={session.refresh}>Thử lại</button>
   </section>;
-  if (session.status === 'guest') return <Navigate to="/sign-in" replace
+  if (session.status !== 'authenticated' || !primaryRole(session.user)) return <Navigate to="/sign-in" replace
     state={{ from: location.pathname + location.search }} />;
-  const userRoles = Array.isArray(session.user.roles) ? session.user.roles : [session.user.role];
-  if (roles && !roles.some((role) => userRoles.includes(role)
-    || (role === 'STAFF' && userRoles.includes('ADMIN')))) {
+  if (roles && !roles.some((role) => hasRole(session.user, role))) {
     return <section role="alert"><h1>Không có quyền truy cập</h1>
-      <p>Tài khoản hiện tại không có quyền mở khu vực này.</p></section>;
+      <p>Tài khoản hiện tại không có quyền mở khu vực này.</p>
+      <Link to={roleLanding(session.user)}>Về khu vực của tôi</Link></section>;
   }
   return <Outlet />;
 }
