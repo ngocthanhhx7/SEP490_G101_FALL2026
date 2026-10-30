@@ -20,11 +20,12 @@ export function createCustomerBookingsService({ connection, cursorSecret, clock 
       filter._id = { $lt: new Types.ObjectId(last.id) };
     }
     const rows = await connection.db.collection('bookings').find(filter, { projection: {
-      _id: 1, state: 1, createdAt: 1, 'checkoutSnapshot.customerVisits.snapshots.serviceName': 1
+      _id: 1, state: 1, paymentDeadlineAt: 1, 'checkoutSnapshot.customerVisits.snapshots.serviceName': 1
     } }).sort({ _id: -1 }).limit(limit + 1).toArray();
     const page = rows.slice(0, limit);
     if (page.some(row => typeof row.state !== 'string' || !row.state)) fail('INVALID_PROJECTION', 'Invalid booking state', 503);
-    return { items: page.map(row => ({ id: String(row._id), state: row.state,
+    const asOf = new Date(clock());
+    return { items: page.map(row => ({ id: String(row._id), state: row.state === 'AWAITING_PAYMENT' && row.paymentDeadlineAt <= asOf ? 'PAYMENT_EXPIRED' : row.state,
       serviceName: [...new Set((row.checkoutSnapshot?.customerVisits ?? []).map(visit => visit.snapshots?.serviceName).filter(Boolean))].join(', ') })),
       nextCursor: rows.length > limit ? cursor.encode({ id: String(page.at(-1)._id) }, context) : null };
   } };

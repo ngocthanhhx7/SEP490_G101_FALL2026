@@ -55,7 +55,7 @@ No production database writes or real SMS/email were sent.
 
 - PASS: backend architecture checker and both packages' lint.
 - PASS: backend unit tests, 82 suites / 731 tests.
-- PASS: backend integration tests, 34 suites / 269 tests.
+- PASS: backend integration tests, 34 suites / 270 tests after PR review fixes.
 - PASS: frontend tests, 90 suites / 555 tests.
 - PASS: frontend production build; large-chunk warnings remain.
 - PASS: focused Customer care runtime/checkout, 10 tests, including concurrent
@@ -71,6 +71,17 @@ Full backend/frontend suites, lint, architecture and build were rerun on the fin
 source. Relative documentation links and `git diff --check` also pass.
 Live map checks used local provider configuration and public landmark coordinates.
 Synthetic browser session helpers are loopback-only and excluded from Git/releases.
+
+## PR 101 review corrections
+
+The reviewer reproduced two failures before correction: successful command replay
+returned 422 after its breed was deactivated, and history showed AWAITING_PAYMENT
+past the payment deadline. Replay now precedes mutable catalog validation; booking
+history projects PAYMENT_EXPIRED consistently with checkout without changing
+persisted state. New regressions pass. The final backend run passed 116 suites /
+1001 tests; frontend passed 90 suites / 555 tests. Lint, architecture and build
+passed again. GitHub review/merge and deployment state are recorded in the PR and
+local operational handoff rather than inferred from these checks.
 
 ## Remaining gates
 

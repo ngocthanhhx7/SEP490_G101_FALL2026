@@ -44,6 +44,13 @@ test('real session/CSRF runtime creates one shared pet across concurrent retries
   expect(responses.map(row => ({ status: row.status, body: row.body })) ).toEqual([expect.objectContaining({ status: 201 }), expect.objectContaining({ status: 201 })]);
   expect(responses[0].body.data).toEqual(responses[1].body.data); petId = responses[0].body.data.id;
   expect(await connection.models.Pet.countDocuments()).toBe(1);
+  await connection.models.PetBreed.updateOne({ code: pet.breedCode }, { $set: { active: false } });
+  try {
+    const replay = await request(app).post('/api/v1/pet-care/pets').set(headers(owner, 'synthetic-pet-create-01')).send(pet).expect(201);
+    expect(replay.body.data).toEqual(responses[0].body.data);
+  } finally {
+    await connection.models.PetBreed.updateOne({ code: pet.breedCode }, { $set: { active: true } });
+  }
   const list = await request(app).get('/api/v1/pet-care/pets').set(headers(owner)).expect(200);
   expect(list.body.data[0]).toMatchObject({ id: petId, careProfile: pet.careProfile, weightKg: 4.2 });
   expect((await request(app).get('/api/v1/pet-care/pets').set(headers(other)).expect(200)).body.data).toEqual([]);
@@ -102,6 +109,15 @@ test('notifications persist, preserve owner/role scope and support replayable re
   await request(app).post(`/api/v1/notifications/${notificationId}/read-receipts`).set(headers(other)).expect(404);
   for (let i = 0; i < 2; i++) await request(app).post(`/api/v1/notifications/${notificationId}/read-receipts`).set(headers(owner)).expect(200);
   expect((await request(app).get('/api/v1/notifications').set(headers(owner)).expect(200)).body.data.unreadCount).toBe(0);
+});
+
+test('booking history projects expired prepayment consistently with checkout without mutating storage', async () => {
+  const row = { customerId: new mongoose.Types.ObjectId(owner.user.id), state: 'AWAITING_PAYMENT', paymentState: 'UNPAID',
+    paymentDeadlineAt: new Date(Date.now() - 60000) };
+  const inserted = await connection.db.collection('bookings').insertOne(row);
+  const result = await request(app).get('/api/v1/bookings').set(headers(owner)).expect(200);
+  expect(result.body.data.items.find(item => item.id === String(inserted.insertedId)).state).toBe('PAYMENT_EXPIRED');
+  expect((await connection.db.collection('bookings').findOne({ _id: inserted.insertedId })).state).toBe('AWAITING_PAYMENT');
 });
 
 test('missing notification storage is unavailable rather than an empty inbox', async () => {

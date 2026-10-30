@@ -104,8 +104,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
     async createPet(ownerId, body, key) {
       if (key) {
         exact(body, petKeys, ['name', 'species', 'breedCode', 'weightKg', 'careNeedsConfirmed']);
-        const values = await petValues(body);
         return command(ownerId, 'CREATE_PET', key, body, async session => {
+          const values = await petValues(body);
           const [doc] = await models.Pet.create([{ ...values, ownerId, state: 'ACTIVE', version: 0 }], { session });
           return { id: String(doc._id), version: 0 };
         });
@@ -164,8 +164,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
     async createAddress(ownerId, body, key) {
       if (key) {
         exact(body, addressKeys, ['label', 'location', 'coordinates', 'areaCode', 'pointConfirmed']);
-        const values = await addressValues(body);
         return command(ownerId, 'CREATE_ADDRESS', key, body, async session => {
+          const values = await addressValues(body);
           const [doc] = await models.CustomerAddress.create([{ ...values, ownerId, version: 0 }], { session });
           return { id: String(doc._id), version: 0 };
         });
@@ -199,8 +199,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
       const isPet = kind === 'pet', Model = isPet ? models.Pet : models.CustomerAddress;
       exact(body, [...(isPet ? petKeys : addressKeys), 'expectedVersion'], ['expectedVersion']);
       number(body.expectedVersion, 0, Number.MAX_SAFE_INTEGER, true);
-      const values = isPet ? await petValues(body) : await addressValues(body);
       return command(ownerId, `UPDATE_${kind}:${resourceId}`, key, body, async session => {
+        const values = isPet ? await petValues(body) : await addressValues(body);
         const update = { $set: values, $inc: { version: 1 } };
         if (isPet && body.ageMonths === undefined) update.$unset = { ageMonths: 1 };
         const doc = await Model.findOneAndUpdate({ _id: resourceId, ownerId, state: 'ACTIVE', version: body.expectedVersion },
