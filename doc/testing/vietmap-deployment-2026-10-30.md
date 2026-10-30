@@ -2,6 +2,21 @@
 
 Date: 2026-10-30. Checkout: `feature/demo-service-catalog`.
 
+## Final Integrated Checks
+
+After merging reviewed #63/#64/#65 into the catalog branch: backend 114 suites /
+979 tests passed, backend lint/architecture and production dependency audit passed.
+Frontend 87 suites / 533 tests, lint and build passed; initial JS 687.81 kB plus
+lazy Vietmap SDK 768.47 kB (bundle warnings remain). Python AI tooling passed 13
+tests; deployment tooling passed 6 synthetic tests. These checks do not deploy VPS.
+
+Final browser follow-up loaded sprite JSON and PNG with HTTP 200 on both 1440px
+and 390px, addressing the SDK's absolute sprite URL requirement. Customer pin
+selection, explicit confirmation reset, persistence and visible save acknowledgement
+after setup reload passed at both widths, with no overflow/page errors. Freshness
+tests also verify automatic removal after ninety seconds without a poll response.
+VPS Tilemap key presence was confirmed without exposing its value.
+
 ## Embedded Map Follow-up
 
 Live Tilemap street-style request returned HTTP 200 with the separately configured
