@@ -16,12 +16,16 @@ import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
 import { createMongoCustomerReviewRepository } from '../../src/services/reviews/mongo-customer-review.repository.js';
 import { createReviewService } from '../../src/services/reviews/review.service.js';
 import { createReviewRouter } from '../../src/routes/review.routes.js';
+import { createPayrollService } from '../../src/services/payroll/payroll.service.js';
+import { employeePayrollPolicyResolver } from '../../src/constants/employee-payroll-policy.js';
+import { createEmployeeDispatchService } from '../../src/services/employee-scheduling/employee-dispatch.service.js';
+import { createEmployeeScheduleRepository } from '../../src/services/employee-scheduling/employee-schedule.repository.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
 const staff = actor('STAFF'), customer = actor('CUSTOMER');
 const windows = Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '08:00', endLocalTime: '18:00' }));
-let replica, connection, module, app, payroll, reviewApp, reviewNow = clock();
+let replica, connection, module, app, payroll, reviewApp, payrollService, reviewNow = clock();
 const serviceId = oid();
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
@@ -35,6 +39,7 @@ beforeAll(async () => {
     return record ? { ...record, userId: user, expiresAt: clock() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   module = employeeSchedulingRuntimeModule({ connection, config: { auth: { enabled: true } }, clock, sessionService, env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: 'true' } });
+  payrollService = createPayrollService({ connection, policy: employeePayrollPolicyResolver, clock });
   app = express(); app.use(express.json(), requestId); app.use(module.mount, module.router); app.use(errorHandler(() => {}));
   const reviewClock = () => reviewNow;
   const reviews = createReviewService({ repository: createMongoCustomerReviewRepository({ connection }), clock: reviewClock });
@@ -50,9 +55,11 @@ async function employee({ configure = true, contract = true } = {}) {
   const value = actor('PET_SITTER'), userId = new mongoose.Types.ObjectId(value.userId);
   await connection.collection('users').insertOne({ _id: userId, ...value });
   await connection.collection('sitterstatuses').insertOne({ userId, status: 'ACTIVE' });
-  await connection.collection('sitterapplications').insertOne({ provisionedUserId: userId, state: 'APPROVED' });
+  await connection.collection('sitterapplications').insertOne({ provisionedUserId: userId, state: 'APPROVED', submissionKeyDigest: `synthetic-${userId}` });
   await connection.collection('aisitterprofiles').insertOne({ userId, active: true, serviceIds: [serviceId],
-    species: ['DOG', 'CAT'], allowedTraits: [], maxWeightKg: 25, maxPets: 3, dayOffDates: [] });
+    species: ['DOG', 'CAT'], allowedTraits: [], maxWeightKg: 25, maxPets: 3, dayOffDates: [],
+    starts: Array.from({ length: 30 }, (_, i) => { const date = new Date(Date.parse('2026-10-30T00:00:00Z') + i * 86400000).toISOString().slice(0, 10);
+      return { localDate: date, point: { type: 'Point', coordinates: [105.86, 21.02] }, availableFrom: new Date(`${date}T01:00:00Z`), availableUntil: new Date(`${date}T11:00:00Z`) }; }) });
   if (contract) await payroll.EmploymentContract.create({ employeeId: userId, version: 1, employmentType: 'PART_TIME', salaryBasis: 'GROSS',
     monthlyBaseVnd: 3000000, payCycle: 'MONTHLY', weeklyMinutes: 1200, signedAt: new Date('2026-10-01'), effectiveAt: new Date('2026-10-01'),
     contractReference: `synthetic-contract-${userId}`, workplaceRegion: 1, workplaceReference: 'Synthetic Hanoi workplace', verifiedBy: staff.userId, recordedAt: new Date(clock()) });
@@ -66,8 +73,8 @@ async function employee({ configure = true, contract = true } = {}) {
 async function visit({ start = '2026-11-02T02:00:00Z', minutes = 60, prepay = false, requestedSitterId, areaCode = 'DISTRICT_HAI_BA_TRUNG', boarding = false, net = 100000 } = {}) {
   const bookingId = oid(), visitId = oid(), row = { _id: visitId, bookingId, customerId: new mongoose.Types.ObjectId(customer.userId),
     serviceId, petIds: [oid()], sitterId: null, requestedSitterId: requestedSitterId ? new mongoose.Types.ObjectId(requestedSitterId) : null,
-    state: 'SCHEDULED', version: 0, sequence: 0, areaCode, location: 'FACILITY', startAt: new Date(start), endAt: new Date(Date.parse(start) + minutes * 60000),
-    snapshots: { serviceName: 'Synthetic service', serviceAddress: 'Synthetic private facility', employeeServiceNetVnd: net, boarding, pets: [{ id: String(oid()), name: 'Synthetic dog', species: 'DOG', weightKg: 4, traits: [] }] } };
+    state: 'SCHEDULED', version: 0, sequence: 0, dispatchReview: { code: 'NO_ELIGIBLE_SITTER' }, areaCode, location: 'FACILITY', startAt: new Date(start), endAt: new Date(Date.parse(start) + minutes * 60000),
+    snapshots: { serviceName: 'Synthetic service', point: { type: 'Point', coordinates: [105.86, 21.02] }, serviceAddress: 'Synthetic private facility', employeeServiceNetVnd: net, boarding, pets: [{ id: String(oid()), name: 'Synthetic dog', species: 'DOG', weightKg: 4, traits: [] }] } };
   await connection.collection('bookings').insertOne({ _id: bookingId, customerId: row.customerId, version: 0, financeGuardVersion: 0,
     originalVisitCount: 1, careVisitCount: 1, visitIds: [visitId], carePlanState: 'APPROVED', state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
     paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: net, currency: 'VND' },
@@ -181,6 +188,25 @@ test('two screens persist shared versions, replay commands, keep future schedule
   await expect(module.repository.areas.replaceMine({ actor: sitter, areas: [], expectedVersion: 3, idempotencyKey: 'suspended-areas' })).rejects.toMatchObject({ code: 'SITTER_NOT_ELIGIBLE' });
 });
 
+test('verified Admin contract unlocks both scheduling screens without creating bookings or duplicate contracts', async () => {
+  const sitter = await employee({ configure: false, contract: false });
+  const areas = { actor: sitter, areas: ['DISTRICT_HAI_BA_TRUNG'], expectedVersion: 0, idempotencyKey: 'recover-areas-key' };
+  const command = { zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30', workingWindows: windows,
+    expectedVersion: 1, idempotencyKey: 'recover-hours-key' };
+  await expect(module.repository.areas.replaceMine(areas)).rejects.toMatchObject({ code: 'CONTRACT_REQUIRED' });
+  const input = { employeeId: sitter.userId, expectedVersion: 0, employmentType: 'PART_TIME', salaryBasis: 'GROSS', monthlyBaseVnd: 3000000,
+    payCycle: 'MONTHLY', weeklyMinutes: 1200, signedAt: '2026-10-01T00:00:00Z', effectiveAt: '2026-10-01T00:00:00Z',
+    contractReference: 'synthetic-verified-contract', workplaceRegion: 1, workplaceReference: 'Synthetic verified workplace' };
+  const admin = actor('ADMIN'), beforeBookings = await connection.collection('bookings').countDocuments();
+  await expect(payrollService.recordContract(staff, input, 'recover-contract-key')).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  const saved = await payrollService.recordContract(admin, input, 'recover-contract-key');
+  expect(await payrollService.recordContract(admin, input, 'recover-contract-key')).toEqual(saved);
+  expect((await module.repository.areas.replaceMine(areas)).expectedVersion).toBe(1);
+  expect((await module.repository.availability.updateMine({ actor: sitter, command })).expectedVersion).toBe(2);
+  expect(await payroll.EmploymentContract.countDocuments({ employeeId: sitter.userId })).toBe(1);
+  expect(await connection.collection('bookings').countDocuments()).toBe(beforeBookings);
+});
+
 test('confirmed assignments block incompatible area/time removal and pending invitation is not an assignment', async () => {
   const sitter = await employee(), row = await visit();
   const offer = await module.dispatch.invite(staff, String(row._id), { sitterId: sitter.userId, expectedVersion: 0 }, 'invite-persisted');
@@ -257,19 +283,89 @@ test('dispatch follows advisory ordering only among currently eligible employees
   expect((await connection.collection('visits').findOne({ _id: row._id })).sitterId).toBeNull();
 });
 
-test('agent resumes durable queue without duplicate invitations, skips payment/plan gates and sends expired directed offers to Staff review', async () => {
+test('automatic dispatch invites five nearby newcomers, replenishes a decline and atomically awards one acceptance', async () => {
+  const selectedService = oid(), workers = [];
+  for (let index = 0; index < 7; index++) {
+    const sitter = await employee(); workers.push(sitter);
+    await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(sitter.userId) }, { $set: {
+      serviceIds: [selectedService], starts: [{ localDate: '2026-11-25', point: { type: 'Point', coordinates: [105.86 + (index + 1) / 1000, 21.02] },
+        availableFrom: new Date('2026-11-25T01:00:00Z'), availableUntil: new Date('2026-11-25T11:00:00Z') }]
+    } });
+  }
+  await payroll.EmploymentContract.deleteMany({ employeeId: workers[6].userId });
+  const row = await visit({ start: '2026-11-25T02:00:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { serviceId: selectedService }, $unset: { dispatchReview: 1 } });
+  const repository = createEmployeeScheduleRepository({ connection, clock, routingProvider: {
+    edgeKey, cacheTtlMs: 0, source: 'SYNTHETIC_ROUTE', async matrix(points) {
+      return { map: new Map(points.flatMap(a => points.map(b => [edgeKey(a, b), Math.abs(a[0] - b[0]) * 1000]))), recordedAt: new Date(clock()), source: 'SYNTHETIC_ROUTE' };
+    }
+  } });
+  const dispatch = createEmployeeDispatchService({ repository, clock });
+  await expect(dispatch.invite(staff, String(row._id), { expectedVersion: 0 }, 'staff-before-system'))
+    .rejects.toMatchObject({ code: 'SYSTEM_DISPATCH_IN_PROGRESS' });
+  await dispatch.runBatch({ limit: 20 });
+  let offers = await repository.models.EmployeeVisitOffer.find({ visitId: row._id, state: 'PENDING' }).sort({ _id: 1 }).lean();
+  expect(offers.map(offer => offer.sitterId)).toEqual(workers.slice(0, 5).map(worker => worker.userId));
+  expect(await connection.collection('aivisitoutcomes').countDocuments({ sitterId: { $in: workers.map(w => new mongoose.Types.ObjectId(w.userId)) } })).toBe(0);
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'DispatchReviewRequired', 'metadata.visitId': String(row._id) })).toBe(0);
+  const originOwner = new mongoose.Types.ObjectId(workers[4].userId), original = await connection.collection('aisitterprofiles').findOne({ userId: originOwner });
+  await connection.collection('aisitterprofiles').updateOne({ userId: originOwner }, { $set: { starts: [] } });
+  await expect(dispatch.offers.accept(workers[4], String(offers[4]._id), 0, 'origin-removed-after-offer')).rejects.toMatchObject({ code: 'DAY_ORIGIN_MISSING' });
+  await connection.collection('aisitterprofiles').updateOne({ userId: originOwner }, { $set: { starts: original.starts } });
+  await dispatch.offers.decline(workers[0], String(offers[0]._id), 0, 'newcomer-decline-001');
+  await dispatch.runBatch({ limit: 20 });
+  offers = await repository.models.EmployeeVisitOffer.find({ visitId: row._id, state: 'PENDING' }).lean();
+  expect(offers).toHaveLength(5); expect(offers.some(offer => offer.sitterId === workers[5].userId)).toBe(true);
+  const responses = await Promise.allSettled(offers.slice(0, 2).map(offer => dispatch.offers.accept(
+    workers.find(worker => worker.userId === offer.sitterId), String(offer._id), 0, `newcomer-accept-${offer._id}`)));
+  expect(responses.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+  expect(await repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id, state: 'ACCEPTED' })).toBe(1);
+  expect(await repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id, state: 'REVOKED' })).toBe(4);
+  const short = await visit({ start: '2026-11-25T04:00:00Z' });
+  await connection.collection('visits').updateOne({ _id: short._id }, { $set: { serviceId: selectedService }, $unset: { dispatchReview: 1 } });
+  for (const sitter of workers.slice(2)) await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(sitter.userId) }, { $set: { serviceIds: [] } });
+  await dispatch.runBatch({ limit: 20 });
+  const shortOffers = await repository.models.EmployeeVisitOffer.find({ visitId: short._id, state: 'PENDING' }).lean();
+  expect(shortOffers).toHaveLength(2);
+  for (const offer of shortOffers) await dispatch.offers.decline(workers.find(worker => worker.userId === offer.sitterId), String(offer._id), 0, `short-decline-${offer._id}`);
+  await dispatch.runBatch({ limit: 20 });
+  expect((await connection.collection('visits').findOne({ _id: short._id })).dispatchReview.code).toBe('STAFF_REVIEW_REQUIRED');
+});
+
+test('unaccepted visits reaching shift start remain visible and notify Staff/Admin once', async () => {
+  const row = await visit({ start: '2026-10-30T02:59:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await module.dispatch.runBatch({ limit: 20 });
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview.code).toBe('SHIFT_START_REACHED');
+  expect((await module.dispatch.queue(staff)).items.some(visit => visit.id === String(row._id))).toBe(true);
+  const query = { eventType: 'DispatchReviewRequired', 'metadata.visitId': String(row._id) };
+  const before = await connection.collection('notifications').countDocuments(query);
+  expect(before).toBeGreaterThan(0);
+  await module.dispatch.runBatch({ limit: 20 });
+  expect(await connection.collection('notifications').countDocuments(query)).toBe(before);
+});
+
+test('agent resumes without duplicate invitations, automatically plans legacy orders, respects payment and escalates exhausted offers once', async () => {
+  const admin = actor('ADMIN'); await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(admin.userId), ...admin });
   const sitter = await employee(), row = await visit({ start: '2026-11-10T02:00:00Z', requestedSitterId: sitter.userId });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
   const unpaid = await visit({ start: '2026-11-11T02:00:00Z', prepay: true, requestedSitterId: sitter.userId });
   const unfinished = await visit({ start: '2026-11-12T02:00:00Z', requestedSitterId: sitter.userId });
   await connection.collection('bookings').updateOne({ _id: unfinished.bookingId }, { $set: { carePlanState: 'NEEDS_REVIEW' } });
   await Promise.all([module.dispatch.runBatch({ limit: 20 }), module.dispatch.runBatch({ limit: 20 })]);
   const offers = await module.repository.models.EmployeeVisitOffer.find({ visitId: row._id }).lean(); expect(offers).toHaveLength(1);
   expect(offers[0].sitterId).toBe(sitter.userId);
-  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: { $in: [unpaid._id, unfinished._id] } })).toBe(0);
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: unpaid._id })).toBe(0);
+  expect((await connection.collection('bookings').findOne({ _id: unfinished.bookingId })).carePlanState).toBe('APPROVED');
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: { $in: (await connection.collection('bookings').findOne({ _id: unfinished.bookingId })).visitIds } })).toBe(1);
   await module.repository.models.EmployeeVisitOffer.updateOne({ _id: offers[0]._id }, { $set: { deadline: new Date(clock() - 1) } });
   await module.dispatch.runBatch({ limit: 20 });
   expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(1);
   expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview.code).toBe('STAFF_REVIEW_REQUIRED');
+  const filter = { eventType: 'DispatchReviewRequired', 'metadata.visitId': String(row._id) };
+  expect((await connection.collection('notifications').find(filter).toArray()).map(item => item.role).sort()).toEqual(['ADMIN', 'STAFF']);
+  await module.dispatch.runBatch({ limit: 20 });
+  expect(await connection.collection('notifications').countDocuments(filter)).toBe(2);
 });
 
 test('service capability, pet needs, approved leave, city coverage, travel evidence and contracted hours remain authoritative', async () => {
@@ -285,7 +381,7 @@ test('service capability, pet needs, approved leave, city coverage, travel evide
   const offer = await module.dispatch.invite(staff, String(row._id), { sitterId: sitter.userId, expectedVersion: 0 }, 'city-invitation');
   await module.dispatch.offers.accept(sitter, offer.offerId, 0, 'city-acceptance');
   const following = await visit({ start: '2026-11-16T03:00:00Z' });
-  await connection.collection('visits').updateOne({ _id: following._id }, { $set: { location: 'HOME', addressId: oid(), 'snapshots.serviceAddress': 'Synthetic other home' } });
+  await connection.collection('visits').updateOne({ _id: following._id }, { $set: { location: 'HOME', addressId: oid(), 'snapshots.serviceAddress': 'Synthetic other home' }, $unset: { 'snapshots.point': 1 } });
   await expect(module.dispatch.invite(staff, String(following._id), { sitterId: sitter.userId, expectedVersion: 0 }, 'travel-required')).rejects.toMatchObject({ code: 'TRAVEL_REVIEW_REQUIRED' });
   const long = await visit({ start: '2026-11-17T01:00:00Z', minutes: 481 });
   await expect(module.dispatch.invite(staff, String(long._id), { sitterId: sitter.userId, expectedVersion: 0 }, 'long-shift')).rejects.toMatchObject({ code: 'SHIFT_REVIEW_REQUIRED' });
@@ -301,6 +397,7 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   await connection.collection('payments').insertOne({ bookingId: row.bookingId, provider: 'SYNTHETIC', providerEventId: String(oid()), state: 'VERIFIED',
     receiptMoney: { amountVnd: 100001, currency: 'VND' }, verifiedAt: new Date(clock()) });
   const plan = await module.carePlans.finalize(staff, String(row.bookingId), { expectedVersion: 0, shiftMinutes: 60 }, 'care-to-payroll-plan');
+  await connection.collection('visits').updateMany({ bookingId: row.bookingId, state: 'SCHEDULED' }, { $set: { dispatchReview: { code: 'NO_ELIGIBLE_SITTER' } } });
   const first = await module.dispatch.invite(staff, plan.visits[0].id, { sitterId: sitter.userId, expectedVersion: 0 }, 'care-to-payroll-invite-0');
   const careShift = await connection.collection('visits').findOne({ _id: new mongoose.Types.ObjectId(plan.visits[0].id) });
   expect(careShift.snapshots.care).toEqual(row.snapshots.care);

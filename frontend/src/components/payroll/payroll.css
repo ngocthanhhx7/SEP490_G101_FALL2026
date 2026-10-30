@@ -3,6 +3,7 @@
 .payroll-workspace h2 { font-size: 1.15rem; margin: 0; }
 .payroll-workspace section { margin: 1.5rem 0; padding-top: 1rem; border-top: 1px solid #d4dcd8; }
 .payroll-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 1rem; margin: 1rem 0; }
+.employee-contract-fields { min-width: 0; border: 0; padding: 0; }
 .payroll-field { display: flex; flex-direction: column; gap: .35rem; min-width: 0; font-size: .9rem; }
 .payroll-field input, .payroll-field select, .payroll-field textarea { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #849a90; border-radius: 4px; padding: .6rem; background: #fff; color: #202b28; font: inherit; }
 .payroll-workspace button { padding: .6rem .9rem; border: 1px solid #28644b; border-radius: 4px; background: #fff; color: #20563f; cursor: pointer; font: inherit; }

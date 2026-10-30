@@ -172,7 +172,7 @@ Một quote một dịch vụ theo P01. Cơ sở giá là duration units × số
 
 Ranking có công thức và giải thích đầy đủ tại [bộ quy tắc](../requirements/pwc-sitter-matching-scheduling-rules-v1.md). Triển khai 5 thành phần 30/25/20/15/10, lấy species ít kinh nghiệm nhất cho lượt nhiều loài, kinh nghiệm/rating180 ngày, reliability90 ngày, history cùng pet. New sitter public rating null, prior nội bộ; không zero-rating giả. Tối đa 6h phục vụ/8h bận, nghỉ30 phút sau tối đa4h liên tục; bàn giao15, buffer đường max(10,20% ETA), chặng<=45 phút. Lịch cố định, không tự reschedule. Recommender không thực thi quota offer người mới vì quota cần transaction offer P24, không sửa thứ tự để tuyên bố quota đã chạy.
 
-Shortlist default5, cho phép5–20; chỉ người đủ gate/score>=60. Mỗi candidate có breakdown, confidence, plan phút tăng/bận, ranking source/policy/model. Nếu thiếu5 báo shortfall/exclusions aggregate, không lộ danh tính người bị loại. Chưa gửi SMS/email mời tự động và chưa gán người; danh sách để adapter Offer gửi tuần tự, không phát 5 assignment.
+Shortlist default5, cho phép5–20; chỉ người đủ gate/score>=60. Mỗi candidate có breakdown, confidence, plan phút tăng/bận, ranking source/policy/model. Nếu thiếu5 báo shortfall/exclusions aggregate, không lộ danh tính người bị loại. Employee dispatch sử dụng gợi ý này và có nhánh sắp xếp theo eligibility/tuyến đường cho nhân viên mới. Mục tiêu là 5 lời mời đồng thời, bù khi có người từ chối; ca chỉ gán cho người đầu tiên chấp nhận thành công. Các lời mời còn lại bị thu hồi. Không tạo 5 assignment; SMS/email là gate riêng. Xem [luồng điều phối](employee-scheduling-checkout.md).
 
 ## 9. Huấn luyện lại model
 

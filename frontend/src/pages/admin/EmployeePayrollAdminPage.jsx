@@ -1,7 +1,8 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
 import { PayrollStatement, PayrollAdjustment, PayrollField, PayrollLoadState, PayrollPager, money, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
 import { PayrollAdjustmentForm, PayrollAdjustmentDecision } from '../../components/payroll/PayrollAdjustmentForms.jsx';
+import { EmployeeContractForm } from '../../components/payroll/EmployeeContractForm.jsx';
 
 const employeeField = { label: 'Mã nhân viên', name: 'employeeId', pattern: '[a-fA-F0-9]{24}', maxLength: 24 };
 const numberValue = (data, key) => Number(data.get(key));
@@ -36,7 +37,8 @@ function DecisionForm({ row, kind, state, api }) {
   </form>;
 }
 
-export function EmployeePayrollAdminPage({ api }) {
+export function EmployeePayrollAdminPage({ api, employeeApi }) {
+  const loadEmployee = useCallback((id, options) => employeeApi.get(id, options), [employeeApi]);
   const [advancePages, setAdvancePages] = useState([null]), [statementPages, setStatementPages] = useState([null]);
   const [adjustmentPages, setAdjustmentPages] = useState([null]);
   const [history, setHistory] = useState(false);
@@ -48,17 +50,22 @@ export function EmployeePayrollAdminPage({ api }) {
       advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor, adjustmentNextCursor: adjustments.nextCursor };
   }, [api, advanceCursor, statementCursor, adjustmentCursor, history]);
   const state = usePayrollWorkspace(load);
-  const [employmentType, setEmploymentType] = useState('FULL_TIME');
   const [installments, setInstallments] = useState([]);
-  const saveContract = async event => {
-    event.preventDefault(); const form = event.currentTarget, data = new window.FormData(form);
-    const body = { employeeId: data.get('employeeId'), expectedVersion: numberValue(data, 'expectedVersion'),
-      employmentType, salaryBasis: 'GROSS', monthlyBaseVnd: employmentType === 'FULL_TIME' ? 10000000 : 3000000,
-      payCycle: employmentType === 'FULL_TIME' ? 'MONTHLY' : data.get('payCycle'), weeklyMinutes: numberValue(data, 'weeklyMinutes'),
-      signedAt: `${data.get('signedAt')}T00:00:00+07:00`, effectiveAt: `${data.get('effectiveAt')}T00:00:00+07:00`,
-      contractReference: data.get('contractReference'), workplaceRegion: numberValue(data, 'workplaceRegion'), workplaceReference: data.get('workplaceReference') };
-    if (data.get('endsAt')) body.endsAt = `${data.get('endsAt')}T00:00:00+07:00`;
-    if (await state.command('contract', body, key => api.contract(body, key))) form.reset();
+  const contractBody = useRef(null);
+  const [contractLocked, setContractLocked] = useState(false), [contractRevision, setContractRevision] = useState(0);
+  const saveContract = async body => {
+    contractBody.current ??= body;
+    const saved = await state.command('contract', contractBody.current, async key => {
+      try { return await api.contract(contractBody.current, key); }
+      catch (error) {
+        const uncertain = !error.status || error.status >= 500 || ['TIMEOUT', 'NETWORK_ERROR', 'INVALID_RESPONSE'].includes(error.code);
+        setContractLocked(uncertain);
+        if (!uncertain) { contractBody.current = null; if (error.code === 'VERSION_CONFLICT') setContractRevision(value => value + 1); }
+        throw error;
+      }
+    });
+    if (saved) { contractBody.current = null; setContractLocked(false); setContractRevision(value => value + 1); }
+    return saved;
   };
   const prepare = async event => {
     event.preventDefault(); const form = event.currentTarget, data = new window.FormData(form);
@@ -72,20 +79,7 @@ export function EmployeePayrollAdminPage({ api }) {
   };
   return <section className="payroll-workspace"><h1>Quản lý lương</h1><PayrollLoadState state={state} />
     <section><details><summary>Xác minh hợp đồng đã ký</summary>
-      <form className="payroll-form" onSubmit={saveContract}>
-        <PayrollField {...employeeField} /><PayrollField label="Phiên bản hợp đồng hiện tại" name="expectedVersion" type="number" min="0" step="1" defaultValue="0" />
-        <label className="payroll-field"><span>Hình thức làm việc</span><select value={employmentType} onChange={e => setEmploymentType(e.target.value)}>
-          <option value="FULL_TIME">Toàn thời gian · 10.000.000đ gross/tháng</option><option value="PART_TIME">Bán thời gian · 3.000.000đ gross/tháng</option>
-        </select></label>
-        <PayrollField key={employmentType} label="Phút làm việc mỗi tuần" name="weeklyMinutes" type="number" min="1" max="2880" step="1" defaultValue={employmentType === 'PART_TIME' ? 1200 : ''} readOnly={employmentType === 'PART_TIME'} />
-        {employmentType === 'PART_TIME' && <label className="payroll-field"><span>Kỳ trả theo hợp đồng</span><select name="payCycle"><option value="WEEKLY">Theo tuần</option><option value="MONTHLY">Theo tháng</option></select></label>}
-        <PayrollField label="Ngày ký" name="signedAt" type="date" /><PayrollField label="Ngày hiệu lực" name="effectiveAt" type="date" />
-        <PayrollField label="Ngày hết hiệu lực" name="endsAt" type="date" required={false} />
-        <PayrollField label="Mã hồ sơ hợp đồng đã ký" name="contractReference" maxLength={160} />
-        <label className="payroll-field"><span>Vùng lương nơi làm việc</span><select name="workplaceRegion" required defaultValue=""><option value="" disabled>Chọn vùng</option>{[1, 2, 3, 4].map(region => <option key={region} value={region}>Vùng {region}</option>)}</select></label>
-        <PayrollField label="Phường/xã và căn cứ xác định vùng" name="workplaceReference" maxLength={160} />
-        <button disabled={state.busy} type="submit">Lưu hợp đồng đã xác minh</button>
-      </form>
+      <EmployeeContractForm key={contractRevision} busy={state.busy} locked={contractLocked} onSave={saveContract} loadEmployee={employeeApi ? loadEmployee : undefined} />
     </details></section>
     <section><details><summary>Lập phiếu lương</summary><form onSubmit={prepare}>
       <div className="payroll-form"><PayrollField {...employeeField} />

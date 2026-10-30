@@ -152,3 +152,15 @@ test('enforces the selection limit in the panel', async () => {
   expect(last).toBeDisabled();
   expect(screen.getByText(`Đã chọn ${MAX_SITTER_WORK_AREA_CODES}/${MAX_SITTER_WORK_AREA_CODES} khu vực.`)).toBeVisible();
 });
+
+test('explains contract eligibility while retaining the selected areas for correction and retry', async () => {
+  const api = { load: async () => ({ data: areaData }), save: jest.fn().mockRejectedValue({ status: 409, code: 'CONTRACT_REQUIRED' }) };
+  renderPanel(api);
+  fireEvent.click(await screen.findByLabelText('Thành phố Hồ Chí Minh'));
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu khu vực' }));
+  expect(await screen.findByText('Cần xác minh hợp đồng')).toBeVisible();
+  expect(screen.getByText(/Hãy liên hệ Admin để xác minh hợp đồng/)).toBeVisible();
+  expect(screen.getByLabelText('Thành phố Hồ Chí Minh')).toBeChecked();
+  expect(screen.getByLabelText('Quận 1')).toBeChecked();
+  expect(screen.queryByText('Đã lưu khu vực')).not.toBeInTheDocument();
+});

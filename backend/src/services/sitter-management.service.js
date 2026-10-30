@@ -130,6 +130,8 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
           { $eq: [{ $mod: [{ $convert: { input: '$rating', to: 'double', onError: null, onNull: null } }, 1] }, 0] }] }, 0, 1] } } } }], session) : [];
       if (ratings[0]?.invalid) throw new AppError(503, 'INVALID_PROJECTION', 'Invalid published rating');
       const admin = hasRole(actor.roles, 'ADMIN');
+      const latestContract = admin ? await connection.db.collection('employmentcontracts').findOne({ employeeId: target },
+        { session, projection: { version: 1 }, sort: { version: -1 } }) : null;
       const audit = admin && application ? await aggregate('sitterapplicationaudits', [{ $match: { resourceId: application._id,
         action: { $in: ['SITTER_SUSPENDED', 'SITTER_REINSTATED', 'APPLICATION_DECIDED'] } } },
       { $sort: { occurredAt: -1, _id: -1 } }, { $limit: 20 }, { $project: fields(['action', 'occurredAt', 'resultVersion']) }], session) : [];
@@ -151,7 +153,9 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
           startLocalTime: w.startLocalTime, endLocalTime: w.endLocalTime })),
         dayOffDates: availability.dayOffDates ?? [] } : null,
       audit: audit.map(a => ({ id: id(a._id), action: a.action, at: iso(a.occurredAt), version: a.resultVersion })),
-      permissions: { manageStatus: admin && Boolean(application && status), reviewApplication: admin && Boolean(application) } };
+      ...(admin ? { contractVersion: latestContract?.version ?? 0 } : {}),
+      permissions: { manageContract: admin && user.state === 'ACTIVE' && Boolean(application),
+        manageStatus: admin && Boolean(application && status), reviewApplication: admin && Boolean(application) } };
     });
   }
   async function activity({ actor, userId, query: input }) {

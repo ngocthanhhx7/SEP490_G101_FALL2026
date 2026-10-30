@@ -18,6 +18,9 @@ const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cơ sở', OUTDOOR: 'Ng
 const uncertainResponse = error => ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(error.code) || error.status >= 500;
 function errorText(error) {
   return ({ QUOTE_CHANGED: 'Hồ sơ, giá hoặc điều kiện đã thay đổi. Vui lòng lấy báo giá mới.',
+    PRICING_REVIEW_REQUIRED: 'Một đặc điểm chăm sóc của thú cưng chưa có quy tắc giá được duyệt. Vui lòng liên hệ PawWorld để rà soát giá trước khi đặt dịch vụ.',
+    PRICING_POLICY_UNAVAILABLE: 'Dịch vụ chưa có chính sách giá có hiệu lực. Vui lòng liên hệ PawWorld hoặc thử lại sau.',
+    SLOT_INVALID: 'Lịch gợi ý cần đặt trước ít nhất 24 giờ, trong cùng ngày và tối đa 6 giờ. Vui lòng kiểm tra lại thời gian.',
     RESOURCE_NOT_FOUND: 'Báo giá hoặc hồ sơ không còn khả dụng. Vui lòng tải lại.',
     SCHEDULING_UNAVAILABLE: 'Chưa thể kiểm tra nhân viên. Bạn có thể gửi đơn để nhân viên hỗ trợ sắp xếp.',
     CARE_INFORMATION_REQUIRED: 'Cần xác nhận thông tin chăm sóc trong hồ sơ thú cưng trước khi tìm sitter.',
@@ -140,9 +143,9 @@ export function BookingFlow({ service, api, matching, onBooked }) {
       <div className="booking-modes">{[['SYSTEM', Users, 'Hệ thống đề xuất'], ['DIRECT', UserRound, 'Chỉ định pet sitter']].map(([value, Icon, label]) => <label key={value} className={mode === value ? 'is-selected' : ''}><input type="radio" name="booking-mode" value={value} checked={mode === value} disabled={busy} onChange={() => { generation.current++; setMode(value); setShortlists(null); setAvailable(null); setSelected(''); setError(''); }} /><Icon size={22} /><strong>{label}</strong></label>)}</div>
       {mode === 'SYSTEM' ? <><p>PawWorld kiểm tra lịch và gửi lời mời cho nhân viên phù hợp. Ca được phân công sau khi sitter nhận lời.</p>
         {canMatch && <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('AI')}><Sparkles size={17} />{busy ? 'Đang tìm…' : 'Xem gợi ý cho lịch này'}</button>}
-        {!canMatch && <p>Lịch này sẽ được nhân viên điều phối theo phạm vi dịch vụ.</p>}
+        {!canMatch && <p>Hệ thống sắp xếp người chăm sóc theo lịch và phạm vi dịch vụ.</p>}
         {shortlists && <><ul className="booking-shortlist">{shortlists.map((list, index) => <li key={index}><h3>Buổi {index+1}</h3>{list.candidates.length ? <ol>{list.candidates.map(sitter => <li key={sitter.sitterId}><strong>{sitter.displayName}</strong> · {sitter.score}/100{<details><summary>Lý do phù hợp</summary><ul>{sitter.breakdown.map((line, i) => <li key={i}>{line.explanation}</li>)}</ul></details>}</li>)}</ol> : <p>Chưa có sitter đủ điều kiện cho lịch này.</p>}<p>Gợi ý đến {new Date(list.expiresAt).toLocaleTimeString('vi-VN')}; không phải xác nhận giữ chỗ.</p></li>)}</ul>
-          <button type="button" onClick={() => { setShortlists(null); setError(''); }}>Để nhân viên hỗ trợ sắp xếp</button></>}
+          <button type="button" onClick={() => { setShortlists(null); setError(''); }}>Để hệ thống sắp xếp</button></>}
       </> : <><p>Sitter cần đáp ứng lịch, khu vực và hồ sơ thú cưng của tất cả buổi. Lựa chọn sẽ được kiểm tra lại trước khi tạo đơn và gửi lời mời.</p>
         {boarding ? <p>Lưu trú cần nhân viên chia ca chăm sóc trước khi chỉ định. <Link to="/contact">Liên hệ điều phối</Link></p> : <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('DIRECT')}><Users size={17} />{busy ? 'Đang kiểm tra…' : 'Tìm sitter phù hợp'}</button>}
         {available && <><div className="booking-sitters">{available.sitters.map(sitter => <label key={sitter.id}><input type="radio" name="sitter" checked={selected === sitter.id} value={sitter.id} onChange={() => setSelected(sitter.id)} />{sitter.displayName}</label>)}</div>
@@ -155,7 +158,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
       <ul>{starts.map((value, index) => <li key={index}>Buổi {index+1}: {new Date(value+'+07:00').toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</li>)}</ul>
       <dl className="booking-review">{[['Dịch vụ', quote.baseVnd], ['Phụ phí', quote.surchargeVnd], ['Giảm combo', -quote.discountVnd], ['Phí bậc giá', quote.orderFeeVnd], ['Tổng thanh toán', quote.totalVnd]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
       <p>{quote.paymentMode === 'PREPAY' ? 'Đơn nhiều buổi cần thanh toán đủ trong 15 phút trước khi gửi lời mời.' : 'Thanh toán sau khi hoàn tất dịch vụ.'}</p>
-      <p>Nhân viên xác nhận kế hoạch chăm sóc trước khi phân công. Sitter được chọn chưa được giữ chỗ.</p>
+      <p>Hệ thống tìm người chăm sóc sau khi đơn đủ điều kiện. Ca được xác nhận khi người chăm sóc nhận lời mời.</p>
       {quote.items.map((item, index) => <details key={index}><summary>{item.servicePolicy?.title ?? 'Điều kiện dịch vụ'}</summary><p className="pwc-checkout-policy">{item.servicePolicy?.body}</p></details>)}
       <label className="booking-check"><input type="checkbox" required checked={consent} onChange={event => setConsent(event.target.checked)} />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ.</label>
     </fieldset><div className="booking-actions"><button type="button" disabled={busy || uncertain} onClick={() => { setStep(1); setError(''); }}><ArrowLeft size={17} />Quay lại</button><button className="pwc-button pwc-button-primary" disabled={busy || !consent}><CalendarCheck size={17} />{busy ? 'Đang xác nhận…' : uncertain ? 'Kiểm tra lại đơn' : 'Xác nhận đặt dịch vụ'}</button></div></form>}

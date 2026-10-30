@@ -4,6 +4,8 @@ const errors = {
   NO_ELIGIBLE_SITTER: 'Chưa có nhân viên phù hợp với khu vực và ca này.',
   DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Nhân viên khách chỉ định chưa có ca phù hợp. Cần thống nhất lại lịch với khách.',
   STAFF_REVIEW_REQUIRED: 'Cần nhân viên điều phối xem lại lịch và các lời mời đã gửi.',
+  SYSTEM_DISPATCH_IN_PROGRESS: 'Hệ thống đang tìm người nhận ca. Chỉ điều phối thủ công khi ca cần hỗ trợ.',
+  DAY_ORIGIN_MISSING: 'Chưa có điểm xuất phát cho ngày làm việc. Cần cập nhật trước khi mời tự động.',
   CONTRACT_REQUIRED: 'Hợp đồng đã ký chưa bao phủ thời gian làm việc.',
   CONTRACT_HOURS_EXCEEDED: 'Ca này vượt giờ làm việc thông thường hoặc giờ trong hợp đồng.',
   WORK_AREA_MISMATCH: 'Ca nằm ngoài khu vực nhân viên đã đăng ký.',

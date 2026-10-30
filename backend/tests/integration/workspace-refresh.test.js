@@ -126,7 +126,10 @@ test('transactional scheduling messages are private, idempotent and rollback wit
   await expect(connection.transaction(async session => { await notifications.publish({ ...event, offerId: 'rolled-back' }, session); throw new Error('Synthetic rollback'); })).rejects.toThrow('Synthetic rollback');
   expect(await connection.db.collection('notifications').countDocuments({ recipientId: sitter.user.id })).toBe(1);
   await connection.transaction(session => notifications.publish({ ...event, type: 'OfferAccepted' }, session));
-  for (const user of [customer, admin, staff]) expect((await request(app).get(endpoint).set(headers(user))).body.data.items).toHaveLength(1);
+  expect((await request(app).get(endpoint).set(headers(customer))).body.data.items).toHaveLength(1);
+  for (const user of [admin, staff]) expect((await request(app).get(endpoint).set(headers(user))).body.data.items).toHaveLength(0);
+  await connection.transaction(session => notifications.publish({ ...event, type: 'DispatchReviewRequired', detail: { version: 1 } }, session));
+  for (const user of [admin, staff]) expect((await request(app).get(endpoint).set(headers(user))).body.data.items).toHaveLength(1);
   const id = own.body.data.items[0].id;
   await request(app).post(`${endpoint}/${id}/read-receipts`).set(headers(customer)).expect(404);
   await request(app).post(`${endpoint}/${id}/read-receipts`).set(headers(sitter)).expect(200);

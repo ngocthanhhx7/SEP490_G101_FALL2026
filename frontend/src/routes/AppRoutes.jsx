@@ -64,7 +64,8 @@ import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingPr
 function SitterManagementRoute({ detail = false }) {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createSitterManagementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
-  return detail ? <SitterManagementDetailPage key={user?.id} api={api} /> : <SitterManagementPage key={user?.id} api={api} />;
+  const payrollApi = useMemo(() => createEmployeePayrollApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return detail ? <SitterManagementDetailPage key={user?.id} api={api} payrollApi={payrollApi} /> : <SitterManagementPage key={user?.id} api={api} />;
 }
 
 function EmployeeScheduleRoute({ view }) {
@@ -89,7 +90,8 @@ function AdminSettlementRoute() {
 function EmployeePayrollRoute({ admin = false }) {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createEmployeePayrollApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
-  return admin ? <EmployeePayrollAdminPage key={user?.id} api={api} /> : <EmployeePayrollPage key={user?.id} api={api} />;
+  const employeeApi = useMemo(() => createSitterManagementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return admin ? <EmployeePayrollAdminPage key={user?.id} api={api} employeeApi={employeeApi} /> : <EmployeePayrollPage key={user?.id} api={api} />;
 }
 
 function SitterSettlementRoute() {

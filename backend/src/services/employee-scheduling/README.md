@@ -15,10 +15,18 @@ employee guards protect work already assigned. `schedule-policy.service.js` owns
 window coverage, overnight handling, operational area ancestry and occupied contract minutes.
 
 `employee-dispatch.service.js` uses the existing invitation domain service. Its restart-safe
-worker sends persisted invitations, requires acceptance before assignment, preserves the
+worker sends persisted invitations in groups targeting five eligible employees, requires acceptance before assignment, preserves the
 customer-selected employee and rechecks payment, contract, approved capabilities, leave,
 registered area/time, overlaps, ordinary work hours and travel evidence. Candidate scanning
-has a ten-second evaluation budget, plus the current provider request's bounded deadline.
+is bounded to 100 registered employees with four concurrent checks and bounded provider requests.
+Automatic invitations require a declared daily origin, outward/return route evidence,
+and enough travel time. Approved MATCH advice is retained; otherwise route ETA and
+workload order eligible employees, including newcomers without invented ratings.
+Fewer than five invitations are sent only when the evaluated eligible pool is smaller;
+declines trigger replenishment. The first acceptance atomically revokes other offers.
+Only exhausted/unavailable invitations escalate to Staff/Admin, once per review episode.
+Staff cannot initiate invitations before escalation. Checkout creates its own care plan;
+the worker also finalizes compatible legacy orders still awaiting the former manual step.
 Advisory ranking cannot change eligibility, prices or assignment state.
 
 `schedule-proposal.service.js` uses the existing customer confirmation domain service.

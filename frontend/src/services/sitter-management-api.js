@@ -32,6 +32,8 @@ export function createSitterManagementApi(request = createApiClient()) {
     get: (userId, { signal } = {}) => read(target(userId), data => row(data) && data.id === userId
       && Array.isArray(data.contracts) && Array.isArray(data.audit) && data.permissions
       && typeof data.permissions.manageStatus === 'boolean' && typeof data.permissions.reviewApplication === 'boolean'
+      && (data.permissions.manageContract === undefined || typeof data.permissions.manageContract === 'boolean')
+      && (!data.permissions.manageContract || count(data.contractVersion))
       && (data.availability === null || (Array.isArray(data.availability?.workingWindows) && Array.isArray(data.availability.dayOffDates)))
       && (data.capabilities === null || (Array.isArray(data.capabilities?.services) && Array.isArray(data.capabilities.species)))
       && (data.application === null || (text(data.application?.experience) && Array.isArray(data.application.requestedServices))), signal),

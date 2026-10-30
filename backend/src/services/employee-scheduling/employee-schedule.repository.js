@@ -112,7 +112,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       await models.EmployeeScheduleEvent.create([{ type: 'WorkAreasChanged', sitterId, actorId: sitterId, at: new Date(clock()), detail: { areas } }], { session });
       return result;
     }) });
-  async function eligible(sitterId, visit, session) {
+  async function eligible(sitterId, visit, session, { requireOrigin = false } = {}) {
     const start = new Date(visit.startAt), end = new Date(visit.endAt), date = schedulingDate(start);
     if (start <= new Date(clock()) || end <= start || end - start > 480 * 60000) fail('SHIFT_REVIEW_REQUIRED', 'Future care shifts must not exceed eight hours', 409);
     const contract = await contractAt(sitterId, start, end, session), record = await find(sitterId, session);
@@ -153,17 +153,24 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     const neighbours = rows.filter(row => schedulingDate(row.startAt) === date || schedulingDate(new Date(row.endAt.getTime() - 1)) === date);
     const before = neighbours.filter(row => row.endAt <= start).sort((a, b) => b.endAt - a.endAt)[0];
     const after = neighbours.filter(row => row.startAt >= end).sort((a, b) => a.startAt - b.startAt)[0];
-    let adjacentTravelMinutes = 0, verifiedLegs = 0;
-    for (const [from, to] of [[before, visit], [visit, after]]) {
+    const origin = capability.starts?.find(row => row.localDate === date);
+    if (requireOrigin && (!origin?.point?.coordinates || !Number.isFinite(new Date(origin.availableFrom).getTime()) ||
+      !Number.isFinite(new Date(origin.availableUntil).getTime()))) fail('DAY_ORIGIN_MISSING', 'Declared daily work origin required for automatic dispatch', 409);
+    const departure = before ?? (requireOrigin ? { endAt: new Date(Math.max(clock(), new Date(origin.availableFrom).getTime())), snapshots: { point: origin.point } } : null);
+    const finish = after ?? (requireOrigin ? { startAt: new Date(origin.availableUntil), snapshots: { point: origin.point } } : null);
+    let adjacentTravelMinutes = 0, verifiedLegs = 0, arrivalTravelMinutes = null, matrix;
+    for (const [from, to] of [[departure, visit], [visit, finish]]) {
       if (!from || !to) continue;
       let travel = 0;
-      if (!samePlace(from, to)) {
-        const a = from.snapshots?.point?.coordinates, b = to.snapshots?.point?.coordinates;
+      const a = from.snapshots?.point?.coordinates, b = to.snapshots?.point?.coordinates;
+      const identicalPoint = a?.length === 2 && b?.length === 2 && a.every((value, index) => value === b[index]);
+      if (!samePlace(from, to) && !identicalPoint) {
         if (!a || !b) fail('TRAVEL_REVIEW_REQUIRED', 'Confirmed route evidence required between work locations', 409);
         let route;
         if (routingProvider) {
           try {
-            const matrix = await cachedMatrix({ points: [a, b], Routing: matchingModels(connection).RoutingMatrixCache, provider: routingProvider, clock });
+            matrix ??= await cachedMatrix({ points: [departure, visit, finish].flatMap(row => row?.snapshots?.point?.coordinates ? [row.snapshots.point.coordinates] : []),
+              Routing: matchingModels(connection).RoutingMatrixCache, provider: routingProvider, clock });
             route = { minutes: matrix(a, b) };
           } catch (error) {
             if (!['ROUTING_UNAVAILABLE', 'ROUTING_LIMIT'].includes(error.code)) throw error;
@@ -175,17 +182,18 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
           fail('TRAVEL_REVIEW_REQUIRED', 'Current route evidence required between work locations', 409);
         travel = Math.ceil(route.minutes) + Math.max(SCHEDULE_RULES.travelBufferMinutes, Math.ceil(route.minutes * SCHEDULE_RULES.travelBufferRatio));
       }
-      const handover = samePlace(from, to) ? 0 : SCHEDULE_RULES.handoverMinutes;
+      const handover = samePlace(from, to) || identicalPoint || from === departure && !before ? 0 : SCHEDULE_RULES.handoverMinutes;
       if (new Date(from.endAt).getTime() + (travel + handover) * 60000 > new Date(to.startAt).getTime())
         fail('TRAVEL_TIME_CONFLICT', 'Not enough time to travel and hand over between visits', 409);
       adjacentTravelMinutes += travel; verifiedLegs++;
+      if (to === visit) arrivalTravelMinutes = travel;
     }
     const all = [...rows, { startAt: start, endAt: end }];
     for (let at = week.getTime(); at < until.getTime(); at += 7 * DAY)
       if (occupiedMinutes(all, at, at + 7 * DAY) > contract.weeklyMinutes) fail('CONTRACT_HOURS_EXCEEDED', 'Contract weekly hours exceeded', 409);
     for (let at = Date.parse(`${date}T00:00:00+07:00`); at < end.getTime(); at += DAY)
       if (occupiedMinutes(all, at, at + DAY) > 480) fail('CONTRACT_HOURS_EXCEEDED', 'Eight ordinary work hours per day exceeded', 409);
-    return { eligible: true, adjacentTravelMinutes: verifiedLegs ? adjacentTravelMinutes : null,
+    return { eligible: true, arrivalTravelMinutes, adjacentTravelMinutes: verifiedLegs ? adjacentTravelMinutes : null,
       routingSource: routingProvider?.source ?? 'OSRM_STATIC_ROAD_ETA', weeklyWorkMinutes: occupiedMinutes(rows, week, until) };
   }
   return { models, payroll, uow, col, availability, areas, employeeGuard, eligible, runGuard, find, contractAt,
