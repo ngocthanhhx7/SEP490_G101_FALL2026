@@ -84,6 +84,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
       >
         <img
           className="pwc-service-detail-photo"
+            style={{ objectPosition: visual.position }}
           src={visual.src}
           alt={visual.alt}
         />
