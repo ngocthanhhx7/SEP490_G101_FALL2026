@@ -128,7 +128,6 @@ export function AvatarMenu({ user, role, onLogout, notificationTo, customerNavig
       aria-expanded={isOpen} aria-pressed={pinned} aria-controls={panelId} onClick={togglePinned}>
       {iconOnly ? <svg className="pwc-avatar-menu__user-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="7" r="3.5" /><path d="M4 21v-3c0-3 3.6-5 8-5s8 2 8 5v3H4Z" /></svg> : <span className="pwc-avatar-menu__avatar" aria-hidden="true">{getInitials(displayName)}</span>}
       <span className="pwc-avatar-menu__trigger-name">{accountName}</span>
-      <span className="pwc-avatar-menu__chevron" aria-hidden="true">⌄</span>
     </button>
 
     <div id={panelId} className="pwc-avatar-menu__panel" hidden={!isOpen}>

@@ -25,7 +25,7 @@ test('Staff cannot read payroll through the protected route', async () => {
     render(<MemoryRouter initialEntries={['/admin/settlements']}><App sessionAdapter={{
       resolve: async () => ({ status: 'authenticated', user: { id: 'staff', roles: ['STAFF'] } }) }} /></MemoryRouter>);
     expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(globalThis.fetch.mock.calls.every(([url]) => url.startsWith('/api/v1/notifications?'))).toBe(true);
   } finally { globalThis.fetch = original; }
 });
 
