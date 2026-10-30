@@ -40,7 +40,7 @@ export function authenticationModule({ config, connection, ports, logger = () =>
     logger
   });
 
-  return authModule({
+  const module = authModule({
     otpService,
     sessionService,
     accountSettingsService,
@@ -48,4 +48,8 @@ export function authenticationModule({ config, connection, ports, logger = () =>
     requireCsrf: requireCsrf(sessionService),
     secureCookies: config.secureCookies
   });
+  // Read-only modules share the authenticated session port; exposing it on
+  // the module keeps the application registry from creating a second session
+  // verifier with a different clock or cookie contract.
+  return { ...module, sessionService };
 }

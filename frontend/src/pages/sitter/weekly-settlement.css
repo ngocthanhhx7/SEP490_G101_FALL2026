@@ -1,0 +1,9 @@
+.weekly-settlement { max-width: 54rem; margin: auto; padding: 1rem; color: var(--pwc-ink); overflow-wrap: anywhere; }
+.weekly-settlement dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr)); gap: 1rem; }
+.weekly-settlement dl > div { background: var(--pwc-lavender-soft); padding: 1rem; border-radius: var(--pwc-radius-panel); }
+.weekly-settlement dd { margin: .5rem 0; }
+.weekly-settlement label { display: flex; align-items: center; gap: .5rem; min-height: 44px; }
+.weekly-settlement button, .weekly-settlement input:not([type=checkbox]), .weekly-settlement select { min-height: 44px; max-width: 100%; margin: .5rem 0; }
+.weekly-settlement button { background: var(--pwc-sun); color: var(--pwc-ink); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); padding: .5rem 1rem; }
+.weekly-settlement button:disabled { background: var(--pwc-disabled-surface); color: var(--pwc-disabled-ink); }
+.weekly-settlement :focus-visible { outline: 3px solid var(--pwc-focus); outline-offset: 3px; }
