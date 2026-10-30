@@ -23,7 +23,7 @@ authoritative. AI threshold60 is preserved.
   remains; no dependency upgrade was included.
 - New Mongo runtime coverage verifies all read route roles/cache headers,
   filtered totals/cursors, actor-bound cursor rejection, real/demo distinction,
-  snapshot reports, overlapping/expired contracts, scoped work history,
+  snapshot reports, latest contract revision/expiry, scoped work history,
   exclusion of private fields and published customer ratings only.
 - New UI coverage verifies table/filter/pagination/detail navigation,
   profile tabs, Staff restrictions, stable status retry, malformed DTO/pending

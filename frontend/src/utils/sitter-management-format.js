@@ -1,5 +1,5 @@
 export const sitterLabels = {
-  ACTIVE: 'Hoạt động', SUSPENDED: 'Tạm ngưng', LOCKED: 'Đã khóa', MISSING: 'Chưa thiết lập', AMBIGUOUS: 'Hợp đồng chồng lấn',
+  ACTIVE: 'Hoạt động', SUSPENDED: 'Tạm ngưng', LOCKED: 'Đã khóa', MISSING: 'Chưa thiết lập',
   FULL_TIME: 'Toàn thời gian', PART_TIME: 'Bán thời gian', APPROVED: 'Đã duyệt', SUBMITTED: 'Chờ duyệt', REJECTED: 'Từ chối',
   COMPLETED: 'Hoàn thành', ASSIGNED: 'Đã phân công', IN_PROGRESS: 'Đang chăm sóc', SCHEDULED: 'Chờ phân công',
   CANCELLED: 'Đã hủy', STAFF_CLOSED: 'Đã đóng', DOG: 'Chó', CAT: 'Mèo',

@@ -102,11 +102,15 @@ test('activity paginates ties without customer information or duplicate visits',
   expect(JSON.stringify(first)).not.toMatch(/private-customer|private-pet/);
   await request(app).get(path + '?days=7&cursor=' + first.nextCursor).set(headers(staff)).expect(422);
 });
-test('overlapping effective contracts are flagged and expired contracts do not establish readiness', async () => {
+test('contract revisions select the latest effective version and do not fall back when it expires', async () => {
   const employeeId = new mongoose.Types.ObjectId(employee.user.id);
-  const result = await col('employmentcontracts').insertOne({ employeeId, signedAt: new Date(0), effectiveAt: new Date(0), employmentType: 'FULL_TIME', version: 2 });
+  const result = await col('employmentcontracts').insertOne({ employeeId, signedAt: new Date(1), effectiveAt: new Date(1), employmentType: 'FULL_TIME', version: 2 });
   const response = await request(app).get(root + '/' + employee.user.id).set(headers(admin)).expect(200);
-  expect(response.body.data.employmentType).toBe('AMBIGUOUS');
+  expect(response.body.data.employmentType).toBe('FULL_TIME');
+  expect(response.body.data.contracts).toHaveLength(1); expect(response.body.data.contracts[0].version).toBe(2);
+  expect(response.body.data.capabilities.areas).toEqual(['DISTRICT_TAY_HO']);
+  await col('employmentcontracts').updateOne({ _id: result.insertedId }, { $set: { endsAt: new Date(2) } });
+  expect((await request(app).get(root + '/' + employee.user.id).set(headers(admin))).body.data.employmentType).toBe('MISSING');
   await col('employmentcontracts').deleteOne({ _id: result.insertedId });
   await col('employmentcontracts').updateMany({ employeeId }, { $set: { endsAt: new Date(0) } });
   expect((await request(app).get(root + '/' + employee.user.id).set(headers(admin))).body.data.employmentType).toBe('MISSING');

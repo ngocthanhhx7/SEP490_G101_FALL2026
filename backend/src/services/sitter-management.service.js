@@ -34,12 +34,12 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
       lookup('aisitterprofiles', '$_id', 'userId', 'capabilities', ['active', 'serviceIds', 'species', 'areaCodes', 'maxPets', 'maxWeightKg', 'allowedTraits', 'version']),
       lookup('employeeavailabilities', { $toString: '$_id' }, '_id', 'schedules', ['areas']),
       lookup('employmentcontracts', '$_id', 'employeeId', 'contracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version'],
-        [{ $match: { signedAt: { $lte: now }, effectiveAt: { $lte: now }, $or: [{ endsAt: { $exists: false } }, { endsAt: null }, { endsAt: { $gt: now } }] } }, { $limit: 2 }]),
+        [{ $match: { effectiveAt: { $lte: now } } }, { $sort: { effectiveAt: -1, version: -1 } }, { $limit: 1 },
+          { $match: { signedAt: { $lte: now }, $or: [{ endsAt: { $exists: false } }, { endsAt: null }, { endsAt: { $gt: now } }] } }]),
       { $set: { status: { $ifNull: [{ $first: '$statuses.status' }, 'MISSING'] },
         profileState: { $ifNull: [{ $first: '$profiles.state' }, 'MISSING'] },
         areas: { $ifNull: [{ $first: '$schedules.areas' }, []] },
-        employmentType: { $switch: { branches: [{ case: { $eq: [{ $size: '$contracts' }, 1] }, then: { $first: '$contracts.employmentType' } },
-          { case: { $gt: [{ $size: '$contracts' }, 1] }, then: 'AMBIGUOUS' }], default: 'MISSING' } } } }
+        employmentType: { $ifNull: [{ $first: '$contracts.employmentType' }, 'MISSING'] } } }
     ];
   }
   function pipeline(query, now) {
@@ -141,7 +141,7 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
         requestedServices: application.requestedServices, workAreas: application.workAreas, submittedAt: iso(application.createdAt) } : null,
       statusVersion: status?.version ?? null, statusChangedAt: iso(status?.changedAt),
       capabilities: capability ? { active: capability.active, species: capability.species,
-        areas: capability.areaCodes, maxPets: capability.maxPets, maxWeightKg: capability.maxWeightKg,
+        areas: user.areas, maxPets: capability.maxPets, maxWeightKg: capability.maxWeightKg,
         allowedTraits: capability.allowedTraits ?? [], services: serviceIds.map(value => ({ id: id(value), code: services.find(s => id(s._id) === id(value))?.code ?? null })) } : null,
       contracts: user.contracts.map(c => ({ employmentType: c.employmentType, weeklyMinutes: c.weeklyMinutes,
         effectiveAt: iso(c.effectiveAt), endsAt: iso(c.endsAt), version: c.version })),

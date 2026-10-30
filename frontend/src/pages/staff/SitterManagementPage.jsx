@@ -43,7 +43,7 @@ export function SitterManagementPage({ api }) {
       <Select label="Khu vực" value={draft.area} onChange={e => setDraft({ ...draft, area: e.target.value })}><option value="">Tất cả khu vực</option>
         {(data?.areas ?? []).map(a => <option key={a.code} value={a.code}>{a.label}</option>)}</Select>
       <Select label="Hợp đồng hiệu lực" value={draft.employmentType} onChange={e => setDraft({ ...draft, employmentType: e.target.value })}><option value="">Tất cả</option>
-        {['FULL_TIME', 'PART_TIME', 'MISSING', 'AMBIGUOUS'].map(s => <option key={s} value={s}>{sitterLabel(s)}</option>)}</Select>
+        {['FULL_TIME', 'PART_TIME', 'MISSING'].map(s => <option key={s} value={s}>{sitterLabel(s)}</option>)}</Select>
       <Select label="Hồ sơ công khai" value={draft.profileState} onChange={e => setDraft({ ...draft, profileState: e.target.value })}><option value="">Tất cả</option>
         {['APPROVED', 'SUBMITTED', 'REJECTED', 'MISSING'].map(s => <option key={s} value={s}>{sitterLabel(s)}</option>)}</Select>
       <Select label="Nguồn dữ liệu" value={draft.source} onChange={e => setDraft({ ...draft, source: e.target.value })}>

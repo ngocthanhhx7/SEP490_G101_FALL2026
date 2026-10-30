@@ -33,7 +33,7 @@
 .sitter-management .workspace-tabs { margin-bottom: 0; }
 .workspace-page.sitter-management .sitter-schedule-table { min-width: 0; }
 .sitter-schedule-table td { white-space: nowrap; }
-.workspace-status--SUSPENDED, .workspace-status--REJECTED, .workspace-status--AMBIGUOUS { background: #fff0f1; color: #a52232; }
+.workspace-status--SUSPENDED, .workspace-status--REJECTED { background: #fff0f1; color: #a52232; }
 .workspace-status--APPROVED { background: #e9f7f0; color: #216443; }
 .workspace-status--SUBMITTED, .workspace-status--MISSING { background: #fff6dc; color: #856000; }
 @media (max-width: 900px) { .sitter-management-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

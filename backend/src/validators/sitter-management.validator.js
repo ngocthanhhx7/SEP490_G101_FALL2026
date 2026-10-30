@@ -12,7 +12,7 @@ export function sitterManagementQuery(query = {}, kind = 'list') {
   }
   if (![7, 30, 90].includes(Number(result.days)) || !/^[1-9]\d?$/.test(String(result.limit)) || Number(result.limit) > 50) invalid();
   for (const [key, values] of Object.entries({ status: ['', 'ACTIVE', 'SUSPENDED', 'MISSING'],
-    source: ['ALL', 'REAL', 'DEMO'], employmentType: ['', 'FULL_TIME', 'PART_TIME', 'MISSING', 'AMBIGUOUS'],
+    source: ['ALL', 'REAL', 'DEMO'], employmentType: ['', 'FULL_TIME', 'PART_TIME', 'MISSING'],
     profileState: ['', 'APPROVED', 'SUBMITTED', 'REJECTED', 'MISSING'] })) if (!values.includes(result[key])) invalid();
   if (result.area && !/^[A-Z][A-Z0-9_]{0,79}$/.test(result.area)) invalid();
   return { ...result, days: Number(result.days), limit: Number(result.limit) };

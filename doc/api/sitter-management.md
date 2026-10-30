@@ -16,7 +16,7 @@ All endpoints require an active authenticated Staff/Admin session and return
 | `GET /api/v1/sitter-management/:userId/activity` | Cursor page of assigned visits in the period; no customer address/contact/care notes |
 
 List and reports filters: `search` (literal name), `status` (ACTIVE/SUSPENDED/MISSING),
-`area` (operational code), `employmentType` (FULL_TIME/PART_TIME/MISSING/AMBIGUOUS),
+`area` (operational code), `employmentType` (FULL_TIME/PART_TIME/MISSING),
 `profileState` (APPROVED/SUBMITTED/REJECTED/MISSING), `source` (ALL/REAL/DEMO).
 Reports and activity accept `days=7|30|90`, default30, using Vietnam calendar days
 through the current day. List/activity accept `limit=1..50`, default20, and signed
@@ -27,7 +27,9 @@ Counts cover all matching users with PET_SITTER role, including unpublished prof
 and missing configuration. Legacy synthetic sentinels are excluded; `fixtureKey`
 identifies sample records. Real and Demo totals are always separate. Active means
 active account and operational status, not proof of availability for a particular job.
-Current contracts must be signed and effective now; overlapping contracts are flagged.
+Current contracts follow scheduling's latest effective date/version selection.
+That selected revision must be signed and unexpired; expired or unsigned newer
+revisions cannot silently fall back to an older contract.
 Reports count visits by scheduled start in the period and exclude SUPERSEDED; an
 unassigned system visit is not attributed to a sitter. No revenue or quality score
 is derived from these counts. Missing visit storage is reported as unavailable.

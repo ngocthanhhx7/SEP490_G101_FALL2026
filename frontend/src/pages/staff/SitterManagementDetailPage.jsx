@@ -79,7 +79,7 @@ function ProfileContent({ data, api, refresh }) {
         <div><dt>Hình thức làm việc</dt><dd>{sitterLabel(c.employmentType)}</dd></div><div><dt>Thời lượng mỗi tuần</dt><dd>{c.weeklyMinutes / 60} giờ</dd></div>
         <div><dt>Hiệu lực từ</dt><dd>{managementDate(c.effectiveAt)}</dd></div><div><dt>Kết thúc</dt><dd>{c.endsAt ? managementDate(c.endsAt) : 'Chưa có ngày kết thúc'}</dd></div><div><dt>Phiên bản</dt><dd>{c.version}</dd></div>
       </dl>)}{!data.contracts.length && <p>Chưa có hợp đồng hiệu lực.</p>}
-        {data.employmentType === 'AMBIGUOUS' && <Notice state="error" title="Cần xử lý hợp đồng chồng lấn" />}</section></div>}
+        </section></div>}
     {tab === 'schedule' && <section><h2>Lịch làm việc đã đăng ký</h2>{data.availability ? <>
       <dl className="sitter-profile-facts"><div><dt>Trạng thái lịch</dt><dd><SitterStatus value={data.availability.state} /></dd></div>
         <div><dt>Múi giờ</dt><dd>Giờ Việt Nam</dd></div><div><dt>Hiệu lực từ</dt><dd>{data.availability.effectiveFrom ?? 'Chưa có'}</dd></div>
