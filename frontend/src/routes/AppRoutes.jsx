@@ -208,6 +208,8 @@ export function AppRoutes({
             path="admin/sitter-applications/:applicationId"
             element={<SitterApplicationReviewPage />}
           />
+          <Route path="admin/applications" element={<Navigate replace to="/admin/sitter-applications" />} />
+          <Route path="admin/applications/:applicationId" element={<SitterApplicationReviewPage />} />
         </Route>
       </Route>
       <Route element={<RequireSession />}>

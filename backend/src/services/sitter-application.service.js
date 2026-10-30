@@ -312,38 +312,46 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
 
   async function list({ query, actor }) {
     assertAdmin(actor);
-    const allowed = new Set(['state', 'limit', 'cursor', 'search']);
+    const allowed = new Set(['state', 'limit', 'cursor', 'search', 'employmentType']);
     if (!query || typeof query !== 'object' || Array.isArray(query) || Object.keys(query).some(key => !allowed.has(key))) invalid();
     const state = query.state ?? '';
     const search = query.search ?? '';
     const limitText = query.limit ?? '20';
     const cursorValue = query.cursor ?? '';
+    const employmentType = query.employmentType ?? '';
+    if (employmentType && !['FULL_TIME', 'PART_TIME'].includes(employmentType)) invalid('Employment filter is invalid');
     if (state && !ALLOWED_STATES.has(state)) invalid('state is invalid');
     if (typeof search !== 'string' || search.trim().length > 100
       || typeof limitText !== 'string' || !/^[1-9]\d{0,2}$/.test(limitText)
       || typeof cursorValue !== 'string') invalid('Application filters are invalid');
     const limit = Number(limitText);
     if (limit > PAGE_LIMIT) invalid(`Page size cannot exceed ${PAGE_LIMIT}`);
-    const fingerprint = createHash('sha256').update(JSON.stringify({ state, search: search.trim().toLocaleLowerCase('vi'), limit })).digest('base64url');
+    const fingerprint = createHash('sha256').update(JSON.stringify({ state, employmentType, search: search.trim().toLocaleLowerCase('vi'), limit })).digest('base64url');
     const conditions = [];
     if (state) conditions.push({ state });
+    if (employmentType) conditions.push({ employmentType });
     if (search.trim()) conditions.push({ displayName: new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') });
+    const matchingFilter = conditions.length ? { $and: [...conditions] } : {};
     if (cursorValue) {
       const position = cursors.decode(cursorValue, fingerprint);
       conditions.push({ $or: [{ createdAt: { $lt: position.createdAt } }, { createdAt: position.createdAt, _id: { $lt: position.id } }] });
     }
     const filter = conditions.length ? { $and: conditions } : {};
-    const rows = await Applicant.find(filter).select('displayName contactChannel contactCiphertext ageEligible experience requestedServices workAreas state createdAt updatedAt version')
+    const rows = await Applicant.find(filter).select('displayName contactChannel contactCiphertext ageEligible employmentType requestedServices workAreas state createdAt updatedAt version')
       .select('+contactCiphertext').sort({ createdAt: -1, _id: -1 }).limit(limit + 1).lean();
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
     const items = page.map(row => ({
       id: row._id.toString(), displayName: row.displayName,
       contact: { channel: row.contactChannel, maskedValue: maskContact(row.contactChannel, contactCrypto.decrypt(row.contactCiphertext)) },
-      ageEligible: row.ageEligible, requestedServices: [...row.requestedServices], workAreas: [...row.workAreas],
+      ageEligible: row.ageEligible, employmentType: row.employmentType ?? null, requestedServices: [...row.requestedServices], workAreas: [...row.workAreas],
       state: row.state, version: row.version, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString()
     }));
-    return { applications: items, nextCursor: hasMore && page.length
+    const counts = await Applicant.aggregate([{ $group: { _id: '$state', count: { $sum: 1 } } }]);
+    const byState = Object.fromEntries([...ALLOWED_STATES].map(state => [state, 0]));
+    for (const row of counts) if (Object.hasOwn(byState, row._id)) byState[row._id] = row.count;
+    return { applications: items, summary: { total: Object.values(byState).reduce((sum, value) => sum + value, 0), byState },
+      totalMatching: await Applicant.countDocuments(matchingFilter), nextCursor: hasMore && page.length
       ? cursors.encode(page.at(-1).createdAt, page.at(-1)._id, fingerprint) : null };
   }
 

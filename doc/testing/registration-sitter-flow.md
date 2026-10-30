@@ -58,3 +58,15 @@ Bản tiếp tục trên `feature/sitter-registration-completion`:
 - PASS: backend intake integration 9 tests, gồm chu kỳ đăng ký/upload/nộp/OTP/duyệt/đăng nhập cùng user và biên cooldown/nộp lại; frontend full 93 suites / 578 tests; architecture, lint hai package và build.
 - PASS: browser fixture 1440/390/320 cho từ chối → refresh → mở form mới; không upload/mutation chỉ từ refresh, không JS error/overflow. Đã xem ảnh desktop/mobile. Browser fixture ảnh/Full-time/Part-time/14 dịch vụ/lỗi từng trường cũng đạt.
 - Không gửi OTP thật, dùng giấy tờ thật, duyệt hồ sơ thật hoặc tạo hợp đồng thật trong kiểm tra này. Runtime Mongo tests dùng replica set và provider tổng hợp; browser fixture chặn API. Build vẫn có cảnh báo bundle > 500 kB.
+
+### Lỗi transport Admin tìm thấy trong browser follow-up
+
+Kiểm tra trình duyệt với adapter mặc định phát hiện lệnh duyệt dừng ở `CSRF_NOT_READY`: factory Admin tạo API client mà chưa nối `apiSessionAdapter.getCsrfToken`. Đã nối nguồn token phiên vào client dùng cho review/interview/decisions/sitter-status; giữ fail-closed khi token chưa có. Regression test gọi adapter production qua fetch giả, kiểm tra cả CSRF và idempotency headers; không chỉ mock hàm decide của component. Không có yêu cầu production nào được gửi khi tái hiện bằng browser fixture.
+
+## Theo phản ánh trực tiếp của người dùng: OTP và Admin workspace
+
+- Đối chiếu VPS: hồ sơ người dùng chỉ ra tồn tại, PENDING, có owner và tracking digest; EMAIL_ENABLED bật nhưng template hiện hành từ chối purpose APPLICATION_STATUS. Không gửi OTP thật và không xuất liên hệ/giấy tờ ra log. Sửa allowlist email/SMS cho purpose đã được OTP service hỗ trợ, giữ validation/expiry/operation-id. Integration hiện đi qua email template/delivery thật với transport SMTP giả; xác nhận mã tra cứu được render trước verify.
+- Sửa link danh sách từ /admin/applications/:id sang /admin/sitter-applications/:id; giữ alias route cũ trong Admin shell. Browser mở từ tên, duyệt, mở lại link cũ và quay về danh sách đều được kiểm tra.
+- Workspace tuyển dụng có thống kê toàn bộ hồ sơ theo trạng thái từ backend, bộ lọc tên/trạng thái/hình thức, thông tin dịch vụ/khu vực/ngày nộp/cập nhật, nút mở chi tiết và cursor pagination tiến/lùi. Tổng hồ sơ phù hợp không thay đổi theo cursor; thống kê tổng tách khỏi bộ lọc. Không tính tổng bằng số hàng của trang hiện tại.
+- Chi tiết giữ dashboard, thêm đường quay lại danh sách, tiến trình hiện tại, ngày nộp/cập nhật và ghi chú phỏng vấn đã lưu; tài liệu riêng tư vẫn qua authorization/audit.
+- Browser fixture desktop1440/mobile390/320 PASS; hình minh họa dùng dữ liệu tổng hợp, không phải số hồ sơ production. Provider delivery thật chưa được xác nhận; không gửi tin mới tự động để thử.

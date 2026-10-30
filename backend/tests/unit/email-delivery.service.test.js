@@ -164,3 +164,9 @@ describe('SMTP config and P02 ports', () => {
     expect(createTransport).toHaveBeenCalledTimes(2);
   });
 });
+
+test('application status OTP is rendered and handed to the SMTP transport', async () => {
+  const { service, transport } = fixture();
+  expect(await service.send({ ...command, purpose: 'APPLICATION_STATUS' })).toMatchObject({ status: 'ACCEPTED', attempts: 1 });
+  expect(transport.sendMail.mock.calls[0][0].text).toContain('APPLICATION_STATUS');
+});
