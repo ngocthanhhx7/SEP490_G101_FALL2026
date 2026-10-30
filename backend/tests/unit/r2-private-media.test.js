@@ -92,16 +92,41 @@ describe('R2 private transport and safe configuration', () => {
 });
 
 
-describe('dedicated applicant-document configuration', () => {
+describe('namespaced applicant-document configuration', () => {
   const dedicated = { SITTER_DOCUMENTS_ENABLED: 'true', SITTER_DOCUMENTS_R2_ACCOUNT_ID: 'a'.repeat(32),
     SITTER_DOCUMENTS_R2_BUCKET: 'synthetic-identity-documents', SITTER_DOCUMENTS_R2_ACCESS_KEY_ID: 'e'.repeat(32),
     SITTER_DOCUMENTS_R2_SECRET_ACCESS_KEY: 'f'.repeat(64), R2_BUCKET: 'synthetic-owner-photos' };
-  test('general R2 never enables document intake; dedicated bucket/credentials are mandatory', () => {
+  test('documents require opt-in and reuse private R2 unless fully overridden', () => {
     expect(loadApplicantDocumentConfig(env)).toBeNull();
     expect(loadApplicantDocumentConfig({ ...env, SITTER_DOCUMENTS_ENABLED: 'false' })).toBeNull();
-    expect(() => loadApplicantDocumentConfig({ ...env, SITTER_DOCUMENTS_ENABLED: 'true' })).toThrow();
-    expect(() => loadApplicantDocumentConfig({ ...dedicated, R2_BUCKET: dedicated.SITTER_DOCUMENTS_R2_BUCKET })).toThrow();
+    expect(loadApplicantDocumentConfig({ ...env, SITTER_DOCUMENTS_ENABLED: 'true' })).toEqual(loadR2Config(env));
+    expect(loadApplicantDocumentConfig({ ...dedicated, R2_BUCKET: dedicated.SITTER_DOCUMENTS_R2_BUCKET }).bucket).toBe(dedicated.SITTER_DOCUMENTS_R2_BUCKET);
     expect(loadApplicantDocumentConfig(dedicated).bucket).toBe('synthetic-identity-documents');
+  });
+  test('blank overrides inherit R2 while partial overrides and missing credentials fail closed', () => {
+    const shared = { ...env, SITTER_DOCUMENTS_ENABLED: 'true', SITTER_DOCUMENTS_R2_BUCKET: '', SITTER_DOCUMENTS_MAX_FILES_PER_USER: '7' };
+    expect(loadApplicantDocumentConfig(shared)).toMatchObject({ bucket: env.R2_BUCKET, maxImagesPerUser: 7 });
+    expect(() => loadApplicantDocumentConfig({ ...shared, SITTER_DOCUMENTS_R2_BUCKET: 'another-private-bucket' })).toThrow();
+    expect(() => loadApplicantDocumentConfig({ SITTER_DOCUMENTS_ENABLED: 'true' })).toThrow();
+    expect(() => loadApplicantDocumentConfig({ ...shared, SITTER_DOCUMENTS_MAX_FILES_PER_USER: '0' })).toThrow();
+  });
+  test('shared bucket transports reject each other namespaces for upload, read and signed URLs', async () => {
+    const shared = loadApplicantDocumentConfig({ ...env, SITTER_DOCUMENTS_ENABLED: 'true' });
+    const calls = [];
+    const client = { send: async command => { calls.push(command.input); return {}; } };
+    const photos = createR2PrivateMedia({ config: loadR2Config(env), client });
+    const documents = createR2PrivateMedia({ config: shared, keyPrefix: 'applicant-documents', client });
+    const documentKey = `applicant-documents/${'d'.repeat(64)}`;
+    for (const [media, foreignKey] of [[photos, documentKey], [documents, key]]) {
+      await expect(media.upload({ storageRef: foreignKey, body: Buffer.from('png'), contentType: 'image/png' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(media.read({ storageRef: foreignKey })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+      await expect(media.createReadCapability({ storageRef: foreignKey })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    }
+    expect(calls).toHaveLength(0);
+    await photos.upload({ storageRef: key, body: Buffer.from('png'), contentType: 'image/png' });
+    await documents.upload({ storageRef: documentKey, body: Buffer.from('png'), contentType: 'image/png' });
+    expect(calls.map(call => call.Bucket)).toEqual([env.R2_BUCKET, env.R2_BUCKET]);
+    expect(calls.map(call => call.Key)).toEqual([key, documentKey]);
   });
   test('document transport accepts only its isolated namespace', async () => {
     const calls = [];

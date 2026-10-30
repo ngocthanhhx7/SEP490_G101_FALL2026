@@ -20,20 +20,23 @@ export function loadR2Config(env = process.env) {
     maxImagesPerUser });
 }
 
-// Identity documents require their own bucket and explicit credentials. The owner
-// photo flag never enables application intake as a side effect.
+// Documents have their own explicit gate, namespace and quota. By default they
+// reuse the private R2 bucket; a complete override keeps legacy deployments valid.
 export function loadApplicantDocumentConfig(env = process.env) {
   if (env.SITTER_DOCUMENTS_ENABLED === undefined || env.SITTER_DOCUMENTS_ENABLED === 'false') return null;
   const prefix = 'SITTER_DOCUMENTS_';
   try {
     if (env.SITTER_DOCUMENTS_ENABLED !== 'true') throw new Error('Invalid document flag');
+    const fields = ['ACCOUNT_ID', 'BUCKET', 'ACCESS_KEY_ID', 'SECRET_ACCESS_KEY'];
+    const overrides = fields.filter(field => Boolean(env[`SITTER_DOCUMENTS_R2_${field}`]));
+    if (overrides.length && overrides.length !== fields.length) throw new Error('Incomplete document override');
+    const source = overrides.length ? 'SITTER_DOCUMENTS_R2_' : 'R2_';
     const config = loadR2Config({
-      R2_ENABLED: 'true', R2_ACCOUNT_ID: env.SITTER_DOCUMENTS_R2_ACCOUNT_ID,
-      R2_BUCKET: env.SITTER_DOCUMENTS_R2_BUCKET, R2_ACCESS_KEY_ID: env.SITTER_DOCUMENTS_R2_ACCESS_KEY_ID,
-      R2_SECRET_ACCESS_KEY: env.SITTER_DOCUMENTS_R2_SECRET_ACCESS_KEY,
+      R2_ENABLED: 'true', R2_ACCOUNT_ID: env[`${source}ACCOUNT_ID`],
+      R2_BUCKET: env[`${source}BUCKET`], R2_ACCESS_KEY_ID: env[`${source}ACCESS_KEY_ID`],
+      R2_SECRET_ACCESS_KEY: env[`${source}SECRET_ACCESS_KEY`],
       R2_MAX_IMAGES_PER_USER: env.SITTER_DOCUMENTS_MAX_FILES_PER_USER ?? '20'
     });
-    if (config.bucket === env.R2_BUCKET) throw new Error('Dedicated bucket required');
     return config;
   } catch {
     throw new AppError(503, 'SITTER_DOCUMENTS_CONFIGURATION_INVALID', 'Private document configuration is invalid',
