@@ -1,4 +1,5 @@
 import { randomInt } from 'node:crypto';
+import { hasRole } from '../../utils/roles.js';
 import { Types } from 'mongoose';
 import { bookingCheckoutInput } from '../../validators/booking-checkout.validator.js';
 import { validatePricingSelection } from '../../validators/pricing-selection.validator.js';
@@ -28,7 +29,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
   const uow = createUnitOfWork(connection);
   function customer(actor) {
     if (actor?.state !== 'ACTIVE' || actor.synthetic === true) fail('UNAUTHENTICATED', 'Authentication required', 401);
-    id(actor.userId); if (!actor.roles?.includes('CUSTOMER')) fail('FORBIDDEN', 'Customer required', 403);
+    id(actor.userId); if (!hasRole(actor.roles, 'CUSTOMER')) fail('FORBIDDEN', 'Customer required', 403);
   }
   async function transact(work) {
     await assertFinanceSourceStorage(connection);

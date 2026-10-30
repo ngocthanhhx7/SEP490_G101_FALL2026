@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { loginDestination } from '../../utils/role-access.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { otpFeedback } from '../../utils/otp-feedback.js';
 import './auth-public.css';
@@ -25,6 +26,7 @@ function messageFor(error) {
 export function SignInPage() {
   const session = useSession();
   const navigate = useNavigate();
+  const location = useLocation();
   const [channel, setChannel] = useState(CHANNELS.EMAIL);
   const [contact, setContact] = useState('');
   const [challengeId, setChallengeId] = useState('');
@@ -47,8 +49,8 @@ export function SignInPage() {
   }
 
   useEffect(() => {
-    if (session.status === 'authenticated') navigate('/', { replace: true });
-  }, [session.status, navigate]);
+    if (session.status === 'authenticated') navigate(loginDestination(session.user, location.state?.from), { replace: true });
+  }, [session.status, session.user, navigate, location.state]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -89,7 +91,7 @@ export function SignInPage() {
         setStep('contact'); setCode(''); setChallengeId('');
         setError('Mã đã được xác minh nhưng tài khoản chưa thể đăng nhập. Vui lòng liên hệ hỗ trợ.'); return;
       }
-      navigate('/', { replace: true });
+      navigate(loginDestination(result.user, location.state?.from), { replace: true });
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
   }

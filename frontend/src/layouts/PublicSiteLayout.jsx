@@ -1,10 +1,13 @@
 import '../styles/public-site.css';
 import { useEffect, useRef } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useSession } from '../contexts/SessionContext.jsx';
+import { primaryRole, roleLanding } from '../utils/role-access.js';
 import { PublicFooter } from '../components/public/PublicFooter.jsx';
 import { PublicHeader } from '../components/public/PublicHeader.jsx';
 
 export function PublicSiteLayout() {
+  const session = useSession();
   const location = useLocation();
   const main = useRef(null);
 
@@ -25,6 +28,9 @@ export function PublicSiteLayout() {
     main.current?.focus({ preventScroll: true });
   }, [location.pathname, location.hash]);
 
+  if (location.pathname !== '/sign-in' && session.status === 'authenticated' && primaryRole(session.user) && primaryRole(session.user) !== 'CUSTOMER') {
+    return <Navigate to={roleLanding(session.user)} replace />;
+  }
   return (
     <div className="pwc-public-root">
       <a className="pwc-skip-link" href="#pwc-public-main">

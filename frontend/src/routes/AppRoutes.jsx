@@ -21,6 +21,7 @@ import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
 import { AccountPage } from '../pages/account/AccountPage.jsx';
 import { AccountSettingsPage } from '../pages/account/AccountSettingsPage.jsx';
 import { RequireSession } from './RequireSession.jsx';
+import { hasRole, primaryRole } from '../utils/role-access.js';
 import { publicPolicyFallbackRoutes } from './PublicPolicyRoutes.jsx';
 import { RegistrationPage } from '../pages/public/RegistrationPage.jsx';
 import { ServiceWorkspacePage } from '../pages/admin/ServiceWorkspacePage.jsx';
@@ -155,7 +156,7 @@ const navigationByRole = {
 };
 function Workspace({ role }) {
   const { user } = useSession();
-  const shellRole = role === 'STAFF' && (user?.roles || [user?.role]).includes('ADMIN') ? 'ADMIN' : role;
+  const shellRole = role === 'STAFF' && hasRole(user, 'ADMIN') ? 'ADMIN' : role;
   return (
     <RoleDashboardLayout
       key={user?.id}
@@ -172,17 +173,13 @@ function Workspace({ role }) {
 }
 function AccountWorkspace() {
   const { user } = useSession();
-  const roles = user?.roles || [user?.role];
-  const role = ['ADMIN', 'STAFF', 'PET_SITTER', 'CUSTOMER'].find((value) =>
-    roles.includes(value)
-  );
+  const role = primaryRole(user);
   return <Workspace role={role} />;
 }
 
 function AccountHome() {
   const { user } = useSession();
-  const roles = user?.roles || [user?.role];
-  return roles.includes('CUSTOMER') && !roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role))
+  return hasRole(user, 'CUSTOMER')
     ? <Navigate replace to="/account/profile" /> : <AccountPage />;
 }
 
@@ -295,7 +292,9 @@ export function AppRoutes({
         <Route path="contact" element={<ContactPage />} />
         <Route path="services" element={<ServiceListPage />} />
         <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
-        <Route path="booking/:serviceId" element={<ServiceBookingPage />} />
+        <Route element={<RequireSession roles={['CUSTOMER']} />}>
+          <Route path="booking/:serviceId" element={<ServiceBookingPage />} />
+        </Route>
         <Route path="service-areas" element={<ServiceAreasPage />} />
         <Route path="sign-in" element={<SignInPage />} />
         <Route path="register" element={<RegistrationPage />} />

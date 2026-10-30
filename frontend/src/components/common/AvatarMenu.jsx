@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { roleLanding } from '../../utils/role-access.js';
 import './avatar-menu.css';
 
 const ROLE_LABELS = Object.freeze({
@@ -137,6 +138,7 @@ export function AvatarMenu({ user, role, onLogout, notificationTo, customerNavig
           <span className="pwc-avatar-menu__identity-role">{roleLabels.role}</span>
         </div>
         <nav className="pwc-avatar-menu__links" aria-label="Tùy chọn tài khoản">
+          {role && role !== 'CUSTOMER' && <Link to={roleLanding(user)} onClick={() => dismiss()}>Trang quản lý</Link>}
           {customerNavigation ? <>
             <div className="pwc-avatar-menu__account-group"><Link to="/account/profile" onClick={() => dismiss()}>Trung tâm tài khoản</Link>
               <div className="pwc-avatar-menu__account-subnav"><Link to="/account/profile" onClick={() => dismiss()}>Hồ sơ</Link>
