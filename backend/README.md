@@ -4,6 +4,9 @@ Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1
 
 ## Demo Catalogue
 
+Assigned care, recommendation checkout and verified satisfaction collection use
+the existing authenticated runtime. See [integration evidence](../doc/testing/care-matching-outcomes-2026-10-30.md).
+
 `node scripts/seeds/demo-services.js` previews the13 sheet offerings; `--apply` only targets
 a non-production `*_dev` database. See [approved rules](../doc/requirements/demo-service-catalog-2026-10-30.md).
 Customer/CSRF-protected `POST /api/v1/pricing/basket-quotes` validates owned pets and snapshots

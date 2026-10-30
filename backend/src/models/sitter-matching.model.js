@@ -1,4 +1,4 @@
-import { oid, integer, sub, geo, registerModels } from './model-definitions.js';
+import { oid, integer, sub, geo, registerModels, Schema } from './model-definitions.js';
 export function matchingModels(connection) {
   return registerModels(connection, {
     SitterMatchingProfile: {
@@ -63,7 +63,8 @@ export function matchingModels(connection) {
         rating: { type: Number, min: 1, max: 5, validate: Number.isInteger },
         onTime: Boolean,
         verifiedBy: { type: oid, required: true },
-        sourceRef: { type: String, required: true, maxlength: 500 }
+        sourceRef: { type: String, required: true, maxlength: 500 },
+        provenance: { type: Schema.Types.Mixed, select: false }
       },
       indexes: [
         [{ visitId: 1 }, { unique: true }],

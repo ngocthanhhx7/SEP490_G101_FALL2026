@@ -11,6 +11,8 @@ import { requireSession, requireRoles, requireCsrf } from '../middlewares/sessio
 import { rateLimit } from 'express-rate-limit';
 import { createVisitTravelService } from '../services/employee-scheduling/visit-travel.service.js';
 import { createVisitTravelController } from '../controllers/visit-travel.controller.js';
+import { createAssignedCareService } from '../services/care/assigned-care.service.js';
+import { createAssignedCareController } from '../controllers/assigned-care.controller.js';
 
 export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas = DEMO_WORK_AREAS }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
@@ -31,6 +33,10 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.put('/work-areas', sitter, csrf, c.saveAreas);
   router.get('/offers', sitter, c.offers);
   router.get('/assignments', sitter, c.assignments);
+  const care = createAssignedCareController(createAssignedCareService({ repository, clock }));
+  router.get('/visits/:id/care', sitter, care.get);
+  router.post('/visits/:id/care/acknowledgements', sitter, csrf, care.acknowledge);
+  router.get('/visits/:id/access-notes', sitter, care.accessNotes);
   router.post('/offers/:id/acceptances', sitter, csrf, c.accept);
   router.post('/offers/:id/declines', sitter, csrf, c.decline);
   router.get('/dispatch', staff, c.queue);

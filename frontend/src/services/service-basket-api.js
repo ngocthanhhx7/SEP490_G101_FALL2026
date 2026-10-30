@@ -5,10 +5,19 @@ export function createServiceBasketApi(options) {
   const request = createApiClient(options);
   return {
     ...createVisitTravelApi(request),
+    async rateVisit(id, body, idempotencyKey) {
+      const response = await request(`/reviews/visits/${encodeURIComponent(id)}/ratings`, { method: 'POST', body, idempotencyKey });
+      if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
+      if (!response.data?.review?.id) throw new ApiError('INVALID_RESPONSE');
+      return response;
+    },
     async checkoutOptions({ signal } = {}) { return request('/checkout/options', { signal }); },
     async addresses({ signal } = {}) { return request('/pet-care/addresses', { signal }); },
     async confirm(body, idempotencyKey) {
-      return (await request('/checkout/bookings', { method: 'POST', body, idempotencyKey })).data;
+      const response = await request('/checkout/bookings', { method: 'POST', body, idempotencyKey });
+      if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
+      if (!response.data?.id) throw new ApiError('INVALID_RESPONSE');
+      return response.data;
     },
     async booking(id, { signal } = {}) { return (await request(`/checkout/bookings/${encodeURIComponent(id)}`, { signal })).data; },
     async paymentLink(id, idempotencyKey) {

@@ -70,6 +70,40 @@ test('confirms one immutable booking for concurrent identical retries and preser
   await expect(checkout.read(other, results[0].id)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
 });
 
+test('binds advisory selection to owned current match and immutable care snapshot without exposing care to checkout views', async () => {
+  const sitterId = oid();
+  await connection.collection('users').insertOne({ _id: sitterId, state: 'ACTIVE', roles: ['PET_SITTER'] });
+  await connection.collection('sitterpublicprofiles').insertOne({ userId: sitterId, state: 'APPROVED' });
+  await connection.collection('sitterstatuses').insertOne({ userId: sitterId, status: 'ACTIVE' });
+  await connection.models.Pet.updateOne({ _id: pet._id }, { $set: { ageMonths: 12, careProfile: { allergies: { status: 'UNKNOWN' } } } });
+  await connection.models.CustomerAddress.updateOne({ _id: address._id }, { $set: { privateAccessNotes: 'Synthetic secret entry' } });
+  const currentPet = await connection.models.Pet.findById(pet._id).lean(), q = await quote('home-care', 1), body = input(q);
+  const [match] = await connection.models.DecisionSnapshot.create([{ ownerId: owner.userId, kind: 'MATCH', requestHash: 'synthetic-match',
+    expiresAt: new Date(at.getTime() + 300000), snapshot: { input: { serviceId: item('home-care').serviceId, petIds: [String(pet._id)], addressId: String(address._id),
+      startAt: body.visits[0].startAt, endAt: new Date(Date.parse(body.visits[0].startAt) + 3600000).toISOString() },
+    result: { candidates: [{ sitterId: String(sitterId) }] }, petVersions: [{ id: pet._id, version: currentPet.version }], addressVersion: address.version } }]);
+  body.visits[0].requestedSitterId = String(sitterId); body.visits[0].matchId = String(match._id);
+  await connection.models.DecisionSnapshot.updateOne({ _id: match._id }, { $set: { ownerId: other.userId } });
+  await expect(checkout.confirm(owner, body, 'match-foreign')).rejects.toMatchObject({ code: 'MATCH_EXPIRED' });
+  await connection.models.DecisionSnapshot.updateOne({ _id: match._id }, { $set: { ownerId: owner.userId, expiresAt: new Date(at.getTime() - 1) } });
+  await expect(checkout.confirm(owner, body, 'match-expired')).rejects.toMatchObject({ code: 'MATCH_EXPIRED' });
+  await connection.models.DecisionSnapshot.updateOne({ _id: match._id }, { $set: { expiresAt: new Date(at.getTime() + 300000), 'snapshot.addressVersion': 999 } });
+  await expect(checkout.confirm(owner, body, 'match-address-changed')).rejects.toMatchObject({ code: 'MATCH_CHANGED' });
+  await connection.models.DecisionSnapshot.updateOne({ _id: match._id }, { $set: { 'snapshot.addressVersion': address.version } });
+  const changed = globalThis.structuredClone(body); changed.visits[0].startAt = new Date(Date.parse(body.visits[0].startAt) + 60000).toISOString();
+  await expect(checkout.confirm(owner, changed, 'match-time-changed')).rejects.toMatchObject({ code: 'MATCH_CHANGED' });
+  const result = await checkout.confirm(owner, body, 'match-valid-selection');
+  const visit = await connection.collection('visits').findOne({ bookingId: new mongoose.Types.ObjectId(result.id) });
+  expect(visit).toMatchObject({ requestedSitterId: sitterId, recommendationRef: { matchId: String(match._id), advisory: true },
+    snapshots: { care: { schemaVersion: 1, privateAccessNotes: 'Synthetic secret entry', pets: [{ ageMonths: 12, careProfile: { allergies: { status: 'UNKNOWN' } } }] } } });
+  expect(JSON.stringify(result)).not.toContain('Synthetic secret entry');
+  await connection.models.Pet.updateOne({ _id: pet._id }, { $set: { careProfile: { allergies: { status: 'KNOWN', value: 'Changed later' } } } });
+  expect(visit.snapshots.care.pets[0].careProfile.allergies.status).toBe('UNKNOWN');
+  expect(await checkout.confirm(owner, body, 'match-valid-selection')).toEqual(result);
+  const another = await quote('home-care', 1);
+  await expect(checkout.confirm(owner, { ...body, quoteId: another.quoteId }, 'match-another-quote')).rejects.toMatchObject({ code: 'MATCH_ALREADY_USED' });
+});
+
 test('rejects changed price/policy/pets, expired quote, missing consent, overlap and foreign address without writing orders', async () => {
   const q = await quote(), body = input(q), before = await connection.collection('bookings').countDocuments();
   const notificationsBefore = await connection.models.Notification.countDocuments();

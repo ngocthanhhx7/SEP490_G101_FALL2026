@@ -1,5 +1,10 @@
 # Employee Scheduling
 
+Assigned care routes compose `care/assigned-care.service.js` separately from the
+bounded invitation and assignment DTOs. Offers never include full care profiles,
+emergency contacts or private entry notes. Dispatch still rechecks authoritative
+eligibility for a customer-selected employee coming from a recommendation.
+
 `employee-schedule.repository.js` adapts the existing availability and work-area policies to
 Mongo transactions. Shared versions, effective revisions, signed employment contracts and
 employee guards protect work already assigned. `schedule-policy.service.js` owns recurring

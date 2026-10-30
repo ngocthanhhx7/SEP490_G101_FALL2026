@@ -6,7 +6,8 @@ export function bookingCheckoutInput(value) {
   if (value.acceptServicePolicies !== true) fail('SERVICE_POLICY_CONSENT_REQUIRED', 'Accept the quoted service policies');
   if (!Array.isArray(value.visits) || !value.visits.length || value.visits.length > 60) fail('VALIDATION_FAILED', 'One to sixty visits required');
   const visits = value.visits.map(row => {
-    exact(row, ['itemIndex', 'startAt', 'location', 'addressId', 'requestedSitterId'], ['itemIndex', 'startAt', 'location']);
+    exact(row, ['itemIndex', 'startAt', 'location', 'addressId', 'requestedSitterId', 'matchId'], ['itemIndex', 'startAt', 'location']);
+    if (row.matchId !== undefined) id(row.matchId);
     if (row.requestedSitterId !== undefined) id(row.requestedSitterId);
     if (!Number.isSafeInteger(row.itemIndex) || row.itemIndex < 0 || row.itemIndex > 19 || !['HOME', 'FACILITY', 'OUTDOOR'].includes(row.location))
       fail('VALIDATION_FAILED', 'Invalid visit selection');
