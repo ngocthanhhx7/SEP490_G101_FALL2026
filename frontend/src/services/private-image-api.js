@@ -31,9 +31,9 @@ function validateId(value) {
 }
 
 export function createPrivateImageApi({ fetchImpl = fetchFromCurrentRuntime, getCsrfToken = () => null,
-  onUnauthorized = invalidateSession, timeoutMs = 15000 } = {}) {
+  onUnauthorized = invalidateSession, timeoutMs = 15000, readPath = id => `/private-images/${id}/content` } = {}) {
   if (typeof fetchImpl !== 'function' || typeof getCsrfToken !== 'function'
-    || typeof onUnauthorized !== 'function' || !Number.isFinite(timeoutMs) || timeoutMs < 1) {
+    || typeof onUnauthorized !== 'function' || typeof readPath !== 'function' || !Number.isFinite(timeoutMs) || timeoutMs < 1) {
     throw new TypeError('Private image API dependencies are invalid');
   }
 
@@ -112,7 +112,9 @@ export function createPrivateImageApi({ fetchImpl = fetchFromCurrentRuntime, get
     },
     async read(id, { signal } = {}) {
       validateId(id);
-      const { response, payload } = await request(`/private-images/${id}/content`, {
+      const path = readPath(id);
+      if (!/^\/[a-zA-Z0-9]/.test(path) || /[\\?#]/.test(path) || path.split('/').includes('..')) throw new ApiError('INVALID_API_PATH');
+      const { response, payload } = await request(path, {
         signal,
         consume: async result => {
           if (result.ok) return { blob: await result.blob() };

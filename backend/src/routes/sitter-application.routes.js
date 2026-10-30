@@ -12,6 +12,7 @@ import { createSessionService } from '../services/session.service.js';
 import { createSitterApplicationService } from '../services/sitter-application.service.js';
 import { AppError } from '../utils/app-error.js';
 import { createApplicationIntakeService } from '../services/applications/application-intake.service.js';
+import { createApplicationMailService } from '../services/applications/application-mail.service.js';
 import { loadApplicantDocumentConfig } from '../config/r2.js';
 import { createRegistrationPolicyService } from '../services/registration-policy.service.js';
 
@@ -58,6 +59,7 @@ export function sitterApplicationModule({
   });
   const intake = authenticatedSubmission ? createApplicationIntakeService({ connection, contactCrypto,
     media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable, clock }) : null;
+  const applicationMail = createApplicationMailService({ connection, contactCrypto, delivery: ports.notificationDelivery, clock });
   const service = createSitterApplicationService({
     connection,
     Applicant: models.SitterApplication,
@@ -70,7 +72,8 @@ export function sitterApplicationModule({
     registrationPolicyService: authenticatedSubmission ? createRegistrationPolicyService({ connection, clock }) : undefined,
     lookupSecret: config.auth.contactLookupSecret,
     cursorSecret: config.auth.tokenSecret,
-    clock
+    clock,
+    applicationMail
   });
   const sessionService = createSessionService({
     connection,
@@ -145,7 +148,7 @@ export function sitterApplicationModule({
       .getByApplicationIdDocumentsByDocumentId
   );
 
-  return { name: 'sitter-applications', mount: '/api/v1/applications', router };
+  return { name: 'sitter-applications', mount: '/api/v1/applications', router, applicationMail };
 }
 
 export function sitterApplicationRuntimeModule(context) {

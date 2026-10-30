@@ -1,4 +1,5 @@
 import { isMailbox } from '../utils/mailbox.js';
+import { renderApplicationMail } from './applications/application-mail-template.service.js';
 export { isMailbox } from '../utils/mailbox.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PURPOSES = new Set(['REGISTER', 'LOGIN', 'CONTACT_CHANGE', 'APPLICATION_STATUS']);
@@ -47,6 +48,7 @@ export function renderEmail(command, now) {
       html: `<p>${escapeHtml(text).replace(/\n/g, '<br>')}</p>`
     };
   }
+  if (command.kind === 'SYSTEM' && command.template === 'SITTER_APPLICATION_STATUS') return renderApplicationMail(command);
   if (
     command.kind !== 'SYSTEM' ||
     typeof command.title !== 'string' ||

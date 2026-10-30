@@ -16,3 +16,9 @@ Provision registered collections/indexes with the explicit deployment command.
 `sitter-public-profile.model.js` stores separately submitted public profile content,
 its review state/version, immutable command replay results and content-hash audits.
 It does not publish application experience or repurpose AI matching profiles.
+
+`application-mail.model.js` owns the new `application_mails` collection. One
+record per application/version stores an encrypted verified recipient snapshot,
+provider operation id, bounded attempts, lease and safe delivery state. It does
+not contain application documents or interview notes. Existing collections are
+unchanged; deployment index provisioning registers this model explicitly.

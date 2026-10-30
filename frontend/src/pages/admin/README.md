@@ -25,3 +25,11 @@ controls/tokens and the public brand establish its visual conventions; the
 workspace plan records the current design references and acceptance criteria.
 
 P22 owns `StaffVisitBoardPage.jsx` and `staff-visit-board.css`: a Staff/Admin operational board with Vietnam calendar filters, bounded cursor pages, a visit detail panel, no-sitter slot proposals and guarded manual assignment commands. It uses the shared P04 controls and the session/API client; Customer/Sitter do not fetch this board. Pending Customer choice and unknown network outcomes remain pending. P34 owns registration in the P48 shell and the real repository wiring. The page is PROVISIONAL without a supplied P22 Figma frame. See [P22 integration handoff](../../../../doc/deployment/p22-visit-board-handoff.md).
+
+`ApplicationDocumentDialog` previews authenticated document blobs in the Admin
+workspace, cancels stale reads and revokes object URLs. Provider errors render a
+notice/retry rather than an external XML response. Application review actions
+follow PENDING -> UNDER_REVIEW -> INTERVIEW -> APPROVED/REJECTED; final decisions
+are available only in INTERVIEW and rechecked by the backend. The progress strip
+uses recorded audit timestamps, never inferred completion of missing stages.
+Email queue state is visible separately from the application state.
