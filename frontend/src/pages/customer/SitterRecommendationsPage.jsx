@@ -45,7 +45,7 @@ function CareSetup({ api, breeds, workAreas = [{ code: 'HN', label: 'Hà Nội' 
           areaCode: fields.get('areaCode'), coordinates: [Number(fields.get('longitude')), Number(fields.get('latitude'))],
           pointConfirmed: fields.get('confirmed') === 'on' });
       if (result.pending) { setUncertain(true); setFeedback('Máy chủ đang xử lý. Tải lại dữ liệu để đối chiếu trước khi tạo lại.'); return; }
-      form.reset(); if (kind === 'address') setAddressPoint(null); setFeedback('Đã lưu thông tin.'); onSaved();
+      form.reset(); if (kind === 'address') setAddressPoint(null); setFeedback(''); onSaved('Đã lưu thông tin.');
     } catch (error) {
       if (['TIMEOUT', 'NETWORK_ERROR', 'ABORTED'].includes(error?.code)) {
         setUncertain(true);
@@ -101,6 +101,7 @@ export function SitterRecommendationsForm({ api }) {
   const [error, setError] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [expired, setExpired] = useState(false);
+  const [savedMessage, setSavedMessage] = useState('');
   const active = useRef(null);
   const generation = useRef(0);
   const vet = data?.services.find(service => service.id === serviceId)?.code === 'vet-escort';
@@ -135,10 +136,14 @@ export function SitterRecommendationsForm({ api }) {
   return <main className="sitter-recommendations">
     <h1>Tìm pet sitter phù hợp</h1>
     <p>Chọn dịch vụ, thú cưng và lịch chăm sóc tại Hà Nội. Gợi ý xét năng lực, lịch làm việc và thời gian di chuyển.</p>
+    {savedMessage && <Notice title="Thông tin chăm sóc">{savedMessage}</Notice>}
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải thông tin" />}
     {['error', 'forbidden'].includes(resource.status) && <Notice state="error" title="Chưa tải được thông tin" action={<Button onClick={resource.retry}>Tải lại</Button>}>Kiểm tra phiên đăng nhập hoặc thử lại sau.</Notice>}
     {data && <>
-      <CareSetup api={api} breeds={data.breeds} workAreas={data.workAreas} onSaved={() => { invalidate(); resource.retry(); }} />
+      <CareSetup api={api} breeds={data.breeds} workAreas={data.workAreas} onSaved={message => {
+        if (typeof message === 'string') setSavedMessage(message);
+        invalidate(); resource.retry();
+      }} />
       <form onSubmit={recommend} onChange={invalidate}>
         <Select label="Dịch vụ" required value={serviceId} onChange={event => setServiceId(event.target.value)}>
           <option value="">Chọn dịch vụ</option>{data.services.map(service => <option key={service.id} value={service.id}>{service.name}</option>)}
