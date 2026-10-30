@@ -16,3 +16,23 @@ Route frontend chuẩn: `/admin/sitter-applications` và `/admin/sitter-applicat
 Tra cứu công khai: `/sitter/application-status`, mã hồ sơ + OTP purpose `APPLICATION_STATUS`. Template email/SMS chấp nhận đúng purpose này; scope, rate limit, thời hạn và tiêu thụ một lần thuộc OTP service. Response bắt đầu giữ cùng hình dạng với mã không tồn tại để tránh dò hồ sơ, không phải bằng chứng inbox đã nhận. Chỉ OTP đúng mới trả projection trạng thái, lý do từ chối và điều kiện nộp lại. Không trả giấy tờ/ghi chú nội bộ, không cấp session hay quyền Sitter từ endpoint tra cứu.
 
 Xem [bằng chứng và giới hạn kiểm tra](../testing/registration-sitter-flow.md).
+
+## Hồ sơ: giấy tờ, bốn bước và email (30/10/2026)
+
+Theo xác nhận mới của người dùng, quyết định APPROVE/REJECT chỉ được thực hiện
+sau PENDING -> UNDER_REVIEW -> INTERVIEW. Gọi quyết định sớm trả 409
+APPLICATION_STAGE_REQUIRED. Các command chuyển bước vẫn có expectedVersion và
+idempotency key; retry không tạo thêm mail. Hồ sơ đã duyệt trước thay đổi giữ
+nguyên quyền; timeline chỉ hiển thị sự kiện audit đã có, không bịa các bước cũ.
+
+GET /api/v1/applications/:id/documents/:documentId nay trả 200 PNG/JPEG inline,
+tối đa 5 MiB, private/no-store/nosniff, sau kiểm tra Admin, ràng buộc tài liệu,
+quota và audit. Không redirect sang R2. Kho lỗi trả JSON 503 PROVIDER_UNAVAILABLE
+được UI chuyển thành thông báo trong hộp xem, không hiển thị XML nhà cung cấp.
+
+Chi tiết Admin có timeline và emailNotifications gồm trạng thái hồ sơ, version,
+deliveryState, thời điểm tạo/SMTP tiếp nhận và mã lỗi an toàn. Không trả recipient
+ciphertext hoặc địa chỉ từ hàng đợi. Các lần cập nhật mới tạo hàng đợi email có
+transaction; chỉ worker được cấu hình EMAIL_ENABLED mới gửi. Người nhận phải là
+email đã xác minh của owner tại lúc xếp hàng và trước khi gửi. Chưa có email thì
+SKIPPED; không tạo liên hệ giả. Không backfill thư cho các quyết định lịch sử.

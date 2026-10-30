@@ -24,3 +24,9 @@ sitter-application-api.js sends authenticated/CSRF application commands and raw 
 `/pet-care/addresses/manage`, versioned edit/archive commands and same-origin map
 search/place resolution. Callers retain operation keys/payloads after uncertain
 responses; private care/address data is not saved in browser storage.
+
+The Admin application adapter reads private document blobs through the existing
+bounded private-image transport using an internal application-specific read path.
+All reads keep same-origin credentials/no-store, reject redirects and require a
+PNG/JPEG MIME type; pages never receive an R2 signed URL. The default owner image
+read path remains unchanged.

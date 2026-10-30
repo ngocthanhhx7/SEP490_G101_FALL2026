@@ -88,7 +88,7 @@ export function createSitterApplicationController({ service, intake } = {}) {
       return respond(res, req, 200, result);
     },
     getByApplicationIdDocumentsByDocumentId: async (req, res) => {
-      const capability = await service.documentReadCapability({
+      const content = await service.readDocument({
         applicationId: req.params.applicationId,
         documentId: req.params.documentId,
         actor: req.auth,
@@ -98,9 +98,10 @@ export function createSitterApplicationController({ service, intake } = {}) {
         'Cache-Control': 'private, no-store',
         Pragma: 'no-cache',
         'Referrer-Policy': 'no-referrer',
-        'X-Content-Type-Options': 'nosniff'
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Disposition': `inline; filename="application-document.${content.contentType === 'image/png' ? 'png' : 'jpg'}"`
       });
-      return res.redirect(302, capability.url);
+      return res.status(200).type(content.contentType).send(content.body);
     }
   };
 }

@@ -73,3 +73,14 @@ test('Admin transport still blocks mutations before fetch when session CSRF is a
     .rejects.toMatchObject({ code: 'CSRF_NOT_READY' });
   expect(fetchImpl).not.toHaveBeenCalled();
 });
+
+test('application document transport uses the authenticated API and rejects an XML response', async () => {
+  const blob = new globalThis.Blob(['synthetic'], { type: 'image/png' });
+  const fetchImpl = jest.fn(async () => ({ ok: true, status: 200, headers: { get: () => 'image/png' }, blob: async () => blob }));
+  const api = createSitterApplicationAdminApi({ fetchImpl });
+  await expect(api.readDocument({ applicationId: 'a'.repeat(24), documentId: 'b'.repeat(64) })).resolves.toMatchObject({ blob });
+  expect(fetchImpl).toHaveBeenCalledWith(`/api/v1/applications/${'a'.repeat(24)}/documents/${'b'.repeat(64)}`,
+    expect.objectContaining({ credentials: 'same-origin', cache: 'no-store', redirect: 'error' }));
+  fetchImpl.mockResolvedValueOnce({ ok: true, status: 200, headers: { get: () => 'application/xml' }, blob: async () => new globalThis.Blob(['AccessDenied']) });
+  await expect(api.readDocument({ applicationId: 'a'.repeat(24), documentId: 'b'.repeat(64) })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});

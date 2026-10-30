@@ -8,7 +8,7 @@ describe('Admin sitter application review', () => {
     const application = { id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Nguyễn Văn A',
       contact: { channel: 'EMAIL', value: 'sitter@example.test' }, ageEligible: true,
       employmentType: 'PART_TIME', experience: 'Có kinh nghiệm chăm sóc chó mèo.', requestedServices: ['Cho mèo ăn'], workAreas: ['Quận 1'],
-      documents: [], state: 'UNDER_REVIEW', version: 2, decisionReason: null, rejectedAt: null, reapplyAt: null };
+      documents: [], state: 'INTERVIEW', version: 2, decisionReason: null, rejectedAt: null, reapplyAt: null };
     const api = { get: jest.fn(async () => ({ data: application })),
       startReview: jest.fn(),
       decide: jest.fn(async () => ({ data: { state: 'REJECTED', reapplyAt: '2026-11-13T03:00:00.000Z' } })),
@@ -76,4 +76,23 @@ test('approval requires a decision reason and describes upgrading the verified a
   fireEvent.click(screen.getByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' }));
   expect(await screen.findByText(/Ứng viên có tài khoản đã xác minh cần đăng nhập lại/)).toBeVisible();
   expect(api.decide).toHaveBeenCalledWith(expect.objectContaining({ action: 'APPROVE', expectedVersion: 3 }));
+});
+
+test('only the current workflow step is actionable before an interview decision', async () => {
+  const application = { id: 'a'.repeat(24), displayName: 'Ứng viên tổng hợp', contact: { channel: 'EMAIL', value: 'applicant@example.test' },
+    ageEligible: true, experience: 'Tổng hợp', requestedServices: [], workAreas: [], documents: [], state: 'PENDING', version: 0,
+    timeline: [{ state: 'PENDING', occurredAt: '2026-10-30T08:00:00Z' }] };
+  const api = { get: jest.fn(async () => ({ data: { ...application } })),
+    startReview: jest.fn(async () => { application.state = 'UNDER_REVIEW'; application.version = 1; }),
+    startInterview: jest.fn(async () => { application.state = 'INTERVIEW'; application.version = 2; }), decide: jest.fn() };
+  render(<MemoryRouter initialEntries={[`/admin/applications/${application.id}`]}><Routes>
+    <Route path="/admin/applications/:applicationId" element={<SitterApplicationReviewPage api={api} />} />
+  </Routes></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu thẩm định' }));
+  expect(screen.queryByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' })).not.toBeInTheDocument();
+  fireEvent.click(await screen.findByRole('button', { name: 'Chuyển sang phỏng vấn' }));
+  expect(await screen.findByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' })).toBeVisible();
+  expect(api.startReview).toHaveBeenCalledWith({ applicationId: application.id, expectedVersion: 0 });
+  expect(api.startInterview).toHaveBeenCalledWith({ applicationId: application.id, expectedVersion: 1 });
+  expect(api.decide).not.toHaveBeenCalled();
 });
