@@ -12,6 +12,7 @@ import { createContactCrypto } from '../../src/services/contact-crypto.service.j
 import { identityModels } from '../../src/models/identity.model.js';
 import { privateImageModels, applicantDocumentModels } from '../../src/models/private-image.model.js';
 import { createSessionService } from '../../src/services/session.service.js';
+import { createEmailDelivery } from '../../src/services/email-delivery.service.js';
 
 const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true',
   OTP_HMAC_SECRET: 'a'.repeat(32), SESSION_TOKEN_SECRET: 'b'.repeat(32), SESSION_CSRF_SECRET: 'c'.repeat(32),
@@ -19,7 +20,7 @@ const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true',
   R2_ACCOUNT_ID: 'a'.repeat(32), R2_BUCKET: 'synthetic-private', R2_ACCESS_KEY_ID: 'b'.repeat(32), R2_SECRET_ACCESS_KEY: 'c'.repeat(64), SITTER_DOCUMENTS_ENABLED: 'true' };
 const base = { Host: '127.0.0.1', Origin: 'http://127.0.0.1' };
 const policyVersions = { terms: 'synthetic-v1', privacy: 'synthetic-v1' };
-let replica, connection, app, sent, png, writes, unavailable;
+let replica, connection, app, sent, mailSent, png, writes, unavailable;
 let clockNow = Date.now() + 86400000;
 
 async function register(email = 'applicant@example.test') {
@@ -50,8 +51,10 @@ beforeAll(async () => {
   env.MONGO_URI = replica.getUri(); env.MONGO_DB = 'pwc_intake_runtime_test';
   connection = await connectDatabase(loadConfig(env));
   const objects = new Map();
+  const email = createEmailDelivery({ from: 'noreply@example.test', clock: () => clockNow,
+    createAttempt: () => ({ sendMail: async mail => { mailSent.push(mail); return { accepted: [mail.to], rejected: [] }; }, close() {} }) });
   app = createApp({ config: loadConfig(env), connection, lifecycle: { draining: false }, env, clock: () => clockNow, portOverrides: {
-    contactDelivery: { send: async command => { sent.push(command); return { status: 'ACCEPTED' }; } },
+    contactDelivery: { send: async command => { const result = await email.send(command); if (result.status === 'ACCEPTED') sent.push(command); return result; } },
     applicantDocuments: {
       upload: async ({ storageRef, body, contentType }) => { if (unavailable) throw new Error('synthetic unavailable'); writes++; objects.set(storageRef, { body, contentType }); },
       read: async ({ storageRef }) => objects.get(storageRef),
@@ -63,7 +66,7 @@ beforeAll(async () => {
 }, 600000);
 beforeEach(async () => {
   await Promise.all(Object.values(connection.models).map(model => model.deleteMany({})));
-  sent = []; writes = 0; unavailable = false; clockNow = Date.now() + 86400000;
+  sent = []; mailSent = []; writes = 0; unavailable = false; clockNow = Date.now() + 86400000;
   await publicPolicyVersionModel(connection).create(['terms', 'privacy'].map(slug => ({
     slug, versionId: 'synthetic-v1', title: 'Synthetic policy', purpose: 'Test fixture only', sourceRef: 'synthetic-test',
     contentHash: 'synthetic-content-hash', sections: [{ heading: 'Synthetic', paragraphs: ['Test only'] }], status: 'APPROVED',
@@ -96,6 +99,8 @@ test('registration → private upload → application → scoped OTP status → 
   const applicationCode = created.body.data.applicationCode;
   const statusChallenge = await request(app).post('/api/v1/application-status/challenges').set(base).send({ applicationCode }).expect(202);
   const statusCode = sent.at(-1).code;
+  expect(mailSent.at(-1).text).toContain('APPLICATION_STATUS');
+  expect(mailSent.at(-1).text).toContain(statusCode);
   await request(app).post('/api/v1/application-status/verify').set(base).send({ applicationCode,
     challengeId: statusChallenge.body.data.challengeId, code: statusCode }).expect(200).expect(res => expect(res.body.data.state).toBe('PENDING'));
   const admin = await userModel(connection).create({ displayName: 'Synthetic Admin', roles: ['ADMIN'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false });

@@ -461,3 +461,26 @@ test('P46 rejected applicant receives reason and exact 30-day server deadline, n
     canReapply: true, reapplyEligibleAt: new Date(clockNow).toISOString() });
   expect(JSON.stringify(status.body)).not.toContain('Private internal note');
 });
+
+test('Admin overview counts all applications while filters and cursor pagination remain scoped', async () => {
+  const application = app();
+  for (let i = 0; i < 3; i++) await submit(application, applicationBody({ displayName: `Ứng viên ${i}`,
+    contactValue: `sitter${i}@example.test`, identityNumber: `01234567890${i}`, employmentType: i === 2 ? 'PART_TIME' : 'FULL_TIME' }), `summary-command-${i}`).expect(201);
+  const admin = await login('ADMIN');
+  const read = query => request(application).get('/api/v1/applications' + query).set('Cookie', admin.cookie).expect(200);
+  const first = (await read('?employmentType=FULL_TIME&limit=1')).body.data;
+  expect(first.summary).toMatchObject({ total: 3, byState: { PENDING: 3, APPROVED: 0 } });
+  expect(first.totalMatching).toBe(2);
+  expect(first.applications).toHaveLength(1);
+  expect(first.applications[0].employmentType).toBe('FULL_TIME');
+  const second = (await read('?employmentType=FULL_TIME&limit=1&cursor=' + encodeURIComponent(first.nextCursor))).body.data;
+  expect(second.totalMatching).toBe(2);
+  expect(second.nextCursor).toBeNull();
+  expect(second.applications[0].id).not.toBe(first.applications[0].id);
+  const empty = (await read('?state=REJECTED')).body.data;
+  expect(empty.summary.total).toBe(3);
+  expect(empty.totalMatching).toBe(0);
+  await request(application).get('/api/v1/applications?employmentType=INVALID').set('Cookie', admin.cookie).expect(422);
+  await request(application).get('/api/v1/applications?employmentType=PART_TIME&limit=1&cursor=' + encodeURIComponent(first.nextCursor))
+    .set('Cookie', admin.cookie).expect(422);
+});

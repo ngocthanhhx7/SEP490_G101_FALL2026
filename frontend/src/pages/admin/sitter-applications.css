@@ -53,3 +53,45 @@
   .sitter-app-row, .sitter-app-detail, .sitter-app-detail dl > div, .sitter-app-admin__search input,
   .sitter-app-admin__search textarea { border-color: CanvasText; }
 }
+
+.sitter-app-overview { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.75rem; }
+.sitter-app-overview button { display:grid; gap:.6rem; padding:1rem; min-width:0; border:1px solid #e8e2f0; border-radius:16px; background:#fff; color:var(--pwc-ink); text-align:left; font:inherit; cursor:pointer; }
+.sitter-app-overview button span { font-size:.85rem; }
+.sitter-app-overview button strong { font-size:1.8rem; line-height:1; }
+.sitter-app-overview button[aria-pressed="true"] { background:#f0eafb; border-color:#786095; box-shadow:inset 0 0 0 1px #786095; }
+.sitter-app-admin__filters { grid-template-columns:minmax(12rem,1.4fr) repeat(2,minmax(10rem,1fr)) auto; padding:1.1rem; background:white; border:1px solid #eee8f3; border-radius:16px; }
+.sitter-app-directory { min-width:0; border:1px solid #e8e2f0; border-radius:18px; background:#fff; overflow:hidden; }
+.sitter-app-directory__heading { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:.5rem; padding:1.25rem; }
+.sitter-app-directory__heading h2 { margin:0; font-size:1.1rem; }
+.sitter-app-directory__heading p { margin:0; color:var(--pwc-ink-muted); font-size:.85rem; }
+.sitter-app-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:.88rem; }
+.sitter-app-table th { padding:1rem; text-align:left; background:#f8f6fc; font-size:.8rem; color:var(--pwc-ink-muted); }
+.sitter-app-table th:first-child { width:24%; }.sitter-app-table th:nth-child(2) { width:28%; }
+.sitter-app-table td { vertical-align:top; padding:1rem; border-top:1px solid #eee8f3; overflow-wrap:anywhere; line-height:1.6; }
+.sitter-app-table td small { display:block; color:var(--pwc-ink-muted); margin-top:.35rem; font-size:.8rem; }
+.sitter-app-table tr:hover { background:#fdfbff; }
+.sitter-app-name { font-weight:800; color:var(--pwc-ink); text-underline-offset:.2em; }
+.sitter-app-open { display:inline-flex; padding:.5rem .7rem; border-radius:10px; background:#fff3bd; color:var(--pwc-ink); font-weight:800; text-decoration:none; }
+.sitter-app-pagination { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:1rem; padding:1rem; border-top:1px solid #eee8f3; }
+.sitter-app-private-note { padding:0 1.25rem 1rem; color:var(--pwc-ink-muted); font-size:.8rem; margin:0; }
+.sitter-app-progress { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.6rem; padding:0; margin:0; list-style:none; counter-reset:application-step; }
+.sitter-app-progress li { counter-increment:application-step; padding:.8rem; border:1px solid #e8e2f0; border-radius:12px; background:white; font-size:.85rem; }
+.sitter-app-progress li::before { content:counter(application-step) '. '; font-weight:800; }
+.sitter-app-progress [aria-current="step"] { background:#ede5f8; border-color:#786095; font-weight:800; }
+@media(max-width:1100px) {
+ .sitter-app-overview { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ .sitter-app-admin__filters { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .sitter-app-table, .sitter-app-table tbody, .sitter-app-table tr, .sitter-app-table td { display:block; width:auto; }
+ .sitter-app-table thead { display:none; }
+ .sitter-app-table tr { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); padding:.7rem; border-top:1px solid #e8e2f0; }
+ .sitter-app-table td { border:0; padding:.6rem; }
+ .sitter-app-table td::before { content:attr(data-label); display:block; font-size:.7rem; text-transform:uppercase; letter-spacing:.04em; color:var(--pwc-ink-muted); margin-bottom:.4rem; }
+}
+@media(max-width:540px) {
+ .sitter-app-overview { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .sitter-app-overview button { padding:.85rem; }
+ .sitter-app-admin__filters, .sitter-app-table tr { grid-template-columns:1fr; }
+ .sitter-app-progress { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .sitter-app-pagination { justify-content:center; gap:.5rem; }
+ .sitter-app-pagination button { padding:.6rem; font-size:.8rem; }
+}
