@@ -114,8 +114,8 @@ test('service list filters catalog results by Vietnamese search and species', as
     screen.getByRole('img', { name: 'Người chăm sóc dắt chó đi dạo' })
   ).toHaveAttribute('src', '/assets/figma-public/home-Image658.webp');
   expect(
-    screen.getAllByRole('link', { name: 'Xem chi tiết' })[0]
-  ).toHaveAttribute('href', '/services/dog-walk-1');
+    screen.getAllByRole('link', { name: 'Đặt dịch vụ' })[0]
+  ).toHaveAttribute('href', '/booking/dog-walk-1');
   expect(screen.getByText(/50\.000.*mỗi lượt/)).toBeVisible();
 
   fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm dịch vụ' }), {
@@ -165,7 +165,7 @@ test('service detail reads price and policy from the catalog and links to sign i
   ).toBeVisible();
   expect(screen.getByRole('link', { name: 'Đặt dịch vụ này' })).toHaveAttribute(
     'href',
-    '/sign-in?serviceId=dog-walk-1'
+    '/booking/dog-walk-1'
   );
   expect(
     screen.getByRole('heading', { name: 'Giá dịch vụ hiện hành' })

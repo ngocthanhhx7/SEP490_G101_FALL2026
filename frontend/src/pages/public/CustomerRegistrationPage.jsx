@@ -217,7 +217,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
         <div className="registration-notice registration-notice--success" role="status">
           Tài khoản Customer đã được tạo và phiên đăng nhập đã mở trên thiết bị này.
         </div>
-        <Link className="registration-submit" to="/account">Tiếp tục đến tài khoản <span aria-hidden="true">→</span></Link>
+        <Link className="registration-submit" to="/">Về trang chủ <span aria-hidden="true">→</span></Link>
       </div>
     </section>;
   }

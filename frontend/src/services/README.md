@@ -1,5 +1,8 @@
 # API services
 
+`service-basket-api.js` also owns the quote-scoped `/checkout/availability`
+transport for directed booking; pages do not call the transport directly.
+
 `workspace-api.js` validates aggregate metric, trend and distribution responses
 from `/workspaces/:kind/analytics`; it never calculates financial figures.
 

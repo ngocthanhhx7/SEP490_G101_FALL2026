@@ -4,6 +4,11 @@ Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1
 
 ## Demo Catalogue
 
+The owner-authorized [Hanoi sample population](../doc/testing/hanoi-demo-population-2026-10-30.md)
+is provisioned by `scripts/deployment/provision-hanoi-demo.js` after reviewed release,
+backup and explicit database confirmation. It creates labelled coursework profiles,
+sample contracts and schedules, never contacts, payments or verified outcomes.
+
 Assigned care, recommendation checkout and verified satisfaction collection use
 the existing authenticated runtime. See [integration evidence](../doc/testing/care-matching-outcomes-2026-10-30.md).
 

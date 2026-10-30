@@ -12,6 +12,14 @@ export function createServiceBasketApi(options) {
       return response;
     },
     async checkoutOptions({ signal } = {}) { return request('/checkout/options', { signal }); },
+    async availability(body, { signal } = {}) {
+      const response = await request('/checkout/availability', { method: 'POST', body, signal });
+      if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
+      const value = response.data;
+      if (!value || !Array.isArray(value.sitters) || typeof value.complete !== 'boolean' ||
+        value.sitters.some(row => !row || typeof row.id !== 'string' || typeof row.displayName !== 'string')) throw new ApiError('INVALID_RESPONSE');
+      return value;
+    },
     async addresses({ signal } = {}) { return request('/pet-care/addresses', { signal }); },
     async confirm(body, idempotencyKey) {
       const response = await request('/checkout/bookings', { method: 'POST', body, idempotencyKey });

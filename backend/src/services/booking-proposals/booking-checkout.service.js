@@ -18,7 +18,7 @@ import { assertFinanceSourceStorage } from '../settlements/source-provisioning.j
 import { checkoutVisitMoney, CHECKOUT_POLICY_VERSION, PREPAY_WINDOW_MS } from './checkout-snapshot.service.js';
 import { assertMatchSelection } from './match-selection.service.js';
 
-export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates }) {
+export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
   const { Notification } = notificationModels(connection);
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
@@ -148,11 +148,12 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             if (typeof serviceAddress !== 'string' || !serviceAddress.trim()) fail('FACILITY_ADDRESS_REQUIRED', 'Facility address must be configured', 409);
             const boarding = pricing.billingMode === 'PER_DAY';
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
-            await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
+            const candidateIds = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
             visits.push({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), serviceId: oid(selection.serviceId),
               petIds: pets.map(p => p._id), sitterId: null, state: 'SCHEDULED', version: 0, sequence: visits.length,
               areaCode, requestedSitterId: row.requestedSitterId ? oid(row.requestedSitterId) : null,
-              ...(row.matchId ? { recommendationRef: { matchId: row.matchId, selectedAt: at, advisory: true } } : {}),
+              bookingMode: row.bookingMode ?? (row.requestedSitterId ? 'DIRECT' : 'SYSTEM'),
+              ...(row.matchId ? { recommendationRef: { matchId: row.matchId, selectedAt: at, advisory: true, candidateIds } } : {}),
               location: row.location, ...(row.addressId ? { addressId: oid(row.addressId) } : {}), startAt: row.startAt, endAt,
               evidenceRefs: [], snapshots: { ...amounts[index], boarding, serviceName: version.name, serviceAddress, ...(point ? { point } : {}),
                 serviceScope: version.scope, checklistItemIds: ['service-scope', 'pet-condition'],
@@ -170,6 +171,10 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         for (let a = 0; a < visits.length; a++) for (let b = a + 1; b < visits.length; b++) {
           if (visits[a].startAt < visits[b].endAt && visits[b].startAt < visits[a].endAt && visits[a].petIds.some(p => visits[b].petIds.some(q => String(p) === String(q))))
             fail('VISIT_SCHEDULE_OVERLAP', 'A pet cannot attend overlapping visits', 409);
+        }
+        for (const visit of visits.filter(row => row.requestedSitterId)) {
+          if (!selectionGuard) fail('SCHEDULING_UNAVAILABLE', 'Employee eligibility must be checked before directed checkout', 503);
+          await selectionGuard(actor, visit, session);
         }
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
