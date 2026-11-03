@@ -33,3 +33,9 @@ follow PENDING -> UNDER_REVIEW -> INTERVIEW -> APPROVED/REJECTED; final decision
 are available only in INTERVIEW and rechecked by the backend. The progress strip
 uses recorded audit timestamps, never inferred completion of missing stages.
 Email queue state is visible separately from the application state.
+
+`ProductOrderManagementPage` is the `/admin/product-orders` screen for shop orders:
+tabs with counts (to prepare, awaiting pickup, in transit, returning, all), search by
+order code or customer name, and the next step for the selected order (tracking code and
+hand to carrier, mark ready, record payment, hand to customer). The backend decides what
+is allowed and moves the stock; the page shows its answer and reloads after a conflict.

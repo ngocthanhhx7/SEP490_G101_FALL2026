@@ -1,12 +1,12 @@
-# Product sales API v1 (Customer shop, release 1)
+# Product sales API v1 (Customer shop and Admin order handling)
 
-Customer-facing shop for dog/cat food and accessories: catalog, cart and product orders. Source: R3 FE-21..FE-23, GBR-02 and GBR-35. Off unless `PRODUCT_SALES_ENABLED=true`, and it needs `AUTH_ENABLED=true`.
+Customer-facing shop for dog/cat food and accessories (catalog, cart and product orders) plus the Admin screen that prepares, ships and hands over those orders. Source: R3 FE-21..FE-23, the Order Management screen, GBR-02 and GBR-35. Off unless `PRODUCT_SALES_ENABLED=true`, and it needs `AUTH_ENABLED=true`.
 
 ## Scope and limits
 
 Included: public catalog, Customer cart, order placement with stock reservation, order history. Receive methods are `DELIVERY` (paid on delivery, `COD`) and `PICKUP` (paid at the shop, `PAY_AT_SHOP`).
 
-Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), order handling by staff (carrier hand-over, ready, picked up, returns, cancellation jobs), Product Management, Goods Receipt, Counter Sale. Orders therefore stay in `PLACED`; the later statuses exist in the model for the staff release.
+Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Product Management, Goods Receipt, Counter Sale. Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
 
 Delivery fee is a flat 25,000 VND for every served area. This is a **demo value** in `constants/product-fields.js`; the per-area fee configured by Admin (R3 D-060) is not built. Money is integer VND.
 
@@ -30,9 +30,33 @@ Delivery needs `addressId` of one of the caller's active addresses inside the se
 
 `deliveryFee` in the cart is informational for the checkout preview. The placed order carries the authoritative `subtotal`, `shippingFee` and `total`, and the price of each line at the time of ordering.
 
+## Order handling (Admin)
+
+Admin only (Sale Staff is a separate role PR; Admin covers every Sale Staff task in R3). Mounted at `/api/v1/admin/product-orders`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer or anonymous caller gets 403 or 401. Writes need the session CSRF token and take no `Idempotency-Key`: every step is guarded by the order's current status and version, so repeating a step answers `409 ORDER_STATE_CONFLICT` instead of applying twice.
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix or part of the customer name, case-insensitive), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName }` and `updatedAt` |
+| `GET /api/v1/admin/product-orders/:orderId` | One order, any customer |
+| `POST .../:orderId/hand-to-carrier` | Delivery order `PLACED` to `HANDED_TO_CARRIER`. Body `{ trackingCode }` (3-64 of letters, digits, `.`, `_`, `-`; trimmed). Missing or blank is `422 TRACKING_CODE_REQUIRED` (MSG103) |
+| `POST .../:orderId/mark-ready` | Pickup order `PLACED` to `READY`. No stock change |
+| `POST .../:orderId/record-payment` | Pickup order in `PLACED` or `READY`, not yet paid: sets `paid` (money taken at the shop) |
+| `POST .../:orderId/hand-to-customer` | Pickup order `READY` to `PICKED_UP`. An unpaid order is `409 ORDER_NOT_PAID` (MSG105) |
+| `POST .../:orderId/cancel` | Order in `PLACED` or `READY` to `CANCELLED`. Not used by the screen yet |
+
+Any other combination of receive method and status is `409 ORDER_STATE_CONFLICT` with the current `status`. The step bodies other than `hand-to-carrier` must be empty. The customer sees the new status and the tracking code through `GET /api/v1/product-orders`.
+
+Not built: the customer phone (it is stored encrypted for sign-in, so the screen shows the name only and cannot search by phone), returns, marking a delivery `DELIVERED`, the COD refusal limit and the expiry job.
+
 ## Stock rule (GBR-35)
 
-Sellable = `stockOnHand - quantityHeld`; it is computed, not stored. Adding to the cart reserves nothing. Placing an order runs in one transaction: for each line a conditional update reserves the quantity only if `stockOnHand - quantityHeld >= quantity`. If any line fails, no order is created and nothing stays reserved, so two concurrent orders can never reserve more than is sellable. The cart is emptied in the same transaction. Releasing stock when goods leave the shop or an order is cancelled belongs to the staff release.
+Sellable = `stockOnHand - quantityHeld`; it is computed, not stored. Adding to the cart reserves nothing. Placing an order runs in one transaction: for each line a conditional update reserves the quantity only if `stockOnHand - quantityHeld >= quantity`. If any line fails, no order is created and nothing stays reserved, so two concurrent orders can never reserve more than is sellable. The cart is emptied in the same transaction. Stock is released by Admin order handling, each step in one transaction together with the status change:
+
+- Goods leave the shop (`hand-to-carrier`, `hand-to-customer`): `quantityHeld` and `stockOnHand` both go down by the line quantity.
+- Cancelling an order that has not left the shop: only `quantityHeld` goes down; `stockOnHand` is unchanged.
+- If a line's held or real stock no longer covers the order (for example it was edited by hand), the step is refused with `409 ORDER_STOCK_MISMATCH` and nothing is changed.
+
+Two Admins acting on the same order cannot both succeed: the status change only matches the status and version that were read.
 
 Replaying the same `Idempotency-Key` with the same body returns the original order without reserving again; the same key with a different body is `409 IDEMPOTENCY_CONFLICT`. Order codes (`DH-0001`) come from an atomic counter; gaps are possible after failed attempts.
 
@@ -45,10 +69,13 @@ Replaying the same `Idempotency-Key` with the same body returns the original ord
 | `CART_EMPTY` | 409 | MSG100 |
 | `ADDRESS_REQUIRED` | 422 | MSG101 |
 | `ADDRESS_OUT_OF_SERVICE_AREA` | 422 | MSG18 |
+| `TRACKING_CODE_REQUIRED` | 422 | MSG103 |
+| `ORDER_NOT_PAID` | 409 | MSG105 |
+| `ORDER_STATE_CONFLICT` (`status`), `ORDER_STOCK_MISMATCH` | 409 | none |
 | `PRODUCT_UNAVAILABLE`, `CART_FULL`, `CART_LINE_NOT_FOUND`, `ADDRESS_NOT_FOUND`, `IDEMPOTENCY_CONFLICT` | 409/404 | none |
 | `VALIDATION_FAILED`, `UNAUTHENTICATED`, `FORBIDDEN`, `RESOURCE_NOT_FOUND` | 422/401/403/404 | common |
 
-The API returns codes and English text; the frontend shows the Vietnamese wording. Success messages (MSG59, MSG99) and empty-state messages (MSG97, MSG102) are frontend-only.
+The API returns codes and English text; the frontend shows the Vietnamese wording. Success messages (MSG59, MSG99, MSG106) and empty-state messages (MSG97, MSG102) are frontend-only.
 
 ## Demo data
 

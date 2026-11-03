@@ -145,4 +145,4 @@ while the OTP service retains application scope, expiry and anti-enumeration rul
 
 ## Product shop
 
-Customers browse `/products`, add items to a cart and check out as delivery (paid on delivery) or pickup (paid at the shop); see `pages/public/ProductListPage.jsx`, `pages/customer/ProductCheckoutPage.jsx` and `services/product-sales-api.js`. The backend API is off unless `PRODUCT_SALES_ENABLED=true` ([contract](../doc/api/product-sales-v1.md)). Payment gateway, tier discounts and staff order handling are not part of this release.
+Customers browse `/products`, add items to a cart and check out as delivery (paid on delivery) or pickup (paid at the shop); see `pages/public/ProductListPage.jsx`, `pages/customer/ProductCheckoutPage.jsx` and `services/product-sales-api.js`. The backend API is off unless `PRODUCT_SALES_ENABLED=true` ([contract](../doc/api/product-sales-v1.md)). Admins prepare and hand over orders at `/admin/product-orders` (`pages/admin/ProductOrderManagementPage.jsx`, `services/product-order-management-api.js`). Payment gateway and tier discounts are not part of this release.

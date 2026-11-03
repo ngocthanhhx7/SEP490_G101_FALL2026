@@ -149,4 +149,4 @@ Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu
 
 ## Product sales
 
-Customer shop (catalog, cart, product orders) is off unless `PRODUCT_SALES_ENABLED=true` with `AUTH_ENABLED=true`. `npm run seed:products` is a dry run; add `-- --apply` on a `*_dev` database to insert the synthetic products. Staff order handling, online payment and tier discounts are not part of this release. See [product sales API](../doc/api/product-sales-v1.md).
+Customer shop (catalog, cart, product orders) is off unless `PRODUCT_SALES_ENABLED=true` with `AUTH_ENABLED=true`. `npm run seed:products` is a dry run; add `-- --apply` on a `*_dev` database to insert the synthetic products. Admin order handling (`/api/v1/admin/product-orders`: hand to carrier, ready, hand over, payment, cancel) is included; Sale Staff role, returns, online payment and tier discounts are not. See [product sales API](../doc/api/product-sales-v1.md).
