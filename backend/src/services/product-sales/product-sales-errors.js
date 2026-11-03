@@ -18,6 +18,12 @@ export const productSalesErrors = Object.freeze({
   // MSG18
   outsideServiceArea: () => new AppError(422, 'ADDRESS_OUT_OF_SERVICE_AREA', 'Sorry, we do not serve this address yet.'),
   addressNotFound: () => new AppError(404, 'ADDRESS_NOT_FOUND', 'Address not found'),
+  // MSG103
+  trackingCodeRequired: () => new AppError(422, 'TRACKING_CODE_REQUIRED', 'Please enter the tracking code.'),
+  // MSG105
+  orderNotPaid: () => new AppError(409, 'ORDER_NOT_PAID', 'This order is not paid in full yet. Please take the payment first.'),
+  orderStateConflict: (status) => new AppError(409, 'ORDER_STATE_CONFLICT', 'This order cannot be changed in its current state.', { status }),
+  orderStockMismatch: (orderId) => new AppError(409, 'ORDER_STOCK_MISMATCH', 'The stock of this order does not match; nothing was changed.', { orderId }),
   idempotencyConflict: () => new AppError(409, 'IDEMPOTENCY_CONFLICT', 'The key was already used for a different order.')
 });
 
@@ -29,5 +35,15 @@ export function requireCustomer(actor) {
     throw productSalesErrors.unauthenticated();
   }
   if (!actor.roles.includes('CUSTOMER')) throw productSalesErrors.forbidden();
+  return actor.userId;
+}
+
+// Order handling is Admin-only in this release (Sale Staff is a separate role PR); Admin covers every Sale Staff task (R3).
+export function requireAdmin(actor) {
+  if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles)
+    || typeof actor.userId !== 'string' || !OBJECT_ID.test(actor.userId)) {
+    throw productSalesErrors.unauthenticated();
+  }
+  if (!actor.roles.includes('ADMIN')) throw productSalesErrors.forbidden();
   return actor.userId;
 }

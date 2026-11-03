@@ -15,6 +15,15 @@ export const PRODUCT_ORDER_STATUSES = Object.freeze([
   'CANCELLED'
 ]);
 
+// Order Management tabs (R3 Order Management screen): which statuses each tab lists. ALL has no status filter.
+export const PRODUCT_ORDER_TAB_STATUSES = Object.freeze({
+  PREPARE: Object.freeze(['PLACED']),
+  AWAITING_PICKUP: Object.freeze(['READY']),
+  IN_TRANSIT: Object.freeze(['HANDED_TO_CARRIER']),
+  RETURNING: Object.freeze(['BEING_RETURNED'])
+});
+export const PRODUCT_ORDER_TABS = Object.freeze([...Object.keys(PRODUCT_ORDER_TAB_STATUSES), 'ALL']);
+
 // Each receive method has exactly one demo payment method.
 export const PRODUCT_PAYMENT_BY_RECEIVE_METHOD = Object.freeze({
   DELIVERY: 'COD',

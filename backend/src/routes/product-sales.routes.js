@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { createProductCatalogController } from '../controllers/product-catalog.controller.js';
 import { createProductCartController } from '../controllers/product-cart.controller.js';
 import { createProductOrderController } from '../controllers/product-order.controller.js';
+import { createProductOrderManagementController } from '../controllers/product-order-management.controller.js';
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
+import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
@@ -42,9 +44,22 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   orderRouter.post('/', csrf, orders.place);
   orderRouter.get('/:orderId', orders.read);
 
+  // Order handling is Admin-only for now; a Sale Staff role is a separate change.
+  const management = createProductOrderManagementController(createProductOrderManagementService({ connection }));
+  const managementRouter = Router();
+  managementRouter.use(noStore, requireSession(session, { clock }), requireRoles('ADMIN'));
+  managementRouter.get('/', management.list);
+  managementRouter.get('/:orderId', management.read);
+  managementRouter.post('/:orderId/hand-to-carrier', csrf, management.handToCarrier);
+  managementRouter.post('/:orderId/mark-ready', csrf, management.markReady);
+  managementRouter.post('/:orderId/hand-to-customer', csrf, management.handToCustomer);
+  managementRouter.post('/:orderId/record-payment', csrf, management.recordPayment);
+  managementRouter.post('/:orderId/cancel', csrf, management.cancel);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
-    { name: 'product-orders', mount: '/api/v1/product-orders', router: orderRouter }
+    { name: 'product-orders', mount: '/api/v1/product-orders', router: orderRouter },
+    { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter }
   ];
 }
