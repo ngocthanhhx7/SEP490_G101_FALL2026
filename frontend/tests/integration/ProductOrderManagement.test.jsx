@@ -37,6 +37,8 @@ describe('Order Management', () => {
     expect(within(panel).getByText('45 Láng Hạ, Đống Đa, Hà Nội')).toBeVisible();
     expect(within(panel).getByText('Tổng thu khi giao')).toBeVisible();
     expect(within(panel).getByText('445.000 đ')).toBeVisible();
+    // Admin sees a new order as work to do, in the warning tone.
+    expect(within(panel).getByText('Cần chuẩn bị')).toHaveClass('pwc-shop-status--warn');
   });
 
   test('switches tab and searches, and shows another order when chosen', async () => {

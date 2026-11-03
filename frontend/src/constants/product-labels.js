@@ -16,3 +16,5 @@ export const PRODUCT_ORDER_STATUS_LABELS = Object.freeze({
   PICKED_UP: 'Đã nhận hàng',
   CANCELLED: 'Đã huỷ'
 });
+// Admin sees a new order as work to do, not as "placed" (R3 Order Management).
+export const PRODUCT_ADMIN_ORDER_STATUS_LABELS = Object.freeze({ PLACED: 'Cần chuẩn bị' });

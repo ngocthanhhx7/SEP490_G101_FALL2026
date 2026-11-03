@@ -54,7 +54,7 @@ function OrderActions({ order, busy, run, api }) {
 function OrderDetail({ order, busy, run, api }) {
   const collectsOnDelivery = order.paymentMethod === 'COD' && !order.paid;
   return <aside className="pwc-shop-panel" aria-label={`Chi tiết đơn ${order.code}`}>
-    <h2>Đơn {order.code} <OrderStatusBadge status={order.status} /></h2>
+    <h2>Đơn {order.code} <OrderStatusBadge status={order.status} forAdmin /></h2>
     <dl className="pwc-shop-facts">
       <dt>Khách hàng</dt><dd>{order.customer.displayName ?? 'Khách hàng'}</dd>
       <dt>Cách nhận</dt><dd>{PRODUCT_RECEIVE_LABELS[order.receiveMethod]}</dd>
