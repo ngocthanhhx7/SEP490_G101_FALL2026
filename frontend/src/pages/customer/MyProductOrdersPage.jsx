@@ -49,7 +49,7 @@ export function MyProductOrdersPage() {
       action={<Link className="pwc-shop-outline-button" to="/products">Xem sản phẩm</Link>} />}
     {resource.status === 'success' && <div className="pwc-shop-split">
       <div className="pwc-shop-panel pwc-shop-table-wrap">
-        <table className="pwc-shop-table">
+        <table className="pwc-shop-table pwc-shop-table--wide">
           <thead><tr><th>Mã đơn</th><th>Ngày đặt</th><th>Cách nhận</th><th>Tổng tiền</th><th>Trạng thái</th><th><span className="pwc-visually-hidden">Xem</span></th></tr></thead>
           <tbody>{orders.map((order) => <tr key={order.id} className={order.id === selected?.id ? 'is-selected' : undefined}>
             <td><strong>{order.code}</strong></td><td>{formatOrderDate(order.createdAt)}</td>

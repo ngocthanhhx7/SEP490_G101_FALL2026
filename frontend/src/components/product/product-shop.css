@@ -75,7 +75,7 @@
 /* Amounts stay on one line; product names may still wrap. */
 .pwc-shop-table td:not(:first-child), .pwc-shop-summary-row > :last-child, .pwc-shop-price { white-space: nowrap; }
 .pwc-shop-summary-row > :first-child { min-width: 0; }
-/* Admin Order Management: a wide table keeps its columns readable and scrolls inside its panel on phones. */
+/* Order tables (My Orders, Order Management): keep columns readable and scroll inside the panel on phones. */
 .pwc-shop-table--wide { min-width: 40rem; }
 .pwc-shop-table--wide td:first-child { white-space: nowrap; }
 /* Admin Order Management: the next-step block under an order's details. */
