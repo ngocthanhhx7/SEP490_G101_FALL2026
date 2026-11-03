@@ -26,12 +26,16 @@ export function ProductCheckoutPage() {
   const paymentMethod = PAYMENT_BY_RECEIVE[receiveMethod];
   const delivery = receiveMethod === 'DELIVERY';
   const shippingFee = delivery && cart ? cart.deliveryFee : 0;
+  const addressOptions = addresses.data ?? [];
+  const idOf = (address) => String(address.id ?? address._id);
+  // A single saved address leaves nothing to choose, so it is preselected; with several the customer must pick one.
+  const chosenAddressId = addressId || (addressOptions.length === 1 ? idOf(addressOptions[0]) : '');
 
   async function submit() {
     if (locked.current) return;
     if (!cart || cart.lineCount === 0) { setError(productMessage('MSG100')); return; }
-    if (delivery && !addressId) { setError(productMessage('MSG101')); return; }
-    const body = { receiveMethod, paymentMethod, ...(delivery ? { addressId } : {}) };
+    if (delivery && !chosenAddressId) { setError(productMessage('MSG101')); return; }
+    const body = { receiveMethod, paymentMethod, ...(delivery ? { addressId: chosenAddressId } : {}) };
     // The same key is reused for an unchanged order so an uncertain retry can never create a second order.
     const fingerprint = JSON.stringify(body);
     if (command.current?.fingerprint !== fingerprint) command.current = { fingerprint, key: `product-order:${globalThis.crypto.randomUUID()}` };
@@ -75,10 +79,9 @@ export function ProductCheckoutPage() {
           </div>
           {delivery && <>
             <label className="pwc-shop-label" htmlFor="delivery-address">Địa chỉ nhận hàng</label>
-            <select id="delivery-address" className="pwc-shop-field" value={addressId} onChange={(event) => { setAddressId(event.target.value); setError(''); }}>
+            <select id="delivery-address" className="pwc-shop-field" value={chosenAddressId} onChange={(event) => { setAddressId(event.target.value); setError(''); }}>
               <option value="">Chọn địa chỉ</option>
-              {(addresses.data ?? []).map((address) => { const id = String(address.id ?? address._id);
-                return <option key={id} value={id}>{address.label}</option>; })}
+              {addressOptions.map((address) => <option key={idOf(address)} value={idOf(address)}>{address.label}</option>)}
             </select>
             {addresses.status === 'error' && <p role="alert">Chưa tải được địa chỉ. <button type="button" className="pwc-shop-link-button" onClick={addresses.retry}>Tải lại địa chỉ</button></p>}
             {addresses.status === 'empty' && <p>Bạn chưa có địa chỉ. <Link to="/account/addresses">Thêm địa chỉ</Link></p>}

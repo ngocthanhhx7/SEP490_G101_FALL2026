@@ -149,12 +149,23 @@ describe('Shopping Cart', () => {
 describe('Product Checkout', () => {
   const withCart = (over = {}) => fakeApi({ getCart: jest.fn().mockResolvedValue({ data: cartOf([line()]) }), ...over });
 
-  test('asks for an address before a delivery order and does not call the API', async () => {
-    const api = withCart();
+  test('asks for an address before a delivery order when there are several and does not call the API', async () => {
+    const api = withCart({ addresses: jest.fn().mockResolvedValue({ data: [{ id: 'a1', label: 'Nhà' }, { id: 'a2', label: 'Văn phòng' }] }) });
     show(api, '/customer/product-checkout');
-    fireEvent.click(await screen.findByRole('button', { name: 'Đặt hàng' }));
+    await screen.findByRole('option', { name: 'Văn phòng' });
+    expect(screen.getByLabelText('Địa chỉ nhận hàng')).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt hàng' }));
     expect(await screen.findByText('Vui lòng chọn địa chỉ nhận hàng.')).toBeVisible();
     expect(api.placeOrder).not.toHaveBeenCalled();
+  });
+
+  test('preselects the only saved address so the order can be placed without choosing', async () => {
+    const api = withCart({ placeOrder: jest.fn().mockResolvedValue(order()) });
+    show(api, '/customer/product-checkout');
+    await waitFor(() => expect(screen.getByLabelText('Địa chỉ nhận hàng')).toHaveValue('a1'));
+    fireEvent.click(screen.getByRole('button', { name: 'Đặt hàng' }));
+    expect(await screen.findByTestId('where')).toHaveTextContent('/customer/product-orders||DH-0031');
+    expect(api.placeOrder).toHaveBeenCalledWith({ receiveMethod: 'DELIVERY', paymentMethod: 'COD', addressId: 'a1' }, expect.stringMatching(/^product-order:/));
   });
 
   test('previews the delivery fee from the cart and places a COD delivery order', async () => {
