@@ -146,3 +146,7 @@ Matching tại src/services/sitter-matching bật bằng AI_ENABLED=true (cần 
 ## Tiếp nhận hồ sơ Pet Sitter
 
 Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu phiên Customer, CSRF, email đã xác minh thuộc phiên, ảnh READY thuộc cùng owner và consent terms/privacy được kiểm tra trong transaction. Hồ sơ mới lưu ownerUserId; Admin duyệt nâng quyền cùng user và tăng authEpoch. Giấy tờ dùng applicant-documents với tiền tố applicant-documents/ và collection/quota riêng trong bucket R2 dùng chung (JPG/PNG, 5 MB, quota 20 ảnh/tài khoản); SITTER_DOCUMENTS_ENABLED chưa bật thì intake báo chưa mở. Khi bật, mặc định kế thừa R2_*; bốn biến SITTER_DOCUMENTS_R2_* chỉ dùng khi cần ghi đè đầy đủ cho cấu hình cũ. Không tự seed policy, tạo tài khoản hay bật provider. Xem [bằng chứng và giới hạn](../doc/testing/registration-sitter-flow.md).
+
+## Product sales
+
+Customer shop (catalog, cart, product orders) is off unless `PRODUCT_SALES_ENABLED=true` with `AUTH_ENABLED=true`. `npm run seed:products` is a dry run; add `-- --apply` on a `*_dev` database to insert the synthetic products. Staff order handling, online payment and tier discounts are not part of this release. See [product sales API](../doc/api/product-sales-v1.md).

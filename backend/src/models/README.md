@@ -26,3 +26,5 @@ record per application/version stores an encrypted verified recipient snapshot,
 provider operation id, bounded attempts, lease and safe delivery state. It does
 not contain application documents or interview notes. Existing collections are
 unchanged; deployment index provisioning registers this model explicitly.
+
+`product.model.js` defines `Product`, `ProductCart`, `ProductOrder` and the `ProductCounter` used for order codes, with default collection names (`products`, `productcarts`, `productorders`, `productcounters`). `sellingPrice`, stock and totals are integer VND/units; sellable quantity is derived (`stockOnHand - quantityHeld`). Order lines copy code, name and price at order time. Provision through the deployment index command like other runtime models.

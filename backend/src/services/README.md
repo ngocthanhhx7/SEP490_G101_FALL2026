@@ -16,3 +16,5 @@ The registration/sitter runtime and its scoped OTP status flow are now connected
 enabled finance/scheduling raw storage for the explicit deployment command. It
 checks payroll, finance and scheduling storage before the release can activate;
 it never inserts fixtures, removes indexes or runs during server startup.
+
+`product-sales/` owns the Customer shop: public catalog, cart and order placement. The order service reserves stock with a conditional update inside a transaction and replays idempotent retries; it reads `CustomerAddress` only to copy the delivery address after an area check. `product-order-pricing.js` is the deterministic integer-VND total (flat demo delivery fee; no discount or tax). See [product sales API](../../../doc/api/product-sales-v1.md).
