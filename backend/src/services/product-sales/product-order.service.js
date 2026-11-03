@@ -64,7 +64,7 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
       { _id: line.productId, visible: true,
         $expr: { $gte: [{ $subtract: ['$stockOnHand', '$quantityHeld'] }, line.quantity] } },
       { $inc: { quantityHeld: line.quantity, version: 1 } },
-      { new: true, session });
+      { returnDocument: 'after', session });
     if (held) return held;
     const current = await Product.findById(line.productId).session(session).lean();
     if (!current || !current.visible) throw productSalesErrors.unavailable(String(line.productId));
@@ -77,7 +77,7 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
   async function nextOrderCode() {
     // Allocated outside the order transaction so concurrent orders do not serialise on the counter; gaps are acceptable.
     const counter = await ProductCounter.findOneAndUpdate({ _id: PRODUCT_ORDER_COUNTER_ID },
-      { $inc: { value: 1 } }, { upsert: true, new: true });
+      { $inc: { value: 1 } }, { upsert: true, returnDocument: 'after' });
     return `${PRODUCT_ORDER_CODE_PREFIX}${String(counter.value).padStart(4, '0')}`;
   }
 
