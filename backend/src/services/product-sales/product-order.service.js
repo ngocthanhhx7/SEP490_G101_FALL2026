@@ -90,6 +90,8 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
       const replayed = await replay(customerId, key, fingerprint);
       if (replayed) return replayed;
 
+      // Fail before allocating an order code, so an empty cart never leaves a gap in DH- numbers.
+      if (!(await ProductCart.exists({ customerId, 'lines.0': { $exists: true } }))) throw productSalesErrors.cartEmpty();
       const deliveryAddress = input.receiveMethod === 'DELIVERY'
         ? await loadDeliveryAddress(customerId, input.addressId) : undefined;
       const code = await nextOrderCode();

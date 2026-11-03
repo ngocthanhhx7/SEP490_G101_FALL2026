@@ -141,6 +141,12 @@ describe('placing an order', () => {
     expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lineCount).toBe(0);
   });
 
+  test('an empty-cart attempt does not use up an order number', async () => {
+    expect((await placePickup('a')).body.error.code).toBe('CART_EMPTY');
+    await addToCart('a', 'SP-0020', 1);
+    expect((await placePickup('a')).body.data.code).toBe('DH-0001');
+  });
+
   test('pickup orders carry no address or fee', async () => {
     await addToCart('a', 'SP-0020', 2);
     const placed = await placePickup('a');
