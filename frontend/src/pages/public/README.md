@@ -42,3 +42,5 @@ Application receipts show the owner's rejection reason and Vietnam-local retry
 instant. The refresh action reads the server's canReapply flag before opening a
 new form; the device clock cannot bypass the waiting screen. Public OTP status
 provides a reapplication link when its server projection permits it.
+
+`ProductListPage.jsx` and `ProductDetailsPage.jsx` are the public shop at `/products` and `/products/:productId`. Filters live in the URL (`q`, `category`, `pet`); only Shown products are returned by the API. A guest pressing "Thêm vào giỏ hàng" is sent to sign-in and returns to the product page. Out-of-stock products lock the button (MSG98); a quantity above what can be sold re-reads the product and shows MSG58 with the current number.

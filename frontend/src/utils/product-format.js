@@ -1,0 +1,34 @@
+import { PRODUCT_MESSAGES, PRODUCT_ERROR_MESSAGE_KEYS } from '../constants/product-messages.js';
+
+export function formatVnd(amount) {
+  if (!Number.isSafeInteger(amount)) return '';
+  return `${new Intl.NumberFormat('vi-VN').format(amount)} đ`;
+}
+
+export function formatOrderDate(value) {
+  const time = Date.parse(value);
+  if (!Number.isFinite(time)) return '';
+  return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(time);
+}
+
+export function productMessage(key, values = {}) {
+  const template = PRODUCT_MESSAGES[key] ?? '';
+  return template.replace(/\{(\w+)\}/g, (_match, name) => String(values[name] ?? ''));
+}
+
+// Maps a failed API call to user text; `available` comes from a freshly loaded product or cart line.
+export function productErrorText(error, { available } = {}) {
+  const key = PRODUCT_ERROR_MESSAGE_KEYS[error?.code];
+  if (key) return productMessage(key, { n: available ?? 0 });
+  if (error?.code === 'UNAUTHENTICATED') return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  if (error?.code === 'PRODUCT_UNAVAILABLE' || error?.code === 'RESOURCE_NOT_FOUND') return 'Sản phẩm này không còn được bán.';
+  if (error?.code === 'CART_FULL') return 'Giỏ hàng có quá nhiều sản phẩm khác nhau.';
+  if (error?.code === 'ADDRESS_NOT_FOUND') return 'Không tìm thấy địa chỉ đã chọn. Vui lòng chọn lại.';
+  if (error?.code === 'IDEMPOTENCY_CONFLICT') return 'Yêu cầu đặt hàng đã thay đổi. Vui lòng thử lại.';
+  return 'Chưa thể hoàn tất. Vui lòng thử lại sau.';
+}
+
+// A response we cannot interpret may still have been processed: callers keep the same operation key.
+export function isUncertainOutcome(error) {
+  return ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(error?.code) || error?.status >= 500;
+}

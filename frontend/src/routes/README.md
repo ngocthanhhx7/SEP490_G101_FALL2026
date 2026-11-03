@@ -11,3 +11,5 @@ Accounts retaining Customer membership after promotion enter their operational
 workspace. Login return paths are validated by utils/role-access.js. Operational
 sessions opening the public storefront return to their workspace; anonymous
 visitors retain public browsing and must sign in before booking.
+
+The shop catalog (`/products`, `/products/:productId`) is public inside the public layout. Cart, checkout and product orders (`/customer/cart`, `/customer/product-checkout`, `/customer/product-orders`) require a Customer. `ProductCartProvider` (in `contexts/`) loads the signed-in Customer's cart for the header badge; guests and operational roles never load it. `loginDestination` lets a Customer return to `/products/:id` after signing in.

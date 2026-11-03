@@ -60,6 +60,11 @@ import { SitterWorkAreasPanel } from '../pages/sitter/SitterWorkAreasPanel.jsx';
 import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
 import { EmployeeInvitationsPage } from '../pages/sitter/EmployeeInvitationsPage.jsx';
 import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingProposalPage.jsx';
+import { ProductListPage } from '../pages/public/ProductListPage.jsx';
+import { ProductDetailsPage } from '../pages/public/ProductDetailsPage.jsx';
+import { ShoppingCartPage } from '../pages/customer/ShoppingCartPage.jsx';
+import { ProductCheckoutPage } from '../pages/customer/ProductCheckoutPage.jsx';
+import { MyProductOrdersPage } from '../pages/customer/MyProductOrdersPage.jsx';
 
 function SitterManagementRoute({ detail = false }) {
   const { getCsrfToken, user } = useSession();
@@ -296,6 +301,13 @@ export function AppRoutes({
         <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
         <Route element={<RequireSession roles={['CUSTOMER']} />}>
           <Route path="booking/:serviceId" element={<ServiceBookingPage />} />
+        </Route>
+        <Route path="products" element={<ProductListPage />} />
+        <Route path="products/:productId" element={<ProductDetailsPage />} />
+        <Route element={<RequireSession roles={['CUSTOMER']} />}>
+          <Route path="customer/cart" element={<ShoppingCartPage />} />
+          <Route path="customer/product-checkout" element={<ProductCheckoutPage />} />
+          <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
         </Route>
         <Route path="service-areas" element={<ServiceAreasPage />} />
         <Route path="sign-in" element={<SignInPage />} />

@@ -30,3 +30,5 @@ bounded private-image transport using an internal application-specific read path
 All reads keep same-origin credentials/no-store, reject redirects and require a
 PNG/JPEG MIME type; pages never receive an R2 signed URL. The default owner image
 read path remains unchanged.
+
+`product-sales-api.js` is the same-origin transport for `/products`, `/product-cart` and `/product-orders` and validates every DTO (integer VND, known enums). It sends no prices; the order request carries only receive/payment method and the owned address id. Contract: [product sales API](../../../doc/api/product-sales-v1.md).
