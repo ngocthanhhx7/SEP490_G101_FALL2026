@@ -8,7 +8,10 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG99: 'Đã thêm sản phẩm vào giỏ hàng.',
   MSG100: 'Giỏ hàng của bạn đang trống. Vui lòng chọn sản phẩm trước.',
   MSG101: 'Vui lòng chọn địa chỉ nhận hàng.',
-  MSG102: 'Bạn chưa có đơn hàng nào.'
+  MSG102: 'Bạn chưa có đơn hàng nào.',
+  MSG103: 'Vui lòng nhập mã vận đơn.',
+  MSG105: 'Đơn hàng này chưa được thanh toán đủ. Vui lòng thu tiền trước.',
+  MSG106: 'Đơn hàng {code} đã được cập nhật.'
 });
 
 // Backend error code -> message key.
@@ -17,5 +20,7 @@ export const PRODUCT_ERROR_MESSAGE_KEYS = Object.freeze({
   PRODUCT_OUT_OF_STOCK: 'MSG98',
   CART_EMPTY: 'MSG100',
   ADDRESS_REQUIRED: 'MSG101',
-  ADDRESS_OUT_OF_SERVICE_AREA: 'MSG18'
+  ADDRESS_OUT_OF_SERVICE_AREA: 'MSG18',
+  TRACKING_CODE_REQUIRED: 'MSG103',
+  ORDER_NOT_PAID: 'MSG105'
 });

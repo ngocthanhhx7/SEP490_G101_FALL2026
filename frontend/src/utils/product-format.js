@@ -25,6 +25,9 @@ export function productErrorText(error, { available } = {}) {
   if (error?.code === 'CART_FULL') return 'Giỏ hàng có quá nhiều sản phẩm khác nhau.';
   if (error?.code === 'ADDRESS_NOT_FOUND') return 'Không tìm thấy địa chỉ đã chọn. Vui lòng chọn lại.';
   if (error?.code === 'IDEMPOTENCY_CONFLICT') return 'Yêu cầu đặt hàng đã thay đổi. Vui lòng thử lại.';
+  if (error?.code === 'ORDER_STATE_CONFLICT') return 'Đơn hàng đã đổi trạng thái. Danh sách sẽ được tải lại.';
+  if (error?.code === 'ORDER_STOCK_MISMATCH') return 'Tồn kho của đơn này không khớp nên chưa thay đổi gì. Vui lòng kiểm tra lại kho.';
+  if (error?.code === 'FORBIDDEN') return 'Bạn không có quyền xử lý đơn hàng.';
   return 'Chưa thể hoàn tất. Vui lòng thử lại sau.';
 }
 

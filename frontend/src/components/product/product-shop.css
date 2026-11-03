@@ -75,6 +75,9 @@
 /* Amounts stay on one line; product names may still wrap. */
 .pwc-shop-table td:not(:first-child), .pwc-shop-summary-row > :last-child, .pwc-shop-price { white-space: nowrap; }
 .pwc-shop-summary-row > :first-child { min-width: 0; }
+/* Admin Order Management: the next-step block under an order's details. */
+.pwc-shop-actions { display: grid; gap: .6rem; border-top: 1px solid var(--shop-border); margin-top: 1rem; padding-top: 1rem; }
+.pwc-shop-hint { color: var(--shop-muted); font-size: .9rem; margin: 0; }
 /* Narrow screens: each cart row becomes a stacked card instead of a squeezed table. */
 @media (max-width: 40rem) {
   .pwc-shop { padding-inline: .75rem; }

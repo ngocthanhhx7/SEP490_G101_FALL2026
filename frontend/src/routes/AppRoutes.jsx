@@ -65,6 +65,14 @@ import { ProductDetailsPage } from '../pages/public/ProductDetailsPage.jsx';
 import { ShoppingCartPage } from '../pages/customer/ShoppingCartPage.jsx';
 import { ProductCheckoutPage } from '../pages/customer/ProductCheckoutPage.jsx';
 import { MyProductOrdersPage } from '../pages/customer/MyProductOrdersPage.jsx';
+import { ProductOrderManagementPage } from '../pages/admin/ProductOrderManagementPage.jsx';
+import { createProductOrderManagementApi } from '../services/product-order-management-api.js';
+
+function ProductOrderManagementRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createProductOrderManagementApi({ getCsrfToken }), [getCsrfToken]);
+  return <ProductOrderManagementPage key={user?.id} api={api} />;
+}
 
 function SitterManagementRoute({ detail = false }) {
   const { getCsrfToken, user } = useSession();
@@ -120,6 +128,7 @@ const navigationByRole = {
     ['Người dùng', '/admin/users', 'Nhân sự & hồ sơ'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
     ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
+    ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Duyệt tất toán', '/admin/settlements', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
@@ -216,6 +225,7 @@ export function AppRoutes({
           <Route path="admin/sitters/:userId" element={<SitterManagementRoute detail />} />
           <Route path="admin/settlements" element={<AdminSettlementRoute />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
+          <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
             path="admin/service-prices"
