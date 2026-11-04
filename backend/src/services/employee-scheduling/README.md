@@ -55,3 +55,6 @@ bookings retain their requested employee. Both proposal creation and confirmatio
 recheck eligibility, and system recovery offers retain daily-origin route checks.
 Past shifts cannot receive invitations. Immutable checkout/price/address snapshots
 remain unchanged; only the consented operational time and area are updated.
+Customer confirmation also pins the nominated employee as the operational requested
+sitter. The worker cannot replenish that consented choice with other employees;
+acceptance is still required and original checkout snapshots remain unchanged.

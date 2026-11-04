@@ -85,7 +85,8 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
         fail('VISIT_SCHEDULE_OVERLAP', 'The pet already has a service at this time', 409);
       await models.EmployeeVisitOffer.updateMany({ visitId: visit._id, state: 'PENDING' }, { $set: { state: 'REVOKED' }, $inc: { version: 1 } }, { session });
       const changed = await col('visits').updateOne({ _id: visit._id, state: 'SCHEDULED', version: proposal.visitVersion },
-        { $set: { startAt: revised.startAt, endAt: revised.endAt, areaCode: revised.areaCode, customerScheduleConsent: proposal._id }, $unset: { dispatchReview: 1 }, $inc: { version: 1 } }, { session });
+        { $set: { startAt: revised.startAt, endAt: revised.endAt, areaCode: revised.areaCode,
+          requestedSitterId: visit.requestedSitterId ?? oid(sitterId), customerScheduleConsent: proposal._id }, $unset: { dispatchReview: 1 }, $inc: { version: 1 } }, { session });
       if (!changed.matchedCount) fail('VERSION_CONFLICT', 'Visit changed', 409);
       await col('bookings').updateOne({ _id: booking._id, version: booking.version }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });
       const at = new Date(clock());
