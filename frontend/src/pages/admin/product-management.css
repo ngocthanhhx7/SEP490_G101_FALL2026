@@ -12,3 +12,5 @@
 .pwc-pm-switch { display: flex; align-items: center; gap: .6rem; margin: 1rem 0 .5rem; min-height: 2.75rem; font-weight: 800; }
 .pwc-pm-switch input { width: 1.25rem; height: 1.25rem; }
 .pwc-pm-form .pwc-shop-primary-button { margin-top: 1rem; }
+.pwc-shop-outline-button.pwc-pm-status { width: 100%; margin-top: .75rem; }
+.pwc-shop-outline-button:disabled { border-color: var(--shop-border); color: var(--shop-muted); cursor: not-allowed; }

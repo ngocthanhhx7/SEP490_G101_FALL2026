@@ -33,7 +33,7 @@ export function parseAdminProductQuery(query = {}) {
 }
 
 // Each parser returns `{ value }` or `{ error }`.
-function parseText(raw, { max, required, multiline = false }) {
+export function parseText(raw, { max, required, multiline = false }) {
   if (raw === undefined || raw === null) return required ? { error: 'REQUIRED' } : { value: '' };
   if (typeof raw !== 'string') return { error: 'INVALID' };
   const value = raw.normalize('NFC').replace(/\r\n?/gu, '\n').trim();

@@ -1,6 +1,8 @@
 // R3 messages in Vietnamese. {n} and {code} are filled by utils/product-format.js.
 export const PRODUCT_MESSAGES = Object.freeze({
   MSG01: 'Vui lòng nhập thông tin này.',
+  MSG02: 'Vui lòng nhập địa chỉ email hợp lệ.',
+  MSG03: 'Vui lòng nhập số điện thoại hợp lệ (10 số, bắt đầu bằng 0).',
   MSG18: 'Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.',
   MSG58: 'Chỉ còn {n} sản phẩm. Vui lòng giảm số lượng.',
   MSG59: 'Đơn hàng {code} đã được đặt.',
@@ -16,7 +18,11 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG106: 'Đơn hàng {code} đã được cập nhật.',
   MSG113: 'Vui lòng nhập số nguyên lớn hơn 0.',
   MSG114: 'Ẩn {product}? Khách hàng sẽ không còn thấy và đặt được sản phẩm này. Các đơn đã đặt không thay đổi.',
-  MSG115: 'Sản phẩm {code} đã được lưu.'
+  MSG115: 'Sản phẩm {code} đã được lưu.',
+  MSG116: 'Đã có nhà cung cấp với tên này.',
+  MSG117: 'Nhà cung cấp {name} đã được lưu.',
+  MSG118: 'Ngừng hợp tác với {supplier}? Nhà cung cấp này sẽ không còn được chọn ở phiếu nhập mới. Các phiếu nhập cũ được giữ nguyên.',
+  MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
 });
 
 // Backend error code -> message key.

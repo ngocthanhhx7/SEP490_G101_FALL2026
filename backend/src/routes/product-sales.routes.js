@@ -4,11 +4,13 @@ import { createProductCartController } from '../controllers/product-cart.control
 import { createProductOrderController } from '../controllers/product-order.controller.js';
 import { createProductOrderManagementController } from '../controllers/product-order-management.controller.js';
 import { createProductManagementController } from '../controllers/product-management.controller.js';
+import { createSupplierManagementController } from '../controllers/supplier-management.controller.js';
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
 import { createProductManagementService } from '../services/product-sales/product-management.service.js';
+import { createSupplierManagementService } from '../services/product-sales/supplier-management.service.js';
 import { createCustomerPhoneDirectory } from '../services/product-sales/customer-phone-directory.service.js';
 import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
@@ -79,11 +81,23 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   productManagementRouter.get('/:productId', productManagement.read);
   productManagementRouter.patch('/:productId', csrf, productManagement.update);
 
+  // Supplier Management: who may use it comes from PRODUCT_PERMISSIONS.MANAGE_SUPPLIERS.
+  const supplierManagement = createSupplierManagementController(createSupplierManagementService({ connection }));
+  const supplierRouter = Router();
+  supplierRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.MANAGE_SUPPLIERS));
+  supplierRouter.get('/', supplierManagement.list);
+  supplierRouter.post('/', csrf, supplierManagement.create);
+  supplierRouter.get('/:supplierId', supplierManagement.read);
+  supplierRouter.patch('/:supplierId', csrf, supplierManagement.update);
+  supplierRouter.post('/:supplierId/stop', csrf, supplierManagement.stop);
+  supplierRouter.post('/:supplierId/resume', csrf, supplierManagement.resume);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
     { name: 'product-orders', mount: '/api/v1/product-orders', router: orderRouter },
     { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter },
-    { name: 'admin-products', mount: '/api/v1/admin/products', router: productManagementRouter }
+    { name: 'admin-products', mount: '/api/v1/admin/products', router: productManagementRouter },
+    { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter }
   ];
 }

@@ -9,6 +9,7 @@ import {
   PRODUCT_RETURN_LIMITS,
   PRODUCT_REFUSAL_REASONS
 } from '../constants/product-fields.js';
+import { SUPPLIER_STATUSES, SUPPLIER_LIMITS } from '../constants/supplier-fields.js';
 
 const cartLine = sub({
   productId: { type: oid, required: true },
@@ -31,7 +32,7 @@ const deliveryAddress = sub({
   areaCode: { type: String, required: true, maxlength: 80 }
 });
 
-// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters (default Mongoose names).
+// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters, suppliers (default Mongoose names).
 export function productSalesModels(connection) {
   return registerModels(connection, {
     Product: {
@@ -55,6 +56,26 @@ export function productSalesModels(connection) {
       indexes: [
         [{ code: 1 }, { unique: true }],
         [{ visible: 1, category: 1, petType: 1, name: 1 }, {}]
+      ]
+    },
+    // Suppliers the shop buys from (R3 UC-69). Never deleted, only stopped. `nameKey` is the name as compared for
+    // uniqueness (utils/supplier-name.js); the unique index keeps two Admins from saving the same name at once.
+    Supplier: {
+      fields: {
+        name: { type: String, required: true, maxlength: SUPPLIER_LIMITS.nameMax },
+        nameKey: { type: String, required: true, maxlength: SUPPLIER_LIMITS.nameMax * 2 },
+        contactName: { type: String, default: '', maxlength: SUPPLIER_LIMITS.contactNameMax },
+        // Ten digits as saved, e.g. 0936452118; empty when only an email was given.
+        phone: { type: String, default: '', maxlength: 10 },
+        email: { type: String, default: '', maxlength: SUPPLIER_LIMITS.emailMax },
+        // The products this supplier supplies, for the record. A goods receipt is not limited to them.
+        productIds: { type: [oid], default: [], validate: (ids) => ids.length <= SUPPLIER_LIMITS.productsMax },
+        status: { type: String, enum: SUPPLIER_STATUSES, default: 'ACTIVE' },
+        version: { ...integer(), default: 0 }
+      },
+      indexes: [
+        [{ nameKey: 1 }, { unique: true }],
+        [{ status: 1, nameKey: 1 }, {}]
       ]
     },
     ProductCart: {

@@ -8,7 +8,12 @@ export const productSalesErrors = Object.freeze({
   forbidden: () => new AppError(403, 'FORBIDDEN', 'Action is not permitted'),
   invalidRequest: (message) => new AppError(422, 'VALIDATION_FAILED', message),
   // R3 has no message for this: someone else saved the product first.
-  versionConflict: () => new AppError(409, 'VERSION_CONFLICT', 'This product was changed by someone else. Reload it and try again.'),
+  versionConflict: (subject = 'product') => new AppError(409, 'VERSION_CONFLICT', `This ${subject} was changed by someone else. Reload it and try again.`),
+  // MSG116
+  supplierNameTaken: () => new AppError(409, 'SUPPLIER_NAME_TAKEN', 'A supplier with this name already exists.'),
+  // R3 has no message for these: stopping a supplier that already stopped, or a product that is not in the catalog.
+  supplierStateConflict: (status) => new AppError(409, 'SUPPLIER_STATE_CONFLICT', 'This supplier cannot be changed in its current state.', { status }),
+  productNotFound: (productIds) => new AppError(422, 'PRODUCT_NOT_FOUND', 'Some products are not in the catalog.', { productIds }),
   productCodesExhausted: () => new AppError(409, 'PRODUCT_CODES_EXHAUSTED', 'No product code is left.'),
   // MSG98
   outOfStock: (productId) => new AppError(409, 'PRODUCT_OUT_OF_STOCK', 'This product is out of stock.', { productId }),
@@ -58,3 +63,4 @@ function requirePermission(actor, allowedRoles) {
 
 export const requireOrderHandler = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.HANDLE_ORDERS);
 export const requireProductManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_PRODUCTS);
+export const requireSupplierManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_SUPPLIERS);

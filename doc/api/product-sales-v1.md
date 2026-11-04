@@ -6,7 +6,7 @@ Customer-facing shop for dog/cat food and accessories (catalog, cart and product
 
 Included: public catalog, Customer cart, order placement with stock reservation, order history. Receive methods are `DELIVERY` (paid on delivery, `COD`) and `PICKUP` (paid at the shop, `PAY_AT_SHOP`).
 
-Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Goods Receipt, Counter Sale. Product Management by Admin is described under "Product Management (Admin)" below. Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
+Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Goods Receipt, Counter Sale. Product Management by Admin is described under "Product Management (Admin)" below, and Supplier Management under "Supplier Management (Admin)". Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
 
 Delivery fee is a flat 25,000 VND for every served area. This is a **demo value** in `constants/product-fields.js`; the per-area fee configured by Admin (R3 D-060) is not built. Money is integer VND.
 
@@ -72,9 +72,42 @@ New errors: `VERSION_CONFLICT` (409, none in R3) and `PRODUCT_CODES_EXHAUSTED` (
 
 ### Paged lists
 
-`page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). The same pair is meant for the Supplier and Stock List screens. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
+`page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). Supplier Management uses it, and Stock List is meant to. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
 
 Not built here: adding or changing photos. The Admin DTO carries `photos` (read only); upload is a separate Issue.
+
+## Supplier Management (Admin)
+
+Who may manage suppliers is `MANAGE_SUPPLIERS` in `backend/src/constants/product-permissions.js` (today Admin only). Mounted at `/api/v1/admin/suppliers`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer, Staff, Sitter or anonymous caller gets 403 or 401. Writes need the session CSRF token and take no `Idempotency-Key`: every change matches the `version` the Admin saw, so a second save of the same screen is `409 VERSION_CONFLICT` instead of applying twice. A supplier is never deleted, only stopped.
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/v1/admin/suppliers` | Suppliers by name in Vietnamese letter order (D, then Đ, then E; a, ă, â; MongoDB collation `vi`), then by id. Query: `status` (`ACTIVE` = Đang hợp tác, `STOPPED` = Ngừng hợp tác, `ALL`; default `ALL`), `page`, `limit` (1-50, default 20). Response: `{ items, page, limit, total, counts }`, `counts` holding the size of every tab (`ACTIVE`, `STOPPED`, `ALL`). An item is `{ id, name, contactName, phone, email, status, productCount, version, updatedAt }` |
+| `GET /api/v1/admin/suppliers/:supplierId` | One supplier, plus `products`: `{ id, code, name, visible }` of every product it supplies (hidden ones too), in the order the Admin put them |
+| `POST /api/v1/admin/suppliers` | Adds a supplier (201, always `ACTIVE`). Body: `name`, `contactName`, `phone`, `email`, `productIds`; only `name` and a phone or an email are needed |
+| `PATCH /api/v1/admin/suppliers/:supplierId` | Edits the sent fields only. Body must carry `version` and at least one change. A stopped supplier can be edited too |
+| `POST .../:supplierId/stop` | `ACTIVE` to `STOPPED`. Body `{ version }` |
+| `POST .../:supplierId/resume` | `STOPPED` to `ACTIVE`. Body `{ version }` |
+
+Rules (R3 AC-30). Every wrong field is reported in one `422 VALIDATION_FAILED` answer, as `error.fields.<field> = <reason>`:
+
+| Field | Rule | Reason, R3 message |
+| --- | --- | --- |
+| `name` | needed, at most 200 characters; spaces trimmed and collapsed | `REQUIRED` (MSG01), `TOO_LONG`, `INVALID` |
+| `name` | not used by another supplier, **stopped ones included**: `409 SUPPLIER_NAME_TAKEN` (MSG116) | see below |
+| `phone` | ten digits starting with 0; spaces, dots and hyphens are dropped and the ten digits are saved. `+84` forms, eleven-digit landline numbers and anything else are refused | `INVALID` (MSG03) |
+| `email` | a valid address of at most 254 characters | `INVALID` (MSG02) |
+| `phone` and `email` | at least one of them. Judged on what would be saved, so an edit may clear one but not both | `CONTACT_REQUIRED` on both fields (MSG125); not reported when the phone or email given was itself wrong |
+| `contactName` | optional, at most 100 characters | `TOO_LONG` |
+| `productIds` | at most 200 products, repeats saved once; every one must be in the catalog, hidden or not: `422 PRODUCT_NOT_FOUND` with `productIds` of the missing ones | `TOO_MANY`, `INVALID` |
+
+Two names are the same when they match after the **name key** (`utils/supplier-name.js`): spaces trimmed and collapsed, one letter case, and the tone mark in `oa`, `oe`, `uy` written in one place (`Hoà` = `Hòa`, `Hoè` = `Hòe`, `Thuỷ` = `Thủy`). Letters and diacritics otherwise count, so `Mai` and `Mãi` are different names. The key is saved with the supplier under a unique index, so two Admins saving the same name at once cannot both succeed. A supplier keeps its name after it stops.
+
+Stopping and resuming only change `status` and `version`; the supplier, its products and its history stay. A step that does not fit the state (stopping a stopped supplier, resuming an active one) is `409 SUPPLIER_STATE_CONFLICT` with the current `status`.
+
+The products of a supplier are a record only. **Nothing limits a goods receipt to them**: R3 does not say so, and the Goods Receipt screen must not add that rule. That screen will take only suppliers that are `ACTIVE` when a new receipt is made (AC-30, AC-31); receipts already made are not touched by stopping a supplier.
+
+New errors (none has an R3 message except MSG116): `SUPPLIER_NAME_TAKEN` (409, MSG116), `SUPPLIER_STATE_CONFLICT` (409), `PRODUCT_NOT_FOUND` (422), and `VERSION_CONFLICT` (409) as for products.
 
 ## Stock rule (GBR-35)
 
