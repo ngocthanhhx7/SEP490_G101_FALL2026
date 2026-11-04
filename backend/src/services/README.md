@@ -1,5 +1,10 @@
 # Domain services
 
+`product-sales/product-photo.service.js` owns Admin gallery changes, bounded
+decoding, metadata-free normalization, version checks and transactional MongoDB
+blob/reference cleanup. Public reads require a shown product still referencing
+the photo; Admin has a separate authenticated reader for hidden products.
+
 `user-admin.service.js` owns role decisions, transactionally rechecks the acting
 Admin, prevents self role changes and preserves Pet Sitter review boundaries.
 Changes increment authEpoch/version, revoke sessions and audit old/new roles.

@@ -48,6 +48,15 @@ export function createProductManagementApi(options) {
     // changes: any of the editable fields, plus `version`, the one the Admin was looking at.
     async updateProduct(productId, changes) {
       return checkProduct((await request(`/admin/products/${id(productId)}`, { method: 'PATCH', body: changes })).data);
+    },
+    async uploadPhoto(productId, file, { version, index } = {}) {
+      const suffix = index === undefined ? '' : `/${index}`;
+      return checkProduct((await request(`/admin/products/${id(productId)}/photos${suffix}`, {
+        method: index === undefined ? 'POST' : 'PUT', binaryBody: file, productVersion: version
+      })).data);
+    },
+    async removePhoto(productId, index, version) {
+      return checkProduct((await request(`/admin/products/${id(productId)}/photos/${index}`, { method: 'DELETE', productVersion: version })).data);
     }
   };
 }

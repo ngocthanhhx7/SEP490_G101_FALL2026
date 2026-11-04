@@ -1,4 +1,9 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
+import { createProductPhotoController } from '../controllers/product-photo.controller.js';
+import { createProductPhotoService } from '../services/product-sales/product-photo.service.js';
+import { PRODUCT_PHOTO_LIMITS, PRODUCT_PHOTO_TYPES } from '../constants/product-photos.js';
+import { createMediaAdmission, createAdmissionMiddleware, parseBody } from './private-image.routes.js';
 import { createProductCatalogController } from '../controllers/product-catalog.controller.js';
 import { createProductCartController } from '../controllers/product-cart.controller.js';
 import { createProductOrderController } from '../controllers/product-order.controller.js';
@@ -31,10 +36,12 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   const csrf = requireCsrf(session), customer = requireRoles('CUSTOMER');
 
   const catalog = createProductCatalogController(createProductCatalogService({ connection }));
+  const photos = createProductPhotoController(createProductPhotoService({ connection }));
   const catalogRouter = Router();
   catalogRouter.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   catalogRouter.get('/', catalog.list);
   catalogRouter.get('/:productId', catalog.read);
+  catalogRouter.get('/:productId/photos/:digest', photos.read);
 
   const cart = createProductCartController(createProductCartService({ connection }));
   const cartRouter = Router();
@@ -80,6 +87,18 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   productManagementRouter.post('/', csrf, productManagement.create);
   productManagementRouter.get('/:productId', productManagement.read);
   productManagementRouter.patch('/:productId', csrf, productManagement.update);
+  const photoRate = rateLimit({ windowMs: 60000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false,
+    keyGenerator: req => req.auth.userId });
+  const photoAdmission = createMediaAdmission({ limit: 2 });
+  const parsePhoto = express.raw({ type: PRODUCT_PHOTO_TYPES, limit: PRODUCT_PHOTO_LIMITS.maxBytes });
+  const uploadPhoto = createAdmissionMiddleware({ admission: photoAdmission, work: async (req, res) => {
+    await parseBody(parsePhoto, req, res);
+    return photos.upload(req, res);
+  } });
+  productManagementRouter.post('/:productId/photos', csrf, photoRate, uploadPhoto);
+  productManagementRouter.put('/:productId/photos/:photoIndex', csrf, photoRate, uploadPhoto);
+  productManagementRouter.delete('/:productId/photos/:photoIndex', csrf, photoRate, photos.remove);
+  productManagementRouter.get('/:productId/photos/:digest', photos.readAdmin);
 
   // Supplier Management: who may use it comes from PRODUCT_PERMISSIONS.MANAGE_SUPPLIERS.
   const supplierManagement = createSupplierManagementController(createSupplierManagementService({ connection }));

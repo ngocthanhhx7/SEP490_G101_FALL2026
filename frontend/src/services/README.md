@@ -1,5 +1,9 @@
 # API services
 
+Product Management transports bounded binary photos through the shared API client
+with same-origin cookies, CSRF and `X-Product-Version`. Image writes use their own
+routes and do not expose arbitrary photo URLs in the ordinary product editor DTO.
+
 `service-basket-api.js` also owns the quote-scoped `/checkout/availability`
 transport for directed booking; pages do not call the transport directly.
 
