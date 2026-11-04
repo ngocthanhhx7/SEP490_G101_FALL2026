@@ -50,3 +50,5 @@ switches its existing three-card service section to `HomeProductPreview` only
 when Products is selected. Shared storefront styling lives in `styles/storefront.css`.
 Inherited product images and their source hashes are in `public/assets/products/credits.json`;
 no old checkout fees, ratings or sales figures are copied.
+
+Service and product lists share `CatalogLayout`: collapsible filters on the left, results on the right, stacked on mobile. Service filters use published categories/species/locations and base-price sorting; product filters use the API-supported category/pet type and preserve URL pagination/search. Home benefits cover both care and shopping without nutrition or provider promises.

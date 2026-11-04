@@ -10,7 +10,7 @@ import { productSalesModels } from '../../src/models/product.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { registerModules } from '../../src/routes/module-registry.js';
-import { provisionStorefrontCatalog } from '../../src/services/product-sales/storefront-catalog-provisioning.service.js';
+import { provisionStorefrontCatalog, backfillStorefrontPhotos } from '../../src/services/product-sales/storefront-catalog-provisioning.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const actors = {
@@ -79,6 +79,30 @@ describe('seed', () => {
 });
 
 describe('catalog', () => {
+  test('persists missing sample photos once, protects Admin edits and serves database changes', async () => {
+    await models.Product.deleteMany({});
+    await provisionStorefrontCatalog({ connection });
+    const codes = ['SP-0012', 'SP-0014', 'SP-0016', 'SP-0020', 'SP-0021', 'SP-0031', 'SP-0035', 'SP-0036', 'SP-0037'];
+    await models.Product.updateMany({ code: { $in: codes } }, { $set: { photos: [] } });
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { photos: ['/assets/admin-photo.webp'] } });
+    await models.Product.updateOne({ code: 'SP-0014' }, { $set: { detailsVersion: 2 } });
+    await models.Product.updateOne({ code: 'SP-0037' }, { $unset: { catalogSource: 1 } });
+    const financial = async () => models.Product.find({}).sort({ code: 1 }).select('code sellingPrice stockOnHand quantityHeld visible version').lean();
+    const before = await financial();
+    expect(await backfillStorefrontPhotos({ connection })).toEqual({ state: 'DRY_RUN', eligible: 6, updated: 0 });
+    expect((await product('SP-0016')).photos).toEqual([]);
+    expect(await backfillStorefrontPhotos({ connection, apply: true })).toEqual({ state: 'APPLIED', eligible: 6, updated: 6 });
+    expect(await backfillStorefrontPhotos({ connection, apply: true })).toEqual({ state: 'APPLIED', eligible: 0, updated: 0 });
+    expect(await financial()).toEqual(before);
+    expect((await product('SP-0012')).photos).toEqual(['/assets/admin-photo.webp']);
+    expect((await product('SP-0014')).photos).toEqual([]);
+    expect((await product('SP-0037')).photos).toEqual([]);
+    const updated = await product('SP-0016');
+    expect(updated).toMatchObject({ photos: ['/assets/products/cat-wet-food.webp'], detailsVersion: 1 });
+    await models.Product.updateOne({ _id: updated._id }, { $set: { name: 'Tên được sửa trong database', sellingPrice: 31000 } });
+    const response = await api().get(`/api/v1/products/${updated._id}`).expect(200);
+    expect(response.body.data).toMatchObject({ name: 'Tên được sửa trong database', sellingPrice: 31000, photos: updated.photos });
+  });
   test('pages the inherited catalogue and provisioning preserves Admin edits', async () => {
     expect((await provisionStorefrontCatalog({ connection })).inserted).toBe(20);
     await models.Product.updateOne({ code: 'SP-0038' }, { $set: { sellingPrice: 123000, stockOnHand: 2 } });
