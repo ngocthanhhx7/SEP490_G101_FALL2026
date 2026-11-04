@@ -17,3 +17,9 @@ application review page. Status commands reuse its versioned audited backend API
 `EmployeeDispatchPage.jsx` can receive a selected sitter from the route composition;
 invitation creation still rechecks authoritative eligibility, payment and the
 Customer's directed choice. No page assigns work by itself.
+
+`DispatchRecoveryPanel` owns alternative-time candidate previews and customer
+proposal presentation after escalation. `DispatchDiagnostics` shows aggregate
+eligibility failures. Transport remains in `services/employee-scheduling-api.js`;
+labels are pure helpers in `utils/dispatch-format.js`. Unknown proposal responses
+freeze inputs and reuse the original payload/key. No expired shift is retried.

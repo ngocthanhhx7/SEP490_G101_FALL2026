@@ -63,7 +63,8 @@ Root `/api/v1/employee-scheduling`, opt-in `EMPLOYEE_SCHEDULING_ENABLED=true`.
 | POST `/offers/:id/acceptances`, `/declines` | PET_SITTER, expectedVersion, explicit response |
 | GET `/dispatch` | STAFF/ADMIN, next 50 eligible operational visits and pending invitation/review status |
 | POST `/visits/:id/invitations` | STAFF/ADMIN, expectedVersion and optional sitterId |
-| POST `/visits/:id/schedule-proposals` | STAFF/ADMIN, expectedVersion and alternative startAt for the same directed employee |
+| GET `/visits/:id/candidates` | STAFF/ADMIN, startAt with timezone and optional areaCode; bounded eligible names/IDs or aggregate rejection counts; 6 requests per minute/account/instance |
+| POST `/visits/:id/schedule-proposals` | STAFF/ADMIN after escalation, expectedVersion, alternative startAt, optional sitterId and areaCode; directed employee cannot be replaced |
 | GET `/proposals/:id` | Owning CUSTOMER only |
 | POST `/proposals/:id/confirmation` | Owning CUSTOMER, expectedVersion and selectedSlot; atomically changes operational time and creates invitation |
 | GET `/care-plans` | STAFF/ADMIN, bounded plan queue |
@@ -122,3 +123,26 @@ Run `node scripts/migrations/employee-scheduling-storage.js` to preview the addi
 The script's guarded `--apply` is for an explicitly selected non-production development database.
 Finance source and payroll migrations are separate prerequisites. Runtime does not delete
 collections or provision missing indexes; synthetic tests use isolated Mongo replica sets.
+
+## Dispatch recovery (4 November 2026)
+
+`GET /dispatch` also returns `workAreas` and stored aggregate `diagnostics` for
+failed automatic searches. Rejection counts contain no employee identities or
+private schedule/origin information. Candidate previews are current read-only
+checks, not reservations or historical eligibility evidence. Changing form input
+invalidates the preview; proposal creation, customer confirmation and offer
+acceptance all recheck current facts.
+
+System recovery requires an eligible nominated sitter. Optional `areaCode` may
+only keep the current code or refine a HOME visit to a direct child area in the
+operational catalog. Staff cannot relocate the saved pin or choose another
+unrelated district. Customer proposal projections show `areaCode`, `areaLabel`
+and `previousAreaCode` before consent. Existing customer/financial/address
+snapshots remain immutable. Confirmation atomically changes operational time/area,
+revokes old pending offers and creates a pending invitation. It does not assign
+a sitter. System-origin/route requirements remain in effect on acceptance.
+
+An overdue shift returns `SHIFT_START_REACHED` for invitation commands. Staff
+must use customer-confirmed recovery, rather than retrying a time in the past.
+Boarding stays continue to require whole-stay review. AI MATCH threshold and
+verified training-data requirements are unchanged.

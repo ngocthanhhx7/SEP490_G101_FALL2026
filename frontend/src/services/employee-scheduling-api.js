@@ -17,6 +17,7 @@ export function createEmployeeSchedulingApi(request) {
     acknowledgeCare: (id, version, key) => mutate(`/visits/${encodeURIComponent(id)}/care/acknowledgements`, { version }, key),
     accessNotes: id => get(`/visits/${encodeURIComponent(id)}/access-notes`),
     queue: ({ signal } = {}) => get('/dispatch', signal),
+    candidates: (id, query, { signal } = {}) => get(`/visits/${encodeURIComponent(id)}/candidates?${new globalThis.URLSearchParams(query)}`, signal),
     plans: ({ signal } = {}) => get('/care-plans', signal),
     respond: (id, decision, expectedVersion, key) => mutate(`/offers/${encodeURIComponent(id)}/${decision}`, { expectedVersion }, key),
     invite: (id, expectedVersion, key, sitterId) => mutate(`/visits/${encodeURIComponent(id)}/invitations`, { expectedVersion, ...(sitterId ? { sitterId } : {}) }, key),

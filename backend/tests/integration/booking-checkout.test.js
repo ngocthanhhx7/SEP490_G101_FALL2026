@@ -37,7 +37,7 @@ const input = (q, location = 'HOME') => ({ quoteId: q.quoteId, acceptServicePoli
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_booking_checkout' }).asPromise();
-  await provisionDemoCatalog({ connection }); await provisionFinanceSources(connection);
+  await provisionDemoCatalog({ connection, clock: () => at.getTime() - 1000 }); await provisionFinanceSources(connection);
   const repository = createPricingRepository(connection, () => at.getTime());
   pricing = createPricingService({ repository, clock: () => at.getTime() });
   scheduling = createEmployeeScheduleRepository({ connection, clock: () => at.getTime(), coverageAreas: DEMO_WORK_AREAS });
