@@ -9,6 +9,9 @@ import { provisionProductCatalog } from '../../src/services/product-sales/produc
 import { productSalesModels } from '../../src/models/product.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { userModel } from '../../src/models/user.model.js';
+import { createProductOrderManagementService } from '../../src/services/product-sales/product-order-management.service.js';
+import { identityModels } from '../../src/models/identity.model.js';
+import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { registerModules } from '../../src/routes/module-registry.js';
 
@@ -16,9 +19,13 @@ const oid = () => new mongoose.Types.ObjectId();
 const actors = {
   a: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
   b: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
+  c: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
   admin: { userId: String(oid()), roles: ['ADMIN'], state: 'ACTIVE' }
 };
 const MANAGE = '/api/v1/admin/product-orders';
+// Synthetic keys and numbers only: customer phones are stored encrypted under the same keys as sign-in.
+const CONTACT_KEYS = { contactLookupSecret: 'synthetic-contact-lookup-secret-0123', contactEncryptionKey: 'synthetic-contact-encryption-key' };
+const PHONE_A = '+84912345678', PHONE_B = '+84987654321', OLD_PHONE_A = '+84911111111';
 let replica, connection, server, base, models, addressA;
 const idem = (() => { let n = 0; return () => `synthetic-key-${String(++n).padStart(6, '0')}`; })();
 
@@ -61,13 +68,19 @@ beforeAll(async () => {
   const User = userModel(connection);
   await User.create([
     { _id: actors.a.userId, displayName: 'Synthetic Mai', roles: ['CUSTOMER'], state: 'ACTIVE' },
-    { _id: actors.b.userId, displayName: 'Synthetic Nhung', roles: ['CUSTOMER'], state: 'ACTIVE' }
+    { _id: actors.b.userId, displayName: 'Synthetic Nhung', roles: ['CUSTOMER'], state: 'ACTIVE' },
+    { _id: actors.c.userId, displayName: 'Synthetic Lan', roles: ['CUSTOMER'], state: 'ACTIVE' }
   ]);
+  const crypto = createContactCrypto({ lookupSecret: CONTACT_KEYS.contactLookupSecret, encryptionKey: CONTACT_KEYS.contactEncryptionKey });
+  const contact = (userId, phone, state) => ({ userId, channel: 'PHONE', canonicalCiphertext: crypto.encrypt(phone),
+    lookupKey: crypto.lookup('PHONE', phone).lookupKey, state, verifiedAt: new Date() });
+  await identityModels(connection).Contact.create([contact(actors.a.userId, PHONE_A, 'VERIFIED'),
+    contact(actors.a.userId, OLD_PHONE_A, 'REPLACED'), contact(actors.b.userId, PHONE_B, 'VERIFIED')]);
   const session = { authenticate: async (req) => {
     const actor = actors[req.get('x-test-actor')];
     return actor ? { ...actor, expiresAt: Date.now() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
-  const modules = productSalesRuntimeModules({ config: { auth: { enabled: true } }, connection, sessionService: session,
+  const modules = productSalesRuntimeModules({ config: { auth: { enabled: true, ...CONTACT_KEYS } }, connection, sessionService: session,
     env: { PRODUCT_SALES_ENABLED: 'true' } });
   const app = express(); app.use(express.json(), requestId); registerModules(app, modules); app.use(errorHandler(() => {}));
   server = createServer(app); await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -80,6 +93,12 @@ afterAll(async () => {
 beforeEach(async () => {
   for (const model of Object.values(models)) await model.deleteMany({});
   await provisionProductCatalog({ connection });
+});
+
+describe('composition', () => {
+  test('refuses to run without a customer phone directory', () => {
+    expect(() => createProductOrderManagementService({ connection })).toThrow(TypeError);
+  });
 });
 
 describe('access', () => {
@@ -114,6 +133,55 @@ describe('listing', () => {
     expect((await api('admin').get(`${MANAGE}`).query({ search: 'zzz' }).expect(200)).body.data.items).toEqual([]);
     // A search containing regex characters is matched literally, not as a pattern.
     expect((await api('admin').get(`${MANAGE}`).query({ search: '.*' }).expect(200)).body.data.items).toEqual([]);
+  });
+});
+
+describe('customer phone (AC-19, D-217)', () => {
+  const codesFor = async (search) => (await api('admin').get(MANAGE).query({ search }).expect(200)).body.data.items.map((item) => item.code);
+
+  test('AC-19 finds a customer by the whole phone number, however it is typed', async () => {
+    const orderA = await placeDelivery('a', 'SP-0012', 1);
+    const orderB = await placePickup('b', 'SP-0020', 1);
+    for (const typed of ['0912345678', ' 0912 345 678 ', '0912.345.678', '84912345678', '+84912345678']) {
+      expect(await codesFor(typed)).toEqual([orderA.code]);
+    }
+    expect(await codesFor('0987654321')).toEqual([orderB.code]);
+  });
+
+  test('AC-19 matches nothing for an unknown number, a part of a number or a number the customer replaced', async () => {
+    await placeDelivery('a', 'SP-0012', 1);
+    await placePickup('b', 'SP-0020', 1);
+    expect(await codesFor('0900000000')).toEqual([]);
+    expect(await codesFor('0912')).toEqual([]);
+    expect(await codesFor('0911111111')).toEqual([]);
+  });
+
+  test('AC-19 still searches by code and name, and a phone search keeps the tab filter', async () => {
+    const orderA = await placeDelivery('a', 'SP-0012', 1);
+    const orderB = await placePickup('b', 'SP-0020', 1);
+    expect(await codesFor(orderB.code)).toEqual([orderB.code]);
+    expect(await codesFor('mai')).toEqual([orderA.code]);
+    const inAwaiting = await api('admin').get(MANAGE).query({ tab: 'AWAITING_PICKUP', search: '0912345678' }).expect(200);
+    expect(inAwaiting.body.data.items).toEqual([]);
+  });
+
+  test('AC-19 shows the phone with the customer, and null when the customer has none', async () => {
+    const orderA = await placeDelivery('a', 'SP-0012', 1);
+    const orderC = await placePickup('c', 'SP-0020', 1);
+    const list = await api('admin').get(MANAGE).expect(200);
+    const customerOf = (code) => list.body.data.items.find((item) => item.code === code).customer;
+    expect(customerOf(orderA.code)).toMatchObject({ displayName: 'Synthetic Mai', phone: '0912345678' });
+    expect(customerOf(orderC.code)).toMatchObject({ displayName: 'Synthetic Lan', phone: null });
+    const read = await api('admin').get(`${MANAGE}/${orderA.id}`).expect(200);
+    expect(read.body.data.customer.phone).toBe('0912345678');
+  });
+
+  test('AC-34 never gives a phone number to a customer or a guest', async () => {
+    const orderA = await placeDelivery('a', 'SP-0012', 1);
+    const mine = await api('a').get(`/api/v1/product-orders/${orderA.id}`).expect(200);
+    expect(JSON.stringify(mine.body)).not.toMatch(/0912345678|84912345678|"customer"/u);
+    await api('a').get(MANAGE).query({ search: '0912345678' }).expect(403);
+    await api().get(MANAGE).query({ search: '0912345678' }).expect(401);
   });
 });
 

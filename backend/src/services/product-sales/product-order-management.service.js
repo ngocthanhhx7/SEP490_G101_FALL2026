@@ -12,28 +12,36 @@ const NAME_MATCH_LIMIT = 100;
 // Oldest first where staff work through a queue; newest first elsewhere.
 const OLDEST_FIRST_TABS = new Set(['PREPARE', 'AWAITING_PICKUP']);
 
-function toAdminOrderView(doc, customerName) {
+function toAdminOrderView(doc, customer) {
   return {
     ...toOrderView(doc),
     updatedAt: doc.updatedAt,
-    customer: { id: String(doc.customerId), displayName: customerName ?? null }
+    customer: { id: String(doc.customerId), displayName: customer?.displayName ?? null, phone: customer?.phone ?? null }
   };
 }
 
 // Order handling for Admin (R3 Order Management). Stock follows GBR-35:
 // goods leaving the shop release the hold and reduce the real stock; cancelling only releases the hold.
-export function createProductOrderManagementService({ connection }) {
+// phones is the customer phone directory; it is injected by route composition.
+export function createProductOrderManagementService({ connection, phones }) {
+  if (typeof phones?.userIdsByPhone !== 'function' || typeof phones?.phonesOf !== 'function') {
+    throw new TypeError('A customer phone directory is required');
+  }
   const { Product, ProductOrder } = productSalesModels(connection);
   const User = userModel(connection);
   const unitOfWork = createUnitOfWork(connection);
 
-  async function customerNames(customerIds) {
-    const users = await User.find({ _id: { $in: customerIds } }).select('displayName').lean();
-    return new Map(users.map((user) => [String(user._id), user.displayName]));
+  // Name and phone of each customer, by user id.
+  async function customerDetails(customerIds) {
+    const [users, numbers] = await Promise.all([
+      User.find({ _id: { $in: customerIds } }).select('displayName').lean(),
+      phones.phonesOf(customerIds)
+    ]);
+    return new Map(users.map((user) => [String(user._id), { displayName: user.displayName, phone: numbers.get(String(user._id)) }]));
   }
 
   async function viewOf(doc) {
-    return toAdminOrderView(doc, (await customerNames([doc.customerId])).get(String(doc.customerId)));
+    return toAdminOrderView(doc, (await customerDetails([doc.customerId])).get(String(doc.customerId)));
   }
 
   // One guarded status change plus its stock effect, all in one transaction.
@@ -69,25 +77,29 @@ export function createProductOrderManagementService({ connection }) {
   return Object.freeze({
     async list(actor, query) {
       requireAdmin(actor);
-      const { tab, search, limit } = parseManagementListQuery(query);
+      const { tab, search, phone, limit } = parseManagementListQuery(query);
       const filter = {};
       if (tab !== 'ALL') filter.status = { $in: PRODUCT_ORDER_TAB_STATUSES[tab] };
       if (search) {
+        // D-217: by order code, by part of the customer's name, or by the customer's whole phone number.
         const pattern = escapeRegex(search);
-        const named = await User.find({ roles: 'CUSTOMER', displayName: { $regex: pattern, $options: 'i' } })
-          .select('_id').limit(NAME_MATCH_LIMIT).lean();
-        filter.$or = [{ code: { $regex: `^${pattern}`, $options: 'i' } }, { customerId: { $in: named.map((user) => user._id) } }];
+        const [named, owners] = await Promise.all([
+          User.find({ roles: 'CUSTOMER', displayName: { $regex: pattern, $options: 'i' } }).select('_id').limit(NAME_MATCH_LIMIT).lean(),
+          phone ? phones.userIdsByPhone(phone) : []
+        ]);
+        filter.$or = [{ code: { $regex: `^${pattern}`, $options: 'i' } },
+          { customerId: { $in: [...named.map((user) => user._id), ...owners] } }];
       }
       const direction = OLDEST_FIRST_TABS.has(tab) ? 1 : -1;
       const [docs, grouped] = await Promise.all([
         ProductOrder.find(filter).sort({ createdAt: direction, _id: direction }).limit(limit).lean(),
         ProductOrder.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
       ]);
-      const names = await customerNames([...new Set(docs.map((doc) => String(doc.customerId)))]);
+      const customers = await customerDetails([...new Set(docs.map((doc) => String(doc.customerId)))]);
       const byStatus = new Map(grouped.map((row) => [row._id, row.count]));
       const counts = Object.fromEntries(Object.entries(PRODUCT_ORDER_TAB_STATUSES).map(([key, statuses]) =>
         [key, statuses.reduce((sum, status) => sum + (byStatus.get(status) ?? 0), 0)]));
-      return { items: docs.map((doc) => toAdminOrderView(doc, names.get(String(doc.customerId)))), counts };
+      return { items: docs.map((doc) => toAdminOrderView(doc, customers.get(String(doc.customerId)))), counts };
     },
     async read(actor, orderId) {
       requireAdmin(actor);

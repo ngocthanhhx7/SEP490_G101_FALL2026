@@ -36,7 +36,7 @@ Admin only (Sale Staff is a separate role PR; Admin covers every Sale Staff task
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix or part of the customer name, case-insensitive), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName }` and `updatedAt` |
+| `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix, part of the customer name case-insensitively, or the customer's whole phone number as `0912345678`, `0912 345 678`, `84912345678` or `+84912345678`; a part of a number matches nothing), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName, phone }` (`phone` is the customer's verified number as `0912345678`, or `null`) and `updatedAt`. The phone is only in Admin responses, never in the Customer DTO |
 | `GET /api/v1/admin/product-orders/:orderId` | One order, any customer |
 | `POST .../:orderId/hand-to-carrier` | Delivery order `PLACED` to `HANDED_TO_CARRIER`. Body `{ trackingCode }` (3-64 of letters, digits, `.`, `_`, `-`; trimmed). Missing or blank is `422 TRACKING_CODE_REQUIRED` (MSG103) |
 | `POST .../:orderId/mark-ready` | Pickup order `PLACED` to `READY`. No stock change |
@@ -46,7 +46,9 @@ Admin only (Sale Staff is a separate role PR; Admin covers every Sale Staff task
 
 Any other combination of receive method and status is `409 ORDER_STATE_CONFLICT` with the current `status`. The step bodies other than `hand-to-carrier` must be empty. The customer sees the new status and the tracking code through `GET /api/v1/product-orders`.
 
-Not built: the customer phone (it is stored encrypted for sign-in, so the screen shows the name only and cannot search by phone), returns, marking a delivery `DELIVERED`, the COD refusal limit and the expiry job.
+Phone numbers are stored encrypted with a keyed lookup hash (the same contact keys as sign-in), so the search is an exact match on the whole number and the number is decrypted only for the Admin response. The backend needs `CONTACT_LOOKUP_SECRET` and `CONTACT_ENCRYPTION_KEY`, which authentication already requires.
+
+Not built: returns, marking a delivery `DELIVERED`, the COD refusal limit and the expiry job.
 
 ## Stock rule (GBR-35)
 

@@ -17,6 +17,8 @@ const actors = {
   b: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
   admin: { userId: String(oid()), roles: ['ADMIN'], state: 'ACTIVE' }
 };
+// Synthetic keys only: the order router reads customer phones through the same contact crypto as sign-in.
+const CONTACT_KEYS = { contactLookupSecret: 'synthetic-contact-lookup-secret-0123', contactEncryptionKey: 'synthetic-contact-encryption-key' };
 let replica, connection, server, base, models, addressA, addressOutside, addressB;
 const idem = (() => { let n = 0; return () => `synthetic-key-${String(++n).padStart(6, '0')}`; })();
 
@@ -52,7 +54,7 @@ beforeAll(async () => {
     const actor = actors[req.get('x-test-actor')];
     return actor ? { ...actor, expiresAt: Date.now() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
-  const modules = productSalesRuntimeModules({ config: { auth: { enabled: true } }, connection, sessionService: session,
+  const modules = productSalesRuntimeModules({ config: { auth: { enabled: true, ...CONTACT_KEYS } }, connection, sessionService: session,
     env: { PRODUCT_SALES_ENABLED: 'true' } });
   const app = express(); app.use(express.json(), requestId); registerModules(app, modules); app.use(errorHandler(() => {}));
   server = createServer(app); await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));

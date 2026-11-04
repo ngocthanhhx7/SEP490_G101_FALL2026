@@ -7,6 +7,8 @@ import { createProductCatalogService } from '../services/product-sales/product-c
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
+import { createCustomerPhoneDirectory } from '../services/product-sales/customer-phone-directory.service.js';
+import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
@@ -45,7 +47,13 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   orderRouter.get('/:orderId', orders.read);
 
   // Order handling is Admin-only for now; a Sale Staff role is a separate change.
-  const management = createProductOrderManagementController(createProductOrderManagementService({ connection }));
+  // Customer phone numbers are read through the same contact keys as sign-in (D-217); only Admin reaches this router.
+  const contactCrypto = createContactCrypto({
+    lookupSecret: config.auth.contactLookupSecret,
+    encryptionKey: config.auth.contactEncryptionKey
+  });
+  const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
+  const management = createProductOrderManagementController(createProductOrderManagementService({ connection, phones }));
   const managementRouter = Router();
   managementRouter.use(noStore, requireSession(session, { clock }), requireRoles('ADMIN'));
   managementRouter.get('/', management.list);

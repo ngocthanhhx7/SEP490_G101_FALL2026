@@ -25,6 +25,15 @@ test('rejects a list that does not match the contract', async () => {
   await expect(api(noCounts).listOrders()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });
 
+test('AC-19 accepts a customer phone that is a number or null, and rejects any other type', async () => {
+  const withPhone = (phone) => jest.fn().mockResolvedValue(reply(200, envelope({ items: [{ ...order, customer: { ...order.customer, phone } }], counts })));
+  expect((await api(withPhone('0912345678')).listOrders()).data[0].customer.phone).toBe('0912345678');
+  expect((await api(withPhone(null)).listOrders()).data[0].customer.phone).toBeNull();
+  for (const bad of ['', 912345678, {}]) {
+    await expect(api(withPhone(bad)).listOrders()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  }
+});
+
 test('hands an order to the carrier with CSRF and the tracking code, and validates the returned order', async () => {
   const handed = { ...order, status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342' };
   const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope(handed)));

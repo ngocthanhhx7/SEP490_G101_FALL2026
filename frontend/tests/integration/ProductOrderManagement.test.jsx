@@ -2,11 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { ApiError } from '../../src/services/api-client.js';
 import { ProductOrderManagementPage } from '../../src/pages/admin/ProductOrderManagementPage.jsx';
 
-const COUNTS = { PREPARE: 3, AWAITING_PICKUP: 1, IN_TRANSIT: 2, RETURNING: 1 };
+const SEARCH_LABEL = 'Tìm theo mã đơn, tên khách hoặc số điện thoại';
+const COUNTS ={ PREPARE: 3, AWAITING_PICKUP: 1, IN_TRANSIT: 2, RETURNING: 1 };
 const line = { productId: 'p1', productCode: 'SP-0014', productName: 'Thức ăn hạt cho mèo trưởng thành, 1,5 kg', quantity: 2, unitPrice: 210000, lineTotal: 420000 };
 const order = (over = {}) => ({ id: 'o1', code: 'DH-0032', createdAt: '2026-11-01T03:00:00.000Z', receiveMethod: 'DELIVERY', paymentMethod: 'COD', paid: false,
   status: 'PLACED', trackingCode: null, deliveryAddress: { label: 'Nhà', location: '45 Láng Hạ, Đống Đa, Hà Nội', areaCode: 'DISTRICT_DONG_DA' },
-  lines: [line], subtotal: 420000, shippingFee: 25000, total: 445000, customer: { id: 'u1', displayName: 'Hoàng Thị Mai' }, ...over });
+  lines: [line], subtotal: 420000, shippingFee: 25000, total: 445000, customer: { id: 'u1', displayName: 'Hoàng Thị Mai', phone: '0912345678' }, ...over });
 const pickup = (over = {}) => order({ id: 'o3', code: 'DH-0034', receiveMethod: 'PICKUP', paymentMethod: 'PAY_AT_SHOP', deliveryAddress: null,
   shippingFee: 0, subtotal: 185000, total: 185000, customer: { id: 'u3', displayName: 'Lý Quốc Huy' }, ...over });
 
@@ -49,8 +50,26 @@ describe('Order Management', () => {
     expect(detail('DH-0034')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Đang giao (2)' }));
     await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ tab: 'IN_TRANSIT', search: '' }, expect.any(Object)));
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm theo mã đơn hoặc tên khách' }), { target: { value: ' mai ' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: SEARCH_LABEL }), { target: { value: ' mai ' } });
     await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ tab: 'IN_TRANSIT', search: 'mai' }, expect.any(Object)));
+  });
+
+  test('AC-19 searches by phone number and shows the customer phone in the order detail', async () => {
+    const api = fakeApi();
+    render(<ProductOrderManagementPage api={api} />);
+    await screen.findByRole('button', { name: 'Cần chuẩn bị (3)' });
+    expect(screen.getByRole('searchbox', { name: SEARCH_LABEL })).toHaveAttribute('placeholder', SEARCH_LABEL);
+    expect(within(detail('DH-0032')).getByText('Số điện thoại')).toBeVisible();
+    expect(within(detail('DH-0032')).getByText('0912345678')).toBeVisible();
+    fireEvent.change(screen.getByRole('searchbox', { name: SEARCH_LABEL }), { target: { value: ' 0912 345 678 ' } });
+    await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ tab: 'PREPARE', search: '0912 345 678' }, expect.any(Object)));
+  });
+
+  test('AC-19 says so when the customer has no phone number', async () => {
+    const api = fakeApi({ listOrders: jest.fn().mockResolvedValue({ data: [order({ customer: { id: 'u1', displayName: 'Hoàng Thị Mai', phone: null } })],
+      meta: { counts: COUNTS } }) });
+    render(<ProductOrderManagementPage api={api} />);
+    expect(await within(await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0032' })).findByText('Chưa có')).toBeVisible();
   });
 
   test('hands a delivery order to the carrier with the tracking code and confirms with MSG106', async () => {

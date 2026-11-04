@@ -25,6 +25,12 @@ export function ProductDetailsPage() {
   useEffect(() => { setFresh(null); setQuantity(1); setFeedback(null); }, [productId]);
   const product = fresh ?? resource.data;
 
+  // A warning about the old number no longer applies once the customer changes it.
+  function changeQuantity(next) {
+    setQuantity(next);
+    setFeedback((current) => (current && !current.ok ? null : current));
+  }
+
   async function add() {
     if (session.status !== 'authenticated') { navigate('/sign-in', { state: { from: `/products/${productId}` } }); return; }
     setBusy(true); setFeedback(null);
@@ -60,7 +66,8 @@ export function ProductDetailsPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem 0' }}>
           <span id="quantity-label" style={{ fontWeight: 800 }}>Số lượng</span>
-          <QuantityStepper value={quantity} max={product.available} onChange={setQuantity} disabled={!product.inStock || busy} label="Số lượng" />
+          <QuantityStepper value={quantity} max={product.available} disabled={!product.inStock || busy} label="Số lượng"
+            onChange={changeQuantity} onLimit={() => setFeedback({ ok: false, text: productMessage('MSG58', { n: product.available }) })} />
         </div>
         {!product.inStock && <p className="pwc-shop-alert pwc-shop-alert--error" role="status">{productMessage('MSG98')}</p>}
         {feedback && <p className={`pwc-shop-alert pwc-shop-alert--${feedback.ok ? 'ok' : 'error'}`} role="status">

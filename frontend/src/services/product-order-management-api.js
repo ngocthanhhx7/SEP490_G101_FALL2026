@@ -11,7 +11,8 @@ function checkOrder(order) {
   if (!order || !text(order.id) || !text(order.code) || !RECEIVE_METHODS.includes(order.receiveMethod)
     || !PAYMENT_METHODS.includes(order.paymentMethod) || typeof order.paid !== 'boolean' || !text(order.status)
     || !Array.isArray(order.lines) || !money(order.subtotal) || !money(order.shippingFee) || !money(order.total)
-    || !order.customer || !text(order.customer.id)) invalid();
+    || !order.customer || !text(order.customer.id)
+    || (order.customer.phone !== undefined && order.customer.phone !== null && !text(order.customer.phone))) invalid();
   return order;
 }
 function checkCounts(counts) {

@@ -5,6 +5,14 @@ import { requireOnlyKeys } from './product.validator.js';
 const invalid = (message) => new AppError(422, 'VALIDATION_FAILED', message);
 const TRACKING_CODE = /^[A-Za-z0-9._-]{3,64}$/;
 
+// Search text that is a whole Vietnamese phone number (0912 345 678, 0912.345.678, 84912345678, +84912345678)
+// as the +84 form that contacts are stored under. Anything else is searched as a code or a name only.
+function phoneFromSearch(search) {
+  const compact = search.replace(/[\s.()-]/gu, '');
+  const national = /^0(\d{9})$/u.exec(compact) ?? /^\+?84(\d{9})$/u.exec(compact);
+  return national ? `+84${national[1]}` : undefined;
+}
+
 export function parseManagementListQuery(query = {}) {
   const allowed = ['tab', 'search', 'limit'];
   if (Object.keys(query).some((key) => !allowed.includes(key))) throw invalid('Query is invalid');
@@ -17,7 +25,11 @@ export function parseManagementListQuery(query = {}) {
     if (typeof query.search !== 'string') throw invalid('search is invalid');
     const search = query.search.normalize('NFC').replace(/\s+/gu, ' ').trim();
     if (search.length > PRODUCT_LIMITS.maxSearchLength || /[\u0000-\u001f\u007f]/u.test(search)) throw invalid('search is invalid');
-    if (search) out.search = search;
+    if (search) {
+      out.search = search;
+      const phone = phoneFromSearch(search);
+      if (phone) out.phone = phone;
+    }
   }
   if (query.limit !== undefined) {
     const limit = Number(query.limit);

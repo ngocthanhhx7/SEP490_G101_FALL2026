@@ -11,6 +11,16 @@ describe('parseManagementListQuery', () => {
     expect(parseManagementListQuery({ search: '   ' })).toEqual({ tab: 'ALL', limit: 20 });
   });
 
+  test('AC-19 reads a whole phone number in the search as its +84 form and ignores partial numbers', () => {
+    for (const typed of ['0912345678', ' 0912 345 678 ', '0912.345.678', '(0912) 345-678', '84912345678', '+84912345678']) {
+      expect(parseManagementListQuery({ search: typed }).phone).toBe('+84912345678');
+    }
+    for (const typed of ['0912', '091234567', '09123456789', '+8491234567', 'DH-0012', 'Mai 0912345678', '1912345678']) {
+      expect(parseManagementListQuery({ search: typed })).not.toHaveProperty('phone');
+    }
+    expect(parseManagementListQuery({ search: '0912345678' }).search).toBe('0912345678');
+  });
+
   test('rejects unknown keys, tabs, arrays and out-of-range limits', () => {
     expect(code(() => parseManagementListQuery({ tab: 'DONE' }))).toBe('VALIDATION_FAILED');
     expect(code(() => parseManagementListQuery({ status: 'PLACED' }))).toBe('VALIDATION_FAILED');

@@ -95,6 +95,40 @@ describe('Product Details', () => {
     expect(screen.getByRole('link', { name: 'Xem giỏ hàng' })).toHaveAttribute('href', '/customer/cart');
   });
 
+  test('AC-13 pressing + at the sellable quantity shows MSG58 and the number does not go up (D-219)', async () => {
+    const api = fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ available: 2 }) }) });
+    show(api, '/products/p1');
+    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    const quantity = () => screen.getByRole('status', { name: 'Số lượng' });
+    const increase = screen.getByRole('button', { name: 'Tăng số lượng' });
+    fireEvent.click(increase);
+    expect(quantity()).toHaveTextContent('2');
+    expect(screen.queryByText(/Chỉ còn/)).not.toBeInTheDocument();
+    fireEvent.click(increase);
+    expect(screen.getByText('Chỉ còn 2 sản phẩm. Vui lòng giảm số lượng.')).toBeVisible();
+    expect(quantity()).toHaveTextContent('2');
+    expect(increase).toHaveAttribute('aria-disabled', 'true');
+    expect(api.addToCart).not.toHaveBeenCalled();
+    // The warning is about the old number, so it goes once the customer lowers it.
+    fireEvent.click(screen.getByRole('button', { name: 'Giảm số lượng' }));
+    expect(screen.queryByText(/Chỉ còn/)).not.toBeInTheDocument();
+    expect(quantity()).toHaveTextContent('1');
+  });
+
+  test('AC-13 shows MSG58 for the only sellable item instead of silently locking +', async () => {
+    show(fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ available: 1 }) }) }), '/products/p1');
+    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Tăng số lượng' }));
+    expect(screen.getByText('Chỉ còn 1 sản phẩm. Vui lòng giảm số lượng.')).toBeVisible();
+  });
+
+  test('AC-13 out of stock still locks the stepper and shows only MSG98', async () => {
+    show(fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ available: 0, inStock: false }) }) }), '/products/p1');
+    expect(await screen.findByText('Sản phẩm này đã hết hàng.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Tăng số lượng' })).toBeDisabled();
+    expect(screen.queryByText(/Chỉ còn/)).not.toBeInTheDocument();
+  });
+
   test('re-reads the stock and shows how many are left when the quantity is too high', async () => {
     const error = Object.assign(new Error('x'), { code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', status: 409 });
     const api = fakeApi({ addToCart: jest.fn().mockRejectedValue(error) });
@@ -132,10 +166,14 @@ describe('Shopping Cart', () => {
     expect(within(summary).getAllByText('600.000 đ')).toHaveLength(2);
     expect(within(summary).getByRole('link', { name: 'Thanh toán' })).toHaveAttribute('href', '/customer/product-checkout');
     fireEvent.click(screen.getAllByRole('button', { name: 'Tăng số lượng' })[0]);
-    await waitFor(() => expect(api.setCartLine).toHaveBeenCalledWith('p1', 3));
-    fireEvent.click(await screen.findByRole('button', { name: /Xoá .* khỏi giỏ hàng/ }));
+    await waitFor(() => expect(api.setCartLine).toHaveBeenCalledWith('p1', 3));    fireEvent.click(await screen.findByRole('button', { name: /Xoá .* khỏi giỏ hàng/ }));
     await waitFor(() => expect(api.removeCartLine).toHaveBeenCalledWith('p1'));
     expect(await screen.findByText('Giỏ hàng của bạn đang trống. Vui lòng chọn sản phẩm trước.')).toBeVisible();
+  });
+
+  test('AC-14 keeps + locked at the sellable quantity in the cart, unlike Product Details', async () => {
+    show(fakeApi({ getCart: jest.fn().mockResolvedValue({ data: cartOf([line({ quantity: 15, available: 15, lineTotal: 3750000 })]) }) }), '/customer/cart');
+    expect(await screen.findByRole('button', { name: 'Tăng số lượng' })).toBeDisabled();
   });
 
   test('blocks checkout while a line exceeds what can be sold', async () => {

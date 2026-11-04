@@ -57,6 +57,7 @@ function OrderDetail({ order, busy, run, api }) {
     <h2>Đơn {order.code} <OrderStatusBadge status={order.status} forAdmin /></h2>
     <dl className="pwc-shop-facts">
       <dt>Khách hàng</dt><dd>{order.customer.displayName ?? 'Khách hàng'}</dd>
+      <dt>Số điện thoại</dt><dd>{order.customer.phone ?? 'Chưa có'}</dd>
       <dt>Cách nhận</dt><dd>{PRODUCT_RECEIVE_LABELS[order.receiveMethod]}</dd>
       {order.deliveryAddress && <><dt>Địa chỉ</dt><dd>{order.deliveryAddress.location}</dd></>}
       <dt>Thanh toán</dt><dd>{PRODUCT_PAYMENT_LABELS[order.paymentMethod].title} · {order.paid ? 'đã thu' : 'chưa thu'}</dd>
@@ -116,7 +117,7 @@ export function ProductOrderManagementPage({ api }) {
         {label}{key !== 'ALL' && counts ? ` (${counts[key]})` : ''}</button>)}
     </div>
     <input type="search" className="pwc-shop-search" style={{ margin: '1rem 0' }} value={searchText} maxLength={100}
-      aria-label="Tìm theo mã đơn hoặc tên khách" placeholder="Tìm theo mã đơn hoặc tên khách"
+      aria-label="Tìm theo mã đơn, tên khách hoặc số điện thoại" placeholder="Tìm theo mã đơn, tên khách hoặc số điện thoại"
       onChange={(event) => setSearchText(event.target.value)} />
     {notice && <p className={`pwc-shop-alert pwc-shop-alert--${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>{notice.text}</p>}
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải đơn hàng…" />}
