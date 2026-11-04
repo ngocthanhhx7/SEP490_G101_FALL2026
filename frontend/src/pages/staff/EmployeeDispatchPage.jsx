@@ -4,6 +4,7 @@ import { RefreshCw, Send } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button } from '../../components/ui/index.js';
+import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import '../../styles/employee-scheduling.css';
 
@@ -36,17 +37,12 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
     <ul className="employee-scheduling__rows">{(queue.data?.items || []).map(row => <li key={row.id}>
       <div><h3>{row.serviceName}</h3><p>{time(row.startAt)} – {time(row.endAt)}</p><p>{row.areaCode}</p>
         {row.reviewCode && <p role="status">{reviewLabel(row.reviewCode)}</p>}
-        {row.requestedSitterId && <><p>Khách chỉ định: {row.requestedSitterId}</p>{row.dispatchState === 'NEEDS_STAFF' && <details><summary>Đề xuất lịch khác</summary>
-          <form onSubmit={event => {
-            event.preventDefault(); const data = new window.FormData(event.currentTarget);
-            const body = { expectedVersion: row.version, startAt: `${data.get('startAt')}:00+07:00` };
-            command.execute(async key => { const result = await api.propose(row.id, body, key); setProposal(result.data); return result; });
-          }}>
-            <label>Bắt đầu đề xuất<input type="datetime-local" name="startAt" required disabled={command.busy || command.pending} /></label>
-            <Button type="submit" disabled={command.busy || command.pending}><Send size={18} />Lập đề xuất</Button>
-          </form>
-        </details>}</>}</div>
-      {row.pendingInvitation ? <p>{row.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi · {time(row.pendingInvitation.deadline)}</p> : row.dispatchState === 'NEEDS_STAFF' ?
+        <DispatchDiagnostics value={row.diagnostics} />
+        {row.requestedSitterId && <p>Khách chỉ định: {row.requestedSitterId}</p>}
+        {row.dispatchState === 'NEEDS_STAFF' && api.candidates && <DispatchRecoveryPanel key={`${row.id}:${row.version}`} row={row} workAreas={queue.data?.workAreas}
+          api={api} command={command} selectedSitter={selectedSitter} onProposed={setProposal} />}
+      </div>
+      {row.pendingInvitation ? <p>{row.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi · {time(row.pendingInvitation.deadline)}</p> : row.reviewCode === 'SHIFT_START_REACHED' ? <p>Cần khách xác nhận lịch mới trước khi tìm lại.</p> : row.dispatchState === 'NEEDS_STAFF' ?
         <Button disabled={command.busy || command.pending || !validSelection || Boolean(selectedSitter && row.requestedSitterId && row.requestedSitterId !== selectedSitter)}
           onClick={() => command.execute(key => api.invite(row.id, row.version, key, selectedSitter || undefined))}><Send size={18} />{selectedSitter ? 'Mời người đã chọn' : 'Thử tìm lại'}</Button> : <p>Hệ thống đang tìm người nhận ca</p>}
     </li>)}</ul>
