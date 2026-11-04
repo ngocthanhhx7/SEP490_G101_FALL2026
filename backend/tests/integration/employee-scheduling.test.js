@@ -492,8 +492,9 @@ test('AI candidates use employee registered areas and effective shifts instead o
 
 test('system recovery previews precise area, requires customer consent and rechecks before acceptance', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-10-29T02:00:00Z', areaCode: 'CITY_HANOI' });
+  await employee(); // Another eligible employee must not replace the consented nominee.
   await connection.collection('visits').updateOne({ _id: row._id }, { $set: { location: 'HOME' } });
-  const body = { expectedVersion: 0, startAt: '2026-11-25T02:00:00Z', areaCode: 'DISTRICT_HAI_BA_TRUNG', sitterId: sitter.userId };
+  const body = { expectedVersion: 0, startAt: '2026-11-01T02:00:00Z', areaCode: 'DISTRICT_HAI_BA_TRUNG', sitterId: sitter.userId };
   await expect(module.dispatch.invite(staff, String(row._id), { expectedVersion: 0 }, 'past-shift-invite')).rejects.toMatchObject({ code: 'SHIFT_START_REACHED' });
   const preview = await module.dispatch.previewCandidates(staff, String(row._id), { startAt: body.startAt, areaCode: body.areaCode });
   expect(preview.items.some(item => item.sitterId === sitter.userId)).toBe(true);
@@ -508,11 +509,13 @@ test('system recovery previews precise area, requires customer consent and reche
   const result = await module.proposals.confirmProposal(input);
   expect(await module.proposals.confirmProposal(input)).toEqual(result);
   const revised = await connection.collection('visits').findOne({ _id: row._id });
-  expect(revised).toMatchObject({ areaCode: body.areaCode, startAt: new Date(body.startAt), requestedSitterId: null, sitterId: null });
+  expect(revised).toMatchObject({ areaCode: body.areaCode, startAt: new Date(body.startAt), sitterId: null });
   expect(revised.snapshots).toEqual(row.snapshots);
   expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).checkoutSnapshot).toEqual(oldBooking.checkoutSnapshot);
   const offer = await module.repository.models.EmployeeVisitOffer.findById(result.offer.id).lean();
   expect(offer).toMatchObject({ originRouteRequired: true, areaCode: body.areaCode });
+  await module.dispatch.runBatch({ limit: 20 });
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(1);
   await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(sitter.userId) }, { $set: { serviceIds: [] } });
   await expect(module.dispatch.offers.accept(sitter, result.offer.id, 0, 'recover-recheck-failed')).rejects.toMatchObject({ code: 'SERVICE_CAPABILITY_REQUIRED' });
   await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(sitter.userId) }, { $set: { serviceIds: [serviceId] } });

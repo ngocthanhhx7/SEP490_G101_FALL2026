@@ -141,6 +141,9 @@ and `previousAreaCode` before consent. Existing customer/financial/address
 snapshots remain immutable. Confirmation atomically changes operational time/area,
 revokes old pending offers and creates a pending invitation. It does not assign
 a sitter. System-origin/route requirements remain in effect on acceptance.
+The confirmed nominee becomes the operational `requestedSitterId`, so automatic
+replenishment cannot replace the employee the customer just confirmed. This does
+not rewrite the original checkout booking-mode snapshot or assign the employee.
 
 An overdue shift returns `SHIFT_START_REACHED` for invitation commands. Staff
 must use customer-confirmed recovery, rather than retrying a time in the past.
