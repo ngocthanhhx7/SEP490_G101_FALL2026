@@ -47,14 +47,14 @@ const benefits = [
   ],
   [
     ShoppingBag,
-    'Đồ dùng nhỏ, thêm tiện nghi',
-    'Chọn phụ kiện và đồ dùng cho sinh hoạt, vui chơi và chăm sóc bé.',
+    'Đồ dùng cho bé',
+    'Phụ kiện cho bé vui chơi và sinh hoạt mỗi ngày.',
     'mint'
   ],
   [
     PackageCheck,
-    'Chủ động chăm bé, tiện mua sắm',
-    'Theo dõi lượt chăm sóc và đơn mua hàng. Chọn giao tận nhà hoặc nhận sản phẩm tại cửa hàng.',
+    'Nhận hàng thuận tiện',
+    'Theo dõi đơn hàng, nhận tại cửa hàng hoặc giao tận nhà.',
     'cream'
   ]
 ];
