@@ -113,7 +113,7 @@ describe('Supplier Management edit', () => {
     expect(within(products).getByText(/SP-0012 · Thức ăn hạt cho chó/)).toBeVisible();
     expect(within(products).getByText(/SP-0036 · Xương gặm sạch răng cho chó/)).toBeVisible();
     expect(within(products).getByText('(đang ẩn)')).toBeVisible();
-    expect(within(panel).getByText('Danh sách này chỉ để ghi nhận, không giới hạn phiếu nhập.')).toBeVisible();
+    expect(within(panel).queryByText(/chỉ để ghi nhận/)).not.toBeInTheDocument();
   });
 
   test('AC-30 saves the changes with the version the Admin saw, the phone as typed and the products by id, and says MSG117', async () => {

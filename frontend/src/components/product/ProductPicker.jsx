@@ -52,6 +52,5 @@ export function ProductPicker({ productApi, selected, onChange, max, disabled = 
       onClick={() => setOpen((value) => !value)}>{open ? 'Đóng danh sách' : '+ Thêm sản phẩm'}</button>
     {open && !full && <PickerSearch productApi={productApi} selectedIds={selected.map((product) => product.id)}
       onPick={(product) => onChange([...selected, product])} />}
-    <p className="pwc-shop-hint">{TEXT.productsNote}</p>
   </div>;
 }

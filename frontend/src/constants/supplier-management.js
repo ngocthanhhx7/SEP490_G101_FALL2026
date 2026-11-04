@@ -16,7 +16,6 @@ export const SUPPLIER_MANAGEMENT_TEXT = Object.freeze({
   notFound: 'Không tìm thấy nhà cung cấp này.',
   tooManyProducts: 'Tối đa 200 sản phẩm.',
   saveFirst: 'Lưu hoặc bỏ thay đổi trước khi đổi trạng thái hợp tác.',
-  productsNote: 'Danh sách này chỉ để ghi nhận, không giới hạn phiếu nhập.',
   noProducts: 'Chưa chọn sản phẩm nào.',
   hiddenProduct: 'đang ẩn',
   searchProducts: 'Tìm sản phẩm theo tên hoặc mã',
