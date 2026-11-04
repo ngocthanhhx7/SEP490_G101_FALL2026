@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
+import { HeartHandshake, Utensils, ShoppingBag, PackageCheck } from 'lucide-react';
 import { HomeProductPreview } from '../../components/product/HomeProductPreview.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogState, CatalogEmpty, PublicServiceCards } from './PublicCatalog.jsx';
@@ -33,27 +34,27 @@ const illustrations = [
 ];
 const benefits = [
   [
-    'home-Margin.svg',
+    HeartHandshake,
     'Ghé thăm & chơi cùng bé',
     'Cho bé thêm sự quan tâm khi bạn bận hoặc vắng nhà.',
     'cream'
   ],
   [
-    'home-Margin1.svg',
-    'Đưa bé đến lịch hẹn thú y',
-    'Hỗ trợ đưa chó, mèo đến lịch hẹn theo thông tin bạn cung cấp.',
+    Utensils,
+    'Thức ăn cho bữa ngon mỗi ngày',
+    'Khám phá thức ăn cho chó, mèo; xem thông tin và giá trước khi chọn mua.',
     'mint'
   ],
   [
-    'home-Margin2.svg',
-    'Dắt chó đi dạo',
-    'Giúp cún vận động và thư giãn với một buổi đi dạo đã đặt lịch.',
+    ShoppingBag,
+    'Đồ dùng nhỏ, thêm tiện nghi',
+    'Chọn phụ kiện và đồ dùng cho sinh hoạt, vui chơi và chăm sóc bé.',
     'mint'
   ],
   [
-    'home-Margin3.svg',
-    'Theo dõi từng lượt chăm sóc',
-    'Xem trạng thái, báo cáo sau mỗi lượt với checklist, hình ảnh và ghi chú.',
+    PackageCheck,
+    'Chủ động chăm bé, tiện mua sắm',
+    'Theo dõi lượt chăm sóc và đơn mua hàng. Chọn giao tận nhà hoặc nhận sản phẩm tại cửa hàng.',
     'cream'
   ]
 ];
@@ -158,22 +159,20 @@ export function HomePage({ loadCatalog = loadPublicCatalog, productApi }) {
         aria-labelledby="pwc-benefits-title"
       >
         <header className="pwc-design-section-heading">
-          <h2 id="pwc-benefits-title">Bé được chăm tại nhà, bạn an tâm hơn</h2>
+          <h2 id="pwc-benefits-title">Chăm bé chu đáo, mua sắm thuận tiện</h2>
           <p>
-            Đặt lịch chăm sóc phù hợp với bé và lịch trình của bạn — ngay tại
-            nhà.
-            <br />
-            Ghé thăm & chơi cùng bé
+            Từ một buổi chăm sóc đến bữa ăn và đồ dùng mỗi ngày,
+            PawWorld đồng hành cùng bạn trong những điều bé cần.
           </p>
         </header>
         <div className="pwc-design-benefit-grid">
           <div className="pwc-design-benefit-side">
-            {benefits.slice(0, 2).map(([icon, title, text, color]) => (
+            {benefits.slice(0, 2).map(([Icon, title, text, color]) => (
               <article
                 key={title}
                 className={'pwc-design-benefit pwc-design-benefit-' + color}
               >
-                <img src={a + icon} alt="" loading="lazy" />
+                <Icon className="pwc-benefit-icon" size={34} aria-hidden="true" />
                 <h3>{title}</h3>
                 <p>{text}</p>
               </article>
@@ -186,12 +185,12 @@ export function HomePage({ loadCatalog = loadPublicCatalog, productApi }) {
             loading="lazy"
           />
           <div className="pwc-design-benefit-side">
-            {benefits.slice(2).map(([icon, title, text, color]) => (
+            {benefits.slice(2).map(([Icon, title, text, color]) => (
               <article
                 key={title}
                 className={'pwc-design-benefit pwc-design-benefit-' + color}
               >
-                <img src={a + icon} alt="" loading="lazy" />
+                <Icon className="pwc-benefit-icon" size={34} aria-hidden="true" />
                 <h3>{title}</h3>
                 <p>{text}</p>
               </article>

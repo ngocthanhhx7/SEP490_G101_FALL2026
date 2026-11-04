@@ -1,4 +1,5 @@
 /* The storefront inherits PawWorld's existing violet/yellow identity. */
+.pwc-design-benefit .pwc-benefit-icon { color: #78529d; margin-bottom: 1.25rem; }
 .pwc-shop { --shop-green: #60328b; --shop-green-soft: #f2e6fc; --shop-bg: #fcf9ff; --shop-border: #e7ddeb; }
 .pwc-shop h1 { font-family: 'FC DK Cool Crayon', var(--pwc-font-body, 'Nunito'), sans-serif; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.2; }
 .pwc-shop-intro { padding: 1.25rem 1.5rem .25rem; margin-bottom: 1.5rem; border-radius: 1.25rem; background: #f2e6fc; }
