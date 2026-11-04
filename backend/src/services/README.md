@@ -27,3 +27,7 @@ it never inserts fixtures, removes indexes or runs during server startup.
 `ai-training/` owns the read-only verified source export; `sitter-matching/` owns
 advisory operational ranking and the Admin model registry. Offline training stays
 in `backend/scripts/ai/`, outside application startup.
+
+`payroll/` owns application employment-document lifecycle and source-derived payroll
+drafts. It never infers attendance from customer service hours or statutory
+obligations from missing data; see its component README.

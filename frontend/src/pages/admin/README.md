@@ -54,3 +54,8 @@ and unqualified source counts. It imports trainer DRAFT/evidence pairs and submi
 versioned model review decisions through `services/ai-model-api.js`. It never
 trains, fabricates ratings or claims aggregate counts satisfy verified data gates.
 Unknown write acknowledgements lock edited inputs and retain the same body/key.
+
+SitterApplicationReviewPage embeds contract preparation/printing/signature
+verification before final approval. EmployeePayrollAdminPage defaults to a named
+employee/source-derived draft; legacy explicit assessment stays in advanced
+reconciliation. Contract and statement printing use a selected body-level portal.

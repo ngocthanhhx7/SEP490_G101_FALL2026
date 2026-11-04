@@ -39,3 +39,7 @@ read path remains unchanged.
 
 `ai-model-api.js` owns Admin model status/import/review transport through the
 shared API client and CSRF/idempotency handling; it never computes rankings.
+
+`employment-document-api.js` owns application contract transport; `payroll-draft-api.js`
+validates employee/source-preview/prepare acknowledgements. Components never build
+shared endpoint URLs or persist contract/assessment data in browser storage.

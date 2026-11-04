@@ -23,3 +23,8 @@ resend; Admin can inspect safe delivery state, never addresses/credentials.
 status guidance and approval congratulations. No documents or internal notes are
 included. ACCEPTED means SMTP acceptance, not inbox delivery. Existing records
 are not backfilled, and historical approved accounts are not changed.
+
+Runtime application approval composes the employment document service. It requires
+the current interview application revision to have a verified signed document and
+activates its payroll contract in the same transaction as account promotion.
+Neither printing nor a DRAFT document grants a role.
