@@ -9,8 +9,8 @@ const code = (fn) => { try { fn(); } catch (error) { return error.code; } return
 describe('parseProductQuery', () => {
   test('normalises a valid query and applies the default page size', () => {
     expect(parseProductQuery({ search: '  Thức   ăn ', category: 'FOOD', petType: 'DOG' }))
-      .toEqual({ search: 'Thức ăn', category: 'FOOD', petType: 'DOG', limit: 20 });
-    expect(parseProductQuery({ search: '   ' })).toEqual({ limit: 20 });
+      .toEqual({ search: 'Thức ăn', category: 'FOOD', petType: 'DOG', limit: 20, page: 1 });
+    expect(parseProductQuery({ search: '   ' })).toEqual({ limit: 20, page: 1 });
   });
 
   test('rejects unknown keys, enums, arrays and out-of-range limits', () => {

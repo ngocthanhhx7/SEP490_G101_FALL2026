@@ -56,10 +56,10 @@ describe('Product List', () => {
     show(api, '/products', null);
     await screen.findByText('Hiển thị 1 sản phẩm');
     fireEvent.click(screen.getByRole('button', { name: 'Chó' }));
-    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: 'DOG' }, expect.any(Object)));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
     expect(screen.getByRole('button', { name: 'Chó' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm sản phẩm theo tên' }), { target: { value: 'pate' } });
-    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: '', petType: 'DOG' }, expect.any(Object)));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
   });
 
   test('says so when nothing matches and offers a retry on failure', async () => {

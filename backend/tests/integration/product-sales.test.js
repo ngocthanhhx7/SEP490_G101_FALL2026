@@ -10,6 +10,7 @@ import { productSalesModels } from '../../src/models/product.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { registerModules } from '../../src/routes/module-registry.js';
+import { provisionStorefrontCatalog } from '../../src/services/product-sales/storefront-catalog-provisioning.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const actors = {
@@ -78,6 +79,18 @@ describe('seed', () => {
 });
 
 describe('catalog', () => {
+  test('pages the inherited catalogue and provisioning preserves Admin edits', async () => {
+    expect((await provisionStorefrontCatalog({ connection })).inserted).toBe(20);
+    await models.Product.updateOne({ code: 'SP-0038' }, { $set: { sellingPrice: 123000, stockOnHand: 2 } });
+    expect((await provisionStorefrontCatalog({ connection })).inserted).toBe(0);
+    expect(await product('SP-0038')).toMatchObject({ sellingPrice: 123000, stockOnHand: 2, sampleCatalog: true });
+    const first = await api().get('/api/v1/products').expect(200);
+    const second = await api().get('/api/v1/products?page=2').expect(200);
+    expect(first.body.data).toMatchObject({ page: 1, limit: 20, total: 28 });
+    expect(second.body.data.items).toHaveLength(8);
+    expect(new Set([...first.body.data.items, ...second.body.data.items].map(row => row.id)).size).toBe(28);
+    await api().get('/api/v1/products?page=0').expect(422);
+  });
   test('lists only Shown products and filters by category, pet type and name', async () => {
     const all = await api().get('/api/v1/products').expect(200);
     expect(all.body.data.items).toHaveLength(8);
@@ -98,6 +111,20 @@ describe('catalog', () => {
 });
 
 describe('cart', () => {
+  test('rejects accumulated quantities above 99 and leaves a purchasable cart', async () => {
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 1000 } });
+    await addToCart('a', 'SP-0012', 99);
+    expect((await addToCart('a', 'SP-0012', 99)).status).toBe(422);
+    expect((await api('a').get('/api/v1/product-cart')).body.data.lines[0].quantity).toBe(99);
+    expect((await placePickup('a')).status).toBe(201);
+  });
+
+  test('two concurrent additions preserve both increments', async () => {
+    await addToCart('a', 'SP-0012', 1);
+    const added = await Promise.all([addToCart('a', 'SP-0012', 1), addToCart('a', 'SP-0012', 1)]);
+    expect(added.map(response => response.status)).toEqual([201, 201]);
+    expect((await api('a').get('/api/v1/product-cart')).body.data.lines[0].quantity).toBe(3);
+  });
   test('requires a Customer session and does not reserve stock', async () => {
     await api().get('/api/v1/product-cart').expect(401);
     await api('admin').get('/api/v1/product-cart').expect(403);
@@ -130,6 +157,15 @@ describe('cart', () => {
 });
 
 describe('placing an order', () => {
+  test('concurrent identical retries return the same order even after the winner empties the cart', async () => {
+    await addToCart('a', 'SP-0012', 2);
+    const key = idem();
+    const results = await Promise.all([placePickup('a', key), placePickup('a', key)]);
+    expect(results.map(row => row.status)).toEqual([201, 201]);
+    expect(results[0].body.data.id).toBe(results[1].body.data.id);
+    expect(await models.ProductOrder.countDocuments()).toBe(1);
+    expect((await product('SP-0012')).quantityHeld).toBe(2);
+  });
   test('holds stock, snapshots prices, adds the flat delivery fee and empties the cart', async () => {
     await addToCart('a', 'SP-0012', 2); await addToCart('a', 'SP-0031', 1);
     const placed = await placeDelivery('a', addressA._id);

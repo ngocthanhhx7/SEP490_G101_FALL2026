@@ -111,6 +111,14 @@ New errors (none has an R3 message except MSG116): `SUPPLIER_NAME_TAKEN` (409, M
 
 ## Stock rule (GBR-35)
 
+The public `GET /api/v1/products` accepts `page` (starting at 1) and `limit`
+(default 20, maximum 50), returning `{ items, page, limit, total }`. Filters remain
+applied across pages. Cart additions validate the accumulated quantity against
+the 99-per-line ceiling and serialize read/update in a retryable transaction.
+Concurrent order retries with one key return the committed winner even when that
+winner already emptied the cart. The frontend discards mutation responses from
+an invalidated/different session.
+
 Sellable = `stockOnHand - quantityHeld`; it is computed, not stored. Adding to the cart reserves nothing. Placing an order runs in one transaction: for each line a conditional update reserves the quantity only if `stockOnHand - quantityHeld >= quantity`. If any line fails, no order is created and nothing stays reserved, so two concurrent orders can never reserve more than is sellable. The cart is emptied in the same transaction. Stock is released by Admin order handling, each step in one transaction together with the status change:
 
 - Goods leave the shop (`hand-to-carrier`, `hand-to-customer`): `quantityHeld` and `stockOnHand` both go down by the line quantity.

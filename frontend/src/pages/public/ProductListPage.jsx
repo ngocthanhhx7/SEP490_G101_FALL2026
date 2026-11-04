@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useProductCart } from '../../hooks/useProductCart.js';
-import { Notice, Button } from '../../components/ui/index.js';
+import { Notice, Button, Pagination } from '../../components/ui/index.js';
 import { ProductCard } from '../../components/product/ProductCard.jsx';
 import { productMessage } from '../../utils/product-format.js';
 import '../../components/product/product-shop.css';
@@ -27,9 +27,10 @@ export function ProductListPage() {
   const category = allowed(params.get('category') ?? '', CATEGORY_FILTERS);
   const petType = allowed(params.get('pet') ?? '', PET_FILTERS);
   const [text, setText] = useState(search);
+  const page = /^\d{1,6}$/.test(params.get('page') ?? '') ? Math.max(1, Number(params.get('page'))) : 1;
 
   function update(next) {
-    const merged = { q: search, category, pet: petType, ...next };
+    const merged = { q: search, category, pet: petType, page: '', ...next };
     setParams(Object.fromEntries(Object.entries(merged).filter(([, value]) => value)), { replace: true });
   }
   // The search box updates the URL after a short pause so each keystroke does not hit the API.
@@ -39,12 +40,13 @@ export function ProductListPage() {
     return () => clearTimeout(timer);
   }, [text]);
 
-  const load = useCallback(({ signal }) => api.listProducts({ search, category, petType }, { signal }), [api, search, category, petType]);
+  const load = useCallback(({ signal }) => api.listProducts({ search, category, petType, page }, { signal }), [api, search, category, petType, page]);
   const resource = useApiResource(load);
 
   return <section className="pwc-shop" aria-labelledby="shop-title">
-    <h1 id="shop-title">Sản phẩm cho thú cưng</h1>
+    <div className="pwc-shop-intro"><span className="pwc-shop-kicker">Cửa hàng PawWorld</span><h1 id="shop-title">Món ngon, đồ xinh cho bé</h1>
     <p className="pwc-shop-lead">Thức ăn và phụ kiện cho chó và mèo. Bạn có thể nhận hàng tại nhà hoặc đến lấy ở cửa hàng.</p>
+    </div>
     <div className="pwc-shop-panel pwc-shop-filters">
       <div style={{ position: 'relative' }}>
         <Search aria-hidden="true" size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', opacity: .6 }} />
@@ -64,5 +66,7 @@ export function ProductListPage() {
       <p className="pwc-shop-count" role="status">Hiển thị {resource.data.length} sản phẩm</p>
       <div className="pwc-shop-grid">{resource.data.map((product) => <ProductCard key={product.id} product={product} />)}</div>
     </>}
+    {(resource.status === 'success' || resource.status === 'empty') && resource.meta?.page && <Pagination {...resource.meta.page}
+      itemLabel="sản phẩm" onPageChange={(next) => update({ page: String(next) })} />}
   </section>;
 }

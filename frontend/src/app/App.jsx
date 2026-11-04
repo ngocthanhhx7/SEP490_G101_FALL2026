@@ -6,6 +6,7 @@ import { AppErrorBoundary } from './AppErrorBoundary.jsx';
 import { ProductCartProvider } from '../contexts/ProductCartContext.jsx';
 import { PublicPolicyProvider } from '../contexts/PublicPolicyContext.jsx';
 import { publicPolicyRouteElements as defaultPublicPolicyRouteElements } from '../routes/PublicPolicyRoutes.jsx';
+import '../styles/storefront.css';
 
 export function App({
   sessionAdapter,

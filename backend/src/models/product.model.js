@@ -43,6 +43,8 @@ export function productSalesModels(connection) {
         petType: { type: String, enum: PRODUCT_PET_TYPES, required: true },
         description: { type: String, default: '', maxlength: 4000 },
         photos: { type: [String], default: [] },
+        catalogSource: { type: String, maxlength: 100 },
+        sampleCatalog: { type: Boolean, default: false },
         sellingPrice: { ...integer(), required: true },
         stockOnHand: { ...integer(), default: 0 },
         // Stock reserved by orders that have not left the shop yet. Sellable = stockOnHand - quantityHeld.

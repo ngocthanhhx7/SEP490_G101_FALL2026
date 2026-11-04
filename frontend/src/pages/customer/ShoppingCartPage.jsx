@@ -28,11 +28,13 @@ export function ShoppingCartPage() {
     action={<Button variant="secondary" onClick={() => refresh().catch(() => {})}>Thử lại</Button>} /></section>;
   if (!cart) return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải giỏ hàng…" /></section>;
   if (cart.lineCount === 0) return <section className="pwc-shop">{back}<h1>Giỏ hàng</h1>
-    <Notice state="empty" title={productMessage('MSG100')} action={<Link className="pwc-shop-outline-button" to="/products">Xem sản phẩm</Link>} /></section>;
+    <div className="pwc-shop-empty"><img src="/assets/figma-public/about-Image154.png" alt="" />
+    <Notice state="empty" title={productMessage('MSG100')} action={<Link className="pwc-shop-outline-button" to="/products">Xem sản phẩm</Link>}>Chọn món ăn hoặc đồ dùng cho những ngày bên bé.</Notice></div></section>;
 
   return <section className="pwc-shop" aria-labelledby="cart-title">
     {back}
-    <h1 id="cart-title">Giỏ hàng<span className="pwc-shop-count-badge">{cart.lineCount} sản phẩm</span></h1>
+    <div className="pwc-shop-cart-intro"><h1 id="cart-title">Giỏ hàng của bạn<span className="pwc-shop-count-badge">{cart.lineCount} sản phẩm</span></h1>
+    <p className="pwc-shop-lead">Kiểm tra những món đã chọn trước khi đặt hàng cho bé.</p></div>
     {error && <p className="pwc-shop-alert pwc-shop-alert--error" role="alert">{error}</p>}
     <div className="pwc-shop-split">
       <div className="pwc-shop-panel pwc-shop-table-wrap">
@@ -40,7 +42,7 @@ export function ShoppingCartPage() {
           <thead><tr><th>Sản phẩm</th><th>Đơn giá</th><th>Số lượng</th><th>Thành tiền</th><th><span className="pwc-visually-hidden">Xoá</span></th></tr></thead>
           <tbody>{cart.lines.map((line) => <tr key={line.productId}>
             <td><div className="pwc-shop-line"><ProductPhoto product={line} size="thumb" />
-              <div><strong>{line.name}</strong><br /><small>{line.code}</small>
+              <div><Link to={`/products/${encodeURIComponent(line.productId)}`}>{line.name}</Link><br /><small>{line.code} · {formatVnd(line.unitPrice)}</small>
                 {!line.purchasable && <><br /><small className="pwc-shop-alert--error">Sản phẩm không còn được bán.</small></>}
                 {line.purchasable && line.exceedsAvailable && <><br /><small className="pwc-shop-alert--error">{productMessage('MSG58', { n: line.available })}</small></>}
               </div></div></td>
@@ -54,7 +56,7 @@ export function ShoppingCartPage() {
           </tr>)}</tbody>
         </table>
       </div>
-      <aside className="pwc-shop-panel" aria-label="Tóm tắt giỏ hàng">
+      <aside className="pwc-shop-panel pwc-shop-summary" aria-label="Tóm tắt giỏ hàng">
         <h2>Tóm tắt giỏ hàng</h2>
         <div className="pwc-shop-summary-row"><span>Tạm tính</span><span>{formatVnd(cart.subtotal)}</span></div>
         <div className="pwc-shop-summary-row pwc-shop-summary-total"><span>Tổng</span><strong>{formatVnd(cart.total)}</strong></div>
@@ -62,6 +64,7 @@ export function ShoppingCartPage() {
         {cart.hasUnavailable
           ? <button type="button" className="pwc-shop-primary-button" disabled>Thanh toán</button>
           : <Link className="pwc-shop-primary-button" to="/customer/product-checkout">Thanh toán</Link>}
+        <p className="pwc-shop-hint" style={{ marginTop: '1rem' }}>Chọn giao đến nhà hoặc nhận tại cửa hàng ở bước tiếp theo.</p>
       </aside>
     </div>
   </section>;

@@ -14,6 +14,10 @@ export function ProductCartProvider({ api: apiOverride, children }) {
   const enabled = session.status === 'authenticated' && hasRole(session.user, 'CUSTOMER');
   const [state, setState] = useState({ status: 'idle', cart: null });
   const generation = useRef(0);
+  const owner = enabled ? userId : null;
+  const ownerRef = useRef(owner);
+  const ownerEpoch = useRef(0);
+  if (ownerRef.current !== owner) { ownerRef.current = owner; ownerEpoch.current++; }
 
   const refresh = useCallback(async () => {
     const current = ++generation.current;
@@ -31,11 +35,14 @@ export function ProductCartProvider({ api: apiOverride, children }) {
   useEffect(() => {
     if (!enabled) { generation.current++; setState({ status: 'idle', cart: null }); return undefined; }
     refresh().catch(() => {});
-    return () => { generation.current++; };
+    return () => { generation.current++; ownerEpoch.current++; };
   }, [enabled, userId, refresh]);
 
   const apply = useCallback(async (operation) => {
+    const started = ownerEpoch.current;
+    const startedOwner = ownerRef.current;
     const cart = await operation();
+    if (!startedOwner || started !== ownerEpoch.current || startedOwner !== ownerRef.current) return cart;
     generation.current++;
     setState({ status: 'ready', cart });
     return cart;

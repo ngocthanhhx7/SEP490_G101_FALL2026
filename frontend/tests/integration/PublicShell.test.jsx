@@ -17,7 +17,7 @@ test('guest header links the shop and offers login/register without an avatar or
   expect(screen.getByRole('link', { name: 'Dịch vụ', exact: true })).toHaveAttribute('href', '/services');
   expect(screen.getByRole('link', { name: 'Sản phẩm', exact: true })).toHaveAttribute('href', '/products');
   expect(screen.queryByRole('link', { name: /Giỏ hàng/ })).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Câu truyện' })).toHaveAttribute('href', '/#stories');
+  expect(screen.queryByRole('link', { name: 'Câu truyện' })).not.toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Về chúng tôi' })).toHaveAttribute('href', '/about');
   expect(screen.queryByRole('button', { name: 'Tài khoản' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Mở menu' }));

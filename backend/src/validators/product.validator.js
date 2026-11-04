@@ -1,5 +1,6 @@
 import { AppError } from '../utils/app-error.js';
 import { PRODUCT_CATEGORIES, PRODUCT_PET_TYPES, PRODUCT_LIMITS } from '../constants/product-fields.js';
+import { parsePageQuery } from './pagination.validator.js';
 
 const OBJECT_ID = /^[a-f\d]{24}$/i;
 
@@ -27,9 +28,9 @@ export function requireOnlyKeys(input, allowed, required = []) {
 
 // Query strings arrive as strings; anything else (arrays, objects) is rejected.
 export function parseProductQuery(query = {}) {
-  const allowed = ['search', 'category', 'petType', 'limit'];
+  const allowed = ['search', 'category', 'petType', 'limit', 'page'];
   if (Object.keys(query).some((key) => !allowed.includes(key))) throw invalid('Query is invalid');
-  const out = { limit: PRODUCT_LIMITS.defaultPageSize };
+  const out = parsePageQuery(query);
   if (query.search !== undefined) {
     if (typeof query.search !== 'string') throw invalid('search is invalid');
     const search = query.search.normalize('NFC').replace(/\s+/gu, ' ').trim();
