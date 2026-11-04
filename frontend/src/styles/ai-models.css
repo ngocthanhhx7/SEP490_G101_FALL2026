@@ -8,7 +8,7 @@
 .ai-models dl { display: flex; flex-wrap: wrap; gap: 16px; }
 .ai-models dd { margin: 4px 0 0; font-weight: 800; }
 .ai-models__table { overflow-x: auto; }
-.ai-models table { width: 100%; border-collapse: collapse; }
+.ai-models table { width: 100%; min-width: 540px; border-collapse: collapse; }
 .ai-models th, .ai-models td { text-align: left; padding: 10px; border-bottom: 1px solid #dedbe5; }
 .ai-models .pwc-field { max-width: 560px; margin: 12px 0; }
 .ai-models input[type=file] { width: 100%; max-width: 100%; }
