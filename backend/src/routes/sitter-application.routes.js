@@ -1,3 +1,6 @@
+import { rateLimit } from 'express-rate-limit';
+import { createEmploymentDocumentService } from '../services/payroll/employment-document.service.js';
+import { createEmploymentDocumentController } from '../controllers/employment-document.controller.js';
 import { createSitterApplicationController } from '../controllers/sitter-application.controller.js';
 import { Router } from 'express';
 import {
@@ -57,6 +60,7 @@ export function sitterApplicationModule({
     lookupSecret: config.auth.contactLookupSecret,
     encryptionKey: config.auth.contactEncryptionKey
   });
+  const employmentDocuments = createEmploymentDocumentService({ connection, crypto: contactCrypto, lookupSecret: config.auth.contactLookupSecret, clock });
   const intake = authenticatedSubmission ? createApplicationIntakeService({ connection, contactCrypto,
     media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable, clock }) : null;
   const applicationMail = createApplicationMailService({ connection, contactCrypto, delivery: ports.notificationDelivery, clock });
@@ -73,7 +77,7 @@ export function sitterApplicationModule({
     lookupSecret: config.auth.contactLookupSecret,
     cursorSecret: config.auth.tokenSecret,
     clock,
-    applicationMail
+    applicationMail, employmentDocuments
   });
   const sessionService = createSessionService({
     connection,
@@ -86,8 +90,12 @@ export function sitterApplicationModule({
     requireRoles('ADMIN')
   ];
   const csrf = requireCsrf(sessionService);
-  const router = Router();
+  const router = Router(), contracts = createEmploymentDocumentController(employmentDocuments);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
+  const contractRate = rateLimit({ windowMs: 60000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth.userId });
+  router.get('/:applicationId/employment-contract', ...admin, contractRate, contracts.get);
+  router.post('/:applicationId/employment-contract', ...admin, csrf, contractRate, contracts.save);
+  router.post('/:applicationId/employment-contract/:documentId/decisions', ...admin, csrf, contractRate, contracts.decide);
   if (intake) router.get('/intake', requireSession(sessionService, { clock }),
     createSitterApplicationController({ intake }).getIntake);
 

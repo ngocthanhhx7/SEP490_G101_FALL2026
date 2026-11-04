@@ -1,3 +1,4 @@
+import { rateLimit } from 'express-rate-limit';
 import { Router } from 'express';
 import { createPayrollController } from '../controllers/payroll.controller.js';
 import { createPayrollService } from '../services/payroll/payroll.service.js';
@@ -15,6 +16,10 @@ export function payrollRuntimeModule({ config, connection, clock = Date.now, ses
   router.post('/adjustments', admin, csrf, controller.submitAdjustment);
   router.get('/adjustments', admin, controller.adjustments);
   router.post('/adjustments/:id/decisions', admin, csrf, controller.adjustmentDecision);
+  router.get('/employees', admin, controller.employees);
+  const previewRate = rateLimit({ windowMs: 60000, limit: 12, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth.userId });
+  router.post('/statements/preview', admin, csrf, previewRate, controller.preview);
+  router.post('/statements/from-sources', admin, csrf, controller.automatic);
   router.post('/contracts', admin, csrf, controller.contracts);
   router.post('/statements', admin, csrf, controller.prepare);
   router.get('/statements', admin, controller.statements);

@@ -11,6 +11,7 @@ export function sitterApplicationModels(connection) {
   }, { _id: false, versionKey: false, strict: 'throw' });
 
   const applicantSchema = new Schema({
+    contractGuard: { type: Number, default: 0, select: false },
     ownerUserId: { type: Schema.Types.ObjectId, default: null, index: true },
     policyConsents: { type: [new Schema({
       slug: String, versionId: String, contentHash: String, effectiveAt: Date, consentedAt: Date, sourceRef: String

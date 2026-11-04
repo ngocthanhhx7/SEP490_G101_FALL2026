@@ -1,16 +1,23 @@
+import { useState } from 'react';
+import { PrintDocument } from '../common/PrintDocument.jsx';
 import './payroll.css';
 
 export const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(value);
 export const date = value => new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short' }).format(new Date(value));
 export const payrollStatus = value => ({ SUBMITTED: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Từ chối', WITHDRAWN: 'Đã rút', PAID: 'Đã ghi nhận chi trả', PREPARED: 'Chờ duyệt bảng lương', VOIDED: 'Đã hủy phiếu', RECONCILED: 'Đã đối soát theo thỏa thuận' })[value] || value;
-const lines = [['baseVnd', 'Lương cơ bản'], ['commissionVnd', 'Hoa hồng'], ['bonusVnd', 'Thưởng KPI'], ['overtimeVnd', 'Làm thêm / ban đêm'], ['grossVnd', 'Tổng gross'], ['employeeInsuranceVnd', 'Bảo hiểm người lao động'], ['incomeTaxVnd', 'Thuế TNCN'], ['otherLawfulDeductionsVnd', 'Khoản khấu trừ hợp lệ'], ['paidAdvanceVnd', 'Đối trừ tạm ứng'], ['payableVnd', 'Thực nhận kỳ này']];
-export function PayrollStatement({ statement, children }) {
+const lines = [['baseVnd', 'Lương cơ bản'], ['allowanceVnd', 'Phụ cấp cố định'], ['commissionVnd', 'Hoa hồng'], ['bonusVnd', 'Thưởng KPI'], ['overtimeVnd', 'Làm thêm / ban đêm'], ['grossVnd', 'Tổng gross'], ['employeeInsuranceVnd', 'Bảo hiểm người lao động'], ['incomeTaxVnd', 'Thuế TNCN'], ['otherLawfulDeductionsVnd', 'Khoản khấu trừ hợp lệ'], ['paidAdvanceVnd', 'Đối trừ tạm ứng'], ['payableVnd', 'Thực nhận kỳ này']];
+export function PayrollStatement({ statement, children, printable = true }) {
+  const [printing, setPrinting] = useState(false);
   return <article className="payroll-statement">
+    {statement.reference && <p>Số phiếu: {statement.reference} · {statement.employeeName} {statement.employeeCode}</p>}
     <header><h2>{date(statement.periodStart)} – {date(statement.periodEnd)}</h2><span>{payrollStatus(statement.status)}</span></header>
     <p>Hạn trả: {date(statement.dueAt)}{statement.paidAt ? ` · Ghi nhận chi trả: ${date(statement.paidAt)}` : ''}</p>
     {statement.voidReason && <p>Lý do hủy: {statement.voidReason}</p>}
-    <dl>{lines.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{money(statement.breakdown[key])}</dd></div>)}</dl>
+    <dl>{lines.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{money(statement.breakdown[key] ?? 0)}</dd></div>)}</dl>
     {children}
+    {printable && <><button type="button" onClick={() => setPrinting(true)}>Chuẩn bị in phiếu lương</button>
+      {printing && <><PrintDocument><h1>BẢNG KÊ TRẢ LƯƠNG</h1><PayrollStatement statement={statement} printable={false}/><p>Người lập / người duyệt: ………………………… Người nhận: …………………………</p><p>Trạng thái ghi nhận trên hệ thống không thay thế chứng từ ngân hàng thực tế.</p></PrintDocument><button type="button" onClick={() => window.print()}>In phiếu / Lưu PDF</button><button type="button" onClick={() => setPrinting(false)}>Đóng bản in phiếu</button></>}
+    </>}
   </article>;
 }
 export function PayrollField({ label, ...props }) {

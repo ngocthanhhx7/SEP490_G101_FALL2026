@@ -175,8 +175,8 @@ function applicationView(application, contactValue, { includePrivate = false } =
 }
 
 export function createSitterApplicationService({ connection, Applicant, User, Audit, DownloadQuota, SitterStatus,
-  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, clock = Date.now }) {
-  if (!connection?.transaction || !Applicant || !User || !Audit || !DownloadQuota || !SitterStatus
+  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, employmentDocuments, clock = Date.now }) {
+  if (typeof employmentDocuments?.activate !== 'function' || !connection?.transaction || !Applicant || !User || !Audit || !DownloadQuota || !SitterStatus
     || typeof contactCrypto?.lookup !== 'function' || typeof contactCrypto?.encrypt !== 'function'
     || typeof contactCrypto?.decrypt !== 'function' || typeof lookupSecret !== 'string'
     || Buffer.byteLength(lookupSecret, 'utf8') < 32 || typeof cursorSecret !== 'string'
@@ -477,6 +477,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
               displayName: current.displayName, roles: ['PET_SITTER'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
             }], { session });
           }
+          await employmentDocuments.activate(current, user._id, actor, session);
           await SitterStatus.create([{
             userId: user._id, status: 'ACTIVE', statusReason: null, changedAt: new Date(now), version: 0
           }], { session });

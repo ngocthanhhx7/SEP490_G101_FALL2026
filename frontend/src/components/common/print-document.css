@@ -1,0 +1,9 @@
+.pwc-print-document { display: none; }
+@media print {
+  @page { size: A4; margin: 18mm 16mm; }
+  body > :not(.pwc-print-document) { display: none !important; }
+  body > .pwc-print-document { display: block !important; background: white; color: #111; font: 12pt/1.5 'Times New Roman', serif; }
+  .pwc-print-document h1, .pwc-print-document h2, .pwc-print-document h3 { break-after: avoid; }
+  .pwc-print-document p { orphans: 3; widows: 3; }
+  .pwc-print-document button { display: none !important; }
+}

@@ -22,12 +22,16 @@ export function calculateEmployeePayroll({ contract, scheduledMinutes, paidMinut
   const bonuses = contract.employmentType === 'FULL_TIME' ? policy.fullTimeBonusVnd : policy.partTimeBonusVnd;
   if (eligible) for (let i = 0; i < policy.kpiThresholdBps.length; i++)
     if (BigInt(kpi.completedMinutes) * 10000n >= BigInt(kpi.targetMinutes) * BigInt(policy.kpiThresholdBps[i])) bonusVnd = bonuses[i];
-  const grossVnd = safe(BigInt(baseVnd) + BigInt(commissionVnd) + BigInt(bonusVnd) + BigInt(overtimeVnd));
+  number(contract.monthlyAllowanceVnd ?? 0, 0, Number.MAX_SAFE_INTEGER, true);
+  const allowanceVnd = ratio(contract.monthlyAllowanceVnd ?? 0, paidMinutes, scheduledMinutes);
+  const grossVnd = safe(BigInt(allowanceVnd) + BigInt(baseVnd) + BigInt(commissionVnd) + BigInt(bonusVnd) + BigInt(overtimeVnd));
   const deductionsVnd = safe(BigInt(employeeInsuranceVnd) + BigInt(incomeTaxVnd) + BigInt(otherLawfulDeductionsVnd));
   if (deductionsVnd > grossVnd) fail('PAYROLL_RECONCILIATION_REQUIRED', 'Deductions exceed payroll', 409);
+  const afterStatutoryVnd = grossVnd - employeeInsuranceVnd - incomeTaxVnd;
+  if (BigInt(otherLawfulDeductionsVnd) * 100n > BigInt(afterStatutoryVnd) * 30n) fail('PAYROLL_RECONCILIATION_REQUIRED', 'Other employer deductions exceed 30% of pay after mandatory insurance and income tax', 409);
   const netBeforeAdvanceVnd = grossVnd - deductionsVnd;
   if (paidAdvanceVnd > netBeforeAdvanceVnd) fail('ADVANCE_RECONCILIATION_REQUIRED', 'Advance requires agreed settlement schedule', 409);
-  return { currency: 'VND', baseVnd, commissionVnd, bonusVnd, overtimeVnd, grossVnd,
+  return { currency: 'VND', baseVnd, allowanceVnd, commissionVnd, bonusVnd, overtimeVnd, grossVnd,
     employeeInsuranceVnd, incomeTaxVnd, otherLawfulDeductionsVnd, netBeforeAdvanceVnd, paidAdvanceVnd,
     payableVnd: netBeforeAdvanceVnd - paidAdvanceVnd, policyVersion: policy.version, contractVersion: contract.version,
     rounding: 'HALF_UP_VND_PER_COMPONENT' };

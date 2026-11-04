@@ -34,3 +34,7 @@ read-receipt events, aborts obsolete requests and resets private state on accoun
 role changes. Initial history does not produce toasts; unread dots use server counts.
 Receipt retries retain the same idempotency key and use the current session CSRF.
 The account trigger keeps its hover/click behavior without the decorative chevron.
+
+`PrintDocument` renders selected private print content in a body-level portal.
+Print media hides app chrome/layout entirely; normal screens hide the portal. It
+never changes the document signature or payment state.

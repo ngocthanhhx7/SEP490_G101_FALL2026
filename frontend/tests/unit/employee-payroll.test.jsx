@@ -1,3 +1,4 @@
+jest.mock('../../src/components/payroll/AutomaticPayrollForm.jsx', () => ({ AutomaticPayrollForm: () => <div>Automatic payroll source form</div> }));
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { EmployeePayrollPage } from '../../src/pages/sitter/EmployeePayrollPage.jsx';
 import { EmployeePayrollAdminPage } from '../../src/pages/admin/EmployeePayrollAdminPage.jsx';
