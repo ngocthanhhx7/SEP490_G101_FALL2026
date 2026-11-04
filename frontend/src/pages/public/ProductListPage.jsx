@@ -33,12 +33,18 @@ export function ProductListPage() {
     const merged = { q: search, category, pet: petType, page: '', ...next };
     setParams(Object.fromEntries(Object.entries(merged).filter(([, value]) => value)), { replace: true });
   }
+  useEffect(() => { setText(search); }, [search]);
   // The search box updates the URL after a short pause so each keystroke does not hit the API.
   useEffect(() => {
     if (text.trim() === search) return undefined;
-    const timer = setTimeout(() => update({ q: text.trim() }), 300);
+    const timer = setTimeout(() => setParams((current) => {
+      const next = new globalThis.URLSearchParams(current);
+      if (text.trim()) next.set('q', text.trim()); else next.delete('q');
+      next.delete('page');
+      return next;
+    }, { replace: true }), 300);
     return () => clearTimeout(timer);
-  }, [text]);
+  }, [text, search, setParams]);
 
   const load = useCallback(({ signal }) => api.listProducts({ search, category, petType, page }, { signal }), [api, search, category, petType, page]);
   const resource = useApiResource(load);
