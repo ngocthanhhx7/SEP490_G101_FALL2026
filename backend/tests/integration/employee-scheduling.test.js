@@ -1,3 +1,4 @@
+import { createOperationalRanker } from '../../src/services/sitter-matching/operational-ranker.service.js';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
@@ -550,4 +551,41 @@ test('failed automatic dispatch persists bounded reasons and never broadens a ci
   const saved = await connection.collection('visits').findOne({ _id: row._id });
   expect(saved.dispatchReview).toMatchObject({ code: 'NO_ELIGIBLE_SITTER', diagnostics: { eligible: 0 } });
   expect(JSON.stringify(saved.dispatchReview.diagnostics)).not.toContain(sitter.userId);
+});
+
+
+test('operational AI captures real decision features for a newcomer without inventing a rating or changing eligibility', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-10-31T02:00:00Z', requestedSitterId: sitter.userId });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { location: 'HOME' } });
+  const { matchingModels } = await import('../../src/models/sitter-matching.model.js');
+  const matching = matchingModels(connection);
+  await matching.SitterRankingPolicy.create({ version: 1, status: 'APPROVED', effectiveAt: new Date('2026-01-01'), approvedAt: new Date('2026-01-01'),
+    approvalSource: 'SYNTHETIC_ISOLATED_POLICY', reason: 'Synthetic operational scoring test', weights: { fit: 30, travel: 25, quality: 20, reliability: 15, workload: 10 } });
+  const routingProvider = { validatePoints: () => {}, cacheTtlMs: 0, matrix: async points => ({ map: new Map(points.flatMap(a => points.map(b => [edgeKey(a, b), 0]))), recordedAt: new Date(clock()), source: 'SYNTHETIC_TEST_ROUTE' }) };
+  const dispatch = createEmployeeDispatchService({ repository: module.repository, clock,
+    ranker: createOperationalRanker({ connection, routingProvider, clock }) });
+  await dispatch.runBatch({ limit: 20 });
+  const offer = await module.repository.models.EmployeeVisitOffer.findOne({ visitId: row._id }).select('+featureSnapshot').lean();
+  expect(offer.featureSnapshot).toMatchObject({ version: 'PWC_MATCH_FEATURES_V1', sitterId: sitter.userId, features: { fit: 0 }, modelVersion: null });
+  expect(JSON.stringify(await dispatch.offers.detail(sitter, String(offer._id)))).not.toContain('featureSnapshot');
+  await dispatch.offers.accept(sitter, String(offer._id), 0, 'accept-captured-operational-offer');
+  const assigned = await connection.collection('visits').findOne({ _id: row._id });
+  expect(assigned.assignedFeatureSnapshot.features).toEqual(offer.featureSnapshot.features);
+  expect(assigned.assignedFeatureSnapshot.sitterId).toBe(sitter.userId);
+  expect(await matching.SitterVisitOutcome.countDocuments({ sitterId: new mongoose.Types.ObjectId(sitter.userId) })).toBe(0);
+});
+
+test('operational advice may reorder the complete eligible set but cannot add or remove employees', async () => {
+  await employee(); await employee();
+  const row = await visit({ start: '2026-11-27T02:00:00Z' }), input = { startAt: row.startAt.toISOString() };
+  const baseline = await module.dispatch.previewCandidates(staff, String(row._id), input);
+  expect(baseline.items.length).toBeGreaterThanOrEqual(2);
+  const reverse = createEmployeeDispatchService({ repository: module.repository, clock, ranker: async ({ sitterIds }) => [...sitterIds].reverse() });
+  expect((await reverse.previewCandidates(staff, String(row._id), input)).items.map(item => item.sitterId))
+    .toEqual(baseline.items.map(item => item.sitterId).reverse());
+  for (const ranker of [async ({ sitterIds }) => sitterIds.slice(1), async ({ sitterIds }) => ['f'.repeat(24), ...sitterIds.slice(1)], async () => { throw new Error('Synthetic unavailable advice'); }]) {
+    const fallback = createEmployeeDispatchService({ repository: module.repository, clock, ranker });
+    expect((await fallback.previewCandidates(staff, String(row._id), input)).items.map(item => item.sitterId))
+      .toEqual(baseline.items.map(item => item.sitterId));
+  }
 });

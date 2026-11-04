@@ -17,3 +17,19 @@ body and native streaming responses are capped at 1 MB. See the
 Schemas live in `../../models/sitter-matching.model.js`; HTTP adapters in controllers/routes. Outcome imports reject duplicate pet IDs/species before persistence, including ObjectId case variants. Training and public dataset quarantine tools live in `../../../scripts/ai/`, with their own README and tests in `../../../tests/python/`. Training requires verified satisfaction labels, unique source IDs and per-feature availability timestamps; declared provenance still needs independent source review. See the [current data/integration status](../../../../doc/testing/ai-real-data-2026-10-30.md).
 
 See [API guide](../../../../doc/api/ai-pricing-matching-v1.md) and [package rules](../../../../doc/source-code-management/package-architecture.md).
+
+`operational-ranker.service.js` adapts the same policy/model, features and routing
+for the dispatch worker. It reorders only the exact authoritative eligible set;
+missing advice or its three-second budget preserves deterministic ordering. This
+operational invitation path permits newcomers without fabricating prior reviews;
+the Customer MATCH quality threshold is unchanged. Snapshot features are saved on
+the private offer and copied to the visit only after authoritative acceptance.
+They do not contain names, addresses or pet descriptions. Boarding/special care
+continues through its existing operational feasibility checks.
+
+`model-registry.service.js` owns Admin status, immutable DRAFT artifact/evidence
+imports and audited versioned APPROVE/RETIRE commands. Approval is serialized and
+retires older active versions atomically. Raw artifacts/evidence are excluded
+from ordinary model reads. The legacy model write endpoint cannot activate a
+self-declared model. HTTP composition stays in the existing AI routes/controller.
+See [offline tools](../../../scripts/ai/README.md) for export/train/import steps.
