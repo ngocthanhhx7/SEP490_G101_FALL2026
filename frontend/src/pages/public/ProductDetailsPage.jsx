@@ -81,6 +81,7 @@ export function ProductDetailsPage() {
     </div>
     <div className="pwc-shop-panel" style={{ marginTop: '1.5rem' }}>
       <h2>Mô tả sản phẩm</h2>
+      <p className="pwc-photo-credits"><a href="/assets/products/credits.html">Ảnh minh họa sản phẩm và nguồn ảnh</a></p>
       <p>{product.description || 'Chưa có mô tả cho sản phẩm này.'}</p>
       <dl className="pwc-shop-facts">
         <dt>Mã sản phẩm</dt><dd>{product.code}</dd>
