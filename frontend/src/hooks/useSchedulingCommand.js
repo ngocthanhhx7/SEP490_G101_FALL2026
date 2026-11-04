@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 
 const errors = {
+  SHIFT_START_REACHED: 'Ca đã đến giờ. Cần khách xác nhận lịch mới trước khi mời người nhận ca.',
   NO_ELIGIBLE_SITTER: 'Chưa có nhân viên phù hợp với khu vực và ca này.',
   DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Nhân viên khách chỉ định chưa có ca phù hợp. Cần thống nhất lại lịch với khách.',
   STAFF_REVIEW_REQUIRED: 'Cần nhân viên điều phối xem lại lịch và các lời mời đã gửi.',

@@ -90,6 +90,7 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
         <h2 id="directed-proposal-summary-title">Thông tin visit</h2>
         <dl className="directed-proposal__facts">
           <div><dt>Visit</dt><dd>{visit?.localDate || formatDate(visit?.startAt || proposal.slots?.[0]?.startAt)}</dd></div>
+          {proposal.areaCode && <div><dt>Khu vực tại địa chỉ đã đặt</dt><dd>{proposal.areaLabel ?? proposal.areaCode}{proposal.previousAreaCode !== proposal.areaCode && ' · Đề xuất xác nhận khu vực cụ thể hơn, giữ nguyên vị trí ghim'}</dd></div>}
           <div><dt>Sitter</dt><dd>{proposal.sitter?.displayName || proposal.sitter?.name || proposal.sitterId || 'Đã chọn sitter'}</dd></div>
           <div><dt>Giá snapshot</dt><dd>{amount(proposal.priceSnapshot || booking?.serviceSnapshot?.price)}</dd></div>
           <div><dt>Thanh toán</dt><dd>{proposal.paymentState || (proposal.paymentRequired ? 'Cần theo chính sách prepay' : 'Theo xác nhận máy chủ')}</dd></div>

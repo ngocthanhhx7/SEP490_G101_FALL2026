@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
+import { AppError } from '../../utils/app-error.js';
 import { createSitterOfferService } from '../sitter-offer.service.js';
-import { fail, id, digest } from '../../validators/pet-care.validator.js';
+import { fail, id, digest, exact, instant } from '../../validators/pet-care.validator.js';
 import { invitationInput, schedulingKey } from '../../validators/employee-scheduling.validator.js';
 import { assertEmployeeSchedulingStorage } from './scheduling-storage.service.js';
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
@@ -107,6 +108,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     const rows = await models.EmployeeAvailability.find({ areas: { $in: repository.areaKeys(visit.areaCode) }, ...(directed ? { _id: directed } : {}) }).sort({ _id: 1 }).limit(101).lean();
     if (rows.length > 100) fail('DISPATCH_SEARCH_LIMIT', 'Employee population requires a wider reviewed dispatch search', 409);
     const allowed = [];
+    const rejected = {};
     const evidence = new Map();
     let next = 0;
     async function scan() {
@@ -114,12 +116,16 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const row = rows[next++];
         const user = await col('users').findOne({ _id: oid(row._id), state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } });
         const status = await col('sitterstatuses').findOne({ userId: oid(row._id), status: 'ACTIVE' });
-        if (!user || !status) continue;
+        if (!user || !status) { rejected.SITTER_NOT_ELIGIBLE = (rejected.SITTER_NOT_ELIGIBLE ?? 0) + 1; continue; }
         try { evidence.set(row._id, await eligible(row._id, visit, undefined, { requireOrigin: true })); allowed.push(row._id); }
-        catch (error) { if (error.status !== 409) throw error; }
+        catch (error) { if (error.status !== 409) throw error; rejected[error.code] = (rejected[error.code] ?? 0) + 1; }
       }
     }
     await Promise.all(Array.from({ length: Math.min(4, rows.length) }, scan));
+    if (!allowed.length) {
+      throw new AppError(409, directed ? 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' : 'NO_ELIGIBLE_SITTER', 'No eligible employee',
+        { diagnostics: { registered: rows.length, eligible: 0, rejected } });
+    }
     allowed.sort((a, b) => {
       const shortlist = visit.recommendationRef?.candidateIds ?? [];
       const order = value => shortlist.includes(value) ? shortlist.indexOf(value) : shortlist.length;
@@ -144,14 +150,33 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     return allowed;
   }
   const service = { offers, readContext: readyVisit,
+    async previewCandidates(actor, visitId, input) {
+      if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
+      id(visitId); exact(input, ['startAt', 'areaCode'], ['startAt']);
+      const visit = await readyVisit(visitId), startAt = new Date(instant(input.startAt));
+      const areaCode = input.areaCode ?? visit.areaCode;
+      if (!repository.coverageAreas.some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
+        fail('VALIDATION_FAILED', 'Choose the current area or a more precise home area');
+      const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
+      try {
+        const ids = await candidates(revised);
+        const users = await col('users').find({ _id: { $in: ids.map(oid) } }, { projection: { displayName: 1 } }).toArray();
+        return { items: ids.map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
+          areaCode, startAt, endAt: revised.endAt };
+      } catch (error) {
+        if (!error.details?.diagnostics) throw error;
+        return { items: [], diagnostics: error.details.diagnostics, areaCode, startAt, endAt: revised.endAt };
+      }
+    },
     async queue(actor) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       const rows = await queueRows(50);
-      return { items: rows.map(row => ({ id: String(row._id), bookingId: String(row.bookingId), version: row.version, startAt: row.startAt,
+      return { workAreas: repository.coverageAreas, items: rows.map(row => ({ id: String(row._id), bookingId: String(row.bookingId), version: row.version, startAt: row.startAt,
         endAt: row.endAt, serviceName: row.snapshots.serviceName, areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
         dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,
         pendingInvitationCount: row.pendingOffers.length,
+        diagnostics: row.dispatchReview?.diagnostics, location: row.location, boarding: row.snapshots.boarding === true,
         requestedSitterId: row.requestedSitterId && String(row.requestedSitterId) })) };
     },
     async invite(actor, visitId, body, key) {
@@ -160,6 +185,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       return command(actor, 'invite', { visitId, ...input }, key, async session => {
         const visit = await readyVisit(visitId, session);
         if (visit.version !== input.expectedVersion) fail('VERSION_CONFLICT', 'Visit changed', 409);
+        if (visit.startAt <= new Date(clock())) fail('SHIFT_START_REACHED', 'Customer must confirm a future schedule before invitations', 409);
         const pending = await models.EmployeeVisitOffer.find({ visitId: visit._id, state: 'PENDING', deadline: { $gt: new Date(clock()) } }).session(session).lean();
         const target = visit.requestedSitterId || input.sitterId ? 1 : 5;
         const resultView = rows => ({ offerId: String(rows[0]._id), state: 'PENDING', visitId, sitterId: rows[0].sitterId,
@@ -216,7 +242,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
             'TRAVEL_REVIEW_REQUIRED', 'DAY_ORIGIN_MISSING', 'DISPATCH_SEARCH_LIMIT', 'SHIFT_START_REACHED'].includes(error.code)) continue;
           await uow.run(async session => {
             const updated = await col('visits').findOneAndUpdate({ _id: row._id, version: row.version, state: 'SCHEDULED', sitterId: null },
-              { $set: { dispatchReview: { code: error.code, at: new Date(clock()), retryAt: new Date(clock() + 60000) } } },
+              { $set: { dispatchReview: { code: error.code, at: new Date(clock()), retryAt: new Date(clock() + 60000),
+                ...(error.details?.diagnostics || row.dispatchReview?.diagnostics ? { diagnostics: error.details?.diagnostics ?? row.dispatchReview.diagnostics } : {}) } } },
               { session, returnDocument: 'before' });
             if (updated && !updated.dispatchReview) await event({ type: 'DispatchReviewRequired', actorId: agentActor.userId,
               visitId: String(row._id), detail: { code: error.code, version: row.version } }, session);

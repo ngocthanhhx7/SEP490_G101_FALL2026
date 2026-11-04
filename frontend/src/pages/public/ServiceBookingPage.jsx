@@ -16,6 +16,17 @@ import './service-booking.css';
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cơ sở', OUTDOOR: 'Ngoài trời' };
 const uncertainResponse = error => ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(error.code) || error.status >= 500;
+function MatchingFeedback({ result }) {
+  if (result.candidates.length) return null;
+  const reasons = result.exclusions ?? {};
+  return <div role="status"><p>Chưa có sitter đủ điều kiện cho lịch này.</p>
+    {reasons.BELOW_AUTOMATIC_THRESHOLD > 0 && <p>Chưa đủ điểm phù hợp hoặc dữ liệu chất lượng để đề xuất tự động. Bạn có thể để PawWorld sắp xếp và kiểm tra điều kiện nhận ca.</p>}
+    {reasons.DAY_ORIGIN_MISSING > 0 && <p>Nhân viên chưa có điểm xuất phát cho ngày đã chọn.</p>}
+    {(reasons.ROUTING_UNAVAILABLE > 0 || result.status === 'ROUTING_UNAVAILABLE') && <p>Chưa xác minh được hành trình di chuyển. Hãy thử lại sau.</p>}
+    {(reasons.OUTSIDE_WORKING_HOURS > 0 || reasons.TRAVEL_TIME_CONFLICT > 0) && <p>Lịch làm việc hoặc thời gian di chuyển chưa đáp ứng khung giờ này.</p>}
+    <p>Kiểm tra khu vực cụ thể của địa chỉ và thử lịch khác. Chọn “Để hệ thống sắp xếp” nếu cần PawWorld hỗ trợ; gợi ý trống chưa tạo đơn hoặc giữ chỗ.</p>
+  </div>;
+}
 function errorText(error) {
   return ({ QUOTE_CHANGED: 'Hồ sơ, giá hoặc điều kiện đã thay đổi. Vui lòng lấy báo giá mới.',
     PRICING_REVIEW_REQUIRED: 'Một đặc điểm chăm sóc của thú cưng chưa có quy tắc giá được duyệt. Vui lòng liên hệ PawWorld để rà soát giá trước khi đặt dịch vụ.',
@@ -144,7 +155,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
       {mode === 'SYSTEM' ? <><p>PawWorld kiểm tra lịch và gửi lời mời cho nhân viên phù hợp. Ca được phân công sau khi sitter nhận lời.</p>
         {canMatch && <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('AI')}><Sparkles size={17} />{busy ? 'Đang tìm…' : 'Xem gợi ý cho lịch này'}</button>}
         {!canMatch && <p>Hệ thống sắp xếp người chăm sóc theo lịch và phạm vi dịch vụ.</p>}
-        {shortlists && <><ul className="booking-shortlist">{shortlists.map((list, index) => <li key={index}><h3>Buổi {index+1}</h3>{list.candidates.length ? <ol>{list.candidates.map(sitter => <li key={sitter.sitterId}><strong>{sitter.displayName}</strong> · {sitter.score}/100{<details><summary>Lý do phù hợp</summary><ul>{sitter.breakdown.map((line, i) => <li key={i}>{line.explanation}</li>)}</ul></details>}</li>)}</ol> : <p>Chưa có sitter đủ điều kiện cho lịch này.</p>}<p>Gợi ý đến {new Date(list.expiresAt).toLocaleTimeString('vi-VN')}; không phải xác nhận giữ chỗ.</p></li>)}</ul>
+        {shortlists && <><ul className="booking-shortlist">{shortlists.map((list, index) => <li key={index}><h3>Buổi {index+1}</h3>{list.candidates.length ? <ol>{list.candidates.map(sitter => <li key={sitter.sitterId}><strong>{sitter.displayName}</strong> · {sitter.score}/100{<details><summary>Lý do phù hợp</summary><ul>{sitter.breakdown.map((line, i) => <li key={i}>{line.explanation}</li>)}</ul></details>}</li>)}</ol> : <MatchingFeedback result={list} />}<p>Gợi ý đến {new Date(list.expiresAt).toLocaleTimeString('vi-VN')}; không phải xác nhận giữ chỗ.</p></li>)}</ul>
           <button type="button" onClick={() => { setShortlists(null); setError(''); }}>Để hệ thống sắp xếp</button></>}
       </> : <><p>Sitter cần đáp ứng lịch, khu vực và hồ sơ thú cưng của tất cả buổi. Lựa chọn sẽ được kiểm tra lại trước khi tạo đơn và gửi lời mời.</p>
         {boarding ? <p>Lưu trú cần nhân viên chia ca chăm sóc trước khi chỉ định. <Link to="/contact">Liên hệ điều phối</Link></p> : <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('DIRECT')}><Users size={17} />{busy ? 'Đang kiểm tra…' : 'Tìm sitter phù hợp'}</button>}

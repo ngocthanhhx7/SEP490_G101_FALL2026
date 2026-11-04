@@ -197,5 +197,5 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       routingSource: routingProvider?.source ?? 'OSRM_STATIC_ROAD_ETA', weeklyWorkMinutes: occupiedMinutes(rows, week, until) };
   }
   return { models, payroll, uow, col, availability, areas, employeeGuard, eligible, runGuard, find, contractAt,
-    areaKeys: code => workAreaKeys(code, coverageAreas) };
+    coverageAreas, areaKeys: code => workAreaKeys(code, coverageAreas) };
 }

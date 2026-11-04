@@ -88,3 +88,29 @@ test('customer confirmation keeps the same slot and key after an unknown acknowl
   await waitFor(() => expect(api.confirmProposal).toHaveBeenCalledTimes(2));
   expect(api.confirmProposal.mock.calls[0]).toEqual(api.confirmProposal.mock.calls[1]);
 });
+
+test('overdue system visit proposes precise area and future time without inviting an expired shift', async () => {
+  const api = fixture(), sitterId = '123456789012345678901234';
+  api.queue.mockResolvedValue({ data: { workAreas: [{ code: 'CITY_HANOI', label: 'Hà Nội' }, { code: 'DISTRICT_HAI_BA_TRUNG', label: 'Hai Bà Trưng', parentCode: 'CITY_HANOI' }], items: [
+    { id: 'past', serviceName: 'Ca quá hạn', version: 4, areaCode: 'CITY_HANOI', location: 'HOME', dispatchState: 'NEEDS_STAFF', reviewCode: 'SHIFT_START_REACHED', startAt: '2026-11-03T01:00:00Z', endAt: '2026-11-03T02:00:00Z' }
+  ] } });
+  api.candidates = jest.fn().mockResolvedValue({ data: { items: [{ sitterId, displayName: 'Nhân viên phù hợp' }], startAt: '2026-11-10T02:00:00.000Z', areaCode: 'DISTRICT_HAI_BA_TRUNG' } });
+  api.propose = jest.fn().mockRejectedValueOnce({ code: 'TIMEOUT' }).mockResolvedValue({ data: { id: 'proposal' } });
+  render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
+  expect(await screen.findByText('Ca quá hạn')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Thử tìm lại' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByText('Đề xuất lịch khác'));
+  fireEvent.change(screen.getByLabelText(/Bắt đầu đề xuất/), { target: { value: '2026-11-10T09:00' } });
+  fireEvent.change(screen.getByLabelText('Khu vực tại địa chỉ đã đặt'), { target: { value: 'DISTRICT_HAI_BA_TRUNG' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra người phù hợp' }));
+  await screen.findByText('Nhân viên phù hợp');
+  fireEvent.change(screen.getByLabelText('Người chăm sóc cho lịch đề xuất'), { target: { value: sitterId } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi đề xuất cho khách' }));
+  await screen.findByText('Chưa nhận được xác nhận. Kiểm tra lại cùng yêu cầu.');
+  expect(screen.getByLabelText(/Bắt đầu đề xuất/)).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại yêu cầu' }));
+  await waitFor(() => expect(api.propose).toHaveBeenCalledTimes(2));
+  expect(api.propose.mock.calls[0]).toEqual(api.propose.mock.calls[1]);
+  expect(api.propose).toHaveBeenCalledWith('past', { expectedVersion: 4, startAt: '2026-11-10T02:00:00.000Z', areaCode: 'DISTRICT_HAI_BA_TRUNG', sitterId }, expect.any(String));
+  expect(api.invite).not.toHaveBeenCalled();
+});

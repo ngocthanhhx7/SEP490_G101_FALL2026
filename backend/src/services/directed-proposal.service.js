@@ -141,6 +141,7 @@ function proposalView(proposal) {
     bookingId: proposal.bookingId ?? null,
     visitId: proposal.visitId,
     sitterId: proposal.sitterId,
+    ...(proposal.areaCode ? { areaCode: proposal.areaCode, previousAreaCode: proposal.previousAreaCode, areaLabel: proposal.areaLabel } : {}),
     customerId: proposal.customerId,
     state: proposal.state,
     slots: Array.isArray(proposal.slots)
