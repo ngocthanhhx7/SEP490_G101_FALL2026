@@ -14,7 +14,7 @@ let replica, connection;
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_hanoi_population' }).asPromise();
-  await provisionDemoCatalog({ connection });
+  await provisionDemoCatalog({ connection, clock: () => Date.parse('2026-10-30T00:00:00Z') });
   const { PetBreed } = petCareModels(connection);
   await PetBreed.create([{ code: 'demo-dog', species: 'DOG', name: 'Chó demo', source: 'Fixture' },
     { code: 'demo-cat', species: 'CAT', name: 'Mèo demo', source: 'Fixture' }]);

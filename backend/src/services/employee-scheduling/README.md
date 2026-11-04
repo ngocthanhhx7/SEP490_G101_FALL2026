@@ -44,3 +44,17 @@ during an active visit window. Session stop, monotonic observations, accuracy/fr
 TTL latest-only storage and transaction guards protect updates. Travel does not complete care,
 attendance or finance. Explicit ETA uses the configured route adapter. Dispatch orders eligible
 candidates by available adjacent-route evidence and workload before an optional advisory ranker.
+
+Dispatch recovery exposes bounded Staff/Admin candidate previews for an alternative
+start time, with aggregate rejection reasons and names only for eligible candidates.
+City-wide bookings do not match district-only employee registrations. A Staff
+proposal may refine a HOME visit from a parent area to its direct child at the
+same saved pin. The owning customer sees and confirms that area with the new time.
+System bookings may nominate an eligible employee after escalation; directed
+bookings retain their requested employee. Both proposal creation and confirmation
+recheck eligibility, and system recovery offers retain daily-origin route checks.
+Past shifts cannot receive invitations. Immutable checkout/price/address snapshots
+remain unchanged; only the consented operational time and area are updated.
+Customer confirmation also pins the nominated employee as the operational requested
+sitter. The worker cannot replenish that consented choice with other employees;
+acceptance is still required and original checkout snapshots remain unchanged.

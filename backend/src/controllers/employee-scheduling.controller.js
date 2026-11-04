@@ -18,6 +18,7 @@ export function createEmployeeSchedulingController({ repository, dispatch, careP
     accept: async (req, res) => send(req, res, await dispatch.offers.accept(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),
     decline: async (req, res) => send(req, res, await dispatch.offers.decline(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),
     queue: async (req, res) => send(req, res, await dispatch.queue(req.auth)),
+    candidates: async (req, res) => send(req, res, await dispatch.previewCandidates(req.auth, req.params.id, req.query)),
     invite: async (req, res) => send(req, res, await dispatch.invite(req.auth, req.params.id, req.body, req.get('idempotency-key'))),
     plans: async (req, res) => send(req, res, await carePlans.list(req.auth)),
     previewPlan: async (req, res) => send(req, res, await carePlans.preview(req.auth, req.params.id, req.body)),

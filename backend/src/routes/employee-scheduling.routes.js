@@ -41,6 +41,7 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.post('/offers/:id/acceptances', sitter, csrf, c.accept);
   router.post('/offers/:id/declines', sitter, csrf, c.decline);
   router.get('/dispatch', staff, c.queue);
+  router.get('/visits/:id/candidates', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.candidates);
   router.post('/visits/:id/invitations', staff, csrf, c.invite);
   router.post('/visits/:id/schedule-proposals', staff, csrf, c.propose);
   router.get('/proposals/:id', requireRoles('CUSTOMER'), c.proposal);
