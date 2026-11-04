@@ -10,3 +10,4 @@ Thư mục chứa hợp đồng REST, DTO/events, quyền và lỗi để review
 - [AI v1: báo giá, shortlist sitter và hướng dẫn test](ai-pricing-matching-v1.md).
 - [Employee scheduling, checkout and dispatch](employee-scheduling-checkout.md).
 - [Google Maps / Goong setup](../deployment/google-goong-maps.md).
+- [Product sales API v1: catalog, cart and Customer product orders](product-sales-v1.md).

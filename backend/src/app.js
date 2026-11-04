@@ -30,6 +30,7 @@ import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 import { bookingCheckoutRuntimeModule } from './routes/booking-checkout.routes.js';
 import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.routes.js';
 import { mapsRuntimeModule } from './routes/maps.routes.js';
+import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
 import { customerReadRuntime } from './routes/customer-read-runtime.js';
 
 
@@ -92,6 +93,7 @@ export function createApp({
   const checkout = bookingCheckoutRuntimeModule(context);
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
+  const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
   if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_DISPATCH_AGENT_ENABLED)) throw new TypeError('Invalid EMPLOYEE_DISPATCH_AGENT_ENABLED');
   if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' && !employeeScheduling) throw new TypeError('Employee dispatch agent requires employee scheduling');
   app.locals.employeeDispatch = env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' ? employeeScheduling.dispatch : null;
@@ -137,6 +139,7 @@ export function createApp({
     ...(checkout ? [checkout] : []),
     ...(employeeScheduling ? [employeeScheduling] : []),
     ...(maps ? [maps] : []),
+    ...productSales,
     ...(settlement ? [settlement] : []),
     ...(dashboards && !auth ? [dashboards] : []),
     ...(adminSettlement ? [adminSettlement] : []),

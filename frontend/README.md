@@ -77,7 +77,7 @@ role workspaces read paginated adjustment history without changing original sala
 | src/contexts | In-memory session adapter state; no persisted credentials |
 | src/services | Same-origin HTTP client, `/me` session DTO adapter, P16 application adapters, owner-only private-image upload/read adapter and explicit pending adapter |
 | src/hooks | Cancellable read resource lifecycle for page consumers |
-| src/components/public | P13 public navigation and footer for guest pages; no authenticated role menu or commerce controls |
+| src/components/public | P13 public navigation and footer for guest pages; adds the "Sản phẩm" link and, for signed-in Customers only, the cart icon with a line-count badge. No role menu beyond the shared avatar menu |
 | src/components/ui, src/styles | P04 brand tokens/fonts and native shared controls; root adoption through P34 |
 | public/assets, public/fonts | Existing brand resources preserved; logo, Nunito Regular and Crayon Regular used |
 | tests/unit | HTTP errors, CSRF, timeout, cancellation and resource races |
@@ -142,3 +142,7 @@ contacts. Only the authorized detail endpoint exposes private fields. Legacy
 /admin/applications/:id links remain inside the Admin shell; new links use
 /admin/sitter-applications/:id. Email and SMS templates accept APPLICATION_STATUS,
 while the OTP service retains application scope, expiry and anti-enumeration rules.
+
+## Product shop
+
+Customers browse `/products`, add items to a cart and check out as delivery (paid on delivery) or pickup (paid at the shop); see `pages/public/ProductListPage.jsx`, `pages/customer/ProductCheckoutPage.jsx` and `services/product-sales-api.js`. The backend API is off unless `PRODUCT_SALES_ENABLED=true` ([contract](../doc/api/product-sales-v1.md)). Admins prepare and hand over orders at `/admin/product-orders` (`pages/admin/ProductOrderManagementPage.jsx`, `services/product-order-management-api.js`). Payment gateway and tier discounts are not part of this release.

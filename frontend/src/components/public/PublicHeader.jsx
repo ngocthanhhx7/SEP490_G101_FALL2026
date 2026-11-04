@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ShoppingCart } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { useOptionalProductCart } from '../../contexts/ProductCartContext.jsx';
 import { AvatarMenu } from '../common/AvatarMenu.jsx';
 import { NotificationBell } from '../common/NotificationBell.jsx';
 import { primaryRole } from '../../utils/role-access.js';
 
 const links = [
   ['Trang chủ', '/'],
-  ['Câu truyện', '/#stories'],
+  ['Sản phẩm', '/products'],
   ['Dịch vụ', '/services'],
   ['Về chúng tôi', '/about'],
   ['Liên hệ', '/contact'],
@@ -23,6 +25,7 @@ export function PublicHeader({ notificationTo } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const role = primaryRole(session.user);
+  const productCart = useOptionalProductCart();
   useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [location.key]);
   useEffect(() => { if (searchOpen) searchInput.current?.focus(); }, [searchOpen]);
 
@@ -53,6 +56,11 @@ export function PublicHeader({ notificationTo } = {}) {
           aria-current={location.pathname === to && !location.hash ? 'page' : undefined}>{label}</Link>)}
       </nav>
       <div className="pwc-header-actions">
+        {productCart.enabled && <Link className="pwc-cart-link" to="/customer/cart"
+          aria-label={productCart.lineCount ? `Giỏ hàng, ${productCart.lineCount} sản phẩm` : 'Giỏ hàng'}>
+          <ShoppingCart aria-hidden="true" size={20} />
+          {productCart.lineCount > 0 && <span className="pwc-cart-link-badge" aria-hidden="true">{productCart.lineCount}</span>}
+        </Link>}
         {session.status === 'authenticated' && <NotificationBell to={notificationTo} />}
         {session.status === 'authenticated'
           ? <AvatarMenu user={session.user} role={role} iconOnly customerNavigation={role === 'CUSTOMER'}

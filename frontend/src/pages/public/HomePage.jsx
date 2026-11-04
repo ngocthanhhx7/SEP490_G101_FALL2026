@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { HomeProductPreview } from '../../components/product/HomeProductPreview.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogState, CatalogEmpty, PublicServiceCards } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
@@ -88,7 +90,8 @@ function Paw({ className = '', file = 'home-Frame2147225474.svg' }) {
     />
   );
 }
-export function HomePage({ loadCatalog = loadPublicCatalog }) {
+export function HomePage({ loadCatalog = loadPublicCatalog, productApi }) {
+  const [browse, setBrowse] = useState('services');
   const catalog = useApiResource(loadCatalog);
   const services =
     catalog.status === 'success' && catalog.data?.available
@@ -115,7 +118,8 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
             </h1>
             <p>
               Đặt lịch dắt chó đi dạo, ghé thăm và chơi cùng bé, hoặc đưa bé đến
-              lịch hẹn thú y — linh hoạt theo thời gian của bạn.
+              lịch hẹn thú y. Chọn thêm thức ăn và đồ dùng cho bé — cùng một nơi,
+              linh hoạt theo thời gian của bạn.
             </p>
             <div className="pwc-design-actions">
               <Link className="pwc-design-button" to="/sign-in">
@@ -123,9 +127,9 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
               </Link>
               <Link
                 className="pwc-design-button pwc-design-button-white"
-                to="/services"
+                to="/products"
               >
-                Khám phá dịch vụ
+                Khám phá sản phẩm
               </Link>
             </div>
           </div>
@@ -232,11 +236,16 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
       >
         <header>
           <div>
-            <h2 id="pwc-services-title">Dịch vụ có sẵn</h2>
-            <p>Chọn theo nhu cầu đặc biệt của bé yêu.</p>
+            <h2 id="pwc-services-title">{browse === 'services' ? 'Dịch vụ có sẵn' : 'Sản phẩm cho bé'}</h2>
+            <p>{browse === 'services' ? 'Chọn theo nhu cầu đặc biệt của bé yêu.' : 'Món ăn và đồ dùng cho những ngày bên nhau.'}</p>
           </div>
-          <Link to="/services">Xem tất cả dịch vụ</Link>
+          <Link to={browse === 'services' ? '/services' : '/products'}>{browse === 'services' ? 'Xem tất cả dịch vụ' : 'Xem tất cả sản phẩm'}</Link>
         </header>
+        <div className="pwc-home-browse" role="group" aria-label="Khám phá PawWorld">
+          <button type="button" aria-pressed={browse === 'services'} onClick={() => setBrowse('services')}>Dịch vụ</button>
+          <button type="button" aria-pressed={browse === 'products'} onClick={() => setBrowse('products')}>Sản phẩm</button>
+        </div>
+        {browse === 'products' ? <HomeProductPreview api={productApi} /> : <>
         {services.length > 0 ? <PublicServiceCards services={homeServices} actionLabel="Đặt ngay" /> : <div className="pwc-design-service-grid">
           {illustrations.map(
             (service, i) => {
@@ -300,6 +309,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
             )}
           </div>
         )}
+        </>}
       </section>
       <section
         className="pwc-design-about pwc-design-section"
@@ -325,7 +335,8 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
           <p>
             PawWorld giúp bạn đặt lịch ghé thăm và chơi cùng bé, dắt chó đi dạo
             hoặc đưa thú cưng đến lịch hẹn thú y. Bạn dễ dàng chọn dịch vụ phù
-            hợp với nhu cầu của bé và lịch trình của mình.
+            hợp với nhu cầu của bé và lịch trình của mình. Cửa hàng PawWorld
+            có thêm thức ăn, đồ dùng và phụ kiện cho những ngày chăm bé tại nhà.
           </p>
           <div className="pwc-design-about-points">
             <div>

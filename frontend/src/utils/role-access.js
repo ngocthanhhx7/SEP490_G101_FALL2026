@@ -33,5 +33,6 @@ export function loginDestination(user, from) {
   if (/^\/staff(?:\/|$)/.test(path)) return hasRole(user, 'STAFF') ? from : fallback;
   if (/^\/sitter(?:\/|$)/.test(path)) return hasRole(user, 'PET_SITTER') ? from : fallback;
   if (/^\/(?:booking|customer|sitters|account)(?:\/|$)/.test(path)) return hasRole(user, 'CUSTOMER') ? from : fallback;
+  if (/^\/products\/[a-f\d]{24}$/i.test(path)) return hasRole(user, 'CUSTOMER') ? from : fallback;
   return fallback;
 }
