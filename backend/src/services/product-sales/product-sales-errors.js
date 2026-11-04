@@ -7,6 +7,9 @@ export const productSalesErrors = Object.freeze({
   unauthenticated: () => new AppError(401, 'UNAUTHENTICATED', 'Authentication required'),
   forbidden: () => new AppError(403, 'FORBIDDEN', 'Action is not permitted'),
   invalidRequest: (message) => new AppError(422, 'VALIDATION_FAILED', message),
+  // R3 has no message for this: someone else saved the product first.
+  versionConflict: () => new AppError(409, 'VERSION_CONFLICT', 'This product was changed by someone else. Reload it and try again.'),
+  productCodesExhausted: () => new AppError(409, 'PRODUCT_CODES_EXHAUSTED', 'No product code is left.'),
   // MSG98
   outOfStock: (productId) => new AppError(409, 'PRODUCT_OUT_OF_STOCK', 'This product is out of stock.', { productId }),
   // MSG58
@@ -43,12 +46,15 @@ export function requireCustomer(actor) {
   return actor.userId;
 }
 
-// Order handling follows PRODUCT_PERMISSIONS.HANDLE_ORDERS (today only Admin; Sale Staff is a separate role change).
-export function requireOrderHandler(actor) {
+// Who may do what comes from PRODUCT_PERMISSIONS (today only Admin; Sale Staff is a separate role change).
+function requirePermission(actor, allowedRoles) {
   if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles)
     || typeof actor.userId !== 'string' || !OBJECT_ID.test(actor.userId)) {
     throw productSalesErrors.unauthenticated();
   }
-  if (!actor.roles.some((role) => PRODUCT_PERMISSIONS.HANDLE_ORDERS.includes(role))) throw productSalesErrors.forbidden();
+  if (!actor.roles.some((role) => allowedRoles.includes(role))) throw productSalesErrors.forbidden();
   return actor.userId;
 }
+
+export const requireOrderHandler = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.HANDLE_ORDERS);
+export const requireProductManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_PRODUCTS);

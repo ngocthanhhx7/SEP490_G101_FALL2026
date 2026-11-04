@@ -47,7 +47,10 @@ export function productSalesModels(connection) {
         // Stock reserved by orders that have not left the shop yet. Sellable = stockOnHand - quantityHeld.
         quantityHeld: { ...integer(), default: 0 },
         visible: { type: Boolean, default: true },
-        version: { ...integer(), default: 0 }
+        // Guards stock changes (orders, returns). Product Management has its own, so a customer ordering while an Admin
+        // edits the product does not make the Admin's save a conflict.
+        version: { ...integer(), default: 0 },
+        detailsVersion: { ...integer(), default: 0 }
       },
       indexes: [
         [{ code: 1 }, { unique: true }],

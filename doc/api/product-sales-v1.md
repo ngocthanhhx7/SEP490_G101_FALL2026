@@ -6,7 +6,7 @@ Customer-facing shop for dog/cat food and accessories (catalog, cart and product
 
 Included: public catalog, Customer cart, order placement with stock reservation, order history. Receive methods are `DELIVERY` (paid on delivery, `COD`) and `PICKUP` (paid at the shop, `PAY_AT_SHOP`).
 
-Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Product Management, Goods Receipt, Counter Sale. Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
+Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Goods Receipt, Counter Sale. Product Management by Admin is described under "Product Management (Admin)" below. Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
 
 Delivery fee is a flat 25,000 VND for every served area. This is a **demo value** in `constants/product-fields.js`; the per-area fee configured by Admin (R3 D-060) is not built. Money is integer VND.
 
@@ -52,6 +52,29 @@ Any other combination of receive method and status is `409 ORDER_STATE_CONFLICT`
 Phone numbers are stored encrypted with a keyed lookup hash (the same contact keys as sign-in), so the search is an exact match on the whole number and the number is decrypted only for the Admin response. The backend needs `CONTACT_LOOKUP_SECRET` and `CONTACT_ENCRYPTION_KEY`, which authentication already requires.
 
 Not built: the COD refusal limit (the refusal records it will count already exist), the expiry job, placing an advance-payment order (`PREPAID` exists in the vocabulary only) and refunds themselves.
+
+## Product Management (Admin)
+
+Who may manage products is `MANAGE_PRODUCTS` in `backend/src/constants/product-permissions.js` (today Admin only). Mounted at `/api/v1/admin/products`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer, a Sitter or anonymous caller gets 403 or 401. Writes need the session CSRF token and take no `Idempotency-Key`: an edit matches the `version` the Admin saw, so a second save of the same screen is `409 VERSION_CONFLICT` instead of applying twice. There is no delete: a product is only shown or hidden.
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/v1/admin/products` | Every product, hidden ones too, by code. Query: `search` (a part of the name or of the code, case-insensitive), `category` (`FOOD`/`ACCESSORY`), `petType` (`DOG`/`CAT`), `page` (from 1), `limit` (1-50, default 20). Response: `{ items, page, limit, total }`; a page past the end is an empty `items` with the real `total` |
+| `GET /api/v1/admin/products/:productId` | One product, hidden or shown |
+| `POST /api/v1/admin/products` | Creates a product. Body: `name` (1-200), `category`, `petType`, `sellingPrice`, `description` (optional, at most 4000). Answers `201`. The code `SP-0001`..`SP-9999` is given by the system in the same transaction as the insert and never changes; the product is saved **Hidden** with stock 0 |
+| `PATCH /api/v1/admin/products/:productId` | Edits the sent fields only: `name`, `category`, `petType`, `sellingPrice`, `description`, `visible`. Body must carry `version` and at least one change. The code and the stock cannot be sent (422) |
+
+`sellingPrice` is a whole number of VND above 0 and at most 100,000,000, sent as a number or as text (`250000` or `250.000`). Anything else is `422 VALIDATION_FAILED` with `error.fields.sellingPrice = "WHOLE_NUMBER"` (MSG113); above the limit it is `"TOO_LARGE"`, which is not MSG113. A missing name, category or pet type is `error.fields.<field> = "REQUIRED"` (MSG01); `TOO_LONG` and `INVALID` are the other reasons. Every wrong field is reported in one answer.
+
+The Admin product has no stock fields. `version` there is `detailsVersion`, the version of the details (name, price, description, visibility), which is separate from the product's stock `version` because every order or return moves the stock version; products created before it existed count as 0. Editing a product changes neither stock nor orders already placed (AC-10, AC-12): an order keeps the code, name and price it was placed with.
+
+New errors: `VERSION_CONFLICT` (409, none in R3) and `PRODUCT_CODES_EXHAUSTED` (409, none in R3, after `SP-9999`).
+
+### Paged lists
+
+`page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). The same pair is meant for the Supplier and Stock List screens. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
+
+Not built here: adding or changing photos. The Admin DTO carries `photos` (read only); upload is a separate Issue.
 
 ## Stock rule (GBR-35)
 

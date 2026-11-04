@@ -1,4 +1,5 @@
 import { PRODUCT_MESSAGES, PRODUCT_ERROR_MESSAGE_KEYS } from '../constants/product-messages.js';
+import { PRODUCT_FORM_LIMITS } from '../constants/product-management.js';
 
 export function formatVnd(amount) {
   if (!Number.isSafeInteger(amount)) return '';
@@ -10,6 +11,20 @@ export function formatPhone(value) {
   if (typeof value !== 'string') return '';
   const match = /^(\d{4})(\d{3})(\d{3})$/u.exec(value);
   return match ? `${match[1]} ${match[2]} ${match[3]}` : value;
+}
+
+// The price as typed in the Admin form: 250000 or 250.000. Anything else is MSG113 (WHOLE_NUMBER);
+// more than the limit is TOO_LARGE, which has its own text because MSG113 would be the wrong thing to say.
+export function parsePriceInput(raw) {
+  const typed = typeof raw === 'string' ? raw.trim() : '';
+  if (!/^(?:[1-9]\d{0,2}(?:\.\d{3})+|[1-9]\d*)$/u.test(typed)) return { error: 'WHOLE_NUMBER' };
+  const value = Number(typed.replaceAll('.', ''));
+  return value > PRODUCT_FORM_LIMITS.priceMax ? { error: 'TOO_LARGE' } : { value };
+}
+
+// 250000 -> "250.000", the way the price box shows a saved product.
+export function formatPriceInput(amount) {
+  return Number.isSafeInteger(amount) && amount > 0 ? new Intl.NumberFormat('vi-VN').format(amount) : '';
 }
 
 export function formatOrderDate(value) {

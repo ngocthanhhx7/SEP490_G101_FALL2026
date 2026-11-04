@@ -50,5 +50,12 @@ export const PRODUCT_RETURN_REASONS = Object.freeze(['CUSTOMER_REFUSED', 'CARRIE
 export const PRODUCT_REFUSAL_REASONS = Object.freeze(['REFUSED_DELIVERY']);
 export const PRODUCT_RETURN_LIMITS = Object.freeze({ carrierReasonMax: 300, noteMax: 500 });
 
+// Product Management (R3 UC-57): codes are SP-0001 to SP-9999, handed out by the system on the first save and never changed.
+export const PRODUCT_CODE_COUNTER_ID = 'PRODUCT_CODE';
+export const PRODUCT_CODE_PREFIX = 'SP-';
+export const PRODUCT_CODE_MAX_NUMBER = 9999;
+// Technical limits (D-216 style), not business rules. Prices are integer VND.
+export const PRODUCT_MANAGEMENT_LIMITS = Object.freeze({ nameMax: 200, descriptionMax: 4000, priceMax: 100000000 });
+
 export const PRODUCT_ORDER_COUNTER_ID = 'PRODUCT_ORDER';
 export const PRODUCT_ORDER_CODE_PREFIX = 'DH-';

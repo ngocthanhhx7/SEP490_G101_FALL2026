@@ -3,10 +3,12 @@ import { createProductCatalogController } from '../controllers/product-catalog.c
 import { createProductCartController } from '../controllers/product-cart.controller.js';
 import { createProductOrderController } from '../controllers/product-order.controller.js';
 import { createProductOrderManagementController } from '../controllers/product-order-management.controller.js';
+import { createProductManagementController } from '../controllers/product-management.controller.js';
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
+import { createProductManagementService } from '../services/product-sales/product-management.service.js';
 import { createCustomerPhoneDirectory } from '../services/product-sales/customer-phone-directory.service.js';
 import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
@@ -68,10 +70,20 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   managementRouter.post('/:orderId/record-payment', csrf, management.recordPayment);
   managementRouter.post('/:orderId/cancel', csrf, management.cancel);
 
+  // Product Management: who may use it comes from PRODUCT_PERMISSIONS.MANAGE_PRODUCTS.
+  const productManagement = createProductManagementController(createProductManagementService({ connection }));
+  const productManagementRouter = Router();
+  productManagementRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.MANAGE_PRODUCTS));
+  productManagementRouter.get('/', productManagement.list);
+  productManagementRouter.post('/', csrf, productManagement.create);
+  productManagementRouter.get('/:productId', productManagement.read);
+  productManagementRouter.patch('/:productId', csrf, productManagement.update);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
     { name: 'product-orders', mount: '/api/v1/product-orders', router: orderRouter },
-    { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter }
+    { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter },
+    { name: 'admin-products', mount: '/api/v1/admin/products', router: productManagementRouter }
   ];
 }

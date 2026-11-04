@@ -3,5 +3,7 @@
 // Only roles that already exist can be listed: ADMIN covers every Sale Staff task until then.
 export const PRODUCT_PERMISSIONS = Object.freeze({
   // Prepare, hand to the carrier, delivery status, returns, hand over at the shop, view all orders.
-  HANDLE_ORDERS: Object.freeze(['ADMIN'])
+  HANDLE_ORDERS: Object.freeze(['ADMIN']),
+  // Create and edit products, show or hide them on the public Products page. Never Sale Staff.
+  MANAGE_PRODUCTS: Object.freeze(['ADMIN'])
 });

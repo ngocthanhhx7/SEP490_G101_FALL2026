@@ -1,0 +1,14 @@
+/* Product Management (Admin). Uses the .pwc-shop colour variables, so the page keeps the .pwc-shop wrapper. */
+.pwc-pm-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.pwc-shop-primary-button.pwc-pm-add { width: auto; }
+.pwc-pm-filters { display: grid; gap: .75rem; margin: 0 0 1rem; }
+@media (min-width: 48rem) { .pwc-pm-filters { grid-template-columns: minmax(0, 1fr) 14rem 14rem; align-items: center; } }
+.pwc-pm-form-header { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.pwc-pm-form-header h2 { margin: 0; }
+.pwc-pm-field { margin-bottom: .25rem; }
+.pwc-pm-field-error { color: var(--shop-danger); font-size: .9rem; margin: .3rem 0 0; }
+.pwc-pm-photos { display: flex; flex-wrap: wrap; gap: .5rem; list-style: none; margin: 0 0 .4rem; padding: 0; }
+.pwc-pm-photos img { display: block; width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: .75rem; border: 1px solid var(--shop-border); }
+.pwc-pm-switch { display: flex; align-items: center; gap: .6rem; margin: 1rem 0 .5rem; min-height: 2.75rem; font-weight: 800; }
+.pwc-pm-switch input { width: 1.25rem; height: 1.25rem; }
+.pwc-pm-form .pwc-shop-primary-button { margin-top: 1rem; }

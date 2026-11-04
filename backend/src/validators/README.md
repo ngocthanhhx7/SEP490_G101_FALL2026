@@ -1,3 +1,5 @@
 # Input validators
 
 Pure DTO checks and primitive validation live here. No HTTP response handling, database reads or service imports. Domain services decide eligibility, pricing and scheduling; validators reject malformed input including impossible calendar dates.
+
+`pagination.validator.js` parses `page` and `limit` (whole numbers, 20 by default, 50 at most) for any paged Admin list. `product-management.validator.js` checks the Product Management query and bodies: it reads a price as a number or as `250000` / `250.000`, collects every wrong field with its reason (`REQUIRED`, `INVALID`, `TOO_LONG`, `WHOLE_NUMBER`, `TOO_LARGE`) and refuses the code, the stock and any unknown key.
