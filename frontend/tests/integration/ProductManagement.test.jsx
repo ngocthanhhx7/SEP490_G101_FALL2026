@@ -99,7 +99,7 @@ describe('Product Management edit', () => {
     expect(within(panel).getByLabelText('Giá bán (đ)')).toHaveValue('250.000');
     expect(within(panel).getByLabelText('Mô tả')).toHaveValue('Dây dù bản 2 cm');
     expect(within(panel).getByRole('switch', { name: 'Hiện trên trang Sản phẩm' })).toBeChecked();
-    expect(within(panel).getByText(/Chưa thể thêm hoặc đổi ảnh/)).toBeVisible();
+    expect(within(panel).getByLabelText('Thêm ảnh sản phẩm')).toBeEnabled();
     expect(within(panel).queryByText(/tồn kho/i)).toBeNull();
   });
 

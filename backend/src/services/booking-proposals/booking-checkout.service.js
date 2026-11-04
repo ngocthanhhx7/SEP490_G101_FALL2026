@@ -150,12 +150,12 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             if (typeof serviceAddress !== 'string' || !serviceAddress.trim()) fail('FACILITY_ADDRESS_REQUIRED', 'Facility address must be configured', 409);
             const boarding = pricing.billingMode === 'PER_DAY';
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
-            const candidateIds = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
+            const matchReference = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
             visits.push({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), serviceId: oid(selection.serviceId),
               petIds: pets.map(p => p._id), sitterId: null, state: 'SCHEDULED', version: 0, sequence: visits.length,
               areaCode, requestedSitterId: row.requestedSitterId ? oid(row.requestedSitterId) : null,
               bookingMode: row.bookingMode ?? (row.requestedSitterId ? 'DIRECT' : 'SYSTEM'),
-              ...(row.matchId ? { recommendationRef: { matchId: row.matchId, selectedAt: at, advisory: true, candidateIds } } : {}),
+              ...(row.matchId ? { recommendationRef: { matchId: row.matchId, selectedAt: at, advisory: true, ...matchReference } } : {}),
               location: row.location, ...(row.addressId ? { addressId: oid(row.addressId) } : {}), startAt: row.startAt, endAt,
               evidenceRefs: [], snapshots: { ...amounts[index], boarding, serviceName: version.name, serviceAddress, ...(point ? { point } : {}),
                 serviceScope: version.scope, checklistItemIds: ['service-scope', 'pet-condition'],

@@ -53,6 +53,7 @@ import AdminSettlementsPage from '../pages/admin/AdminSettlementsPage.jsx';
 import { createAdminSettlementApi } from '../services/admin-settlement-api.js';
 import { createPrivateImageApi } from '../services/private-image-api.js';
 import { createEmployeePayrollApi } from '../services/employee-payroll-api.js';
+import { AiModelsPage } from '../pages/admin/AiModelsPage.jsx';
 import { EmployeePayrollPage } from '../pages/sitter/EmployeePayrollPage.jsx';
 import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPage.jsx';
 import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api.js';
@@ -152,6 +153,7 @@ const navigationByRole = {
     ['Duyệt tất toán', '/admin/settlements', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
     ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
+    ['Điều phối AI', '/admin/ai-models', 'Hệ thống'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']
@@ -244,6 +246,7 @@ export function AppRoutes({
           <Route path="admin/sitters/:userId" element={<SitterManagementRoute detail />} />
           <Route path="admin/settlements" element={<AdminSettlementRoute />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
+          <Route path="admin/ai-models" element={<AiModelsPage />} />
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />

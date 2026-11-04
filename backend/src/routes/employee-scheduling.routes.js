@@ -13,6 +13,7 @@ import { createVisitTravelService } from '../services/employee-scheduling/visit-
 import { createVisitTravelController } from '../controllers/visit-travel.controller.js';
 import { createAssignedCareService } from '../services/care/assigned-care.service.js';
 import { createAssignedCareController } from '../controllers/assigned-care.controller.js';
+import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
 
 export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas = DEMO_WORK_AREAS }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
@@ -21,7 +22,8 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   const routingProvider = createConfiguredRoutingProvider({ env, config, clock });
   const repository = createEmployeeScheduleRepository({ connection, clock, coverageAreas, routingProvider });
   const carePlans = createBookingCarePlanService({ connection, clock });
-  const dispatch = createEmployeeDispatchService({ repository, clock, carePlans });
+  const dispatch = createEmployeeDispatchService({ repository, clock, carePlans,
+    ranker: config.ai?.enabled ? createOperationalRanker({ connection, routingProvider, clock }) : undefined });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const proposals = createEmployeeScheduleProposalService({ repository, dispatch, clock });
   const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals }), router = Router();

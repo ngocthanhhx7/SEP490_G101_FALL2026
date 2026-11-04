@@ -215,3 +215,30 @@ OSRM Hà Nội đã có runtime EC2; [kiểm tra ngày 30/10/2026](../testing/ai
 - Backend lint và toàn bộ 580 tests/62 suites đạt; suite AI 24 tests đạt, gồm cạnh tranh lịch/model fallback. Python 3 tests đạt.
 - Sau nâng Node24.22.1/npm11.19.1: frontend lint425 tests/66suites và build đạt. Build còn cảnh báo chunk chính555kB, không phải lỗi build.
 - Không tuyên bố đã chạy model huấn luyện dữ liệu thật hoặc đã gửi lời mời sitter thực tế; integration test có6 sitter tổng hợp trong database tách biệt.
+
+
+## Model lifecycle integration — 04/11/2026
+
+Admin-only session endpoints under `/api/v1/ai` (all private/no-store):
+
+| Method/path | Purpose |
+| --- | --- |
+| GET `/admin/status` | Active source/model, latest 20 versions, rule weights and unqualified data counts |
+| POST `/admin/model-imports` | `{artifactJson, evidence}`: exact trainer bytes/evidence, immutable DRAFT import |
+| POST `/admin/models/:modelId/reviews` | `{expectedVersion, action, reason, reviewReference}` with `Idempotency-Key`; APPROVE or RETIRE |
+
+Writes require CSRF. Repeating an identical version/import returns the stored
+model; different bytes/evidence conflict. Review commands use actor-scoped
+idempotency, current Admin authorization and optimistic version checks. Activation
+serializes concurrent approvals, retires older active versions and records review
+references. Legacy POST `/admin/models` can save DRAFT but rejects direct APPROVED
+with `MODEL_REVIEW_REQUIRED`. A draft without its original artifact/evidence must
+be reconciled through a new immutable version. Approval checks holdout improvement
+and hashes; an operator still has to verify original sources/evaluation honestly.
+
+`/admin/ai-models` exposes this lifecycle. The worker now wires advisory ranking
+when AI is enabled, preserving its complete authoritative eligible set and
+fallback ordering when advice is unavailable. Selected offer features are private
+and become the accepted visit snapshot. Customer checkout retains matching
+features before TTL expiry. Old visits without point-in-time features are not
+backfilled. See [export/train workflow](../../backend/scripts/ai/README.md).

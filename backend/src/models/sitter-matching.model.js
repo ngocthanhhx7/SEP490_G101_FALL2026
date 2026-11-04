@@ -136,6 +136,11 @@ export function matchingModels(connection) {
     },
     SitterRankModel: {
       fields: {
+        artifactJson: { type: String, select: false },
+        artifactSha256: String,
+        trainingEvidence: { type: Schema.Types.Mixed, select: false },
+        importedBy: oid,
+        reviewVersion: { ...integer(), default: 0 },
         version: { type: String, required: true },
         state: {
           type: String,
@@ -162,6 +167,11 @@ export function matchingModels(connection) {
         approvedAt: Date
       },
       indexes: [[{ version: 1 }, { unique: true }]]
+    },
+    SitterRankModelReview: {
+      fields: { _id: String, modelId: oid, actorId: oid, action: String, reason: String, reviewReference: String,
+        fingerprint: String, result: Schema.Types.Mixed, guardVersion: Number },
+      indexes: [[{ modelId: 1, createdAt: -1 }, {}]]
     }
   });
 }
