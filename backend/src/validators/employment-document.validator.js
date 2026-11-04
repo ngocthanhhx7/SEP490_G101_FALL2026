@@ -1,6 +1,6 @@
 import { exact, fail, number } from './pet-care.validator.js';
-export const CONTRACT_TEXT_FIELDS = ['employerName', 'employerAddress', 'registrationNumber', 'representativeName', 'representativeTitle', 'authorityBasis',
-  'employeeName', 'nationality', 'dateOfBirth', 'gender', 'residence', 'identityNumber', 'identityIssuedOn', 'identityIssuedBy',
+export const CONTRACT_TEXT_FIELDS = ['employerName', 'employerAddress', 'employerPhone', 'employerEmail', 'registrationNumber', 'representativeName', 'representativeTitle', 'authorityBasis',
+  'employeeName', 'employeePhone', 'employeeEmail', 'nationality', 'dateOfBirth', 'gender', 'residence', 'identityNumber', 'identityIssuedOn', 'identityIssuedBy',
   'jobTitle', 'duties', 'workplace', 'workplaceReference', 'signingPlace', 'plannedSigningOn', 'effectiveOn', 'payMethod', 'paySchedule',
   'salaryReview', 'restRules', 'protection', 'insurance', 'training'];
 const text = value => typeof value === 'string' && value.trim() && value.length <= 2000 && !/[\x00-\x1f\x7f]/.test(value);

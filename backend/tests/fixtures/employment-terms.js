@@ -1,5 +1,5 @@
 export const employmentTerms = (overrides = {}) => ({
-  employerName: 'Synthetic Paw employer', employerAddress: 'Synthetic registered address', registrationNumber: 'SYNTHETIC-REGISTRY',
+  employerName: 'Synthetic Paw employer', employerPhone: '0900000001', employerEmail: 'employer@example.test', employeePhone: '0900000002', employeeEmail: 'employee@example.test', employerAddress: 'Synthetic registered address', registrationNumber: 'SYNTHETIC-REGISTRY',
   representativeName: 'Synthetic representative', representativeTitle: 'Director', authorityBasis: 'Synthetic legal representative source',
   employeeName: 'Synthetic employee', nationality: 'Việt Nam', dateOfBirth: '1990-04-12', gender: 'Nam', residence: 'Synthetic residence', identityNumber: '012345678901',
   identityIssuedOn: '2020-01-01', identityIssuedBy: 'Synthetic authority', jobTitle: 'Pet care employee', duties: 'Synthetic care scope', workplace: 'Synthetic Hanoi area',

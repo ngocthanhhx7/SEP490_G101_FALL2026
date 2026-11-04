@@ -6,9 +6,9 @@ export function EmploymentContractPrint({ document }) {
     {document.state === 'DRAFT' && <p className="contract-watermark">BẢN NHÁP – CHƯA CHỐT ĐỂ KÝ</p>}
     <p>Căn cứ Bộ luật Lao động số 45/2019/QH14, các văn bản sửa đổi, hướng dẫn đang có hiệu lực và nhu cầu, thỏa thuận tự nguyện của hai bên.</p>
     <h2>Bên A – Người sử dụng lao động</h2><p><strong>{t.employerName}</strong> · Mã đăng ký/MST: {t.registrationNumber}.</p>
-    <p>Địa chỉ: {t.employerAddress}. Đại diện: {t.representativeName}, chức danh: {t.representativeTitle}. Căn cứ thẩm quyền ký: {t.authorityBasis}.</p>
+    <p>Địa chỉ: {t.employerAddress}. Điện thoại: {t.employerPhone}. Email: {t.employerEmail}. Đại diện: {t.representativeName}, chức danh: {t.representativeTitle}. Căn cứ thẩm quyền ký: {t.authorityBasis}.</p>
     <h2>Bên B – Người lao động</h2><p>Họ tên: <strong>{t.employeeName}</strong>. Quốc tịch: {t.nationality}. Ngày sinh: {t.dateOfBirth}. Giới tính: {t.gender}.</p>
-    <p>Nơi cư trú: {t.residence}. Căn cước/hộ chiếu: {t.identityNumber}, cấp ngày {t.identityIssuedOn}, nơi cấp: {t.identityIssuedBy}.</p>
+    <p>Nơi cư trú: {t.residence}. Điện thoại: {t.employeePhone}. Email: {t.employeeEmail}. Căn cước/hộ chiếu: {t.identityNumber}, cấp ngày {t.identityIssuedOn}, nơi cấp: {t.identityIssuedBy}.</p>
     <h2>Điều 1. Công việc, nơi làm việc và thời hạn</h2>
     <p>Chức danh: {t.jobTitle}. Công việc: {t.duties}</p><p>Địa điểm/phạm vi làm việc: {t.workplace}. Vùng lương: {t.workplaceRegion}; căn cứ địa bàn: {t.workplaceReference}.</p>
     <p>Hợp đồng {t.termType === 'FIXED' ? `xác định thời hạn từ ${t.effectiveOn} đến trước ngày ${t.endsOn}` : `không xác định thời hạn, hiệu lực từ ${t.effectiveOn}`}. Làm việc {t.employmentType === 'FULL_TIME' ? 'toàn thời gian' : 'không trọn thời gian'}.</p>
