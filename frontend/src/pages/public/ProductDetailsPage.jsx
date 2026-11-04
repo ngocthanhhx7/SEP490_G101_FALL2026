@@ -67,7 +67,7 @@ export function ProductDetailsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem 0' }}>
           <span id="quantity-label" style={{ fontWeight: 800 }}>Số lượng</span>
           <QuantityStepper value={quantity} max={product.available} disabled={!product.inStock || busy} label="Số lượng"
-            onChange={changeQuantity} onLimit={() => setFeedback({ ok: false, text: productMessage('MSG58', { n: product.available }) })} />
+            onChange={changeQuantity} onLimit={() => setFeedback({ ok: false, text: productMessage('MSG58', { n: Math.min(99, product.available) }) })} />
         </div>
         {!product.inStock && <p className="pwc-shop-alert pwc-shop-alert--error" role="status">{productMessage('MSG98')}</p>}
         {feedback && <p className={`pwc-shop-alert pwc-shop-alert--${feedback.ok ? 'ok' : 'error'}`} role="status">
@@ -75,10 +75,13 @@ export function ProductDetailsPage() {
         <button type="button" className="pwc-shop-primary-button" disabled={!product.inStock || busy} onClick={add}>
           {busy ? 'Đang thêm…' : 'Thêm vào giỏ hàng'}</button>
         <p className="pwc-shop-lead" style={{ marginTop: '.75rem' }}>Bạn chỉ đặt được số lượng còn lại trong kho.</p>
+        <div className="pwc-shop-detail-facts"><p><strong>Nhận hàng theo cách của bạn</strong><br />Nhận tại cửa hàng hoặc giao đến địa chỉ trong khu vực phục vụ.</p>
+          <p><strong>Thanh toán khi nhận</strong><br />Trả tại quầy hoặc thanh toán COD khi được giao hàng.</p></div>
       </div>
     </div>
     <div className="pwc-shop-panel" style={{ marginTop: '1.5rem' }}>
       <h2>Mô tả sản phẩm</h2>
+      <p className="pwc-photo-credits"><a href="/assets/products/credits.html">Ảnh minh họa sản phẩm và nguồn ảnh</a></p>
       <p>{product.description || 'Chưa có mô tả cho sản phẩm này.'}</p>
       <dl className="pwc-shop-facts">
         <dt>Mã sản phẩm</dt><dd>{product.code}</dd>

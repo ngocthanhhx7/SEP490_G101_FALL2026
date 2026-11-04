@@ -9,9 +9,8 @@ import { primaryRole } from '../../utils/role-access.js';
 
 const links = [
   ['Trang chủ', '/'],
-  ['Câu truyện', '/#stories'],
-  ['Dịch vụ', '/services'],
   ['Sản phẩm', '/products'],
+  ['Dịch vụ', '/services'],
   ['Về chúng tôi', '/about'],
   ['Liên hệ', '/contact'],
 ];

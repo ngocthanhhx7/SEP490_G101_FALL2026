@@ -91,7 +91,11 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
       if (replayed) return replayed;
 
       // Fail before allocating an order code, so an empty cart never leaves a gap in DH- numbers.
-      if (!(await ProductCart.exists({ customerId, 'lines.0': { $exists: true } }))) throw productSalesErrors.cartEmpty();
+      if (!(await ProductCart.exists({ customerId, 'lines.0': { $exists: true } }))) {
+        const winner = await replay(customerId, key, fingerprint);
+        if (winner) return winner;
+        throw productSalesErrors.cartEmpty();
+      }
       const deliveryAddress = input.receiveMethod === 'DELIVERY'
         ? await loadDeliveryAddress(customerId, input.addressId) : undefined;
       const code = await nextOrderCode();
@@ -120,7 +124,7 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
         return toOrderView(order);
       } catch (error) {
         // A concurrent request with the same key committed first: return that order instead of failing.
-        if (error?.code === 11000) {
+        if (error?.code === 11000 || error?.code === 'CART_EMPTY') {
           const winner = await replay(customerId, key, fingerprint);
           if (winner) return winner;
         }

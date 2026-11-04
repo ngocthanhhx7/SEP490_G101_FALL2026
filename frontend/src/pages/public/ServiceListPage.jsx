@@ -9,6 +9,7 @@ import {
 } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
 import './service-catalog.css';
+import { CatalogLayout } from '../../components/public/CatalogLayout.jsx';
 import { ServiceBasket } from './ServiceBasket.jsx';
 
 function normalizeSearch(value) {
@@ -80,7 +81,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         </p>
       </section>
 
-      <form
+      <CatalogLayout filters={<><form
         className="pwc-catalog-filters"
         role="search"
         onSubmit={(event) => event.preventDefault()}
@@ -116,13 +117,13 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
             <option value="ALL">Tất cả địa điểm</option><option value="FACILITY">Tại cơ sở</option><option value="HOME">Tại gia</option><option value="OUTDOOR">Ngoài trời</option>
           </select></label>
         </>}
-      </form>
+      </form>{hasFilters && <button className="pwc-clear-filters" type="button" onClick={resetFilters}>Xóa bộ lọc</button>}</>}>
       {catalog.status === 'success' &&
         catalog.data?.available &&
         services.length > 0 && (
           <div className="pwc-catalog-summary"><p className="pwc-service-result-count" role="status">
             {filtered.length} dịch vụ phù hợp
-          </p>{hasFilters && filtered.length > 0 && <button className="pwc-clear-filters" type="button" onClick={resetFilters}><X size={14} aria-hidden="true" />Xóa bộ lọc</button>}
+          </p>
           <label className="pwc-catalog-sort"><span>Sắp xếp</span><select aria-label="Sắp xếp" value={sort} onChange={event => setSort(event.target.value)}>
             <option value="DEFAULT">Mặc định</option><option value="PRICE_ASC">Giá cơ bản tăng dần</option><option value="PRICE_DESC">Giá cơ bản giảm dần</option><option value="NAME">Tên dịch vụ A–Z</option>
           </select></label></div>
@@ -150,18 +151,10 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         <CatalogEmpty
           title="Không tìm thấy dịch vụ phù hợp"
           body="Hãy đổi từ khóa hoặc chọn lại đối tượng."
-          action={
-            <button
-              className="pwc-text-button"
-              type="button"
-              onClick={resetFilters}
-            >
-              Xóa bộ lọc
-            </button>
-          }
         />
       )}
 
+      </CatalogLayout>
       {catalog.data?.available && <><p className="pwc-photo-credits"><a href="/assets/services/credits.html">Nguồn ảnh dịch vụ</a></p><ServiceBasket services={services} /></>}
       <section className="pwc-catalog-help">
         <div>

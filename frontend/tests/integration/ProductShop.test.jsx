@@ -40,6 +40,14 @@ function show(api, path, user = customer) {
 }
 
 describe('Product List', () => {
+  test('a pending search preserves a filter selected before the debounce completes', async () => {
+    const api = fakeApi();
+    show(api, '/products', null);
+    await screen.findByText('Hiển thị 1 sản phẩm');
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm sản phẩm theo tên' }), { target: { value: 'pate' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Thức ăn', exact: true }));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: 'FOOD', petType: '', page: 1 }, expect.any(Object)));
+  });
   test('shows each product with price and availability and links to its details', async () => {
     const api = fakeApi({ listProducts: jest.fn().mockResolvedValue({ data: [product(), product({ id: 'p2', code: 'SP-0035', name: 'Vòng cổ có chuông, cỡ M',
       category: 'ACCESSORY', sellingPrice: 60000, available: 0, inStock: false })] }) });
@@ -56,10 +64,10 @@ describe('Product List', () => {
     show(api, '/products', null);
     await screen.findByText('Hiển thị 1 sản phẩm');
     fireEvent.click(screen.getByRole('button', { name: 'Chó' }));
-    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: 'DOG' }, expect.any(Object)));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
     expect(screen.getByRole('button', { name: 'Chó' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm sản phẩm theo tên' }), { target: { value: 'pate' } });
-    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: '', petType: 'DOG' }, expect.any(Object)));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
   });
 
   test('says so when nothing matches and offers a retry on failure', async () => {

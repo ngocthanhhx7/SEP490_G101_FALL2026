@@ -68,6 +68,7 @@ function AddressForm({ draft, change, catalog, api, disabled }) {
     <Select label="Khu vực phục vụ" required value={draft.areaCode} disabled={disabled} onChange={e => change({ ...draft, areaCode: e.target.value, pointConfirmed: false })}>
       <option value="">Chọn khu vực</option>{catalog.workAreas.map(row => <option key={row.code} value={row.code}>{row.label}</option>)}
     </Select>
+    {catalog.workAreas.some(row => row.parentCode === draft.areaCode) && <p className="customer-care__wide">Hãy chọn khu vực cụ thể của địa chỉ nếu đã biết. Chọn toàn thành phố chỉ tìm được nhân viên đăng ký nhận việc trên toàn thành phố.</p>}
     <Input label="Địa chỉ đầy đủ (số nhà, đường, phường/xã, thành phố)" className="customer-care__location" value={draft.location} required maxLength={500} disabled={disabled}
       onChange={e => change({ ...draft, location: e.target.value, pointConfirmed: false })} />
     <Input label="Kinh độ" type="number" min="-180" max="180" step="any" value={draft.coordinates[0]} required disabled={disabled} onChange={e => selectPoint([e.target.value, draft.coordinates[1]])} />

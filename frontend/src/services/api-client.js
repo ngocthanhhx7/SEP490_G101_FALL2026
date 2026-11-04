@@ -21,7 +21,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
     if (typeof window !== 'undefined') window.dispatchEvent(new window.Event(SESSION_INVALIDATED_EVENT));
   }, timeoutMs = 15000 } = {}) {
   return async function request(path, { method = 'GET', body, signal,
-    idempotencyKey, expectedVersion, csrfBootstrap = false } = {}) {
+    idempotencyKey, expectedVersion, csrfBootstrap = false, binaryBody, productVersion } = {}) {
     if (!/^\/[a-zA-Z0-9]/.test(path) || /[\\#]/.test(path)
       || path.split(/[/?]/).includes('..') || /%2e|%2f|%5c/i.test(path)) {
       throw new ApiError('INVALID_API_PATH');
@@ -31,6 +31,15 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       throw new ApiError('INVALID_METHOD');
     }
     const headers = new Headers({ Accept: 'application/json' });
+    if (binaryBody !== undefined) {
+      if (body !== undefined || expectedVersion !== undefined || !['image/jpeg', 'image/png', 'image/webp'].includes(binaryBody?.type)
+        || !Number.isSafeInteger(binaryBody?.size) || binaryBody.size < 1 || binaryBody.size > 5 * 1024 * 1024) throw new ApiError('INVALID_PRODUCT_PHOTO', 422);
+      headers.set('Content-Type', binaryBody.type);
+    }
+    if (productVersion !== undefined) {
+      if (!Number.isSafeInteger(productVersion) || productVersion < 0) throw new ApiError('INVALID_PRODUCT_VERSION', 422);
+      headers.set('X-Product-Version', String(productVersion));
+    }
     if (body !== undefined) headers.set('Content-Type', 'application/json');
     const bootstrapAllowed = csrfBootstrap && method === 'POST' && ['/otp-challenges', '/sessions'].includes(path);
     if (csrfBootstrap && !bootstrapAllowed) throw new ApiError('INVALID_CSRF_MODE');
@@ -51,7 +60,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       const response = await fetchImpl(`/api/v1${path}`, {
         method, headers, credentials: 'same-origin', cache: 'no-store',
         redirect: 'error', signal: controller.signal,
-        body: payload === undefined ? undefined : JSON.stringify(payload),
+        body: binaryBody ?? (payload === undefined ? undefined : JSON.stringify(payload)),
       });
       if (response.status === 401) onUnauthorized();
       if (response.status === 204 && response.ok) return { data: null, status: 204 };

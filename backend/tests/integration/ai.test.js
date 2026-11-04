@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { pricingRuntimeModule } from '../../src/routes/pricing.routes.js';
 import { petCareRuntimeModule } from '../../src/routes/pet-care.routes.js';
 import { servicePolicyVersionModel } from '../../src/models/service-policy-version.model.js';
@@ -670,11 +671,26 @@ test('approved additive model is used only after hash and holdout checks, invali
     .set(await authFor(admin))
     .send({ ...payload, testMae: 3 })
     .expect(409);
-  await request(app)
-    .post('/api/v1/ai/admin/models')
-    .set(await authFor(admin))
-    .send(payload)
-    .expect(201);
+  await request(app).post('/api/v1/ai/admin/models').set(await authFor(admin)).send(payload).expect(409);
+  const artifactJson = JSON.stringify({ ...payload, state: 'DRAFT' });
+  const evidence = { labelVersion: 'VERIFIED_CUSTOMER_SATISFACTION_V1', datasetSha256: 'a'.repeat(64),
+    artifactSha256: createHash('sha256').update(artifactJson).digest('hex'), trainingRows: 200, testRows: 50, testGroups: 10, purgedRows: 0,
+    latestTrainingOutcome: new Date(clockNow - 2 * 86400000).toISOString(), earliestTestDecision: new Date(clockNow - 86400000).toISOString(),
+    sourceVerification: 'OPERATOR_ATTESTED_REQUIRES_INDEPENDENT_REVIEW', state: 'DRAFT' };
+  await request(app).get('/api/v1/ai/admin/status').set(await authFor(customer)).expect(403);
+  const draft = await request(app).post('/api/v1/ai/admin/model-imports').set(await authFor(admin)).send({ artifactJson, evidence }).expect(201);
+  expect(draft.body.data.state).toBe('DRAFT');
+  const repeated = await request(app).post('/api/v1/ai/admin/model-imports').set(await authFor(admin)).send({ artifactJson, evidence }).expect(201);
+  expect(repeated.body.data.id).toBe(draft.body.data.id);
+  await request(app).post('/api/v1/ai/admin/model-imports').set(await authFor(admin)).send({ artifactJson: artifactJson+' ', evidence }).expect(409);
+  const body = { expectedVersion: 0, action: 'APPROVE', reason: 'Synthetic isolated source review', reviewReference: 'synthetic-test-only-evidence' };
+  const reviewHeaders = { ...await authFor(admin), 'Idempotency-Key': 'synthetic-model-review-001' };
+  await request(app).post(`/api/v1/ai/admin/models/${draft.body.data.id}/reviews`).set(reviewHeaders).send(body).expect(200);
+  await request(app).post(`/api/v1/ai/admin/models/${draft.body.data.id}/reviews`).set(reviewHeaders).send(body).expect(200);
+  await request(app).post(`/api/v1/ai/admin/models/${draft.body.data.id}/reviews`).set(reviewHeaders).send({ ...body, action: 'RETIRE' }).expect(409);
+  expect(await models.SitterRankModelReview.countDocuments({ action: { $exists: true } })).toBe(1);
+  const status = await request(app).get('/api/v1/ai/admin/status').set(await authFor(admin)).expect(200);
+  expect(status.body.data.activeModel.version).toBe(payload.version);
   const headers = await authFor(customer);
   let result = await request(app)
     .post('/api/v1/ai/recommendations')
@@ -682,6 +698,17 @@ test('approved additive model is used only after hash and holdout checks, invali
     .send(matchBody())
     .expect(201);
   expect(result.body.data.rankingSource).toBe('APPROVED_ADDITIVE_MODEL');
+  const reviewUrl = `/api/v1/ai/admin/models/${draft.body.data.id}/reviews`, adminHeaders = await authFor(admin);
+  await request(app).post(reviewUrl).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-model-retire-002' })
+    .send({ ...body, expectedVersion: 1, action: 'RETIRE' }).expect(200);
+  const retired = await request(app).get('/api/v1/ai/admin/status').set(adminHeaders).expect(200);
+  expect(retired.body.data.rankingSource).toBe('EXPLAINABLE_RULES');
+  await request(app).post(reviewUrl).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-stale-review-003' })
+    .send({ ...body, expectedVersion: 1 }).expect(409);
+  await request(app).post(reviewUrl).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-model-rollback-004' })
+    .send({ ...body, expectedVersion: 2 }).expect(200);
+  expect((await models.SitterRankModel.findById(draft.body.data.id).select('+artifactJson').lean()).artifactJson).toBe(artifactJson);
+
   await models.SitterRankModel.updateOne(
     { version: payload.version },
     { $set: { sha256: 'tampered' } }

@@ -1,3 +1,4 @@
+import { createOperationalRanker } from '../../src/services/sitter-matching/operational-ranker.service.js';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
@@ -488,4 +489,103 @@ test('AI candidates use employee registered areas and effective shifts instead o
   await module.repository.areas.replaceMine({ actor: sitter, areas: [], expectedVersion: 2, idempotencyKey: 'ai-area-removed' });
   const updated = await ai.candidates(context, slot);
   expect(updated.profiles.some(row => String(row.userId) === sitter.userId)).toBe(false);
+});
+
+test('system recovery previews precise area, requires customer consent and rechecks before acceptance', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-10-29T02:00:00Z', areaCode: 'CITY_HANOI' });
+  await employee(); // Another eligible employee must not replace the consented nominee.
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { location: 'HOME' } });
+  const body = { expectedVersion: 0, startAt: '2026-11-01T02:00:00Z', areaCode: 'DISTRICT_HAI_BA_TRUNG', sitterId: sitter.userId };
+  await expect(module.dispatch.invite(staff, String(row._id), { expectedVersion: 0 }, 'past-shift-invite')).rejects.toMatchObject({ code: 'SHIFT_START_REACHED' });
+  const preview = await module.dispatch.previewCandidates(staff, String(row._id), { startAt: body.startAt, areaCode: body.areaCode });
+  expect(preview.items.some(item => item.sitterId === sitter.userId)).toBe(true);
+  await expect(module.dispatch.previewCandidates(customer, String(row._id), { startAt: body.startAt })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  const proposal = await module.proposals.propose(staff, String(row._id), body, 'system-recovery-proposal');
+  expect(await module.proposals.propose(staff, String(row._id), body, 'system-recovery-proposal')).toEqual(proposal);
+  expect(proposal).toMatchObject({ areaCode: body.areaCode, previousAreaCode: 'CITY_HANOI' });
+  expect((await connection.collection('visits').findOne({ _id: row._id })).areaCode).toBe('CITY_HANOI');
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(0);
+  const oldBooking = await connection.collection('bookings').findOne({ _id: row.bookingId });
+  const input = { actor: customer, proposalId: proposal.id, expectedVersion: 0, selectedSlot: proposal.slots[0], idempotencyKey: 'confirm-system-recovery' };
+  const result = await module.proposals.confirmProposal(input);
+  expect(await module.proposals.confirmProposal(input)).toEqual(result);
+  const revised = await connection.collection('visits').findOne({ _id: row._id });
+  expect(revised).toMatchObject({ areaCode: body.areaCode, startAt: new Date(body.startAt), sitterId: null });
+  expect(revised.snapshots).toEqual(row.snapshots);
+  expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).checkoutSnapshot).toEqual(oldBooking.checkoutSnapshot);
+  const offer = await module.repository.models.EmployeeVisitOffer.findById(result.offer.id).lean();
+  expect(offer).toMatchObject({ originRouteRequired: true, areaCode: body.areaCode });
+  await module.dispatch.runBatch({ limit: 20 });
+  expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(1);
+  await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(sitter.userId) }, { $set: { serviceIds: [] } });
+  await expect(module.dispatch.offers.accept(sitter, result.offer.id, 0, 'recover-recheck-failed')).rejects.toMatchObject({ code: 'SERVICE_CAPABILITY_REQUIRED' });
+  await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(sitter.userId) }, { $set: { serviceIds: [serviceId] } });
+  await module.dispatch.offers.accept(sitter, result.offer.id, 0, 'recover-recheck-success');
+  expect((await connection.collection('visits').findOne({ _id: row._id })).state).toBe('ASSIGNED');
+});
+
+test('recovery rejects unrelated areas, customer-selected sitter replacement, missing origin, unpaid and boarding changes', async () => {
+  const sitter = await employee(), other = await employee();
+  const row = await visit({ start: '2026-11-26T02:00:00Z', requestedSitterId: sitter.userId });
+  const body = { expectedVersion: 0, startAt: '2026-11-26T04:00:00Z', sitterId: other.userId };
+  await expect(module.proposals.propose(staff, String(row._id), body, 'no-directed-substitute')).rejects.toMatchObject({ code: 'DIRECTED_SITTER_MISMATCH' });
+  await expect(module.proposals.propose(staff, String(row._id), { ...body, sitterId: sitter.userId, areaCode: 'DISTRICT_HOAN_KIEM' }, 'no-area-relocation')).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const system = await visit({ start: '2026-11-26T02:00:00Z' });
+  await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(other.userId) }, { $set: { starts: [] } });
+  await expect(module.proposals.propose(staff, String(system._id), body, 'no-origin-bypass')).rejects.toMatchObject({ code: 'DAY_ORIGIN_MISSING' });
+  const unpaid = await visit({ prepay: true });
+  await expect(module.proposals.propose(staff, String(unpaid._id), body, 'no-payment-bypass')).rejects.toMatchObject({ code: 'VISIT_UNAVAILABLE' });
+  const boarding = await visit({ boarding: true });
+  await expect(module.proposals.propose(staff, String(boarding._id), body, 'no-boarding-reschedule')).rejects.toMatchObject({ code: 'STAY_CHANGE_REQUIRES_REVIEW' });
+});
+
+test('failed automatic dispatch persists bounded reasons and never broadens a city booking to district staff', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-11-27T02:00:00Z', areaCode: 'CITY_HANOI' });
+  const city = await module.repository.models.EmployeeAvailability.find({ areas: 'CITY_HANOI' }).lean();
+  await connection.collection('aisitterprofiles').updateMany({ userId: { $in: city.map(item => new mongoose.Types.ObjectId(item._id)) } }, { $set: { serviceIds: [] } });
+  const preview = await module.dispatch.previewCandidates(staff, String(row._id), { startAt: row.startAt.toISOString() });
+  expect(preview.items.some(item => item.sitterId === sitter.userId)).toBe(false);
+  expect(preview.diagnostics).toMatchObject({ eligible: 0 });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await module.dispatch.runBatch({ limit: 20 });
+  const saved = await connection.collection('visits').findOne({ _id: row._id });
+  expect(saved.dispatchReview).toMatchObject({ code: 'NO_ELIGIBLE_SITTER', diagnostics: { eligible: 0 } });
+  expect(JSON.stringify(saved.dispatchReview.diagnostics)).not.toContain(sitter.userId);
+});
+
+
+test('operational AI captures real decision features for a newcomer without inventing a rating or changing eligibility', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-10-31T02:00:00Z', requestedSitterId: sitter.userId });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { location: 'HOME' } });
+  const { matchingModels } = await import('../../src/models/sitter-matching.model.js');
+  const matching = matchingModels(connection);
+  await matching.SitterRankingPolicy.create({ version: 1, status: 'APPROVED', effectiveAt: new Date('2026-01-01'), approvedAt: new Date('2026-01-01'),
+    approvalSource: 'SYNTHETIC_ISOLATED_POLICY', reason: 'Synthetic operational scoring test', weights: { fit: 30, travel: 25, quality: 20, reliability: 15, workload: 10 } });
+  const routingProvider = { validatePoints: () => {}, cacheTtlMs: 0, matrix: async points => ({ map: new Map(points.flatMap(a => points.map(b => [edgeKey(a, b), 0]))), recordedAt: new Date(clock()), source: 'SYNTHETIC_TEST_ROUTE' }) };
+  const dispatch = createEmployeeDispatchService({ repository: module.repository, clock,
+    ranker: createOperationalRanker({ connection, routingProvider, clock }) });
+  await dispatch.runBatch({ limit: 20 });
+  const offer = await module.repository.models.EmployeeVisitOffer.findOne({ visitId: row._id }).select('+featureSnapshot').lean();
+  expect(offer.featureSnapshot).toMatchObject({ version: 'PWC_MATCH_FEATURES_V1', sitterId: sitter.userId, features: { fit: 0 }, modelVersion: null });
+  expect(JSON.stringify(await dispatch.offers.detail(sitter, String(offer._id)))).not.toContain('featureSnapshot');
+  await dispatch.offers.accept(sitter, String(offer._id), 0, 'accept-captured-operational-offer');
+  const assigned = await connection.collection('visits').findOne({ _id: row._id });
+  expect(assigned.assignedFeatureSnapshot.features).toEqual(offer.featureSnapshot.features);
+  expect(assigned.assignedFeatureSnapshot.sitterId).toBe(sitter.userId);
+  expect(await matching.SitterVisitOutcome.countDocuments({ sitterId: new mongoose.Types.ObjectId(sitter.userId) })).toBe(0);
+});
+
+test('operational advice may reorder the complete eligible set but cannot add or remove employees', async () => {
+  await employee(); await employee();
+  const row = await visit({ start: '2026-11-27T02:00:00Z' }), input = { startAt: row.startAt.toISOString() };
+  const baseline = await module.dispatch.previewCandidates(staff, String(row._id), input);
+  expect(baseline.items.length).toBeGreaterThanOrEqual(2);
+  const reverse = createEmployeeDispatchService({ repository: module.repository, clock, ranker: async ({ sitterIds }) => [...sitterIds].reverse() });
+  expect((await reverse.previewCandidates(staff, String(row._id), input)).items.map(item => item.sitterId))
+    .toEqual(baseline.items.map(item => item.sitterId).reverse());
+  for (const ranker of [async ({ sitterIds }) => sitterIds.slice(1), async ({ sitterIds }) => ['f'.repeat(24), ...sitterIds.slice(1)], async () => { throw new Error('Synthetic unavailable advice'); }]) {
+    const fallback = createEmployeeDispatchService({ repository: module.repository, clock, ranker });
+    expect((await fallback.previewCandidates(staff, String(row._id), input)).items.map(item => item.sitterId))
+      .toEqual(baseline.items.map(item => item.sitterId));
+  }
 });

@@ -1,0 +1,144 @@
+{
+  "source": "Owner-provided previous PawWorld project",
+  "authorization": "User request 2026-11-04 to reuse old products and UI assets in Paw World Care",
+  "sourceFile": "paw_world_web/server/src/seeds/seedDatabase.js",
+  "sourceSha256": "6f7832b4a910b2741cd6fb5bc9b1f684730a1a9ef3133df2c30fa6d8faf3931a",
+  "note": "Sample products and original project illustrations; no ratings or sales claims imported. Stock and prices are demo values.",
+  "assets": [
+    {
+      "file": "kit-purple.webp",
+      "source": "paw_world_web/client/public/assets/paw/Cat Food Kit.png",
+      "sourceSha256": "5d4b6000eb8005cfeaabd0a9aa4ea4f70c0ab231b935d10ff0d519cc06abbe0d"
+    },
+    {
+      "file": "kit-red.webp",
+      "source": "paw_world_web/client/public/assets/paw/Cat Food Kit1.png",
+      "sourceSha256": "ddb4ed52ce4ce1ba31604b95a0278bb37b194e45647884f2db5b05952d31d5af"
+    },
+    {
+      "file": "osmon-small.webp",
+      "source": "paw_world_web/client/public/assets/paw/image 654.png",
+      "sourceSha256": "43490d6a7be3cbd5be1c77026920a370183ff7c5064b85af43b466189e268b52"
+    },
+    {
+      "file": "osmon-podium.webp",
+      "source": "paw_world_web/client/public/assets/paw/image 653.png",
+      "sourceSha256": "313d218575d70d2efd9ac747638226b8c8d648227a4c7badcdf9a76a9cfe9fba"
+    },
+    {
+      "file": "bowl-food.webp",
+      "source": "paw_world_web/client/public/assets/paw/cfc3d7f844b024807049920fc1a7bb55 1.png",
+      "sourceSha256": "56d2c9c64f6fdb5e96465b40bcf6640112e4522d167ffe687ecf24346a0704e9"
+    }
+  ],
+  "downloadedIllustrations": [
+    {
+      "code": "SP-0012",
+      "file": "dog-kibble.webp",
+      "source": "https://commons.wikimedia.org/wiki/File:Dog_food_in_a_bowl.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/7/71/Dog_food_in_a_bowl.jpg",
+      "author": "James Redekop",
+      "license": "CC BY-SA 2.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+      "sourceSha256": "aaf51ee15601c5790c5dda3ca51f901ff3fb2e1d92a2e641340befcf3d45c042",
+      "sha256": "1fb14a0a446f8f02db8c9d59c8681c89dbd22a89bb92c502176dbd308a6263e7",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0014",
+      "file": "cat-kibble.webp",
+      "source": "https://commons.wikimedia.org/wiki/File:Dry_cat_food_01.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/2/26/Dry_cat_food_01.jpg",
+      "author": "Anne Jea.",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "sourceSha256": "0919272ffb01b1606b96ef140dcd40d172952ec8e50c967c10e7a1da13558a8a",
+      "sha256": "f09b84b122b8c20f4c5ced283bbdb84570dc3f387933ea7fb4b232f4c6bc542f",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0016",
+      "file": "cat-wet-food.webp",
+      "source": "https://commons.wikimedia.org/wiki/File:Wet_cat_food_01.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/0/03/Wet_cat_food_01.jpg",
+      "author": "Anne Jea.",
+      "license": "CC BY-SA 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+      "sourceSha256": "041eeb1c9372b32f56da9a82f2142142e411d17a892ef36f6676ddf9f321c922",
+      "sha256": "f0696cc9d62e756bb98b8137b440a7db47634dc3f14c934e896a3049476b6315",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0020",
+      "file": "dog-chew.webp",
+      "source": "https://commons.wikimedia.org/wiki/File:Batonnet_en_peau_de_buffle_pour_chien.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/f/fb/Batonnet_en_peau_de_buffle_pour_chien.jpg",
+      "author": "Lionel Allorge",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "sourceSha256": "e97303ff49c1b92183a1577a344e17b3d84fe4286d67d4d059e7aa5ad0505d02",
+      "sha256": "9c2bd7eec62201091c5a5adb437e3f6ab042e2f87e42571dee7365be5904ba9c",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0021",
+      "file": "steel-bowl.webp",
+      "source": "https://www.gonser.ch/hundefutternapf-edelstahl/a-7911/",
+      "downloadUrl": "https://cdn10.plentymarkets.com/mrt54q44tptl/item/images/7911/full/Hundefutternapf-Edelstahl-NEU.jpg",
+      "author": "Retail listing image; rights remain with the source",
+      "license": "Retail reference photograph; no open licence asserted",
+      "licenseUrl": "https://www.gonser.ch/hundefutternapf-edelstahl/a-7911/",
+      "sourceSha256": "8b2954e210cf975f29b4022bdc73762594115fc4f092cd4049fe1f526d859ab6",
+      "sha256": "2837ae6a869fa5650b12cbd5df8cb7cd632166bbd13fc30fbd3c5f73be455110",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0031",
+      "file": "dog-leash.webp",
+      "source": "https://commons.wikimedia.org/wiki/File:PPD-Leash-PinkGreenStripes.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/3/3e/PPD-Leash-PinkGreenStripes.jpg",
+      "author": "Schizek at English Wikipedia",
+      "license": "Public domain",
+      "licenseUrl": "",
+      "sourceSha256": "32a17f02230f08bb6c8212cca9df3fbb407c0622b56af50c6db27c1051d65128",
+      "sha256": "5446f7d1023bfca00f1e2d9a69c387755fe55a032ee4043edf2e852eea9e6328",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0035",
+      "file": "dog-collar.webp",
+      "source": "https://shopee.co.id/Pawda-pet-collar-%28XS-S-M-L-XL%29-i.39166625.4288494173",
+      "downloadUrl": "https://down-id.img.susercontent.com/file/0ec2257c10edda6e3444907069d664a7",
+      "author": "Retail listing image; rights remain with the source",
+      "license": "Retail reference photograph; no open licence asserted",
+      "licenseUrl": "https://shopee.co.id/Pawda-pet-collar-%28XS-S-M-L-XL%29-i.39166625.4288494173",
+      "sourceSha256": "79ffa7e6c9259800cd4673f4318b322b6d94c76de75a54eb2c69fa25c7550bc5",
+      "sha256": "71543ee9319b851bfc24f83c044cee3a41b957bdeafe105d78e8336a79f746fd",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0036",
+      "file": "dog-raincoat.webp",
+      "source": "https://commons.wikimedia.org/wiki/File:Gismo-Regenmantel-01.jpg",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/3/36/Gismo-Regenmantel-01.jpg",
+      "author": "Priwo",
+      "license": "Public domain",
+      "licenseUrl": "",
+      "sourceSha256": "3c431042908ac685d7f5d07e562771396a51a147ac6cb6a4747d060fbffeff76",
+      "sha256": "604827d1d3f8f5f1e1b001ae973430763577503db65341aef7316337c30eb0ce",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    },
+    {
+      "code": "SP-0037",
+      "file": "cat-litter.webp",
+      "source": "https://commons.wikimedia.org/wiki/File:Fresh_cat_litter_close_up.JPG",
+      "downloadUrl": "https://upload.wikimedia.org/wikipedia/commons/4/4d/Fresh_cat_litter_close_up.JPG",
+      "author": "CambridgeBayWeather",
+      "license": "CC BY-SA 3.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+      "sourceSha256": "ebda67d9ea528c8ee78d9b8239fa285dc25adad57d0b6986b0ed1ef9ec1ff9f5",
+      "sha256": "c7b82a67b7ff0605a2ac950558315778bd0f414a1b1b05131e51928f551add3d",
+      "changes": "Resized to at most 1000 px, converted to WebP; illustrative category photo, not a verified SKU photograph."
+    }
+  ]
+}

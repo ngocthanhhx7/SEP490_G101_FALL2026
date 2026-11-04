@@ -10,6 +10,21 @@ records an idempotent migration and preserves Admin-created versions and existin
 booking snapshots. It creates no accounts, contracts, assessments or transactions.
 The development seed remains forbidden on production.
 
+`provision-storefront-catalog.js` adds the nine product fixtures and 20 inherited
+owner-authorized PawWorld sample products. It defaults to dry-run. After backup,
+apply from the reviewed image with `CONFIRMED_PRODUCT_CATALOG_KEY=pawworld-storefront-sample-2026-11-04`
+and `CONFIRMED_PRODUCT_DATABASE` matching `MONGO_DB`. It preserves every existing
+product, including stock, visibility and Admin price edits. Sample provenance is
+stored on new products; no customer/order/rating/sales data is imported.
+`--backfill-photos` previews eligible MongoDB photo updates with the same explicit
+database/key confirmation. Add `--apply` after backup to fill empty photo arrays
+only on labelled sample products with `detailsVersion=0`; existing images and
+Admin-edited records are skipped. Each update increments the details version,
+preserving optimistic concurrency. Stock, holds, price and visibility are untouched.
+Runtime readers query MongoDB; catalog constants are provisioning inputs only.
+Only enable `PRODUCT_SALES_ENABLED=true` after these reviewed runtime/index/catalog
+gates; keep all other `.env` values and persistent database volumes intact.
+
 `ensure-indexes.js` registers runtime models, creates their collections/indexes,
 and provisions raw finance/scheduling storage when their feature flags are enabled.
 It verifies the required payroll, finance and scheduling indexes before reporting

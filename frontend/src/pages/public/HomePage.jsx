@@ -1,4 +1,7 @@
 import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { HeartHandshake, Utensils, ShoppingBag, PackageCheck } from 'lucide-react';
+import { HomeProductPreview } from '../../components/product/HomeProductPreview.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogState, CatalogEmpty, PublicServiceCards } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
@@ -31,27 +34,27 @@ const illustrations = [
 ];
 const benefits = [
   [
-    'home-Margin.svg',
+    HeartHandshake,
     'Ghé thăm & chơi cùng bé',
     'Cho bé thêm sự quan tâm khi bạn bận hoặc vắng nhà.',
     'cream'
   ],
   [
-    'home-Margin1.svg',
-    'Đưa bé đến lịch hẹn thú y',
-    'Hỗ trợ đưa chó, mèo đến lịch hẹn theo thông tin bạn cung cấp.',
+    Utensils,
+    'Thức ăn cho bữa ngon mỗi ngày',
+    'Khám phá thức ăn cho chó, mèo; xem thông tin và giá trước khi chọn mua.',
     'mint'
   ],
   [
-    'home-Margin2.svg',
-    'Dắt chó đi dạo',
-    'Giúp cún vận động và thư giãn với một buổi đi dạo đã đặt lịch.',
+    ShoppingBag,
+    'Đồ dùng cho bé',
+    'Phụ kiện cho bé vui chơi và sinh hoạt mỗi ngày.',
     'mint'
   ],
   [
-    'home-Margin3.svg',
-    'Theo dõi từng lượt chăm sóc',
-    'Xem trạng thái, báo cáo sau mỗi lượt với checklist, hình ảnh và ghi chú.',
+    PackageCheck,
+    'Nhận hàng thuận tiện',
+    'Theo dõi đơn hàng, nhận tại cửa hàng hoặc giao tận nhà.',
     'cream'
   ]
 ];
@@ -88,7 +91,8 @@ function Paw({ className = '', file = 'home-Frame2147225474.svg' }) {
     />
   );
 }
-export function HomePage({ loadCatalog = loadPublicCatalog }) {
+export function HomePage({ loadCatalog = loadPublicCatalog, productApi }) {
+  const [browse, setBrowse] = useState('services');
   const catalog = useApiResource(loadCatalog);
   const services =
     catalog.status === 'success' && catalog.data?.available
@@ -115,7 +119,8 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
             </h1>
             <p>
               Đặt lịch dắt chó đi dạo, ghé thăm và chơi cùng bé, hoặc đưa bé đến
-              lịch hẹn thú y — linh hoạt theo thời gian của bạn.
+              lịch hẹn thú y. Chọn thêm thức ăn và đồ dùng cho bé — cùng một nơi,
+              linh hoạt theo thời gian của bạn.
             </p>
             <div className="pwc-design-actions">
               <Link className="pwc-design-button" to="/sign-in">
@@ -123,9 +128,9 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
               </Link>
               <Link
                 className="pwc-design-button pwc-design-button-white"
-                to="/services"
+                to="/products"
               >
-                Khám phá dịch vụ
+                Khám phá sản phẩm
               </Link>
             </div>
           </div>
@@ -154,22 +159,20 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
         aria-labelledby="pwc-benefits-title"
       >
         <header className="pwc-design-section-heading">
-          <h2 id="pwc-benefits-title">Bé được chăm tại nhà, bạn an tâm hơn</h2>
+          <h2 id="pwc-benefits-title">Chăm bé chu đáo, mua sắm thuận tiện</h2>
           <p>
-            Đặt lịch chăm sóc phù hợp với bé và lịch trình của bạn — ngay tại
-            nhà.
-            <br />
-            Ghé thăm & chơi cùng bé
+            Từ một buổi chăm sóc đến bữa ăn và đồ dùng mỗi ngày,
+            PawWorld đồng hành cùng bạn trong những điều bé cần.
           </p>
         </header>
         <div className="pwc-design-benefit-grid">
           <div className="pwc-design-benefit-side">
-            {benefits.slice(0, 2).map(([icon, title, text, color]) => (
+            {benefits.slice(0, 2).map(([Icon, title, text, color]) => (
               <article
                 key={title}
                 className={'pwc-design-benefit pwc-design-benefit-' + color}
               >
-                <img src={a + icon} alt="" loading="lazy" />
+                <Icon className="pwc-benefit-icon" size={34} aria-hidden="true" />
                 <h3>{title}</h3>
                 <p>{text}</p>
               </article>
@@ -182,12 +185,12 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
             loading="lazy"
           />
           <div className="pwc-design-benefit-side">
-            {benefits.slice(2).map(([icon, title, text, color]) => (
+            {benefits.slice(2).map(([Icon, title, text, color]) => (
               <article
                 key={title}
                 className={'pwc-design-benefit pwc-design-benefit-' + color}
               >
-                <img src={a + icon} alt="" loading="lazy" />
+                <Icon className="pwc-benefit-icon" size={34} aria-hidden="true" />
                 <h3>{title}</h3>
                 <p>{text}</p>
               </article>
@@ -232,11 +235,16 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
       >
         <header>
           <div>
-            <h2 id="pwc-services-title">Dịch vụ có sẵn</h2>
-            <p>Chọn theo nhu cầu đặc biệt của bé yêu.</p>
+            <h2 id="pwc-services-title">{browse === 'services' ? 'Dịch vụ có sẵn' : 'Sản phẩm cho bé'}</h2>
+            <p>{browse === 'services' ? 'Chọn theo nhu cầu đặc biệt của bé yêu.' : 'Món ăn và đồ dùng cho những ngày bên nhau.'}</p>
           </div>
-          <Link to="/services">Xem tất cả dịch vụ</Link>
+          <Link to={browse === 'services' ? '/services' : '/products'}>{browse === 'services' ? 'Xem tất cả dịch vụ' : 'Xem tất cả sản phẩm'}</Link>
         </header>
+        <div className="pwc-home-browse" role="group" aria-label="Khám phá PawWorld">
+          <button type="button" aria-pressed={browse === 'services'} onClick={() => setBrowse('services')}>Dịch vụ</button>
+          <button type="button" aria-pressed={browse === 'products'} onClick={() => setBrowse('products')}>Sản phẩm</button>
+        </div>
+        {browse === 'products' ? <HomeProductPreview api={productApi} /> : <>
         {services.length > 0 ? <PublicServiceCards services={homeServices} actionLabel="Đặt ngay" /> : <div className="pwc-design-service-grid">
           {illustrations.map(
             (service, i) => {
@@ -300,6 +308,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
             )}
           </div>
         )}
+        </>}
       </section>
       <section
         className="pwc-design-about pwc-design-section"
@@ -325,7 +334,8 @@ export function HomePage({ loadCatalog = loadPublicCatalog }) {
           <p>
             PawWorld giúp bạn đặt lịch ghé thăm và chơi cùng bé, dắt chó đi dạo
             hoặc đưa thú cưng đến lịch hẹn thú y. Bạn dễ dàng chọn dịch vụ phù
-            hợp với nhu cầu của bé và lịch trình của mình.
+            hợp với nhu cầu của bé và lịch trình của mình. Cửa hàng PawWorld
+            có thêm thức ăn, đồ dùng và phụ kiện cho những ngày chăm bé tại nhà.
           </p>
           <div className="pwc-design-about-points">
             <div>

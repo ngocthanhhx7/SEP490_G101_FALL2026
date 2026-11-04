@@ -1,5 +1,10 @@
 # Admin pages
 
+Product Management includes a separate `ProductImageManager` after saving the
+product. Save pending text changes before gallery edits. Upload, replacement and
+confirmed removal return the updated product version; unknown acknowledgements
+require reload. Image bytes live in MongoDB and hidden photos use the Admin reader.
+
 `UserRolesDialog` adds versioned, reasoned role decisions from the User row menu
 and detail panel. It confirms before submission, reconciles uncertain responses
 through reload and refreshes list/detail after acknowledgement. Admins cannot
@@ -45,3 +50,9 @@ is allowed and moves the stock; the page shows its answer and reloads after a co
 `SupplierManagementPage` is the `/admin/suppliers` screen (menu group "Cửa hàng"): tabs Đang hợp tác / Ngừng hợp tác / Tất cả with their counts, a paged table (name and contact person, phone, number of products, status) and a side form to add or edit one. The form checks MSG01, MSG02, MSG03 and MSG125 before it sends; the backend checks again and decides MSG116. Ngừng hợp tác asks MSG118 first, Hợp tác lại does not; both are locked while the form has changes that are not saved. The products it supplies are chosen from the catalog with `components/product/ProductPicker.jsx`, hidden products included; the list is a record and does not limit goods receipts.
 
 `GoodsReceiptPage` is the `/admin/goods-receipts` screen (menu group "Cửa hàng", item "Nhập hàng"): the form for a new receipt (supplier, the day and the recorder as read-only, one row per product with Số nhận, Nhận vào kho, the rejected quantity worked out and the reason, the totals) beside "Phiếu nhập gần đây". The form checks MSG113, MSG119 and MSG120 before it sends; the backend checks again, and decides the code, the day, the recorder and the stock. `?receipt=PN-0012` (the link of a MSG122 notice) opens that receipt read only. The draft is kept while a receipt is open. The page keeps one `Idempotency-Key` while the form is unchanged, so saving again after a lost answer cannot make a second receipt (D-218). The products are searched with `components/product/ProductPicker.jsx`'s `ProductSearch`, through the goods receipt API.
+
+`AiModelsPage.jsx` at `/admin/ai-models` reads the current AI source, model history
+and unqualified source counts. It imports trainer DRAFT/evidence pairs and submits
+versioned model review decisions through `services/ai-model-api.js`. It never
+trains, fabricates ratings or claims aggregate counts satisfy verified data gates.
+Unknown write acknowledgements lock edited inputs and retain the same body/key.

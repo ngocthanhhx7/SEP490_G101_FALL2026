@@ -10,6 +10,7 @@ import { productSalesModels } from '../../src/models/product.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { registerModules } from '../../src/routes/module-registry.js';
+import { provisionStorefrontCatalog, backfillStorefrontPhotos } from '../../src/services/product-sales/storefront-catalog-provisioning.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const actors = {
@@ -78,6 +79,42 @@ describe('seed', () => {
 });
 
 describe('catalog', () => {
+  test('persists missing sample photos once, protects Admin edits and serves database changes', async () => {
+    await models.Product.deleteMany({});
+    await provisionStorefrontCatalog({ connection });
+    const codes = ['SP-0012', 'SP-0014', 'SP-0016', 'SP-0020', 'SP-0021', 'SP-0031', 'SP-0035', 'SP-0036', 'SP-0037'];
+    await models.Product.updateMany({ code: { $in: codes } }, { $set: { photos: [] } });
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { photos: ['/assets/admin-photo.webp'] } });
+    await models.Product.updateOne({ code: 'SP-0014' }, { $set: { detailsVersion: 2 } });
+    await models.Product.updateOne({ code: 'SP-0037' }, { $unset: { catalogSource: 1 } });
+    const financial = async () => models.Product.find({}).sort({ code: 1 }).select('code sellingPrice stockOnHand quantityHeld visible version').lean();
+    const before = await financial();
+    expect(await backfillStorefrontPhotos({ connection })).toEqual({ state: 'DRY_RUN', eligible: 6, updated: 0 });
+    expect((await product('SP-0016')).photos).toEqual([]);
+    expect(await backfillStorefrontPhotos({ connection, apply: true })).toEqual({ state: 'APPLIED', eligible: 6, updated: 6 });
+    expect(await backfillStorefrontPhotos({ connection, apply: true })).toEqual({ state: 'APPLIED', eligible: 0, updated: 0 });
+    expect(await financial()).toEqual(before);
+    expect((await product('SP-0012')).photos).toEqual(['/assets/admin-photo.webp']);
+    expect((await product('SP-0014')).photos).toEqual([]);
+    expect((await product('SP-0037')).photos).toEqual([]);
+    const updated = await product('SP-0016');
+    expect(updated).toMatchObject({ photos: ['/assets/products/cat-wet-food.webp'], detailsVersion: 1 });
+    await models.Product.updateOne({ _id: updated._id }, { $set: { name: 'Tên được sửa trong database', sellingPrice: 31000 } });
+    const response = await api().get(`/api/v1/products/${updated._id}`).expect(200);
+    expect(response.body.data).toMatchObject({ name: 'Tên được sửa trong database', sellingPrice: 31000, photos: updated.photos });
+  });
+  test('pages the inherited catalogue and provisioning preserves Admin edits', async () => {
+    expect((await provisionStorefrontCatalog({ connection })).inserted).toBe(20);
+    await models.Product.updateOne({ code: 'SP-0038' }, { $set: { sellingPrice: 123000, stockOnHand: 2 } });
+    expect((await provisionStorefrontCatalog({ connection })).inserted).toBe(0);
+    expect(await product('SP-0038')).toMatchObject({ sellingPrice: 123000, stockOnHand: 2, sampleCatalog: true });
+    const first = await api().get('/api/v1/products').expect(200);
+    const second = await api().get('/api/v1/products?page=2').expect(200);
+    expect(first.body.data).toMatchObject({ page: 1, limit: 20, total: 28 });
+    expect(second.body.data.items).toHaveLength(8);
+    expect(new Set([...first.body.data.items, ...second.body.data.items].map(row => row.id)).size).toBe(28);
+    await api().get('/api/v1/products?page=0').expect(422);
+  });
   test('lists only Shown products and filters by category, pet type and name', async () => {
     const all = await api().get('/api/v1/products').expect(200);
     expect(all.body.data.items).toHaveLength(8);
@@ -98,6 +135,20 @@ describe('catalog', () => {
 });
 
 describe('cart', () => {
+  test('rejects accumulated quantities above 99 and leaves a purchasable cart', async () => {
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 1000 } });
+    await addToCart('a', 'SP-0012', 99);
+    expect((await addToCart('a', 'SP-0012', 99)).status).toBe(422);
+    expect((await api('a').get('/api/v1/product-cart')).body.data.lines[0].quantity).toBe(99);
+    expect((await placePickup('a')).status).toBe(201);
+  });
+
+  test('two concurrent additions preserve both increments', async () => {
+    await addToCart('a', 'SP-0012', 1);
+    const added = await Promise.all([addToCart('a', 'SP-0012', 1), addToCart('a', 'SP-0012', 1)]);
+    expect(added.map(response => response.status)).toEqual([201, 201]);
+    expect((await api('a').get('/api/v1/product-cart')).body.data.lines[0].quantity).toBe(3);
+  });
   test('requires a Customer session and does not reserve stock', async () => {
     await api().get('/api/v1/product-cart').expect(401);
     await api('admin').get('/api/v1/product-cart').expect(403);
@@ -130,6 +181,15 @@ describe('cart', () => {
 });
 
 describe('placing an order', () => {
+  test('concurrent identical retries return the same order even after the winner empties the cart', async () => {
+    await addToCart('a', 'SP-0012', 2);
+    const key = idem();
+    const results = await Promise.all([placePickup('a', key), placePickup('a', key)]);
+    expect(results.map(row => row.status)).toEqual([201, 201]);
+    expect(results[0].body.data.id).toBe(results[1].body.data.id);
+    expect(await models.ProductOrder.countDocuments()).toBe(1);
+    expect((await product('SP-0012')).quantityHeld).toBe(2);
+  });
   test('holds stock, snapshots prices, adds the flat delivery fee and empties the cart', async () => {
     await addToCart('a', 'SP-0012', 2); await addToCart('a', 'SP-0031', 1);
     const placed = await placeDelivery('a', addressA._id);

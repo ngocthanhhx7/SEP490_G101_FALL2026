@@ -3,9 +3,11 @@ import { PRODUCT_LIMITS, PRODUCT_DEMO_SHIPPING_FEE_VND } from '../../constants/p
 import { parseAddCartLine, parseSetCartLine, parseRemoveCartLine } from '../../validators/product-cart.validator.js';
 import { sellableQuantity } from './product-order-pricing.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
+import { createUnitOfWork } from '../unit-of-work.service.js';
 
 export function createProductCartService({ connection }) {
   const { Product, ProductCart } = productSalesModels(connection);
+  const unitOfWork = createUnitOfWork(connection);
 
   async function view(customerId) {
     const cart = await ProductCart.findOne({ customerId }).lean();
@@ -56,19 +58,24 @@ export function createProductCartService({ connection }) {
       const customerId = requireCustomer(actor);
       const { productId, quantity } = parseAddCartLine(body);
       const { available } = await sellableProduct(productId);
-      await ProductCart.updateOne({ customerId }, { $setOnInsert: { customerId, lines: [], version: 0 } }, { upsert: true });
-      const cart = await ProductCart.findOne({ customerId }).lean();
-      const existing = cart.lines.find((line) => String(line.productId) === productId);
-      const next = (existing?.quantity ?? 0) + quantity;
-      if (next > available) throw productSalesErrors.exceedsAvailable(productId, available);
-      if (existing) {
-        await ProductCart.updateOne({ customerId, 'lines.productId': productId },
-          { $set: { 'lines.$.quantity': next }, $inc: { version: 1 } });
-      } else {
-        if (cart.lines.length >= PRODUCT_LIMITS.maxCartLines) throw productSalesErrors.cartFull();
-        await ProductCart.updateOne({ customerId, 'lines.productId': { $ne: productId } },
-          { $push: { lines: { productId, quantity } }, $inc: { version: 1 } });
-      }
+      try {
+        await ProductCart.updateOne({ customerId }, { $setOnInsert: { customerId, lines: [], version: 0 } }, { upsert: true });
+      } catch (error) { if (error?.code !== 11000) throw error; }
+      await unitOfWork.run(async (session) => {
+        const cart = await ProductCart.findOne({ customerId }).session(session).lean();
+        const existing = cart.lines.find((line) => String(line.productId) === productId);
+        const next = (existing?.quantity ?? 0) + quantity;
+        parseAddCartLine({ productId, quantity: next });
+        if (next > available) throw productSalesErrors.exceedsAvailable(productId, available);
+        if (existing) {
+          await ProductCart.updateOne({ customerId, 'lines.productId': productId },
+            { $set: { 'lines.$.quantity': next }, $inc: { version: 1 } }, { session, runValidators: true });
+        } else {
+          if (cart.lines.length >= PRODUCT_LIMITS.maxCartLines) throw productSalesErrors.cartFull();
+          await ProductCart.updateOne({ customerId, 'lines.productId': { $ne: productId } },
+            { $push: { lines: { productId, quantity } }, $inc: { version: 1 } }, { session, runValidators: true });
+        }
+      });
       return view(customerId);
     },
     async setLine(actor, productId, body) {

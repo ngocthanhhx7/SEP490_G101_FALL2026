@@ -11,7 +11,6 @@ export const PRODUCT_MANAGEMENT_TEXT = Object.freeze({
   codesExhausted: 'Đã hết mã sản phẩm. Vui lòng liên hệ quản trị hệ thống.',
   loadFailed: 'Chưa tải được danh sách sản phẩm',
   noPermission: 'Bạn không có quyền quản lý sản phẩm.',
-  photosNotice: 'Chưa thể thêm hoặc đổi ảnh ở màn này.',
   codeOnSave: 'Mã sản phẩm do hệ thống cấp khi lưu.',
   hiddenOnCreate: 'Sản phẩm mới được lưu ở trạng thái ẩn. Mở lại sản phẩm để bật hiển thị.'
 });

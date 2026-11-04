@@ -37,7 +37,7 @@ const input = (q, location = 'HOME') => ({ quoteId: q.quoteId, acceptServicePoli
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_booking_checkout' }).asPromise();
-  await provisionDemoCatalog({ connection }); await provisionFinanceSources(connection);
+  await provisionDemoCatalog({ connection, clock: () => at.getTime() - 1000 }); await provisionFinanceSources(connection);
   const repository = createPricingRepository(connection, () => at.getTime());
   pricing = createPricingService({ repository, clock: () => at.getTime() });
   scheduling = createEmployeeScheduleRepository({ connection, clock: () => at.getTime(), coverageAreas: DEMO_WORK_AREAS });
@@ -118,7 +118,7 @@ test('binds advisory selection to owned current match and immutable care snapsho
   const [match] = await connection.models.DecisionSnapshot.create([{ ownerId: owner.userId, kind: 'MATCH', requestHash: 'synthetic-match',
     expiresAt: new Date(at.getTime() + 300000), snapshot: { input: { serviceId: item('home-care').serviceId, petIds: [String(pet._id)], addressId: String(address._id),
       startAt: body.visits[0].startAt, endAt: new Date(Date.parse(body.visits[0].startAt) + 3600000).toISOString() },
-    result: { candidates: [{ sitterId: String(sitterId) }] }, petVersions: [{ id: pet._id, version: currentPet.version }], addressVersion: address.version } }]);
+    result: { featureVersion: 'PWC_MATCH_FEATURES_V1', capturedAt: at.toISOString(), candidates: [{ sitterId: String(sitterId), breakdown: ['fit', 'travel', 'quality', 'reliability', 'workload'].map(key => ({ key, normalized: 0.7 })) }] }, petVersions: [{ id: pet._id, version: currentPet.version }], addressVersion: address.version } }]);
   body.visits[0].requestedSitterId = String(sitterId); body.visits[0].matchId = String(match._id);
   await connection.models.DecisionSnapshot.updateOne({ _id: match._id }, { $set: { ownerId: other.userId } });
   await expect(checkout.confirm(owner, body, 'match-foreign')).rejects.toMatchObject({ code: 'MATCH_EXPIRED' });
@@ -136,6 +136,7 @@ test('binds advisory selection to owned current match and immutable care snapsho
   expect(JSON.stringify(result)).not.toContain('Synthetic secret entry');
   await connection.models.Pet.updateOne({ _id: pet._id }, { $set: { careProfile: { allergies: { status: 'KNOWN', value: 'Changed later' } } } });
   expect(visit.snapshots.care.pets[0].careProfile.allergies.status).toBe('UNKNOWN');
+  expect(visit.recommendationRef.featureSnapshot.candidates[0].features).toMatchObject({ fit: 0.7, travel: 0.7 });
   expect(await checkout.confirm(owner, body, 'match-valid-selection')).toEqual(result);
   const another = await quote('home-care', 1);
   await expect(checkout.confirm(owner, { ...body, quoteId: another.quoteId }, 'match-another-quote')).rejects.toMatchObject({ code: 'MATCH_ALREADY_USED' });

@@ -32,7 +32,7 @@ The catalog uses photo cards, price badges, server-owned scope lists and detail 
 
 PublicSiteLayout handles cross-route Home anchors and focus. Responsive checks cover desktop and 320/390px widths; role dashboards keep their own layout.
 
-AboutPage adapts Figma 2:2724 to at-home dog/cat care and the current five-member project team, without food-sales, nutrition, donation or partner claims. ContactPage adapts the supplied help/contact references: searchable FAQs, category filters, expandable answers and a consented email form with optional phone. Messages use the same-origin contact API, retain input on failure and confirm only SMTP acceptance. The recipient comes from server configuration; no unrelated reference-brand contact details are copied. No contact data is saved to browser storage.
+AboutPage adapts Figma 2:2724 to dog/cat care, the product storefront and the current five-member project team, without nutrition, donation or partner claims. ContactPage adapts the supplied help/contact references: searchable FAQs, category filters, expandable answers and a consented email form with optional phone. Messages use the same-origin contact API, retain input on failure and confirm only SMTP acceptance. The recipient comes from server configuration; no unrelated reference-brand contact details are copied. No contact data is saved to browser storage.
 
 SignInPage adapts Figma 2:5284 to the existing OTP flow. Email and SMS use the session adapter; Vietnamese local phone numbers are normalized to +84 before submission. sign-in.css owns all login styling, while auth-public.css retains registration/application styling. Header/footer remain owned by PublicSiteLayout. The registration link opens /register; social/password sign-in is outside this OTP flow. See [verification](../../../../doc/testing/login-email-sms-refresh.md).
 
@@ -44,3 +44,11 @@ new form; the device clock cannot bypass the waiting screen. Public OTP status
 provides a reapplication link when its server projection permits it.
 
 `ProductListPage.jsx` and `ProductDetailsPage.jsx` are the public shop at `/products` and `/products/:productId`. Filters live in the URL (`q`, `category`, `pet`); only Shown products are returned by the API. A guest pressing "Thêm vào giỏ hàng" is sent to sign-in and returns to the product page. Out-of-stock products lock the button (MSG98). Pressing + when the quantity already equals what can be sold shows MSG58 and the number does not go up (D-219; `QuantityStepper` `onLimit`); the cart still locks + at that quantity. A quantity above what can be sold when adding re-reads the product and shows MSG58 with the current number.
+
+The storefront also keeps `page` in the URL and uses server pagination. Home
+switches its existing three-card service section to `HomeProductPreview` only
+when Products is selected. Shared storefront styling lives in `styles/storefront.css`.
+Inherited product images and their source hashes are in `public/assets/products/credits.json`;
+no old checkout fees, ratings or sales figures are copied.
+
+Service and product lists share `CatalogLayout`: collapsible filters on the left, results on the right, stacked on mobile. Service filters use published categories/species/locations and base-price sorting; product filters use the API-supported category/pet type and preserve URL pagination/search. Home benefits cover both care and shopping without nutrition or provider promises.

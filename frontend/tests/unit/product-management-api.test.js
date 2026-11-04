@@ -8,6 +8,28 @@ const page = (items, over = {}) => envelope({ items, page: 1, limit: 20, total: 
 
 const api = (fetchImpl, getCsrfToken = () => 'csrf-token') => createProductManagementApi({ fetchImpl, getCsrfToken });
 
+test('uploads binary images with CSRF/version and uses the same version on replacement/removal', async () => {
+  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope(product)));
+  const file = new globalThis.File(['synthetic'], 'photo.webp', { type: 'image/webp' });
+  const client = api(fetchImpl);
+  await client.uploadPhoto(product.id, file, { version: 2 });
+  const [url, request] = fetchImpl.mock.calls[0];
+  expect(url).toBe('/api/v1/admin/products/p1/photos');
+  expect(request.body).toBe(file); expect(request.credentials).toBe('same-origin');
+  expect(request.headers.get('Content-Type')).toBe('image/webp');
+  expect(request.headers.get('X-CSRF-Token')).toBe('csrf-token');
+  expect(request.headers.get('X-Product-Version')).toBe('2');
+  await client.uploadPhoto(product.id, file, { version: 3, index: 0 });
+  expect(fetchImpl.mock.calls[1][0]).toBe('/api/v1/admin/products/p1/photos/0');
+  expect(fetchImpl.mock.calls[1][1].method).toBe('PUT');
+  await client.removePhoto(product.id, 0, 4);
+  expect(fetchImpl.mock.calls[2][1].method).toBe('DELETE');
+  expect(fetchImpl.mock.calls[2][1].headers.get('X-Product-Version')).toBe('4');
+  await expect(api(fetchImpl, () => null).uploadPhoto(product.id, file, { version: 4 })).rejects.toMatchObject({ code: 'CSRF_NOT_READY' });
+  await expect(client.uploadPhoto(product.id, new globalThis.File(['x'], 'bad.svg', { type: 'image/svg+xml' }), { version: 4 })).rejects.toMatchObject({ code: 'INVALID_PRODUCT_PHOTO' });
+  expect(fetchImpl).toHaveBeenCalledTimes(3);
+});
+
 test('lists products with only the filters that are set and keeps the page in meta', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(reply(200, page([product], { total: 9 })));
   const result = await api(fetchImpl).listProducts({ search: 'dây', category: 'ACCESSORY', petType: 'DOG', page: 2, limit: 20 });

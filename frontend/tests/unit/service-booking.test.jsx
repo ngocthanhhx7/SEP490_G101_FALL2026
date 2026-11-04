@@ -76,3 +76,14 @@ test('empty eligibility cannot be selected as a directed booking', async () => {
   await screen.findByText(/Chưa có sitter đáp ứng tất cả buổi/); expect(screen.getByText('Xem lại đơn')).toBeDisabled();
   expect(api.confirm).not.toHaveBeenCalled();
 });
+
+test('empty AI advice explains quality gates and explicit system fallback creates no fake match', async () => {
+  const api = fixture(), matching = { recommend: jest.fn(async () => ({ matchId: 'empty-match', expiresAt: '2099-01-01', candidates: [], exclusions: { BELOW_AUTOMATIC_THRESHOLD: 2 } })) };
+  await chooseSchedule(api, matching); fireEvent.click(screen.getByText('Xem gợi ý cho lịch này'));
+  expect(await screen.findByText(/Chưa đủ điểm phù hợp hoặc dữ liệu chất lượng/)).toBeInTheDocument();
+  expect(screen.getByText('Xem lại đơn')).toBeDisabled(); expect(api.confirm).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByText('Để hệ thống sắp xếp'));
+  await reviewAndConfirm(); await waitFor(() => expect(api.confirm).toHaveBeenCalled());
+  expect(api.confirm.mock.calls[0][0].visits[0]).toMatchObject({ bookingMode: 'SYSTEM' });
+  expect(api.confirm.mock.calls[0][0].visits[0]).not.toHaveProperty('matchId');
+});

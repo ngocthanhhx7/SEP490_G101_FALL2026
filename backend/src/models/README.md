@@ -1,5 +1,10 @@
 # Persistence models
 
+`product-photo.model.js` stores bounded normalized WebP bytes in `productphotos`,
+separate from lightweight product documents. Product ID/hash is unique; image
+references and details versions change transactionally. Mongo backup/restore
+includes these blobs; no writable release directory or provider key is required.
+
 `customer-review.model.js` preserves the `reviews` collection, adds a unique
 visit/direction constraint and durable command replay. Operational satisfaction
 outcomes retain `aivisitoutcomes`; optional private provenance links source
@@ -28,3 +33,8 @@ not contain application documents or interview notes. Existing collections are
 unchanged; deployment index provisioning registers this model explicitly.
 
 `product.model.js` defines `Product`, `ProductCart`, `ProductOrder`, `ProductCustomerRefusal` (one record per refused order, order id unique; a customer's refusal count is the number of their records) and the `ProductCounter` used for order codes, with default collection names (`products`, `productcarts`, `productorders`, `productcustomerrefusals`, `productcounters`). `ProductOrder` also keeps delivery and return details (`deliveredAt`, `carrierReturnReason`, `returnReason`, `returnNote`, `returnedAt`, `refundMarked`) and each order line the `resellableQuantity` set when a return is confirmed. The new collection is created with the deployment index command. `GoodsReceipt` (collection `goodsreceipts`) is one delivery recorded by the shop: a code (`PN-0001`, no upper limit) and its `number`, the supplier (id and name as it was), the day, the recorder (id and name), the lines (product id, code and name as they were, received, accepted, rejected, reason), the totals, and the `idempotencyKey` and `requestFingerprint` of the save (D-218; unique per recorder and key). It is never edited or deleted, so it has no `version`; its `number` and `code` are unique. `Supplier` (collection `suppliers`) holds a supplier of the shop: name, `nameKey` (the name as compared for uniqueness, under a unique index), contact name, ten-digit phone, email, the `productIds` it supplies, `status` (`ACTIVE`/`STOPPED`) and `version`; it is created with the deployment index command like the other product-sales models. `Product.detailsVersion` guards edits made in Product Management; the stock `version` is separate because every order or return changes stock. `ProductCounter` also holds `PRODUCT_CODE`, the last `SP-xxxx` number. `sellingPrice`, stock and totals are integer VND/units; sellable quantity is derived (`stockOnHand - quantityHeld`). Order lines copy code, name and price at order time. Provision through the deployment index command like other runtime models.
+
+Matching models retain original artifact bytes/evidence and review versions.
+`SitterRankModelReview` adds durable approval/retirement replay and a transaction
+activation guard. Employee offers keep private feature snapshots; accepted visits
+retain the actual assignee snapshot. Existing collection names remain unchanged.

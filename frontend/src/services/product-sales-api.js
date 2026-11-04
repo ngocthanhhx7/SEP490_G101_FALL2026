@@ -39,15 +39,21 @@ export function createProductSalesApi(options) {
   const request = createApiClient(options);
   const id = encodeURIComponent;
   return {
-    async listProducts({ search, category, petType } = {}, { signal } = {}) {
+    async listProducts({ search, category, petType, page, limit } = {}, { signal } = {}) {
       const params = new globalThis.URLSearchParams();
       if (search) params.set('search', search);
       if (category) params.set('category', category);
       if (petType) params.set('petType', petType);
+      if (page !== undefined) params.set('page', page);
+      if (limit !== undefined) params.set('limit', limit);
       const query = params.toString();
       const response = await request(`/products${query ? `?${query}` : ''}`, { signal });
       if (!Array.isArray(response.data?.items)) invalid();
-      return { ...response, data: response.data.items.map(checkProduct) };
+      const paging = response.data;
+      if (paging.page !== undefined && (!Number.isSafeInteger(paging.page) || paging.page < 1
+        || !Number.isSafeInteger(paging.limit) || paging.limit < 1 || !money(paging.total))) invalid();
+      return { ...response, data: paging.items.map(checkProduct), meta: { ...response.meta,
+        ...(paging.page !== undefined ? { page: { page: paging.page, limit: paging.limit, total: paging.total } } : {}) } };
     },
     async getProduct(productId, { signal } = {}) {
       const response = await request(`/products/${id(productId)}`, { signal });

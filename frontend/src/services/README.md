@@ -1,5 +1,9 @@
 # API services
 
+Product Management transports bounded binary photos through the shared API client
+with same-origin cookies, CSRF and `X-Product-Version`. Image writes use their own
+routes and do not expose arbitrary photo URLs in the ordinary product editor DTO.
+
 `service-basket-api.js` also owns the quote-scoped `/checkout/availability`
 transport for directed booking; pages do not call the transport directly.
 
@@ -32,3 +36,6 @@ PNG/JPEG MIME type; pages never receive an R2 signed URL. The default owner imag
 read path remains unchanged.
 
 `product-sales-api.js` is the same-origin transport for `/products`, `/product-cart` and `/product-orders` and validates every DTO (integer VND, known enums). It sends no prices; the order request carries only receive/payment method and the owned address id. `product-order-management-api.js` is the Admin transport for `/admin/product-orders`: list with tab counts, and the carrier, ready, payment and hand-over steps. It sends no stock or status values, only the tracking code. `product-management-api.js` is the Admin transport for `/admin/products` (paged list with the page in `meta.page`, read, create, edit by `version`); it sends no code and no stock. `supplier-management-api.js` is the Admin transport for `/admin/suppliers` (paged list with the tab counts in `meta.counts`, read with products, add, edit, stop, resume); it sends no status and no name key. `goods-receipt-api.js` is the Admin transport for `/admin/goods-receipts` (active suppliers, product search, the recent receipts, one receipt, save); it sends no code, day, recorder or rejected quantity, and saves with the `Idempotency-Key` the page gives it. Contract: [product sales API](../../../doc/api/product-sales-v1.md).
+
+`ai-model-api.js` owns Admin model status/import/review transport through the
+shared API client and CSRF/idempotency handling; it never computes rankings.

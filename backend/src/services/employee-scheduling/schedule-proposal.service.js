@@ -22,19 +22,25 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
     id(proposalId);
     return models.EmployeeScheduleProposal.findOne({ _id: proposalId, customerId }).session(session ?? null).lean();
   }
-  async function pending(input, createdBy) {
-    const visit = await dispatch.readContext(input.visitId);
-    if (!visit.requestedSitterId || String(visit.requestedSitterId) !== input.sitterId) fail('DIRECTED_SITTER_MISMATCH', 'Only the requested employee can be proposed', 409);
+  async function pending(input, createdBy, session) {
+    const visit = await dispatch.readContext(input.visitId, session);
+    if (visit.requestedSitterId && String(visit.requestedSitterId) !== input.sitterId) fail('DIRECTED_SITTER_MISMATCH', 'Only the requested employee can be proposed', 409);
     if (visit.snapshots.boarding) fail('STAY_CHANGE_REQUIRES_REVIEW', 'Boarding stay changes require a whole-stay review', 409);
-    const booking = await col('bookings').findOne({ _id: visit.bookingId });
-    const record = await repository.find(input.sitterId);
+    const areaCode = input.areaCode ?? visit.areaCode;
+    const area = repository.coverageAreas.find(row => row.code === areaCode);
+    if (!area || areaCode !== visit.areaCode && (visit.location !== 'HOME' || area.parentCode !== visit.areaCode))
+      fail('VALIDATION_FAILED', 'Only a more precise area at the same home address can be proposed');
+    const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
+    await employeeGuard(input.sitterId, session);
+    const record = await repository.find(input.sitterId, session);
     const slots = [];
     for (const slot of input.slots) {
       const startAt = new Date(slot.startAt), endAt = new Date(slot.endAt);
       if (endAt - startAt !== visit.endAt - visit.startAt) fail('VALIDATION_FAILED', 'A schedule proposal cannot change service duration');
-      await eligible(input.sitterId, { ...visit, startAt, endAt }); slots.push({ startAt: startAt.toISOString(), endAt: endAt.toISOString() });
+      await eligible(input.sitterId, { ...visit, areaCode, startAt, endAt }, session, { requireOrigin: !visit.requestedSitterId }); slots.push({ startAt: startAt.toISOString(), endAt: endAt.toISOString() });
     }
     return { customerId: String(booking.customerId), bookingId: String(booking._id), visitId: String(visit._id), sitterId: input.sitterId,
+      areaCode, previousAreaCode: visit.areaCode, areaLabel: area.label,
       visitVersion: visit.version, availabilityVersion: record.version, slots, state: 'PENDING_CUSTOMER_CONFIRMATION', version: 0,
       expiresAt: new Date(clock() + 24 * 3600000), createdBy, createdAt: new Date(clock()),
       paymentState: booking.paymentState, paymentRequired: booking.paymentMode === 'PREPAY',
@@ -43,8 +49,10 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
   const proposalRepository = {
     async findByIdempotency() { return null; },
     async createPending(input) {
-      const record = await pending(input, input.customerId);
-      const [saved] = await models.EmployeeScheduleProposal.create([record]); return view(saved.toObject());
+      return transact(async session => {
+        const record = await pending(input, input.customerId, session);
+        const [saved] = await models.EmployeeScheduleProposal.create([record], { session }); return view(saved.toObject());
+      });
     },
     findOwned: ({ customerId, proposalId }) => proposalFor(customerId, proposalId).then(view),
     async findConfirmationByIdempotency(input) {
@@ -68,22 +76,24 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
         fail('SLOT_NOT_PROPOSED', 'Choose a proposed time', 409);
       const visit = await dispatch.readContext(proposal.visitId, session), sitterId = proposal.sitterId;
       const booking = await col('bookings').findOne({ _id: visit.bookingId, customerId: oid(input.customerId) }, { session });
-      if (!booking || String(visit.requestedSitterId) !== sitterId || visit.version !== proposal.visitVersion) fail('VERSION_CONFLICT', 'Visit changed since proposal', 409);
+      if (!booking || visit.requestedSitterId && String(visit.requestedSitterId) !== sitterId || visit.version !== proposal.visitVersion) fail('VERSION_CONFLICT', 'Visit changed since proposal', 409);
       await employeeGuard(sitterId, session);
-      const revised = { ...visit, startAt: new Date(input.selectedSlot.startAt), endAt: new Date(input.selectedSlot.endAt) };
-      await eligible(sitterId, revised, session);
+      const revised = { ...visit, areaCode: proposal.areaCode ?? visit.areaCode, startAt: new Date(input.selectedSlot.startAt), endAt: new Date(input.selectedSlot.endAt) };
+      await eligible(sitterId, revised, session, { requireOrigin: !visit.requestedSitterId });
       if (await col('visits').findOne({ _id: { $ne: visit._id }, bookingId: visit.bookingId, state: { $ne: 'SUPERSEDED' },
         petIds: { $in: visit.petIds }, startAt: { $lt: revised.endAt }, endAt: { $gt: revised.startAt } }, { session }))
         fail('VISIT_SCHEDULE_OVERLAP', 'The pet already has a service at this time', 409);
       await models.EmployeeVisitOffer.updateMany({ visitId: visit._id, state: 'PENDING' }, { $set: { state: 'REVOKED' }, $inc: { version: 1 } }, { session });
       const changed = await col('visits').updateOne({ _id: visit._id, state: 'SCHEDULED', version: proposal.visitVersion },
-        { $set: { startAt: revised.startAt, endAt: revised.endAt, customerScheduleConsent: proposal._id }, $unset: { dispatchReview: 1 }, $inc: { version: 1 } }, { session });
+        { $set: { startAt: revised.startAt, endAt: revised.endAt, areaCode: revised.areaCode,
+          requestedSitterId: visit.requestedSitterId ?? oid(sitterId), customerScheduleConsent: proposal._id }, $unset: { dispatchReview: 1 }, $inc: { version: 1 } }, { session });
       if (!changed.matchedCount) fail('VERSION_CONFLICT', 'Visit changed', 409);
       await col('bookings').updateOne({ _id: booking._id, version: booking.version }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });
       const at = new Date(clock());
       const [offer] = await models.EmployeeVisitOffer.create([{ visitId: visit._id, sitterId, state: 'PENDING', version: 0, offeredAt: at,
         deadline: new Date(Math.min(clock() + 15 * 60000, revised.startAt.getTime())), startAt: revised.startAt, endAt: revised.endAt,
-        serviceName: visit.snapshots.serviceName, areaCode: visit.areaCode, pets: visit.snapshots.pets }], { session });
+        originRouteRequired: !visit.requestedSitterId,
+        serviceName: visit.snapshots.serviceName, areaCode: revised.areaCode, pets: visit.snapshots.pets }], { session });
       const saved = await models.EmployeeScheduleProposal.findOneAndUpdate({ _id: proposal._id, version: proposal.version },
         { $set: { state: 'CONFIRMED', confirmedAt: at, selectedSlot: input.selectedSlot }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
       const result = { proposal: view(saved), offer: { id: String(offer._id), visitId: proposal.visitId, sitterId, state: 'PENDING', deadline: offer.deadline.toISOString(), dispatchSequence: 0 } };
@@ -107,7 +117,8 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
     getProposal: directed.getProposal,
     confirmProposal: directed.confirmProposal,
     async propose(actor, visitId, body, key) {
-      id(visitId); exact(body, ['expectedVersion', 'startAt'], ['expectedVersion', 'startAt']); number(body.expectedVersion, 0, 1000000, true);
+      id(visitId); exact(body, ['expectedVersion', 'startAt', 'sitterId', 'areaCode'], ['expectedVersion', 'startAt']); number(body.expectedVersion, 0, 1000000, true);
+      if (body.sitterId !== undefined) id(body.sitterId);
       const startAt = new Date(instant(body.startAt)); schedulingKey(key);
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       const command = digest([actor.userId, 'STAFF_SCHEDULE_PROPOSAL', visitId, key]), hash = digest(body);
@@ -119,8 +130,11 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
         if (previous) { if (previous.fingerprint !== hash) fail('IDEMPOTENCY_CONFLICT', 'Proposal key reused', 409); return previous.result; }
         const visit = await dispatch.readContext(visitId, session);
         if (visit.version !== body.expectedVersion) fail('VERSION_CONFLICT', 'Visit changed', 409);
-        const record = await pending({ visitId, sitterId: String(visit.requestedSitterId), slots: [{ startAt: startAt.toISOString(),
-          endAt: new Date(startAt.getTime() + (visit.endAt.getTime() - visit.startAt.getTime())).toISOString() }] }, actor.userId);
+        if (!visit.dispatchReview) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'Staff proposals require dispatch escalation', 409);
+        const sitterId = body.sitterId ?? (visit.requestedSitterId && String(visit.requestedSitterId));
+        id(sitterId);
+        const record = await pending({ visitId, sitterId, areaCode: body.areaCode, slots: [{ startAt: startAt.toISOString(),
+          endAt: new Date(startAt.getTime() + (visit.endAt.getTime() - visit.startAt.getTime())).toISOString() }] }, actor.userId, session);
         const [saved] = await models.EmployeeScheduleProposal.create([record], { session }), result = view(saved.toObject());
         await models.EmployeeScheduleCommand.create([{ _id: command, fingerprint: hash, result, createdAt: new Date(clock()) }], { session });
         await models.EmployeeScheduleEvent.create([{ type: 'ScheduleProposed', actorId: actor.userId, sitterId: record.sitterId,

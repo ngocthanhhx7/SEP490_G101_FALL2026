@@ -58,8 +58,8 @@ test('homepage shows the approved brand, service catalog data and valid public a
     screen.getByRole('link', { name: 'Đặt dịch vụ ngay' })
   ).toHaveAttribute('href', '/sign-in');
   expect(
-    screen.getByRole('link', { name: 'Khám phá dịch vụ' })
-  ).toHaveAttribute('href', '/services');
+    screen.getByRole('link', { name: 'Khám phá sản phẩm' })
+  ).toHaveAttribute('href', '/products');
   expect(
     await screen.findByRole('heading', { name: service.name })
   ).toBeVisible();
