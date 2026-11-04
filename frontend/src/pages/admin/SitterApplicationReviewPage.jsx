@@ -1,3 +1,4 @@
+import { EmploymentContractEditor } from '../../components/payroll/EmploymentContractEditor.jsx';
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
@@ -17,6 +18,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
   const applicationId = suppliedId ?? params.applicationId;
   const load = useCallback(({ signal }) => api.get({ applicationId, signal }), [api, applicationId]);
   const resource = useApiResource(load);
+  const [contractVerified, setContractVerified] = useState(false);
   const [reason, setReason] = useState('');
   const [interviewNote, setInterviewNote] = useState('');
   const [sitterStatusReason, setSitterStatusReason] = useState('');
@@ -54,6 +56,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
       resource.retry();
     } catch (error) {
       const message = error?.code === 'CSRF_NOT_READY' ? 'Bảo vệ phiên thao tác Admin chưa được kết nối.'
+        : error?.code === 'SIGNED_CONTRACT_REQUIRED' ? 'Cần soạn, chốt bản in và xác minh hợp đồng đã được hai bên ký trước khi duyệt.'
         : error?.code === 'APPLICATION_STAGE_REQUIRED' ? 'Cần hoàn tất bước thẩm định và chuyển sang phỏng vấn trước khi quyết định.'
         : error?.code === 'VERSION_CONFLICT' ? 'Hồ sơ đã được cập nhật. Hãy tải lại trước khi quyết định.'
           : 'Không thể lưu quyết định. Hãy kiểm tra hồ sơ và thử lại.';
@@ -125,6 +128,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
             <Button variant="secondary" onClick={() => setDocument(document)}>Xem {document.documentType === 'IDENTITY' ? 'giấy tờ định danh' : 'tài liệu bổ sung'}</Button>
           </li>)}</ul> : <p>Chưa có tài liệu.</p>}
         </section>
+        {['INTERVIEW','APPROVED'].includes(resource.data.state) && <EmploymentContractEditor application={resource.data} onVerified={setContractVerified} />}
         {['PENDING', 'UNDER_REVIEW', 'INTERVIEW'].includes(resource.data.state) && <section className="sitter-app-review-form" aria-label="Ghi nhận thẩm định">
           <p>Chỉ duyệt khi đã hoàn tất thẩm định và có hợp đồng đã ký. Hình thức làm việc trong hồ sơ là nguyện vọng; hợp đồng, ca làm và quyền nhận việc được quản lý riêng.</p>
           {resource.data.state === 'PENDING' && <Button variant="secondary" disabled={busy} onClick={startReview}>Bắt đầu thẩm định</Button>}
@@ -141,8 +145,9 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
             <textarea id="sitter-decision-reason" rows="3" maxLength="1000" value={reason}
               onChange={event => setReason(event.target.value)} />
           </label>
+          {!contractVerified && <p>Hoàn tất xác minh hợp đồng đã ký ở phần trên để bật quyết định duyệt.</p>}
           <div className="sitter-app-review-form__actions">
-            <Button loading={busy} onClick={() => decide('APPROVE')}>Duyệt và cấp quyền Pet Sitter</Button>
+            <Button loading={busy} disabled={!contractVerified} onClick={() => decide('APPROVE')}>Duyệt và cấp quyền Pet Sitter</Button>
             <Button variant="danger" loading={busy} onClick={() => decide('REJECT')}>Từ chối hồ sơ</Button>
           </div>
           </>}
@@ -163,6 +168,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
             <textarea id="sitter-status-reason" rows="3" maxLength="1000" value={sitterStatusReason}
               onChange={event => setSitterStatusReason(event.target.value)} />
           </label>
+
           <div className="sitter-app-review-form__actions">
             {resource.data.sitterStatus.status === 'ACTIVE'
               ? <Button variant="danger" loading={busy} onClick={() => changeSitterStatus('SUSPEND')}>Tạm ngưng Sitter</Button>

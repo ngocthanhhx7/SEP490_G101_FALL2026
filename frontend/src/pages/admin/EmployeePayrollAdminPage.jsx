@@ -1,3 +1,4 @@
+import { AutomaticPayrollForm } from '../../components/payroll/AutomaticPayrollForm.jsx';
 import { useCallback, useRef, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
 import { PayrollStatement, PayrollAdjustment, PayrollField, PayrollLoadState, PayrollPager, money, payrollStatus } from '../../components/payroll/PayrollDetails.jsx';
@@ -78,10 +79,12 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
     if (await state.command('prepare', body, key => api.prepare(body, key))) { form.reset(); setInstallments([]); }
   };
   return <section className="payroll-workspace"><h1>Quản lý lương</h1><PayrollLoadState state={state} />
-    <section><details><summary>Xác minh hợp đồng đã ký</summary>
+    <AutomaticPayrollForm onSaved={state.refresh} />
+    <p>Hợp đồng tuyển mới được soạn, in và xác minh ngay trong hồ sơ ứng viên trước khi hoàn tất duyệt.</p>
+    <section><details><summary>Xác minh hợp đồng cũ / thay đổi hợp đồng</summary>
       <EmployeeContractForm key={contractRevision} busy={state.busy} locked={contractLocked} onSave={saveContract} loadEmployee={employeeApi ? loadEmployee : undefined} />
     </details></section>
-    <section><details><summary>Lập phiếu lương</summary><form onSubmit={prepare}>
+    <section><details><summary>Đối soát nâng cao: lập phiếu từ hồ sơ đã chốt riêng</summary><form onSubmit={prepare}>
       <div className="payroll-form"><PayrollField {...employeeField} />
         <PayrollField label="Từ ngày" name="periodStart" type="date" /><PayrollField label="Đến trước ngày" name="periodEnd" type="date" /><PayrollField label="Hạn trả" name="dueAt" type="date" />
         {numericFields.map(([name, label, min]) => <PayrollField key={name} label={label} name={name} type="number" min={min} step="1" />)}

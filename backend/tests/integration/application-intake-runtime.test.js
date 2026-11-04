@@ -1,3 +1,4 @@
+import { employmentTerms } from '../fixtures/employment-terms.js';
 import { afterAll, beforeAll, beforeEach, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -120,6 +121,12 @@ test('registration → private upload → application → scoped OTP status → 
     await request(app).post(`/api/v1/applications/${created.body.data.id}/${stage}`).set(adminHeaders)
       .set('Idempotency-Key', `synthetic-stage-${stage}`).send({ expectedVersion }).expect(200);
   }
+  const contractRoot=`/api/v1/applications/${created.body.data.id}/employment-contract`, signedOn=new Date(clockNow+7*3600000).toISOString().slice(0,10);
+  const effectiveOn=new Date(clockNow+86400000+7*3600000).toISOString().slice(0,10);
+  const contract=(await request(app).post(contractRoot).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-contract'}).send({applicationVersion:2,expectedRevision:0,
+    terms:employmentTerms({employeeName:'Ứng viên kiểm thử',identityNumber:'TEST12345678',plannedSigningOn:signedOn,effectiveOn})}).expect(201)).body.data;
+  await request(app).post(`${contractRoot}/${contract.id}/decisions`).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-issue'}).send({action:'ISSUE',termsHash:contract.termsHash}).expect(200);
+  await request(app).post(`${contractRoot}/${contract.id}/decisions`).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-sign'}).send({action:'SIGN',termsHash:contract.termsHash,signedOn,archiveReference:'Synthetic physical archive',bothPartiesSigned:true}).expect(200);
   await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-approve-0001' })
     .send({ action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic review completed' }).expect(200)
     .expect(res => expect(res.body.data.userId).toBe(owner.id));

@@ -38,3 +38,9 @@ Matching models retain original artifact bytes/evidence and review versions.
 `SitterRankModelReview` adds durable approval/retirement replay and a transaction
 activation guard. Employee offers keep private feature snapshots; accepted visits
 retain the actual assignee snapshot. Existing collection names remain unchanged.
+
+`employment-document.model.js` adds encrypted immutable application contracts, a
+transactional document counter and command replay without renaming legacy payroll
+collections. EmploymentContract adds the signed document reference, generated code,
+contractual schedule and fixed allowance; PayrollStatement snapshots identity and
+reference for print. New collections are created by existing deployment indexing.
