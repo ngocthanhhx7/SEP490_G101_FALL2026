@@ -48,6 +48,10 @@
 .pwc-dialog-header h2 { margin: 0; font-size: var(--pwc-text-large); font-weight: 700; flex: 1; min-width: 8rem; }
 .pwc-dialog-content { margin-block: var(--pwc-space-4); }
 .pwc-dialog-footer { display: flex; flex-wrap: wrap; gap: var(--pwc-space-3); justify-content: flex-end; }
+.pwc-pagination { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--pwc-space-3); margin-top: var(--pwc-space-4); }
+.pwc-pagination-summary { margin: 0; color: var(--pwc-ink-muted); }
+.pwc-pagination-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-3); }
+.pwc-pagination-position { font-weight: 700; white-space: nowrap; }
 .pwc-logo { display: block; width: 12rem; max-width: 100%; height: auto; }
 .pwc-logo--vertical { width: 8rem; }
 .pwc-icon { display: inline-block; width: var(--pwc-icon); height: var(--pwc-icon); flex-shrink: 0; }

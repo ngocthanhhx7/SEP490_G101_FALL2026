@@ -3,8 +3,10 @@ import { NotificationProvider } from '../contexts/NotificationContext.jsx';
 import { NotificationToast } from '../components/common/NotificationToast.jsx';
 import { AppRoutes } from '../routes/AppRoutes.jsx';
 import { AppErrorBoundary } from './AppErrorBoundary.jsx';
+import { ProductCartProvider } from '../contexts/ProductCartContext.jsx';
 import { PublicPolicyProvider } from '../contexts/PublicPolicyContext.jsx';
 import { publicPolicyRouteElements as defaultPublicPolicyRouteElements } from '../routes/PublicPolicyRoutes.jsx';
+import '../styles/storefront.css';
 
 export function App({
   sessionAdapter,
@@ -16,12 +18,14 @@ export function App({
     <AppErrorBoundary>
       <SessionProvider adapter={sessionAdapter}>
         <NotificationProvider>
+        <ProductCartProvider>
         <PublicPolicyProvider
           policies={registrationPolicies}
           loadPolicies={loadPublicPolicies}
         >
           <AppRoutes publicPolicyRouteElements={publicPolicyRouteElements} />
         </PublicPolicyProvider>
+        </ProductCartProvider>
           <NotificationToast />
         </NotificationProvider>
       </SessionProvider>

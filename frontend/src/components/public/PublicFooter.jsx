@@ -6,7 +6,7 @@ export function PublicFooter() {
     <div className="pwc-public-footer-inner">
       <div className="pwc-footer-identity">
         <Link className="pwc-footer-wordmark" to="/" aria-label="PawWorldCare — Trang chủ">PawWorld<span className="pwc-brand-care">Care</span></Link>
-        <p>Mỗi lượt chăm sóc<br />Một vòng tay an tâm.</p>
+        <p>Chăm sóc và mua sắm cho bé<br />Một nơi, thêm nhiều an tâm.</p>
         <div className="pwc-footer-socials" aria-label="Mạng xã hội">
           <img src={a + 'footer-IcBaselineFacebook.svg'} alt="Facebook" />
           <img src={a + 'footer-Tiktok.svg'} alt="TikTok" />
@@ -27,7 +27,7 @@ export function PublicFooter() {
       <nav className="pwc-footer-column" aria-label="Liên kết hỗ trợ">
         <h2>HỖ TRỢ</h2>
         <Link to="/">Trang chủ</Link><Link to="/about">Về chúng tôi</Link>
-        <Link to="/#stories">Câu truyện</Link><Link to="/contact">Liên hệ</Link>
+        <Link to="/products">Sản phẩm</Link><Link to="/contact">Liên hệ</Link>
       </nav>
       <nav className="pwc-footer-column pwc-footer-policies" aria-label="Trang chính sách">
         <h2>CHÍNH SÁCH</h2>

@@ -1,0 +1,10 @@
+/* Product picker (supplier form). Uses the .pwc-shop colour variables from the page around it. */
+.pwc-picker { display: grid; gap: .5rem; }
+.pwc-picker-selected, .pwc-picker-results { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.pwc-picker-selected li { display: flex; align-items: center; justify-content: space-between; gap: .5rem; border: 1px solid var(--shop-border); border-radius: .75rem; padding: .4rem .4rem .4rem .9rem; background: var(--shop-bg); overflow-wrap: anywhere; }
+.pwc-picker-remove { flex: none; width: 2.75rem; height: 2.75rem; border: 0; border-radius: 50%; background: transparent; font-size: 1.25rem; cursor: pointer; }
+.pwc-picker-remove:disabled { opacity: .4; cursor: not-allowed; }
+.pwc-picker-search { display: grid; gap: .5rem; border: 1px solid var(--shop-border); border-radius: .75rem; padding: .75rem; }
+.pwc-picker-results button { width: 100%; min-height: 2.75rem; text-align: left; border: 1px solid var(--shop-border); border-radius: .75rem; background: #fff; font: inherit; padding: .4rem .9rem; cursor: pointer; overflow-wrap: anywhere; }
+.pwc-picker-results button:disabled { background: #eceeed; color: var(--shop-muted); cursor: not-allowed; }
+.pwc-picker em { color: var(--shop-muted); font-style: normal; }

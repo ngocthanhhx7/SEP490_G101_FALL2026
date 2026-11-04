@@ -1,0 +1,34 @@
+{
+  "source": "Owner-provided previous PawWorld project",
+  "authorization": "User request 2026-11-04 to reuse old products and UI assets in Paw World Care",
+  "sourceFile": "paw_world_web/server/src/seeds/seedDatabase.js",
+  "sourceSha256": "6f7832b4a910b2741cd6fb5bc9b1f684730a1a9ef3133df2c30fa6d8faf3931a",
+  "note": "Sample products and original project illustrations; no ratings or sales claims imported. Stock and prices are demo values.",
+  "assets": [
+    {
+      "file": "kit-purple.webp",
+      "source": "paw_world_web/client/public/assets/paw/Cat Food Kit.png",
+      "sourceSha256": "5d4b6000eb8005cfeaabd0a9aa4ea4f70c0ab231b935d10ff0d519cc06abbe0d"
+    },
+    {
+      "file": "kit-red.webp",
+      "source": "paw_world_web/client/public/assets/paw/Cat Food Kit1.png",
+      "sourceSha256": "ddb4ed52ce4ce1ba31604b95a0278bb37b194e45647884f2db5b05952d31d5af"
+    },
+    {
+      "file": "osmon-small.webp",
+      "source": "paw_world_web/client/public/assets/paw/image 654.png",
+      "sourceSha256": "43490d6a7be3cbd5be1c77026920a370183ff7c5064b85af43b466189e268b52"
+    },
+    {
+      "file": "osmon-podium.webp",
+      "source": "paw_world_web/client/public/assets/paw/image 653.png",
+      "sourceSha256": "313d218575d70d2efd9ac747638226b8c8d648227a4c7badcdf9a76a9cfe9fba"
+    },
+    {
+      "file": "bowl-food.webp",
+      "source": "paw_world_web/client/public/assets/paw/cfc3d7f844b024807049920fc1a7bb55 1.png",
+      "sourceSha256": "56d2c9c64f6fdb5e96465b40bcf6640112e4522d167ffe687ecf24346a0704e9"
+    }
+  ]
+}

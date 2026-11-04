@@ -18,8 +18,8 @@ export function AboutPage() {
         <img className="pwc-about-photo-small" src={assets + 'about-Image154.png'} alt="Chú mèo trắng trong khung ảnh nhỏ" />
       </div>
       <div className="pwc-about-intro-copy"><h1 id="pwc-about-heading">Về<br />PawWorld Care</h1>
-        <p>Paw World Care kết nối người nuôi chó, mèo với dịch vụ chăm sóc thú cưng tại nhà. Khi bạn bận rộn hoặc vắng nhà, bé vẫn cần được quan tâm trong không gian quen thuộc.</p>
-        <p>Dự án hướng đến việc giúp bạn tìm dịch vụ phù hợp, đặt lịch chăm sóc và theo dõi từng lượt thực hiện — từ ghé thăm, chơi cùng bé đến dắt chó đi dạo và đưa bé đến lịch hẹn thú y.</p>
+        <p>Paw World Care đồng hành cùng người nuôi chó, mèo qua dịch vụ chăm sóc tại nhà và cửa hàng thức ăn, đồ dùng cho thú cưng. Khi bạn bận rộn hoặc vắng nhà, bé vẫn cần được quan tâm trong không gian quen thuộc.</p>
+        <p>Bạn có thể tìm dịch vụ phù hợp, đặt lịch và theo dõi từng lượt chăm sóc; hoặc chọn sản phẩm, thêm vào giỏ hàng và đặt nhận tại cửa hàng hay giao đến địa chỉ trong khu vực phục vụ.</p>
       </div>
     </section>
 
@@ -33,7 +33,7 @@ export function AboutPage() {
       <img src={assets + 'home-Image659.webp'} alt="" loading="lazy" />
       <div><h2 id="pwc-about-goals-title">MỤC TIÊU</h2><div>
         <p>Xây dựng một nền tảng chăm sóc chó, mèo tại nhà, nơi khách hàng có thể quản lý hồ sơ thú cưng, lựa chọn dịch vụ và sắp xếp lịch phù hợp.</p>
-        <p>Kết nối khách hàng với người chăm sóc, hỗ trợ theo dõi trạng thái và báo cáo sau mỗi lượt. Thông tin dịch vụ, giá và khu vực phục vụ được đối chiếu theo danh mục đang công bố.</p>
+        <p>Kết nối khách hàng với người chăm sóc, hỗ trợ theo dõi trạng thái và báo cáo sau mỗi lượt. Thông tin dịch vụ, sản phẩm, giá và khu vực phục vụ được đối chiếu theo danh mục đang công bố.</p>
       </div></div>
     </section>
 
@@ -55,6 +55,7 @@ export function AboutPage() {
           <li>Theo dõi tiến trình cùng checklist, ảnh và ghi chú.</li>
           <li>Đọc chính sách dịch vụ và gửi phản hồi sau lượt chăm sóc.</li></ul>
         <Link className="pwc-design-button" to="/services">Khám phá dịch vụ</Link>
+        <Link className="pwc-shop-about-link" to="/products">Chọn sản phẩm cho bé →</Link>
       </div>
     </section>
     <section className="pwc-about-explore" aria-labelledby="pwc-about-explore-title">
