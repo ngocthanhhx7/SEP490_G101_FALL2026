@@ -7,6 +7,8 @@ export class ApiError extends Error {
     this.fieldErrors = details.fieldErrors;
     // Per-field reasons from a 422, e.g. { name: 'REQUIRED', sellingPrice: 'WHOLE_NUMBER' }.
     this.fields = details.fields;
+    // Per-line reasons from a 422 on a list of lines, by line number from 0: { 0: { quantityReceived: 'INVALID' } }.
+    this.lineFields = details.lineFields;
     this.decisionIds = details.decisionIds;
   }
 }
@@ -58,7 +60,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       catch { throw new ApiError(response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR', response.status); }
       if (!response.ok) {
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
-          fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, decisionIds: envelope?.error?.decisionIds,
+          fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
         });
       }
       if (envelope?.meta?.schemaVersion !== 1 || !Object.hasOwn(envelope, 'data')) {
