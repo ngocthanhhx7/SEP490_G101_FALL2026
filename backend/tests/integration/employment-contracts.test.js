@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import mongoose from 'mongoose';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
@@ -14,9 +15,9 @@ beforeAll(async () => {
   replica=await MongoMemoryReplSet.create({binary:{version:'8.0.34'},replSet:{count:1}});
   connection=await mongoose.createConnection(replica.getUri(),{dbName:'synthetic_contract_lifecycle'}).asPromise();
   crypto=createContactCrypto({lookupSecret:'synthetic-contract-lookup-secret-32-chars',encryptionKey:'0123456789abcdef0123456789abcdef'});
-  service=createEmploymentDocumentService({connection,crypto,clock}); appId=oid();admin={userId:String(oid()),roles:['ADMIN'],state:'ACTIVE',authEpoch:0};
+  service=createEmploymentDocumentService({connection,crypto,lookupSecret:'synthetic-contract-lookup-secret-32-chars',clock}); appId=oid();admin={userId:String(oid()),roles:['ADMIN'],state:'ACTIVE',authEpoch:0};
   await connection.collection('users').insertOne({_id:new mongoose.Types.ObjectId(admin.userId),roles:['ADMIN'],state:'ACTIVE',synthetic:false,authEpoch:0});
-  await connection.collection('sitterapplications').insertOne({_id:appId,state:'INTERVIEW',version:2,displayName:'Synthetic employee'});
+  await connection.collection('sitterapplications').insertOne({_id:appId,state:'INTERVIEW',version:2,displayName:'Synthetic employee',identityLookupKey:createHmac('sha256','synthetic-contract-lookup-secret-32-chars').update('applicant-identity\0'+'012345678901').digest('hex')});
   for(const model of Object.values(connection.models)){await model.createCollection();await model.createIndexes();}
 },180000);
 afterAll(async()=>{await connection?.close();await replica?.stop();});

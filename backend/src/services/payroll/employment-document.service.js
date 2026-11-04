@@ -9,6 +9,7 @@ import { createUnitOfWork } from '../unit-of-work.service.js';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const TEMPLATE = 'PWC-VN-LABOUR-2026-11-05-v1';
 export function createEmploymentDocumentService({ connection, crypto, lookupSecret, clock = Date.now }) {
+  if (typeof lookupSecret !== 'string' || lookupSecret.length < 32 || typeof crypto?.encrypt !== 'function' || typeof crypto?.decrypt !== 'function') throw new TypeError('Private crypto and identity lookup key required');
   const { EmploymentDocument: Document, EmploymentDocumentCounter: Counter, EmploymentDocumentCommand: Command } = employmentDocumentModels(connection);
   const { SitterApplication: Application } = sitterApplicationModels(connection), { EmploymentContract: Contract } = payrollModels(connection), uow = createUnitOfWork(connection);
   const admin = actor => { if (actor?.state !== 'ACTIVE' || !actor.roles?.includes('ADMIN')) fail('FORBIDDEN', 'Admin required', 403); id(actor.userId); };
@@ -16,7 +17,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
     const terms = JSON.parse(crypto.decrypt(row.encryptedTerms));
     if (hash(terms) !== row.termsHash) fail('CONTRACT_INTEGRITY_FAILED', 'Contract integrity failed', 409);
     return { id: String(row._id), applicationId: String(row.applicationId), revision: row.revision, reference: row.reference, employeeCode: row.employeeCode,
-      state: row.state, templateVersion: row.templateVersion, termsHash: row.termsHash, terms, signedAt: row.signedAt ?? null, createdAt: row.createdAt };
+      archiveReference: row.archiveReference ?? null, state: row.state, templateVersion: row.templateVersion, termsHash: row.termsHash, terms, signedAt: row.signedAt ?? null, createdAt: row.createdAt };
   }
   async function command(actor, applicationId, body, key, work) {
     admin(actor); id(applicationId);
@@ -28,7 +29,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
           ...(actor.authEpoch !== undefined ? { authEpoch: actor.authEpoch } : {}) }, { $inc: { contractGuard: 1 } }, { session, returnDocument: 'after' });
         if (!user) fail('FORBIDDEN', 'Current Admin required', 403);
         const prior = await Command.findById(commandId).session(session).lean();
-        if (prior) { if (prior.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'Operation key reused', 409); return view(await Document.findById(prior.documentId).select('+encryptedTerms').session(session).lean()); }
+        if (prior) { if (prior.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'Operation key reused', 409); return view(await Document.findById(prior.documentId).select('+encryptedTerms +archiveReference').session(session).lean()); }
         const application = await Application.findOneAndUpdate({ _id: applicationId, state: 'INTERVIEW' }, { $inc: { contractGuard: 1 } }, { session, returnDocument: 'after' }).select('+identityLookupKey').lean();
         if (!application) fail('APPLICATION_STAGE_REQUIRED', 'Contract preparation requires interview stage', 409);
         const result = await work(application, session);
@@ -41,7 +42,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
     async get(actor, applicationId) {
       admin(actor); id(applicationId);
       if (!await Application.exists({ _id: applicationId })) fail('RESOURCE_NOT_FOUND', 'Application unavailable', 404);
-      const rows = await Document.find({ applicationId }).sort({ revision: -1 }).limit(20).select('+encryptedTerms').lean();
+      const rows = await Document.find({ applicationId }).sort({ revision: -1 }).limit(20).select('+encryptedTerms +archiveReference').lean();
       await payrollModels(connection).PayrollEvent.create({ actorId: actor.userId, resourceId: applicationId, type: 'CONTRACT_READ', at: new Date(clock()) });
       return { current: rows.length ? view(rows[0]) : null, history: rows.map(row => ({ id: String(row._id), reference: row.reference, state: row.state, revision: row.revision })) };
     },
@@ -50,7 +51,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
       number(body.expectedRevision, 0, 100000, true); number(body.applicationVersion, 0, 100000, true);
       const terms = employmentTermsInput(body.terms, clock());
       return command(actor, applicationId, body, key, async (application, session) => {
-        if (lookupSecret && createHmac('sha256', lookupSecret).update('applicant-identity\0' + terms.identityNumber.toUpperCase()).digest('hex') !== application.identityLookupKey) fail('CONTRACT_IDENTITY_MISMATCH', 'Identity must match the application verified by Admin', 409);
+        if (createHmac('sha256', lookupSecret).update('applicant-identity\0' + terms.identityNumber.toUpperCase()).digest('hex') !== application.identityLookupKey) fail('CONTRACT_IDENTITY_MISMATCH', 'Identity must match the application verified by Admin', 409);
         if (application.version !== body.applicationVersion) fail('VERSION_CONFLICT', 'Application changed', 409);
         const prior = await Document.findOne({ applicationId }).sort({ revision: -1 }).session(session).lean();
         if ((prior?.revision ?? 0) !== body.expectedRevision || prior?.state === 'SIGNED') fail('VERSION_CONFLICT', 'Reload contract state', 409);
@@ -71,17 +72,17 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
         if (signedAt > clock() || body.bothPartiesSigned !== true || typeof body.archiveReference !== 'string' || !body.archiveReference.trim() || body.archiveReference.length > 160 || /[\x00-\x1f\x7f]/.test(body.archiveReference)) fail('VALIDATION_FAILED', 'Both signatures, actual signing date and physical archive location required');
       } else if (body.signedOn || body.archiveReference || body.bothPartiesSigned !== undefined) fail('VALIDATION_FAILED', 'Unexpected signing data');
       return command(actor, applicationId, { documentId, ...body }, key, async (application, session) => {
-        const row = await Document.findOne({ _id: documentId, applicationId }).select('+encryptedTerms').session(session).lean();
+        const row = await Document.findOne({ _id: documentId, applicationId }).select('+encryptedTerms +archiveReference').session(session).lean();
         const latest = await Document.findOne({ applicationId }).sort({ revision: -1 }).session(session).lean();
         if (!row || String(latest._id) !== documentId || row.applicationVersion !== application.version || row.termsHash !== body.termsHash || row.state !== (body.action === 'ISSUE' ? 'DRAFT' : 'ISSUED')) fail('VERSION_CONFLICT', 'Current contract revision required', 409);
         const terms = view(row).terms;
         if (signedAt && (body.signedOn !== terms.plannedSigningOn || signedAt < new Date(new Date(new Date(row.issuedAt).getTime() + 7 * 3600000).toISOString().slice(0,10) + 'T00:00:00+07:00') || signedAt > contractDate(terms.effectiveOn))) fail('VALIDATION_FAILED', 'Sign after issuing and before effective date');
         return Document.findByIdAndUpdate(documentId, { $set: body.action === 'ISSUE' ? { state: 'ISSUED', issuedAt: new Date(clock()) }
-          : { state: 'SIGNED', signedAt, verifiedAt: new Date(clock()), verifiedBy: actor.userId, archiveReference: body.archiveReference.trim() } }, { session, returnDocument: 'after' }).select('+encryptedTerms').lean();
+          : { state: 'SIGNED', signedAt, verifiedAt: new Date(clock()), verifiedBy: actor.userId, archiveReference: body.archiveReference.trim() } }, { session, returnDocument: 'after' }).select('+encryptedTerms +archiveReference').lean();
       });
     },
     async activate(application, employeeId, actor, session) {
-      const row = await Document.findOne({ applicationId: application._id }).sort({ revision: -1 }).select('+encryptedTerms').session(session).lean();
+      const row = await Document.findOne({ applicationId: application._id }).sort({ revision: -1 }).select('+encryptedTerms +archiveReference').session(session).lean();
       if (!row || row.state !== 'SIGNED' || row.applicationVersion !== application.version) fail('SIGNED_CONTRACT_REQUIRED', 'Prepare, print and verify signed contract before approval', 409);
       const terms = view(row).terms;
       if (await Contract.exists({ employeeId }).session(session)) fail('VERSION_CONFLICT', 'Employee already has a contract', 409);

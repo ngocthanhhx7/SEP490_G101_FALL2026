@@ -525,6 +525,10 @@ test('private document provider errors return a controlled JSON error instead of
 test('final approval fails closed until both parties signed the exact contract; rejected approval creates no employee', async () => {
   const instance=app(), submitted=await submit(instance,applicationBody()).expect(201), admin=await login('ADMIN');
   await advanceToInterview(instance,admin,submitted.body.data.id);
+  await request(instance).post(`/api/v1/applications/${submitted.body.data.id}/employment-contract`)
+    .set('Cookie',admin.cookie).set('X-CSRF-Token',admin.csrf).set('Origin','http://127.0.0.1').set('Host','127.0.0.1')
+    .set('Idempotency-Key','synthetic-wrong-person-contract').send({applicationVersion:2,expectedRevision:0,terms:employmentTerms({identityNumber:'987654321098'})}).expect(409)
+    .expect(response=>expect(response.body.error.code).toBe('CONTRACT_IDENTITY_MISMATCH'));
   const result=await request(instance).post(`/api/v1/applications/${submitted.body.data.id}/decisions`)
     .set('Cookie',admin.cookie).set('X-CSRF-Token',admin.csrf).set('Origin','http://127.0.0.1').set('Host','127.0.0.1')
     .set('Idempotency-Key','synthetic-no-contract-approval').send({action:'APPROVE',reason:'Synthetic verified interview',expectedVersion:2}).expect(409);

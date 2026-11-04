@@ -38,6 +38,7 @@ export function EmploymentContractEditor({ application, api: suppliedApi, onVeri
       <label>Vùng lương nơi hoạt động<select name="workplaceRegion" required defaultValue={current?.terms.workplaceRegion??''}><option value="">Chọn vùng theo phường/xã thực tế</option>{[1,2,3,4].map(value=><option key={value} value={value}>Vùng {value}</option>)}</select></label>
       <div>Ngày làm việc trong tuần (tối đa 6 ngày){[1,2,3,4,5,6,7].map(day=><label key={day}><input name="weekday" type="checkbox" value={day} defaultChecked={current?.terms.weekdays.includes(day)??day<=5}/>{day===7?'Chủ nhật':`Thứ ${day+1}`}</label>)}</div>
       <button type="submit">Lưu bản nháp hợp đồng</button><button type="button" onClick={()=>setEditing(false)}>Hủy sửa</button></fieldset></form>}
+    {current?.archiveReference && <p>Hồ sơ bản gốc đã đối chiếu: {current.archiveReference}</p>}
     {current&&!editing&&<><EmploymentContractPrint document={current}/><PrintDocument><EmploymentContractPrint document={current}/></PrintDocument>
       {current.state==='DRAFT'&&<button type="button" disabled={blocked} onClick={()=>{const body={action:'ISSUE',termsHash:current.termsHash};execute(key=>api.decide(application.id,current.id,body,key));}}>Chốt nội dung bản in để ký</button>}
       {['ISSUED','SIGNED','ACTIVATED'].includes(current.state)&&<button type="button" className="contract-print-button" disabled={blocked} onClick={()=>window.print()}>In hợp đồng / Lưu PDF</button>}
