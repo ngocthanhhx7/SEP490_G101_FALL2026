@@ -81,10 +81,11 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         acceptOffer: async ({ offer, expectedVersion }) => {
           const visit = await visitForOffer();
           const accepted = await models.EmployeeVisitOffer.findOneAndUpdate({ _id: offerId, sitterId, state: 'PENDING', version: expectedVersion, deadline: { $gt: new Date(clock()) } },
-            { $set: { state: 'ACCEPTED', decidedAt: new Date(clock()) }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
+            { $set: { state: 'ACCEPTED', decidedAt: new Date(clock()) }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).select('+featureSnapshot').lean();
           if (!accepted) fail('VERSION_CONFLICT', 'Offer changed', 409);
           const assigned = await col('visits').updateOne({ _id: visit._id, sitterId: null, state: 'SCHEDULED', version: visit.version },
-            { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt: new Date(clock()) }, $inc: { version: 1 } }, { session });
+            { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt: new Date(clock()),
+              ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) }, $inc: { version: 1 } }, { session });
           if (!assigned.matchedCount) fail('SLOT_UNAVAILABLE', 'Visit changed', 409);
           await col('bookings').updateOne({ _id: visit.bookingId }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });
           const pending = await col('visits').countDocuments({ bookingId: visit.bookingId, state: 'SCHEDULED' }, { session });
@@ -136,18 +137,27 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       if (knownX !== knownY) return knownX ? -1 : 1;
       return (knownX ? x.adjacentTravelMinutes - y.adjacentTravelMinutes : 0) || x.weeklyWorkMinutes - y.weeklyWorkMinutes || a.localeCompare(b);
     });
-    if (!ranker || allowed.length < 2) return allowed;
+    if (!ranker) return { sitterIds: allowed };
     let timer;
     const controller = new globalThis.AbortController();
     try {
       const ranked = await Promise.race([
-        Promise.resolve().then(() => ranker({ visit: { id: String(visit._id), startAt: visit.startAt, endAt: visit.endAt, areaCode: visit.areaCode }, sitterIds: [...allowed], signal: controller.signal })),
+        Promise.resolve().then(() => ranker({ visit: { id: String(visit._id), startAt: visit.startAt, endAt: visit.endAt, areaCode: visit.areaCode, serviceId: String(visit.serviceId), location: visit.location, point: visit.snapshots.point, pets: visit.snapshots.pets?.map(({ id, species, weightKg, traits }) => ({ id, species, weightKg, traits })) }, sitterIds: [...allowed], signal: controller.signal })),
         new Promise((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(new Error('Ranking timeout')); }, 3000); })
       ]);
-      if (Array.isArray(ranked) && ranked.length === allowed.length && new Set(ranked).size === allowed.length && ranked.every(value => allowed.includes(value))) return ranked;
+      const ids = Array.isArray(ranked) ? ranked : ranked?.sitterIds;
+      if (Array.isArray(ids) && ids.length === allowed.length && new Set(ids).size === allowed.length && ids.every(value => allowed.includes(value))) {
+        const snapshot = ranked.featureSnapshot, keys = ['fit', 'travel', 'quality', 'reliability', 'workload'];
+        const captured = snapshot?.version === 'PWC_MATCH_FEATURES_V1' && Number.isFinite(Date.parse(snapshot.decisionAt)) && Date.parse(snapshot.decisionAt) <= clock() &&
+          Date.parse(snapshot.slotStartAt) === visit.startAt.getTime() && Date.parse(snapshot.slotEndAt) === visit.endAt.getTime() &&
+          Array.isArray(snapshot.candidates) && snapshot.candidates.length <= ids.length && new Set(snapshot.candidates.map(row => row.sitterId)).size === snapshot.candidates.length &&
+          snapshot.candidates.every(row => ids.includes(row.sitterId) && Object.keys(row.features ?? {}).length === keys.length && keys.every(key =>
+            Number.isFinite(row.features[key]) && row.features[key] >= 0 && row.features[key] <= 1 && Number.isFinite(Date.parse(snapshot.featuresAsOf?.[key])) && Date.parse(snapshot.featuresAsOf[key]) <= Date.parse(snapshot.decisionAt)));
+        return { sitterIds: ids, ...(captured ? { featureSnapshot: snapshot } : {}) };
+      }
     } catch { /* Deterministic order remains usable when advisory ranking fails. */ }
     finally { clearTimeout(timer); }
-    return allowed;
+    return { sitterIds: allowed };
   }
   const service = { offers, readContext: readyVisit,
     async previewCandidates(actor, visitId, input) {
@@ -159,7 +169,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         fail('VALIDATION_FAILED', 'Choose the current area or a more precise home area');
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
       try {
-        const ids = await candidates(revised);
+        const { sitterIds: ids } = await candidates(revised);
         const users = await col('users').find({ _id: { $in: ids.map(oid) } }, { projection: { displayName: 1 } }).toArray();
         return { items: ids.map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
           areaCode, startAt, endAt: revised.endAt };
@@ -193,7 +203,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           invitations: rows.map(row => ({ offerId: String(row._id), sitterId: row.sitterId, deadline: row.deadline })) });
         if (pending.length >= target) return resultView(pending);
         if (actor !== agentActor && !visit.dispatchReview) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'System dispatch must exhaust automatic invitations before staff intervention', 409);
-        const ranked = input.sitterId ? [input.sitterId] : await candidates(visit);
+        const ranking = input.sitterId ? { sitterIds: [input.sitterId] } : await candidates(visit);
+        const ranked = ranking.sitterIds;
         if (!ranked.length) {
           if (pending.length) return resultView(pending);
           fail(visit.requestedSitterId ? 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' : 'NO_ELIGIBLE_SITTER', 'Staff must arrange a suitable schedule with the customer', 409);
@@ -218,6 +229,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const saved = await models.EmployeeVisitOffer.create(selected.map(sitterId => ({ visitId: visit._id, sitterId, state: 'PENDING', version: 0,
           offeredAt: new Date(clock()), deadline: new Date(Math.min(clock() + 15 * 60000, visit.startAt.getTime())),
           originRouteRequired: !input.sitterId,
+          ...(ranking.featureSnapshot?.candidates.some(row => row.sitterId === sitterId) ? { featureSnapshot: { ...ranking.featureSnapshot, candidates: undefined,
+            sitterId, features: ranking.featureSnapshot.candidates.find(row => row.sitterId === sitterId).features } } : {}),
           startAt: visit.startAt, endAt: visit.endAt, serviceName: visit.snapshots.serviceName, areaCode: visit.areaCode, pets: visit.snapshots.pets ?? [] })), { session, ordered: true });
         for (const offer of saved) await event({ type: 'OfferCreated', actorId: actor.userId, sitterId: offer.sitterId, visitId, offerId: String(offer._id) }, session);
         return resultView([...pending, ...saved]);

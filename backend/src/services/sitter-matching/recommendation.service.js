@@ -27,6 +27,7 @@ export function createAiService({
         kind,
         requestHash: digest(input),
         expiresAt: new Date(clock() + ttl),
+        createdAt: new Date(clock()),
         snapshot
       }
     ]);
@@ -307,6 +308,8 @@ export function createAiService({
             ? 'SEARCH_INCOMPLETE'
             : 'INSUFFICIENT_ELIGIBLE_SITTERS';
     const result = {
+      featureVersion: 'PWC_MATCH_FEATURES_V1',
+      capturedAt: new Date(clock()).toISOString(),
       status,
       minimumRequested: 5,
       returned: selected.length,

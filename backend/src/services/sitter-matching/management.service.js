@@ -358,6 +358,7 @@ export function createAiManagement({ repository, clock = Date.now }) {
           'Model must beat baseline on held-out groups',
           409
         );
+      if (body.state === 'APPROVED') fail('MODEL_REVIEW_REQUIRED', 'Import original artifact/evidence and record a source review before activation', 409);
       const { state, ...content } = body;
       content.trainedUntil = new Date(body.trainedUntil).toISOString();
       const sha256 = digest(content);

@@ -16,5 +16,18 @@ export async function assertMatchSelection({ DecisionSnapshot, actor, row, selec
     pets.some(pet => !petVersions.some(value => String(value.id) === String(pet._id) && value.version === pet.version)))
     fail('MATCH_CHANGED', 'Recommendation does not match the confirmed service, care or schedule', 409);
   if (input.clinicAddressId || input.dayCount) fail('MATCH_SCOPE_REVIEW_REQUIRED', 'Specialized care plan requires Staff review', 409);
-  return result.candidates.map(value => value.sitterId);
+  const reference = { candidateIds: result.candidates.map(value => value.sitterId) };
+  // Persist only actual decision-time values. Legacy decisions cannot be backfilled
+  // from today's statistics after their original MATCH cache has expired.
+  const keys = ['fit', 'travel', 'quality', 'reliability', 'workload'];
+  if (result.featureVersion === 'PWC_MATCH_FEATURES_V1' && Number.isFinite(Date.parse(result.capturedAt)) && Date.parse(result.capturedAt) <= at.getTime()) {
+    const candidates = result.candidates.map(candidate => ({ sitterId: candidate.sitterId,
+      features: Object.fromEntries((candidate.breakdown ?? []).map(line => [line.key, line.normalized])) }));
+    if (candidates.every(candidate => Object.keys(candidate.features).length === keys.length && keys.every(key =>
+      Number.isFinite(candidate.features[key]) && candidate.features[key] >= 0 && candidate.features[key] <= 1)))
+      reference.featureSnapshot = { version: result.featureVersion, decisionAt: result.capturedAt, slotStartAt: input.startAt, slotEndAt: input.endAt,
+        featuresAsOf: Object.fromEntries(keys.map(key => [key, result.capturedAt])), candidates,
+        policyVersion: result.policyVersion, modelVersion: result.modelVersion ?? null };
+  }
+  return reference;
 }

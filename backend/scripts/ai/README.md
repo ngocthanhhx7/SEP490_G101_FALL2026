@@ -3,7 +3,8 @@
 These scripts are operator tools, outside Express startup. Runtime matching only
 recommends sitters; finance stays in backend domain services. Raw datasets, archives,
 OSM graphs, Python dependencies and model artifacts belong in ignored
-`backend/storage/`, never in Git. No script connects to the production database.
+`backend/storage/`, never in Git. Database export is an explicit operator command;
+public-data and trainer scripts do not connect to MongoDB.
 
 From `backend/` with Python 3.12+:
 
@@ -81,3 +82,41 @@ existing authenticated Admin model import. Source-code changes still follow the
 main release process. A poor or simulated model must not be activated merely
 because transfer integrity passed. Unit tests demonstrate byte-for-byte
 portability with a temporary synthetic artifact, not a new real trained model.
+
+## Verified runtime export and Admin lifecycle
+
+From `backend/`, preview the configured database without exporting rows:
+
+```powershell
+node --env-file-if-exists=.env scripts/ai/export-training-data.js
+```
+
+`--apply --output storage/ai/new-run.jsonl` requires a private, stable
+`AI_TRAINING_EXPORT_SECRET` of at least 32 characters supplied by the operator.
+It is used only to HMAC opaque booking/review IDs; keep it outside Git and release
+artifacts. No export is written below 200 verified observations / 50 booking
+groups, after truncation, or over the trainer size bound. The command never
+updates source records. Preserve the new JSONL and its hash manifest privately.
+The acquisition plan still requires review of consent/source authenticity and
+selection bias: only the actually accepted sitter can have an observed rating.
+
+The exporter joins reviews, whole-booking completion, service credit, identities
+and captured decision features. It excludes demo/fixture accounts, withheld or
+changed ratings, stale schedules and absent/late features. Historical outcomes
+without captured features are not reconstructed from current statistics.
+`trainingEligible:false` on legacy provenance is not rewritten; the export
+performs a fresh source join and feature audit for each row.
+
+After training and independent source/evaluation review, use Admin → Điều phối AI
+(`/admin/ai-models`). Import the original DRAFT JSON bytes and matching evidence
+JSON. Both are persisted in MongoDB without activating the model. Approval needs
+a review reference/reason and an optimistic version; it rechecks artifact hash,
+chronological evidence and improvement over baseline. Activation retires the
+previous model; approving a retained version after review provides rollback.
+Retirement or invalid model integrity makes runtime use the approved rule policy.
+Unknown acknowledgement must retry the original operation, not create a new one.
+
+Runtime ranking lives in `src/services/sitter-matching/`; the historical
+`src/ai/` package was moved in commit `018ffaf`. Its trainer was moved here.
+Collection names (including `airankmodels` and `aivisitoutcomes`) remain stable.
+No model is loaded from a temporary test directory or implicitly trained on boot.

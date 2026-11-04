@@ -48,3 +48,9 @@ is allowed and moves the stock; the page shows its answer and reloads after a co
 `ProductManagementPage` is the `/admin/products` screen (menu group "Cửa hàng"): a paged list of every product (search by a part of the name or code, category and pet filters, Trước/Sau) and a side form to add or edit one. The code is read-only and given by the system on save, a new product is saved hidden, hiding a shown product asks MSG114 first, and the price takes `250000` or `250.000`. The form never shows or changes stock. Photos are shown but cannot be added here yet. The backend owns the code, the rules and the version check; a conflict offers a reload.
 
 `SupplierManagementPage` is the `/admin/suppliers` screen (menu group "Cửa hàng"): tabs Đang hợp tác / Ngừng hợp tác / Tất cả with their counts, a paged table (name and contact person, phone, number of products, status) and a side form to add or edit one. The form checks MSG01, MSG02, MSG03 and MSG125 before it sends; the backend checks again and decides MSG116. Ngừng hợp tác asks MSG118 first, Hợp tác lại does not; both are locked while the form has changes that are not saved. The products it supplies are chosen from the catalog with `components/product/ProductPicker.jsx`, hidden products included; the list is a record and does not limit goods receipts.
+
+`AiModelsPage.jsx` at `/admin/ai-models` reads the current AI source, model history
+and unqualified source counts. It imports trainer DRAFT/evidence pairs and submits
+versioned model review decisions through `services/ai-model-api.js`. It never
+trains, fabricates ratings or claims aggregate counts satisfy verified data gates.
+Unknown write acknowledgements lock edited inputs and retain the same body/key.

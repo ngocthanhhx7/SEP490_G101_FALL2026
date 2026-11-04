@@ -58,3 +58,8 @@ remain unchanged; only the consented operational time and area are updated.
 Customer confirmation also pins the nominated employee as the operational requested
 sitter. The worker cannot replenish that consented choice with other employees;
 acceptance is still required and original checkout snapshots remain unchanged.
+
+With AI enabled, automatic dispatch composes the advisory operational ranker.
+Only an exact permutation of authoritative eligible IDs is accepted. Incomplete,
+invalid or timed-out advice preserves deterministic ordering. A private selected
+feature snapshot is copied from the offer to the visit only on acceptance.
