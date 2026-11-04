@@ -7,7 +7,7 @@ import { fail } from '../../validators/pet-care.validator.js';
 
 const FEATURES = ['fit', 'travel', 'quality', 'reliability', 'workload'];
 const LABEL = 'VERIFIED_CUSTOMER_SATISFACTION_V1';
-const millis = value => new Date(value).getTime();
+const millis = value => value === null || value === undefined || value === '' ? NaN : new Date(value).getTime();
 export function createTrainingDatasetExporter({ connection, clock = Date.now }) {
   const { SitterVisitOutcome: Outcome } = matchingModels(connection), { CustomerVisitReview: Review } = customerReviewModels(connection);
   const { FinanceSourceEvent: Event } = financeSourceModels(connection), { PayrollServiceCredit: Credit } = payrollModels(connection);

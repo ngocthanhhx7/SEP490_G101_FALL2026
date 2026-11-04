@@ -72,8 +72,10 @@ test('withheld ratings, late features, changed assignee and demo accounts cannot
   await Review.collection.updateOne({ _id: fixtures[0].review._id }, { $set: { state: 'WITHHELD' } });
   await connection.collection('visits').updateOne({ _id: fixtures[1].visit._id }, { $set: { 'recommendationRef.featureSnapshot.featuresAsOf.fit': '2026-01-01T00:00:00Z' } });
   await connection.collection('visits').updateOne({ _id: fixtures[2].visit._id }, { $set: { sitterId: oid() } });
-  const result = await exporter.collect(); expect(result.summary.eligibleRows).toBe(237);
-  expect(result.summary.excluded).toMatchObject({ REVIEW_SOURCE_CHANGED_OR_WITHHELD: 1, INVALID_OR_LATE_FEATURES: 1, DEMO_OR_MISSING_ACCOUNT: 1 });
+  await connection.collection('bookings').updateOne({ _id: fixtures[3].booking._id }, { $set: { completedAt: null } });
+  await connection.collection('visits').updateOne({ _id: fixtures[4].visit._id }, { $set: { 'recommendationRef.featureSnapshot.featuresAsOf.fit': null } });
+  const result = await exporter.collect(); expect(result.summary.eligibleRows).toBe(235);
+  expect(result.summary.excluded).toMatchObject({ REVIEW_SOURCE_CHANGED_OR_WITHHELD: 1, INVALID_OR_LATE_FEATURES: 2, DEMO_OR_MISSING_ACCOUNT: 1, COMPLETION_SOURCE_CHANGED: 1 });
   await connection.collection('users').updateOne({ _id: fixtures[0].booking.customerId }, { $set: { fixtureKey: 'synthetic-demo-only' } });
   const demo = await exporter.collect(); expect(demo.summary.eligibleRows).toBe(0); expect(demo.summary.readyForTraining).toBe(false);
 });
