@@ -1,0 +1,7 @@
+// Who may do what in product sales, from the Permission Matrix. Checks read this table instead of naming a role,
+// so adding the Sale Staff role later means adding it here and giving it to the person.
+// Only roles that already exist can be listed: ADMIN covers every Sale Staff task until then.
+export const PRODUCT_PERMISSIONS = Object.freeze({
+  // Prepare, hand to the carrier, delivery status, returns, hand over at the shop, view all orders.
+  HANDLE_ORDERS: Object.freeze(['ADMIN'])
+});

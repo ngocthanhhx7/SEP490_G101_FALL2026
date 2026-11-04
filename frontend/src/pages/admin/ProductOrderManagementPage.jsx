@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { Notice, Button } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
-import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS } from '../../constants/product-labels.js';
-import { formatVnd, isUncertainOutcome, productErrorText, productMessage } from '../../utils/product-format.js';
+import { MarkReturningDialog, ConfirmReturnedDialog } from '../../components/product/OrderReturnDialogs.jsx';
+import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_RETURN_REASON_LABELS } from '../../constants/product-labels.js';
+import { formatPhone, formatVnd, isUncertainOutcome, productErrorText, productMessage } from '../../utils/product-format.js';
 import '../../components/product/product-shop.css';
 
 const TABS = [
@@ -14,12 +15,20 @@ const SEARCH_DELAY_MS = 300;
 
 function paymentSummary(order) {
   if (order.paid) return 'Đã thanh toán';
-  return order.paymentMethod === 'COD' ? 'Thu khi giao' : 'Trả khi lấy';
+  if (order.paymentMethod === 'COD') return 'Thu khi giao';
+  return order.paymentMethod === 'PAY_AT_SHOP' ? 'Trả khi lấy' : 'Chưa thanh toán';
 }
 
 // Which step the Admin can take next depends only on the receive method and the status the backend reports.
+// `inline` keeps an error in the dialog that asked for the change instead of on the page behind it.
 function OrderActions({ order, busy, run, api }) {
   const [trackingCode, setTrackingCode] = useState('');
+  const [dialog, setDialog] = useState(null);
+  const submitFrom = (operation) => async (values) => {
+    const failure = await run(() => operation(values), { inline: true });
+    if (!failure) setDialog(null);
+    return failure;
+  };
   if (order.receiveMethod === 'DELIVERY' && order.status === 'PLACED') {
     return <div className="pwc-shop-actions">
       <label htmlFor="tracking-code"><strong>Mã vận đơn</strong></label>
@@ -28,6 +37,24 @@ function OrderActions({ order, busy, run, api }) {
       <p className="pwc-shop-hint">Đặt giao hàng trên trang của hãng vận chuyển, nhập mã vận đơn rồi giao kiện cho hãng.</p>
       <button type="button" className="pwc-shop-primary-button" disabled={busy}
         onClick={() => run(() => api.handToCarrier(order.id, trackingCode))}>Đã giao cho hãng vận chuyển</button>
+    </div>;
+  }
+  if (order.receiveMethod === 'DELIVERY' && order.status === 'HANDED_TO_CARRIER') {
+    return <div className="pwc-shop-actions">
+      <p className="pwc-shop-hint">Cập nhật theo kết quả giao hàng mà hãng vận chuyển báo.</p>
+      <button type="button" className="pwc-shop-primary-button" disabled={busy}
+        onClick={() => run(() => api.markDelivered(order.id))}>Đã giao hàng</button>
+      <button type="button" className="pwc-shop-outline-button" disabled={busy} onClick={() => setDialog('returning')}>Đang hoàn về</button>
+      {dialog === 'returning' && <MarkReturningDialog order={order} onClose={() => setDialog(null)}
+        onSubmit={submitFrom((carrierReason) => api.markReturning(order.id, carrierReason))} />}
+    </div>;
+  }
+  if (order.status === 'BEING_RETURNED') {
+    return <div className="pwc-shop-actions">
+      <p className="pwc-shop-hint">Khi hàng hoàn về đến cửa hàng, kiểm hàng rồi xác nhận số lượng bán lại được.</p>
+      <button type="button" className="pwc-shop-primary-button" disabled={busy} onClick={() => setDialog('confirm')}>Xác nhận đã hoàn về</button>
+      {dialog === 'confirm' && <ConfirmReturnedDialog order={order} onClose={() => setDialog(null)}
+        onSubmit={submitFrom((values) => api.confirmReturned(order.id, values))} />}
     </div>;
   }
   if (order.receiveMethod === 'PICKUP' && order.status === 'PLACED') {
@@ -57,15 +84,19 @@ function OrderDetail({ order, busy, run, api }) {
     <h2>Đơn {order.code} <OrderStatusBadge status={order.status} forAdmin /></h2>
     <dl className="pwc-shop-facts">
       <dt>Khách hàng</dt><dd>{order.customer.displayName ?? 'Khách hàng'}</dd>
-      <dt>Số điện thoại</dt><dd>{order.customer.phone ?? 'Chưa có'}</dd>
+      <dt>Số điện thoại</dt><dd>{order.customer.phone ? formatPhone(order.customer.phone) : 'Chưa có'}</dd>
       <dt>Cách nhận</dt><dd>{PRODUCT_RECEIVE_LABELS[order.receiveMethod]}</dd>
       {order.deliveryAddress && <><dt>Địa chỉ</dt><dd>{order.deliveryAddress.location}</dd></>}
       <dt>Thanh toán</dt><dd>{PRODUCT_PAYMENT_LABELS[order.paymentMethod].title} · {order.paid ? 'đã thu' : 'chưa thu'}</dd>
       {order.trackingCode && <><dt>Mã vận đơn</dt><dd>{order.trackingCode}</dd></>}
+      {order.carrierReturnReason && <><dt>Lý do của hãng</dt><dd>{order.carrierReturnReason}</dd></>}
+      {order.returnReason && <><dt>Lý do hoàn về</dt><dd>{PRODUCT_RETURN_REASON_LABELS[order.returnReason] ?? order.returnReason}</dd></>}
+      {order.returnNote && <><dt>Ghi chú</dt><dd>{order.returnNote}</dd></>}
+      {order.refundMarked && <><dt>Hoàn tiền</dt><dd>Cần hoàn lại tiền thanh toán trước cho khách</dd></>}
     </dl>
     <div style={{ borderTop: '1px solid var(--shop-border)', marginTop: '1rem', paddingTop: '.75rem' }}>
       {order.lines.map((line) => <div key={line.productId} className="pwc-shop-summary-row">
-        <span>{line.productName} × {line.quantity}</span><strong>{formatVnd(line.lineTotal)}</strong></div>)}
+        <span>{line.productName} × {line.quantity}{typeof line.resellableQuantity === 'number' && ` · bán lại được ${line.resellableQuantity}`}</span><strong>{formatVnd(line.lineTotal)}</strong></div>)}
       {order.receiveMethod === 'DELIVERY' && <div className="pwc-shop-summary-row"><span>Phí giao hàng</span><span>{formatVnd(order.shippingFee)}</span></div>}
       <div className="pwc-shop-summary-row pwc-shop-summary-total"><span>{collectsOnDelivery ? 'Tổng thu khi giao' : 'Tổng'}</span><strong>{formatVnd(order.total)}</strong></div>
     </div>
@@ -94,17 +125,21 @@ export function ProductOrderManagementPage({ api }) {
   const counts = resource.meta?.counts;
   const selected = orders.find((order) => order.id === selectedId) ?? orders[0];
 
-  async function run(operation) {
-    if (lock.current) return;
+  // Resolves to null when the change was applied, or to the error text when it was not.
+  async function run(operation, { inline = false } = {}) {
+    if (lock.current) return null;
     lock.current = true; setBusy(true); setNotice(null);
     try {
       const updated = await operation();
       setNotice({ kind: 'ok', text: productMessage('MSG106', { code: updated.code }) });
       resource.retry();
+      return null;
     } catch (error) {
-      setNotice({ kind: 'error', text: productErrorText(error) });
+      const text = productErrorText(error);
+      if (!inline) setNotice({ kind: 'error', text });
       // The order may have changed under us, or the answer was lost: show what the backend now holds.
       if (error?.code === 'ORDER_STATE_CONFLICT' || isUncertainOutcome(error)) resource.retry();
+      return text;
     } finally { lock.current = false; setBusy(false); }
   }
 

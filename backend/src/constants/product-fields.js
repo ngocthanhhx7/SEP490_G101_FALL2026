@@ -2,8 +2,11 @@
 export const PRODUCT_CATEGORIES = Object.freeze(['FOOD', 'ACCESSORY']);
 export const PRODUCT_PET_TYPES = Object.freeze(['DOG', 'CAT']);
 export const PRODUCT_RECEIVE_METHODS = Object.freeze(['DELIVERY', 'PICKUP']);
-// PAY_AT_SHOP and COD are the only demo payment methods; online payment is not part of this release.
-export const PRODUCT_PAYMENT_METHODS = Object.freeze(['COD', 'PAY_AT_SHOP']);
+// Orders can only be placed with COD (delivery) or PAY_AT_SHOP (pickup) for now (PRODUCT_PAYMENT_BY_RECEIVE_METHOD).
+// PREPAID is the online payment method the model already accepts, so returns can tell prepaid orders apart;
+// it cannot be chosen when placing an order until online payment is built.
+export const PRODUCT_PAYMENT_METHODS = Object.freeze(['COD', 'PAY_AT_SHOP', 'PREPAID']);
+export const PRODUCT_PREPAID_PAYMENT_METHODS = Object.freeze(['PREPAID']);
 export const PRODUCT_ORDER_STATUSES = Object.freeze([
   'PLACED',
   'HANDED_TO_CARRIER',
@@ -41,6 +44,11 @@ export const PRODUCT_LIMITS = Object.freeze({
 // Demo only: the Admin-managed per-area fee configuration (R3 D-060) is not built yet,
 // so every served area uses one flat fee. Integer VND.
 export const PRODUCT_DEMO_SHIPPING_FEE_VND = 25000;
+
+// Why a delivery order came back (R3 return reasons). Only CUSTOMER_REFUSED counts as a refusal against the customer.
+export const PRODUCT_RETURN_REASONS = Object.freeze(['CUSTOMER_REFUSED', 'CARRIER_UNDELIVERABLE', 'SHOP_FAULT']);
+export const PRODUCT_REFUSAL_REASONS = Object.freeze(['REFUSED_DELIVERY']);
+export const PRODUCT_RETURN_LIMITS = Object.freeze({ carrierReasonMax: 300, noteMax: 500 });
 
 export const PRODUCT_ORDER_COUNTER_ID = 'PRODUCT_ORDER';
 export const PRODUCT_ORDER_CODE_PREFIX = 'DH-';

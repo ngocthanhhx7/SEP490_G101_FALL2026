@@ -65,3 +65,37 @@ test('treats an accepted-but-pending answer as an uncertain outcome', async () =
   const fetchImpl = jest.fn().mockResolvedValue(reply(202, envelope(order)));
   await expect(api(fetchImpl).markReady('o1')).rejects.toMatchObject({ code: 'COMMAND_PENDING' });
 });
+
+test('AC-04 marks an order delivered with an empty body', async () => {
+  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope({ ...order, status: 'DELIVERED' })));
+  await api(fetchImpl).markDelivered('o1');
+  expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/admin/product-orders/o1/mark-delivered');
+  expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({});
+});
+
+test('AC-04 sends the carrier reason when an order goes back', async () => {
+  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope({ ...order, status: 'BEING_RETURNED' })));
+  await api(fetchImpl).markReturning('o1', 'Khách không có nhà');
+  expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/admin/product-orders/o1/mark-returning');
+  expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ carrierReason: 'Khách không có nhà' });
+});
+
+test('AC-04 confirms a return with the reason, the note only when there is one, and every line', async () => {
+  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope({ ...order, status: 'RETURNED' })));
+  const lines = [{ productId: 'p1', resellableQuantity: 1 }];
+  await api(fetchImpl).confirmReturned('o1', { reason: 'SHOP_FAULT', note: 'Hộp rách', lines });
+  expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/admin/product-orders/o1/confirm-returned');
+  expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ reason: 'SHOP_FAULT', note: 'Hộp rách', lines });
+  await api(fetchImpl).confirmReturned('o1', { reason: 'SHOP_FAULT', note: '', lines });
+  expect(JSON.parse(fetchImpl.mock.calls[1][1].body)).toEqual({ reason: 'SHOP_FAULT', lines });
+});
+
+test('AC-04 surfaces the backend code for a resellable quantity that is too high', async () => {
+  const refused = jest.fn().mockResolvedValue(reply(422, { error: { code: 'RESELLABLE_QUANTITY_INVALID' }, meta: { schemaVersion: 1 } }));
+  await expect(api(refused).confirmReturned('o1', { reason: 'SHOP_FAULT', lines: [] })).rejects.toMatchObject({ code: 'RESELLABLE_QUANTITY_INVALID' });
+});
+
+test('accepts an advance payment order', async () => {
+  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope({ items: [{ ...order, paymentMethod: 'PREPAID', paid: true }], counts })));
+  expect((await api(fetchImpl).listOrders()).data[0].paymentMethod).toBe('PREPAID');
+});

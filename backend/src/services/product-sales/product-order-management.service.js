@@ -1,11 +1,13 @@
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
-import { PRODUCT_ORDER_TAB_STATUSES } from '../../constants/product-fields.js';
-import { parseManagementListQuery, parseHandToCarrier, parseNoBody } from '../../validators/product-order-management.validator.js';
+import { PRODUCT_ORDER_TAB_STATUSES, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
+import {
+  parseManagementListQuery, parseHandToCarrier, parseNoBody, parseMarkReturning, parseConfirmReturned
+} from '../../validators/product-order-management.validator.js';
 import { parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { toOrderView } from './product-order.service.js';
-import { productSalesErrors, requireAdmin } from './product-sales-errors.js';
+import { productSalesErrors, requireOrderHandler } from './product-sales-errors.js';
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NAME_MATCH_LIMIT = 100;
@@ -13,21 +15,47 @@ const NAME_MATCH_LIMIT = 100;
 const OLDEST_FIRST_TABS = new Set(['PREPARE', 'AWAITING_PICKUP']);
 
 function toAdminOrderView(doc, customer) {
+  const view = toOrderView(doc);
   return {
-    ...toOrderView(doc),
+    ...view,
+    // How many of each line went back on sale once the return was confirmed (null before that).
+    lines: view.lines.map((line, index) => ({ ...line, resellableQuantity: doc.lines[index].resellableQuantity ?? null })),
     updatedAt: doc.updatedAt,
+    deliveredAt: doc.deliveredAt ?? null,
+    carrierReturnReason: doc.carrierReturnReason ?? null,
+    returnReason: doc.returnReason ?? null,
+    returnNote: doc.returnNote ?? null,
+    returnedAt: doc.returnedAt ?? null,
+    refundMarked: doc.refundMarked === true,
     customer: { id: String(doc.customerId), displayName: customer?.displayName ?? null, phone: customer?.phone ?? null }
   };
 }
 
-// Order handling for Admin (R3 Order Management). Stock follows GBR-35:
-// goods leaving the shop release the hold and reduce the real stock; cancelling only releases the hold.
+// Per line of the returned order: the quantity that goes back on sale. The request must cover every line once;
+// each quantity is a whole number from 0 to what was ordered (MSG104).
+function returnedLines(order, input) {
+  const wanted = new Map(input.lines.map((line) => [line.productId, line.resellableQuantity]));
+  if (wanted.size !== order.lines.length || order.lines.some((line) => !wanted.has(String(line.productId)))) {
+    throw productSalesErrors.invalidRequest('lines is invalid');
+  }
+  return order.lines.map((line) => {
+    const resellableQuantity = wanted.get(String(line.productId));
+    if (!Number.isSafeInteger(resellableQuantity) || resellableQuantity < 0 || resellableQuantity > line.quantity) {
+      throw productSalesErrors.resellableQuantityInvalid(String(line.productId));
+    }
+    return { ...line, resellableQuantity };
+  });
+}
+
+// Order handling (R3 Order Management) for whoever PRODUCT_PERMISSIONS allows. Stock follows GBR-35:
+// goods leaving the shop release the hold and reduce the real stock; cancelling only releases the hold;
+// a confirmed return puts back only what can be sold again.
 // phones is the customer phone directory; it is injected by route composition.
-export function createProductOrderManagementService({ connection, phones }) {
+export function createProductOrderManagementService({ connection, phones, clock = Date.now }) {
   if (typeof phones?.userIdsByPhone !== 'function' || typeof phones?.phonesOf !== 'function') {
     throw new TypeError('A customer phone directory is required');
   }
-  const { Product, ProductOrder } = productSalesModels(connection);
+  const { Product, ProductOrder, ProductCustomerRefusal } = productSalesModels(connection);
   const User = userModel(connection);
   const unitOfWork = createUnitOfWork(connection);
 
@@ -46,8 +74,9 @@ export function createProductOrderManagementService({ connection, phones }) {
 
   // One guarded status change plus its stock effect, all in one transaction.
   // The update only matches the status and version that were read, so two admins cannot both apply a change.
-  async function transition(actor, orderId, { allowed, check, changes, stock }) {
-    requireAdmin(actor);
+  // `effects` runs after the status change, in the same transaction, for writes that must stand or fall with it.
+  async function transition(actor, orderId, { allowed, check, changes, stock, effects }) {
+    requireOrderHandler(actor);
     const id = parseObjectId(orderId, 'orderId');
     const updated = await unitOfWork.run(async (session) => {
       const order = await ProductOrder.findById(id).session(session).lean();
@@ -69,6 +98,7 @@ export function createProductOrderManagementService({ connection, phones }) {
           if (applied.modifiedCount !== 1) throw productSalesErrors.orderStockMismatch(String(id));
         }
       }
+      await effects?.(order, session);
       return result;
     });
     return viewOf(updated);
@@ -76,7 +106,7 @@ export function createProductOrderManagementService({ connection, phones }) {
 
   return Object.freeze({
     async list(actor, query) {
-      requireAdmin(actor);
+      requireOrderHandler(actor);
       const { tab, search, phone, limit } = parseManagementListQuery(query);
       const filter = {};
       if (tab !== 'ALL') filter.status = { $in: PRODUCT_ORDER_TAB_STATUSES[tab] };
@@ -102,7 +132,7 @@ export function createProductOrderManagementService({ connection, phones }) {
       return { items: docs.map((doc) => toAdminOrderView(doc, customers.get(String(doc.customerId)))), counts };
     },
     async read(actor, orderId) {
-      requireAdmin(actor);
+      requireOrderHandler(actor);
       const doc = await ProductOrder.findById(parseObjectId(orderId, 'orderId')).lean();
       if (!doc) throw productSalesErrors.notFound();
       return viewOf(doc);
@@ -111,7 +141,7 @@ export function createProductOrderManagementService({ connection, phones }) {
     handToCarrier(actor, orderId, body) {
       const { trackingCode } = parseHandToCarrier(body);
       if (!trackingCode) {
-        requireAdmin(actor);
+        requireOrderHandler(actor);
         throw productSalesErrors.trackingCodeRequired();
       }
       return transition(actor, orderId, {
@@ -136,6 +166,55 @@ export function createProductOrderManagementService({ connection, phones }) {
         check: (order) => { if (!order.paid) throw productSalesErrors.orderNotPaid(); },
         changes: () => ({ status: 'PICKED_UP' }),
         stock: 'LEAVE'
+      });
+    },
+    // Delivery orders: HANDED_TO_CARRIER -> DELIVERED. Cash on delivery is collected by the carrier, so it is now paid;
+    // an advance payment stays as it was.
+    markDelivered(actor, orderId, body) {
+      parseNoBody(body);
+      return transition(actor, orderId, {
+        allowed: (order) => order.receiveMethod === 'DELIVERY' && order.status === 'HANDED_TO_CARRIER',
+        changes: (order) => ({ status: 'DELIVERED', deliveredAt: new Date(clock()), ...(order.paymentMethod === 'COD' ? { paid: true } : {}) })
+      });
+    },
+    // Delivery orders: HANDED_TO_CARRIER -> BEING_RETURNED, with the carrier's reason. Stock is untouched until the return is confirmed.
+    markReturning(actor, orderId, body) {
+      requireOrderHandler(actor);
+      const { carrierReason } = parseMarkReturning(body);
+      return transition(actor, orderId, {
+        allowed: (order) => order.receiveMethod === 'DELIVERY' && order.status === 'HANDED_TO_CARRIER',
+        changes: () => ({ status: 'BEING_RETURNED', carrierReturnReason: carrierReason })
+      });
+    },
+    // BEING_RETURNED -> RETURNED, once. Only the resellable quantity of each line goes back into stock.
+    // A customer's refusal is recorded in the same transaction, and an advance payment is marked for refund.
+    confirmReturned(actor, orderId, body) {
+      requireOrderHandler(actor);
+      const input = parseConfirmReturned(body);
+      let lines;
+      return transition(actor, orderId, {
+        allowed: (order) => order.status === 'BEING_RETURNED',
+        check: (order) => { lines = returnedLines(order, input); },
+        changes: (order) => ({
+          status: 'RETURNED',
+          lines,
+          returnReason: input.reason,
+          ...(input.note ? { returnNote: input.note } : {}),
+          returnedAt: new Date(clock()),
+          ...(PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid ? { refundMarked: true } : {})
+        }),
+        effects: async (order, session) => {
+          for (const line of lines) {
+            if (line.resellableQuantity === 0) continue;
+            const applied = await Product.updateOne({ _id: line.productId }, { $inc: { stockOnHand: line.resellableQuantity, version: 1 } }, { session });
+            if (applied.modifiedCount !== 1) throw productSalesErrors.orderStockMismatch(String(order._id));
+          }
+          if (input.reason === 'CUSTOMER_REFUSED') {
+            await ProductCustomerRefusal.create([{
+              customerId: order.customerId, orderId: order._id, reason: 'REFUSED_DELIVERY', occurredAt: new Date(clock())
+            }], { session });
+          }
+        }
       });
     },
     // Records the money taken at the shop for a pickup order, so it can then be handed over.

@@ -12,6 +12,7 @@ import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
+import { PRODUCT_PERMISSIONS } from '../constants/product-permissions.js';
 
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); };
 
@@ -46,19 +47,22 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   orderRouter.post('/', csrf, orders.place);
   orderRouter.get('/:orderId', orders.read);
 
-  // Order handling is Admin-only for now; a Sale Staff role is a separate change.
+  // Who may handle orders comes from PRODUCT_PERMISSIONS (today Admin only; a Sale Staff role is a separate change).
   // Customer phone numbers are read through the same contact keys as sign-in (D-217); only Admin reaches this router.
   const contactCrypto = createContactCrypto({
     lookupSecret: config.auth.contactLookupSecret,
     encryptionKey: config.auth.contactEncryptionKey
   });
   const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
-  const management = createProductOrderManagementController(createProductOrderManagementService({ connection, phones }));
+  const management = createProductOrderManagementController(createProductOrderManagementService({ connection, phones, clock }));
   const managementRouter = Router();
-  managementRouter.use(noStore, requireSession(session, { clock }), requireRoles('ADMIN'));
+  managementRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_ORDERS));
   managementRouter.get('/', management.list);
   managementRouter.get('/:orderId', management.read);
   managementRouter.post('/:orderId/hand-to-carrier', csrf, management.handToCarrier);
+  managementRouter.post('/:orderId/mark-delivered', csrf, management.markDelivered);
+  managementRouter.post('/:orderId/mark-returning', csrf, management.markReturning);
+  managementRouter.post('/:orderId/confirm-returned', csrf, management.confirmReturned);
   managementRouter.post('/:orderId/mark-ready', csrf, management.markReady);
   managementRouter.post('/:orderId/hand-to-customer', csrf, management.handToCustomer);
   managementRouter.post('/:orderId/record-payment', csrf, management.recordPayment);

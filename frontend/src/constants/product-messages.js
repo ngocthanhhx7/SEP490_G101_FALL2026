@@ -10,6 +10,7 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG101: 'Vui lòng chọn địa chỉ nhận hàng.',
   MSG102: 'Bạn chưa có đơn hàng nào.',
   MSG103: 'Vui lòng nhập mã vận đơn.',
+  MSG104: 'Số bán lại được không thể lớn hơn số lượng hoàn về.',
   MSG105: 'Đơn hàng này chưa được thanh toán đủ. Vui lòng thu tiền trước.',
   MSG106: 'Đơn hàng {code} đã được cập nhật.'
 });
@@ -22,5 +23,6 @@ export const PRODUCT_ERROR_MESSAGE_KEYS = Object.freeze({
   ADDRESS_REQUIRED: 'MSG101',
   ADDRESS_OUT_OF_SERVICE_AREA: 'MSG18',
   TRACKING_CODE_REQUIRED: 'MSG103',
-  ORDER_NOT_PAID: 'MSG105'
+  ORDER_NOT_PAID: 'MSG105',
+  RESELLABLE_QUANTITY_INVALID: 'MSG104'
 });

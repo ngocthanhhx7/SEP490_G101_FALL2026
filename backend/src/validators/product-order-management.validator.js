@@ -1,6 +1,6 @@
 import { AppError } from '../utils/app-error.js';
-import { PRODUCT_ORDER_TABS, PRODUCT_LIMITS } from '../constants/product-fields.js';
-import { requireOnlyKeys } from './product.validator.js';
+import { PRODUCT_ORDER_TABS, PRODUCT_LIMITS, PRODUCT_RETURN_REASONS, PRODUCT_RETURN_LIMITS } from '../constants/product-fields.js';
+import { requireOnlyKeys, parseObjectId } from './product.validator.js';
 
 const invalid = (message) => new AppError(422, 'VALIDATION_FAILED', message);
 const TRACKING_CODE = /^[A-Za-z0-9._-]{3,64}$/;
@@ -53,4 +53,36 @@ export function parseHandToCarrier(body) {
 
 export function parseNoBody(body) {
   requireOnlyKeys(body ?? {}, []);
+}
+
+// Free text typed by Admin: trimmed, at most `max` characters, no control characters (a line break is fine when `multiline`).
+function cleanText(value, field, max, { multiline = false } = {}) {
+  if (typeof value !== 'string') throw invalid(`${field} is invalid`);
+  const text = value.normalize('NFC').replace(/\r\n?/gu, '\n').trim();
+  const forbidden = multiline ? /[\u0000-\u0009\u000b-\u001f\u007f]/u : /[\u0000-\u001f\u007f]/u;
+  if (text.length > max || forbidden.test(text)) throw invalid(`${field} is invalid`);
+  return text;
+}
+
+// Being returned asks for the carrier's reason (R3 UC-65); the form requires it, R3 has no message for it.
+export function parseMarkReturning(body) {
+  requireOnlyKeys(body, ['carrierReason'], ['carrierReason']);
+  const carrierReason = cleanText(body.carrierReason, 'carrierReason', PRODUCT_RETURN_LIMITS.carrierReasonMax);
+  if (!carrierReason) throw invalid('carrierReason is required');
+  return { carrierReason };
+}
+
+// Confirming a return: the reason, an optional note and, for every line of the order, how many go back on sale.
+// Only the shape is checked here; whether a quantity is allowed (MSG104) depends on the order.
+export function parseConfirmReturned(body) {
+  requireOnlyKeys(body, ['reason', 'note', 'lines'], ['reason', 'lines']);
+  if (!PRODUCT_RETURN_REASONS.includes(body.reason)) throw invalid('reason is invalid');
+  const note = body.note === undefined ? '' : cleanText(body.note, 'note', PRODUCT_RETURN_LIMITS.noteMax, { multiline: true });
+  if (!Array.isArray(body.lines) || body.lines.length < 1 || body.lines.length > PRODUCT_LIMITS.maxCartLines) throw invalid('lines is invalid');
+  const lines = body.lines.map((line) => {
+    requireOnlyKeys(line, ['productId', 'resellableQuantity'], ['productId', 'resellableQuantity']);
+    return { productId: parseObjectId(line.productId, 'productId'), resellableQuantity: line.resellableQuantity };
+  });
+  if (new Set(lines.map((line) => line.productId)).size !== lines.length) throw invalid('lines is invalid');
+  return { reason: body.reason, ...(note ? { note } : {}), lines };
 }

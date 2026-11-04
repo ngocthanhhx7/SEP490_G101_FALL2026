@@ -4,7 +4,10 @@ import {
   PRODUCT_PET_TYPES,
   PRODUCT_RECEIVE_METHODS,
   PRODUCT_PAYMENT_METHODS,
-  PRODUCT_ORDER_STATUSES
+  PRODUCT_ORDER_STATUSES,
+  PRODUCT_RETURN_REASONS,
+  PRODUCT_RETURN_LIMITS,
+  PRODUCT_REFUSAL_REASONS
 } from '../constants/product-fields.js';
 
 const cartLine = sub({
@@ -17,7 +20,9 @@ const orderLine = sub({
   productName: { type: String, required: true, maxlength: 200 },
   quantity: { ...integer(1, 99), required: true },
   // Price at the moment of ordering; later price changes never touch placed orders (GBR-35).
-  sellingPriceWhenOrdered: { ...integer(), required: true }
+  sellingPriceWhenOrdered: { ...integer(), required: true },
+  // Set when a returned order is confirmed: how many of this line go back on sale (0 to quantity).
+  resellableQuantity: { ...integer(0, 99) }
 });
 const deliveryAddress = sub({
   addressId: { type: oid, required: true },
@@ -26,7 +31,7 @@ const deliveryAddress = sub({
   areaCode: { type: String, required: true, maxlength: 80 }
 });
 
-// Collections: products, productcarts, productorders, productcounters (default Mongoose names).
+// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters (default Mongoose names).
 export function productSalesModels(connection) {
   return registerModels(connection, {
     Product: {
@@ -71,6 +76,14 @@ export function productSalesModels(connection) {
         paid: { type: Boolean, default: false },
         trackingCode: { type: String, maxlength: 64 },
         status: { type: String, enum: PRODUCT_ORDER_STATUSES, default: 'PLACED' },
+        deliveredAt: { type: Date },
+        // Entered when the order goes back (the carrier's own words), then the shop's reason when it confirms the return.
+        carrierReturnReason: { type: String, maxlength: PRODUCT_RETURN_LIMITS.carrierReasonMax },
+        returnReason: { type: String, enum: PRODUCT_RETURN_REASONS },
+        returnNote: { type: String, maxlength: PRODUCT_RETURN_LIMITS.noteMax },
+        returnedAt: { type: Date },
+        // A paid advance payment on an order that was cancelled or returned; accounting works out and pays the money outside PWC.
+        refundMarked: { type: Boolean, default: false },
         idempotencyKey: { type: String, required: true, maxlength: 128 },
         requestFingerprint: { type: String, required: true, maxlength: 128 },
         version: { ...integer(), default: 0 }
@@ -80,6 +93,20 @@ export function productSalesModels(connection) {
         [{ customerId: 1, createdAt: -1 }, {}],
         [{ customerId: 1, idempotencyKey: 1 }, { unique: true }],
         [{ status: 1, createdAt: -1 }, {}]
+      ]
+    },
+    // One record per refused order (the order id is unique, so a refusal is never counted twice).
+    // A customer's refusal count is the number of their records.
+    ProductCustomerRefusal: {
+      fields: {
+        customerId: { type: oid, required: true },
+        orderId: { type: oid, required: true },
+        reason: { type: String, enum: PRODUCT_REFUSAL_REASONS, required: true },
+        occurredAt: { type: Date, required: true }
+      },
+      indexes: [
+        [{ orderId: 1 }, { unique: true }],
+        [{ customerId: 1 }, {}]
       ]
     },
     ProductCounter: {

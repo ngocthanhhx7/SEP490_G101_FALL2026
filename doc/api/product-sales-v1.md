@@ -32,23 +32,26 @@ Delivery needs `addressId` of one of the caller's active addresses inside the se
 
 ## Order handling (Admin)
 
-Admin only (Sale Staff is a separate role PR; Admin covers every Sale Staff task in R3). Mounted at `/api/v1/admin/product-orders`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer or anonymous caller gets 403 or 401. Writes need the session CSRF token and take no `Idempotency-Key`: every step is guarded by the order's current status and version, so repeating a step answers `409 ORDER_STATE_CONFLICT` instead of applying twice.
+Who may handle orders is the table in `backend/src/constants/product-permissions.js` (`HANDLE_ORDERS`; today Admin only, which covers every Sale Staff task in R3; adding Sale Staff later is a role change plus one line there). Mounted at `/api/v1/admin/product-orders`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer or anonymous caller gets 403 or 401. Writes need the session CSRF token and take no `Idempotency-Key`: every step is guarded by the order's current status and version, so repeating a step answers `409 ORDER_STATE_CONFLICT` instead of applying twice.
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix, part of the customer name case-insensitively, or the customer's whole phone number as `0912345678`, `0912 345 678`, `84912345678` or `+84912345678`; a part of a number matches nothing), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName, phone }` (`phone` is the customer's verified number as `0912345678`, or `null`) and `updatedAt`. The phone is only in Admin responses, never in the Customer DTO |
+| `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix, part of the customer name case-insensitively, or the customer's whole phone number as `0912345678`, `0912 345 678`, `84912345678` or `+84912345678`; a part of a number matches nothing), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName, phone }` (`phone` is the customer's verified number as `0912345678`, or `null`) and `updatedAt`. The phone is only in Admin responses, never in the Customer DTO. Admin items also carry `deliveredAt`, `carrierReturnReason`, `returnReason`, `returnNote`, `returnedAt` and `refundMarked` (all `null`/`false` until set) and `resellableQuantity` on each line (`null` until the return is confirmed); none of these is in the Customer DTO |
 | `GET /api/v1/admin/product-orders/:orderId` | One order, any customer |
 | `POST .../:orderId/hand-to-carrier` | Delivery order `PLACED` to `HANDED_TO_CARRIER`. Body `{ trackingCode }` (3-64 of letters, digits, `.`, `_`, `-`; trimmed). Missing or blank is `422 TRACKING_CODE_REQUIRED` (MSG103) |
 | `POST .../:orderId/mark-ready` | Pickup order `PLACED` to `READY`. No stock change |
 | `POST .../:orderId/record-payment` | Pickup order in `PLACED` or `READY`, not yet paid: sets `paid` (money taken at the shop) |
 | `POST .../:orderId/hand-to-customer` | Pickup order `READY` to `PICKED_UP`. An unpaid order is `409 ORDER_NOT_PAID` (MSG105) |
+| `POST .../:orderId/mark-delivered` | Delivery order `HANDED_TO_CARRIER` to `DELIVERED`, sets `deliveredAt`. A cash-on-delivery order becomes `paid`; an advance payment (`PREPAID`) is left as it was. No stock change |
+| `POST .../:orderId/mark-returning` | Delivery order `HANDED_TO_CARRIER` to `BEING_RETURNED`. Body `{ carrierReason }` (required, trimmed, at most 300 characters, no control characters; missing is `422 VALIDATION_FAILED`, R3 has no message for it). No stock change |
+| `POST .../:orderId/confirm-returned` | `BEING_RETURNED` to `RETURNED`, once. Body `{ reason, note?, lines }`: `reason` is `CUSTOMER_REFUSED`, `CARRIER_UNDELIVERABLE` or `SHOP_FAULT`; `note` at most 500 characters; `lines` holds every line of the order exactly once as `{ productId, resellableQuantity }`. A quantity that is not a whole number from 0 to the ordered quantity is `422 RESELLABLE_QUANTITY_INVALID` (MSG104) and nothing changes. Only the resellable quantity is added back to `stockOnHand`. `CUSTOMER_REFUSED` also writes one `ProductCustomerRefusal` record in the same transaction. A paid `PREPAID` order is marked `refundMarked`; accounting pays the refund outside PWC |
 | `POST .../:orderId/cancel` | Order in `PLACED` or `READY` to `CANCELLED`. Not used by the screen yet |
 
 Any other combination of receive method and status is `409 ORDER_STATE_CONFLICT` with the current `status`. The step bodies other than `hand-to-carrier` must be empty. The customer sees the new status and the tracking code through `GET /api/v1/product-orders`.
 
 Phone numbers are stored encrypted with a keyed lookup hash (the same contact keys as sign-in), so the search is an exact match on the whole number and the number is decrypted only for the Admin response. The backend needs `CONTACT_LOOKUP_SECRET` and `CONTACT_ENCRYPTION_KEY`, which authentication already requires.
 
-Not built: returns, marking a delivery `DELIVERED`, the COD refusal limit and the expiry job.
+Not built: the COD refusal limit (the refusal records it will count already exist), the expiry job, placing an advance-payment order (`PREPAID` exists in the vocabulary only) and refunds themselves.
 
 ## Stock rule (GBR-35)
 
@@ -57,6 +60,8 @@ Sellable = `stockOnHand - quantityHeld`; it is computed, not stored. Adding to t
 - Goods leave the shop (`hand-to-carrier`, `hand-to-customer`): `quantityHeld` and `stockOnHand` both go down by the line quantity.
 - Cancelling an order that has not left the shop: only `quantityHeld` goes down; `stockOnHand` is unchanged.
 - If a line's held or real stock no longer covers the order (for example it was edited by hand), the step is refused with `409 ORDER_STOCK_MISMATCH` and nothing is changed.
+
+- Confirming a return: only the resellable quantity of each line is added to `stockOnHand` (`quantityHeld` is not touched, the hold was released when the goods left). A line whose product record is gone makes the whole confirmation `409 ORDER_STOCK_MISMATCH` and nothing is saved.
 
 Two Admins acting on the same order cannot both succeed: the status change only matches the status and version that were read.
 

@@ -5,6 +5,13 @@ export function formatVnd(amount) {
   return `${new Intl.NumberFormat('vi-VN').format(amount)} đ`;
 }
 
+// A Vietnamese mobile number as 0912 345 678; anything else is shown as it was stored.
+export function formatPhone(value) {
+  if (typeof value !== 'string') return '';
+  const match = /^(\d{4})(\d{3})(\d{3})$/u.exec(value);
+  return match ? `${match[1]} ${match[2]} ${match[3]}` : value;
+}
+
 export function formatOrderDate(value) {
   const time = Date.parse(value);
   if (!Number.isFinite(time)) return '';

@@ -1,7 +1,7 @@
 import { ApiError, createApiClient } from './api-client.js';
 
 const RECEIVE_METHODS = ['DELIVERY', 'PICKUP'];
-const PAYMENT_METHODS = ['COD', 'PAY_AT_SHOP'];
+const PAYMENT_METHODS = ['COD', 'PAY_AT_SHOP', 'PREPAID'];
 const TABS = ['PREPARE', 'AWAITING_PICKUP', 'IN_TRANSIT', 'RETURNING', 'ALL'];
 const money = (value) => Number.isSafeInteger(value) && value >= 0;
 const text = (value) => typeof value === 'string' && value.length > 0;
@@ -44,6 +44,12 @@ export function createProductOrderManagementApi(options) {
     handToCarrier: (orderId, trackingCode) => act(orderId, 'hand-to-carrier', { trackingCode }),
     markReady: (orderId) => act(orderId, 'mark-ready'),
     recordPayment: (orderId) => act(orderId, 'record-payment'),
-    handToCustomer: (orderId) => act(orderId, 'hand-to-customer')
+    handToCustomer: (orderId) => act(orderId, 'hand-to-customer'),
+    markDelivered: (orderId) => act(orderId, 'mark-delivered'),
+    // The carrier's own reason for sending the parcel back.
+    markReturning: (orderId, carrierReason) => act(orderId, 'mark-returning', { carrierReason }),
+    // reason: CUSTOMER_REFUSED | CARRIER_UNDELIVERABLE | SHOP_FAULT; lines: [{ productId, resellableQuantity }] for every line.
+    confirmReturned: (orderId, { reason, note, lines }) =>
+      act(orderId, 'confirm-returned', { reason, ...(note ? { note } : {}), lines })
   };
 }

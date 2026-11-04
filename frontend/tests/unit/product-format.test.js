@@ -1,4 +1,4 @@
-import { formatVnd, formatOrderDate, productMessage, productErrorText, isUncertainOutcome } from '../../src/utils/product-format.js';
+import { formatVnd, formatPhone, formatOrderDate, productMessage, productErrorText, isUncertainOutcome } from '../../src/utils/product-format.js';
 
 test('formats integer VND like the mockups', () => {
   expect(formatVnd(250000)).toBe('250.000 đ');
@@ -28,4 +28,15 @@ test('treats network and server failures as uncertain outcomes', () => {
   expect(isUncertainOutcome({ code: 'TIMEOUT' })).toBe(true);
   expect(isUncertainOutcome({ code: 'X', status: 503 })).toBe(true);
   expect(isUncertainOutcome({ code: 'CART_EMPTY', status: 409 })).toBe(false);
+});
+
+test('D-236 shows a mobile number as 0912 345 678 and leaves anything else as stored', () => {
+  expect(formatPhone('0912345678')).toBe('0912 345 678');
+  expect(formatPhone('+84912345678')).toBe('+84912345678');
+  expect(formatPhone('')).toBe('');
+  expect(formatPhone(null)).toBe('');
+});
+
+test('AC-04 maps a too-high resellable quantity to MSG104', () => {
+  expect(productErrorText({ code: 'RESELLABLE_QUANTITY_INVALID' })).toBe('Số bán lại được không thể lớn hơn số lượng hoàn về.');
 });
