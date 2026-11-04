@@ -74,7 +74,36 @@ New errors: `VERSION_CONFLICT` (409, none in R3) and `PRODUCT_CODES_EXHAUSTED` (
 
 `page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). Supplier Management uses it, and Stock List is meant to. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
 
-Not built here: adding or changing photos. The Admin DTO carries `photos` (read only); upload is a separate Issue.
+### Product photos
+
+Admin can upload JPEG/PNG/WebP (5 MiB and 4 million pixels at most), replace or
+remove photos. Save a new product first. A gallery holds at most five photos;
+the first is the cover. All mutations require the usual Admin session/CSRF plus
+`X-Product-Version` matching the Admin DTO's `version`.
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/v1/admin/products/:productId/photos` | Append one image; raw image body with its MIME `Content-Type` |
+| `PUT /api/v1/admin/products/:productId/photos/:photoIndex` | Replace one zero-based gallery slot; raw image body |
+| `DELETE /api/v1/admin/products/:productId/photos/:photoIndex` | Remove one slot after UI confirmation |
+| `GET /api/v1/admin/products/:productId/photos/:digest` | Read a stored photo, including hidden products; Admin only |
+| `GET /api/v1/products/:productId/photos/:digest` | Public image bytes only while the product is shown and still references that image |
+
+Writes return the updated Admin product. `409 VERSION_CONFLICT` means reload;
+after a lost/uncertain response the UI requires reload before another mutation.
+Do not blindly repeat an append with a new version. Invalid bytes, MIME mismatch,
+animation, oversized dimensions and duplicate photos are refused. Oversized bodies
+return 413. Mutation rate and in-flight parsing/decoding are bounded.
+
+Backend normalizes to metadata-free WebP, at most 1600 px per side/1 MiB stored.
+Binary data, hash, dimensions and uploader are stored in MongoDB `productphotos`;
+`products.photos` stores same-origin URLs. Upload/reference/version changes and
+removal of unused product-owned blobs are transactional. Price, stock, holds,
+visibility and placed-order snapshots are untouched. No caller-provided URL,
+filesystem path or remote image download is accepted. Static catalog photos stay
+on disk when detached. Image readers use `no-store` and `nosniff`; hiding a product
+also closes its public image URLs. Product backups include these MongoDB images;
+no writable release directory, new provider gate or environment variable is needed.
 
 ## Supplier Management (Admin)
 

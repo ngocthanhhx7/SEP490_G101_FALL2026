@@ -1,5 +1,10 @@
 # Persistence models
 
+`product-photo.model.js` stores bounded normalized WebP bytes in `productphotos`,
+separate from lightweight product documents. Product ID/hash is unique; image
+references and details versions change transactionally. Mongo backup/restore
+includes these blobs; no writable release directory or provider key is required.
+
 `customer-review.model.js` preserves the `reviews` collection, adds a unique
 visit/direction constraint and durable command replay. Operational satisfaction
 outcomes retain `aivisitoutcomes`; optional private provenance links source

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { Button, Dialog, Notice, Pagination } from '../../components/ui/index.js';
 import { ProductPhoto } from '../../components/product/ProductPhoto.jsx';
+import { ProductImageManager } from '../../components/product/ProductImageManager.jsx';
+import { adminProductPhotoUrl } from '../../utils/product-photo.js';
 import { PRODUCT_CATEGORY_LABELS, PRODUCT_PET_LABELS } from '../../constants/product-labels.js';
 import {
   PRICE_INPUT_MAX_LENGTH, PRODUCT_FORM_LIMITS, PRODUCT_MANAGEMENT_TEXT as TEXT, PRODUCT_PAGE_SIZE
@@ -56,14 +58,17 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
   const [errors, setErrors] = useState({});
   const [failure, setFailure] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [confirmHide, setConfirmHide] = useState(false);
   const lock = useRef(false);
   const change = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
   const errorOf = (field) => (errors[field] ? reasonText(field, errors[field]) : undefined);
   const invalidProps = (field) => (errors[field] ? { 'aria-invalid': true, 'aria-describedby': `${field}-error` } : {});
+  const dirty = product && (values.name !== product.name || values.category !== product.category || values.petType !== product.petType
+    || values.price !== formatPriceInput(product.sellingPrice) || values.description !== product.description || values.visible !== product.visible);
 
   async function save() {
-    if (lock.current) return;
+    if (lock.current || photoBusy) return;
     lock.current = true; setSaving(true); setConfirmHide(false); setFailure(null);
     try {
       const fields = {
@@ -86,7 +91,7 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
 
   function submit(event) {
     event.preventDefault();
-    if (lock.current) return;
+    if (lock.current || photoBusy) return;
     const found = validate(values);
     setErrors(found); setFailure(null);
     if (Object.keys(found).length > 0) return;
@@ -101,6 +106,7 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
       <Button variant="ghost" onClick={onClose}>Đóng</Button>
     </div>
     <form onSubmit={submit} noValidate>
+      <fieldset className="pwc-pm-edit-fields" disabled={saving || photoBusy}>
       <Field id="pm-code" label="Mã sản phẩm">
         <input id="pm-code" className="pwc-shop-field" readOnly value={product?.code ?? ''} placeholder={creating ? TEXT.codeOnSave : undefined} />
       </Field>
@@ -128,13 +134,7 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
         <textarea id="pm-description" className="pwc-shop-field" rows={4} value={values.description}
           maxLength={PRODUCT_FORM_LIMITS.descriptionMax} onChange={change('description')} {...invalidProps('description')} />
       </Field>
-      <div className="pwc-pm-field">
-        <span className="pwc-shop-label">Ảnh sản phẩm</span>
-        {product?.photos.length > 0 && <ul className="pwc-pm-photos" aria-label="Ảnh hiện có">
-          {product.photos.map((photo) => <li key={photo}><img src={photo} alt="" loading="lazy" /></li>)}
-        </ul>}
-        <p className="pwc-shop-hint">{product?.photos.length > 0 ? '' : 'Chưa có ảnh. '}{TEXT.photosNotice}</p>
-      </div>
+      {creating && <p className="pwc-shop-hint">Lưu sản phẩm trước, sau đó thêm ảnh trong màn sửa.</p>}
       <label className="pwc-pm-switch">
         <input type="checkbox" role="switch" checked={values.visible} disabled={creating || saving}
           onChange={(event) => setValues((current) => ({ ...current, visible: event.target.checked }))} />
@@ -144,7 +144,9 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
       {failure && <p className="pwc-shop-alert pwc-shop-alert--error" role="alert">{failure.text}
         {failure.conflict && <> <button type="button" className="pwc-shop-link-button" onClick={onReload}>Tải lại</button></>}</p>}
       <button type="submit" className="pwc-shop-primary-button" disabled={saving}>{creating ? 'Lưu sản phẩm' : 'Lưu thay đổi'}</button>
+      </fieldset>
     </form>
+    {product && <ProductImageManager product={product} api={api} disabled={saving || Boolean(dirty)} onSaved={onSaved} onBusy={setPhotoBusy} onReload={onReload} />}
     {confirmHide && <Dialog open onClose={() => setConfirmHide(false)} title="Ẩn sản phẩm" intent="destructive"
       description={productMessage('MSG114', { product: product.name })}
       footer={<>
@@ -230,7 +232,7 @@ export function ProductManagementPage({ api }) {
             <thead><tr><th>Sản phẩm</th><th>Danh mục</th><th>Dành cho</th><th>Giá bán</th><th>Hiển thị</th><th><span className="pwc-visually-hidden">Sửa</span></th></tr></thead>
             <tbody>{products.map((product) => <tr key={product.id} className={product.id === editing?.product?.id ? 'is-selected' : undefined}>
               <td><div className="pwc-shop-line">
-                <ProductPhoto product={product} size="thumb" />
+                <ProductPhoto product={{ ...product, photos: product.photos.map(adminProductPhotoUrl) }} size="thumb" />
                 <div><strong>{product.name}</strong><br /><small>{product.code}</small></div>
               </div></td>
               <td>{PRODUCT_CATEGORY_LABELS[product.category]}</td>

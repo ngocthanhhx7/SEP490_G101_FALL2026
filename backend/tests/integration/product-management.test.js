@@ -3,6 +3,8 @@ import { createServer } from 'node:http';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
 import express from 'express';
+import sharp from 'sharp';
+import { productPhotoModels } from '../../src/models/product-photo.model.js';
 import request from 'supertest';
 import { productSalesRuntimeModules } from '../../src/routes/product-sales.routes.js';
 import { provisionProductCatalog } from '../../src/services/product-sales/product-catalog-provisioning.service.js';
@@ -30,7 +32,7 @@ const api = (who) => {
     if (method !== 'get') req.set('Origin', base).set('X-CSRF-Token', 'synthetic-csrf');
     return req;
   };
-  return { get: (p) => call('get', p), post: (p) => call('post', p), patch: (p) => call('patch', p), delete: (p) => call('delete', p) };
+  return { get: (p) => call('get', p), post: (p) => call('post', p), put: (p) => call('put', p), patch: (p) => call('patch', p), delete: (p) => call('delete', p) };
 };
 const admin = api('admin');
 const valid = (over = {}) => ({ name: 'Synthetic bone toy', category: 'ACCESSORY', petType: 'DOG', sellingPrice: 80000, ...over });
@@ -65,8 +67,75 @@ afterAll(async () => {
   await connection?.close(); await replica?.stop();
 }, 30000);
 beforeEach(async () => {
+  await productPhotoModels(connection).ProductPhoto.deleteMany({});
   for (const model of Object.values(models)) await model.deleteMany({});
   await provisionProductCatalog({ connection });
+});
+
+describe('durable product photos', () => {
+  const image = color => sharp({ create: { width: 24, height: 18, channels: 3, background: color } }).png().toBuffer();
+  const upload = (id, version, body, index) => (index === undefined ? admin.post(`${ADMIN_PRODUCTS}/${id}/photos`)
+    : admin.put(`${ADMIN_PRODUCTS}/${id}/photos/${index}`)).set('X-Product-Version', String(version)).set('Content-Type', 'image/png').send(body);
+  test('stores normalized bytes in MongoDB, protects hidden photos, replaces and removes without touching stock', async () => {
+    const created = (await create()).body.data, bytes = await image('red');
+    const saved = (await upload(created.id, 0, bytes).expect(200)).body.data;
+    expect(saved.version).toBe(1); expect(saved.photos).toHaveLength(1);
+    const { ProductPhoto } = productPhotoModels(connection);
+    const stored = await ProductPhoto.findOne({ productId: created.id }).select('+content').lean();
+    expect(stored).toMatchObject({ uploadedBy: new mongoose.Types.ObjectId(actors.admin.userId), width: 24, height: 18 });
+    expect(stored.byteLength).toBeGreaterThan(0);
+    const adminPath = saved.photos[0].replace('/products/', '/admin/products/');
+    await api().get(saved.photos[0]).expect(404);
+    await admin.get(adminPath).expect(200).expect('Content-Type', /image\/webp/).expect('Cache-Control', 'private, no-store');
+    await api('customer').get(adminPath).expect(403);
+    await admin.patch(`${ADMIN_PRODUCTS}/${created.id}`).send({ version: 1, visible: true }).expect(200);
+    await api().get(saved.photos[0]).expect(200).expect('X-Content-Type-Options', 'nosniff');
+    const replaced = (await upload(created.id, 2, await image('blue'), 0).expect(200)).body.data;
+    expect(replaced.photos[0]).not.toBe(saved.photos[0]);
+    await api().get(saved.photos[0]).expect(404);
+    expect(await ProductPhoto.countDocuments()).toBe(1);
+    const removed = (await admin.delete(`${ADMIN_PRODUCTS}/${created.id}/photos/0`).set('X-Product-Version', '3').expect(200)).body.data;
+    expect(removed).toMatchObject({ version: 4, photos: [] });
+    expect(await ProductPhoto.countDocuments()).toBe(0);
+    expect(await byCode(created.code)).toMatchObject({ stockOnHand: 0, quantityHeld: 0, sellingPrice: 80000, visible: true });
+  });
+  test('rechecks version atomically; a lost reply retry cannot append twice or leave orphan bytes', async () => {
+    const created = (await create()).body.data, bytes = await image('green');
+    const results = await Promise.all([upload(created.id, 0, bytes), admin.patch(`${ADMIN_PRODUCTS}/${created.id}`).send({ version: 0, name: 'Concurrent edit' })]);
+    expect(results.map(r => r.status).sort()).toEqual([200, 409]);
+    const record = await models.Product.findById(created.id).lean();
+    expect(record.detailsVersion).toBe(1);
+    expect(await productPhotoModels(connection).ProductPhoto.countDocuments()).toBe(record.photos.length);
+    await upload(created.id, 0, bytes).expect(409);
+  });
+  test('rejects oversized, spoofed, animated/pixel-bomb and untrusted inputs before persistence', async () => {
+    const created = (await create()).body.data;
+    const endpoint = `${ADMIN_PRODUCTS}/${created.id}/photos`;
+    await api().post(endpoint).set('Content-Type', 'image/png').send(await image('red')).expect(401);
+    await api('customer').post(endpoint).set('Content-Type', 'image/png').send(await image('red')).expect(403);
+    await request(base).post(endpoint).set('x-test-actor', 'admin').set('Content-Type', 'image/png').send(await image('red')).expect(403);
+    await upload(created.id, 0, Buffer.from('<svg onload="alert(1)"></svg>')).expect(422);
+    await upload(created.id, 0, Buffer.alloc(5 * 1024 * 1024 + 1)).expect(413);
+    const tooManyPixels = await sharp({ create: { width: 2100, height: 2000, channels: 3, background: 'white' } }).png().toBuffer();
+    await upload(created.id, 0, tooManyPixels).expect(422);
+    await admin.post(endpoint).set('Content-Type', 'image/jpeg').set('X-Product-Version', '0').send(await image('red')).expect(422);
+    await admin.post(endpoint).set('Content-Type', 'image/png').send(await image('red')).expect(422);
+    await upload(created.id, 0, await image('red'), 4).expect(404);
+    expect(await productPhotoModels(connection).ProductPhoto.countDocuments()).toBe(0);
+    expect((await models.Product.findById(created.id).lean()).photos).toEqual([]);
+  });
+  test('limits the gallery to five and cannot overwrite another product or remove static files', async () => {
+    const created = (await create()).body.data;
+    for (let i = 0; i < 5; i++) await upload(created.id, i, await image({ r: i * 40, g: 20, b: 30 })).expect(200);
+    await upload(created.id, 5, await image('white')).expect(422);
+    await upload(created.id, 5, await image({ r: 0, g: 20, b: 30 }), 1).expect(422);
+    const first = (await admin.get(`${ADMIN_PRODUCTS}/${created.id}`)).body.data;
+    const other = (await create()).body.data;
+    await api().get(first.photos[0].replace(created.id, other.id)).expect(404);
+    const staticProduct = await byCode('SP-0012');
+    await admin.delete(`${ADMIN_PRODUCTS}/${staticProduct._id}/photos/0`).set('X-Product-Version', '0').expect(200);
+    expect(await productPhotoModels(connection).ProductPhoto.countDocuments()).toBe(5);
+  });
 });
 
 describe('access (AC-34)', () => {
