@@ -33,3 +33,9 @@ passed. The first focused UI run used an exact required-field label matcher;
 the corrected accessible-label query and full rerun passed. Existing Vite bundle
 size warning remains. Empty AI advice now explains returned quality/schedule/
 routing exclusions and retains explicit system fallback without a fake MATCH.
+
+A final recovery regression exercises a second eligible employee after customer
+confirmation. Without pinning the consented nominee, the worker created two
+offers instead of one. Confirmation now records that nominee as the operational
+requested sitter, preserving the original checkout snapshot. The regression is
+behavioral: it checks persisted offers after the worker runs, not just a field.
