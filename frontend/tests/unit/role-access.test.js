@@ -32,3 +32,5 @@ test('malformed roles fail closed and legacy single role works', () => {
   expect(primaryRole(null)).toBeUndefined();
   expect(roleLanding({ role: 'STAFF' })).toBe('/staff');
 });
+
+test('owned applicant status is a valid customer return route',()=>{expect(loginDestination({roles:['CUSTOMER']},'/sitter/application-status')).toBe('/sitter/application-status');});

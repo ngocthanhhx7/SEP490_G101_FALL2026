@@ -31,3 +31,5 @@ in `backend/scripts/ai/`, outside application startup.
 `payroll/` owns application employment-document lifecycle and source-derived payroll
 drafts. It never infers attendance from customer service hours or statutory
 obligations from missing data; see its component README.
+
+Sitter application service owns direct applicant reads and audited PENDING updates, with account/verified-contact ownership and the same state/version serialization as Admin review. It never promotes applicants from a self-edit.

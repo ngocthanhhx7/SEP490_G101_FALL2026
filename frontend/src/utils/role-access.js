@@ -28,6 +28,7 @@ export function loginDestination(user, from) {
     || /[\\%\u0000-\u0020]/.test(from)) return fallback;
   const path = from.split(/[?#]/)[0];
   if (path.split('/').some(segment => segment === '.' || segment === '..')) return fallback;
+  if (path==='/sitter/application-status' && ['CUSTOMER','PET_SITTER'].includes(primaryRole(user)))return from;
   if (['/account', '/account/settings', '/account/notifications'].includes(path)) return from;
   if (/^\/admin(?:\/|$)/.test(path)) return hasRole(user, 'ADMIN') ? from : fallback;
   if (/^\/staff(?:\/|$)/.test(path)) return hasRole(user, 'STAFF') ? from : fallback;

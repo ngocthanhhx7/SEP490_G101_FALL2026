@@ -93,6 +93,10 @@ export function sitterApplicationModule({
   const router = Router(), contracts = createEmploymentDocumentController(employmentDocuments);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
   const contractRate = rateLimit({ windowMs: 60000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth.userId });
+  const ownerController = createSitterApplicationController({service});
+  const ownerRate = rateLimit({windowMs:60000,limit:30,standardHeaders:'draft-8',legacyHeaders:false,keyGenerator:req=>req.auth.userId});
+  router.get('/me',requireSession(sessionService,{clock}),ownerRate,ownerController.getMine);
+  router.post('/me/updates',requireSession(sessionService,{clock}),csrf,ownerRate,ownerController.updateMine);
   router.get('/:applicationId/employment-contract', ...admin, contractRate, contracts.get);
   router.post('/:applicationId/employment-contract', ...admin, csrf, contractRate, contracts.save);
   router.post('/:applicationId/employment-contract/:documentId/decisions', ...admin, csrf, contractRate, contracts.decide);

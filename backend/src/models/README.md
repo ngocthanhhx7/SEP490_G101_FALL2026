@@ -48,3 +48,5 @@ reference for print. New collections are created by existing deployment indexing
 EmploymentContract.workScheduleMode SELF_REGISTERED and minimumWeeklyMinutes preserve minimum-hours terms without copying operational availability into a signed contract. Existing fixed schedule records and collection names are unchanged.
 
 SitterApplication.applicantParticularsCiphertext optionally retains submitted DOB/identity under existing AES-GCM protection, select:false. Legacy hashes remain unchanged; no plaintext or invented identity backfill.
+
+SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submission fingerprint separately from versioned owner-edit replay. No collection name changes.
