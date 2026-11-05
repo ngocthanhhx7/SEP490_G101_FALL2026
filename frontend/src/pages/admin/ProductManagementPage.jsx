@@ -134,6 +134,7 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
         <textarea id="pm-description" className="pwc-shop-field" rows={4} value={values.description}
           maxLength={PRODUCT_FORM_LIMITS.descriptionMax} onChange={change('description')} {...invalidProps('description')} />
       </Field>
+      {product && <ProductImageManager product={product} api={api} disabled={saving || Boolean(dirty)} onSaved={onSaved} onBusy={setPhotoBusy} onReload={onReload} />}
       {creating && <p className="pwc-shop-hint">Lưu sản phẩm trước, sau đó thêm ảnh trong màn sửa.</p>}
       <label className="pwc-pm-switch">
         <input type="checkbox" role="switch" checked={values.visible} disabled={creating || saving}
@@ -146,7 +147,6 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
       <button type="submit" className="pwc-shop-primary-button" disabled={saving}>{creating ? 'Lưu sản phẩm' : 'Lưu thay đổi'}</button>
       </fieldset>
     </form>
-    {product && <ProductImageManager product={product} api={api} disabled={saving || Boolean(dirty)} onSaved={onSaved} onBusy={setPhotoBusy} onReload={onReload} />}
     {confirmHide && <Dialog open onClose={() => setConfirmHide(false)} title="Ẩn sản phẩm" intent="destructive"
       description={productMessage('MSG114', { product: product.name })}
       footer={<>

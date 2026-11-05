@@ -8,19 +8,37 @@
 .pwc-pm-form-header > button { white-space: nowrap; flex-shrink: 0; }
 .pwc-pm-field { margin-bottom: .25rem; }
 .pwc-pm-field-error { color: var(--shop-danger); font-size: .9rem; margin: .3rem 0 0; }
-.pwc-pm-photos { display: flex; flex-wrap: wrap; gap: .5rem; list-style: none; margin: 0 0 .4rem; padding: 0; }
-.pwc-pm-photos img { display: block; width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: .75rem; border: 1px solid var(--shop-border); }
 .pwc-pm-switch { display: flex; align-items: center; gap: .6rem; margin: 1rem 0 .5rem; min-height: 2.75rem; font-weight: 800; }
 .pwc-pm-switch input { width: 1.25rem; height: 1.25rem; }
 .pwc-pm-form .pwc-shop-primary-button { margin-top: 1rem; }
 .pwc-shop-outline-button.pwc-pm-status { width: 100%; margin-top: .75rem; }
 .pwc-shop-outline-button:disabled { border-color: var(--shop-border); color: var(--shop-muted); cursor: not-allowed; }
 .pwc-pm-edit-fields { border: 0; margin: 0; padding: 0; min-width: 0; }
-.pwc-product-image-manager { border-top: 1px solid #e7ddeb; margin-top: 1.5rem; padding-top: 1rem; }
-.pwc-product-image-manager .pwc-pm-photos { flex-wrap: wrap; padding: 0; list-style: none; }
-.pwc-product-image-manager .pwc-pm-photos li { display: grid; gap: .5rem; width: 100%; min-width: 0; }
-.pwc-product-image-manager label { display: grid; gap: .4rem; font-weight: 700; }
-.pwc-product-image-manager input[type='file'] { width: 100%; min-width: 0; max-width: 100%; font: inherit; }
+/* Photos of a product (D-249): a row of small tiles, the first one is the cover, a dashed "+" tile adds one. */
+.pwc-product-image-manager { margin: 1rem 0 .25rem; }
+.pwc-product-image-manager h3 { margin: 0 0 .4rem; font-size: 1rem; font-weight: 800; }
+.pwc-pm-photo-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; align-items: start; margin: .6rem 0; }
+.pwc-pm-photos { display: contents; list-style: none; margin: 0; padding: 0; }
+.pwc-pm-photos li { position: relative; min-width: 0; }
+.pwc-pm-photos img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; box-sizing: border-box; border-radius: .75rem; border: 2px solid var(--shop-border); background: var(--shop-green-soft); }
+.pwc-pm-photos .is-cover img { border-color: var(--shop-green); }
+.pwc-pm-photo-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .25rem; margin-top: .25rem; }
+.pwc-product-image-manager .pwc-pm-photo-action { position: relative; display: grid; place-items: center; width: 100%; height: 2.75rem; min-height: 0; margin: 0; padding: 0; border: 1px solid #d5c9dc; border-radius: .5rem; background: rgb(255 255 255 / 92%); color: #40264f; cursor: pointer; }
+.pwc-product-image-manager .pwc-pm-photo-action:hover:not(:disabled, .is-disabled) { border-color: var(--shop-green); color: var(--shop-green); }
+.pwc-pm-photo-add { position: relative; display: grid; place-items: center; aspect-ratio: 1; box-sizing: border-box; border: 2px dashed #b9a7c8; border-radius: .75rem; background: var(--shop-bg); color: var(--shop-green); cursor: pointer; }
+.pwc-pm-photo-add:hover:not(.is-disabled) { border-color: var(--shop-green); }
+.pwc-pm-photo-action input, .pwc-pm-photo-add input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.pwc-product-image-manager .is-disabled { opacity: .55; cursor: not-allowed; }
+.pwc-product-image-manager .is-disabled input { cursor: not-allowed; }
+.pwc-pm-photo-action:has(input:focus-visible), .pwc-pm-photo-add:has(input:focus-visible), .pwc-product-image-manager .pwc-pm-photo-action:focus-visible { outline: 3px solid var(--shop-green); outline-offset: 2px; }
 .pwc-product-image-manager button { min-height: 44px; padding: .5rem .8rem; margin: .25rem; border: 1px solid #d5c9dc; border-radius: .5rem; background: #fff; color: #40264f; font: inherit; cursor: pointer; }
 .pwc-product-image-manager button:disabled { opacity: .55; cursor: default; }
 .pwc-product-image-preview { display: block; width: 100%; max-height: 240px; object-fit: contain; margin: .75rem 0; }
+/* Up to five tiles fit in one row (the add tile only shows below five photos). On a computer the two buttons
+   appear on the tile when the pointer or the keyboard is on it; phones and touch screens keep them under the photo. */
+@media (min-width: 48rem) { .pwc-pm-photo-row { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+@media (min-width: 48rem) and (hover: hover) and (pointer: fine) {
+  .pwc-pm-photo-actions { position: absolute; inset: auto .125rem .125rem; display: flex; justify-content: center; gap: .125rem; margin: 0; opacity: 0; }
+  .pwc-pm-photos li:hover .pwc-pm-photo-actions, .pwc-pm-photos li:focus-within .pwc-pm-photo-actions { opacity: 1; }
+  .pwc-product-image-manager .pwc-pm-photo-action { width: 1.5rem; height: 1.5rem; border-radius: .4rem; }
+}
