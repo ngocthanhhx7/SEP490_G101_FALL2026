@@ -1,3 +1,4 @@
+import { EmploymentContractPrint } from '../../src/components/payroll/EmploymentContractPrint.jsx';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { EmploymentContractEditor } from '../../src/components/payroll/EmploymentContractEditor.jsx';
 import { AutomaticPayrollForm } from '../../src/components/payroll/AutomaticPayrollForm.jsx';
@@ -42,4 +43,18 @@ test('automatic payroll chooses employees by name, derives preview and preserves
   fireEvent.click(await screen.findByRole('button',{name:'Kiểm tra lại cùng yêu cầu phiếu lương'}));
   await screen.findByText('Đã lập phiếu chờ duyệt từ nguồn đã kiểm tra.');
   const writes=request.mock.calls.filter(([path])=>path.endsWith('/from-sources'));expect(writes[0]).toEqual(writes[1]);
+});
+
+test.each([['FULL_TIME',2400,'40'],['PART_TIME',1200,'20']])('minimum contract %s prints hours without a fixed daily calendar', (employmentType,minimumWeeklyMinutes,hours)=>{
+  const {container}=render(<EmploymentContractPrint document={{reference:'HDLD-SYNTHETIC',employeeCode:'NV-SYNTHETIC',termsHash:'c'.repeat(64),state:'ISSUED',terms:{...terms,weekdays:undefined,dailyMinutes:undefined,employmentType,workScheduleMode:'SELF_REGISTERED',minimumWeeklyMinutes}}}/>);
+  expect(container.textContent).toContain(hours+' giờ/tuần');
+  expect(container.textContent).toContain('tự đăng ký ngày, giờ làm cụ thể');
+  expect(container.textContent).not.toContain('các ngày theo tuần:');
+});
+test('new draft editor has no weekday or daily-hours input',async()=>{
+  render(<EmploymentContractEditor application={application} api={{get:jest.fn().mockResolvedValue({current:null,history:[]})}}/>);
+  fireEvent.click(await screen.findByRole('button',{name:'Soạn hợp đồng'}));
+  expect(screen.queryByLabelText('Phút làm việc/ngày')).not.toBeInTheDocument();
+  expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  expect(screen.getByText(/Tối thiểu 40 giờ/)).toBeInTheDocument();
 });

@@ -21,7 +21,7 @@ export function EmployeePayrollPage({ api }) {
   return <section className="payroll-workspace"><h1>Lương và tạm ứng</h1><PayrollLoadState state={state} />
     {state.data && <>
       <section><h2>Hợp đồng hiện tại</h2>{contract ? <div className="payroll-summary">
-        <div><strong>{contract.employmentType === 'FULL_TIME' ? 'Toàn thời gian' : 'Bán thời gian'}</strong>{contract.weeklyMinutes / 60} giờ/tuần</div>
+        <div><strong>{contract.employmentType === 'FULL_TIME' ? 'Toàn thời gian' : 'Bán thời gian'}</strong>{contract.workScheduleMode==='SELF_REGISTERED'?'Tối thiểu ':''}{contract.weeklyMinutes / 60} giờ/tuần</div>
         <div><strong>{money(contract.monthlyBaseVnd)}</strong>Gross/tháng</div>
         <div><strong>{contract.payCycle === 'WEEKLY' ? 'Hàng tuần' : 'Hàng tháng'}</strong>Kỳ trả theo hợp đồng</div>
       </div> : <p>Chưa có hợp đồng đang hiệu lực được Admin xác minh.</p>}</section>

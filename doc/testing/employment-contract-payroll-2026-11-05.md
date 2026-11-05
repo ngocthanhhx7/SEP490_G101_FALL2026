@@ -1,5 +1,14 @@
 # Hợp đồng lao động và lập phiếu lương — kiểm tra ngày 05/11/2026
 
+## Điều chỉnh theo xác nhận ngày 05/11/2026
+
+User xác nhận full time tối thiểu **40 giờ/tuần**, part time tối thiểu **20 giờ/tuần**; đây là thỏa thuận của dự án, không phải mức tối thiểu do luật ấn định. Mẫu mới `PWC-VN-LABOUR-2026-11-05-v2` bỏ lịch thứ/giờ cố định; pet sitter đăng ký lịch cụ thể ở màn Lịch làm việc sau khi ký và được duyệt. Lưu hợp đồng không tạo đăng ký lịch. Khung giờ rảnh không phải công thực tế; số giờ tối thiểu là cam kết theo hợp đồng. Các kiểm tra điều phối về giờ thông thường, ca đã nhận, nghỉ và yêu cầu thỏa thuận làm thêm vẫn giữ nguyên. Bản v1 đã chốt/ký giữ nguyên nội dung, không tự chuyển mẫu hoặc thay hash.
+
+Phiếu tự động cho hợp đồng mới hỗ trợ tháng đầy đủ: lương cơ bản/phụ cấp đủ tháng, ca hoàn tất chỉ tính hoa hồng. Không cần lịch cố định hoặc đăng ký rảnh để trả đủ lương cơ bản. Không suy ra nghỉ không lương khi ít ca/chưa đăng ký. Mẫu số quy đổi 52/12 chỉ dùng tỷ lệ đủ tháng bằng 1, không dùng định giá một giờ nghỉ. Kỳ lẻ hoặc ngoại lệ nghỉ không lương yêu cầu bảng công đã xác minh ở đối soát nâng cao; không tự phân bổ ngày làm việc giả. Thuế/bảo hiểm/làm thêm vẫn cần dữ liệu xác minh như trước. Policy v3 giữ các mức tiền đã duyệt.
+
+Các đoạn mô tả lịch cố định dưới đây là bằng chứng bản phát hành v1, chỉ còn áp dụng với hợp đồng lịch sử có lịch đã ký; điều chỉnh trên có ưu tiên cho hợp đồng v2.
+
+
 Luồng tuyển mới: thẩm định → phỏng vấn → soạn hợp đồng → chốt bản in → hai bên ký giấy → Admin đối chiếu, ghi ngày ký và nơi lưu bản gốc → quyết định duyệt. Chỉ khi duyệt thành công, giao dịch mới cấp quyền Pet Sitter và tạo EmploymentContract từ đúng bản đã ký; thất bại phải rollback cả quyền lẫn hợp đồng. Bản in có số hợp đồng, mã nhân viên, phiên bản và checksum do hệ thống sinh. Không điền lại các mã đó. Không suy ra đã ký từ thao tác in; xác minh là xác nhận có trách nhiệm của Admin sau khi đối chiếu bản giấy, chưa phải chữ ký số hoặc xác thực chữ ký của cơ quan chứng thực.
 
 Mẫu gồm thông tin pháp nhân/người có thẩm quyền ký, nhân thân người lao động, công việc/phạm vi địa điểm, thời hạn, lương gross/phụ cấp, hình thức và ngày trả, lịch và nghỉ, nâng lương, bảo hộ, bảo hiểm, đào tạo, quyền/nghĩa vụ và chấm dứt. Tên pháp nhân, MST/đăng ký, thẩm quyền ký, địa chỉ, căn cước, ngày và mức lương do Admin xác minh từ hồ sơ thực tế; không dùng dữ liệu demo để ký. Trường ngày ký trên bản in phải khớp ngày thực tế khi xác minh. Bản chốt không chỉnh trực tiếp: tạo phiên bản mới và ký lại nếu nội dung/ngày thay đổi. Không áp dụng mẫu phổ thông này cho người nước ngoài, người chưa thành niên hoặc điều kiện lao động đặc thù chưa được rà soát riêng. Nội dung tự nhập vẫn phải được bên sử dụng lao động kiểm tra trước khi ký, mẫu không chứng nhận mọi thỏa thuận tự nhập đều hợp pháp.

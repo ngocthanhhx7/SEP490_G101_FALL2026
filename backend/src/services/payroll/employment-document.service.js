@@ -7,7 +7,7 @@ import { employmentTermsInput, contractDate } from '../../validators/employment-
 import { exact, id, number, fail } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-const TEMPLATE = 'PWC-VN-LABOUR-2026-11-05-v1';
+const TEMPLATE = 'PWC-VN-LABOUR-2026-11-05-v2';
 export function createEmploymentDocumentService({ connection, crypto, lookupSecret, clock = Date.now }) {
   if (typeof lookupSecret !== 'string' || lookupSecret.length < 32 || typeof crypto?.encrypt !== 'function' || typeof crypto?.decrypt !== 'function') throw new TypeError('Private crypto and identity lookup key required');
   const { EmploymentDocument: Document, EmploymentDocumentCounter: Counter, EmploymentDocumentCommand: Command } = employmentDocumentModels(connection);
@@ -90,7 +90,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
         monthlyAllowanceVnd: terms.monthlyAllowanceVnd, payCycle: terms.payCycle, weeklyMinutes: terms.weeklyMinutes, effectiveAt: contractDate(terms.effectiveOn),
         ...(terms.endsOn ? { endsAt: contractDate(terms.endsOn) } : {}), signedAt: row.signedAt, contractReference: row.reference,
         workplaceRegion: terms.workplaceRegion, workplaceReference: terms.workplaceReference, verifiedBy: row.verifiedBy, recordedAt: new Date(clock()),
-        documentId: row._id, employeeCode: row.employeeCode, schedule: { weekdays: terms.weekdays, dailyMinutes: terms.dailyMinutes }, paySchedule: terms.paySchedule }], { session });
+        documentId: row._id, employeeCode: row.employeeCode, ...(terms.workScheduleMode === 'SELF_REGISTERED' ? { workScheduleMode: terms.workScheduleMode, minimumWeeklyMinutes: terms.minimumWeeklyMinutes } : { schedule: { weekdays: terms.weekdays, dailyMinutes: terms.dailyMinutes } }), paySchedule: terms.paySchedule }], { session });
       await Document.updateOne({ _id: row._id, state: 'SIGNED' }, { $set: { state: 'ACTIVATED', employeeId } }, { session });
       await payrollModels(connection).PayrollEvent.create([{ actorId: actor.userId, employeeId, resourceId: row._id, type: 'CONTRACT_RECORDED', reason: 'Signed application contract activated', at: new Date(clock()) }], { session });
     }

@@ -138,7 +138,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       const adjustments = await page(models.PayrollAdjustment, { employeeId: actor.userId }, actor,
         { limit: input.limit, cursor: input.adjustmentCursor }, 'requestedAt', 'own-adjustments', publicPayrollAdjustment);
       return { contracts: contracts.map(c => ({ id: String(c._id), version: c.version, employmentType: c.employmentType, salaryBasis: c.salaryBasis,
-        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
+        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, workScheduleMode: c.workScheduleMode, minimumWeeklyMinutes: c.minimumWeeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
         activeContractId: active ? String(active._id) : null, advances: advances.items, statements: statements.items,
         advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor,
         adjustments: adjustments.items, adjustmentNextCursor: adjustments.nextCursor };
