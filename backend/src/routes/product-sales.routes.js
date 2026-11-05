@@ -87,6 +87,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   productManagementRouter.post('/', csrf, productManagement.create);
   productManagementRouter.get('/:productId', productManagement.read);
   productManagementRouter.patch('/:productId', csrf, productManagement.update);
+  productManagementRouter.delete('/:productId', csrf, productManagement.remove);
   const photoRate = rateLimit({ windowMs: 60000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false,
     keyGenerator: req => req.auth.userId });
   const photoAdmission = createMediaAdmission({ limit: 2 });

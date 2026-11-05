@@ -156,13 +156,74 @@ describe('access (AC-34)', () => {
     expect(await models.Product.countDocuments()).toBe(9);
   });
 
-  test('AC-34 an unknown product is 404, a malformed id is 422, and there is no way to delete a product', async () => {
+  test('AC-34 an unknown product is 404, a malformed id is 422, and deleting without a reason is rejected', async () => {
     await admin.get(`${ADMIN_PRODUCTS}/${oid()}`).expect(404);
     await admin.patch(`${ADMIN_PRODUCTS}/${oid()}`).send({ version: 0, name: 'Synthetic' }).expect(404);
     await admin.get(`${ADMIN_PRODUCTS}/not-an-id`).expect(422);
     const id = String((await byCode('SP-0012'))._id);
-    expect((await admin.delete(`${ADMIN_PRODUCTS}/${id}`)).status).toBe(404);
+    expect((await admin.delete(`${ADMIN_PRODUCTS}/${id}`)).status).toBe(422);
     expect(await models.Product.countDocuments()).toBe(9);
+  });
+});
+
+describe('guarded product deletion and overview', () => {
+  const reason = 'Ngừng kinh doanh mẫu sản phẩm này theo quyết định của cửa hàng.';
+  test('requires Admin, CSRF, a complete reason and the current details version', async () => {
+    const p = (await create()).body.data;
+    const path = `${ADMIN_PRODUCTS}/${p.id}`;
+    await api().delete(path).send({ version: 0, reason }).expect(401);
+    await api('staff').delete(path).send({ version: 0, reason }).expect(403);
+    await request(base).delete(path).set('x-test-actor', 'admin').send({ version: 0, reason }).expect(403);
+    for (const bad of ['', 'ngắn', 'x'.repeat(1001), 'lý do chứa ký tự\u0000không hợp lệ']) {
+      await admin.delete(path).send({ version: 0, reason: bad }).expect(422);
+    }
+    await admin.delete(path).send({ version: 2, reason }).expect(409);
+    expect((await models.Product.findById(p.id)).deletedAt).toBeUndefined();
+  });
+  test('retains deletion audit/code and rejects edit, show, photo and public access afterwards', async () => {
+    const p = (await create()).body.data, path = `${ADMIN_PRODUCTS}/${p.id}`;
+    await admin.delete(path).send({ version: 0, reason }).expect(200);
+    expect(await models.Product.findById(p.id).lean()).toMatchObject({ visible: false, deletionReason: reason,
+      deletedBy: new mongoose.Types.ObjectId(actors.admin.userId), deletedAt: expect.any(Date), detailsVersion: 1 });
+    await admin.get(path).expect(404);
+    await admin.patch(path).send({ version: 1, visible: true }).expect(404);
+    await admin.delete(path).send({ version: 1, reason }).expect(404);
+    await api().get(`/api/v1/products/${p.id}`).expect(404);
+    await admin.post(`${path}/photos`).set('X-Product-Version', '1').set('Content-Type', 'image/png').send(Buffer.from('synthetic')).expect(404);
+    const list = (await admin.get(ADMIN_PRODUCTS).expect(200)).body.data;
+    expect(list.total).toBe(9); expect(list.items.some(item => item.id === p.id)).toBe(false);
+    expect((await create()).body.data.code).not.toBe(p.code);
+  });
+  test('blocks stock, reserved stock and all historical order states; hiding remains possible', async () => {
+    const p = (await create()).body.data, path = `${ADMIN_PRODUCTS}/${p.id}`;
+    for (const stock of [{ stockOnHand: 1, quantityHeld: 0 }, { stockOnHand: 0, quantityHeld: 1 }]) {
+      await models.Product.updateOne({ _id: p.id }, { $set: stock });
+      expect((await admin.delete(path).send({ version: 0, reason }).expect(409)).body.error.code).toBe('PRODUCT_DELETE_BLOCKED');
+    }
+    await models.Product.updateOne({ _id: p.id }, { $set: { stockOnHand: 0, quantityHeld: 0 } });
+    // Real order service creates the snapshot, then even cancelled history must protect the product.
+    await models.Product.updateOne({ _id: p.id }, { $set: { visible: true, stockOnHand: 1 } });
+    const order = await placePickup(p.code, 1);
+    await models.ProductOrder.updateOne({ _id: order.id }, { $set: { status: 'CANCELLED' } });
+    await models.Product.updateOne({ _id: p.id }, { $set: { stockOnHand: 0, quantityHeld: 0 } });
+    const blocked = await admin.delete(path).send({ version: 0, reason }).expect(409);
+    expect(blocked.body.error.hasOrders).toBe(true);
+    await admin.patch(path).send({ version: 0, visible: false }).expect(200);
+    expect(await models.ProductOrder.countDocuments({ 'lines.productId': p.id })).toBe(1);
+  });
+  test('delete versus edit is serialized and reports global database counts even for empty filters', async () => {
+    const p = (await create()).body.data, path = `${ADMIN_PRODUCTS}/${p.id}`;
+    const responses = await Promise.all([
+      admin.delete(path).send({ version: 0, reason }),
+      admin.patch(path).send({ version: 0, name: 'Concurrent name' })
+    ]);
+    expect(responses.filter(res => res.status === 200)).toHaveLength(1);
+    expect(responses.every(res => [200, 404, 409].includes(res.status))).toBe(true);
+    const summary = (await admin.get(`${ADMIN_PRODUCTS}?search=does-not-exist`).expect(200)).body.data;
+    const active = await models.Product.find({ deletedAt: null }).lean();
+    expect(summary.items).toEqual([]);
+    expect(summary.summary).toEqual({ total: active.length, visible: active.filter(p => p.visible).length,
+      hidden: active.filter(p => !p.visible).length, outOfStock: active.filter(p => p.stockOnHand - p.quantityHeld <= 0).length });
   });
 });
 

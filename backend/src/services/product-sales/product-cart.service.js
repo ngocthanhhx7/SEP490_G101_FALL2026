@@ -17,7 +17,7 @@ export function createProductCartService({ connection }) {
     const byId = new Map(products.map((product) => [String(product._id), product]));
     const items = lines.map((line) => {
       const product = byId.get(String(line.productId));
-      const purchasable = Boolean(product?.visible);
+      const purchasable = Boolean(product?.visible && !product.deletedAt);
       const available = purchasable ? sellableQuantity(product) : 0;
       return {
         productId: String(line.productId),
@@ -42,7 +42,7 @@ export function createProductCartService({ connection }) {
 
   // A hidden or missing product is treated as not found; a product with nothing sellable is out of stock (MSG98).
   async function sellableProduct(productId) {
-    const product = await Product.findOne({ _id: productId, visible: true }).lean();
+    const product = await Product.findOne({ _id: productId, visible: true, deletedAt: null }).lean();
     if (!product) throw productSalesErrors.notFound();
     const available = sellableQuantity(product);
     if (available <= 0) throw productSalesErrors.outOfStock(productId);
