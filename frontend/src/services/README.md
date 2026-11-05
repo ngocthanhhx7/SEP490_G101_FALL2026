@@ -43,3 +43,5 @@ shared API client and CSRF/idempotency handling; it never computes rankings.
 `employment-document-api.js` owns application contract transport; `payroll-draft-api.js`
 validates employee/source-preview/prepare acknowledgements. Components never build
 shared endpoint URLs or persist contract/assessment data in browser storage.
+
+Sitter application API includes private owned get/update methods. Update acknowledgements require a versioned result; UI retains the original payload/key on uncertain responses. Login uses the owned read for the applicant landing.

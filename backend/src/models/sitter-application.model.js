@@ -56,7 +56,7 @@ export function sitterApplicationModels(connection) {
     actorRoles: { type: [String], required: true, default: [] },
     action: {
       type: String,
-      enum: ['APPLICATION_SUBMITTED', 'APPLICATION_VIEWED', 'APPLICATION_REVIEW_STARTED',
+      enum: ['APPLICATION_UPDATED', 'APPLICATION_SUBMITTED', 'APPLICATION_VIEWED', 'APPLICATION_REVIEW_STARTED',
         'APPLICATION_DECIDED', 'APPLICATION_DOCUMENT_REQUESTED', 'SITTER_SUSPENDED', 'SITTER_REINSTATED'],
       required: true
     },

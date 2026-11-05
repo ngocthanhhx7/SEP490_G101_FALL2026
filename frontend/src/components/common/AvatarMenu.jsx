@@ -146,6 +146,7 @@ export function AvatarMenu({ user, role, onLogout, notificationTo, customerNavig
             <Link to="/account/pets" onClick={() => dismiss()}>Quản lý hồ sơ các thú cưng</Link>
             <Link to="/account/bookings" onClick={() => dismiss()}>Đơn hàng</Link>
           </> : <Link to="/account" onClick={() => dismiss()}>{roleLabels.account}</Link>}
+          {['CUSTOMER','PET_SITTER'].includes(role) && <Link to="/sitter/application-status" onClick={() => dismiss()}>Hồ sơ ứng tuyển Pet Sitter</Link>}
           {notificationTo
             ? <Link to={notificationTo} onClick={() => dismiss()}>{roleLabels.notifications}</Link>
             : <button type="button" disabled aria-describedby={notificationNoteId}>

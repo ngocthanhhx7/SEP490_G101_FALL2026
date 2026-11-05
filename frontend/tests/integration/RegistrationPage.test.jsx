@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { PublicPolicyProvider } from '../../src/contexts/PublicPolicyContext.jsx';
 import { RegistrationPage } from '../../src/pages/public/RegistrationPage.jsx';
@@ -13,9 +13,10 @@ function applicationApi(overrides = {}) {
     uploadDocument: jest.fn(async () => ({ documentId: 'synthetic-doc-id', storageRef: 'synthetic-storage-ref' })),
     createIdempotencyKey: () => 'synthetic-application-key', submit: jest.fn(async () => ({ id: 'app-1', state: 'PENDING', applicationCode: 'synthetic-secret-receipt-code' })), ...overrides };
 }
+function LocationProbe(){const location=useLocation();return <output data-testid="application-route">{location.pathname}</output>;}
 function view({ adapter = { resolve: async () => ({ status: 'authenticated', user }) }, api = applicationApi(), registrationApi, route = '/register?role=sitter', currentPolicies = policies } = {}) {
   render(<MemoryRouter initialEntries={[route]}><SessionProvider adapter={adapter}><PublicPolicyProvider policies={currentPolicies}>
-    <RegistrationPage applicationApi={api} registrationApi={registrationApi} />
+    <LocationProbe/><RegistrationPage applicationApi={api} registrationApi={registrationApi} />
   </PublicPolicyProvider></SessionProvider></MemoryRouter>);
   return api;
 }
@@ -106,8 +107,8 @@ test('employment preference is required and starts without a default choice', as
 test('existing pending applications recover their code and prevent duplicate application forms', async () => {
   view({ api: applicationApi({ loadIntake: async () => ({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true,
     application: { state: 'UNDER_REVIEW', applicationCode: 'recovered-private-receipt-code' } } }) }) });
-  expect(await screen.findByRole('heading', { name: 'Hồ sơ đang được xét duyệt' })).toBeVisible();
-  expect(screen.getByText('recovered-private-receipt-code')).toBeVisible();
+  await waitFor(()=>expect(screen.getByTestId('application-route')).toHaveTextContent('/sitter/application-status'));
+  expect(screen.queryByText('recovered-private-receipt-code')).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' })).not.toBeInTheDocument();
 });
 
@@ -188,6 +189,6 @@ test('rejection uses server eligibility and refresh opens a new form without tru
 test('pending decision details are not displayed as a rejection reason', async () => {
   view({ api: applicationApi({ loadIntake: async () => ({ data: { contactValue: 'sitter@example.test', uploadsAvailable: true,
     application: { state: 'INTERVIEW', applicationCode: 'private-code', rejectionReason: 'Internal review note', canReapply: false } } }) }) });
-  await screen.findByRole('heading', { name: 'Đang ở bước phỏng vấn' });
+  await waitFor(()=>expect(screen.getByTestId('application-route')).toHaveTextContent('/sitter/application-status'));
   expect(screen.queryByText('Internal review note')).not.toBeInTheDocument();
 });

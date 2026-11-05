@@ -64,7 +64,9 @@ export function createSitterApplicationApi({ fetchImpl = fetchFromCurrentRuntime
   }
 
   const request = createApiClient({ fetchImpl, getCsrfToken });
-  return Object.freeze({ uploadDocument, submit, createIdempotencyKey: keyFactory, uploadsAvailable: Boolean(uploadDocumentImpl),
+  return Object.freeze({ uploadDocument, submit,
+    async getMine({signal}={}) {const result=await request('/applications/me',{signal});if(!result.data||!Object.hasOwn(result.data,'application'))throw new ApiError('INVALID_RESPONSE');return result;},
+    async updateMine(body,{key}={}){const result=await request('/applications/me/updates',{method:'POST',body,idempotencyKey:key});if(result.pending||!result.data?.id||!Number.isSafeInteger(result.data.version))throw new ApiError('INVALID_RESPONSE');return result;}, createIdempotencyKey: keyFactory, uploadsAvailable: Boolean(uploadDocumentImpl),
     async loadIntake({ signal } = {}) { return request('/applications/intake', { signal }); } });
 }
 

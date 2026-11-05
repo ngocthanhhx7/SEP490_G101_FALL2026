@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CustomerRegistrationPage } from './CustomerRegistrationPage.jsx';
@@ -18,6 +18,7 @@ function VerifiedSitterApplication({ api, displayName }) {
   </div>;
   const intake = resource.data;
   const previous = intake.application;
+  if(previous && previous.state!=='REJECTED')return <Navigate to="/sitter/application-status" replace/>;
   const canReapply = previous?.state === 'REJECTED' && previous.canReapply === true;
   return <SitterApplicationPage key={`${intake.contactValue}:${previous?.applicationCode ?? ''}:${canReapply}`} api={api}
     initialValues={{ displayName, contactChannel: 'EMAIL', contactValue: intake.contactValue }}
