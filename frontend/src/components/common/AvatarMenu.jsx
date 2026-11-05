@@ -1,3 +1,4 @@
+import { ProfileAvatar } from './ProfileAvatar.jsx';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { roleLanding } from '../../utils/role-access.js';
@@ -127,7 +128,7 @@ export function AvatarMenu({ user, role, onLogout, notificationTo, customerNavig
     <button ref={triggerRef} className="pwc-avatar-menu__trigger" type="button"
       aria-label={displayName ? 'Tài khoản của ' + displayName : 'Tài khoản'}
       aria-expanded={isOpen} aria-pressed={pinned} aria-controls={panelId} onClick={togglePinned}>
-      {iconOnly ? <svg className="pwc-avatar-menu__user-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="7" r="3.5" /><path d="M4 21v-3c0-3 3.6-5 8-5s8 2 8 5v3H4Z" /></svg> : <span className="pwc-avatar-menu__avatar" aria-hidden="true">{getInitials(displayName)}</span>}
+      <ProfileAvatar fallback={iconOnly ? <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="7" r="3.5" /><path d="M4 21v-3c0-3 3.6-5 8-5s8 2 8 5v3H4Z" /></svg> : getInitials(displayName)} />
       <span className="pwc-avatar-menu__trigger-name">{accountName}</span>
     </button>
 

@@ -146,3 +146,5 @@ while the OTP service retains application scope, expiry and anti-enumeration rul
 ## Product shop
 
 Customers browse `/products`, add items to a cart and check out as delivery (paid on delivery) or pickup (paid at the shop); see `pages/public/ProductListPage.jsx`, `pages/customer/ProductCheckoutPage.jsx` and `services/product-sales-api.js`. The backend API is off unless `PRODUCT_SALES_ENABLED=true` ([contract](../doc/api/product-sales-v1.md)). Admins prepare and hand over orders at `/admin/product-orders` (`pages/admin/ProductOrderManagementPage.jsx`, `services/product-order-management-api.js`). Payment gateway and tier discounts are not part of this release.
+
+`components/common/ProfileAvatar.jsx` supplies owner avatar rendering/editor, account/header/sidebar and pet screens. `services/avatar-api.js` owns transport and exact retry payloads. Application labels live in constants; two CCCD sides and portrait remain private intake documents. See [profile media](../doc/testing/profile-media-2026-11-05.md).

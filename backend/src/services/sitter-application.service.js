@@ -21,7 +21,7 @@ function invalid(message = 'Application request is invalid') {
     experience: 'Mô tả kinh nghiệm từ 10 đến 2.000 ký tự.',
     requestedServices: 'Chọn từ 1 đến 30 dịch vụ, không chọn trùng.',
     workAreas: 'Nhập từ 1 đến 10 khu vực, mỗi khu vực tối đa 80 ký tự.',
-    documents: 'Kiểm tra ảnh giấy tờ: một ảnh định danh và tối đa 5 ảnh bổ sung, không trùng ảnh.',
+    documents: 'Cần mặt trước CCCD, mặt sau CCCD, ảnh chân dung và tối đa 5 ảnh bổ sung, không trùng ảnh.',
     employmentType: 'Chọn toàn thời gian hoặc bán thời gian.'
   };
   throw new AppError(422, 'VALIDATION_FAILED', message, field ? { fieldErrors: { [field]: labels[field] ?? 'Kiểm tra thông tin này.' } } : {});
@@ -97,19 +97,23 @@ function validateIdempotencyKey(value) {
   return value;
 }
 
-function normalizeDocuments(value) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 6) invalid('documents are required');
+function normalizeDocuments(value, requireComplete = false) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 8) invalid('documents are required');
   const documents = value.map(document => {
     if (!document || typeof document !== 'object' || Array.isArray(document)
       || Object.keys(document).some(key => !['documentId', 'documentType', 'storageRef'].includes(key))) invalid('documents are invalid');
     const documentId = safeText(document.documentId, { max: 128, field: 'documentId' });
     const documentType = document.documentType;
-    if (!['IDENTITY', 'CERTIFICATE', 'OTHER'].includes(documentType)) invalid('documentType is invalid');
+    if (!['IDENTITY', 'IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT', 'CERTIFICATE', 'OTHER'].includes(documentType)) invalid('documentType is invalid');
     const storageRef = document.storageRef;
     if (typeof storageRef !== 'string' || !/^[A-Za-z0-9_-]{16,256}$/.test(storageRef)) invalid('storageRef is invalid');
     return { documentId, documentType, storageRef };
   });
-  if (!documents.some(document => document.documentType === 'IDENTITY')) invalid('An identity document is required');
+  if (requireComplete) {
+    if (['IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT'].some(type => documents.filter(d => d.documentType === type).length !== 1)
+      || documents.some(d => d.documentType === 'IDENTITY')
+      || documents.filter(d => ['CERTIFICATE', 'OTHER'].includes(d.documentType)).length > 5) invalid('documents must include both identity sides and a portrait');
+  } else if (!documents.some(d => ['IDENTITY', 'IDENTITY_FRONT'].includes(d.documentType))) invalid('documents require an identity image');
   if (new Set(documents.map(document => document.documentId)).size !== documents.length
     || new Set(documents.map(document => document.storageRef)).size !== documents.length) invalid('documents contain duplicates');
   return documents;
@@ -236,6 +240,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         submittedAt: priorSubmission.createdAt.toISOString(), applicationCode, replayed: true };
     }
 
+    normalizeDocuments(body.documents, true);
     const tooEarly = await Applicant.exists({
       $or: [{ contactLookupKey: contact.lookupKey }, { identityLookupKey }, ...(actor?.userId ? [{ ownerUserId: actor.userId }] : [])],
       state: 'REJECTED', reapplyAt: { $gt: new Date(now) }
@@ -669,7 +674,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     if(!owned)throw new AppError(404,'RESOURCE_NOT_FOUND','Application unavailable');
     const resolved=Array.isArray(body.documents)?body.documents.map(d=>{const old=owned.privateDocuments.find(x=>x.documentId===d?.documentId&&x.documentType===d?.documentType);
       return old&&d.storageRef===d.documentId?{...d,storageRef:old.storageRef}:d;}):body.documents;
-    const experience=safeText(body.experience,{min:10,max:2000,field:'experience'}),requestedServices=stringList(body.requestedServices,'requestedServices'),workAreas=stringList(body.workAreas,'workAreas'),documents=normalizeDocuments(resolved);
+    const experience=safeText(body.experience,{min:10,max:2000,field:'experience'}),requestedServices=stringList(body.requestedServices,'requestedServices'),workAreas=stringList(body.workAreas,'workAreas'),documents=normalizeDocuments(resolved,true);
     const key=validateIdempotencyKey(idempotencyKey),id=new Types.ObjectId(body.applicationId),idempotencyDigest=hash(lookupSecret,'application-owner-update\0'+actor.userId+'\0'+key),payloadDigest=hashPayload(lookupSecret,body);
     const replay=async session=>{
       const previous=await Audit.findOne({resourceId:id,idempotencyDigest,actorId:actor.userId}).select('+payloadDigest').session(session??null).lean();

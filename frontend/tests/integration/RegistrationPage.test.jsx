@@ -29,7 +29,8 @@ async function fillApplication() {
   fireEvent.click(await page.findByRole('checkbox', { name: 'Dắt chó đi dạo' }));
   fireEvent.change(page.getByLabelText(/^Khu vực mong muốn/), { target: { value: 'Khu vực thử nghiệm, Hà Nội' } });
   fireEvent.change(page.getByLabelText(/^Kinh nghiệm/), { target: { value: 'Có kinh nghiệm chăm sóc chó mèo tại nhà.' } });
-  fireEvent.change(page.getByLabelText(/^Ảnh giấy tờ định danh/), { target: { files: [new globalThis.File(['synthetic-image'], 'identity.png', { type: 'image/png' })] } });
+  fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['synthetic-image'], 'identity.png', { type: 'image/png' })] } });
+  for (const label of ['Mặt sau CCCD','Ảnh chân dung']) fireEvent.change(page.getByLabelText(new RegExp('^'+label)), {target:{files:[new globalThis.File(['synthetic-'+label], label+'.png',{type:'image/png'})]}});
   fireEvent.click(page.getByRole('checkbox', { name: /Tôi đồng ý/ }));
   return page;
 }
@@ -67,7 +68,7 @@ test('uses the verified email, selected services and private upload references t
   expect(await screen.findByRole('heading', { name: 'Đã tiếp nhận hồ sơ' })).toBeVisible();
   expect(api.submit).toHaveBeenCalledTimes(1);
   expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ employmentType: 'PART_TIME', contactChannel: 'EMAIL', contactValue: 'sitter@example.test',
-    requestedServices: ['Dắt chó đi dạo', 'Ghé thăm và chơi cùng bé'], documents: [{ documentId: 'synthetic-doc-id', storageRef: 'synthetic-storage-ref', documentType: 'IDENTITY' }] }), { key: 'synthetic-application-key' });
+    requestedServices: ['Dắt chó đi dạo', 'Ghé thăm và chơi cùng bé'], documents: ['IDENTITY_FRONT','IDENTITY_BACK','PORTRAIT'].map(documentType=>({documentId:'synthetic-doc-id',storageRef:'synthetic-storage-ref',documentType})) }), { key: 'synthetic-application-key' });
   expect(screen.getByText('synthetic-secret-receipt-code')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Theo dõi hồ sơ →' })).toHaveAttribute('href', '/sitter/application-status');
 });
@@ -80,7 +81,7 @@ test('an uncertain response retries with the same command and does not re-upload
   await screen.findByText('Chưa gửi được hồ sơ');
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   expect(await screen.findByRole('heading', { name: 'Đã tiếp nhận hồ sơ' })).toBeVisible();
-  expect(api.uploadDocument).toHaveBeenCalledTimes(1);
+  expect(api.uploadDocument).toHaveBeenCalledTimes(3);
   expect(api.submit.mock.calls[0]).toEqual(api.submit.mock.calls[1]);
 });
 
@@ -122,7 +123,7 @@ test('missing storage or unapproved policies never report a successful submissio
 test('file and required-field validation happens before any upload', async () => {
   const api = view();
   const page = await fillApplication();
-  fireEvent.change(page.getByLabelText(/^Ảnh giấy tờ định danh/), { target: { files: [new globalThis.File(['fake'], 'not-supported.pdf', { type: 'application/pdf' })] } });
+  fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['fake'], 'not-supported.pdf', { type: 'application/pdf' })] } });
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   expect(await screen.findByText('Mỗi tệp phải là JPG hoặc PNG và không quá 5 MB.')).toBeVisible();
   expect(api.uploadDocument).not.toHaveBeenCalled();
@@ -144,12 +145,14 @@ test('selected images preview, enlarge and remove locally without uploading', as
 test('a rejected supporting image identifies that file without marking the identity image', async () => {
   const api = view({ api: applicationApi({ uploadDocument: jest.fn()
     .mockResolvedValueOnce({ documentId: 'identity-document', storageRef: 'identity-reference' })
+    .mockResolvedValueOnce({ documentId: 'back-document', storageRef: 'back-reference' })
+    .mockResolvedValueOnce({ documentId: 'portrait-document', storageRef: 'portrait-reference' })
     .mockRejectedValueOnce({ code: 'INVALID_DOCUMENT', status: 422 }) }) });
   const page = await fillApplication();
   fireEvent.change(page.getByLabelText(/^Ảnh chứng chỉ/), { target: { files: [new globalThis.File(['synthetic'], 'certificate.png', { type: 'image/png' })] } });
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   await waitFor(() => expect(page.getByLabelText(/^Ảnh chứng chỉ/)).toHaveFocus());
-  expect(page.getByLabelText(/^Ảnh giấy tờ định danh/)).toHaveAttribute('aria-invalid', 'false');
+  expect(page.getByLabelText(/^Ảnh mặt trước CCCD/)).toHaveAttribute('aria-invalid', 'false');
   expect(page.getAllByText(/Không đọc được ảnh certificate.png/).length).toBeGreaterThan(0);
   expect(api.submit).not.toHaveBeenCalled();
 });
@@ -165,7 +168,7 @@ test('oversize pixel count blocks upload and server field errors focus their fie
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   expect(api.uploadDocument).not.toHaveBeenCalled();
   fireEvent.click(page.getByRole('button', { name: 'Xóa identity.png' }));
-  fireEvent.change(page.getByLabelText(/^Ảnh giấy tờ định danh/), { target: { files: [new globalThis.File(['replacement'], 'new.png', { type: 'image/png' })] } });
+  fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['replacement'], 'new.png', { type: 'image/png' })] } });
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   await waitFor(() => expect(page.getByLabelText(/^Khu vực mong muốn/)).toHaveFocus());
   expect(page.getAllByText('Khu vực tối đa 80 ký tự.').length).toBeGreaterThan(0);

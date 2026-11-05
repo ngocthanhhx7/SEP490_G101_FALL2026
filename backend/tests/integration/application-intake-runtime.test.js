@@ -23,6 +23,7 @@ const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true', RATE_LIMIT_MAX: '1000',
 const base = { Host: '127.0.0.1', Origin: 'http://127.0.0.1' };
 const policyVersions = { terms: 'synthetic-v1', privacy: 'synthetic-v1' };
 let replica, connection, app, sent, mailSent, png, writes, unavailable;
+const documentSets = new Map();
 let clockNow = Date.now() + 86400000;
 
 async function register(email = 'applicant@example.test') {
@@ -37,13 +38,23 @@ async function register(email = 'applicant@example.test') {
 async function upload(owner, key = 'synthetic-image-key-0001', status = 201) {
   const response = await owner.agent.post('/api/v1/applicant-documents').set({ ...base, 'X-CSRF-Token': owner.csrf,
     'Idempotency-Key': key, 'Content-Type': 'image/png' }).send(png).expect(status);
-  return response.body.data.id;
+  const id = response.body.data.id;
+  if (!documentSets.has(id)) {
+    const ids = [id];
+    for (const suffix of ['back','portrait']) {
+      const result = await owner.agent.post('/api/v1/applicant-documents').set({ ...base, 'X-CSRF-Token': owner.csrf,
+        'Idempotency-Key': key + '-' + suffix, 'Content-Type': 'image/png' }).send(png).expect(201);
+      ids.push(result.body.data.id);
+    }
+    documentSets.set(id, ids);
+  }
+  return id;
 }
 function application(owner, documentId) {
   return { displayName: 'Ứng viên kiểm thử', contactChannel: 'EMAIL', contactValue: owner.email,
     dateOfBirth: '1998-04-12', identityNumber: 'TEST12345678', experience: 'Kinh nghiệm chăm sóc chó mèo tại nhà.',
     policyVersions, requestedServices: ['Dắt chó đi dạo'], workAreas: ['Khu vực kiểm thử, Hà Nội'],
-    documents: [{ documentId, storageRef: documentId, documentType: 'IDENTITY' }] };
+    documents: (documentSets.get(documentId) ?? [documentId, 'b'.repeat(64), 'c'.repeat(64)]).map((id,index)=>({documentId:id,storageRef:id,documentType:['IDENTITY_FRONT','IDENTITY_BACK','PORTRAIT'][index]})) };
 }
 function submit(owner, body, key = 'synthetic-application-command-01') {
   return owner.agent.post('/api/v1/applications').set({ ...base, 'X-CSRF-Token': owner.csrf, 'Idempotency-Key': key }).send(body);
@@ -68,6 +79,7 @@ beforeAll(async () => {
 }, 600000);
 beforeEach(async () => {
   await Promise.all(Object.values(connection.models).map(model => model.deleteMany({})));
+  documentSets.clear();
   sent = []; mailSent = []; writes = 0; unavailable = false; clockNow = Date.now() + 86400000;
   await publicPolicyVersionModel(connection).create(['terms', 'privacy'].map(slug => ({
     slug, versionId: 'synthetic-v1', title: 'Synthetic policy', purpose: 'Test fixture only', sourceRef: 'synthetic-test',
@@ -83,7 +95,7 @@ test('registration → private upload → application → scoped OTP status → 
   expect(intake.body.data).toMatchObject({ contactValue: owner.email, uploadsAvailable: true, application: null });
   const documentId = await upload(owner);
   await upload(owner, 'synthetic-image-key-0001', 200);
-  expect(writes).toBe(1);
+  expect(writes).toBe(3);
   const body = application(owner, documentId);
   body.employmentType = 'FULL_TIME';
   const created = await submit(owner, body).expect(201);
@@ -335,7 +347,7 @@ test('signed-in applicants read directly, edit pending information once and cann
   await save(other,update).expect(404);
   await owner.agent.post('/api/v1/applications/me/updates').set(base).send(update).expect(403);
   const foreign=await upload(other);
-  await save(owner,{...update,documents:[{documentId:foreign,storageRef:foreign,documentType:'IDENTITY'}]},'foreign-owned-document').expect(403);
+  await save(owner,{...update,documents:application(other,foreign).documents},'foreign-owned-document').expect(403);
   await save(owner,update).expect(200).expect(r=>expect(r.body.data.version).toBe(1));
   await save(owner,update).expect(200).expect(r=>expect(r.body.data.replayed).toBe(true));
   await save(owner,{...update,displayName:'Different'},'synthetic-owned-update').expect(409);

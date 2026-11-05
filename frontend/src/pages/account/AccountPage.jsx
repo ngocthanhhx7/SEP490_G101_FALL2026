@@ -1,3 +1,4 @@
+import { AvatarEditor, ProfileAvatar } from '../../components/common/ProfileAvatar.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
@@ -40,12 +41,13 @@ export function AccountPage() {
     {logoutError && <Notice state="error" title="Chưa thể đăng xuất">{logoutError}</Notice>}
     <div className="account-overview-card">
       <div className="account-overview-person">
-        <span className="admin-avatar account-overview-avatar" aria-hidden="true">{initials(user.displayName)}</span>
+        <ProfileAvatar fallback={initials(user.displayName)} className="account-overview-avatar" />
         <div><span className="admin-eyebrow">TÀI KHOẢN HIỆN TẠI</span>
           <h2>{user.displayName ?? 'Người dùng'}</h2>
           <span className="account-overview-active"><span aria-hidden="true" />Phiên đang hoạt động</span>
         </div>
       </div>
+      <AvatarEditor fallback={initials(user.displayName)} />
       <dl className="account-overview-fields">
         <div><dt>Họ và tên</dt><dd>{user.displayName ?? 'Chưa có thông tin'}</dd></div>
         <div><dt>Vai trò</dt><dd>{roles.length ? roles.map(role => ROLE_LABELS[role] ?? role).join(', ') : 'Chưa có thông tin'}</dd></div>
