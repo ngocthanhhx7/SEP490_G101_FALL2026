@@ -1,7 +1,7 @@
 // Compensation retained from approved v1. User-requested signed fixed allowances and
-// the statutory employer-deduction bound are recorded as v2; tax/insurance remain separately assessed.
+// v3 separates minimum weekly commitments from registered schedules; tax/insurance remain separately assessed.
 export const employeePayrollPolicy = Object.freeze({
-  version: 'PWC-EMPLOYEE-PAYROLL-2026-11-05-v2', ready: true, salaryBasis: 'GROSS',
+  version: 'PWC-EMPLOYEE-PAYROLL-2026-11-05-v3', ready: true, salaryBasis: 'GROSS',
   fullTimeMonthlyBaseVnd: 10000000, partTimeMonthlyBaseVnd: 3000000,
   partTimeWeeklyMinutes: 1200, commissionBps: 500, advanceCapBps: 5000,
   kpiThresholdBps: [9000, 10000, 11000], fullTimeBonusVnd: [500000, 1000000, 1500000],

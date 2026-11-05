@@ -10,20 +10,19 @@ export function contractDate(value) {
   return new Date(value + 'T00:00:00+07:00');
 }
 export function employmentTermsInput(value, now) {
-  const numeric = ['monthlyBaseVnd', 'monthlyAllowanceVnd', 'dailyMinutes', 'workplaceRegion'];
-  exact(value, [...CONTRACT_TEXT_FIELDS, ...numeric, 'employmentType', 'termType', 'endsOn', 'weekdays'], [...CONTRACT_TEXT_FIELDS, ...numeric, 'employmentType', 'termType', 'weekdays']);
+  const numeric = ['monthlyBaseVnd', 'monthlyAllowanceVnd', 'workplaceRegion'];
+  exact(value, [...CONTRACT_TEXT_FIELDS, ...numeric, 'employmentType', 'termType', 'endsOn'], [...CONTRACT_TEXT_FIELDS, ...numeric, 'employmentType', 'termType']);
   if (!CONTRACT_TEXT_FIELDS.every(key => text(value[key]))) fail('CONTRACT_INFORMATION_REQUIRED', 'Complete all contract information', 422);
   if (value.nationality !== 'Việt Nam') fail('CONTRACT_SPECIAL_REVIEW_REQUIRED', 'This template requires Vietnamese adult employee; review other categories separately', 422);
   const result = Object.fromEntries(CONTRACT_TEXT_FIELDS.map(key => [key, value[key].trim()]));
   if (!['FULL_TIME', 'PART_TIME'].includes(value.employmentType) || !['INDEFINITE', 'FIXED'].includes(value.termType)) fail('VALIDATION_FAILED', 'Invalid contract type');
-  if (!Array.isArray(value.weekdays) || !value.weekdays.length || value.weekdays.length > 6 || new Set(value.weekdays).size !== value.weekdays.length || value.weekdays.some(day => !Number.isInteger(day) || day < 1 || day > 7)) fail('VALIDATION_FAILED', 'Choose up to six distinct working weekdays');
-  number(value.dailyMinutes, 30, 480, true); number(value.workplaceRegion, 1, 4, true);
+  number(value.workplaceRegion, 1, 4, true);
   number(value.monthlyBaseVnd, 1, 1000000000, true); number(value.monthlyAllowanceVnd, 0, 1000000000, true);
   const effectiveAt = contractDate(value.effectiveOn), plannedSigningAt = contractDate(value.plannedSigningOn), birth = contractDate(value.dateOfBirth), issued = contractDate(value.identityIssuedOn);
   const adultLimit = new Date(now); adultLimit.setUTCFullYear(adultLimit.getUTCFullYear() - 18);
   if (plannedSigningAt > effectiveAt || birth > adultLimit || birth < new Date('1900-01-01') || issued > now || issued < birth || effectiveAt < new Date('2026-01-01T00:00:00+07:00')) fail('VALIDATION_FAILED', 'Unsupported birth, identity or effective date');
   if (!/^[A-Za-z0-9]{8,20}$/.test(value.identityNumber)) fail('VALIDATION_FAILED', 'Identity number required');
-  const weeklyMinutes = value.dailyMinutes * value.weekdays.length;
+  const weeklyMinutes = value.employmentType === 'FULL_TIME' ? 2400 : 1200;
   const floorMonth = [5310000, 4730000, 4140000, 3700000][value.workplaceRegion - 1], floorHour = [25500, 22700, 20000, 17800][value.workplaceRegion - 1];
   if ((value.employmentType === 'FULL_TIME' && value.monthlyBaseVnd < floorMonth) || BigInt(value.monthlyBaseVnd) * 12n * 60n < BigInt(floorHour) * BigInt(weeklyMinutes) * 52n)
     fail('BELOW_MINIMUM_WAGE', 'Salary below applicable regional floor', 422);
@@ -33,5 +32,5 @@ export function employmentTermsInput(value, now) {
     result.endsOn = value.endsOn;
   } else if (value.endsOn) fail('VALIDATION_FAILED', 'Indefinite contract has no end date');
   return { ...result, ...Object.fromEntries(numeric.map(key => [key, value[key]])), employmentType: value.employmentType, termType: value.termType,
-    weekdays: [...value.weekdays].sort(), weeklyMinutes, salaryBasis: 'GROSS', payCycle: 'MONTHLY' };
+    workScheduleMode: 'SELF_REGISTERED', minimumWeeklyMinutes: weeklyMinutes, weeklyMinutes, salaryBasis: 'GROSS', payCycle: 'MONTHLY' };
 }

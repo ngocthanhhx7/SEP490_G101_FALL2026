@@ -159,6 +159,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
     <header className="sitter-availability__header">
       <p className="sitter-availability__eyebrow">Khu vực Sitter</p>
       <h1>Lịch làm việc</h1>
+        <p>Bạn tự đăng ký lịch cụ thể sau khi ký hợp đồng và được duyệt. Hợp đồng mới ghi thời gian tối thiểu: full time 40 giờ/tuần, part time 20 giờ/tuần. Lịch có thể nhận việc không phải bảng công hoặc căn cứ tự động trừ lương.</p>
       <p>Chọn giờ có thể nhận việc theo ngày trong tuần. Giờ được nhập và đọc theo <strong>Asia/Saigon</strong>.</p>
     </header>
 

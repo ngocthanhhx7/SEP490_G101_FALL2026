@@ -44,3 +44,5 @@ transactional document counter and command replay without renaming legacy payrol
 collections. EmploymentContract adds the signed document reference, generated code,
 contractual schedule and fixed allowance; PayrollStatement snapshots identity and
 reference for print. New collections are created by existing deployment indexing.
+
+EmploymentContract.workScheduleMode SELF_REGISTERED and minimumWeeklyMinutes preserve minimum-hours terms without copying operational availability into a signed contract. Existing fixed schedule records and collection names are unchanged.
