@@ -81,3 +81,25 @@ test('prefill transport rejects malformed private hints instead of rendering an 
   const legacy=createEmploymentDocumentApi(jest.fn().mockResolvedValue({data:{current:null,history:[]}}));
   await expect(legacy.get(application.id)).resolves.toMatchObject({history:[]});
 });
+
+test('contract validation identifies fields and preserves entered values for correction',async()=>{
+ const api={get:jest.fn().mockResolvedValue({current:null,history:[],prefill:{terms,sources:{},warnings:[]}}),save:jest.fn().mockRejectedValue({status:422,code:'VALIDATION_FAILED',fields:{plannedSigningOn:'SIGN_BEFORE_EFFECTIVE',identityNumber:'IDENTITY_NUMBER'}})};
+ render(<EmploymentContractEditor application={application} api={api}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Soạn hợp đồng'}));
+ fireEvent.change(screen.getByLabelText('Người đại diện ký'),{target:{value:'Edited representative'}});
+ fireEvent.submit(screen.getByRole('button',{name:'Lưu bản nháp hợp đồng'}).closest('form'));
+ expect(await screen.findByRole('alert')).toHaveTextContent('Ngày ký ghi trên bản in');
+ expect(screen.getByLabelText('Ngày ký ghi trên bản in')).toHaveAttribute('aria-invalid','true');
+ expect(screen.getByLabelText('Số căn cước/hộ chiếu')).toHaveAttribute('aria-invalid','true');
+ expect(screen.getByLabelText('Người đại diện ký')).toHaveValue('Edited representative');
+ expect(screen.queryByRole('button',{name:'Kiểm tra lại cùng yêu cầu hợp đồng'})).not.toBeInTheDocument();
+});
+test('draft print remains visibly unsigned and never issues a contract',async()=>{
+ const doc={id:'b'.repeat(24),terms,reference:'HDLD-SYNTHETIC',state:'DRAFT',revision:1};
+ const api={get:jest.fn().mockResolvedValue({current:doc,history:[]}),decide:jest.fn()};
+ const print=jest.spyOn(window,'print').mockImplementation(()=>{});
+ render(<EmploymentContractEditor application={application} api={api}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'In bản nháp / Lưu PDF'}));
+ expect(print).toHaveBeenCalledTimes(1);expect(api.decide).not.toHaveBeenCalled();
+ expect(screen.getAllByText('BẢN NHÁP – CHƯA CHỐT ĐỂ KÝ').length).toBeGreaterThan(0);print.mockRestore();
+});
