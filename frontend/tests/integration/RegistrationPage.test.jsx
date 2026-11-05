@@ -42,6 +42,16 @@ beforeEach(() => {
   loadPublicCatalog.mockResolvedValue({ data: { available: true, services: [{ id: 'walk', name: 'Dắt chó đi dạo' }, { id: 'visit', name: 'Ghé thăm và chơi cùng bé' }] } });
 });
 
+test('names the invalid identity side rather than the selected filename', async () => {
+  const api = view();
+  const page = await fillApplication();
+  const input = page.getByLabelText(/^Mặt sau CCCD/);
+  fireEvent.change(input, { target: { files: [new globalThis.File(['invalid'], 'private-filename.pdf', { type: 'application/pdf' })] } });
+  fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
+  expect(await page.findByText(/Mặt sau CCCD phải là JPG hoặc PNG/)).toBeVisible();
+  expect(api.uploadDocument).not.toHaveBeenCalled();
+});
+
 test('guest sitter registers and verifies email before opening the private application form', async () => {
   const adapter = { resolve: jest.fn().mockResolvedValueOnce({ status: 'guest' }).mockResolvedValue({ status: 'authenticated', user }) };
   const registrationApi = { requestOtp: jest.fn(async () => ({ challengeId: 'synthetic-challenge', resendAfterSeconds: 60, expiresInSeconds: 300 })),
@@ -125,7 +135,7 @@ test('file and required-field validation happens before any upload', async () =>
   const page = await fillApplication();
   fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['fake'], 'not-supported.pdf', { type: 'application/pdf' })] } });
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
-  expect(await screen.findByText('Mỗi tệp phải là JPG hoặc PNG và không quá 5 MB.')).toBeVisible();
+  expect(await screen.findByText('Mặt trước CCCD phải là JPG hoặc PNG, dung lượng từ 1 byte đến 5 MB.')).toBeVisible();
   expect(api.uploadDocument).not.toHaveBeenCalled();
 });
 
@@ -153,7 +163,7 @@ test('a rejected supporting image identifies that file without marking the ident
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   await waitFor(() => expect(page.getByLabelText(/^Ảnh chứng chỉ/)).toHaveFocus());
   expect(page.getByLabelText(/^Ảnh mặt trước CCCD/)).toHaveAttribute('aria-invalid', 'false');
-  expect(page.getAllByText(/Không đọc được ảnh certificate.png/).length).toBeGreaterThan(0);
+  expect(page.getAllByText(/Không đọc được chứng chỉ/).length).toBeGreaterThan(0);
   expect(api.submit).not.toHaveBeenCalled();
 });
 

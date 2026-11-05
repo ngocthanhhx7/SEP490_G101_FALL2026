@@ -174,6 +174,17 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           if (visits[a].startAt < visits[b].endAt && visits[b].startAt < visits[a].endAt && visits[a].petIds.some(p => visits[b].petIds.some(q => String(p) === String(q))))
             fail('VISIT_SCHEDULE_OVERLAP', 'A pet cannot attend overlapping visits', 409);
         }
+        // Each selected Pet was written through bookingGuard above. Competing
+        // checkouts for that pet retry their snapshot before checking persisted
+        // visits, so two different quotes cannot both reserve the same time.
+        for (const visit of visits) {
+          const conflict = await col('visits').findOne({
+            petIds: { $in: visit.petIds.flatMap(petId => [petId, String(petId)]) },
+            state: { $nin: ['CANCELLED', 'SUPERSEDED'] },
+            startAt: { $lt: visit.endAt }, endAt: { $gt: visit.startAt }
+          }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });
+          if (conflict) fail('VISIT_SCHEDULE_OVERLAP', 'A pet already has an overlapping visit', 409);
+        }
         for (const visit of visits.filter(row => row.requestedSitterId)) {
           if (!selectionGuard) fail('SCHEDULING_UNAVAILABLE', 'Employee eligibility must be checked before directed checkout', 503);
           await selectionGuard(actor, visit, session);

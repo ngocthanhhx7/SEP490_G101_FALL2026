@@ -4,6 +4,14 @@ const envelope = (data = []) => ({ data, meta: { schemaVersion: 1 } });
 const response = (status, data) => ({ status, ok: status >= 200 && status < 300,
   json: async () => data });
 
+test('retains correlation ID and retry interval without exposing backend message', async () => {
+  const correlationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const fetchImpl = async () => response(429, { error: { code: 'OTP_RATE_LIMITED', retryAfterSeconds: 60, message: 'private' }, meta: { correlationId } });
+  await expect(createApiClient({ fetchImpl })('/otp-challenges')).rejects.toMatchObject({ correlationId, retryAfterSeconds: 60, message: 'OTP_RATE_LIMITED' });
+  const html = async () => ({ status: 503, ok: false, headers: new Headers({ 'Retry-After': '30', 'X-Request-ID': correlationId }), json: async () => { throw Error('HTML'); } });
+  await expect(createApiClient({ fetchImpl: html })('/services')).rejects.toMatchObject({ status: 503, retryAfterSeconds: 30, correlationId });
+});
+
 test('reads v1 DTO with same-origin cookie and no private cache', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(response(200, envelope([])));
   expect(await createApiClient({ fetchImpl })('/services')).toMatchObject({ data: [], pending: false });

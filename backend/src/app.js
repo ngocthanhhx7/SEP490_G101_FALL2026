@@ -18,6 +18,7 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
+import { publicServiceAreasModule } from './routes/public-service-areas.routes.js';
 import { privateImageRuntimeModule, applicantDocumentRuntimeModule } from './routes/private-image.routes.js';
 import { sitterApplicationRuntimeModule } from './routes/sitter-application.routes.js';
 
@@ -128,6 +129,7 @@ export function createApp({
     contactModule(context),
     healthModule(context),
     publicPolicyModule(context),
+    publicServiceAreasModule(context),
     ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []),
     ...(avatars ? [avatars] : []),

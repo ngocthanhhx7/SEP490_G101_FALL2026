@@ -20,8 +20,11 @@ export function VietmapView({ coordinates, onSelect, disabled = false, label = '
       if (cancelled) return;
       instance = new sdk.Map({ container: container.current, style,
         center: valid(latest.current.coordinates) ? latest.current.coordinates : hanoiCenter, zoom: valid(latest.current.coordinates) ? 15 : 11,
-        minZoom: 5, maxZoom: 18, attributionControl: true, vietmapLogo: true, transformRequest: mapRequest });
+        minZoom: 5, maxZoom: 18, pitch: 0, bearing: 0, maxPitch: 0,
+        dragRotate: false, touchPitch: false, pitchWithRotate: false,
+        attributionControl: true, vietmapLogo: true, transformRequest: mapRequest });
       map.current = instance;
+      instance.touchZoomRotate?.disableRotation();
       instance.addControl(new sdk.NavigationControl({ showCompass: false }), 'top-right');
       marker.current = new sdk.Marker({ color: '#c33f52', draggable: Boolean(latest.current.onSelect) && !latest.current.disabled });
       if (valid(latest.current.coordinates)) marker.current.setLngLat(latest.current.coordinates).addTo(instance);
