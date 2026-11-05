@@ -7,3 +7,5 @@ The fourth footer column contains policy links, replacing newsletter signup as r
 The complete Home is in `pages/public/HomePage.jsx`. Catalog data and prices remain server-owned. Static service illustrations link to catalog exploration and are distinguished from bookable published offers; the supplied community stories are marked illustrative.
 
 `CatalogLayout` shares the collapsible filter sidebar and results column between services and products. Pages own their filter state and data; this component only arranges content.
+
+Header cart entry is visible for guests too. Customer cart data is fetched only under the Customer session; the protected route preserves the login destination. Authenticated shopping notifications reuse the shared bell/preview.

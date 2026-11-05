@@ -26,12 +26,12 @@ async function action(name) {
 }
 test('full service table filters and paginates without losing the create command', async () => {
   setup();
-  await screen.findByText('13 dịch vụ · Trang 1 / 2');
+  await screen.findByText('Hiển thị 1–10 trên 13 dịch vụ');
   expect(screen.getAllByRole('row')).toHaveLength(11);
-  fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sau' }));
   expect(screen.getAllByRole('row')).toHaveLength(4);
   fireEvent.change(screen.getByLabelText('Tìm dịch vụ'), { target: { value: 'Dịch vụ 00' } });
-  expect(screen.getByText('1 dịch vụ · Trang 1 / 1')).toBeInTheDocument();
+  expect(screen.getByText('Hiển thị 1–1 trên 1 dịch vụ')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Tạo dịch vụ' }));
   expect(screen.getByRole('dialog', { name: 'Tạo dịch vụ' })).toBeVisible();
   expect(screen.getByLabelText(/Mã dịch vụ/)).toBeRequired();

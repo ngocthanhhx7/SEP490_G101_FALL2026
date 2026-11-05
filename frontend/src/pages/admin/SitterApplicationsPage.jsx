@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Notice, Select } from '../../components/ui/index.js';
@@ -76,11 +77,10 @@ export function SitterApplicationsPage({ api = sitterApplicationAdminApi }) {
             <td data-label="Thao tác"><Link className="sitter-app-open" to={`/admin/sitter-applications/${application.id}`} aria-label={`Xem hồ sơ ${application.displayName}`}>Xem hồ sơ →</Link></td>
           </tr>)}</tbody>
         </table>}
-      <nav className="sitter-app-pagination" aria-label="Phân trang hồ sơ">
-        <Button variant="secondary" disabled={!history.length} onClick={previousPage}>Trang trước</Button>
-        <span>Trang {history.length + 1}</span>
-        <Button variant="secondary" disabled={!data.nextCursor} onClick={nextPage}>Trang sau</Button>
-      </nav>
+      <CursorPagination page={history.length + 1} label="hồ sơ" hasNext onFirst={() => { setCursor(''); setHistory([]); }}
+ onPrevious={previousPage} onNext={nextPage}
+ previousDisabled={!history.length} nextDisabled={!data.nextCursor}
+ previousLabel={"Trang trước"} nextLabel={"Trang sau"} />
       <p className="sitter-app-private-note">Liên hệ được che trong danh sách. Chỉ mở giấy tờ riêng tư khi cần thẩm định; mọi lượt xem đều được ghi nhận.</p>
     </section>}
     {resource.status === 'empty' && <Notice state="empty" title="Chưa có hồ sơ">Không tìm thấy hồ sơ phù hợp bộ lọc.</Notice>}

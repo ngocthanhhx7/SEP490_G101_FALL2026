@@ -1,6 +1,7 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Eye, Search, RefreshCw, ChevronLeft, ChevronRight, RotateCcw, Users, UserCheck, PauseCircle, FileWarning } from 'lucide-react';
+import { Eye, Search, RefreshCw, RotateCcw, Users, UserCheck, PauseCircle, FileWarning } from 'lucide-react';
 import { Button, Input, Select, Notice } from '../../components/ui/index.js';
 import { RowActionMenu } from '../../components/common/RowActionMenu.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -81,10 +82,10 @@ export function SitterManagementPage({ api }) {
             { label: 'Xem hồ sơ', icon: Eye, onClick: () => navigate(base + '/' + s.id) }
           ]} /></td></tr>)
           : <tr><td colSpan={6} className="workspace-empty">Không có người chăm sóc phù hợp.</td></tr>}</tbody></table></div>
-        <div className="workspace-pagination"><span>Trang {history.length + 1} · {data.total} hồ sơ</span><div>
-          <button type="button" className="workspace-icon-button" title="Trang trước" aria-label="Trang trước" disabled={!history.length} onClick={() => { const h = [...history]; setCursor(h.pop() ?? ''); setHistory(h); }}><ChevronLeft size={18} /></button>
-          <button type="button" className="workspace-icon-button" title="Trang sau" aria-label="Trang sau" disabled={!data.nextCursor} onClick={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}><ChevronRight size={18} /></button>
-        </div></div></>}
+        <CursorPagination page={history.length + 1} label="người chăm sóc" hasNext onFirst={() => { setCursor(''); setHistory([]); }}
+ onPrevious={() => { const h = [...history]; setCursor(h.pop() ?? ''); setHistory(h); }} onNext={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}
+ previousDisabled={!history.length} nextDisabled={!data.nextCursor}
+ previousLabel={"Trang trước"} nextLabel={"Trang sau"} summary={`${data.total} hồ sơ`} /></>}
     </section>
   </div>;
 }

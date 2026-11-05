@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, CalendarDays, SlidersHorizontal, RefreshCw, PawPrint, Clock3 } from 'lucide-react';
@@ -44,7 +45,10 @@ function CustomerCareOverview({ api }) {
         <span className={'customer-home__status customer-home__status--' + row.state}>{states[row.state] ?? row.state}</span>
         <Link to="/account/bookings" aria-label={`Xem đơn của buổi ${row.id.slice(-8).toUpperCase()}`}><ArrowRight size={18} aria-hidden="true" /></Link>
       </li>)}</ul> : <div className="customer-home__empty"><CalendarDays size={32} aria-hidden="true" /><h3>Chưa có lịch chăm sóc</h3><p>{filters.from || filters.to ? 'Không có buổi chăm sóc trong khoảng ngày đã chọn.' : 'Lịch hẹn của bé sẽ xuất hiện tại đây sau khi bạn đặt dịch vụ.'}</p><Link to={filters.from || filters.to ? '/account/bookings' : '/services'}>{filters.from || filters.to ? 'Xem tất cả đơn chăm sóc' : 'Khám phá dịch vụ'}<ArrowRight size={15} aria-hidden="true" /></Link></div>}
-      {(history.length > 0 || data.nextCursor) && <nav className="customer-home__pagination" aria-label="Phân trang lịch chăm sóc"><Button variant="secondary" disabled={!history.length} onClick={() => { setCursor(history.at(-1)); setHistory(history.slice(0, -1)); }}>Trước</Button><span>Trang {history.length + 1}</span><Button variant="secondary" disabled={!data.nextCursor} onClick={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}>Tiếp theo</Button></nav>}
+      {(history.length > 0 || data.nextCursor) && <CursorPagination page={history.length + 1} label="lịch chăm sóc" hasNext onFirst={() => { setCursor(''); setHistory([]); }}
+ onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0, -1)); }} onNext={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}
+ previousDisabled={!history.length} nextDisabled={!data.nextCursor}
+ previousLabel={"Trước"} nextLabel={"Tiếp theo"} />}
     </>}
     <Link className="customer-home__pet-link" to="/account/pets"><PawPrint size={20} aria-hidden="true" /><span>Thú cưng của tôi</span><ArrowRight size={16} aria-hidden="true" /></Link>
   </section>;

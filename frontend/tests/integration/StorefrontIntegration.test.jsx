@@ -31,9 +31,29 @@ test('a completed mutation cannot restore private cart state after session inval
   render(<SessionProvider adapter={adapter}><ProductCartProvider api={api}><Probe /></ProductCartProvider></SessionProvider>);
   await waitFor(() => expect(screen.getByTestId('cart')).toHaveTextContent('authenticated|0|'));
   fireEvent.click(screen.getByText('Add'));
+  await waitFor(() => expect(api.addToCart).toHaveBeenCalledTimes(1));
   fireEvent.click(screen.getByText('Invalidate'));
   await waitFor(() => expect(screen.getByTestId('cart')).toHaveTextContent('guest|0|'));
   await act(async () => { resolveAdd({ lineCount: 7, privateMarker: 'old-private-cart' }); });
   expect(screen.getByTestId('cart')).toHaveTextContent('guest|0|');
   expect(screen.getByTestId('cart')).not.toHaveTextContent('old-private-cart');
+});
+
+test('cart writes are serialized and queued writes cannot run under a later session', async () => {
+  let finishFirst;
+  const api = { getCart: jest.fn().mockResolvedValue({ data: { lineCount: 0 } }),
+    addToCart: jest.fn(() => new Promise(resolve => { finishFirst = resolve; })) };
+  const adapter = { resolve: async () => ({ status: 'authenticated', user: { id: 'customer-A', roles: ['CUSTOMER'] } }) };
+  function Probe() {
+    const cart = useProductCart(), session = useSession();
+    return <><output>{session.status}</output><button onClick={() => cart.addLine('one', 1).catch(() => {})}>One</button>
+      <button onClick={() => cart.addLine('two', 1).catch(() => {})}>Two</button><button onClick={session.invalidate}>Exit</button></>;
+  }
+  render(<SessionProvider adapter={adapter}><ProductCartProvider api={api}><Probe /></ProductCartProvider></SessionProvider>);
+  await screen.findByText('authenticated');
+  fireEvent.click(screen.getByText('One')); await waitFor(() => expect(api.addToCart).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByText('Two')); expect(api.addToCart).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByText('Exit')); await screen.findByText('guest');
+  await act(async () => finishFirst({ lineCount: 1 }));
+  expect(api.addToCart).toHaveBeenCalledTimes(1);
 });

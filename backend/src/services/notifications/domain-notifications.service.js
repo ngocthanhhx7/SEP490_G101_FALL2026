@@ -18,6 +18,21 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
     return rows.map(row => ({ id: row._id, to }));
   }
   return {
+    async productOrder({ order, previous, placed = false }, session) {
+      const id = String(order._id), eventId = `product-order:${id}:${order.version ?? 0}`;
+      const states = { PLACED: 'đã được tiếp nhận', READY: 'đã sẵn sàng để nhận tại cửa hàng',
+        PICKED_UP: 'đã giao cho bạn', HANDED_TO_CARRIER: 'đã bàn giao cho đơn vị vận chuyển',
+        DELIVERED: 'đã giao thành công', BEING_RETURNED: 'đang được hoàn về cửa hàng',
+        RETURNED: 'đã được xác nhận hoàn trả', CANCELLED: 'đã hủy' };
+      const message = previous && !previous.paid && order.paid
+        ? `Đơn ${order.code} đã được ghi nhận thanh toán.`
+        : `Đơn ${order.code} ${states[order.status] ?? 'vừa được cập nhật'}.`;
+      await write(eventId, placed ? 'ProductOrderPlaced' : 'ProductOrderUpdated',
+        [{ id: order.customerId, role: 'CUSTOMER', to: `/customer/product-orders?order=${id}` }],
+        placed ? 'Đặt hàng thành công' : 'Cập nhật đơn mua sản phẩm', message, session);
+      if (placed) await write(eventId, 'ProductOrderPlaced', await operators(['ADMIN'], '/admin/product-orders', session),
+        'Có đơn mua sản phẩm mới', `Đơn ${order.code} đang chờ cửa hàng chuẩn bị.`, session);
+    },
     async payment({ eventId, booking, reconciliation }, session) {
       const type = reconciliation ? 'PaymentReconciliationRequired' : 'PaymentVerified';
       const recipients = reconciliation ? await operators(['ADMIN', 'STAFF'], '/staff/dispatch', session)

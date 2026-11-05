@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { Button, Dialog, Input, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
@@ -219,13 +220,10 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
           </div>
         </article>)}
       </div>
-      <nav className="customer-addresses-pagination" aria-label="Phân trang địa chỉ">
-        <Button variant="secondary" disabled={pageCursors.length === 0 || actionPending}
-          onClick={() => setPageCursors(value => value.slice(0, -1))}>Trang trước</Button>
-        <span>Trang {pageCursors.length + 1}</span>
-        <Button variant="secondary" disabled={!resource.data?.nextCursor || actionPending}
-          onClick={() => setPageCursors(value => [...value, resource.data.nextCursor])}>Trang sau</Button>
-      </nav>
+      <CursorPagination page={pageCursors.length + 1} label="địa chỉ" hasNext onFirst={() => setPageCursors([])}
+ onPrevious={() => setPageCursors(value => value.slice(0, -1))} onNext={() => setPageCursors(value => [...value, resource.data.nextCursor])}
+ previousDisabled={pageCursors.length === 0 || actionPending} nextDisabled={!resource.data?.nextCursor || actionPending}
+ previousLabel={"Trang trước"} nextLabel={"Trang sau"} />
     </>}
 
     {actionFeedback && <Notice state="success" title="Đã gửi thay đổi">

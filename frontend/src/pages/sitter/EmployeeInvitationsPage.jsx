@@ -1,5 +1,6 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useState } from 'react';
-import { Check, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Check, RefreshCw, X } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button } from '../../components/ui/index.js';
@@ -32,10 +33,10 @@ export function EmployeeInvitationsPage({ api }) {
         <Button variant="secondary" disabled={command.busy || command.pending} onClick={() => command.execute(key => api.respond(row.id, 'declines', row.version, key))}><X size={18} />Từ chối</Button>
       </div>}
     </li>)}</ul>
-    <nav className="employee-scheduling__actions" aria-label="Trang lời mời">
-      <Button variant="ghost" aria-label="Trang lời mời trước" title="Trang lời mời trước" disabled={!offerPages.length || resource.status === 'loading'} onClick={() => setOfferPages(rows => rows.slice(0, -1))}><ChevronLeft size={18} /></Button>
-      <Button variant="ghost" aria-label="Trang lời mời sau" title="Trang lời mời sau" disabled={!resource.data?.nextCursor || resource.status !== 'success'} onClick={() => setOfferPages(rows => [...rows, resource.data.nextCursor])}><ChevronRight size={18} /></Button>
-    </nav>
+    <CursorPagination page={offerPages.length + 1} label="lời mời" hasNext onFirst={() => setOfferPages([])}
+ onPrevious={() => setOfferPages(rows => rows.slice(0, -1))} onNext={() => setOfferPages(rows => [...rows, resource.data.nextCursor])}
+ previousDisabled={!offerPages.length || resource.status === 'loading'} nextDisabled={!resource.data?.nextCursor || resource.status !== 'success'}
+ previousLabel={"Trang lời mời trước"} nextLabel={"Trang lời mời sau"} />
     <h2>Ca đã nhận</h2>
     {assignments.status === 'loading' && <p role="status">Đang tải ca đã nhận…</p>}
     {['error', 'forbidden'].includes(assignments.status) && <p role="alert">Chưa tải được ca đã nhận.</p>}
@@ -46,9 +47,9 @@ export function EmployeeInvitationsPage({ api }) {
       <VisitTravel api={api} visitId={row.id} employee startAt={row.startAt} endAt={row.endAt} />
       {['ASSIGNED', 'IN_PROGRESS'].includes(row.state) && <AssignedCare api={api} visitId={row.id} />}
     </div></li>)}</ul>
-    <nav className="employee-scheduling__actions" aria-label="Trang ca đã nhận">
-      <Button variant="ghost" aria-label="Trang ca trước" title="Trang ca trước" disabled={!assignmentPages.length || assignments.status === 'loading'} onClick={() => setAssignmentPages(rows => rows.slice(0, -1))}><ChevronLeft size={18} /></Button>
-      <Button variant="ghost" aria-label="Trang ca sau" title="Trang ca sau" disabled={!assignments.data?.nextCursor || assignments.status !== 'success'} onClick={() => setAssignmentPages(rows => [...rows, assignments.data.nextCursor])}><ChevronRight size={18} /></Button>
-    </nav>
+    <CursorPagination page={assignmentPages.length + 1} label="ca đã nhận" hasNext onFirst={() => setAssignmentPages([])}
+ onPrevious={() => setAssignmentPages(rows => rows.slice(0, -1))} onNext={() => setAssignmentPages(rows => [...rows, assignments.data.nextCursor])}
+ previousDisabled={!assignmentPages.length || assignments.status === 'loading'} nextDisabled={!assignments.data?.nextCursor || assignments.status !== 'success'}
+ previousLabel={"Trang ca trước"} nextLabel={"Trang ca sau"} />
   </section>;
 }
