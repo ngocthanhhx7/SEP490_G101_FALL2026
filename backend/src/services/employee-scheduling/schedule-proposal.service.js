@@ -54,7 +54,12 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
         const [saved] = await models.EmployeeScheduleProposal.create([record], { session }); return view(saved.toObject());
       });
     },
-    findOwned: ({ customerId, proposalId }) => proposalFor(customerId, proposalId).then(view),
+    async findOwned({ customerId, proposalId }) {
+      const proposal = await proposalFor(customerId, proposalId);
+      if (!proposal) return null;
+      const sitter = await col('users').findOne({ _id: oid(proposal.sitterId) }, { projection: { displayName: 1 } });
+      return { ...view(proposal), ...(typeof sitter?.displayName === 'string' ? { sitter: { displayName: sitter.displayName } } : {}) };
+    },
     async findConfirmationByIdempotency(input) {
       const prior = await models.EmployeeScheduleCommand.findById(commandId(input.customerId, input.proposalId, input.idempotencyKey)).lean();
       if (!prior) return null;

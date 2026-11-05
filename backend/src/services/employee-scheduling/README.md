@@ -58,6 +58,8 @@ remain unchanged; only the consented operational time and area are updated.
 Customer confirmation also pins the nominated employee as the operational requested
 sitter. The worker cannot replenish that consented choice with other employees;
 acceptance is still required and original checkout snapshots remain unchanged.
+Owner-scoped proposal reads additionally resolve the nominated sitter's display
+name with an allowlisted projection; contact and application details are not exposed.
 
 With AI enabled, automatic dispatch composes the advisory operational ranker.
 Only an exact permutation of authoritative eligible IDs is accepted. Incomplete,

@@ -99,7 +99,10 @@ function BookingConfirmationDetail({ bookingId, api, load }) {
     <ul>{booking.visits.map(row => <li key={row.id}><strong>{row.serviceName}</strong> · {new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<br />{locations[row.location]}: {row.serviceAddress}
       {googleMapsDirections(row.serviceAddress) && <p><a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a></p>}
       </li>)}</ul>
-    {(booking.careShifts || []).map(row => <div key={row.id}>{booking.state === 'COMPLETED' && row.state === 'COMPLETED'
+    {(booking.careShifts || []).map(row => <div key={row.id}><h4>{row.serviceName}</h4><p>{({ ASSIGNED: 'Người chăm sóc đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn tất ca' })[row.state] ?? row.state}</p>
+      {row.checkInAt && <p>Bắt đầu: {new Date(row.checkInAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
+      {row.checkOutAt && <p>Hoàn tất: {new Date(row.checkOutAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
+      {booking.state === 'COMPLETED' && row.state === 'COMPLETED'
       ? <VerifiedVisitRating api={api} visit={row} />
       : <VisitTravel api={api} visitId={row.id} startAt={row.startAt} endAt={row.endAt} />}</div>)}
     {(booking.scheduleProposals || []).filter(row => row.state === 'PENDING_CUSTOMER_CONFIRMATION' && new Date(row.expiresAt) > new Date()).map(row =>

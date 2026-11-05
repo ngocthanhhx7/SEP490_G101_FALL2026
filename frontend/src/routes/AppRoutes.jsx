@@ -102,7 +102,9 @@ function SitterManagementRoute({ detail = false }) {
 function EmployeeScheduleRoute({ view }) {
   const [params] = useSearchParams();
   const { getCsrfToken, user } = useSession();
-  const api = useMemo(() => createEmployeeSchedulingApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  const api = useMemo(() => createEmployeeSchedulingApi(createApiClient({ getCsrfToken }), {
+    privateImages: createPrivateImageApi({ getCsrfToken })
+  }), [getCsrfToken]);
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
   if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined} />;
   if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} />;

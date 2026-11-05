@@ -41,8 +41,12 @@ the verified completed-visit command and preserves uncertain retry payloads.
 
 `SitterRecommendationsPage` displays an advisory shortlist from shared owned
 pets/confirmed addresses; it never sets prices or sends offers.
-`DirectedBookingProposalPage` remains unregistered pending its final live
-proposal/payment/offer integration. New checkout care snapshots are accessible
+`DirectedBookingProposalPage` is mounted at `/account/schedule-proposals/:proposalId`.
+It reads an owner-scoped proposal, shows the assigned sitter name when available,
+and retains the same slot/key after an uncertain confirmation. Changing the proposal
+route clears prior command state. Confirmation creates an invitation, not an assignment.
+Booking confirmation shows authoritative care-shift state and check-in/out timestamps.
+New checkout care snapshots are accessible
 through the assigned employee care endpoints; legacy visits fail unavailable.
 See [checks and remaining gates](../../../../doc/testing/care-matching-outcomes-2026-10-30.md).
 

@@ -86,7 +86,7 @@ test('customer confirmation keeps the same slot and key after an unknown acknowl
   fireEvent.click(await screen.findByRole('radio'));
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' }));
   await screen.findByText('Đang chờ máy chủ xác nhận'); expect(screen.getByRole('radio')).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại xác nhận lịch' }));
   await waitFor(() => expect(api.confirmProposal).toHaveBeenCalledTimes(2));
   expect(api.confirmProposal.mock.calls[0]).toEqual(api.confirmProposal.mock.calls[1]);
 });

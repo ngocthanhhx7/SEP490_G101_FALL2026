@@ -5,6 +5,12 @@ assignments. Private care lives only in memory and is discarded on close/reload;
 entry notes require server authorization and expire at shift end. Legacy P24/P26
 modules described below still require their separate revision/handover wiring.
 
+`VisitExecution.jsx` composes the assigned-sitter execution read, private JPG/PNG
+uploads, versioned check-in, checklist and check-out commands. Upload acknowledgement
+and command keys are retained across uncertain retries. Skipped work requires a reason;
+completion still requires the backend's time, evidence, checklist and booking gates.
+The UI does not declare payroll, payment or model-training eligibility.
+
 This folder owns Sitter-facing availability settings and related page modules. `SitterAvailabilityPage` edits recurring local working-hour intervals and renders safe request states. Work-area and day-off modules are separate components so each P18 work item can be reviewed independently.
 
 P18 components use the P04 controls and accept API ports as props. They do not register routes, decide permissions, own shared DTO/schema, or provide persistence. P34 owns route/API adapter wiring; P01 owns the Availability schema and DTO. Until those integrations are available, fixture-driven component tests do not establish a live Sitter flow.
