@@ -120,3 +120,5 @@ Runtime ranking lives in `src/services/sitter-matching/`; the historical
 `src/ai/` package was moved in commit `018ffaf`. Its trainer was moved here.
 Collection names (including `airankmodels` and `aivisitoutcomes`) remain stable.
 No model is loaded from a temporary test directory or implicitly trained on boot.
+
+`collect_weather_context.py` retrieves a bounded ERA5 research sample with immutable source/license/hash metadata. It never creates satisfaction labels or runtime features. See [2026-11-05 evidence](../../../doc/testing/ai-model-development-2026-11-05.md). Trainer uses simplex projection for the constrained non-negative additive fit; held-out rows remain outside optimization.
