@@ -1,3 +1,4 @@
+import { applyCareTraitDecision } from '../../src/services/pricing/care-trait-policy.service.js';
 import { createHash } from 'node:crypto';
 import { pricingRuntimeModule } from '../../src/routes/pricing.routes.js';
 import { petCareRuntimeModule } from '../../src/routes/pet-care.routes.js';
@@ -647,7 +648,10 @@ test('changed pricing policy caps and special care readiness fail closed', async
     .post('/api/v1/pricing/quotes')
     .set(await authFor(customer))
     .send(quoteBody())
-    .expect(409);
+    .expect(409).expect(response => {
+      expect(response.body.error.code).toBe('PRICING_REVIEW_REQUIRED');
+      expect(response.body.error.fieldErrors.petTraits).toContain('not-priced-yet');
+    });
 });
 test('approved additive model is used only after hash and holdout checks, invalid model falls back', async () => {
   const payload = {
@@ -838,4 +842,18 @@ test('training readiness is private, Admin-only and read-only with bounded audit
   }
   await request(app).get('/api/v1/ai/admin/training-readiness').set(headers).expect(429);
   expect(await models.SitterVisitOutcome.countDocuments()).toBe(before);
+});
+
+
+test('owned booking quote recovers after approved care-trait policy migration; unknown traits remain blocked', async()=>{
+ const headers=await authFor(customer);
+ const baseline=await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(201);
+ await models.PetTrait.create({code:'slow-introduction',label:'Cần làm quen chậm',species:['DOG','CAT'],explanation:'Synthetic capability requirement',active:true});
+ await models.Pet.updateOne({_id:petId},{$set:{traits:['slow-introduction','carrier-assistance','escape-risk','extended-play']}});
+ await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(409).expect(r=>expect(r.body.error.fieldErrors.petTraits).toContain('Cần làm quen chậm'));
+ const plan=await applyCareTraitDecision({connection,clock:()=>clockNow});await applyCareTraitDecision({connection,apply:true,expectedPlanHash:plan.planHash,clock:()=>clockNow});
+ const result=await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(201);
+ expect(result.body.data.totalVnd).toBe(baseline.body.data.totalVnd);
+ await models.Pet.updateOne({_id:petId},{$push:{traits:'unapproved-new-trait'}});
+ await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(409);
 });
