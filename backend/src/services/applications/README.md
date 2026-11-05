@@ -30,3 +30,5 @@ activates its payroll contract in the same transaction as account promotion.
 Neither printing nor a DRAFT document grants a role.
 
 Submission retains encrypted DOB/identity for Admin contract preparation rather than discarding the submitted values after age/HMAC checks. A matching authenticated original-request replay may restore a missing snapshot; mismatched payloads cannot. Lists, receipts, OTP status and email never expose these particulars.
+
+The application service exposes getMine/updateMine with current account or unowned legacy verified-contact ownership. Pending edits serialize with Admin review on the same version/state, retain original submission fingerprint, and record idempotent audited updates. New document references must belong to the applicant; responses expose metadata, never storage references or internal interview notes. Once review starts direct editing is closed.

@@ -16,7 +16,7 @@ import { privateImageModels, applicantDocumentModels } from '../../src/models/pr
 import { createSessionService } from '../../src/services/session.service.js';
 import { createEmailDelivery } from '../../src/services/email-delivery.service.js';
 
-const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true',
+const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true', RATE_LIMIT_MAX: '1000',
   OTP_HMAC_SECRET: 'a'.repeat(32), SESSION_TOKEN_SECRET: 'b'.repeat(32), SESSION_CSRF_SECRET: 'c'.repeat(32),
   CONTACT_LOOKUP_SECRET: 'd'.repeat(32), CONTACT_ENCRYPTION_KEY: 'e'.repeat(32), R2_ENABLED: 'true',
   R2_ACCOUNT_ID: 'a'.repeat(32), R2_BUCKET: 'synthetic-private', R2_ACCESS_KEY_ID: 'b'.repeat(32), R2_SECRET_ACCESS_KEY: 'c'.repeat(64), SITTER_DOCUMENTS_ENABLED: 'true' };
@@ -313,4 +313,46 @@ test('owner intake exposes rejection and server cooldown boundary, excludes inte
   const latest = (await read()).body.data.application;
   expect(latest).toMatchObject({ state: 'PENDING', canReapply: false, rejectionReason: null,
     applicationCode: resubmitted.body.data.applicationCode });
+});
+
+test('signed-in applicants read directly, edit pending information once and cannot cross ownership or race a reviewer',async()=>{
+  const owner=await register('owner-self@example.test'),other=await register('other-self@example.test');
+  const doc=await upload(owner),body=application(owner,doc);body.employmentType='PART_TIME';
+  const created=await submit(owner,body).expect(201),id=created.body.data.id;
+  const mine=await owner.agent.get('/api/v1/applications/me').expect(200);
+  expect(mine.headers['cache-control']).toContain('no-store');expect(mine.body.data.application).toMatchObject({id,state:'PENDING',canEdit:true,dateOfBirth:body.dateOfBirth,identityNumber:body.identityNumber});
+  expect(JSON.stringify(mine.body)).not.toMatch(/storageRef|interviewNote|LookupKey|Ciphertext/);
+  expect((await other.agent.get('/api/v1/applications/me').expect(200)).body.data.application).toBeNull();
+  await connection.collection('sitterapplications').updateOne({_id:new mongoose.Types.ObjectId(id)},{$set:{ownerUserId:null}});
+  expect((await owner.agent.get('/api/v1/applications/me').expect(200)).body.data.application.id).toBe(id);
+  expect((await other.agent.get('/api/v1/applications/me').expect(200)).body.data.application).toBeNull();
+  await connection.collection('sitterapplications').updateOne({_id:new mongoose.Types.ObjectId(id)},{$set:{ownerUserId:new mongoose.Types.ObjectId(owner.id),interviewNote:'Synthetic internal note'}});
+  expect(JSON.stringify((await owner.agent.get('/api/v1/applications/me')).body)).not.toContain('Synthetic internal note');
+
+  await request(app).get('/api/v1/applications/me').expect(401);
+  const update={applicationId:id,expectedVersion:0,displayName:'Ứng viên đã cập nhật',dateOfBirth:body.dateOfBirth,identityNumber:body.identityNumber,employmentType:'FULL_TIME',experience:'Kinh nghiệm đã được cập nhật đầy đủ.',requestedServices:['Chăm sóc tổng hợp'],workAreas:['Khu vực tổng hợp'],documents:body.documents};
+  const save=(account,value,key='synthetic-owned-update')=>account.agent.post('/api/v1/applications/me/updates').set({...base,'X-CSRF-Token':account.csrf,'Idempotency-Key':key}).send(value);
+  await save(other,update).expect(404);
+  await owner.agent.post('/api/v1/applications/me/updates').set(base).send(update).expect(403);
+  const foreign=await upload(other);
+  await save(owner,{...update,documents:[{documentId:foreign,storageRef:foreign,documentType:'IDENTITY'}]},'foreign-owned-document').expect(403);
+  await save(owner,update).expect(200).expect(r=>expect(r.body.data.version).toBe(1));
+  await save(owner,update).expect(200).expect(r=>expect(r.body.data.replayed).toBe(true));
+  await save(owner,{...update,displayName:'Different'},'synthetic-owned-update').expect(409);
+  await save(owner,update,'stale-owner-update').expect(409);
+  const fresh=await owner.agent.get('/api/v1/applications/me').expect(200);expect(fresh.body.data.application).toMatchObject({displayName:update.displayName,version:1,employmentType:'FULL_TIME'});
+  // Use an actual Admin session fixture from the test runtime, as in the full onboarding test.
+  const admin=await userModel(connection).create({displayName:'Synthetic reviewing admin',roles:['ADMIN'],state:'ACTIVE',synthetic:false,authEpoch:0,version:0});
+  const sessions=createSessionService({connection,tokenSecret:env.SESSION_TOKEN_SECRET,csrfSecret:env.SESSION_CSRF_SECRET,clock:()=>clockNow});
+  let issued;await connection.transaction(async session=>{issued=await sessions.issueInTransaction(admin,session);});
+  const review=request(app).post(`/api/v1/applications/${id}/review`).set({...base,Cookie:`pwc_session=${issued.token}`,'X-CSRF-Token':issued.csrfToken,'Idempotency-Key':'synthetic-owner-review-race'}).send({expectedVersion:1});
+  const edit=save(owner,{...update,expectedVersion:1},'synthetic-owner-race-edit');
+  const results=await Promise.all([review,edit]);expect(results.map(r=>r.status).sort()).toEqual([200,409]);
+  let latest=(await owner.agent.get('/api/v1/applications/me')).body.data.application;
+  if(latest.state==='PENDING')await request(app).post(`/api/v1/applications/${id}/review`).set({...base,Cookie:`pwc_session=${issued.token}`,'X-CSRF-Token':issued.csrfToken,'Idempotency-Key':'synthetic-owner-review-after'}).send({expectedVersion:latest.version}).expect(200);
+  latest=(await owner.agent.get('/api/v1/applications/me')).body.data.application;expect(latest.canEdit).toBe(false);
+  await save(owner,{...update,expectedVersion:latest.version},'synthetic-owner-closed').expect(409);
+  await save(owner,update).expect(200); // original acknowledgement remains replayable after review
+  expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(1);
+  expect(await connection.collection('employmentdocuments').countDocuments()).toBe(0);
 });

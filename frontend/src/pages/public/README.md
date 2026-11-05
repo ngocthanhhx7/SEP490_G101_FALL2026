@@ -52,3 +52,5 @@ Inherited product images and their source hashes are in `public/assets/products/
 no old checkout fees, ratings or sales figures are copied.
 
 Service and product lists share `CatalogLayout`: collapsible filters on the left, results on the right, stacked on mobile. Service filters use published categories/species/locations and base-price sorting; product filters use the API-supported category/pet type and preserve URL pagination/search. Home benefits cover both care and shopping without nutrition or provider promises.
+
+application-status/ApplicantWorkspacePage owns the authenticated application workspace and pending editor; registration routes existing active applicants here. Receipt-code verification is optional collapsed guest fallback, not a second challenge for signed-in owners.

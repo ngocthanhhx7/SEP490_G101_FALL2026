@@ -31,7 +31,7 @@ import { SitterApplicationReviewPage } from '../pages/admin/SitterApplicationRev
 import { SitterAvailabilityPage } from '../pages/sitter/SitterAvailabilityPage.jsx';
 import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
-import { ApplicationStatusPage } from '../pages/public/application-status/ApplicationStatusPage.jsx';
+import { ApplicantWorkspacePage } from '../pages/public/application-status/ApplicantWorkspacePage.jsx';
 import { applicationStatusApi } from '../services/application-status-api.js';
 import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
 import { createSettlementApi } from '../services/settlement-api.js';
@@ -352,7 +352,7 @@ export function AppRoutes({
         />
         <Route
           path="sitter/application-status"
-          element={<ApplicationStatusPage api={applicationStatusApi} />}
+          element={<ApplicantWorkspacePage legacyApi={applicationStatusApi} />}
         />
       </Route>
       <Route element={<FoundationLayout />}>

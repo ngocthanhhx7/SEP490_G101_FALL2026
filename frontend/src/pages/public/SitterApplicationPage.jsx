@@ -312,7 +312,7 @@ export function SitterApplicationPage({
         </>}
         <div className="sitter-application__tracking">
           <span>Mã hồ sơ của bạn</span><strong>{receipt.applicationCode}</strong>
-          <small>Giữ mã này để tra cứu cùng OTP gửi tới email đã xác minh. Bạn cũng có thể mở lại trang ứng tuyển để xem mã.</small>
+          <small>Khi đăng nhập đúng tài khoản, bạn mở trực tiếp hồ sơ mà không cần nhập lại mã hoặc OTP.</small>
         </div>
         <Link className="registration-submit" to="/sitter/application-status">Theo dõi hồ sơ →</Link>
         {onRefreshApplication && <Button variant="secondary" onClick={onRefreshApplication}>Cập nhật trạng thái hồ sơ</Button>}
