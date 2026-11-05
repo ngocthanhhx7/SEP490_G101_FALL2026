@@ -4,7 +4,7 @@ import { Types } from 'mongoose';
 import { employmentDocumentModels } from '../../models/employment-document.model.js';
 import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
-import { employmentTermsInput, contractDate } from '../../validators/employment-document.validator.js';
+import { employmentTermsInput, contractDate, contractFieldError } from '../../validators/employment-document.validator.js';
 import { exact, id, number, fail } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -72,15 +72,19 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
       if (!['ISSUE', 'SIGN'].includes(body.action)) fail('VALIDATION_FAILED', 'Invalid contract action');
       let signedAt;
       if (body.action === 'SIGN') {
-        signedAt = contractDate(body.signedOn);
-        if (signedAt > clock() || body.bothPartiesSigned !== true || typeof body.archiveReference !== 'string' || !body.archiveReference.trim() || body.archiveReference.length > 160 || /[\x00-\x1f\x7f]/.test(body.archiveReference)) fail('VALIDATION_FAILED', 'Both signatures, actual signing date and physical archive location required');
+        const fields = {};
+        try { signedAt = contractDate(body.signedOn); } catch { fields.signedOn = 'CALENDAR_DATE'; }
+        if (signedAt > clock()) fields.signedOn = 'SIGNING_DATE';
+        if (body.bothPartiesSigned !== true) fields.bothPartiesSigned = 'REQUIRED_SIGNATURES';
+        if (typeof body.archiveReference !== 'string' || !body.archiveReference.trim() || body.archiveReference.length > 160 || /[\x00-\x1f\x7f]/.test(body.archiveReference)) fields.archiveReference = 'ARCHIVE_REQUIRED';
+        if (Object.keys(fields).length) contractFieldError(fields);
       } else if (body.signedOn || body.archiveReference || body.bothPartiesSigned !== undefined) fail('VALIDATION_FAILED', 'Unexpected signing data');
       return command(actor, applicationId, { documentId, ...body }, key, async (application, session) => {
         const row = await Document.findOne({ _id: documentId, applicationId }).select('+encryptedTerms +archiveReference').session(session).lean();
         const latest = await Document.findOne({ applicationId }).sort({ revision: -1 }).session(session).lean();
         if (!row || String(latest._id) !== documentId || row.applicationVersion !== application.version || row.termsHash !== body.termsHash || row.state !== (body.action === 'ISSUE' ? 'DRAFT' : 'ISSUED')) fail('VERSION_CONFLICT', 'Current contract revision required', 409);
         const terms = view(row).terms;
-        if (signedAt && (body.signedOn !== terms.plannedSigningOn || signedAt < new Date(new Date(new Date(row.issuedAt).getTime() + 7 * 3600000).toISOString().slice(0,10) + 'T00:00:00+07:00') || signedAt > contractDate(terms.effectiveOn))) fail('VALIDATION_FAILED', 'Sign after issuing and before effective date');
+        if (signedAt && (body.signedOn !== terms.plannedSigningOn || signedAt < new Date(new Date(new Date(row.issuedAt).getTime() + 7 * 3600000).toISOString().slice(0,10) + 'T00:00:00+07:00') || signedAt > contractDate(terms.effectiveOn))) contractFieldError({ signedOn: 'SIGNING_DATE' });
         return Document.findByIdAndUpdate(documentId, { $set: body.action === 'ISSUE' ? { state: 'ISSUED', issuedAt: new Date(clock()) }
           : { state: 'SIGNED', signedAt, verifiedAt: new Date(clock()), verifiedBy: actor.userId, archiveReference: body.archiveReference.trim() } }, { session, returnDocument: 'after' }).select('+encryptedTerms +archiveReference').lean();
       });

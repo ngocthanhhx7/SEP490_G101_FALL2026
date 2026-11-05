@@ -31,7 +31,7 @@ test('immutable encrypted document is issued, actually signed then activated ato
   await expect(service.save(admin,String(appId),{...body,terms:{...terms,monthlyBaseVnd:11000000}},'synthetic-contract-save')).rejects.toMatchObject({code:'IDEMPOTENCY_CONFLICT'});
   await expect(service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-05',archiveReference:'Synthetic paper archive',bothPartiesSigned:true},'synthetic-early-sign')).rejects.toMatchObject({code:'VERSION_CONFLICT'});
   await service.decide(admin,String(appId),draft.id,{action:'ISSUE',termsHash:draft.termsHash},'synthetic-contract-issue');
-  await expect(service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-07',archiveReference:'Synthetic archive',bothPartiesSigned:true},'synthetic-future-sign')).rejects.toMatchObject({code:'VALIDATION_FAILED'});
+  await expect(service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-07',archiveReference:'Synthetic archive',bothPartiesSigned:true},'synthetic-future-sign')).rejects.toMatchObject({code:'VALIDATION_FAILED',details:{fields:{signedOn:'SIGNING_DATE'}}});
   await service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-05',archiveReference:'Synthetic paper archive',bothPartiesSigned:true},'synthetic-contract-sign');
   const employeeId=oid();
   await connection.transaction(async session=>{const application=await connection.collection('sitterapplications').findOne({_id:appId},{session});await service.activate(application,employeeId,admin,session);});
