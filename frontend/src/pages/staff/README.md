@@ -23,3 +23,5 @@ proposal presentation after escalation. `DispatchDiagnostics` shows aggregate
 eligibility failures. Transport remains in `services/employee-scheduling-api.js`;
 labels are pure helpers in `utils/dispatch-format.js`. Unknown proposal responses
 freeze inputs and reuse the original payload/key. No expired shift is retried.
+
+Dispatch now separates a bounded intervention table, the Vietnam-day visit table and paged travel monitoring. Detail dialogs preserve eligibility and customer-consent recovery. Public profile moderation uses server state filters/cursors, current-profile counts and a focused review dialog; it never exposes applicant documents. Unknown decisions retain the original payload/key and freeze edits.

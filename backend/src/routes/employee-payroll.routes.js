@@ -16,6 +16,7 @@ export function payrollRuntimeModule({ config, connection, clock = Date.now, ses
   router.post('/adjustments', admin, csrf, controller.submitAdjustment);
   router.get('/adjustments', admin, controller.adjustments);
   router.post('/adjustments/:id/decisions', admin, csrf, controller.adjustmentDecision);
+  router.get('/overview',admin,controller.overview);
   router.get('/employees', admin, controller.employees);
   const previewRate = rateLimit({ windowMs: 60000, limit: 12, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth.userId });
   router.post('/statements/preview', admin, csrf, previewRate, controller.preview);

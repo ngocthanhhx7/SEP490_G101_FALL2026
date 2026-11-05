@@ -92,11 +92,12 @@ export function createSitterPublicProfileService({ connection, cursorSecret, clo
       const row = await profiles.findOne({ userId: actor.userId }).select('+reason').lean();
       return { profile: row ? { ...project(row), reason: row.reason ?? null } : null };
     },
-    async listPending({ actor, cursor, userId }) {
+    async listPending({ actor, cursor, userId, state = 'SUBMITTED' }) {
       authorize(actor, 'STAFF');
       if (userId !== undefined && (typeof userId !== 'string' || !/^[a-f0-9]{24}$/i.test(userId))) fail(422, 'VALIDATION_FAILED');
-      const context = { actorId: actor.userId, state: 'SUBMITTED', ...(userId ? { userId } : {}) };
-      const match = { state: 'SUBMITTED' };
+      if(!['SUBMITTED','APPROVED','REJECTED'].includes(state))fail(422,'VALIDATION_FAILED');
+      const context = { actorId: actor.userId, state, ...(userId ? { userId } : {}) };
+      const match = { state };
       if (userId) match.userId = new Types.ObjectId(userId);
       if (cursor !== undefined) {
         const last = cursorCodec.decode(cursor, context);
@@ -105,8 +106,11 @@ export function createSitterPublicProfileService({ connection, cursorSecret, clo
           { updatedAt: new Date(last.updatedAt), userId: { $gt: new Types.ObjectId(last.userId) } }];
       }
       const rows = await profiles.find(match).sort({ updatedAt: 1, userId: 1 }).limit(51).lean();
-      const page = rows.slice(0, 50).map(project);
-      return { items: page, nextCursor: rows.length > 50 ? cursorCodec.encode({ userId: page.at(-1).userId,
+      const names=await users.find({_id:{$in:rows.map(r=>r.userId)}}).select('displayName').lean();
+      const page = rows.slice(0, 50).map(row=>({...project(row),displayName:names.find(n=>String(n._id)===String(row.userId))?.displayName??null}));
+      const counts=await profiles.aggregate([...(userId?[{$match:{userId:new Types.ObjectId(userId)}}]:[]),{$group:{_id:'$state',count:{$sum:1}}}]).option({maxTimeMS:5000});
+      const summary={total:0,SUBMITTED:0,APPROVED:0,REJECTED:0};for(const r of counts){summary.total+=r.count;summary[r._id]=r.count;}
+      return { summary, asOf:new Date(clock()), items: page, nextCursor: rows.length > 50 ? cursorCodec.encode({ userId: page.at(-1).userId,
         updatedAt: page.at(-1).updatedAt }, context) : null };
     },
     submit: input => mutate({ ...input, userId: input.actor?.userId }, 'SUBMIT'),

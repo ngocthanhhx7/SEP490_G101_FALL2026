@@ -39,3 +39,5 @@ drafts. It never infers attendance from customer service hours or statutory
 obligations from missing data; see its component README.
 
 Sitter application service owns direct applicant reads and audited PENDING updates, with account/verified-contact ownership and the same state/version serialization as Admin review. It never promotes applicants from a self-edit.
+
+Public profile moderation lists SUBMITTED/APPROVED/REJECTED states with state-scoped cursors, bounded user display-name lookups and aggregate counts across current profile records. Counts do not represent historical application submissions or immutable review events.
