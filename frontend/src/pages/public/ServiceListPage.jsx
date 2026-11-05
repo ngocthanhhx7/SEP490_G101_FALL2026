@@ -45,8 +45,8 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
   const [page, setPage] = useState(1);
   const pageSize = 12;
   useEffect(() => { setPage(1); }, [query, species, category, location, sort]);
-  const hasFilters = query.trim() || species !== 'ALL' || category !== 'ALL' || location !== 'ALL';
-  const resetFilters = () => { setQuery(''); setSpecies('ALL'); setCategory('ALL'); setLocation('ALL'); };
+  const hasFilters = query.trim() || species !== 'ALL' || category !== 'ALL' || location !== 'ALL' || sort !== 'DEFAULT';
+  const resetFilters = () => { setQuery(''); setSpecies('ALL'); setCategory('ALL'); setLocation('ALL'); setSort('DEFAULT'); };
   const services = catalog.data?.services || [];
   const categories = [...new Set(services.map(s => s.details?.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
   const filtered = useMemo(() => {
@@ -100,7 +100,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
             aria-label="Tìm dịch vụ"
             maxLength={120}
             autoComplete="off"
-            placeholder="Bạn cần dịch vụ gì cho bé?"
+            placeholder="Tìm dịch vụ"
           />{query && <button type="button" aria-label="Xóa từ khóa" title="Xóa từ khóa" onClick={() => setQuery('')}><X size={16} aria-hidden="true" /></button>}</span>
         </label>
         <label className="pwc-filter-species">
@@ -122,17 +122,12 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
             <option value="ALL">Tất cả địa điểm</option><option value="FACILITY">Tại cơ sở</option><option value="HOME">Tại gia</option><option value="OUTDOOR">Ngoài trời</option>
           </select></label>
         </>}
-      </form>{hasFilters && <button className="pwc-clear-filters" type="button" onClick={resetFilters}>Xóa bộ lọc</button>}</>}>
-      {catalog.status === 'success' &&
-        catalog.data?.available &&
-        services.length > 0 && (
-          <div className="pwc-catalog-summary"><p className="pwc-service-result-count" role="status">
-            {filtered.length} dịch vụ phù hợp
-          </p>
-          <label className="pwc-catalog-sort"><span>Sắp xếp</span><select aria-label="Sắp xếp" value={sort} onChange={event => setSort(event.target.value)}>
+        {catalog.status === 'success' && catalog.data?.available && services.length > 0 && (
+          <label><span>Sắp xếp</span><select value={sort} onChange={event => setSort(event.target.value)}>
             <option value="DEFAULT">Mặc định</option><option value="PRICE_ASC">Giá cơ bản tăng dần</option><option value="PRICE_DESC">Giá cơ bản giảm dần</option><option value="NAME">Tên dịch vụ A–Z</option>
-          </select></label></div>
+          </select></label>
         )}
+      </form>{hasFilters && <button className="pwc-clear-filters" type="button" onClick={resetFilters}>Xóa bộ lọc</button>}</>}>
 
       {catalog.status !== 'success' ? (
         <CatalogState

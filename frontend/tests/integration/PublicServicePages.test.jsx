@@ -1,7 +1,7 @@
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 const guestSession = { resolve: async () => ({ status: 'guest' }) };
 jest.mock('../../src/styles/public-pages.css', () => ({}), { virtual: true });
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PublicSiteLayout } from '../../src/layouts/PublicSiteLayout.jsx';
 import { ServiceAreasPage } from '../../src/pages/public/ServiceAreasPage.jsx';
@@ -136,6 +136,19 @@ test('service list filters catalog results by Vietnamese search and species', as
   expect(
     screen.getByRole('heading', { name: 'Ghé thăm mèo tại nhà' })
   ).toBeVisible();
+});
+
+test('service sorting is inside the sidebar and resets with filters without a top result count', async () => {
+  renderAt('/services');
+  await screen.findByRole('heading', { name: 'Dắt chó đi dạo' });
+  const sort = within(screen.getByRole('search')).getByRole('combobox', { name: 'Sắp xếp' });
+  expect(sort.closest('.pwc-catalog-sidebar')).not.toBeNull();
+  expect(screen.queryByText('2 dịch vụ phù hợp')).not.toBeInTheDocument();
+  fireEvent.change(sort, { target: { value: 'PRICE_DESC' } });
+  expect(screen.getAllByRole('link', { name: 'Đặt dịch vụ' })[0]).toHaveAttribute('href', '/booking/cat-care-1');
+  fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
+  expect(sort).toHaveValue('DEFAULT');
+  expect(screen.getAllByRole('link', { name: 'Đặt dịch vụ' })[0]).toHaveAttribute('href', '/booking/dog-walk-1');
 });
 
 test('catalog query links filter published results without inventing extra services', async () => {

@@ -68,16 +68,17 @@ describe('Product List', () => {
   test('a pending search preserves a filter selected before the debounce completes', async () => {
     const api = fakeApi();
     show(api, '/products', null);
-    await screen.findByText('Hiển thị 1 sản phẩm');
+    await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ });
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm sản phẩm theo tên' }), { target: { value: 'pate' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thức ăn', exact: true }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Danh mục' }), { target: { value: 'FOOD' } });
     await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: 'FOOD', petType: '', page: 1 }, expect.any(Object)));
   });
   test('shows each product with price and availability and links to its details', async () => {
     const api = fakeApi({ listProducts: jest.fn().mockResolvedValue({ data: [product(), product({ id: 'p2', code: 'SP-0035', name: 'Vòng cổ có chuông, cỡ M',
       category: 'ACCESSORY', sellingPrice: 60000, available: 0, inStock: false })] }) });
     show(api, '/products', null);
-    expect(await screen.findByText('Hiển thị 2 sản phẩm')).toBeVisible();
+    expect(await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ })).toBeVisible();
+    expect(screen.queryByText('Hiển thị 2 sản phẩm')).not.toBeInTheDocument();
     expect(screen.getByText('250.000 đ')).toBeVisible();
     expect(screen.getByRole('button', { name: /Thêm Thức ăn hạt cho chó/ })).toBeEnabled();
     expect(screen.getByText('Hết hàng')).toBeVisible();
@@ -87,10 +88,10 @@ describe('Product List', () => {
   test('filters by pet type and searches by name', async () => {
     const api = fakeApi();
     show(api, '/products', null);
-    await screen.findByText('Hiển thị 1 sản phẩm');
-    fireEvent.click(screen.getByRole('button', { name: 'Chó' }));
+    await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Đối tượng' }), { target: { value: 'DOG' } });
     await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
-    expect(screen.getByRole('button', { name: 'Chó' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Đối tượng' })).toHaveValue('DOG');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm sản phẩm theo tên' }), { target: { value: 'pate' } });
     await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
   });
@@ -106,7 +107,21 @@ describe('Product List', () => {
     expect(await screen.findByText('Chưa tải được sản phẩm')).toBeVisible();
     expect(screen.queryByText('Không tìm thấy sản phẩm nào.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    expect(await screen.findByText('Hiển thị 1 sản phẩm')).toBeVisible();
+    expect(await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ })).toBeVisible();
+  });
+
+  test('sidebar search and dropdowns preserve filters, reset pages and clear keywords', async () => {
+    const api = fakeApi();
+    show(api, '/products?q=pate&category=FOOD&pet=CAT&page=2', null);
+    await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ });
+    const search = screen.getByRole('search');
+    expect(within(search).getByRole('combobox', { name: 'Danh mục' })).toHaveValue('FOOD');
+    expect(within(search).getByRole('combobox', { name: 'Đối tượng' })).toHaveValue('CAT');
+    fireEvent.click(within(search).getByRole('button', { name: 'Xóa từ khóa' }));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: 'FOOD', petType: 'CAT', page: 1 }, expect.any(Object)));
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: '', page: 1 }, expect.any(Object)));
+    expect(screen.queryByRole('button', { name: 'Xóa bộ lọc' })).not.toBeInTheDocument();
   });
 });
 
