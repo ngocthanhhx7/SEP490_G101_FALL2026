@@ -53,7 +53,7 @@
 .pwc-pagination-summary { margin:0; color:var(--pwc-ink-muted); }
 .pwc-pagination-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:9px; margin-left:auto; }
 .pwc-pagination-actions button, .pwc-pagination-gap { display:inline-flex; flex:none; align-items:center; justify-content:center; box-sizing:border-box; width:59px; height:59px; padding:10px; border:1px solid #bfc4f2; border-radius:32px; background:#fff; color:#333; font:700 20px/24px 'Nunito',sans-serif; cursor:pointer; }
-.pwc-pagination-actions button[aria-current='page'] { color:#fff; background:#bfc4f2; opacity:1; }
+.pwc-pagination .pwc-pagination-actions button[aria-current='page'] { color:#fff; background:#bfc4f2; opacity:1; }
 .pwc-pagination-actions button:disabled:not([aria-current]) { opacity:.4; cursor:default; }
 .pwc-pagination-actions button:focus-visible { outline:3px solid #7351ac; outline-offset:3px; }
 .pwc-pagination-actions button:not(:disabled):hover { border-color:#7351ac; }
