@@ -42,7 +42,7 @@ export function ProductListPage() {
   const load = useCallback(({ signal }) => api.listProducts({ search, category, petType, page }, { signal }), [api, search, category, petType, page]);
   const resource = useApiResource(load);
 
-  return <section className="pwc-shop" aria-labelledby="shop-title">
+  return <section className="pwc-shop pwc-product-list-page" aria-labelledby="shop-title">
     <div className="pwc-shop-intro"><span className="pwc-shop-kicker">Cửa hàng PawWorld</span><h1 id="shop-title">Món ngon, đồ xinh cho bé</h1>
     <p className="pwc-shop-lead">Thức ăn và phụ kiện cho chó và mèo. Bạn có thể nhận hàng tại nhà hoặc đến lấy ở cửa hàng.</p>
     </div>
