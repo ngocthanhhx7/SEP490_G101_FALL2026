@@ -10,6 +10,10 @@ export function createFinanceSourceController({ service, webhook }) {
     res.status(200).json({ data, meta: metadata(req) });
   };
   return Object.freeze({
+    execution: async (req, res) => {
+      const data = await service.readVisit(req.auth, req.params.id);
+      res.status(200).json({ data, meta: metadata(req) });
+    },
     checkIn: visitCommand('checkIn'), checkOut: visitCommand('checkOut'), checklist: visitCommand('updateChecklist'),
     assessment: async (req, res) => {
       const input = validateFinanceSourceInput(req.body, ['expectedVersion', 'totalTaxVnd', 'evidenceReference']);

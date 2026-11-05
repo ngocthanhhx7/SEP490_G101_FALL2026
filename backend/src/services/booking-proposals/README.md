@@ -15,6 +15,8 @@ advisory recommendation reference. `match-selection.service.js` binds optional
 MATCH references to the owner, returned candidate, exact service/pets/address,
 versions and schedule before expiry. It neither calculates prices nor assigns
 employees; invitation and acceptance retain authoritative eligibility gates.
+Owner booking reads include care-shift state and check-in/out timestamps from the
+operational visits. They do not expose evidence image IDs or private care notes.
 
 This folder contains booking-proposal domain exports for P42. The service
 accepts repository ports for server-owned booking context, sitter availability,
