@@ -63,3 +63,5 @@ With AI enabled, automatic dispatch composes the advisory operational ranker.
 Only an exact permutation of authoritative eligible IDs is accepted. Incomplete,
 invalid or timed-out advice preserves deterministic ordering. A private selected
 feature snapshot is copied from the offer to the visit only on acceptance.
+
+`dispatch-workspace.service.js` supplies a read-only Vietnam-day projection: all-day counts and at most 50 chronologically sorted visits with allowlisted display names. ASSIGNED visits more than 15 minutes late without check-in are flagged for inspection, not automatically closed or deemed absent. Queue display names are enriched separately; the worker query, invitation eligibility and financial writes are unchanged.

@@ -93,3 +93,5 @@ and applies user-approved half-up VND rounding per booking with exact BigInt
 arithmetic. The platform bears any odd VND when sharing tax cost equally.
 The tax split is preview-only from confirmed tax amounts, never a hard-coded
 statutory rate or earning eligibility. See the P41 commission/tax addendum.
+
+Admin list reports aggregate request counts/VND by current state independently of cursor pagination; unsafe totals fail closed. Bounded display-name enrichment is private to the Admin projection. The UI explains closed integration gates without asking the user to repeat already-approved policy decisions. Report reads do not reserve earnings, approve requests or transfer funds.

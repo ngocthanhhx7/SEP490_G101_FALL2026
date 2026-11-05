@@ -3,7 +3,9 @@ import { ApiError } from './api-client.js';
 export function createAdminSettlementApi(request, { privateImages } = {}) {
   const command = async (id, path, body, key) => {
     if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new ApiError('INVALID_REQUEST_ID');
-    return (await request(`/admin/settlements/${id}/${path}`, { method: 'POST', body, idempotencyKey: key })).data;
+    const result=await request(`/admin/settlements/${id}/${path}`, { method: 'POST', body, idempotencyKey: key });
+    if(result.pending||result.data?.id!==id||result.data.version!==body.expectedVersion+1)throw new ApiError('INVALID_RESPONSE');
+    return result.data;
   };
   return Object.freeze({
     uploadEvidence: privateImages ? async (file, key) => {
