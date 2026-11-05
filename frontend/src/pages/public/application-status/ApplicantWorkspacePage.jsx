@@ -1,3 +1,4 @@
+import { APPLICATION_DOCUMENT_LABELS, REQUIRED_APPLICATION_IMAGES } from '../../../constants/application-documents.js';
 import { useCallback, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../../../contexts/SessionContext.jsx';
@@ -17,11 +18,12 @@ function ApplicantEditor({application,api,onSaved,onCancel}) {
     const files=[...event.target.files];event.target.value='';if(!files.length)return;
     setUploading(true);setNotice('');
     try {const next=[];for(const file of files){const row=await api.uploadDocument(file,{documentType:type});next.push({...row,documentType:type});}
-      setDocuments(old=>type==='IDENTITY'?[...old.filter(d=>d.documentType!=='IDENTITY'),...next]:[...old,...next]);
+      setDocuments(old=>REQUIRED_APPLICATION_IMAGES.includes(type)?[...old.filter(d=>d.documentType!==type && d.documentType!=='IDENTITY'),...next]:[...old,...next]);
     }catch(error){setNotice(`Chưa tải được giấy tờ (${error.code}). Dùng ảnh JPG/PNG tối đa 5 MB.`);}finally{setUploading(false);}
   }
   async function save(event){
     event?.preventDefault();if(lock.current)return;
+    if (!operation.current && REQUIRED_APPLICATION_IMAGES.some(type=>documents.filter(d=>d.documentType===type).length!==1)) {setNotice('Bổ sung đủ mặt trước CCCD, mặt sau CCCD và ảnh chân dung trước khi lưu.');return;}
     if(!operation.current){const data=new window.FormData(event.currentTarget);operation.current={key:api.createIdempotencyKey(),body:{applicationId:application.id,expectedVersion:application.version,
       ...Object.fromEntries(['displayName','dateOfBirth','identityNumber','employmentType','experience'].map(k=>[k,data.get(k)])),requestedServices:list(data.get('requestedServices')),workAreas:list(data.get('workAreas')),documents}};}
     lock.current=true;setBusy(true);setNotice('');
@@ -38,8 +40,9 @@ function ApplicantEditor({application,api,onSaved,onCancel}) {
       <label>Kinh nghiệm<textarea required minLength={10} maxLength={2000} name="experience" defaultValue={application.experience}/></label>
       <label>Dịch vụ muốn thực hiện (mỗi dòng một dịch vụ)<textarea required name="requestedServices" defaultValue={application.requestedServices.join('\n')}/></label>
       <label>Khu vực muốn làm việc (mỗi dòng một khu vực)<textarea required name="workAreas" defaultValue={application.workAreas.join('\n')}/></label>
-      <h3>Giấy tờ đã gửi</h3><p>Các ảnh đã gửi được giữ lại; chỉ tải ảnh mới nếu muốn thay đổi.</p><ul>{documents.map(d=><li key={d.documentId}>{d.documentType==='IDENTITY'?'Giấy tờ định danh':'Giấy tờ bổ sung'}{d.documentType!=='IDENTITY'&&<button type="button" onClick={()=>setDocuments(rows=>rows.filter(x=>x.documentId!==d.documentId))}>Bỏ giấy tờ bổ sung</button>}</li>)}</ul>
-      <label>Thay ảnh giấy tờ định danh<input type="file" accept="image/jpeg,image/png" onChange={event=>upload(event,'IDENTITY')}/></label>
+      <h3>Giấy tờ đã gửi</h3><p>Các ảnh đã gửi được giữ lại; chỉ tải ảnh mới nếu muốn thay đổi.</p><ul>{documents.map(d=><li key={d.documentId}>{APPLICATION_DOCUMENT_LABELS[d.documentType] ?? 'Tài liệu bổ sung'}<img className="applicant-document-thumbnail" src={`/api/v1/applicant-documents/${encodeURIComponent(d.documentId)}/content`} alt={APPLICATION_DOCUMENT_LABELS[d.documentType] ?? 'Tài liệu bổ sung'} />{!REQUIRED_APPLICATION_IMAGES.includes(d.documentType)&&<button type="button" onClick={()=>setDocuments(rows=>rows.filter(x=>x.documentId!==d.documentId))}>Bỏ giấy tờ bổ sung</button>}</li>)}</ul>
+      <p>Hồ sơ mới hoặc sửa cần đủ hai mặt CCCD và ảnh chân dung. Ảnh cũ chưa ghi rõ mặt cần được thay bằng ảnh đúng loại.</p>
+      {REQUIRED_APPLICATION_IMAGES.map(type=><label key={type}>{APPLICATION_DOCUMENT_LABELS[type]}<input type="file" accept="image/jpeg,image/png" onChange={event=>upload(event,type)}/></label>)}
       <label>Thêm giấy tờ bổ sung<input type="file" accept="image/jpeg,image/png" multiple onChange={event=>upload(event,'CERTIFICATE')}/></label>
       <button type="submit">Lưu thay đổi hồ sơ</button>
     </fieldset><button type="button" disabled={busy||uploading||pending} onClick={onCancel}>Đóng bản sửa</button>

@@ -1,3 +1,4 @@
+import { AvatarEditor, ProfileAvatar } from '../../components/common/ProfileAvatar.jsx';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MapPin, Pencil, Plus, Archive, X } from 'lucide-react';
@@ -138,8 +139,10 @@ export function CustomerCarePage({ kind = 'pets', api: suppliedApi }) {
     {catalog && pets && <p>Thông tin chưa biết không có nghĩa là không có dị ứng, thuốc hoặc rủi ro.</p>}
     {catalog && !pets && !catalog.workAreas.length && <Notice state="warning" title="Chưa có khu vực phục vụ">Chưa thể lưu địa chỉ cho lịch mới. Vui lòng thử lại sau.</Notice>}
     <ul className="customer-care__list">{visible.map(row => <li key={row.id}>
-      <h2>{pets ? row.name : <><MapPin size={18} /> {row.label}</>}</h2>
+      <h2>{pets && <ProfileAvatar petId={row.id} label={`Ảnh của ${row.name}`} fallback={row.species === 'DOG' ? 'Chó' : 'Mèo'} />} {pets ? row.name : <><MapPin size={18} /> {row.label}</>}</h2>
       <p>{pets ? `${row.species === 'DOG' ? 'Chó' : 'Mèo'} · ${catalog.breeds.find(b => b.code === row.breedCode)?.name ?? row.breedCode} · ${row.weightKg} kg` : row.location}</p>
+      {pets && !petId && <Link to={`/account/pets/${row.id}`}>Ảnh và hồ sơ của {row.name}</Link>}
+      {pets && petId && !editor && !busy && !uncertain && <AvatarEditor petId={row.id} label={`Ảnh của ${row.name}`} onSaved={resource.retry} />}
       {pets && <p>{row.careNeedsConfirmed ? 'Đã xác nhận nhu cầu chăm sóc' : 'Cần xác nhận nhu cầu chăm sóc'}</p>}
       {!pets && row.privateAccessNotes && <p>{row.privateAccessNotes}</p>}
       <div className="customer-care__actions"><Button variant="secondary" onClick={() => edit(row)} disabled={busy || uncertain}><Pencil size={16} />Sửa hồ sơ</Button>

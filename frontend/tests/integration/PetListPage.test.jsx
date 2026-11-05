@@ -36,7 +36,7 @@ test('renders customer-owned list items, details links and the unknown-data safe
   renderPage(api);
 
   expect(await screen.findByRole('heading', { name: 'Milo' })).toBeVisible();
-  expect(screen.getByText('Chó')).toBeVisible();
+  expect(screen.getByText('Chó', {selector:'.pet-card__species'})).toBeVisible();
   expect(screen.getByRole('link', { name: 'Xem hồ sơ' })).toHaveAttribute('href', `/account/pets/${activePet.id}`);
   expect(screen.getByText(/chưa biết\/chưa cung cấp không có nghĩa là không có dị ứng/)).toBeVisible();
   expect(screen.getByRole('button', { name: 'Lưu trữ' })).toBeEnabled();

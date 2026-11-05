@@ -1,3 +1,4 @@
+import { ProfileAvatar } from '../components/common/ProfileAvatar.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, useLocation, useOutlet } from 'react-router-dom';
 import { AvatarMenu } from '../components/common/AvatarMenu.jsx';
@@ -171,7 +172,7 @@ export function RoleDashboardLayout({
     <div className="pwc-customer-account__body">
       <aside ref={sidebarRef} tabIndex={-1} className="pwc-customer-account__sidebar" aria-label="Tài khoản khách hàng">
         <div className="pwc-customer-account__identity">
-          <span className="pwc-customer-account__avatar" aria-hidden="true">{session.user.displayName?.trim().split(/\s+/).slice(-2).map(part => part[0]).join('').toUpperCase() || 'PW'}</span>
+          <ProfileAvatar fallback={session.user.displayName?.[0] ?? 'PW'} />
           <div><strong>{session.user.displayName}</strong><Link to="/account/profile">Hồ sơ của tôi</Link></div>
         </div>
         <button ref={mobileNavToggleRef} className="pwc-customer-account__toggle" type="button" aria-expanded={mobileNavOpen}

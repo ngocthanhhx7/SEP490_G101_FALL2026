@@ -251,11 +251,10 @@ test('a 204 archive response remains pending until a reload confirms archived st
   expect(api.archivePet).toHaveBeenCalledTimes(1);
 });
 
-test('keeps private photo upload disabled and explains that no file was sent', async () => {
+test('provides an owner avatar picker with image limits', async () => {
   const api = { getPet: jest.fn().mockResolvedValue({ data: petView(), status: 200, pending: false }) };
   renderPetPage(api);
   await screen.findByRole('heading', { name: 'Mây' });
-  expect(screen.getByRole('button', { name: 'Thêm ảnh (chưa khả dụng)' })).toBeDisabled();
-  expect(screen.getByText(/kho media và quyền tải\/xem chưa được tích hợp/i)).toBeInTheDocument();
-  expect(screen.getByText(/Chưa có nhà cung cấp upload media riêng tư/i)).toBeInTheDocument();
+  expect(screen.getByLabelText('Chọn hoặc thay ảnh')).toHaveAttribute('accept','image/jpeg,image/png');
+  expect(screen.getByText(/JPG\/PNG · tối đa 5 MB, 4 megapixel/)).toBeInTheDocument();
 });
