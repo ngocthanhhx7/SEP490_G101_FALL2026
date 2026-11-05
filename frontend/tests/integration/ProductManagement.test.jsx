@@ -147,8 +147,7 @@ describe('Product Management edit', () => {
       version: 0, name: ' Dây dắt chó lớn ', category: 'ACCESSORY', petType: 'DOG', sellingPrice: 300000, description: 'Dây dù bản 2 cm', visible: true
     }));
     expect(await screen.findByText('Sản phẩm SP-0012 đã được lưu.')).toBeVisible();
-    // The form now holds what was saved, with its next version.
-    expect(screen.getByRole('complementary', { name: 'Sửa sản phẩm SP-0012' })).toBeVisible();
+    expect(screen.queryByRole('complementary', { name: 'Sửa sản phẩm SP-0012' })).not.toBeInTheDocument();
   });
 
   test('AC-29 MSG01 for a blank name and MSG113 for a price that is not a whole number above 0, with no request', async () => {
@@ -208,7 +207,7 @@ describe('Product Management edit', () => {
     fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Ẩn sản phẩm' }));
     await waitFor(() => expect(api.updateProduct).toHaveBeenCalledWith('p12', expect.objectContaining({ version: 0, visible: false })));
     expect(await screen.findByText('Sản phẩm SP-0012 đã được lưu.')).toBeVisible();
-    expect(screen.getByRole('switch', { name: 'Hiện trên trang Sản phẩm' })).not.toBeChecked();
+    expect(screen.queryByRole('dialog', { name: 'Sửa sản phẩm SP-0012' })).not.toBeInTheDocument();
   });
 
   test('showing a hidden product needs no confirmation', async () => {
@@ -286,10 +285,8 @@ describe('Product Management create', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Lưu sản phẩm' }));
     await waitFor(() => expect(api.createProduct).toHaveBeenCalledWith({ name: 'Vòng cổ', category: 'ACCESSORY', petType: 'DOG', sellingPrice: 60000, description: '' }));
     expect(await screen.findByText('Sản phẩm SP-0038 đã được lưu.')).toBeVisible();
-    // The form now edits the saved product, and the list goes to the page that holds the new code (9 + 1 products: still page 1).
-    const panel = form('Sửa sản phẩm SP-0038');
-    expect(within(panel).getByLabelText('Mã sản phẩm')).toHaveValue('SP-0038');
-    expect(within(panel).getByRole('switch', { name: 'Hiện trên trang Sản phẩm' })).not.toBeChecked();
+    expect(screen.queryByRole('dialog', { name: 'Thêm sản phẩm' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Sửa sản phẩm SP-0038' })).not.toBeInTheDocument();
     expect(api.listProducts.mock.calls.length).toBeGreaterThan(1);
   });
 

@@ -195,6 +195,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
         <span className="account-settings-readonly">OTP bắt buộc</span>
       </div>
       <p className="account-settings-caption">Liên hệ mới chỉ thay thế cùng kênh sau khi mã OTP hợp lệ. Kênh khác vẫn được giữ lại.</p>
+      <p className="account-settings-caption">Nếu bạn chỉ có một email hoặc số điện thoại đã xác minh và không còn truy cập được kênh đó, hãy liên hệ Paw World Care để Admin kiểm tra danh tính và hỗ trợ khôi phục tài khoản.</p>
       {loading && <p className="account-settings-state" role="status">Đang tải liên hệ…</p>}
       {loadError && <Notice state={loadError.status === 403 ? 'forbidden' : 'error'} title="Không tải được liên hệ">
         {errorMessage(loadError)}

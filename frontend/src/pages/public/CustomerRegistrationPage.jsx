@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { otpFeedback } from '../../utils/otp-feedback.js';
+import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import { useRegistrationPolicies } from '../../contexts/PublicPolicyContext.jsx';
 import { customerRegistrationApi, normalizeDisplayName, normalizeRegistrationContact } from '../../services/customer-registration-api.js';
 import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
@@ -23,7 +24,8 @@ function messageForError(error) {
     return `Bạn đã yêu cầu mã quá nhanh.${wait}`;
   }
   if (otpFeedback(error.code)) return otpFeedback(error.code);
-  if (error.code === 'CONTACT_ALREADY_LINKED' || error.code === 'CONTACT_UNAVAILABLE') {
+  if (error.code === 'CONTACT_ALREADY_LINKED') return 'Email hoặc số điện thoại này đã được đăng ký. Vui lòng đăng nhập bằng OTP.';
+  if (error.code === 'CONTACT_UNAVAILABLE') {
     return 'Thông tin liên hệ này không thể dùng để đăng ký. Hãy đăng nhập bằng OTP nếu bạn đã có tài khoản.';
   }
   if (error.code === 'FORBIDDEN') return 'Yêu cầu này không được phép. Hãy tải lại trang và thử lại.';
@@ -33,7 +35,7 @@ function messageForError(error) {
   if (error.code === 'REGISTRATION_NOT_COMPLETED' || error.code === 'REGISTRATION_UNAVAILABLE') {
     return 'Luồng đăng ký chưa sẵn sàng. Chưa có tài khoản hoặc phiên đăng nhập nào được xác nhận.';
   }
-  return 'Không thể hoàn tất đăng ký lúc này. Vui lòng thử lại sau.';
+  return apiErrorFeedback(error, 'Không thể hoàn tất đăng ký lúc này. Vui lòng thử lại sau.');
 }
 
 function validateName(value) {

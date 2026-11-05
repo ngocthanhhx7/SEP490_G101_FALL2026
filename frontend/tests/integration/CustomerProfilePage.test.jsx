@@ -51,7 +51,7 @@ test('loads the self profile with masked contacts and saves using the current ve
   await waitFor(() => expect(apiRequest).toHaveBeenCalledWith('/me/profile', {
     method: 'PATCH', body: { displayName: 'Lê An', expectedVersion: 0 }
   }));
-  expect(await screen.findByRole('heading', { name: 'Đã gửi yêu cầu cập nhật' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Đã lưu thay đổi' })).toBeVisible();
   expect(await screen.findByRole('textbox', { name: 'Họ và tên' })).toHaveValue('Lê An');
 });
 

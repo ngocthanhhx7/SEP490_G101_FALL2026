@@ -221,6 +221,9 @@ export function createOtpService({ connection, User, models = identityModels(con
           .select('+lookupKey').session(mongoSession).lean();
         if (!contactRecord) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false, reason: 'REGISTRATION_REQUIRED' }) };
         const user = await userStore.findById(contactRecord.userId).session(mongoSession);
+        // Reveal account state only after proving possession. Return the failure
+        // from the transaction so the valid challenge stays consumed.
+        if (user?.state === 'LOCKED' && user.synthetic !== true) return { failure: 'ACCOUNT_LOCKED' };
         if (!user || user.state !== 'ACTIVE' || user.synthetic === true) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false }) };
         const session = await sessionService.issueInTransaction(user, mongoSession, { rememberDevice });
         return { result: Object.freeze({ status: 'VERIFIED', authenticated: true, session }) };
@@ -287,6 +290,9 @@ export function createOtpService({ connection, User, models = identityModels(con
       throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be completed');
     }
     if (outcome.failure === 'RATE_LIMITED') limitedOtp(outcome.retryAfterMs);
+    if (outcome.failure === 'ACCOUNT_LOCKED') {
+      throw new AppError(403, 'ACCOUNT_LOCKED', 'Account is locked; contact support');
+    }
     const failureCodes = { INCORRECT: 'OTP_INCORRECT', EXPIRED: 'OTP_EXPIRED', USED: 'OTP_ALREADY_USED', REPLACED: 'OTP_REPLACED', DELIVERY_FAILED: 'OTP_DELIVERY_UNAVAILABLE' };
     if (failureCodes[outcome.failure]) throw new AppError(400, failureCodes[outcome.failure], 'Verification could not be completed');
     if (outcome.failure) throw invalidOtp();

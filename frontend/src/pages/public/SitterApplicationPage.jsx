@@ -102,18 +102,15 @@ function validate({
     errors.identityFile = 'Chọn ảnh mặt trước CCCD.';
   if (!identityBackFile) errors.identityBackFile = 'Chọn ảnh mặt sau CCCD.';
   if (!portraitFile) errors.portraitFile = 'Chọn ảnh chân dung.';
-  const files = [identityFile, identityBackFile, portraitFile, ...supportingFiles].filter(Boolean);
   if (supportingFiles.length > MAX_SUPPORTING_FILES)
     errors.supportingFiles = `Tối đa ${MAX_SUPPORTING_FILES} giấy tờ bổ sung.`;
-  if (
-    files.some(
-      (file) =>
-        !ACCEPTED_TYPES.has(file.type) ||
-        file.size <= 0 ||
-        file.size > MAX_FILE_BYTES
-    )
-  ) {
-    errors.files = 'Mỗi tệp phải là JPG hoặc PNG và không quá 5 MB.';
+  for (const [field, label, file] of [
+    ['identityFile', 'Mặt trước CCCD', identityFile], ['identityBackFile', 'Mặt sau CCCD', identityBackFile],
+    ['portraitFile', 'Ảnh chân dung', portraitFile], ...supportingFiles.map((file, index) => ['supportingFiles', `Giấy tờ bổ sung ${index + 1}`, file])
+  ]) {
+    if (file && (!ACCEPTED_TYPES.has(file.type) || file.size <= 0 || file.size > MAX_FILE_BYTES)) {
+      errors[field] = `${label} phải là JPG hoặc PNG, dung lượng từ 1 byte đến 5 MB.`;
+    }
   }
   return errors;
 }
@@ -233,10 +230,11 @@ export function SitterApplicationPage({
           let uploaded;
           try { uploaded = await api.uploadDocument(item.file, { documentType: item.documentType }); }
           catch (failure) {
+            const documentLabel = APPLICATION_DOCUMENT_LABELS[item.documentType];
             const message = failure.code === 'IMAGE_DIMENSIONS_EXCEEDED'
-              ? `Ảnh ${item.file.name} vượt 4 megapixel. Giảm kích thước ảnh, ví dụ 2000 × 2000 pixel, rồi chọn lại.`
+              ? `${documentLabel} vượt 4 megapixel. Giảm kích thước ảnh, ví dụ 2000 × 2000 pixel, rồi chọn lại.`
               : failure.code === 'VALIDATION_FAILED' || failure.code === 'INVALID_DOCUMENT'
-                ? `Không đọc được ảnh ${item.file.name}. Dùng JPG/PNG, tối đa 5 MB và 4 megapixel.` : errorMessage(failure);
+                ? `Không đọc được ${documentLabel.toLowerCase()}. Dùng JPG/PNG, tối đa 5 MB và 4 megapixel.` : errorMessage(failure);
             failure.fieldErrors = { [({ IDENTITY_FRONT: 'identityFile', IDENTITY_BACK: 'identityBackFile', PORTRAIT: 'portraitFile' })[item.documentType] ?? 'supportingFiles']: message };
             throw failure;
           }
@@ -412,7 +410,7 @@ export function SitterApplicationPage({
             <small>Ảnh rõ nét, đầy đủ thông tin trên giấy tờ</small>
             <input ref={identityInput} id="sitter-applicant-id-file" type="file" accept="image/jpeg,image/png" required aria-invalid={!!(errors.identityFile || errors.files)}
               onChange={event => changeFiles(event.target.files?.[0] ?? null, supportingFiles)} />
-            {identityFile && <ApplicationImagePreview key={identityFile.name + identityFile.lastModified} file={identityFile} disabled={busy} onValidation={message => imageValidation(identityFile, message)} onRemove={() => { identityInput.current.value = ''; changeFiles(null, supportingFiles); }} />}
+            {identityFile && <ApplicationImagePreview documentLabel="Mặt trước CCCD" key={identityFile.name + identityFile.lastModified} file={identityFile} disabled={busy} onValidation={message => imageValidation(identityFile, message)} onRemove={() => { identityInput.current.value = ''; changeFiles(null, supportingFiles); }} />}
             {errors.identityFile && <small className="sitter-application__error">{errors.identityFile}</small>}
           </div>
           {[['IDENTITY_BACK', 'sitter-applicant-back-file', identityBackFile, setIdentityBackFile, 'identityBackFile'], ['PORTRAIT', 'sitter-applicant-portrait-file', portraitFile, setPortraitFile, 'portraitFile']].map(([type, id, file, setFile, errorKey]) => <div className="sitter-application__upload" key={type}>
@@ -422,7 +420,7 @@ export function SitterApplicationPage({
               const next = event.target.files?.[0] ?? null; setFile(next); setUploadedDocuments(null); idempotencyKey.current = null;
               setImageIssues(old => { const issues = new Map(old); issues.delete(file); return issues; }); setErrors(old => ({ ...old, [errorKey]: undefined }));
             }} />
-            {file && <ApplicationImagePreview file={file} disabled={busy} onValidation={message => imageValidation(file, message)} onRemove={() => {
+            {file && <ApplicationImagePreview documentLabel={APPLICATION_DOCUMENT_LABELS[type]} file={file} disabled={busy} onValidation={message => imageValidation(file, message)} onRemove={() => {
               document.getElementById(id).value = ''; setFile(null); setUploadedDocuments(null); idempotencyKey.current = null;
               setImageIssues(old => { const issues = new Map(old); issues.delete(file); return issues; });
             }} />}
@@ -433,7 +431,7 @@ export function SitterApplicationPage({
             <input ref={supportingInput} id="sitter-applicant-supporting-files" type="file" accept="image/jpeg,image/png" multiple
               onChange={event => changeFiles(identityFile, Array.from(event.target.files ?? []))} />
             {supportingFiles.length > 0 && <small>Đã chọn {supportingFiles.length} ảnh</small>}
-            {supportingFiles.map((file, index) => <ApplicationImagePreview key={index + file.name + file.lastModified} file={file} disabled={busy} onValidation={message => imageValidation(file, message)} onRemove={() => {
+            {supportingFiles.map((file, index) => <ApplicationImagePreview documentLabel={`Giấy tờ bổ sung ${index + 1}`} key={index + file.name + file.lastModified} file={file} disabled={busy} onValidation={message => imageValidation(file, message)} onRemove={() => {
               supportingInput.current.value = ''; changeFiles(identityFile, supportingFiles.filter((_, i) => i !== index));
             }} />)}
           </div>

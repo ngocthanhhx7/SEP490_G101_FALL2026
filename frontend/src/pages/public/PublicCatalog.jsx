@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowUpRight, Clock3, MapPin, PawPrint } from 'lucide-react';
 import { formatCatalogPrice } from '../../utils/catalog-format.js';
 import { serviceVisual } from './service-visuals.js';
+import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import './service-cards.css';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
@@ -45,7 +46,7 @@ export function CatalogState({ resource, emptyTitle, emptyBody }) {
   if (resource.status === 'error') {
     return (
       <div className="pwc-state-card" role="alert">
-        <p>Chưa tải được thông tin. Vui lòng kiểm tra kết nối rồi thử lại.</p>
+        <p>{apiErrorFeedback({ code: resource.code, status: resource.httpStatus, retryAfterSeconds: resource.retryAfterSeconds }, 'Chưa tải được thông tin. Vui lòng kiểm tra kết nối rồi thử lại.')}</p>
         <button
           className="pwc-text-button"
           type="button"

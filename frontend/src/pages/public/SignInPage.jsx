@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { loginDestination } from '../../utils/role-access.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { otpFeedback } from '../../utils/otp-feedback.js';
+import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import './auth-public.css';
 import './sign-in.css';
 
@@ -21,7 +22,7 @@ function messageFor(error) {
     OTP_DELIVERY_UNAVAILABLE: 'Chưa thể gửi mã OTP. Vui lòng thử lại sau.',
     PROVIDER_UNAVAILABLE: 'Chưa thể gửi mã OTP. Vui lòng thử lại sau hoặc chọn liên hệ đã xác minh khác.',
   };
-  return messages[error?.code] ?? 'Đăng nhập chưa thành công. Vui lòng thử lại.';
+  return messages[error?.code] ?? apiErrorFeedback(error, 'Đăng nhập chưa thành công. Vui lòng thử lại.');
 }
 
 export function SignInPage() {

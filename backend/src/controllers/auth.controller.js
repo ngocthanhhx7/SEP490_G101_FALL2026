@@ -38,10 +38,7 @@ export function createAuthController({
     },
     createOtpChallenges: async (req, res) => {
       if (!hasOnlyKeys(req.body, CHALLENGE_KEYS)) {
-        return respond(res, req, 422, {
-          code: 'VALIDATION_FAILED',
-          message: 'OTP request is invalid'
-        });
+        throw new AppError(422, 'VALIDATION_FAILED', 'OTP request is invalid');
       }
       if (
         req.body.channel === 'PHONE' &&
@@ -65,10 +62,7 @@ export function createAuthController({
         !hasOnlyKeys(req.body, REGISTRATION_VERIFICATION_KEYS) ||
         req.body.purpose !== 'REGISTER'
       ) {
-        return respond(res, req, 422, {
-          code: 'VALIDATION_FAILED',
-          message: 'OTP verification request is invalid'
-        });
+        throw new AppError(422, 'VALIDATION_FAILED', 'OTP verification request is invalid');
       }
       if (req.body.channel === 'PHONE')
         throw new AppError(
@@ -116,10 +110,7 @@ export function createAuthController({
         body.purpose !== 'LOGIN' ||
         typeof rememberDevice !== 'boolean'
       ) {
-        return respond(res, req, 422, {
-          code: 'VALIDATION_FAILED',
-          message: 'Session request is invalid'
-        });
+        throw new AppError(422, 'VALIDATION_FAILED', 'Session request is invalid');
       }
       const result = await otpService.verify({ ...body, rememberDevice });
       if (!result.authenticated)
@@ -138,10 +129,7 @@ export function createAuthController({
     },
     createMeContactChanges: async (req, res) => {
       if (!hasOnlyKeys(req.body, new Set(['channel', 'contact']))) {
-        return respond(res, req, 422, {
-          code: 'VALIDATION_FAILED',
-          message: 'Contact change request is invalid'
-        });
+        throw new AppError(422, 'VALIDATION_FAILED', 'Contact change request is invalid');
       }
       const challenge = await otpService.begin({
         ...req.body,
@@ -159,10 +147,7 @@ export function createAuthController({
         !hasOnlyKeys(req.body, VERIFICATION_KEYS) ||
         req.body.purpose !== 'CONTACT_CHANGE'
       ) {
-        return respond(res, req, 422, {
-          code: 'VALIDATION_FAILED',
-          message: 'Contact verification request is invalid'
-        });
+        throw new AppError(422, 'VALIDATION_FAILED', 'Contact verification request is invalid');
       }
       const result = await otpService.verify({ ...req.body, actor: req.auth });
       return respond(res, req, 200, { verified: result.status === 'VERIFIED' });

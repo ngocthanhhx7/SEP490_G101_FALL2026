@@ -1,4 +1,4 @@
-import { beforeAll, afterAll, test, expect, jest } from '@jest/globals';
+import { beforeAll, beforeEach, afterAll, test, expect, jest } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
 import express from 'express';
@@ -60,6 +60,46 @@ beforeAll(async () => {
   app = express(); app.use(express.json(), requestId); app.use(module.mount, module.router); app.use(errorHandler(() => {}));
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
+// Scenarios share catalog fixtures, but must not inherit reservations at the same time.
+beforeEach(async () => {
+  await connection.collection('visits').deleteMany({});
+  await connection.collection('bookings').deleteMany({});
+});
+
+test('different quotes for the same pet cannot reserve overlapping times, including concurrent checkout', async () => {
+  const q1 = await quote('home-care', 1), q2 = await quote('home-care', 1);
+  const results = await Promise.allSettled([
+    checkout.confirm(owner, input(q1), 'cross-booking-race-one'),
+    checkout.confirm(owner, input(q2), 'cross-booking-race-two')
+  ]);
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+  expect(results.find(result => result.status === 'rejected').reason).toMatchObject({ code: 'VISIT_SCHEDULE_OVERLAP', status: 409 });
+  expect(await connection.collection('bookings').countDocuments({})).toBe(1);
+  expect(await connection.collection('visits').countDocuments({})).toBe(1);
+  const next = await quote('dog-walking', 1);
+  const response = await request(app).post('/api/v1/checkout/bookings')
+    .set('Host', 'localhost').set('Origin', 'http://localhost').set('x-test-actor', 'owner')
+    .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'cross-service-conflict')
+    .send(input(next, 'OUTDOOR')).expect(409);
+  expect(response.body.error.code).toBe('VISIT_SCHEDULE_OVERLAP');
+  expect(JSON.stringify(response.body)).not.toContain('Synthetic private address');
+});
+
+test('adjacent visits, different pets and cancelled reservations do not falsely conflict', async () => {
+  const q1 = await quote('home-care', 1), body1 = input(q1);
+  const first = await checkout.confirm(owner, body1, 'adjacent-booking-first');
+  const q2 = await quote('home-care', 1), body2 = input(q2);
+  body2.visits[0].startAt = new Date(Date.parse(body1.visits[0].startAt) + 3600000).toISOString();
+  await checkout.confirm(owner, body2, 'adjacent-booking-second');
+  const otherPet = await connection.models.Pet.create({ ownerId: owner.userId, name: 'Synthetic second pet', species: 'DOG',
+    breedCode: pet.breedCode, weightKg: 4, traits: [], careNeedsConfirmed: true });
+  const q3 = await pricing.basket(owner.userId, { items: [{ ...item('home-care'), petIds: [String(otherPet._id)] }] });
+  await checkout.confirm(owner, input(q3), 'different-pet-same-time');
+  await connection.collection('visits').updateMany({ bookingId: new mongoose.Types.ObjectId(first.id) }, { $set: { state: 'CANCELLED' } });
+  const q4 = await quote('home-care', 1);
+  await checkout.confirm(owner, input(q4), 'cancelled-slot-is-free');
+  expect(await connection.collection('bookings').countDocuments({})).toBe(4);
+});
 
 async function employeeForCheckout(sitterId, serviceId) {
   const staffId = oid(), id = String(sitterId);

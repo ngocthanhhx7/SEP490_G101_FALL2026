@@ -9,6 +9,7 @@ import { createSitterRecommendationApi } from '../../services/sitter-recommendat
 import { ApiError, createApiClient } from '../../services/api-client.js';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
 import { formatCatalogPrice } from '../../utils/catalog-format.js';
+import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import { serviceVisual } from './service-visuals.js';
 import { BookingConfirmation } from './BookingCheckout.jsx';
 import './service-booking.css';
@@ -49,7 +50,7 @@ function errorText(error) {
     VISIT_SCHEDULE_OVERLAP: 'Các buổi của cùng thú cưng bị trùng giờ.',
     VALIDATION_FAILED: 'Kiểm tra thời lượng, ngày giờ, địa chỉ và điều kiện dịch vụ.',
     FORBIDDEN: 'Tài khoản hiện tại không thể đặt dịch vụ.',
-    UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' })[error.code] ?? 'Chưa nhận được xác nhận. Vui lòng thử lại hoặc liên hệ PawWorld.';
+    UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' })[error.code] ?? apiErrorFeedback(error, 'Chưa nhận được xác nhận. Vui lòng thử lại hoặc liên hệ PawWorld.');
 }
 
 export function BookingFlow({ service, api, matching, onBooked }) {

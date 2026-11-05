@@ -61,6 +61,7 @@ export function CustomerProfilePage({ apiRequest }) {
       } else {
         setSaved(true);
         profile.retry();
+        session.updateDisplayName(result.data);
       }
     } catch (error) {
       setSaveError(requestMessage(error));
@@ -119,8 +120,8 @@ export function CustomerProfilePage({ apiRequest }) {
           Máy chủ đã nhận yêu cầu xử lý. Tải lại hồ sơ để xem kết quả đã lưu.
           <Button variant="secondary" onClick={profile.retry}>Đối chiếu hồ sơ</Button>
         </Notice>}
-        {saved && <Notice state="success" title="Đã gửi yêu cầu cập nhật">
-          Hồ sơ đang được tải lại từ máy chủ để xác nhận thông tin mới.
+        {saved && <Notice state="success" title="Đã lưu thay đổi">
+          Họ và tên đã được lưu. Không cần chờ phê duyệt.
         </Notice>}
       </section>
 
