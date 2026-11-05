@@ -59,8 +59,8 @@ describe('Product Management list', () => {
     await waitFor(() => expect(api.updateProduct).toHaveBeenCalledWith('p12', { version: 0, visible: false }));
     expect(await screen.findByText('Đã ẩn sản phẩm khỏi cửa hàng.')).toBeVisible();
   });
-  test('an uncertain deletion response locks retries until reloading', async () => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockRejectedValue(new ApiError('NETWORK_ERROR', 0)) });
+  test.each([['NETWORK_ERROR', 0], ['INTERNAL_ERROR', 500]])('an uncertain %s deletion response locks retries until reloading', async (code, status) => {
+    const api = fakeApi({ deleteProduct: jest.fn().mockRejectedValue(new ApiError(code, status)) });
     render(<ProductManagementPage api={api} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Xóa sản phẩm SP-0012' }));
     fireEvent.change(screen.getByLabelText('Lý do xóa (20–1.000 ký tự)'), { target: { value: 'Không kinh doanh mặt hàng này nữa tại cửa hàng.' } });
@@ -181,8 +181,7 @@ describe('Product Management edit', () => {
   });
 
   test('shows the reasons of a 422 from the API under the right fields', async () => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
-    updateProduct: jest.fn().mockRejectedValue(new ApiError('VALIDATION_FAILED', 422, { fields: { name: 'REQUIRED', sellingPrice: 'TOO_LARGE' } })) });
+    const api = fakeApi({ updateProduct: jest.fn().mockRejectedValue(new ApiError('VALIDATION_FAILED', 422, { fields: { name: 'REQUIRED', sellingPrice: 'TOO_LARGE' } })) });
     await open(api);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(await screen.findByText('Vui lòng nhập thông tin này.')).toBeVisible();
@@ -202,8 +201,7 @@ describe('Product Management edit', () => {
   });
 
   test('AC-29 confirming MSG114 saves the product as hidden', async () => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
-    updateProduct: jest.fn().mockResolvedValue(product({ visible: false, version: 1 })) });
+    const api = fakeApi({ updateProduct: jest.fn().mockResolvedValue(product({ visible: false, version: 1 })) });
     await open(api);
     fireEvent.click(screen.getByRole('switch', { name: 'Hiện trên trang Sản phẩm' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
@@ -214,8 +212,7 @@ describe('Product Management edit', () => {
   });
 
   test('showing a hidden product needs no confirmation', async () => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
-    updateProduct: jest.fn().mockResolvedValue(hidden({ visible: true, version: 1 })) });
+    const api = fakeApi({ updateProduct: jest.fn().mockResolvedValue(hidden({ visible: true, version: 1 })) });
     await open(api, 'SP-0013');
     fireEvent.click(screen.getByRole('switch', { name: 'Hiện trên trang Sản phẩm' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
@@ -237,8 +234,7 @@ describe('Product Management edit', () => {
   });
 
   test('a conflict says the product was changed and Tải lại shows the latest version', async () => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
-    updateProduct: jest.fn().mockRejectedValue(new ApiError('VERSION_CONFLICT', 409)) });
+    const api = fakeApi({ updateProduct: jest.fn().mockRejectedValue(new ApiError('VERSION_CONFLICT', 409)) });
     await open(api);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(await screen.findByText(/Sản phẩm vừa được người khác sửa/)).toBeVisible();
@@ -249,8 +245,7 @@ describe('Product Management edit', () => {
   });
 
   test('other failures keep the form and say it could not be completed', async () => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
-    updateProduct: jest.fn().mockRejectedValue(new ApiError('FORBIDDEN', 403)) });
+    const api = fakeApi({ updateProduct: jest.fn().mockRejectedValue(new ApiError('FORBIDDEN', 403)) });
     await open(api);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(await screen.findByText('Bạn không có quyền quản lý sản phẩm.')).toBeVisible();

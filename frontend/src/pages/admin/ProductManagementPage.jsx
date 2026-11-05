@@ -48,7 +48,7 @@ function Field({ id, label, error, children }) {
   </div>;
 }
 
-// Create and edit share one form. The code is the system's, the stock is not here, and nothing can be deleted.
+// Create and edit share one form. Deletion is a separate, guarded action.
 function ProductForm({ product, api, onSaved, onReload, onRefresh, onBusy }) {
   const creating = !product;
   const [values, setValues] = useState(() => ({
@@ -168,7 +168,7 @@ function DeleteProductDialog({ product, api, onClose, onChanged }) {
       onChanged(hide ? 'Đã ẩn sản phẩm khỏi cửa hàng.' : 'Đã xóa sản phẩm và lưu lại lý do.');
     } catch (error) {
       setFailure({ blocked: error.code === 'PRODUCT_DELETE_BLOCKED',
-        uncertain: !error.status || error.code === 'INVALID_RESPONSE' || error.code === 'VERSION_CONFLICT',
+        uncertain: !error.status || error.status >= 500 || error.code === 'INVALID_RESPONSE' || error.code === 'VERSION_CONFLICT',
         text: error.code === 'PRODUCT_DELETE_BLOCKED'
           ? 'Không thể xóa vì sản phẩm có tồn kho, hàng đang giữ hoặc lịch sử đơn hàng. Bạn có thể ẩn sản phẩm khỏi cửa hàng.'
           : error.status === 422 ? 'Nhập lý do đầy đủ từ 20 đến 1.000 ký tự, không dùng ký tự điều khiển.' : failureText(error) });
@@ -290,7 +290,7 @@ export function ProductManagementPage({ api }) {
           onPageChange={(next) => { setPage(next); setNotice(null); }} />}
       </div>
       {editing && <Dialog open className="pwc-pm-editor-dialog" title={editing.product ? `Sửa sản phẩm ${editing.product.code}` : 'Thêm sản phẩm'} dismissible={!editorBusy} onClose={() => setEditing(null)}><ProductForm key={editing.product ? `${editing.product.id}:${editing.product.version}` : 'new'} product={editing.product}
-        api={api} onBusy={setEditorBusy} onSaved={saved} onReload={reload} onRefresh={resource.retry} onClose={() => setEditing(null)} /></Dialog>}
+        api={api} onBusy={setEditorBusy} onSaved={saved} onReload={reload} onRefresh={resource.retry} /></Dialog>}
       {deleting && <DeleteProductDialog key={deleting.id} product={deleting} api={api}
         onClose={() => { setDeleting(null); resource.retry(); }}
         onChanged={text => { setDeleting(null); setEditing(null); setNotice({ kind: 'ok', text }); setPage(1); resource.retry(); }} />}
