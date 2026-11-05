@@ -93,6 +93,16 @@ test('registration → private upload → application → scoped OTP status → 
   const { SitterApplication } = sitterApplicationModels(connection);
   expect(await SitterApplication.countDocuments()).toBe(1);
   const stored = await SitterApplication.findById(created.body.data.id).lean();
+  expect(stored.applicantParticularsCiphertext).toBeUndefined();
+  const privateStored=await SitterApplication.findById(stored._id).select('+applicantParticularsCiphertext').lean();
+  expect(privateStored.applicantParticularsCiphertext).toBeTruthy();
+  expect(JSON.stringify(privateStored)).not.toMatch(/TEST12345678|1998-04-12/);
+  // Original authenticated replay can restore only a matching omitted snapshot.
+  await SitterApplication.updateOne({_id:stored._id},{$unset:{applicantParticularsCiphertext:''}});
+  await submit(owner,{...body,dateOfBirth:'1997-04-12'}).expect(409);
+  expect((await SitterApplication.findById(stored._id).select('+applicantParticularsCiphertext').lean()).applicantParticularsCiphertext).toBeUndefined();
+  await submit(owner,body).expect(200);
+  expect((await SitterApplication.findById(stored._id).select('+applicantParticularsCiphertext').lean()).applicantParticularsCiphertext).toBeTruthy();
   expect(stored.policyConsents.map(receipt => receipt.slug).sort()).toEqual(['privacy', 'terms']);
   expect(stored.policyConsents.every(receipt => receipt.versionId === 'synthetic-v1')).toBe(true);
   expect((await userModel(connection).findById(owner.id)).roles).toEqual(['CUSTOMER']);
@@ -122,6 +132,12 @@ test('registration → private upload → application → scoped OTP status → 
       .set('Idempotency-Key', `synthetic-stage-${stage}`).send({ expectedVersion }).expect(200);
   }
   const contractRoot=`/api/v1/applications/${created.body.data.id}/employment-contract`, signedOn=new Date(clockNow+7*3600000).toISOString().slice(0,10);
+  const defaults=await request(app).get(contractRoot).set(adminHeaders).expect(200);
+  expect(defaults.headers['cache-control']).toContain('no-store');
+  expect(defaults.body.data.prefill.terms).toMatchObject({identityNumber:body.identityNumber,dateOfBirth:body.dateOfBirth,employeeEmail:owner.email});
+  await owner.agent.get(contractRoot).expect(403);
+  await request(app).get(contractRoot).expect(401);
+
   const effectiveOn=new Date(clockNow+86400000+7*3600000).toISOString().slice(0,10);
   const contract=(await request(app).post(contractRoot).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-contract'}).send({applicationVersion:2,expectedRevision:0,
     terms:employmentTerms({employeeName:'Ứng viên kiểm thử',identityNumber:'TEST12345678',plannedSigningOn:signedOn,effectiveOn})}).expect(201)).body.data;
