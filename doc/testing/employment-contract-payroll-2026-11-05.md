@@ -63,3 +63,12 @@ This does not certify the truth of legal-entity information, signing authority,
 self-entered clauses or actual signatures. No real contract was signed or approved
 for test purposes. Business 40/20-hour commitments and historical signed wording
 are preserved.
+
+### Feedback visibility follow-up
+
+A browser audit on the previous build found the validation summary was 3,375–4,288
+pixels above the viewport after submitting at the bottom of the contract form.
+The editor now focuses the summary/status after command acknowledgement; error
+links focus the corresponding control without changing route hash or input data.
+This is presentation only: signature checks, idempotency and document contents
+remain unchanged.
