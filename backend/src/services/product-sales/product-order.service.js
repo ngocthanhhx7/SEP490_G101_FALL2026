@@ -61,7 +61,7 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
   // Check-and-hold in one conditional update: two concurrent orders can never reserve more than is sellable (GBR-35).
   async function holdLine(line, session) {
     const held = await Product.findOneAndUpdate(
-      { _id: line.productId, visible: true,
+      { _id: line.productId, visible: true, deletedAt: null,
         $expr: { $gte: [{ $subtract: ['$stockOnHand', '$quantityHeld'] }, line.quantity] } },
       { $inc: { quantityHeld: line.quantity, version: 1 } },
       { returnDocument: 'after', session });

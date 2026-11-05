@@ -2,7 +2,8 @@ import { productSalesModels } from '../../models/product.model.js';
 import {
   PRODUCT_CODE_COUNTER_ID, PRODUCT_CODE_PREFIX, PRODUCT_CODE_MAX_NUMBER
 } from '../../constants/product-fields.js';
-import { parseAdminProductQuery, parseCreateProduct, parseUpdateProduct } from '../../validators/product-management.validator.js';
+import { parseAdminProductQuery, parseCreateProduct, parseUpdateProduct, parseDeleteProduct } from '../../validators/product-management.validator.js';
+import { AppError } from '../../utils/app-error.js';
 import { parseObjectId } from '../../validators/product.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { paginate } from '../pagination.service.js';
@@ -29,9 +30,9 @@ export function toAdminProduct(doc) {
   };
 }
 
-// Product Management for whoever PRODUCT_PERMISSIONS allows (R3 UC-57). Products are never deleted, only hidden.
+// Product Management for whoever PRODUCT_PERMISSIONS allows (R3 UC-57). Deletion retains its audit and code, and cannot discard stock or order history.
 export function createProductManagementService({ connection }) {
-  const { Product, ProductCounter } = productSalesModels(connection);
+  const { Product, ProductCounter, ProductOrder } = productSalesModels(connection);
   const unitOfWork = createUnitOfWork(connection);
 
   // The next SP-xxxx, handed out in the same transaction as the insert so a failed save leaves no gap.
@@ -51,7 +52,7 @@ export function createProductManagementService({ connection }) {
     async list(actor, query) {
       requireProductManager(actor);
       const { search, category, petType, page, limit } = parseAdminProductQuery(query);
-      const filter = {};
+      const filter = { deletedAt: null };
       if (category) filter.category = category;
       if (petType) filter.petType = petType;
       if (search) {
@@ -59,11 +60,20 @@ export function createProductManagementService({ connection }) {
         filter.$or = [{ name: pattern }, { code: pattern }];
       }
       const result = await paginate(Product, { filter, sort: { code: 1, _id: 1 }, page, limit });
-      return { ...result, items: result.items.map(toAdminProduct) };
+      const [summary] = await Product.aggregate([
+        { $match: { deletedAt: null } },
+        { $group: { _id: null, total: { $sum: 1 },
+          visible: { $sum: { $cond: [{ $eq: ['$visible', true] }, 1, 0] } },
+          outOfStock: { $sum: { $cond: [{ $lte: [{ $subtract: [{ $ifNull: ['$stockOnHand', 0] }, { $ifNull: ['$quantityHeld', 0] }] }, 0] }, 1, 0] } }
+        } }
+      ]);
+      const total = summary?.total ?? 0, visible = summary?.visible ?? 0;
+      return { ...result, items: result.items.map(toAdminProduct),
+        summary: { total, visible, hidden: total - visible, outOfStock: summary?.outOfStock ?? 0 } };
     },
     async read(actor, productId) {
       requireProductManager(actor);
-      const doc = await Product.findById(parseObjectId(productId, 'productId')).lean();
+      const doc = await Product.findOne({ _id: parseObjectId(productId, 'productId'), deletedAt: null }).lean();
       if (!doc) throw productSalesErrors.notFound();
       return toAdminProduct(doc);
     },
@@ -84,11 +94,31 @@ export function createProductManagementService({ connection }) {
       const id = parseObjectId(productId, 'productId');
       const { version, ...changes } = parseUpdateProduct(body);
       const seen = version === 0 ? { $or: [{ detailsVersion: 0 }, { detailsVersion: { $exists: false } }] } : { detailsVersion: version };
-      const updated = await Product.findOneAndUpdate({ _id: id, ...seen },
+      const updated = await Product.findOneAndUpdate({ _id: id, deletedAt: null, ...seen },
         { $set: changes, $inc: { detailsVersion: 1 } }, { returnDocument: 'after' }).lean();
       if (updated) return toAdminProduct(updated);
-      if (!(await Product.exists({ _id: id }))) throw productSalesErrors.notFound();
+      if (!(await Product.exists({ _id: id, deletedAt: null }))) throw productSalesErrors.notFound();
       throw productSalesErrors.versionConflict();
+    },
+    async remove(actor, productId, body) {
+      const deletedBy = requireProductManager(actor);
+      const id = parseObjectId(productId, 'productId');
+      const { version, reason } = parseDeleteProduct(body);
+      return unitOfWork.run(async session => {
+        const product = await Product.findOne({ _id: id, deletedAt: null }).session(session).lean();
+        if (!product) throw productSalesErrors.notFound();
+        if ((product.detailsVersion ?? 0) !== version) throw productSalesErrors.versionConflict();
+        const hasOrders = Boolean(await ProductOrder.exists({ 'lines.productId': id }).session(session));
+        const hasStock = product.stockOnHand > 0 || product.quantityHeld > 0;
+        if (hasOrders || hasStock) throw new AppError(409, 'PRODUCT_DELETE_BLOCKED',
+          'Hide this product instead: it has stock, reserved stock or order history.', { hasOrders, hasStock });
+        // Shares a write lock with order reservations and stock changes; transaction retry rechecks history.
+        const updated = await Product.updateOne({ _id: id, deletedAt: null, version: product.version ?? { $exists: false } },
+          { $set: { visible: false, deletedAt: new Date(), deletedBy, deletionReason: reason },
+            $inc: { version: 1, detailsVersion: 1 } }, { session });
+        if (updated.modifiedCount !== 1) throw productSalesErrors.versionConflict();
+        return { id: String(id), deleted: true };
+      });
     }
   });
 }

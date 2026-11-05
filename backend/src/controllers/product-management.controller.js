@@ -5,6 +5,7 @@ export function createProductManagementController(service) {
     list: controllerAction(200, (req) => service.list(req.auth, req.query)),
     read: controllerAction(200, (req) => service.read(req.auth, req.params.productId)),
     create: controllerAction(201, (req) => service.create(req.auth, req.body)),
-    update: controllerAction(200, (req) => service.update(req.auth, req.params.productId, req.body))
+    update: controllerAction(200, (req) => service.update(req.auth, req.params.productId, req.body)),
+    remove: controllerAction(200, (req) => service.remove(req.auth, req.params.productId, req.body))
   };
 }

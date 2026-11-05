@@ -1,5 +1,11 @@
 # Domain services
 
+Product management deletion retains a MongoDB tombstone and its actor/reason,
+blocks all order history and remaining/reserved stock, and serializes with
+product/stock writes. Active reads exclude tombstones. The list's global summary
+counts active/visible/hidden/out-of-stock products directly from persistence.
+See [product management rules](../../../doc/testing/product-management-lifecycle-2026-11-05.md).
+
 `product-sales/product-photo.service.js` owns Admin gallery changes, bounded
 decoding, metadata-free normalization, version checks and transactional MongoDB
 blob/reference cleanup. Public reads require a shown product still referencing

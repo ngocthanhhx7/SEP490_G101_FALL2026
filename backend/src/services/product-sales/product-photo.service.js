@@ -18,7 +18,7 @@ export function createProductPhotoService({ connection }) {
   const { ProductPhoto } = productPhotoModels(connection);
   const unitOfWork = createUnitOfWork(connection);
   async function readProduct(id, session) {
-    const product = await Product.findById(id).session(session ?? null).lean();
+    const product = await Product.findOne({ _id: id, deletedAt: null }).session(session ?? null).lean();
     if (!product) throw productSalesErrors.notFound();
     return product;
   }
@@ -64,7 +64,7 @@ export function createProductPhotoService({ connection }) {
         await ProductPhoto.updateOne({ productId: id, digest: image.digest }, { $setOnInsert: { ...image, uploadedBy } }, { upsert: true, session });
       }
       const versionFilter = seen === 0 ? { $or: [{ detailsVersion: 0 }, { detailsVersion: { $exists: false } }] } : { detailsVersion: seen };
-      const updated = await Product.findOneAndUpdate({ _id: id, ...versionFilter }, { $set: { photos }, $inc: { detailsVersion: 1 } }, { returnDocument: 'after', session }).lean();
+      const updated = await Product.findOneAndUpdate({ _id: id, deletedAt: null, ...versionFilter }, { $set: { photos }, $inc: { detailsVersion: 1 } }, { returnDocument: 'after', session }).lean();
       if (!updated) throw productSalesErrors.versionConflict();
       // Only uploaded blobs belonging to this product can be removed. Static sample assets stay intact.
       const retained = photos.map(path => path.startsWith(`/api/v1/products/${id}/photos/`) ? path.split('/').at(-1) : null).filter(Boolean);

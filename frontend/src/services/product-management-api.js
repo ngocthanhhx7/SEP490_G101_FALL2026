@@ -14,6 +14,11 @@ function checkProduct(product) {
     || typeof product.visible !== 'boolean' || !count(product.version)) invalid();
   return product;
 }
+function checkSummary(summary) {
+  if (!summary || !['total', 'visible', 'hidden', 'outOfStock'].every(key => count(summary[key]))
+    || summary.visible + summary.hidden !== summary.total || summary.outOfStock > summary.total) invalid();
+  return summary;
+}
 function checkPage(meta) {
   if (!meta || !Number.isSafeInteger(meta.page) || meta.page < 1 || !Number.isSafeInteger(meta.limit) || meta.limit < 1
     || !count(meta.total)) invalid();
@@ -36,7 +41,12 @@ export function createProductManagementApi(options) {
       const query = params.toString();
       const response = await request(`/admin/products${query ? `?${query}` : ''}`, { signal });
       if (!Array.isArray(response.data?.items)) invalid();
-      return { ...response, data: response.data.items.map(checkProduct), meta: { ...response.meta, page: checkPage(response.data) } };
+      return { ...response, data: response.data.items.map(checkProduct), meta: { ...response.meta, page: checkPage(response.data), summary: checkSummary(response.data.summary) } };
+    },
+    async deleteProduct(productId, values) {
+      const response = await request(`/admin/products/${id(productId)}`, { method: 'DELETE', body: values });
+      if (response.data?.id !== productId || response.data?.deleted !== true) invalid();
+      return response.data;
     },
     async readProduct(productId, { signal } = {}) {
       return checkProduct((await request(`/admin/products/${id(productId)}`, { signal })).data);
