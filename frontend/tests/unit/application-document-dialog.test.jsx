@@ -12,7 +12,7 @@ test('private preview stays in the dialog and revokes its blob when closed', asy
   const api = { readDocument: jest.fn(async () => ({ blob: new globalThis.Blob(['synthetic'], { type: 'image/png' }) })) };
   const close = jest.fn();
   const view = render(<ApplicationDocumentDialog api={api} applicationId={'a'.repeat(24)} document={document} onClose={close} />);
-  expect(await screen.findByRole('img', { name: 'Giấy tờ định danh' })).toHaveAttribute('src', 'blob:private-document-preview');
+  expect(await screen.findByRole('img', { name: 'Giấy tờ định danh (hồ sơ cũ)' })).toHaveAttribute('src', 'blob:private-document-preview');
   expect(api.readDocument).toHaveBeenCalledWith(expect.objectContaining({ applicationId: 'a'.repeat(24), documentId: document.documentId }));
   fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
   expect(close).toHaveBeenCalled();
@@ -26,6 +26,6 @@ test('provider XML is replaced with a readable error and explicit retry', async 
   expect(await screen.findByText('Chưa mở được tài liệu')).toBeVisible();
   expect(screen.queryByText(/AccessDenied|secret/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Thử mở lại' }));
-  await waitFor(() => expect(screen.getByRole('img', { name: 'Giấy tờ định danh' })).toBeVisible());
+  await waitFor(() => expect(screen.getByRole('img', { name: 'Giấy tờ định danh (hồ sơ cũ)' })).toBeVisible());
   expect(api.readDocument).toHaveBeenCalledTimes(2);
 });

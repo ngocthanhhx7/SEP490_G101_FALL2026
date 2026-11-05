@@ -1,3 +1,4 @@
+import { APPLICATION_DOCUMENT_LABELS } from '../../constants/application-documents.js';
 import { EmploymentContractEditor } from '../../components/payroll/EmploymentContractEditor.jsx';
 import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
@@ -124,8 +125,8 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
         <section aria-labelledby="sitter-app-documents-title">
           <h3 id="sitter-app-documents-title">Tài liệu riêng tư ({resource.data.documents.length})</h3>
           {resource.data.documents.length ? <ul>{resource.data.documents.map(document => <li key={document.documentId}>
-            <span>{document.documentType === 'IDENTITY' ? 'Giấy tờ định danh' : 'Tài liệu bổ sung'}</span>
-            <Button variant="secondary" onClick={() => setDocument(document)}>Xem {document.documentType === 'IDENTITY' ? 'giấy tờ định danh' : 'tài liệu bổ sung'}</Button>
+            <span>{APPLICATION_DOCUMENT_LABELS[document.documentType] ?? 'Tài liệu bổ sung'}</span>
+            <Button variant="secondary" onClick={() => setDocument(document)}>Xem {APPLICATION_DOCUMENT_LABELS[document.documentType] ?? 'tài liệu bổ sung'}</Button>
           </li>)}</ul> : <p>Chưa có tài liệu.</p>}
         </section>
         {['INTERVIEW','APPROVED'].includes(resource.data.state) && <EmploymentContractEditor application={resource.data} onVerified={setContractVerified} />}

@@ -50,3 +50,5 @@ EmploymentContract.workScheduleMode SELF_REGISTERED and minimumWeeklyMinutes pre
 SitterApplication.applicantParticularsCiphertext optionally retains submitted DOB/identity under existing AES-GCM protection, select:false. Legacy hashes remain unchanged; no plaintext or invented identity backfill.
 
 SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submission fingerprint separately from versioned owner-edit replay. No collection name changes.
+
+`avatar.model.js` stores bounded JPEG blobs/version/tombstones in `profileavatars`; User/Pet collection names and projections remain unchanged. Sitter application document types add IDENTITY_FRONT/IDENTITY_BACK/PORTRAIT while preserving legacy IDENTITY.

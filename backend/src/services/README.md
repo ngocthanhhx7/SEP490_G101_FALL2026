@@ -42,3 +42,5 @@ Sitter application service owns direct applicant reads and audited PENDING updat
 
 Product order lists page after authoritative role/owner filters. Domain notifications write recipient-scoped IN_APP product order placement/status/payment events in the same transaction. Stable order/version/recipient IDs deduplicate replay; state/stock/notification failures roll back together. No contact/address snapshot enters notifications.
 Public profile moderation lists SUBMITTED/APPROVED/REJECTED states with state-scoped cursors, bounded user display-name lookups and aggregate counts across current profile records. Counts do not represent historical application submissions or immutable review events.
+
+`avatar.service.js` owns owner-scoped normalized avatar bytes, transaction/version/retry guards and parent-profile concurrency; applicant document slots remain in sitter-application service. See [profile media](../../../doc/testing/profile-media-2026-11-05.md).

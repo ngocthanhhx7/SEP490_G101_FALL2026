@@ -1,3 +1,4 @@
+import { AvatarEditor } from '../../components/common/ProfileAvatar.jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, ShieldCheck } from 'lucide-react';
@@ -98,6 +99,7 @@ export function CustomerProfilePage({ apiRequest }) {
         <div className="customer-profile-card-heading">
           <h2 id="profile-details-title">Thông tin cá nhân</h2>
         </div>
+        <AvatarEditor fallback={profile.data.displayName?.[0] ?? 'PW'} onSaved={profile.retry} />
         <form className="customer-profile-form" onSubmit={submit}>
           <Input label="Họ và tên" value={displayName} onChange={event => {
             setDraft({ value: event.target.value, version: profile.data.version });

@@ -6,7 +6,7 @@ const STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'];
 export function sitterApplicationModels(connection) {
   const documentSchema = new Schema({
     documentId: { type: String, required: true },
-    documentType: { type: String, enum: ['IDENTITY', 'CERTIFICATE', 'OTHER'], required: true },
+    documentType: { type: String, enum: ['IDENTITY', 'IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT', 'CERTIFICATE', 'OTHER'], required: true },
     storageRef: { type: String, required: true, select: false }
   }, { _id: false, versionKey: false, strict: 'throw' });
 

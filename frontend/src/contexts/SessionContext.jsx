@@ -88,8 +88,9 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
-export function useSession() {
+export function useSession({ optional = false } = {}) {
   const session = useContext(SessionContext);
+  if (!session && optional) return { status: 'guest', user: null };
   if (!session) throw new Error('SessionProvider required');
   return session;
 }
