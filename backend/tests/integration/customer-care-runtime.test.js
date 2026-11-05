@@ -79,6 +79,16 @@ test('confirmed map address is shared with care setup, owner notes remain scoped
   const update = { ...address, location: 'Updated synthetic street', expectedVersion: 0 };
   await request(app).patch(`/api/v1/pet-care/addresses/${addressId}`).set(headers(owner, 'synthetic-address-update')).send(update).expect(200);
   const url = `/api/v1/pet-care/addresses/${addressId}/archives`;
+  const visit = { customerId: new mongoose.Types.ObjectId(owner.user.id), addressId: new mongoose.Types.ObjectId(addressId),
+    petIds: [new mongoose.Types.ObjectId(petId)], state: 'SCHEDULED' };
+  const reservation = await connection.collection('visits').insertOne(visit);
+  for (const [path, version, key] of [[url, 1, 'archive-active-address'], [`/api/v1/pet-care/pets/${petId}/archives`, 2, 'archive-active-pet']]) {
+    const denied = await request(app).post(path).set(headers(owner, key)).send({ expectedVersion: version }).expect(409);
+    expect(denied.body.error.code).toBe('ACTIVE_BOOKING_CONFLICT');
+  }
+  expect((await connection.models.CustomerAddress.findById(addressId).lean()).state).toBe('ACTIVE');
+  expect((await connection.models.Pet.findById(petId).lean()).state).toBe('ACTIVE');
+  await connection.collection('visits').updateOne({ _id: reservation.insertedId }, { $set: { state: 'COMPLETED' } });
   for (let i = 0; i < 2; i++) await request(app).post(url).set(headers(owner, 'synthetic-address-archive')).send({ expectedVersion: 1 }).expect(200);
   expect((await request(app).get('/api/v1/pet-care/addresses').set(headers(owner)).expect(200)).body.data).toEqual([]);
 });

@@ -84,7 +84,6 @@ export function ProductDetailsPage() {
       <p className="pwc-photo-credits"><a href="/assets/products/credits.html">Ảnh minh họa sản phẩm và nguồn ảnh</a></p>
       <p>{product.description || 'Chưa có mô tả cho sản phẩm này.'}</p>
       <dl className="pwc-shop-facts">
-        <dt>Mã sản phẩm</dt><dd>{product.code}</dd>
         <dt>Danh mục</dt><dd>{PRODUCT_CATEGORY_LABELS[product.category]}</dd>
         <dt>Dành cho</dt><dd>{PRODUCT_PET_LABELS[product.petType]}</dd>
       </dl>

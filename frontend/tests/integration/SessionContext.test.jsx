@@ -8,6 +8,25 @@ function Probe() {
     <button onClick={() => session.logout()}>Logout</button></>;
 }
 
+test('confirmed profile presentation updates do not reload routes or change identity and roles', async () => {
+  const adapter = { resolve: jest.fn(async () => ({ status: 'authenticated', user })) };
+  function ProfileProbe() {
+    const session = useSession();
+    return <><output>{JSON.stringify({ status: session.status, user: session.user })}</output>
+      <button onClick={() => session.updateDisplayName({ id: user.id, displayName: 'Updated', roles: ['ADMIN'] })}>Save name</button>
+      <button onClick={() => session.updateDisplayName({ id: 'another-user', displayName: 'Foreign' })}>Foreign profile</button></>;
+  }
+  render(<SessionProvider adapter={adapter}><ProfileProbe /></SessionProvider>);
+  await screen.findByText(/Customer/);
+  fireEvent.click(screen.getByText('Save name'));
+  expect(screen.getByRole('status')).toHaveTextContent('Updated');
+  expect(screen.getByRole('status')).toHaveTextContent('CUSTOMER');
+  expect(screen.getByRole('status')).not.toHaveTextContent('ADMIN');
+  fireEvent.click(screen.getByText('Foreign profile'));
+  expect(screen.getByRole('status')).not.toHaveTextContent('Foreign');
+  expect(adapter.resolve).toHaveBeenCalledTimes(1);
+});
+
 test('a slow initial session read cannot undo successful login', async () => {
   let finish;
   const adapter = { resolve: jest.fn(() => new Promise(resolve => { finish = resolve; })),

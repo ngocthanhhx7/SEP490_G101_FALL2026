@@ -44,6 +44,15 @@ function appFixture({ authenticated = false } = {}) {
 }
 
 describe('auth route module HTTP contract', () => {
+  test.each(['/otp-challenges', '/otp-verifications', '/sessions'])('invalid %s uses the error envelope, not a success DTO', async path => {
+    const { server, otpService } = appFixture();
+    const response = await request(server).post('/api/v1' + path).send({ unknown: true }).expect(422);
+    expect(response.body.error).toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(response.body.data).toBeUndefined();
+    expect(response.body.meta.correlationId).toBe(response.headers['x-request-id']);
+    expect(otpService.begin).not.toHaveBeenCalled();
+    expect(otpService.verify).not.toHaveBeenCalled();
+  });
   test('keeps SMS registration gated and validates the remember-device flag', async () => {
     const { server, otpService } = appFixture();
     await request(server).post('/api/v1/otp-challenges').send({ channel: 'PHONE', contact: '+84912345678', purpose: 'REGISTER' }).expect(503);

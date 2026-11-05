@@ -11,6 +11,15 @@ function renderPage(adapter) {
   </MemoryRouter>);
 }
 
+test.each([[403, 'ACCOUNT_LOCKED', 'Tài khoản đã bị khóa'], [505, 'HTTP_ERROR', 'phiên bản HTTP'], [500, 'HTTP_ERROR', 'Máy chủ gặp lỗi xử lý']])('shows distinct %s login feedback', async (status, code, message) => {
+  const adapter = { resolve: async () => ({ status: 'guest' }), requestLoginOtp: jest.fn().mockRejectedValue({ status, code, message: 'private upstream detail' }) };
+  renderPage(adapter);
+  fireEvent.change(await screen.findByRole('textbox', { name: 'Email' }), { target: { value: 'synthetic@example.test' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent(message);
+  expect(screen.queryByText('private upstream detail')).not.toBeInTheDocument();
+});
+
 test('requests a login OTP and verifies it before navigating the customer home', async () => {
   const adapter = {
     resolve: jest.fn(async () => ({ status: 'guest' })),

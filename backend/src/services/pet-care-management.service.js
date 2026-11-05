@@ -217,6 +217,13 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
         const doc = await Model.findOneAndUpdate({ _id: resourceId, ownerId, state: 'ACTIVE', version: body.expectedVersion },
           { $set: { state: 'ARCHIVED' }, $inc: { version: 1 } }, { returnDocument: 'after', session });
         if (!doc) fail('VERSION_CONFLICT', 'Owned active record unavailable or changed', 409);
+        // The archive write and checkout's bookingGuard share this document,
+        // serializing archive versus booking before the dependency check.
+        const linkedVisit = await repository.connection.db.collection('visits').findOne({
+          ...(kind === 'pet' ? { petIds: { $in: [doc._id, String(doc._id)] } } : { addressId: { $in: [doc._id, String(doc._id)] } }),
+          state: { $nin: ['COMPLETED', 'CANCELLED', 'STAFF_CLOSED', 'SUPERSEDED'] }
+        }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });
+        if (linkedVisit) fail('ACTIVE_BOOKING_CONFLICT', 'Record is used by an unfinished visit', 409);
         return { id: String(doc._id), version: doc.version };
       });
     }

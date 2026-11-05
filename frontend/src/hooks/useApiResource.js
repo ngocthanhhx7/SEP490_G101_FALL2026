@@ -16,7 +16,8 @@ export function useApiResource(load) {
         data: result.data, meta: result.meta });
     }).catch((error) => {
       if (controller.signal.aborted || generation.current !== current) return;
-      setState({ status: error.status === 403 ? 'forbidden' : 'error', code: error.code });
+      setState({ status: error.status === 403 ? 'forbidden' : 'error', code: error.code,
+        httpStatus: error.status, retryAfterSeconds: error.retryAfterSeconds, correlationId: error.correlationId });
     });
     return () => controller.abort();
   }, [load, revision]);

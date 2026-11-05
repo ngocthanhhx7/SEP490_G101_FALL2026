@@ -19,6 +19,7 @@ const blankProfile = () => Object.fromEntries(Object.keys(careLabels).map(key =>
 const newPet = () => ({ name: '', species: 'DOG', breedCode: '', weightKg: '', ageMonths: '', sex: 'UNKNOWN', traits: [], careNeedsConfirmed: false, careProfile: blankProfile() });
 const newAddress = () => ({ label: '', location: '', areaCode: '', coordinates: ['', ''], pointConfirmed: false, privateAccessNotes: '' });
 const errorMessage = error => ({ VERSION_CONFLICT: 'Thông tin đã thay đổi. Tải lại danh sách trước khi sửa tiếp.',
+  ACTIVE_BOOKING_CONFLICT: 'Không thể xóa hồ sơ đang được dùng trong buổi chăm chưa kết thúc. Vui lòng hoàn tất hoặc hủy lịch trước.',
   CSRF_NOT_READY: 'Phiên bảo mật chưa sẵn sàng. Vui lòng đăng nhập lại.', UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn.',
   FORBIDDEN: 'Tài khoản không được phép thực hiện yêu cầu này.', VALIDATION_FAILED: 'Kiểm tra các thông tin và vị trí đã nhập.',
   ADDRESS_CONFIRMATION_REQUIRED: 'Cần xác nhận đúng vị trí ghim.' })[error?.code] ?? 'Chưa nhận được kết quả từ máy chủ. Vui lòng thử lại.';
@@ -108,7 +109,7 @@ export function CustomerCarePage({ kind = 'pets', api: suppliedApi }) {
         : await api.save(kind, operation.id, operation.body, operation.key);
       if (result.pending) { setUncertain(true); return; }
       attempt.current = null; setUncertain(false); setEditor(null); setDraft(null); setArchive(null);
-      setSaved(operation.type === 'archive' ? `Đã ẩn ${noun}. Lịch sử đặt dịch vụ được giữ nguyên.` : `Đã lưu ${noun}.`); resource.retry();
+      setSaved(operation.type === 'archive' ? `Đã xóa ${noun} khỏi danh sách. Lịch sử đặt dịch vụ được giữ nguyên.` : `Đã lưu ${noun}.`); resource.retry();
     } catch (failure) {
       if (['TIMEOUT', 'NETWORK_ERROR', 'ABORTED'].includes(failure.code) || failure.status >= 500) setUncertain(true);
       else { setUncertain(false); attempt.current = null; setError(errorMessage(failure)); }
@@ -146,16 +147,16 @@ export function CustomerCarePage({ kind = 'pets', api: suppliedApi }) {
       {pets && <p>{row.careNeedsConfirmed ? 'Đã xác nhận nhu cầu chăm sóc' : 'Cần xác nhận nhu cầu chăm sóc'}</p>}
       {!pets && row.privateAccessNotes && <p>{row.privateAccessNotes}</p>}
       <div className="customer-care__actions"><Button variant="secondary" onClick={() => edit(row)} disabled={busy || uncertain}><Pencil size={16} />Sửa hồ sơ</Button>
-        <Button variant="ghost" onClick={() => { setArchive(row); setError(''); }} disabled={busy || uncertain}><Archive size={16} />Ẩn {noun}</Button></div>
+        <Button variant="ghost" onClick={() => { setArchive(row); setError(''); }} disabled={busy || uncertain}><Archive size={16} />Xóa {noun}</Button></div>
     </li>)}</ul>
     {editor && draft && catalog && <form className="customer-care__form" onSubmit={save}>
       <div className="customer-care__wide customer-care__actions"><h2>{editor.id ? 'Cập nhật' : 'Thêm'} {noun}</h2><Button variant="ghost" type="button" onClick={close} disabled={busy || uncertain}><X size={18} />Đóng</Button></div>
       {pets ? <CareForm draft={draft} change={setDraft} catalog={catalog} disabled={busy || uncertain} /> : <AddressForm draft={draft} change={setDraft} catalog={catalog} api={api} disabled={busy || uncertain} />}
       <div className="customer-care__wide customer-care__actions"><Button type="submit" loading={busy} disabled={uncertain || (!pets && !catalog.workAreas.length)}>Lưu {noun}</Button><Button type="button" variant="secondary" onClick={close} disabled={busy || uncertain}>Hủy</Button></div>
     </form>}
-    <Dialog open={Boolean(archive)} title={`Ẩn ${noun} này?`} onClose={() => { if (!busy && !uncertain) setArchive(null); }} dismissible={!busy && !uncertain}>
-      <p>Không thể chọn hồ sơ này cho lịch mới. Các lịch đã đặt giữ nguyên thông tin tại thời điểm đặt.</p>
-      <Button variant="danger" disabled={busy || uncertain} onClick={() => start({ type: 'archive', id: archive.id, version: archive.version })}>Xác nhận ẩn</Button>
+    <Dialog open={Boolean(archive)} title={`Xóa ${noun} này?`} onClose={() => { if (!busy && !uncertain) setArchive(null); }} dismissible={!busy && !uncertain}>
+      <p>Không thể xóa khi còn buổi chăm chưa kết thúc. Hồ sơ đã xóa không dùng cho lịch mới; lịch sử đã đặt được giữ nguyên.</p>
+      <Button variant="danger" disabled={busy || uncertain} onClick={() => start({ type: 'archive', id: archive.id, version: archive.version })}>Xác nhận xóa</Button>
       {error && <Notice state="error" title={error} />}
       {uncertain && <Notice state="pending" title="Chưa xác định kết quả"><Button disabled={busy} onClick={() => execute(attempt.current)}>Kiểm tra lại cùng yêu cầu</Button></Notice>}
     </Dialog>

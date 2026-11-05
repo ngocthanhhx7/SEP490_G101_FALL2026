@@ -217,7 +217,7 @@ export function ProductManagementPage({ api }) {
     return (event) => { setter(event.target.value); setPage(1); setNotice(null); };
   }
   function saved(product, { created }) {
-    setEditing({ product });
+    setEditing(null);
     setNotice({ kind: 'ok', text: productMessage('MSG115', { code: product.code }) });
     // A new code is the highest, so it is on the last page of the unfiltered list.
     if (created && !filtered) setPage(Math.max(1, Math.ceil(((pageMeta?.total ?? 0) + 1) / PRODUCT_PAGE_SIZE)));
