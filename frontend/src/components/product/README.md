@@ -12,3 +12,5 @@ Reusable pieces of the Customer product shop: `ProductCard`, `ProductPhoto` (pho
 `HomeProductPreview` loads published products only when Home's product mode is
 selected. `QuantityStepper` enforces the API's 99-per-line ceiling in addition to
 available stock. `ProductPhoto` falls back to the brand mark for broken images.
+
+`ProductCard` adapts Figma 2:3052: database image/name/description/price, dashed footer and explicit cart button. Guest clicks preserve the product on login; confirmed writes update the shared cart, unknown replies require checking/reloading. Styling stays in product-shop.css without competing legacy card overrides.

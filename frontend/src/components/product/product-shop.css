@@ -92,3 +92,20 @@
   .pwc-shop-cart-table td:first-child { grid-column: 1 / -1; }
   .pwc-shop-cart-table td:nth-child(2) { display: none; }
 }
+
+/* Product card from Figma 2:3052; photos and copy remain database supplied. */
+.pwc-product-card { border:0; border-radius:32px; padding:24px; gap:8px; color:#211a13; }
+.pwc-product-card .pwc-shop-photo { border-radius:8px; aspect-ratio:83 / 80; }
+.pwc-product-card .pwc-shop-card-title { padding-top:16px; font:700 20px/28px 'Nunito',sans-serif; min-height:0; }
+.pwc-product-card .pwc-shop-card-title a { color:inherit; text-decoration:none; }
+.pwc-product-card .pwc-shop-card-title a:hover { text-decoration:underline; }
+.pwc-product-card .pwc-shop-card-caption { margin:0; padding-bottom:8px; font:500 18px/28px 'Nunito',sans-serif; color:#584235; min-height:64px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.pwc-product-card .pwc-shop-card-meta { border-top:2px dashed #e5e2e1; padding-top:18px; margin-top:auto; gap:12px; }
+.pwc-product-card .pwc-shop-price { color:#211a13; font:800 24px/32px 'Nunito',sans-serif; }
+.pwc-product-add { display:inline-flex; align-items:center; justify-content:center; flex:none; padding:14px; border:2px solid #ffcd34; border-radius:8px; background:#ffcd34; cursor:pointer; }
+.pwc-product-add img { display:block; }
+.pwc-product-add:disabled { opacity:.5; cursor:default; }
+.pwc-product-add:focus-visible { outline:3px solid #7351ac; outline-offset:3px; }
+.pwc-product-card-feedback { font-size:.875rem; margin:0; color:#5a387f; }
+.pwc-product-card-feedback.is-error { color:#a22d24; }
+@media(max-width:25rem) { .pwc-product-card { padding:18px; } .pwc-product-card .pwc-shop-price { font-size:22px; } }

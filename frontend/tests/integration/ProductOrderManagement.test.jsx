@@ -39,7 +39,7 @@ describe('Order Management', () => {
     expect(screen.getByRole('button', { name: 'Đang giao (2)' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Đang hoàn về (1)' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Tất cả' })).toBeVisible();
-    expect(api.listOrders).toHaveBeenCalledWith({ tab: 'PREPARE', search: '' }, expect.any(Object));
+    expect(api.listOrders).toHaveBeenCalledWith({ page: 1, tab: 'PREPARE', search: '' }, expect.any(Object));
     const panel = detail('DH-0032');
     expect(within(panel).getByText('Hoàng Thị Mai')).toBeVisible();
     expect(within(panel).getByText('45 Láng Hạ, Đống Đa, Hà Nội')).toBeVisible();
@@ -56,9 +56,9 @@ describe('Order Management', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xem đơn DH-0034' }));
     expect(detail('DH-0034')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Đang giao (2)' }));
-    await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ tab: 'IN_TRANSIT', search: '' }, expect.any(Object)));
+    await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ page: 1, tab: 'IN_TRANSIT', search: '' }, expect.any(Object)));
     fireEvent.change(screen.getByRole('searchbox', { name: SEARCH_LABEL }), { target: { value: ' mai ' } });
-    await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ tab: 'IN_TRANSIT', search: 'mai' }, expect.any(Object)));
+    await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ page: 1, tab: 'IN_TRANSIT', search: 'mai' }, expect.any(Object)));
   });
 
   test('AC-19 (D-236) searches by phone number and shows the customer phone in the order detail', async () => {
@@ -70,7 +70,7 @@ describe('Order Management', () => {
     // D-236: the Admin sees the number as 0912 345 678.
     expect(within(detail('DH-0032')).getByText('0912 345 678')).toBeVisible();
     fireEvent.change(screen.getByRole('searchbox', { name: SEARCH_LABEL }), { target: { value: ' 0912 345 678 ' } });
-    await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ tab: 'PREPARE', search: '0912 345 678' }, expect.any(Object)));
+    await waitFor(() => expect(api.listOrders).toHaveBeenLastCalledWith({ page: 1, tab: 'PREPARE', search: '0912 345 678' }, expect.any(Object)));
   });
 
   test('AC-19 says so when the customer has no phone number', async () => {

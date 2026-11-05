@@ -7,10 +7,10 @@ const code = (fn) => { try { fn(); } catch (error) { return error.code; } return
 
 describe('parseManagementListQuery', () => {
   test('defaults to every order and normalises the search text', () => {
-    expect(parseManagementListQuery({})).toEqual({ tab: 'ALL', limit: 20 });
+    expect(parseManagementListQuery({})).toEqual({ page: 1, tab: 'ALL', limit: 20 });
     expect(parseManagementListQuery({ tab: 'PREPARE', search: '  Hoàng   Mai ', limit: '5' }))
-      .toEqual({ tab: 'PREPARE', search: 'Hoàng Mai', limit: 5 });
-    expect(parseManagementListQuery({ search: '   ' })).toEqual({ tab: 'ALL', limit: 20 });
+      .toEqual({ page: 1, tab: 'PREPARE', search: 'Hoàng Mai', limit: 5 });
+    expect(parseManagementListQuery({ search: '   ' })).toEqual({ page: 1, tab: 'ALL', limit: 20 });
   });
 
   test('AC-19 reads a whole phone number in the search as its +84 form and ignores partial numbers', () => {

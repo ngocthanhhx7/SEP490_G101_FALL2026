@@ -1,8 +1,5 @@
-import {
-  OperationsMetrics,
-  OperationsTable,
-  OperationsBadge,
-} from '../../components/common/OperationsWorkspace.jsx';
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
+import { OperationsMetrics, OperationsTable, OperationsBadge } from '../../components/common/OperationsWorkspace.jsx';
 import { Dialog } from '../../components/ui/index.js';
 import { useEffect, useRef, useState } from 'react';
 import { pendingAdminSettlementApi } from '../../services/admin-settlement-api.js';
@@ -365,27 +362,16 @@ export default function AdminSettlementsPage({ api = pendingAdminSettlementApi }
             },
           ]}
         />
-        <nav className="ops-toolbar" aria-label="Phân trang tất toán">
-          <button
-            disabled={locked || !pages.length}
-            onClick={() => {
+        <CursorPagination page={pages.length + 1} label="tất toán" hasNext onFirst={() => { setCursor(null); setPages([]); }}
+ onPrevious={() => {
               setCursor(pages.at(-1));
               setPages((p) => p.slice(0, -1));
-            }}
-          >
-            Trang trước
-          </button>
-          <span>Trang {pages.length + 1}</span>
-          <button
-            disabled={locked || !data?.nextCursor}
-            onClick={() => {
+            }} onNext={() => {
               setPages((p) => [...p, cursor]);
               setCursor(data.nextCursor);
             }}
-          >
-            Trang tiếp
-          </button>
-        </nav>
+ previousDisabled={locked || !pages.length} nextDisabled={locked || !data?.nextCursor}
+ previousLabel={"Trang trước"} nextLabel={"Trang tiếp"} />
       </section>
       {active && (
         <Dialog

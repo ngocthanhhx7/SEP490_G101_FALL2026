@@ -1,3 +1,4 @@
+import { CursorPagination } from '../ui/Pagination.jsx';
 import { useState } from 'react';
 import { PrintDocument } from '../common/PrintDocument.jsx';
 import './payroll.css';
@@ -35,9 +36,8 @@ export function PayrollLoadState({ state }) {
 }
 export function PayrollPager({ label, pages, setPages, nextCursor, busy }) {
   if (pages.length === 1 && !nextCursor) return null;
-  return <nav className="payroll-pagination" aria-label={`Phân trang ${label}`}>
-    <button type="button" disabled={busy || pages.length < 2} aria-label={`Trang trước ${label}`} title="Trang trước" onClick={() => setPages(current => current.slice(0, -1))}>&larr;</button>
-    <span>Trang {pages.length}</span>
-    <button type="button" disabled={busy || !nextCursor} aria-label={`Trang tiếp ${label}`} title="Trang tiếp" onClick={() => setPages(current => [...current, nextCursor])}>&rarr;</button>
-  </nav>;
+  return <CursorPagination page={pages.length} label={label} hasNext onFirst={() => setPages(current => current.slice(0, 1))}
+ onPrevious={() => setPages(current => current.slice(0, -1))} onNext={() => setPages(current => [...current, nextCursor])}
+ previousDisabled={busy || pages.length < 2} nextDisabled={busy || !nextCursor}
+ previousLabel={`Trang trước ${label}`} nextLabel={`Trang tiếp ${label}`} />;
 }

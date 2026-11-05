@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiResource } from '../../hooks/useApiResource.js';
-import { Notice, Button } from '../../components/ui/index.js';
+import { Notice, Button, Pagination } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
 import { MarkReturningDialog, ConfirmReturnedDialog } from '../../components/product/OrderReturnDialogs.jsx';
 import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_RETURN_REASON_LABELS } from '../../constants/product-labels.js';
@@ -107,6 +107,7 @@ function OrderDetail({ order, busy, run, api }) {
 // Order Management for Admin. The backend owns every status change and stock effect; this page only asks for them.
 export function ProductOrderManagementPage({ api }) {
   const [tab, setTab] = useState('PREPARE');
+  const [page, setPage] = useState(1);
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState(null);
@@ -115,11 +116,11 @@ export function ProductOrderManagementPage({ api }) {
   const lock = useRef(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchText.trim()), SEARCH_DELAY_MS);
+    const timer = setTimeout(() => { setSearch(searchText.trim()); setPage(1); }, SEARCH_DELAY_MS);
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  const load = useCallback(({ signal }) => api.listOrders({ tab, search }, { signal }), [api, tab, search]);
+  const load = useCallback(({ signal }) => api.listOrders({ tab, search, page }, { signal }), [api, tab, search, page]);
   const resource = useApiResource(load);
   const orders = resource.data ?? [];
   const counts = resource.meta?.counts;
@@ -148,7 +149,7 @@ export function ProductOrderManagementPage({ api }) {
     <p className="pwc-shop-lead">Chuẩn bị, giao và theo dõi đơn hàng online.</p>
     <div className="pwc-shop-chip-row" role="group" aria-label="Lọc đơn theo trạng thái">
       {TABS.map(([key, label]) => <button key={key} type="button" className="pwc-shop-chip" aria-pressed={tab === key}
-        onClick={() => { setTab(key); setNotice(null); }}>
+        onClick={() => { setTab(key); setPage(1); setSelectedId(null); setNotice(null); }}>
         {label}{key !== 'ALL' && counts ? ` (${counts[key]})` : ''}</button>)}
     </div>
     <input type="search" className="pwc-shop-search" style={{ margin: '1rem 0' }} value={searchText} maxLength={100}
@@ -175,5 +176,7 @@ export function ProductOrderManagementPage({ api }) {
       </div>
       {selected && <OrderDetail order={selected} busy={busy} run={run} api={api} />}
     </div>}
+    {resource.meta?.page && <Pagination {...resource.meta.page} itemLabel="đơn hàng" disabled={busy}
+      onPageChange={next => { setPage(next); setSelectedId(null); }} />}
   </section>;
 }

@@ -1,3 +1,4 @@
+import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
 import { PRODUCT_ORDER_TAB_STATUSES, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
@@ -58,6 +59,7 @@ export function createProductOrderManagementService({ connection, phones, clock 
   const { Product, ProductOrder, ProductCustomerRefusal } = productSalesModels(connection);
   const User = userModel(connection);
   const unitOfWork = createUnitOfWork(connection);
+  const notifications = createDomainNotifications({ connection, clock });
 
   // Name and phone of each customer, by user id.
   async function customerDetails(customerIds) {
@@ -99,6 +101,7 @@ export function createProductOrderManagementService({ connection, phones, clock 
         }
       }
       await effects?.(order, session);
+      await notifications.productOrder({ order: result, previous: order }, session);
       return result;
     });
     return viewOf(updated);
@@ -107,7 +110,7 @@ export function createProductOrderManagementService({ connection, phones, clock 
   return Object.freeze({
     async list(actor, query) {
       requireOrderHandler(actor);
-      const { tab, search, phone, limit } = parseManagementListQuery(query);
+      const { tab, search, phone, limit, page } = parseManagementListQuery(query);
       const filter = {};
       if (tab !== 'ALL') filter.status = { $in: PRODUCT_ORDER_TAB_STATUSES[tab] };
       if (search) {
@@ -121,15 +124,16 @@ export function createProductOrderManagementService({ connection, phones, clock 
           { customerId: { $in: [...named.map((user) => user._id), ...owners] } }];
       }
       const direction = OLDEST_FIRST_TABS.has(tab) ? 1 : -1;
-      const [docs, grouped] = await Promise.all([
-        ProductOrder.find(filter).sort({ createdAt: direction, _id: direction }).limit(limit).lean(),
-        ProductOrder.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
+      const [docs, grouped, total] = await Promise.all([
+        ProductOrder.find(filter).sort({ createdAt: direction, _id: direction }).skip((page - 1) * limit).limit(limit).lean(),
+        ProductOrder.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+        ProductOrder.countDocuments(filter)
       ]);
       const customers = await customerDetails([...new Set(docs.map((doc) => String(doc.customerId)))]);
       const byStatus = new Map(grouped.map((row) => [row._id, row.count]));
       const counts = Object.fromEntries(Object.entries(PRODUCT_ORDER_TAB_STATUSES).map(([key, statuses]) =>
         [key, statuses.reduce((sum, status) => sum + (byStatus.get(status) ?? 0), 0)]));
-      return { items: docs.map((doc) => toAdminOrderView(doc, customers.get(String(doc.customerId)))), counts };
+      return { items: docs.map((doc) => toAdminOrderView(doc, customers.get(String(doc.customerId)))), counts, page, limit, total };
     },
     async read(actor, orderId) {
       requireOrderHandler(actor);

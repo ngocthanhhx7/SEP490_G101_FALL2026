@@ -4,21 +4,10 @@
 .pwc-shop h1 { font-family: 'FC DK Cool Crayon', var(--pwc-font-body, 'Nunito'), sans-serif; font-size: clamp(2rem, 4vw, 3rem); line-height: 1.2; }
 .pwc-shop-intro { padding: 1.25rem 1.5rem .25rem; margin-bottom: 1.5rem; border-radius: 1.25rem; background: #f2e6fc; }
 .pwc-shop-kicker { display: block; font-weight: 800; color: #60328b; margin-bottom: .6rem; }
-.pwc-shop-card { padding: 0; overflow: hidden; border-radius: .85rem; border-color: #e7ddeb; box-shadow: 0 5px 18px #42215c08; gap: .75rem; }
-.pwc-shop-card > :not(.pwc-shop-photo-link) { margin-inline: 1.2rem; }
 .pwc-shop-photo-link { display: block; overflow: hidden; }
-.pwc-shop-card .pwc-shop-photo { border-radius: 0; aspect-ratio: 4 / 3; }
 .pwc-shop-photo { position: relative; }
 .pwc-shop .pwc-shop-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transition: transform 180ms ease; }
 .pwc-shop-table-wrap { position: relative; min-width: 0; }
-.pwc-shop-card:hover .pwc-shop-photo img { transform: scale(1.025); }
-.pwc-shop-card > .pwc-shop-eyebrow { margin-top: .3rem; }
-.pwc-shop-card-title { font-size: 1.1rem; min-height: 2.6em; line-height: 1.35; }
-.pwc-shop-card-title a { color: inherit; text-decoration: none; }
-.pwc-shop-card-caption { color: #655b6d; font-size: .9rem; margin-block: 0; }
-.pwc-shop-card > .pwc-shop-outline-button { margin-bottom: 1.2rem; border-radius: .5rem; border-color: #e7ddeb; color: #30134e; background: #ffcd34; }
-.pwc-shop-card-meta { padding-top: .7rem; border-top: 1px solid #eee7f2; flex-wrap: wrap; }
-.pwc-shop-card-meta .pwc-shop-price { font-size: 1.25rem; color: #30134e; }
 .pwc-shop-badge.is-in { color: #246342; background: #e9f7f0; }
 .pwc-shop-empty { display: grid; justify-items: center; text-align: center; padding: 2rem 1rem 3rem; }
 .pwc-shop-empty > img { width: 10rem; height: 8rem; object-fit: cover; border-radius: 4rem; margin-bottom: 1rem; }
@@ -39,7 +28,6 @@
 .pwc-home-browse button[aria-pressed='true'] { background: #60328b; color: #fff; }
 .pwc-home-products.pwc-shop { padding: 0; max-width: none; }
 .pwc-home-products .pwc-shop-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2rem; }
-.pwc-home-products .pwc-shop-card-title { font-family: 'Nunito', sans-serif; font-size: 1.35rem; font-weight: 800; }
 .pwc-shop button:focus-visible, .pwc-shop a:focus-visible, .pwc-home-browse button:focus-visible { outline: 3px solid #60328b; outline-offset: 4px; }
 .pwc-shop input, .pwc-shop select { font-size: 1rem; }
 @media (max-width: 62rem) { .pwc-home-products .pwc-shop-grid { gap: 1rem; } .pwc-shop-summary { position: static; } }
