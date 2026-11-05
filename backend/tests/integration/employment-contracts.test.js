@@ -36,12 +36,12 @@ test('immutable encrypted document is issued, actually signed then activated ato
   const employeeId=oid();
   await connection.transaction(async session=>{const application=await connection.collection('sitterapplications').findOne({_id:appId},{session});await service.activate(application,employeeId,admin,session);});
   const contract=await connection.models.EmploymentContract.findOne({employeeId}).lean();
-  expect(contract).toMatchObject({employeeCode:draft.employeeCode,monthlyBaseVnd:10000000,schedule:{weekdays:[1,2,3,4,5],dailyMinutes:480},version:1});
+  expect(contract).toMatchObject({employeeCode:draft.employeeCode,monthlyBaseVnd:10000000,workScheduleMode:'SELF_REGISTERED',minimumWeeklyMinutes:2400,weeklyMinutes:2400,version:1});
   expect((await service.get(admin,String(appId))).current.state).toBe('ACTIVATED');
   await expect(service.get({...admin,roles:['STAFF']},String(appId))).rejects.toMatchObject({code:'FORBIDDEN'});
 });
 test('contract legal bounds reject missing terms, below-floor pay, excess hours and overlong fixed term',()=>{
-  for(const over of [{employerName:''},{monthlyBaseVnd:1000000},{dailyMinutes:481},{termType:'FIXED',effectiveOn:'2026-11-06',endsOn:'2030-11-06'}])
+  for(const over of [{employerName:''},{monthlyBaseVnd:1000000},{weekdays:[1,2,3,4,5]},{termType:'FIXED',effectiveOn:'2026-11-06',endsOn:'2030-11-06'}])
     expect(()=>employmentTermsInput(employmentTerms(over),clock())).toThrow();
 });
 test('payroll derives calendar and allowances without treating absent service work as absent attendance; source changes conflict',async()=>{
@@ -61,4 +61,29 @@ test('payroll derives calendar and allowances without treating absent service wo
   expect(await payroll.prepareAutomaticStatement(admin,{input,sourceHash:preview.sourceHash},'synthetic-auto-payroll')).toEqual(saved);
   await expect(payroll.prepareAutomaticStatement(admin,{input,sourceHash:preview.sourceHash},'synthetic-stale-payroll')).rejects.toMatchObject({code:'PAYROLL_SOURCE_CHANGED'});
   await expect(payroll.previewStatement(admin,{...input,statutoryConfirmed:false})).rejects.toMatchObject({code:'PAYROLL_EVIDENCE_REQUIRED'});
+});
+
+test('minimum-only contracts fix 40/20 hours without weekday requirements or caller overrides',()=>{
+  for(const [employmentType,minutes] of [['FULL_TIME',2400],['PART_TIME',1200]]) {
+    const terms=employmentTermsInput(employmentTerms({employmentType,monthlyBaseVnd:employmentType==='FULL_TIME'?10000000:3000000}),clock());
+    expect(terms).toMatchObject({workScheduleMode:'SELF_REGISTERED',minimumWeeklyMinutes:minutes,weeklyMinutes:minutes});
+    expect(terms.weekdays).toBeUndefined();expect(terms.dailyMinutes).toBeUndefined();
+  }
+  expect(()=>employmentTermsInput(employmentTerms({minimumWeeklyMinutes:1}),clock())).toThrow();
+});
+test('minimum-hours payroll pays whole month without registration; partial/unpaid time requires a verified assessment',async()=>{
+  const payroll=createPayrollService({connection,clock:()=>new Date('2026-12-01T03:00:00Z'),policy:employeePayrollPolicyResolver});
+  const employeeId=oid();await connection.collection('users').insertOne({_id:employeeId,roles:['PET_SITTER'],state:'ACTIVE',displayName:'Synthetic self registration'});
+  await payroll.models.EmploymentContract.create({employeeId,version:1,employmentType:'PART_TIME',salaryBasis:'GROSS',monthlyBaseVnd:3000000,monthlyAllowanceVnd:100000,payCycle:'MONTHLY',weeklyMinutes:1200,
+    minimumWeeklyMinutes:1200,workScheduleMode:'SELF_REGISTERED',effectiveAt:new Date('2026-10-01'),signedAt:new Date('2026-09-30'),contractReference:'SYNTHETIC-MINIMUM',workplaceRegion:1,workplaceReference:'Synthetic I',verifiedBy:admin.userId,recordedAt:new Date()});
+  const input={employeeId:String(employeeId),periodStart:'2026-11-01',periodEnd:'2026-12-01',dueAt:'2026-12-05',unpaidMinutes:0,attendanceReference:'synthetic-timecard',attendanceConfirmed:true,
+    statutoryReference:'synthetic-statutes',statutoryConfirmed:true,overtimeVnd:0,employeeInsuranceVnd:0,incomeTaxVnd:0,otherLawfulDeductionsVnd:0,deductionConsentReference:'synthetic-none'};
+  const preview=await payroll.previewStatement(admin,input);
+  expect(preview).toMatchObject({scheduleBasis:'MONTHLY_MINIMUM_COMMITMENT',minimumWeeklyMinutes:1200,calendar:[],breakdown:{baseVnd:3000000,allowanceVnd:100000,payableVnd:3100000}});
+  expect((await payroll.payrollEmployees(admin)).items.find(row=>row.id===String(employeeId)).automaticReady).toBe(true);
+  await connection.collection('employeeavailabilities').insertOne({_id:String(employeeId),workingWindows:[],version:0});
+  expect((await payroll.previewStatement(admin,input)).sourceHash).toBe(preview.sourceHash);
+  await expect(payroll.previewStatement(admin,{...input,unpaidMinutes:1})).rejects.toMatchObject({code:'PAYROLL_ATTENDANCE_REVIEW_REQUIRED'});
+  await expect(payroll.previewStatement(admin,{...input,periodStart:'2026-11-02'})).rejects.toMatchObject({code:'PAYROLL_ATTENDANCE_REVIEW_REQUIRED'});
+  expect((await payroll.prepareAutomaticStatement(admin,{input,sourceHash:preview.sourceHash},'synthetic-minimum-payroll')).status).toBe('PREPARED');
 });
