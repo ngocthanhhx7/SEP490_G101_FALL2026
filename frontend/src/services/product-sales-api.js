@@ -1,3 +1,4 @@
+import { readPagination } from './pagination-response.js';
 import { ApiError, createApiClient } from './api-client.js';
 
 const CATEGORIES = ['FOOD', 'ACCESSORY'];
@@ -86,10 +87,13 @@ export function createProductSalesApi(options) {
       const response = notPending(await request('/product-orders', { method: 'POST', body, idempotencyKey }));
       return checkOrder(response.data);
     },
-    async listOrders({ signal } = {}) {
-      const response = await request('/product-orders', { signal });
+    async getOrder(orderId, { signal } = {}) {
+      return { data: checkOrder((await request(`/product-orders/${encodeURIComponent(orderId)}`, { signal })).data) };
+    },
+    async listOrders({ signal, page = 1, limit = 20 } = {}) {
+      const response = await request(`/product-orders?page=${page}&limit=${limit}`, { signal });
       if (!Array.isArray(response.data?.items)) invalid();
-      return { ...response, data: response.data.items.map(checkOrder) };
+      return { ...response, data: response.data.items.map(checkOrder), meta: { ...response.meta, page: readPagination(response.data) } };
     }
   };
 }

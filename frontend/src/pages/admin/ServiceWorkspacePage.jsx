@@ -1,3 +1,4 @@
+import { Pagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { Plus, RefreshCw, Pencil, Eye, Archive, CircleDollarSign, Percent, FileText } from 'lucide-react';
 import { RowActionMenu } from '../../components/common/RowActionMenu.jsx';
@@ -156,8 +157,8 @@ export function ServiceWorkspacePage({ apiRequest }) {
                 ({ label, icon, disabled: mode === 'archive' && row.state === 'ARCHIVED', onClick: () => open(mode, row) }))} /></td></tr>)}
             {!filtered.length && <tr><td colSpan={6} className="workspace-empty">Không có dịch vụ phù hợp</td></tr>}
           </tbody></table></div>
-        <div className="workspace-pagination"><span>{filtered.length} dịch vụ · Trang {current} / {pages}</span><div><Select label="Số dòng" value={size} onChange={e => { setSize(Number(e.target.value)); setPage(1); }}>{[10, 20, 50].map(value => <option key={value} value={value}>{value}</option>)}</Select>
-          <Button variant="secondary" disabled={current === 1} onClick={() => setPage(current - 1)}>Trước</Button><Button variant="secondary" disabled={current === pages} onClick={() => setPage(current + 1)}>Tiếp theo</Button></div></div>
+        <label className="workspace-page-size">Số dòng <select aria-label="Số dòng" value={size} onChange={e => { setSize(Number(e.target.value)); setPage(1); }}>{[10,20,50].map(value => <option key={value}>{value}</option>)}</select></label>
+        <Pagination page={current} limit={size} total={filtered.length} itemLabel="dịch vụ" onPageChange={setPage} />
       </>}
     </section>
     <Dialog open={Boolean(dialog)} onClose={close} title={titles[dialog?.mode] ?? 'Dịch vụ'} className="workspace-dialog" intent={dialog?.mode === 'archive' ? 'destructive' : 'default'}>

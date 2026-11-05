@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { createApiClient, ApiError } from '../../services/api-client.js';
@@ -10,6 +11,7 @@ export function CustomerBookingsPage({ request: suppliedRequest }) {
   const { getCsrfToken } = useSession();
   const request = useMemo(() => suppliedRequest || createApiClient({ getCsrfToken }), [suppliedRequest, getCsrfToken]);
   const [cursor, setCursor] = useState(null);
+  const [history, setHistory] = useState([]);
   const load = useCallback(async ({ signal }) => {
     const result = await request('/bookings?limit=20' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : ''), { signal });
     const items = Array.isArray(result.data) ? result.data : result.data?.items;
@@ -27,9 +29,8 @@ export function CustomerBookingsPage({ request: suppliedRequest }) {
       <span>{labels[item.state] || item.state}</span>
       <a href={`/services?booking=${encodeURIComponent(item.id)}`}>Xem chi tiết</a>
     </li>)}</ul>}
-    <div className="customer-bookings__pagination">
-      {cursor && <Button variant="secondary" onClick={() => setCursor(null)}>Về đơn mới nhất</Button>}
-      {resource.meta?.nextCursor && <Button onClick={() => setCursor(resource.meta.nextCursor)}>Xem đơn cũ hơn</Button>}
-    </div>
+    <CursorPagination label="đơn chăm sóc" page={history.length + 1} hasNext={Boolean(resource.meta?.nextCursor)}
+      onFirst={() => { setHistory([]); setCursor(null); }} onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0,-1)); }}
+      onNext={() => { setHistory([...history,cursor]); setCursor(resource.meta.nextCursor); }} nextLabel="Xem đơn cũ hơn" />
   </section>;
 }

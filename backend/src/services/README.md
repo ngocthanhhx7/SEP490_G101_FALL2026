@@ -39,3 +39,5 @@ drafts. It never infers attendance from customer service hours or statutory
 obligations from missing data; see its component README.
 
 Sitter application service owns direct applicant reads and audited PENDING updates, with account/verified-contact ownership and the same state/version serialization as Admin review. It never promotes applicants from a self-edit.
+
+Product order lists page after authoritative role/owner filters. Domain notifications write recipient-scoped IN_APP product order placement/status/payment events in the same transaction. Stable order/version/recipient IDs deduplicate replay; state/stock/notification failures roll back together. No contact/address snapshot enters notifications.

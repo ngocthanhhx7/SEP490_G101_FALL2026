@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../sitter/sitter-public-profile.css';
@@ -37,6 +38,7 @@ export function SitterProfileReviewsPage({ api, userId }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [cursor, setCursor] = useState(null);
+  const [history, setHistory] = useState([]);
   const [revision, setRevision] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -53,8 +55,10 @@ export function SitterProfileReviewsPage({ api, userId }) {
     {data && <>
       {!data.items.length && <p>Không có hồ sơ chờ duyệt.</p>}
       {data.items.map(row => <ProfileReview key={`${row.userId}:${row.version}`} row={row} api={api} refresh={() => setRevision(value => value + 1)} />)}
-      {data.nextCursor && <button type="button" onClick={() => setCursor(data.nextCursor)}>Trang tiếp</button>}
-      {cursor && <button type="button" onClick={() => setCursor(null)}>Trang đầu</button>}
+      <CursorPagination page={history.length + 1} hasNext={Boolean(data.nextCursor)} nextLabel="Trang tiếp"
+        onFirst={() => { setCursor(null); setHistory([]); }} onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0,-1)); }}
+        onNext={() => { setHistory([...history,cursor]); setCursor(data.nextCursor); }} />
+
     </>}
   </section>;
 }

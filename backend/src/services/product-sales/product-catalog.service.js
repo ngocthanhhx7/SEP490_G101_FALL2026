@@ -12,6 +12,7 @@ export function toProductSummary(doc) {
     id: String(doc._id),
     code: doc.code,
     name: doc.name,
+    description: (doc.description ?? '').slice(0, 240),
     category: doc.category,
     petType: doc.petType,
     sellingPrice: doc.sellingPrice,

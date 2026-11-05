@@ -1,5 +1,6 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useState } from 'react';
-import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { Button } from '../../components/ui/index.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
@@ -17,9 +18,9 @@ export function StaffTravelMonitor({ api }) {
       <h3>{row.serviceName}</h3><p>{row.areaCode} · {new Date(row.startAt).toLocaleString('vi-VN')}</p>
       <p>Nhân viên: {row.sitterName || row.sitterId}</p><VisitTravel api={api} visitId={row.id} startAt={row.startAt} endAt={row.endAt} />
     </div></li>)}</ul>
-    <nav className="employee-scheduling__actions" aria-label="Trang ca di chuyển">
-      <Button variant="ghost" title="Trang ca di chuyển trước" aria-label="Trang ca di chuyển trước" disabled={!pages.length || resource.status === 'loading'} onClick={() => setPages(rows => rows.slice(0, -1))}><ChevronLeft size={18} /></Button>
-      <Button variant="ghost" title="Trang ca di chuyển sau" aria-label="Trang ca di chuyển sau" disabled={!resource.data?.nextCursor || resource.status !== 'success'} onClick={() => setPages(rows => [...rows, resource.data.nextCursor])}><ChevronRight size={18} /></Button>
-    </nav>
+    <CursorPagination page={pages.length + 1} label="ca di chuyển" hasNext onFirst={() => setPages([])}
+ onPrevious={() => setPages(rows => rows.slice(0, -1))} onNext={() => setPages(rows => [...rows, resource.data.nextCursor])}
+ previousDisabled={!pages.length || resource.status === 'loading'} nextDisabled={!resource.data?.nextCursor || resource.status !== 'success'}
+ previousLabel={"Trang ca di chuyển trước"} nextLabel={"Trang ca di chuyển sau"} />
   </section>;
 }

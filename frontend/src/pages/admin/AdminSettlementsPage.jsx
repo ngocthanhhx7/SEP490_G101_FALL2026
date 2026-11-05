@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { pendingAdminSettlementApi } from '../../services/admin-settlement-api.js';
 import './admin-settlements.css';
@@ -83,6 +84,7 @@ export default function AdminSettlementsPage({ api = pendingAdminSettlementApi }
   const [error, setError] = useState(null);
   const [revision, setRevision] = useState(0);
   const [cursor, setCursor] = useState(null);
+  const [history, setHistory] = useState([]);
   useEffect(() => {
     const controller = new AbortController();
     setData(null); setError(null);
@@ -102,8 +104,10 @@ export default function AdminSettlementsPage({ api = pendingAdminSettlementApi }
       {!data.items.length && <p>Chưa có yêu cầu tất toán.</p>}
       {data.items.map(row => <RequestCard key={`${row.id}:${row.version}`} row={row} api={api}
         disabled={!Array.isArray(data.decisionIds) || !!data.decisionIds.length} refresh={() => setRevision(value => value + 1)} />)}
-      {data.nextCursor && <button type="button" onClick={() => setCursor(data.nextCursor)}>Trang tiếp</button>}
-      {cursor && <button type="button" onClick={() => setCursor(null)}>Trang đầu</button>}
+      <CursorPagination page={history.length + 1} hasNext={Boolean(data.nextCursor)} nextLabel="Trang tiếp"
+        onFirst={() => { setCursor(null); setHistory([]); }} onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0,-1)); }}
+        onNext={() => { setHistory([...history,cursor]); setCursor(data.nextCursor); }} />
+
     </>}
   </section>;
 }

@@ -197,3 +197,7 @@ The API returns codes and English text; the frontend shows the Vietnamese wordin
 ## Demo data
 
 `npm run seed:products` prints the planned products (dry run). `npm run seed:products -- --apply` writes them to a development database only (`*_dev`, not production) and never overwrites an existing product. Nine synthetic products: eight Shown and `SP-0036` Hidden. Stock of `SP-0016`, `SP-0021` and `SP-0037` are sample numbers. Registered models get their collections and indexes from the normal deployment index command.
+
+## Product order pagination and notifications (2026-11-05)
+
+Customer and Admin order lists accept page (default 1) and limit (default 20, max 50), returning items/page/limit/total. Owner/role/search/tab filters apply before paging. Admin status counts remain global. Product placement and status/payment transitions write IN_APP notifications transactionally, deduplicated by order/version/recipient. Customer links select the owned order; active Admins receive new-order alerts. No SMS/email is enabled. See [Figma pagination and shopping verification](../testing/figma-pagination-shopping-2026-11-05.md).

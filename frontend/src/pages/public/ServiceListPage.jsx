@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { Pagination } from '../../components/ui/Pagination.jsx';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, X } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -26,6 +27,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
   const [params, setParams] = useSearchParams();
   const query = (params.get('q') ?? '').slice(0, 120);
   const setQuery = (value) => {
+    setPage(1);
     setParams(
       (previous) => {
         const next = new globalThis.URLSearchParams(previous);
@@ -40,6 +42,9 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
   const [category, setCategory] = useState('ALL');
   const [location, setLocation] = useState('ALL');
   const [sort, setSort] = useState('DEFAULT');
+  const [page, setPage] = useState(1);
+  const pageSize = 12;
+  useEffect(() => { setPage(1); }, [query, species, category, location, sort]);
   const hasFilters = query.trim() || species !== 'ALL' || category !== 'ALL' || location !== 'ALL';
   const resetFilters = () => { setQuery(''); setSpecies('ALL'); setCategory('ALL'); setLocation('ALL'); };
   const services = catalog.data?.services || [];
@@ -146,7 +151,8 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
           body="Danh mục sẽ hiển thị tại đây khi có dịch vụ công khai."
         />
       ) : filtered.length > 0 ? (
-        <PublicServiceCards services={filtered} />
+        <><PublicServiceCards services={filtered.slice((Math.min(page, Math.ceil(filtered.length / pageSize)) - 1) * pageSize, Math.min(page, Math.ceil(filtered.length / pageSize)) * pageSize)} />
+        <Pagination page={Math.min(page, Math.ceil(filtered.length / pageSize))} limit={pageSize} total={filtered.length} itemLabel="dịch vụ" onPageChange={setPage} /></>
       ) : (
         <CatalogEmpty
           title="Không tìm thấy dịch vụ phù hợp"

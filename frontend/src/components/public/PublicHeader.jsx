@@ -56,7 +56,7 @@ export function PublicHeader({ notificationTo } = {}) {
           aria-current={location.pathname === to && !location.hash ? 'page' : undefined}>{label}</Link>)}
       </nav>
       <div className="pwc-header-actions">
-        {productCart.enabled && <Link className="pwc-cart-link" to="/customer/cart"
+        {<Link className="pwc-cart-link" to="/customer/cart"
           aria-label={productCart.lineCount ? `Giỏ hàng, ${productCart.lineCount} sản phẩm` : 'Giỏ hàng'}>
           <ShoppingCart aria-hidden="true" size={20} />
           {productCart.lineCount > 0 && <span className="pwc-cart-link-badge" aria-hidden="true">{productCart.lineCount}</span>}

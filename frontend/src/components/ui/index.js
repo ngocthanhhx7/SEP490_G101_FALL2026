@@ -3,6 +3,6 @@ export { Input } from './Input.jsx';
 export { Select } from './Select.jsx';
 export { Dialog } from './Dialog.jsx';
 export { Notice } from './Notice.jsx';
-export { Pagination } from './Pagination.jsx';
+export { Pagination, CursorPagination } from './Pagination.jsx';
 export { BrandLogo } from './BrandLogo.jsx';
 export { BrandIcon } from './BrandIcon.jsx';

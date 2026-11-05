@@ -40,6 +40,63 @@ const placeDelivery = (who, addressId, key = idem()) => api(who).post('/api/v1/p
 const placePickup = (who, key = idem()) => api(who).post('/api/v1/product-orders').set('Idempotency-Key', key)
   .send({ receiveMethod: 'PICKUP', paymentMethod: 'PAY_AT_SHOP' });
 
+describe('shop notifications and paged order history', () => {
+  beforeEach(async () => {
+    await connection.db.collection('notifications').deleteMany({});
+    await connection.db.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(actors.admin.userId) },
+      { $set: { state: 'ACTIVE', roles: ['ADMIN'], synthetic: false, displayName: 'Synthetic shop Admin' } }, { upsert: true });
+  });
+  test('persists recipient-scoped notifications once and rolls back notifications with failed stock transitions', async () => {
+    await addToCart('a', 'SP-0012', 1);
+    const key = idem(), placed = (await placePickup('a', key).expect(201)).body.data;
+    await placePickup('a', key).expect(201);
+    const notifications = connection.db.collection('notifications');
+    expect(await notifications.countDocuments()).toBe(2);
+    expect(await notifications.findOne({ recipientId: actors.a.userId })).toMatchObject({
+      eventType: 'ProductOrderPlaced', role: 'CUSTOMER', channel: 'IN_APP', deepLink: `/customer/product-orders?order=${placed.id}` });
+    expect(await notifications.countDocuments({ recipientId: actors.b.userId })).toBe(0);
+    const path = `/api/v1/admin/product-orders/${placed.id}`;
+    await api('admin').post(`${path}/hand-to-customer`).send({}).expect(409);
+    expect(await notifications.countDocuments()).toBe(2);
+    await api('admin').post(`${path}/mark-ready`).send({}).expect(200);
+    expect(await notifications.findOne({ eventId: `product-order:${placed.id}:1` })).toMatchObject({ message: expect.stringContaining('sẵn sàng') });
+    await api('admin').post(`${path}/record-payment`).send({}).expect(200);
+    const before = await notifications.countDocuments();
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { quantityHeld: 0 } });
+    await api('admin').post(`${path}/hand-to-customer`).send({}).expect(409);
+    expect(await notifications.countDocuments()).toBe(before);
+    expect((await models.ProductOrder.findById(placed.id)).status).toBe('READY');
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { quantityHeld: 1 } });
+    await api('admin').post(`${path}/hand-to-customer`).send({}).expect(200);
+    expect(await notifications.countDocuments()).toBe(before + 1);
+  });
+  test('a notification persistence error cannot leave a placed order or reserved stock behind', async () => {
+    await addToCart('a', 'SP-0012', 1);
+    const before = await product('SP-0012');
+    await connection.db.command({ collMod: 'notifications', validator: { eventType: { $eq: 'SYNTHETIC_REJECT_ALL' } }, validationAction: 'error' });
+    try {
+      await placePickup('a').expect(422);
+      expect(await models.ProductOrder.countDocuments()).toBe(0);
+      expect((await product('SP-0012')).quantityHeld).toBe(before.quantityHeld);
+      expect((await api('a').get('/api/v1/product-cart').expect(200)).body.data.lineCount).toBe(1);
+    } finally { await connection.db.command({ collMod: 'notifications', validator: {} }); }
+  });
+  test('pages all own orders and Admin filtered orders with stable counts and rejects invalid page input', async () => {
+    for (let i = 0; i < 3; i++) { await addToCart('a', 'SP-0012', 1); await placePickup('a').expect(201); }
+    await addToCart('b', 'SP-0012', 1); await placePickup('b').expect(201);
+    const ordered = await models.ProductOrder.find({ customerId: actors.a.userId }).sort({ createdAt: -1, _id: -1 }).lean();
+    const page = (await api('a').get('/api/v1/product-orders?page=2&limit=1').expect(200)).body.data;
+    expect(page).toMatchObject({ page: 2, limit: 1, total: 3 });
+    expect(page.items.map(row => row.id)).toEqual([String(ordered[1]._id)]);
+    const adminPage = (await api('admin').get('/api/v1/admin/product-orders?page=2&limit=2').expect(200)).body.data;
+    expect(adminPage.items).toHaveLength(2); expect(adminPage.total).toBe(4);
+    const filtered = (await api('admin').get(`/api/v1/admin/product-orders?search=${ordered[0].code}`).expect(200)).body.data;
+    expect(filtered.total).toBe(1); expect(filtered.counts.PREPARE).toBe(4);
+    await api('a').get('/api/v1/product-orders?page=0').expect(422);
+    await api('admin').get('/api/v1/admin/product-orders?page=2.5').expect(422);
+  });
+});
+
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_product_sales' }).asPromise();

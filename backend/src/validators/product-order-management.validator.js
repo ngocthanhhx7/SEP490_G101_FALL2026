@@ -1,3 +1,4 @@
+import { PAGE_QUERY_KEYS, parsePageQuery } from './pagination.validator.js';
 import { AppError } from '../utils/app-error.js';
 import { PRODUCT_ORDER_TABS, PRODUCT_LIMITS, PRODUCT_RETURN_REASONS, PRODUCT_RETURN_LIMITS } from '../constants/product-fields.js';
 import { requireOnlyKeys, parseObjectId } from './product.validator.js';
@@ -14,9 +15,9 @@ function phoneFromSearch(search) {
 }
 
 export function parseManagementListQuery(query = {}) {
-  const allowed = ['tab', 'search', 'limit'];
+  const allowed = ['tab', 'search', ...PAGE_QUERY_KEYS];
   if (Object.keys(query).some((key) => !allowed.includes(key))) throw invalid('Query is invalid');
-  const out = { tab: 'ALL', limit: PRODUCT_LIMITS.defaultPageSize };
+  const out = { ...parsePageQuery(query), tab: 'ALL', limit: PRODUCT_LIMITS.defaultPageSize };
   if (query.tab !== undefined) {
     if (!PRODUCT_ORDER_TABS.includes(query.tab)) throw invalid('tab is invalid');
     out.tab = query.tab;
