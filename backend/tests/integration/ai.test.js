@@ -825,3 +825,17 @@ test('a slow routing lookup cannot save a ready snapshot after the lead-time win
     0
   );
 });
+
+test('training readiness is private, Admin-only and read-only with bounded audit rate', async () => {
+  await request(app).get('/api/v1/ai/admin/training-readiness').expect(401);
+  await request(app).get('/api/v1/ai/admin/training-readiness').set(await authFor(customer)).expect(403);
+  const headers=await authFor(admin), before=await models.SitterVisitOutcome.countDocuments();
+  for(let i=0;i<3;i++) {
+    const result=await request(app).get('/api/v1/ai/admin/training-readiness').set(headers).expect(200);
+    expect(result.headers['cache-control']).toContain('no-store');
+    expect(result.body.data).toMatchObject({eligibleRows:0,readyForTraining:false,automaticTraining:false,missingObservations:200,scanLimit:500});
+    expect(result.body.data).not.toHaveProperty('rows');
+  }
+  await request(app).get('/api/v1/ai/admin/training-readiness').set(headers).expect(429);
+  expect(await models.SitterVisitOutcome.countDocuments()).toBe(before);
+});

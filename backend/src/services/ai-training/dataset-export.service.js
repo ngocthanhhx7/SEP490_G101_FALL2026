@@ -11,14 +11,17 @@ const millis = value => value === null || value === undefined || value === '' ? 
 export function createTrainingDatasetExporter({ connection, clock = Date.now }) {
   const { SitterVisitOutcome: Outcome } = matchingModels(connection), { CustomerVisitReview: Review } = customerReviewModels(connection);
   const { FinanceSourceEvent: Event } = financeSourceModels(connection), { PayrollServiceCredit: Credit } = payrollModels(connection);
-  return { async collect({ key, limit = 20000 } = {}) {
+  return { async collect({ key, limit = 20000, budgetMs } = {}) {
+    const started = Date.now();
+    if (budgetMs !== undefined && (!Number.isInteger(budgetMs) || budgetMs < 1 || budgetMs > 30000)) fail('VALIDATION_FAILED', 'Invalid audit time budget');
     if (!Number.isInteger(limit) || limit < 1 || limit > 50000) fail('VALIDATION_FAILED', 'Bounded export limit required');
     if (key !== undefined && (typeof key !== 'string' || key.length < 32)) fail('VALIDATION_FAILED', 'Private pseudonym key must be at least 32 characters');
     const rows = [], excluded = {}, groups = new Set(), now = clock();
     const reject = reason => { excluded[reason] = (excluded[reason] ?? 0) + 1; };
-    const outcomes = await Outcome.find({ resolution: 'COMPLETED', occurredAt: { $lte: new Date(now) } }).sort({ occurredAt: 1, _id: 1 }).limit(limit + 1).select('+provenance').lean();
+    const outcomes = await Outcome.find({ resolution: 'COMPLETED', occurredAt: { $lte: new Date(now) } }).sort({ occurredAt: 1, _id: 1 }).limit(limit + 1).select('+provenance').maxTimeMS(Math.min(budgetMs ?? 5000, 5000)).lean();
     const truncated = outcomes.length > limit;
     for (const outcome of outcomes.slice(0, limit)) {
+      if (budgetMs !== undefined && Date.now() - started >= budgetMs) fail('TRAINING_AUDIT_TIMEOUT', 'Run the full source audit offline', 503);
       const p = outcome.provenance;
       if (!p?.bookingId || p.labelVersion !== LABEL || !outcome.sourceRef?.startsWith('customer-review:')) { reject('UNVERIFIED_SOURCE'); continue; }
       const visit = await connection.collection('visits').findOne({ _id: outcome.visitId });
@@ -55,6 +58,7 @@ export function createTrainingDatasetExporter({ connection, clock = Date.now }) 
           rating: outcome.rating, targetScore: (outcome.rating - 1) * 25, labelVersion: LABEL, verified: true });
       } else rows.push(null);
     }
+    if (budgetMs !== undefined && Date.now() - started >= budgetMs) fail('TRAINING_AUDIT_TIMEOUT', 'Run the full source audit offline', 503);
     return { rows, summary: { scanned: Math.min(outcomes.length, limit), eligibleRows: rows.length, bookingGroups: groups.size, excluded, truncated,
       readyForTraining: !truncated && rows.length >= 200 && groups.size >= 50, labelVersion: LABEL } };
   } };

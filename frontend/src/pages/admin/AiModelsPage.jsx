@@ -5,6 +5,7 @@ import { createApiClient } from '../../services/api-client.js';
 import { createAiModelApi } from '../../services/ai-model-api.js';
 import { Button, Input, Select } from '../../components/ui/index.js';
 import '../../styles/ai-models.css';
+import { AiTrainingReadiness } from '../../components/common/AiTrainingReadiness.jsx';
 
 const labels = { fit: 'Phù hợp', travel: 'Di chuyển', quality: 'Chất lượng', reliability: 'Tin cậy', workload: 'Khối lượng việc' };
 const message = code => ({ MODEL_EVIDENCE_INVALID: 'Artifact và evidence không khớp hoặc dữ liệu chia tập chưa hợp lệ.',
@@ -66,6 +67,7 @@ export function AiModelsPage({ api: suppliedApi }) {
         <p>{data.data.outcomes} kết quả lưu trong môi trường hiện tại · {data.data.verifiedCandidates} đánh giá có nguồn hoàn tất để kiểm tra · {data.data.capturedVisits} ca có đặc trưng tại lúc gợi ý.</p>
         <p>Cần ít nhất {data.data.minimumObservations} quan sát đã xác minh từ {data.data.minimumBookingGroups} booking độc lập. Bộ xuất dữ liệu còn kiểm tra lại nguồn, thời điểm và dữ liệu demo; các số đếm trên chưa chứng minh đủ điều kiện train.</p>
       </section>
+      {api.trainingReadiness && <AiTrainingReadiness api={api} disabled={disabled} />}
       <section><h2>Lịch sử model</h2>
         {!data.models.length ? <p>Chưa nhập model nào trong môi trường hiện tại.</p> : <div className="ai-models__table"><table><thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Dòng train</th><th>MAE / baseline</th><th>Evidence</th></tr></thead><tbody>
           {data.models.map(row => <tr key={row.id}><td>{row.version}</td><td>{row.state}</td><td>{row.trainingRows}</td><td>{row.testMae.toFixed(2)} / {row.baselineMae.toFixed(2)}</td><td>{row.evidenceAttached ? 'Đã lưu' : 'Chưa có'}</td></tr>)}

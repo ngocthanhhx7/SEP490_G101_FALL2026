@@ -14,6 +14,20 @@ spec.loader.exec_module(module)
 
 
 class TrainingTests(unittest.TestCase):
+    def test_simplex_projection_and_fit_use_training_data_only(self):
+        result = module.project_weights([-20, 150, 10, 0, 0])
+        self.assertAlmostEqual(sum(result), 100)
+        self.assertEqual(result, [0, 100, 0, 0, 0])
+        truth = [60, 20, 10, 10, 0]
+        train = []
+        for index, target in enumerate(truth):
+            features = [0.0]*5
+            features[index] = 1.0
+            train.append({'x': features, 'y': target})
+        fitted = module.fit(train)
+        self.assertLess(module.mae(train, fitted), 0.001)
+        self.assertTrue(all(0 <= value <= 100 for value in fitted))
+
     def load(self, rows):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "outcomes.jsonl"
