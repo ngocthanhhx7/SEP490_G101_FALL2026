@@ -104,5 +104,13 @@ test('extended play explains the selected billed duration rather than silently a
  const api=fixture();api.pets.mockResolvedValue({data:[{id:'pet',name:'Milo',species:'DOG',weightKg:4,traits:['extended-play']}]});
  render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()}/></MemoryRouter>);
  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
- expect(screen.getByRole('status')).toHaveTextContent('60 phút mỗi buổi');expect(screen.getByRole('status')).toHaveTextContent('không tự cộng thêm phút');
+ expect(screen.getByRole('status')).toHaveTextContent('thời lượng dịch vụ đã chọn');expect(screen.getByRole('status')).toHaveTextContent('không tự cộng thêm phút');
+});
+
+
+test.each(['ngày','km'])('extended-play notice does not invent minutes for service unit %s',async unitLabel=>{
+ const api=fixture();api.pets.mockResolvedValue({data:[{id:'pet',name:'Milo',species:'DOG',weightKg:4,traits:['extended-play']}]});
+ render(<MemoryRouter><BookingFlow service={{...service,price:{unitLabel},details:{locations:['HOME']}}} api={api} matching={{}} onBooked={jest.fn()}/></MemoryRouter>);
+ fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+ expect(screen.getByRole('status')).toHaveTextContent('thời lượng dịch vụ đã chọn');expect(screen.getByRole('status')).not.toHaveTextContent(/\d+ phút/);
 });
