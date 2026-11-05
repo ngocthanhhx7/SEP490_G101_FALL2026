@@ -20,6 +20,7 @@ export function sitterApplicationModels(connection) {
     contactChannel: { type: String, enum: ['EMAIL', 'PHONE'], required: true },
     contactCiphertext: { type: String, required: true, select: false },
     contactLookupKey: { type: String, required: true, select: false },
+    applicantParticularsCiphertext: { type: String, select: false },
     identityLookupKey: { type: String, required: true, select: false },
     activePendingOwnerUserId: { type: Schema.Types.ObjectId, select: false },
     activePendingContactKey: { type: String, select: false },

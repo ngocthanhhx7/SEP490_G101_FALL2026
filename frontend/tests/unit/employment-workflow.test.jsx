@@ -1,3 +1,4 @@
+import { createEmploymentDocumentApi } from '../../src/services/employment-document-api.js';
 import { EmploymentContractPrint } from '../../src/components/payroll/EmploymentContractPrint.jsx';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { EmploymentContractEditor } from '../../src/components/payroll/EmploymentContractEditor.jsx';
@@ -57,4 +58,26 @@ test('new draft editor has no weekday or daily-hours input',async()=>{
   expect(screen.queryByLabelText('Phút làm việc/ngày')).not.toBeInTheDocument();
   expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   expect(screen.getByText(/Tối thiểu 40 giờ/)).toBeInTheDocument();
+});
+
+test('new contract fills applicant and Admin fields while saved draft values take priority',async()=>{
+  const api={get:jest.fn().mockResolvedValue({current:null,history:[],prefill:{terms:{identityNumber:'012345678901',dateOfBirth:'1990-04-12',representativeName:'Synthetic Admin',employerEmail:'admin@example.test'},sources:{},warnings:[]}})};
+  const first=render(<EmploymentContractEditor application={application} api={api}/>);
+  fireEvent.click(await screen.findByRole('button',{name:'Soạn hợp đồng'}));
+  expect(screen.getByLabelText('Số căn cước/hộ chiếu')).toHaveValue('012345678901');
+  expect(screen.getByLabelText('Ngày sinh')).toHaveValue('1990-04-12');expect(screen.getByLabelText('Người đại diện ký')).toHaveValue('Synthetic Admin');
+  fireEvent.change(screen.getByLabelText('Người đại diện ký'),{target:{value:'Edited representative'}});
+  expect(screen.getByLabelText('Người đại diện ký')).toHaveValue('Edited representative');
+  expect(screen.getByLabelText('Tên pháp lý bên Paw World')).toHaveValue('');
+  first.unmount();
+  render(<EmploymentContractEditor application={application} api={{get:jest.fn().mockResolvedValue({current:{id:'b'.repeat(24),state:'DRAFT',terms,revision:1},history:[],prefill:{terms:{representativeName:'Other Admin'},warnings:[]}})}}/>);
+  fireEvent.click(await screen.findByRole('button',{name:'Tạo bản sửa hợp đồng'}));
+  expect(screen.getByLabelText('Người đại diện ký')).toHaveValue(terms.representativeName);
+});
+
+test('prefill transport rejects malformed private hints instead of rendering an invalid form',async()=>{
+  const bad=createEmploymentDocumentApi(jest.fn().mockResolvedValue({data:{history:[],prefill:{terms:{identityNumber:123},sources:{},warnings:[]}}}));
+  await expect(bad.get(application.id)).rejects.toMatchObject({code:'INVALID_RESPONSE'});
+  const legacy=createEmploymentDocumentApi(jest.fn().mockResolvedValue({data:{current:null,history:[]}}));
+  await expect(legacy.get(application.id)).resolves.toMatchObject({history:[]});
 });

@@ -28,3 +28,5 @@ Runtime application approval composes the employment document service. It requir
 the current interview application revision to have a verified signed document and
 activates its payroll contract in the same transaction as account promotion.
 Neither printing nor a DRAFT document grants a role.
+
+Submission retains encrypted DOB/identity for Admin contract preparation rather than discarding the submitted values after age/HMAC checks. A matching authenticated original-request replay may restore a missing snapshot; mismatched payloads cannot. Lists, receipts, OTP status and email never expose these particulars.
