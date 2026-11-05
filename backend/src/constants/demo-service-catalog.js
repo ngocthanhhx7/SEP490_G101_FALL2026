@@ -1,3 +1,4 @@
+import { careTraitPriceRules } from './care-trait-price-rules.js';
 import { leashHandlingPriceRule } from './leash-handling-price-rule.js';
 
 const both = ['DOG', 'CAT'];
@@ -41,6 +42,7 @@ export function demoPricingPolicy(item) {
   const rules = demoTraits.map(([code, label, exclusiveGroup, bps]) => ({ code, label, exclusiveGroup, bps, flatVnd: 0, scope: 'PET',
     explanation: `Nhóm ${exclusiveGroup}: chỉ áp dụng mức cao nhất trong nhóm.`, when: { traitCode: code } }));
   rules.push({ ...leashHandlingPriceRule, when: { ...leashHandlingPriceRule.when } });
+  rules.push(...careTraitPriceRules.map(rule => ({ ...rule, when: { ...rule.when } })));
   for (const [species, medium, large, extra] of [['DOG', 5, 15, 25], ['CAT', 4, 6, 8]]) {
     for (const [size, bps, when] of [
       ['MEDIUM', 1000, { minWeightKg: medium, maxWeightKg: large, maxWeightInclusive: true }],
