@@ -27,7 +27,7 @@ export function createProductCatalogService({ connection }) {
   return Object.freeze({
     async list(query) {
       const { search, category, petType, limit, page } = parseProductQuery(query);
-      const filter = { visible: true };
+      const filter = { visible: true, deletedAt: null };
       if (category) filter.category = category;
       if (petType) filter.petType = petType;
       if (search) filter.name = { $regex: escapeRegex(search), $options: 'i' };
@@ -35,7 +35,7 @@ export function createProductCatalogService({ connection }) {
       return { ...result, items: result.items.map(toProductSummary) };
     },
     async read(productId) {
-      const doc = await Product.findOne({ _id: parseObjectId(productId, 'productId'), visible: true }).lean();
+      const doc = await Product.findOne({ _id: parseObjectId(productId, 'productId'), visible: true, deletedAt: null }).lean();
       if (!doc) throw productSalesErrors.notFound();
       return { ...toProductSummary(doc), description: doc.description ?? '' };
     }

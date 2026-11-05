@@ -49,7 +49,7 @@ function Field({ id, label, error, children }) {
 }
 
 // Create and edit share one form. The code is the system's, the stock is not here, and nothing can be deleted.
-function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
+function ProductForm({ product, api, onSaved, onReload, onRefresh, onBusy }) {
   const creating = !product;
   const [values, setValues] = useState(() => ({
     name: product?.name ?? '', category: product?.category ?? '', petType: product?.petType ?? '',
@@ -59,6 +59,7 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
   const [failure, setFailure] = useState(null);
   const [saving, setSaving] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  useEffect(() => { onBusy(saving || photoBusy); return () => onBusy(false); }, [saving, photoBusy, onBusy]);
   const [confirmHide, setConfirmHide] = useState(false);
   const lock = useRef(false);
   const change = (field) => (event) => setValues((current) => ({ ...current, [field]: event.target.value }));
@@ -101,10 +102,6 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
   }
 
   return <aside className="pwc-shop-panel pwc-pm-form" aria-label={creating ? 'Thêm sản phẩm' : `Sửa sản phẩm ${product.code}`}>
-    <div className="pwc-pm-form-header">
-      <h2>{creating ? 'Thêm sản phẩm' : `Sửa sản phẩm ${product.code}`}</h2>
-      <Button variant="ghost" onClick={onClose}>Đóng</Button>
-    </div>
     <form onSubmit={submit} noValidate>
       <fieldset className="pwc-pm-edit-fields" disabled={saving || photoBusy}>
       <Field id="pm-code" label="Mã sản phẩm">
@@ -156,6 +153,42 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onClose }) {
   </aside>;
 }
 
+function DeleteProductDialog({ product, api, onClose, onChanged }) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState(null);
+  const lock = useRef(false);
+  const uncertain = failure?.uncertain;
+  async function submit(hide = false) {
+    if (lock.current || uncertain) return;
+    lock.current = true; setBusy(true); setFailure(null);
+    try {
+      if (hide) await api.updateProduct(product.id, { version: product.version, visible: false });
+      else await api.deleteProduct(product.id, { version: product.version, reason: reason.trim() });
+      onChanged(hide ? 'Đã ẩn sản phẩm khỏi cửa hàng.' : 'Đã xóa sản phẩm và lưu lại lý do.');
+    } catch (error) {
+      setFailure({ blocked: error.code === 'PRODUCT_DELETE_BLOCKED',
+        uncertain: !error.status || error.code === 'INVALID_RESPONSE' || error.code === 'VERSION_CONFLICT',
+        text: error.code === 'PRODUCT_DELETE_BLOCKED'
+          ? 'Không thể xóa vì sản phẩm có tồn kho, hàng đang giữ hoặc lịch sử đơn hàng. Bạn có thể ẩn sản phẩm khỏi cửa hàng.'
+          : error.status === 422 ? 'Nhập lý do đầy đủ từ 20 đến 1.000 ký tự, không dùng ký tự điều khiển.' : failureText(error) });
+    } finally { lock.current = false; setBusy(false); }
+  }
+  return <Dialog open title={`Xóa sản phẩm ${product.code}`} intent="destructive" dismissible={!busy}
+    onClose={onClose} description={product.name} footer={<>
+      <Button variant="secondary" disabled={busy} onClick={onClose}>{uncertain ? 'Đóng và tải lại' : 'Hủy'}</Button>
+      {failure?.blocked && product.visible && <Button disabled={busy} onClick={() => submit(true)}>Ẩn khỏi cửa hàng</Button>}
+      {!failure?.blocked && <Button variant="danger" disabled={busy || uncertain || reason.trim().length < 20}
+        onClick={() => submit()}>Xác nhận xóa</Button>}
+    </>}>
+    <p>Chỉ xóa sản phẩm không còn tồn kho, hàng đang giữ và chưa từng có đơn hàng. Mã sản phẩm và lý do được lưu để tra cứu.</p>
+    <label className="pwc-shop-label" htmlFor="pm-delete-reason">Lý do xóa (20–1.000 ký tự)</label>
+    <textarea id="pm-delete-reason" className="pwc-shop-field" rows={4} maxLength={1000} value={reason}
+      disabled={busy || uncertain} onChange={event => setReason(event.target.value)} />
+    {failure && <p role="alert" className="pwc-shop-alert pwc-shop-alert--error">{failure.text}</p>}
+  </Dialog>;
+}
+
 // Product Management for Admin. The backend owns the code, the stock and every rule; this page only asks for them.
 export function ProductManagementPage({ api }) {
   const [searchText, setSearchText] = useState('');
@@ -165,6 +198,8 @@ export function ProductManagementPage({ api }) {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [editorBusy, setEditorBusy] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => { setSearch(searchText.trim()); setPage(1); }, SEARCH_DELAY_MS);
@@ -198,7 +233,7 @@ export function ProductManagementPage({ api }) {
     }
   }
 
-  return <section className="pwc-shop" aria-labelledby="product-management-title">
+  return <section className="pwc-shop pwc-pm-page" aria-labelledby="product-management-title">
     <div className="pwc-pm-header">
       <div>
         <h1 id="product-management-title">Sản phẩm</h1>
@@ -206,6 +241,11 @@ export function ProductManagementPage({ api }) {
       </div>
       <button type="button" className="pwc-shop-primary-button pwc-pm-add" onClick={() => { setEditing({ product: null }); setNotice(null); }}>+ Thêm sản phẩm</button>
     </div>
+    {resource.meta?.summary && <section className="pwc-pm-overview" aria-label="Tổng quan sản phẩm">
+      <dl className="pwc-pm-metrics">{[['total', 'Tổng sản phẩm'], ['visible', 'Đang hiện'], ['hidden', 'Đang ẩn'], ['outOfStock', 'Hết hàng']].map(([key, label]) =>
+        <div key={key}><dt>{label}</dt><dd>{resource.meta.summary[key].toLocaleString('vi-VN')}</dd></div>)}</dl>
+      <p className="pwc-shop-hint">Toàn bộ sản phẩm chưa xóa, không phụ thuộc bộ lọc. Hết hàng khi tồn kho trừ hàng đang giữ không còn khả dụng.</p>
+    </section>}
     <div className="pwc-pm-filters">
       <input type="search" className="pwc-shop-search" value={searchText} maxLength={100}
         aria-label="Tìm theo tên hoặc mã sản phẩm" placeholder="Tìm theo tên hoặc mã sản phẩm"
@@ -220,7 +260,7 @@ export function ProductManagementPage({ api }) {
       </select>
     </div>
     {notice && <p className={`pwc-shop-alert pwc-shop-alert--${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>{notice.text}</p>}
-    <div className="pwc-shop-split">
+    <div className="pwc-pm-list-layout">
       <div>
         {resource.status === 'loading' && <Notice state="loading" title="Đang tải sản phẩm…" />}
         {resource.status === 'forbidden' && <Notice state="forbidden" title={TEXT.noPermission} />}
@@ -229,7 +269,7 @@ export function ProductManagementPage({ api }) {
         {resource.status === 'empty' && <Notice state="empty" title={productMessage('MSG97')} />}
         {resource.status === 'success' && <div className="pwc-shop-panel pwc-shop-table-wrap">
           <table className="pwc-shop-table pwc-shop-table--wide">
-            <thead><tr><th>Sản phẩm</th><th>Danh mục</th><th>Dành cho</th><th>Giá bán</th><th>Hiển thị</th><th><span className="pwc-visually-hidden">Sửa</span></th></tr></thead>
+            <thead><tr><th>Sản phẩm</th><th>Danh mục</th><th>Dành cho</th><th>Giá bán</th><th>Hiển thị</th><th>Hành động</th></tr></thead>
             <tbody>{products.map((product) => <tr key={product.id} className={product.id === editing?.product?.id ? 'is-selected' : undefined}>
               <td><div className="pwc-shop-line">
                 <ProductPhoto product={{ ...product, photos: product.photos.map(adminProductPhotoUrl) }} size="thumb" />
@@ -240,15 +280,20 @@ export function ProductManagementPage({ api }) {
               <td><strong>{formatVnd(product.sellingPrice)}</strong></td>
               <td><span className={`pwc-shop-status ${product.visible ? 'pwc-shop-status--done' : 'pwc-shop-status--muted'}`}>{product.visible ? 'Đang hiện' : 'Đang ẩn'}</span></td>
               <td><button type="button" className="pwc-shop-link-button" aria-label={`Sửa sản phẩm ${product.code}`}
-                onClick={() => { setEditing({ product }); setNotice(null); }}>Sửa</button></td>
+                onClick={() => { setEditing({ product }); setNotice(null); }}>Sửa</button>
+                <button type="button" className="pwc-shop-link-button pwc-pm-delete" aria-label={`Xóa sản phẩm ${product.code}`}
+                  onClick={() => setDeleting(product)}>Xóa</button></td>
             </tr>)}</tbody>
           </table>
         </div>}
         {(resource.status === 'success' || resource.status === 'empty') && pageMeta && <Pagination {...pageMeta} itemLabel="sản phẩm"
           onPageChange={(next) => { setPage(next); setNotice(null); }} />}
       </div>
-      {editing && <ProductForm key={editing.product ? `${editing.product.id}:${editing.product.version}` : 'new'} product={editing.product}
-        api={api} onSaved={saved} onReload={reload} onRefresh={resource.retry} onClose={() => setEditing(null)} />}
+      {editing && <Dialog open className="pwc-pm-editor-dialog" title={editing.product ? `Sửa sản phẩm ${editing.product.code}` : 'Thêm sản phẩm'} dismissible={!editorBusy} onClose={() => setEditing(null)}><ProductForm key={editing.product ? `${editing.product.id}:${editing.product.version}` : 'new'} product={editing.product}
+        api={api} onBusy={setEditorBusy} onSaved={saved} onReload={reload} onRefresh={resource.retry} onClose={() => setEditing(null)} /></Dialog>}
+      {deleting && <DeleteProductDialog key={deleting.id} product={deleting} api={api}
+        onClose={() => { setDeleting(null); resource.retry(); }}
+        onChanged={text => { setDeleting(null); setEditing(null); setNotice({ kind: 'ok', text }); setPage(1); resource.retry(); }} />}
     </div>
   </section>;
 }

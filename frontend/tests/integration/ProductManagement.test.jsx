@@ -6,13 +6,14 @@ const SEARCH_LABEL = 'Tìm theo tên hoặc mã sản phẩm';
 const product = (over = {}) => ({ id: 'p12', code: 'SP-0012', name: 'Dây dắt chó', category: 'ACCESSORY', petType: 'DOG', description: 'Dây dù bản 2 cm',
   photos: [], sellingPrice: 250000, visible: true, version: 0, ...over });
 const hidden = (over = {}) => product({ id: 'p13', code: 'SP-0013', name: 'Cát vệ sinh cho mèo', category: 'FOOD', petType: 'CAT', sellingPrice: 95000, visible: false, ...over });
-const listOf = (items, over = {}) => ({ data: items, meta: { page: { page: 1, limit: 20, total: items.length, ...over } } });
+const listOf = (items, over = {}) => ({ data: items, meta: { summary: { total: 9, visible: 8, hidden: 1, outOfStock: 2 }, page: { page: 1, limit: 20, total: items.length, ...over } } });
 
 function fakeApi(over = {}) {
   return {
     listProducts: jest.fn().mockResolvedValue(listOf([product(), hidden()], { total: 9 })),
     readProduct: jest.fn().mockResolvedValue(product({ version: 5, name: 'Dây dắt chó (bản mới)' })),
     createProduct: jest.fn().mockResolvedValue(product({ id: 'p38', code: 'SP-0038', name: 'Vòng cổ', visible: false })),
+    deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
     updateProduct: jest.fn().mockResolvedValue(product({ version: 1 })),
     ...over
   };
@@ -35,6 +36,39 @@ const fillNew = ({ name = 'Vòng cổ', category = 'ACCESSORY', petType = 'DOG',
 };
 
 describe('Product Management list', () => {
+  test('shows database overview and requires a complete deletion reason', async () => {
+    const api = fakeApi();
+    render(<ProductManagementPage api={api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa sản phẩm SP-0012' }));
+    expect(screen.getByRole('columnheader', { name: 'Hành động' })).toBeVisible();
+    expect(screen.getByRole('region', { name: 'Tổng quan sản phẩm' })).toHaveTextContent('Hết hàng');
+    const dialog = screen.getByRole('alertdialog');
+    expect(within(dialog).getByRole('button', { name: 'Xác nhận xóa' })).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText('Lý do xóa (20–1.000 ký tự)'), { target: { value: 'Ngừng bán sản phẩm theo quyết định của cửa hàng.' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận xóa' }));
+    await waitFor(() => expect(api.deleteProduct).toHaveBeenCalledWith('p12', { version: 0, reason: 'Ngừng bán sản phẩm theo quyết định của cửa hàng.' }));
+    expect(await screen.findByText('Đã xóa sản phẩm và lưu lại lý do.')).toBeVisible();
+  });
+  test('offers hiding a blocked product and never claims a rejected deletion succeeded', async () => {
+    const api = fakeApi({ deleteProduct: jest.fn().mockRejectedValue(new ApiError('PRODUCT_DELETE_BLOCKED', 409)) });
+    render(<ProductManagementPage api={api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa sản phẩm SP-0012' }));
+    fireEvent.change(screen.getByLabelText('Lý do xóa (20–1.000 ký tự)'), { target: { value: 'Không kinh doanh mặt hàng này nữa tại cửa hàng.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xóa' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Ẩn khỏi cửa hàng' }));
+    await waitFor(() => expect(api.updateProduct).toHaveBeenCalledWith('p12', { version: 0, visible: false }));
+    expect(await screen.findByText('Đã ẩn sản phẩm khỏi cửa hàng.')).toBeVisible();
+  });
+  test('an uncertain deletion response locks retries until reloading', async () => {
+    const api = fakeApi({ deleteProduct: jest.fn().mockRejectedValue(new ApiError('NETWORK_ERROR', 0)) });
+    render(<ProductManagementPage api={api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xóa sản phẩm SP-0012' }));
+    fireEvent.change(screen.getByLabelText('Lý do xóa (20–1.000 ký tự)'), { target: { value: 'Không kinh doanh mặt hàng này nữa tại cửa hàng.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xóa' }));
+    await screen.findByRole('button', { name: 'Đóng và tải lại' });
+    expect(screen.getByRole('button', { name: 'Xác nhận xóa' })).toBeDisabled();
+    expect(api.deleteProduct).toHaveBeenCalledTimes(1);
+  });
   test('lists every product with its category, pet type, price and whether it shows on the shop', async () => {
     const api = fakeApi();
     render(<ProductManagementPage api={api} />);
@@ -147,7 +181,8 @@ describe('Product Management edit', () => {
   });
 
   test('shows the reasons of a 422 from the API under the right fields', async () => {
-    const api = fakeApi({ updateProduct: jest.fn().mockRejectedValue(new ApiError('VALIDATION_FAILED', 422, { fields: { name: 'REQUIRED', sellingPrice: 'TOO_LARGE' } })) });
+    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
+    updateProduct: jest.fn().mockRejectedValue(new ApiError('VALIDATION_FAILED', 422, { fields: { name: 'REQUIRED', sellingPrice: 'TOO_LARGE' } })) });
     await open(api);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(await screen.findByText('Vui lòng nhập thông tin này.')).toBeVisible();
@@ -167,7 +202,8 @@ describe('Product Management edit', () => {
   });
 
   test('AC-29 confirming MSG114 saves the product as hidden', async () => {
-    const api = fakeApi({ updateProduct: jest.fn().mockResolvedValue(product({ visible: false, version: 1 })) });
+    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
+    updateProduct: jest.fn().mockResolvedValue(product({ visible: false, version: 1 })) });
     await open(api);
     fireEvent.click(screen.getByRole('switch', { name: 'Hiện trên trang Sản phẩm' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
@@ -178,7 +214,8 @@ describe('Product Management edit', () => {
   });
 
   test('showing a hidden product needs no confirmation', async () => {
-    const api = fakeApi({ updateProduct: jest.fn().mockResolvedValue(hidden({ visible: true, version: 1 })) });
+    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
+    updateProduct: jest.fn().mockResolvedValue(hidden({ visible: true, version: 1 })) });
     await open(api, 'SP-0013');
     fireEvent.click(screen.getByRole('switch', { name: 'Hiện trên trang Sản phẩm' }));
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
@@ -200,7 +237,8 @@ describe('Product Management edit', () => {
   });
 
   test('a conflict says the product was changed and Tải lại shows the latest version', async () => {
-    const api = fakeApi({ updateProduct: jest.fn().mockRejectedValue(new ApiError('VERSION_CONFLICT', 409)) });
+    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
+    updateProduct: jest.fn().mockRejectedValue(new ApiError('VERSION_CONFLICT', 409)) });
     await open(api);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(await screen.findByText(/Sản phẩm vừa được người khác sửa/)).toBeVisible();
@@ -211,7 +249,8 @@ describe('Product Management edit', () => {
   });
 
   test('other failures keep the form and say it could not be completed', async () => {
-    const api = fakeApi({ updateProduct: jest.fn().mockRejectedValue(new ApiError('FORBIDDEN', 403)) });
+    const api = fakeApi({ deleteProduct: jest.fn().mockResolvedValue({ id: 'p12', deleted: true }),
+    updateProduct: jest.fn().mockRejectedValue(new ApiError('FORBIDDEN', 403)) });
     await open(api);
     fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
     expect(await screen.findByText('Bạn không có quyền quản lý sản phẩm.')).toBeVisible();
@@ -286,7 +325,7 @@ describe('Product Management create', () => {
     render(<ProductManagementPage api={fakeApi()} />);
     await screen.findByText('Dây dắt chó');
     fireEvent.click(screen.getByRole('button', { name: '+ Thêm sản phẩm' }));
-    fireEvent.click(within(form('Thêm sản phẩm')).getByRole('button', { name: 'Đóng' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Thêm sản phẩm' })).getByRole('button', { name: 'Đóng' }));
     expect(screen.queryByRole('complementary', { name: 'Thêm sản phẩm' })).toBeNull();
   });
 });
