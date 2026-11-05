@@ -1,11 +1,32 @@
 import { createVisitTravelApi } from './visit-travel-api.js';
+import { ApiError } from './api-client.js';
 
-export function createEmployeeSchedulingApi(request) {
+export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
   const root = '/employee-scheduling';
   const get = (path, signal) => request(`${root}${path}`, { signal });
   const mutate = (path, body, idempotencyKey, method = 'POST', signal) => request(`${root}${path}`, { method, body, idempotencyKey, signal });
   return {
     ...createVisitTravelApi(request),
+    async execution(id, { signal } = {}) {
+      const result = await request(`/visits/${encodeURIComponent(id)}/execution`, { signal });
+      const row = result.data;
+      if (row?.visitId !== id || !Number.isSafeInteger(row.version) || row.version < 0 ||
+        !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'].includes(row.state) || !Array.isArray(row.checklist) ||
+        row.checklistItemIds !== null && (!Array.isArray(row.checklistItemIds) || row.checklistItemIds.some(item => typeof item !== 'string'))) {
+        throw new ApiError('INVALID_RESPONSE');
+      }
+      return result;
+    },
+    uploadEvidence: privateImages ? (file, key) => privateImages.upload(file, { idempotencyKey: key }) : undefined,
+    async executeVisit(id, action, body, key) {
+      if (!['check-ins', 'checklists', 'check-outs'].includes(action)) throw new ApiError('INVALID_API_PATH');
+      const result = await request(`/visits/${encodeURIComponent(id)}/${action}`, {
+        method: action === 'checklists' ? 'PATCH' : 'POST', body, idempotencyKey: key
+      });
+      if (result.pending || result.status === 202 || result.data?.visitId !== id || result.data?.version !== body.expectedVersion + 1 ||
+        result.data?.state !== (action === 'check-outs' ? 'COMPLETED' : 'IN_PROGRESS')) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     getAvailability: ({ signal } = {}) => get('/availability', signal),
     listCalendar: ({ fromLocalDate, toLocalDate, signal }) => get(`/calendar?${new globalThis.URLSearchParams({ fromLocalDate, toLocalDate })}`, signal),
     saveAvailability: ({ idempotencyKey, ...body }) => mutate('/availability', body, idempotencyKey, 'PUT'),
@@ -25,6 +46,11 @@ export function createEmployeeSchedulingApi(request) {
     finalize: (id, body, key) => mutate(`/care-plans/${encodeURIComponent(id)}/finalization`, body, key),
     propose: (id, body, key) => mutate(`/visits/${encodeURIComponent(id)}/schedule-proposals`, body, key),
     getProposal: ({ proposalId, signal }) => get(`/proposals/${encodeURIComponent(proposalId)}`, signal),
-    confirmProposal: (id, { idempotencyKey, ...body }) => mutate(`/proposals/${encodeURIComponent(id)}/confirmation`, body, idempotencyKey)
+    async confirmProposal(id, { idempotencyKey, ...body }) {
+      const result = await mutate(`/proposals/${encodeURIComponent(id)}/confirmation`, body, idempotencyKey);
+      if (result.pending || result.status === 202 || result.data?.proposal?.id !== id || result.data?.proposal?.state !== 'CONFIRMED' ||
+        result.data?.offer?.state !== 'PENDING' || !result.data?.offer?.id) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    }
   };
 }

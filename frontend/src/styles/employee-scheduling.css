@@ -13,6 +13,11 @@
 .employee-scheduling__actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .employee-scheduling__preview { padding: 16px 0; border-block: 1px solid #99a99e; }
 .employee-scheduling button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.visit-execution { margin-top: 16px; padding-top: 12px; border-top: 1px solid #d5ddd8; }
+.visit-execution fieldset { margin: 12px 0; padding: 12px 0; border: 0; min-width: 0; }
+.visit-execution label { margin: 8px 0; max-width: 100%; }
+.visit-execution input, .visit-execution select, .visit-execution textarea { width: 100%; max-width: 100%; box-sizing: border-box; }
+.visit-execution select, .visit-execution textarea { min-height: 44px; padding: 8px; }
 @media (max-width: 640px) {
   .employee-scheduling { padding: 16px; }
   .employee-scheduling h1 { font-size: 23px; }

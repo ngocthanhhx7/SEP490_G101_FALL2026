@@ -11,7 +11,9 @@ transport for directed booking; pages do not call the transport directly.
 from `/workspaces/:kind/analytics`; it never calculates financial figures.
 
 `employee-scheduling-api.js` owns assigned care/acknowledgement/access-note
-transport. `service-basket-api.js` owns quote, checkout and Customer rating calls;
+transport, execution reads and existing check-in/checklist/check-out commands.
+Its injected private-image transport uploads evidence with a separate stable key.
+`service-basket-api.js` owns quote, checkout and Customer rating calls;
 pending or malformed acknowledgements retain the caller's operation key. Neither
 adapter persists private care in browser storage or supplies authoritative prices.
 

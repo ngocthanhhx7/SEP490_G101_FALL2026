@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import './directed-booking-proposal.css';
@@ -39,7 +39,12 @@ function snapshotPet(pet) {
   return `${pet.name || 'Thú cưng'}${pet.species ? ` (${pet.species})` : ''}`;
 }
 
-export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalId, proposal: suppliedProposal,
+export function DirectedBookingProposalPage(props) {
+  const params = useParams();
+  return <ProposalDetails key={props.proposalId || params.proposalId || props.proposal?.id} {...props} />;
+}
+
+function ProposalDetails({ api, proposalId: suppliedProposalId, proposal: suppliedProposal,
   booking, visit, petSnapshots, idempotencyKey: suppliedKey, onConfirmed }) {
   const params = useParams();
   const proposalId = suppliedProposalId || params.proposalId;
@@ -53,7 +58,9 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
     return api.getProposal({ proposalId, signal });
   }, [api, proposalId, suppliedProposal]);
   const resource = useApiResource(load);
-  const proposal = suppliedProposal || resource.data;
+  const loadedProposal = suppliedProposal || resource.data;
+  const proposal = commandState.status === 'success' && commandState.result?.proposal
+    ? { ...loadedProposal, ...commandState.result.proposal } : loadedProposal;
   const slots = proposal?.slots || [];
   const pets = proposal?.petSnapshots || petSnapshots || booking?.petSnapshots || [];
   const isConfirmable = proposal?.state === 'PENDING_CUSTOMER_CONFIRMATION' && slots.length > 0;
@@ -67,7 +74,7 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
       setCommandState({ status: result?.pending ? 'pending' : 'success', result: result?.data });
       if (!result?.pending) onConfirmed?.(result?.data);
     } catch (error) {
-      const uncertain = ['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR'].includes(error?.code);
+      const uncertain = !error?.status || error.status >= 500 || ['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'INVALID_RESPONSE'].includes(error?.code);
       setCommandState({ status: uncertain ? 'pending' : 'error', code: error?.code, message: actionMessage(error) });
       if (!uncertain) operationRef.current = null;
       if (error?.status === 401) resource.retry();
@@ -83,8 +90,8 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
       <header className="directed-proposal__header">
         <div><p className="directed-proposal__eyebrow">Paw World Care · Đề xuất sitter</p>
           <h1 id="directed-proposal-title">Xác nhận lịch với sitter</h1>
-          <p>Kiểm tra visit, thú cưng và giá snapshot trước khi gửi offer. Chưa xác nhận thì máy chủ chưa tạo offer.</p></div>
-        <span className={`directed-proposal__state directed-proposal__state--${String(proposal.state || '').toLowerCase()}`}>{proposal.state || 'Chưa xác định'}</span>
+          <p>{proposal.state === 'CONFIRMED' ? 'Lịch mới đã được xác nhận. Người chăm sóc vẫn cần nhận lời mời.' : 'Lịch hiện tại được giữ đến khi bạn xác nhận lịch thay thế.'}</p></div>
+        <span className="directed-proposal__state">{({ PENDING_CUSTOMER_CONFIRMATION: 'Chờ bạn xác nhận', CONFIRMED: 'Đã xác nhận lịch', EXPIRED: 'Đã hết hạn', CANCELLED: 'Đã hủy' })[proposal.state] ?? 'Cần kiểm tra trạng thái'}</span>
       </header>
       <section className="directed-proposal__panel" aria-labelledby="directed-proposal-summary-title">
         <h2 id="directed-proposal-summary-title">Thông tin visit</h2>
@@ -109,11 +116,12 @@ export function DirectedBookingProposalPage({ api, proposalId: suppliedProposalI
         })}</fieldset>}
         {proposal.expiresAt && <p className="directed-proposal__expiry">Hạn xác nhận: {formatDate(proposal.expiresAt)}. Máy chủ sẽ kiểm tra lại hạn và slot.</p>}
         {commandState.status === 'error' && <Notice state="error" title="Chưa xác nhận được lịch">{commandState.message}</Notice>}
-        {commandState.status === 'pending' && <Notice state="pending" title="Đang chờ máy chủ xác nhận">Đừng gửi lại thao tác với mã khác. Tải lại để đối chiếu kết quả.</Notice>}
-        {commandState.status === 'success' && <Notice state="success" title="Đã gửi offer cho sitter">Máy chủ đã ghi nhận xác nhận lịch; sitter sẽ thấy work offer sau bước này.</Notice>}
-        <Button onClick={confirm} loading={commandState.status === 'submitting'} disabled={!isConfirmable || !selectedSlot || commandState.status === 'success'}>
-          Xác nhận lịch và gửi offer
-        </Button>
+        {commandState.status === 'pending' && <Notice state="pending" title="Đang chờ máy chủ xác nhận">Chưa nhận được kết quả. Bạn có thể kiểm tra lại cùng yêu cầu.</Notice>}
+        {proposal.state === 'CONFIRMED' && <Notice state="success" title="Đã gửi lời mời nhận ca">Theo dõi đơn để biết khi người chăm sóc nhận lời. <Link to={`/services?booking=${encodeURIComponent(proposal.bookingId || '')}`}>Xem đơn chăm sóc</Link></Notice>}
+        {proposal.state !== 'CONFIRMED' && <Button onClick={confirm} loading={commandState.status === 'submitting'} disabled={!isConfirmable || !selectedSlot || commandState.status === 'success'}>
+          {commandState.status === 'pending' ? 'Kiểm tra lại xác nhận lịch' : 'Xác nhận lịch và gửi offer'}
+        </Button>}
+        {commandState.status === 'error' && <Button variant="secondary" onClick={() => { setSelectedSlot(null); keyRef.current = idempotencyKey(); resource.retry(); }}>Tải lại đề xuất</Button>}
       </section>
     </>}
   </main>;

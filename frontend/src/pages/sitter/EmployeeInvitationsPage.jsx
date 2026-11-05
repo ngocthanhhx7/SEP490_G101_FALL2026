@@ -7,6 +7,7 @@ import { Button } from '../../components/ui/index.js';
 import { googleMapsDirections } from '../../utils/maps.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { AssignedCare } from './AssignedCare.jsx';
+import { VisitExecution } from './VisitExecution.jsx';
 import '../../styles/employee-scheduling.css';
 
 const time = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -42,10 +43,12 @@ export function EmployeeInvitationsPage({ api }) {
     {['error', 'forbidden'].includes(assignments.status) && <p role="alert">Chưa tải được ca đã nhận.</p>}
     {assignments.status === 'success' && !assignments.data.items.length && <p>Chưa có ca đã nhận.</p>}
     <ul className="employee-scheduling__rows">{(assignments.data?.items || []).map(row => <li key={row.id}><div><h3>{row.serviceName}</h3><p>{time(row.startAt)} – {time(row.endAt)}</p>
+      <p>{({ ASSIGNED: 'Đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn thành' })[row.state] ?? row.state}</p>
       {row.serviceAddress && <p>{row.serviceAddress}</p>}
       {googleMapsDirections(row.serviceAddress) && <a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
       <VisitTravel api={api} visitId={row.id} employee startAt={row.startAt} endAt={row.endAt} />
       {['ASSIGNED', 'IN_PROGRESS'].includes(row.state) && <AssignedCare api={api} visitId={row.id} />}
+      {api.execution && <VisitExecution api={api} visitId={row.id} onChanged={assignments.retry} />}
     </div></li>)}</ul>
     <CursorPagination page={assignmentPages.length + 1} label="ca đã nhận" hasNext onFirst={() => setAssignmentPages([])}
  onPrevious={() => setAssignmentPages(rows => rows.slice(0, -1))} onNext={() => setAssignmentPages(rows => [...rows, assignments.data.nextCursor])}
