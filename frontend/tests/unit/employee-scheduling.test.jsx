@@ -1,3 +1,4 @@
+import { beforeAll } from '@jest/globals';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { EmployeeInvitationsPage } from '../../src/pages/sitter/EmployeeInvitationsPage.jsx';
 import { EmployeeDispatchPage } from '../../src/pages/staff/EmployeeDispatchPage.jsx';
@@ -59,9 +60,10 @@ test('Staff sees automatic search and only intervenes on a dispatch escalation',
     { id: 'review', serviceName: 'Ca cần xử lý', version: 3, dispatchState: 'NEEDS_STAFF', reviewCode: 'STAFF_REVIEW_REQUIRED', startAt: '2026-11-03T03:00:00Z', endAt: '2026-11-03T04:00:00Z' }
   ] } });
   render(<EmployeeDispatchPage api={api} />);
-  expect(await screen.findByText('Hệ thống đang tìm người nhận ca')).toBeInTheDocument();
+  expect(await screen.findByText('Hệ thống đang tìm người')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Xác nhận kế hoạch' })).not.toBeInTheDocument();
   expect(api.plans).not.toHaveBeenCalled(); expect(api.finalize).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', {name:'Xem / xử lý'}));
   fireEvent.click(screen.getByRole('button', { name: 'Thử tìm lại' }));
   await waitFor(() => expect(api.invite).toHaveBeenCalledWith('review', 3, expect.any(String), undefined));
 });
@@ -99,6 +101,7 @@ test('overdue system visit proposes precise area and future time without invitin
   render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
   expect(await screen.findByText('Ca quá hạn')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Thử tìm lại' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', {name:'Đổi lịch với khách'}));
   fireEvent.click(screen.getByText('Đề xuất lịch khác'));
   fireEvent.change(screen.getByLabelText(/Bắt đầu đề xuất/), { target: { value: '2026-11-10T09:00' } });
   fireEvent.change(screen.getByLabelText('Khu vực tại địa chỉ đã đặt'), { target: { value: 'DISTRICT_HAI_BA_TRUNG' } });
@@ -113,4 +116,9 @@ test('overdue system visit proposes precise area and future time without invitin
   expect(api.propose.mock.calls[0]).toEqual(api.propose.mock.calls[1]);
   expect(api.propose).toHaveBeenCalledWith('past', { expectedVersion: 4, startAt: '2026-11-10T02:00:00.000Z', areaCode: 'DISTRICT_HAI_BA_TRUNG', sitterId }, expect.any(String));
   expect(api.invite).not.toHaveBeenCalled();
+});
+
+beforeAll(() => {
+  window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
 });
