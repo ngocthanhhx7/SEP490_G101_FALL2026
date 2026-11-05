@@ -87,3 +87,22 @@ test('empty AI advice explains quality gates and explicit system fallback create
   expect(api.confirm.mock.calls[0][0].visits[0]).toMatchObject({ bookingMode: 'SYSTEM' });
   expect(api.confirm.mock.calls[0][0].visits[0]).not.toHaveProperty('matchId');
 });
+
+
+test('pricing review names the missing care traits without clearing the owned pet selection', async () => {
+  const api=fixture();api.quote.mockRejectedValue({code:'PRICING_REVIEW_REQUIRED',status:409,fieldErrors:{petTraits:'Đặc điểm chưa có quy tắc giá được duyệt: Cần làm quen chậm, Cần hỗ trợ lồng vận chuyển.'}});
+  render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()}/></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'),{target:{value:'2098-11-03T09:00'}});
+  fireEvent.submit(screen.getByText('Tiếp tục').closest('form'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Cần làm quen chậm, Cần hỗ trợ lồng vận chuyển');
+  expect(screen.getByLabelText('Milo · 4 kg')).toBeChecked();expect(api.confirm).not.toHaveBeenCalled();
+});
+
+
+test('extended play explains the selected billed duration rather than silently adding free time', async()=>{
+ const api=fixture();api.pets.mockResolvedValue({data:[{id:'pet',name:'Milo',species:'DOG',weightKg:4,traits:['extended-play']}]});
+ render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()}/></MemoryRouter>);
+ fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+ expect(screen.getByRole('status')).toHaveTextContent('60 phút mỗi buổi');expect(screen.getByRole('status')).toHaveTextContent('không tự cộng thêm phút');
+});
