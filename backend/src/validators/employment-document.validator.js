@@ -36,7 +36,7 @@ export function employmentTermsInput(value, now) {
     if (dates.endsOn <= dates.effectiveOn || dates.endsOn > maximum) fields.endsOn = 'FIXED_TERM_RANGE';
   } else if (value.termType === 'INDEFINITE' && value.endsOn) fields.endsOn = 'INDEFINITE_NO_END';
   if (Object.keys(value).some(key => ![...CONTRACT_TEXT_FIELDS, ...numeric, 'employmentType', 'termType', 'endsOn'].includes(key))) fields.terms = 'UNEXPECTED_FIELDS';
-  if (Object.keys(fields).length) contractFieldError(fields);
+  if (Object.keys(fields).length) contractFieldError(fields, !fields.terms && CONTRACT_TEXT_FIELDS.some(key => fields[key] === 'REQUIRED_TEXT') ? 'CONTRACT_INFORMATION_REQUIRED' : 'VALIDATION_FAILED');
   if (value.nationality !== 'Việt Nam') fail('CONTRACT_SPECIAL_REVIEW_REQUIRED', 'This template requires Vietnamese adult employee; review other categories separately', 422);
   const result = Object.fromEntries(CONTRACT_TEXT_FIELDS.map(key => [key, value[key].trim()]));
   const weeklyMinutes = value.employmentType === 'FULL_TIME' ? 2400 : 1200;
