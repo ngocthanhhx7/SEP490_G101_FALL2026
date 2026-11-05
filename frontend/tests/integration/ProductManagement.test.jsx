@@ -103,6 +103,21 @@ describe('Product Management edit', () => {
     expect(within(panel).queryByText(/tồn kho/i)).toBeNull();
   });
 
+  test('D-249 puts the photo row inside the form between the description and the show switch, and its buttons do not save the form', async () => {
+    const api = fakeApi({ listProducts: jest.fn().mockResolvedValue(listOf([product({ photos: ['/assets/products/a.webp', '/assets/products/b.webp'] })])) });
+    await open(api);
+    const panel = form('Sửa sản phẩm SP-0012');
+    const photos = within(panel).getByRole('region', { name: 'Quản lý ảnh sản phẩm' });
+    const after = (a, b) => Boolean(a.compareDocumentPosition(b) & window.Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(panel.querySelector('form')).toContainElement(photos);
+    expect(after(within(panel).getByLabelText('Mô tả'), photos)).toBe(true);
+    expect(after(photos, within(panel).getByRole('switch', { name: 'Hiện trên trang Sản phẩm' }))).toBe(true);
+    expect(within(photos).getAllByRole('listitem')).toHaveLength(2);
+    fireEvent.click(within(photos).getByRole('button', { name: 'Xóa ảnh 2' }));
+    expect(within(photos).getByText('Xóa ảnh 2 khỏi sản phẩm?')).toBeVisible();
+    expect(api.updateProduct).not.toHaveBeenCalled();
+  });
+
   test('AC-29 saves the changes with the version the Admin saw and says MSG115', async () => {
     const api = fakeApi();
     await open(api);

@@ -5,7 +5,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { useProductCart } from '../../hooks/useProductCart.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { Notice, Button } from '../../components/ui/index.js';
-import { ProductPhoto } from '../../components/product/ProductPhoto.jsx';
+import { ProductGallery } from '../../components/product/ProductGallery.jsx';
 import { QuantityStepper } from '../../components/product/QuantityStepper.jsx';
 import { PRODUCT_CATEGORY_LABELS, PRODUCT_PET_LABELS } from '../../constants/product-labels.js';
 import { formatVnd, productErrorText, productMessage } from '../../utils/product-format.js';
@@ -56,7 +56,7 @@ export function ProductDetailsPage() {
   return <section className="pwc-shop" aria-labelledby="product-title">
     {back}
     <div className="pwc-shop-split pwc-shop-split--detail">
-      <div className="pwc-shop-panel"><ProductPhoto product={product} size="hero" /></div>
+      <div className="pwc-shop-panel"><ProductGallery key={product.id} product={product} /></div>
       <div className="pwc-shop-panel">
         <p className="pwc-shop-eyebrow">{PRODUCT_CATEGORY_LABELS[product.category]} · {PRODUCT_PET_LABELS[product.petType]}</p>
         <h1 id="product-title">{product.name}</h1>

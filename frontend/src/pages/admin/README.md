@@ -1,7 +1,9 @@
 # Admin pages
 
 Product Management includes a separate `ProductImageManager` after saving the
-product. Save pending text changes before gallery edits. Upload, replacement and
+product, placed inside the form between "Mô tả" and the "Hiện trên trang Sản phẩm"
+switch (D-249; its buttons are `type="button"` and never submit the form).
+Save pending text changes before gallery edits. Upload, replacement and
 confirmed removal return the updated product version; unknown acknowledgements
 require reload. Image bytes live in MongoDB and hidden photos use the Admin reader.
 

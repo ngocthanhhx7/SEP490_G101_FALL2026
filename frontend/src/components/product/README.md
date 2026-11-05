@@ -4,6 +4,18 @@
 removals. It revokes preview URLs, blocks writes during dirty text edits, requires
 reload after unknown acknowledgements and never treats a local preview as saved.
 Transport stays in `product-management-api.js`; MongoDB owns persisted images.
+It shows the photos as a row of small tiles (D-249): the first tile is the cover
+(accent border, named "Ảnh đại diện"), replace and delete sit on each tile, and a
+dashed "+" tile at the end adds a photo until the product has five. The row is
+display only: the choose-file, preview and "Lưu ảnh" steps and every API call are
+unchanged, and there is no reordering.
+
+`ProductGallery` is the photo area of Product Details (D-249): the large photo with
+a row of up to five thumbnails below it. Pressing a thumbnail changes the large
+photo and the chosen thumbnail has the accent border (`aria-pressed`). No photo
+shows the brand placeholder and one photo shows no thumbnail row. The chosen photo
+is kept by URL, so a changed photo list falls back to the first photo; a photo that
+fails to load shows the brand mark. Styles are in `product-gallery.css`.
 
 Reusable pieces of the Customer product shop: `ProductCard`, `ProductPhoto` (photo or brand placeholder), `QuantityStepper`, `OrderStatusBadge`, `OrderReturnDialogs` (the Admin dialogs for sending an order back and confirming a return) and the shared `product-shop.css`. The stylesheet is scoped to `.pwc-shop-*` classes and uses the R3 Figma colours locally; it does not change the shared tokens. Components render backend data only; they never compute stock, price or totals. They do not import pages, layouts or route manifests.
 
