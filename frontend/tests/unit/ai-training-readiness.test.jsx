@@ -8,7 +8,7 @@ test('training audit is explicit and reports missing observations without preten
   expect(api.trainingReadiness).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Kiểm tra dữ liệu đủ điều kiện'}));
   expect(await screen.findByText(/Hợp lệ 0 mẫu/)).toBeInTheDocument();
-  expect(screen.getByText(/Còn thiếu ít nhất 200 mẫu/)).toBeInTheDocument();
+  expect(screen.getByText(/Trong dữ liệu đã đối chiếu, còn thiếu 200 mẫu/)).toBeInTheDocument();
   expect(screen.getByText(/Đã chạm giới hạn/)).toBeInTheDocument();
 });
 
