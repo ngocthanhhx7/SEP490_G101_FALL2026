@@ -15,3 +15,7 @@ The contract editor prefers saved terms, then private profile prefill, then safe
 Field validation reports safe field names/reasons only (no entered values). The
 editor retains inputs, links errors to their controls and allows a watermarked
 DRAFT print for checking; printing never issues, signs or activates a contract.
+
+After a command result, focus moves to the field-error summary or status notice,
+so feedback is visible even when submit sits below a long form. Error links focus
+their corresponding input without changing the route hash or dropping entries.

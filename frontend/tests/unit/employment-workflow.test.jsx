@@ -89,6 +89,9 @@ test('contract validation identifies fields and preserves entered values for cor
  fireEvent.change(screen.getByLabelText('Người đại diện ký'),{target:{value:'Edited representative'}});
  fireEvent.submit(screen.getByRole('button',{name:'Lưu bản nháp hợp đồng'}).closest('form'));
  expect(await screen.findByRole('alert')).toHaveTextContent('Ngày ký ghi trên bản in');
+ expect(screen.getByRole('alert')).toHaveFocus();
+ fireEvent.click(screen.getByRole('link',{name:'Ngày ký ghi trên bản in',exact:true}));
+ expect(screen.getByLabelText('Ngày ký ghi trên bản in')).toHaveFocus();
  expect(screen.getByLabelText('Ngày ký ghi trên bản in')).toHaveAttribute('aria-invalid','true');
  expect(screen.getByLabelText('Số căn cước/hộ chiếu')).toHaveAttribute('aria-invalid','true');
  expect(screen.getByLabelText('Người đại diện ký')).toHaveValue('Edited representative');
