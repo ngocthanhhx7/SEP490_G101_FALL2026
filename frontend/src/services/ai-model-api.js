@@ -10,6 +10,14 @@ export function createAiModelApi(request) {
     return result;
   }
   return {
+    async trainingReadiness({ signal } = {}) {
+      const result = await request('/ai/admin/training-readiness', { signal });
+      const data = result.data;
+      if (!data || !['scanned', 'eligibleRows', 'bookingGroups', 'scanLimit', 'missingObservations', 'missingBookingGroups'].every(key => Number.isSafeInteger(data[key]) && data[key] >= 0) ||
+        typeof data.readyForTraining !== 'boolean' || typeof data.truncated !== 'boolean' || !data.excluded ||
+        !Object.values(data.excluded).every(value => Number.isSafeInteger(value) && value >= 0)) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     async status({ signal } = {}) {
       const result = await request('/ai/admin/status', { signal });
       if (!result.data || !['EXPLAINABLE_RULES', 'APPROVED_ADDITIVE_MODEL'].includes(result.data.rankingSource) ||
