@@ -227,6 +227,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       if (!sameDigest(priorSubmission.submissionPayloadDigest, submissionPayloadDigest)) {
         throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
       }
+      // A matching original request can restore omitted particulars, never guessed historical data.
+      if (actor?.userId && String(priorSubmission.ownerUserId) === actor.userId) await Applicant.updateOne({ _id: priorSubmission._id, applicantParticularsCiphertext: { $exists: false } },
+        { $set: { applicantParticularsCiphertext: contactCrypto.encrypt(JSON.stringify({ dateOfBirth: body.dateOfBirth, identityNumber: identityValue })) } });
       await Applicant.updateOne({ _id: priorSubmission._id, trackingCodeDigest: { $exists: false } },
         { $set: { trackingCodeDigest } });
       return { id: priorSubmission._id.toString(), state: priorSubmission.state,
@@ -272,6 +275,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           policyConsents,
           displayName, contactChannel, contactCiphertext: contactCrypto.encrypt(contact.canonicalValue),
           contactLookupKey: contact.lookupKey, identityLookupKey,
+          applicantParticularsCiphertext: contactCrypto.encrypt(JSON.stringify({ dateOfBirth: body.dateOfBirth, identityNumber: identityValue })),
           activePendingContactKey: contact.lookupKey, activePendingIdentityKey: identityLookupKey,
           ageEligible: true, ageCheckedAt: new Date(now), experience, requestedServices, workAreas,
           ...(employmentType ? { employmentType } : {}),

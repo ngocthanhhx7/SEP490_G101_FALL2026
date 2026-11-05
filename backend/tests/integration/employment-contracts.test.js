@@ -87,3 +87,25 @@ test('minimum-hours payroll pays whole month without registration; partial/unpai
   await expect(payroll.previewStatement(admin,{...input,periodStart:'2026-11-02'})).rejects.toMatchObject({code:'PAYROLL_ATTENDANCE_REVIEW_REQUIRED'});
   expect((await payroll.prepareAutomaticStatement(admin,{input,sourceHash:preview.sourceHash},'synthetic-minimum-payroll')).status).toBe('PREPARED');
 });
+
+test('contract prefill decrypts the applicant snapshot and only the current Admin and owned verified contacts',async()=>{
+  const applicantId=oid(),owner=oid(),identity='123456789012';
+  await connection.collection('users').updateOne({_id:new mongoose.Types.ObjectId(admin.userId)},{$set:{displayName:'Synthetic signing Admin'}});
+  await connection.collection('sitterapplications').insertOne({_id:applicantId,submissionKeyDigest:'synthetic-prefill-'+String(applicantId),state:'INTERVIEW',version:2,displayName:'Synthetic applicant',ownerUserId:owner,
+    contactChannel:'EMAIL',contactCiphertext:crypto.encrypt('application@example.test'),
+    identityLookupKey:createHmac('sha256','synthetic-contract-lookup-secret-32-chars').update('applicant-identity\0'+identity).digest('hex'),
+    applicantParticularsCiphertext:crypto.encrypt(JSON.stringify({dateOfBirth:'1994-03-02',identityNumber:identity}))});
+  for(const [userId,channel,value] of [[admin.userId,'EMAIL','admin@example.test'],[admin.userId,'PHONE','0900000001'],[String(owner),'PHONE','0900000002'],[String(oid()),'PHONE','0900000099']])
+    await connection.models.Contact.create({userId,channel,canonicalCiphertext:crypto.encrypt(value),lookupKey:'synthetic-'+String(oid()),state:'VERIFIED',verifiedAt:new Date(clock())});
+  const result=await service.get(admin,String(applicantId));
+  expect(result.prefill.terms).toEqual({employeeName:'Synthetic applicant',dateOfBirth:'1994-03-02',identityNumber:identity,employeeEmail:'application@example.test',employeePhone:'0900000002',
+    representativeName:'Synthetic signing Admin',employerEmail:'admin@example.test',employerPhone:'0900000001'});
+  expect(result.prefill.terms.employerName).toBeUndefined();expect(result.prefill.terms.authorityBasis).toBeUndefined();
+  expect(result.prefill.sources.identityNumber).toBe('APPLICATION_PRIVATE');expect(result.prefill.warnings).toEqual([]);
+  await expect(service.get({...admin,roles:['STAFF']},String(applicantId))).rejects.toMatchObject({code:'FORBIDDEN'});
+  await expect(service.get({...admin,userId:String(oid())},String(applicantId))).rejects.toMatchObject({code:'FORBIDDEN'});
+  await connection.collection('sitterapplications').updateOne({_id:applicantId},{$set:{applicantParticularsCiphertext:crypto.encrypt(JSON.stringify({dateOfBirth:'1994-03-02',identityNumber:'999999999999'}))}});
+  await expect(service.get(admin,String(applicantId))).rejects.toMatchObject({code:'CONTRACT_PREFILL_UNAVAILABLE'});
+  await connection.collection('sitterapplications').updateOne({_id:applicantId},{$unset:{applicantParticularsCiphertext:''}});
+  const legacy=await service.get(admin,String(applicantId));expect(legacy.prefill.terms.identityNumber).toBeUndefined();expect(legacy.prefill.terms.dateOfBirth).toBeUndefined();expect(legacy.prefill.warnings).toHaveLength(1);
+});

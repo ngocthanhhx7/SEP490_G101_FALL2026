@@ -1,5 +1,14 @@
 # Hợp đồng lao động và lập phiếu lương — kiểm tra ngày 05/11/2026
 
+## Điền sẵn hồ sơ vào hợp đồng
+
+Hồ sơ nộp mới giữ ngày sinh/số giấy tờ dưới dạng mã hóa AES-GCM theo cơ chế khóa có sẵn. API hợp đồng riêng cho Admin điền sẵn tên, ngày sinh, số giấy tờ và liên hệ từ hồ sơ ứng viên; tên người đại diện cùng liên hệ đã xác minh lấy từ đúng tài khoản Admin đang đăng nhập. Liên hệ của ứng viên không bị thay bằng liên hệ Admin. Tên pháp nhân, mã đăng ký, địa chỉ pháp lý, chức danh và thẩm quyền ký không được suy đoán từ tài khoản cá nhân.
+
+Bản nháp đã lưu có ưu tiên trên gợi ý hồ sơ; thay đổi tự nhập không bị ghi đè khi dữ liệu tải lại. Admin kiểm tra/sửa rồi mới lưu/chốt, gợi ý không tạo chữ ký hoặc cập nhật bản hợp đồng đã ký. Không đưa thông tin này vào danh sách hồ sơ, email, status OTP hoặc browser storage.
+
+Hồ sơ lịch sử chỉ có mã HMAC để đối chiếu và kết quả đủ tuổi không thể khôi phục số giấy tờ/ngày sinh bằng cách giải mã mã băm. Các ô chưa có nguồn được để trống kèm hướng dẫn đối chiếu giấy tờ. Chỉ khi chính chủ gửi lại đúng request gốc đã được kiểm tra fingerprint, hệ thống mới có thể lưu bổ sung giá trị gốc; không backfill đại trà hoặc bịa thông tin.
+
+
 ## Điều chỉnh theo xác nhận ngày 05/11/2026
 
 User xác nhận full time tối thiểu **40 giờ/tuần**, part time tối thiểu **20 giờ/tuần**; đây là thỏa thuận của dự án, không phải mức tối thiểu do luật ấn định. Mẫu mới `PWC-VN-LABOUR-2026-11-05-v2` bỏ lịch thứ/giờ cố định; pet sitter đăng ký lịch cụ thể ở màn Lịch làm việc sau khi ký và được duyệt. Lưu hợp đồng không tạo đăng ký lịch. Khung giờ rảnh không phải công thực tế; số giờ tối thiểu là cam kết theo hợp đồng. Các kiểm tra điều phối về giờ thông thường, ca đã nhận, nghỉ và yêu cầu thỏa thuận làm thêm vẫn giữ nguyên. Bản v1 đã chốt/ký giữ nguyên nội dung, không tự chuyển mẫu hoặc thay hash.

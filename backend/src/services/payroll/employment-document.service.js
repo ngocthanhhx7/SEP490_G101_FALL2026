@@ -1,3 +1,4 @@
+import { createEmploymentPrefillService } from './employment-prefill.service.js';
 import { createHash, createHmac } from 'node:crypto';
 import { Types } from 'mongoose';
 import { employmentDocumentModels } from '../../models/employment-document.model.js';
@@ -12,6 +13,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
   if (typeof lookupSecret !== 'string' || lookupSecret.length < 32 || typeof crypto?.encrypt !== 'function' || typeof crypto?.decrypt !== 'function') throw new TypeError('Private crypto and identity lookup key required');
   const { EmploymentDocument: Document, EmploymentDocumentCounter: Counter, EmploymentDocumentCommand: Command } = employmentDocumentModels(connection);
   const { SitterApplication: Application } = sitterApplicationModels(connection), { EmploymentContract: Contract } = payrollModels(connection), uow = createUnitOfWork(connection);
+  const prefill = createEmploymentPrefillService({ connection, crypto, lookupSecret });
   const admin = actor => { if (actor?.state !== 'ACTIVE' || !actor.roles?.includes('ADMIN')) fail('FORBIDDEN', 'Admin required', 403); id(actor.userId); };
   function view(row) {
     const terms = JSON.parse(crypto.decrypt(row.encryptedTerms));
@@ -41,10 +43,12 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
   return {
     async get(actor, applicationId) {
       admin(actor); id(applicationId);
-      if (!await Application.exists({ _id: applicationId })) fail('RESOURCE_NOT_FOUND', 'Application unavailable', 404);
+      const application = await Application.findById(applicationId).select('+applicantParticularsCiphertext +identityLookupKey +contactCiphertext').lean();
+      if (!application) fail('RESOURCE_NOT_FOUND', 'Application unavailable', 404);
       const rows = await Document.find({ applicationId }).sort({ revision: -1 }).limit(20).select('+encryptedTerms +archiveReference').lean();
       await payrollModels(connection).PayrollEvent.create({ actorId: actor.userId, resourceId: applicationId, type: 'CONTRACT_READ', at: new Date(clock()) });
-      return { current: rows.length ? view(rows[0]) : null, history: rows.map(row => ({ id: String(row._id), reference: row.reference, state: row.state, revision: row.revision })) };
+      const defaults = application.state === 'INTERVIEW' && !['SIGNED','ACTIVATED'].includes(rows[0]?.state) ? await prefill.get(actor, application) : { terms: {}, sources: {}, warnings: [] };
+      return { prefill: defaults, current: rows.length ? view(rows[0]) : null, history: rows.map(row => ({ id: String(row._id), reference: row.reference, state: row.state, revision: row.revision })) };
     },
     async save(actor, applicationId, body, key) {
       admin(actor); exact(body, ['expectedRevision', 'applicationVersion', 'terms'], ['expectedRevision', 'applicationVersion', 'terms']);
