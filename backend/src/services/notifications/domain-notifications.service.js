@@ -38,6 +38,14 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         approved ? 'Hồ sơ ứng tuyển đã được duyệt' : 'Đã có kết quả hồ sơ ứng tuyển',
         approved ? 'Hồ sơ của bạn đã được duyệt. Đăng nhập lại để cập nhật quyền người chăm sóc.' : 'Hồ sơ của bạn đã có kết quả. Vui lòng xem trạng thái hồ sơ.', session);
     },
+    // R3 MSG122: one notice for the Admins for each receipt line that rejected goods. The event id is stable, so saving
+    // the same receipt line again never writes a second notice. The link opens the receipt on the Goods Receipt page.
+    async goodsReceiptRejected({ code, productId, productName, quantity, reason }, session) {
+      await write(`goods-receipt:${code}:${productId}`, 'GoodsReceiptRejected',
+        await operators(['ADMIN'], `/admin/goods-receipts?receipt=${code}`, session),
+        'Hàng nhập bị từ chối',
+        `Phiếu nhập ${code}: từ chối ${quantity} ${productName}. Lý do: ${reason}.`, session);
+    },
     async visit({ visitId, version, customerId, operation }, session) {
       const labels = { CHECK_IN: ['Đã bắt đầu chăm sóc', 'Người chăm sóc đã ghi nhận bắt đầu buổi chăm sóc.'],
         CHECK_OUT: ['Đã hoàn thành buổi chăm sóc', 'Người chăm sóc đã ghi nhận hoàn thành. Bạn có thể xem chi tiết trong đơn chăm sóc.'] };
