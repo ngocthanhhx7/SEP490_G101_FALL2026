@@ -8,6 +8,7 @@ export async function provisionEmployeeScheduling(connection) {
   }
   await connection.db.collection('visits').createIndex({ sitterId: 1, state: 1, startAt: 1, endAt: 1 });
   await connection.db.collection('visits').createIndex({ state: 1, startAt: 1, _id: 1 });
+  await connection.db.collection('visits').createIndex({ startAt: 1, _id: 1 });
   await connection.db.collection('bookings').createIndex({ carePlanState: 1, createdAt: 1, _id: 1 });
 }
 export async function assertEmployeeSchedulingStorage(connection) {

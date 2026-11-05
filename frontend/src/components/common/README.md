@@ -38,3 +38,5 @@ The account trigger keeps its hover/click behavior without the decorative chevro
 `PrintDocument` renders selected private print content in a body-level portal.
 Print media hides app chrome/layout entirely; normal screens hide the portal. It
 never changes the document signature or payment state.
+
+`OperationsWorkspace.jsx` supplies accessible, horizontally scrollable tables, status badges and source-labelled summary cards for dispatch, public profile review, payroll and settlement workspaces. It contains presentation only; missing reports show an em dash. Shared styles live in `styles/operations-workspace.css`.

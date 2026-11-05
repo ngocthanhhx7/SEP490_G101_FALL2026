@@ -1,3 +1,4 @@
+import { beforeAll } from '@jest/globals';
 jest.mock('../../src/components/payroll/AutomaticPayrollForm.jsx', () => ({ AutomaticPayrollForm: () => <div>Automatic payroll source form</div> }));
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { EmployeePayrollPage } from '../../src/pages/sitter/EmployeePayrollPage.jsx';
@@ -99,9 +100,9 @@ test('Admin payroll freezes an uncertain contract and retries the same payload a
 });
 
 test('API uses payroll endpoints and preserves CSRF/idempotency transport contract', async () => {
-  const request = jest.fn().mockResolvedValue({ data: { id: 'record' } }); const api = createEmployeePayrollApi(request);
+  const request = jest.fn().mockResolvedValue({ data: { id: employeeId,version:3,status:'APPROVED' } }); const api = createEmployeePayrollApi(request);
   const body = { action: 'APPROVE', expectedVersion: 2 };
-  expect(await api.advanceDecision(employeeId, body, 'stable-operation')).toEqual({ id: 'record' });
+  expect(await api.advanceDecision(employeeId, body, 'stable-operation')).toEqual({ id: employeeId,version:3,status:'APPROVED' });
   expect(request).toHaveBeenCalledWith(`/payroll/advances/${employeeId}/decisions`, { method: 'POST', body, idempotencyKey: 'stable-operation' });
 });
 
@@ -120,7 +121,8 @@ test('Admin can inspect paid advance history without exposing mutation controls 
     id: 'paid-history', employeeId, amountVnd: 100000, status: 'PAID', monthKey: '2026-10', settlementPeriod: '2026-11', reason: 'Paid advance history'
   }] : [], nextCursor: null }));
   render(<EmployeePayrollAdminPage api={api} />); await screen.findByText('Không có đề nghị chờ xử lý.');
-  fireEvent.click(screen.getByLabelText('Hiện lịch sử tạm ứng')); await screen.findByText('Paid advance history');
+  fireEvent.click(screen.getByLabelText('Hiện lịch sử tạm ứng'));
+  fireEvent.click(await screen.findByRole('button',{name:'Xem / xử lý'})); await screen.findByText('Paid advance history');
   expect(screen.queryByText('Ghi nhận đã chi trả', { selector: 'button' })).toBeNull();
   expect(api.advances.mock.calls.some(([input]) => input.view === 'HISTORY')).toBe(true);
 });
@@ -134,7 +136,8 @@ test('explicitly expired current contract does not reactivate an older contract'
 test('Admin submits a separate correction against the authoritative paid statement version', async () => {
   const api = apiFixture(); api.statements.mockResolvedValue({ items: [{ id: 'paid-statement', employeeId,
     version: 2, status: 'PAID', periodStart: '2026-10-01', periodEnd: '2026-11-01', dueAt: '2026-11-02', breakdown: {} }] });
-  render(<EmployeePayrollAdminPage api={api} />); await screen.findByText('Lập điều chỉnh');
+  render(<EmployeePayrollAdminPage api={api} />);
+  fireEvent.click(await screen.findByRole('button',{name:'Xem phiếu / xử lý'})); await screen.findByText('Lập điều chỉnh');
   fill('Số tiền điều chỉnh (VND)', '250000'); fill('Lý do điều chỉnh', 'Synthetic overtime correction');
   fill('Mã hồ sơ đánh giá điều chỉnh', 'verified-overtime');
   fireEvent.submit(screen.getByText('Gửi điều chỉnh chờ duyệt').closest('form'));
@@ -145,10 +148,32 @@ test('Admin submits a separate correction against the authoritative paid stateme
 test('approved recovery requires agreement and resolution evidence with no payment action', async () => {
   const api = apiFixture(); api.adjustments.mockResolvedValue({ items: [{ id: 'recovery', employeeId, statementId: 'salary',
     direction: 'RECOVERY', amountVnd: 50000, status: 'APPROVED', version: 1, reason: 'Synthetic correction' }] });
-  render(<EmployeePayrollAdminPage api={api} />); await screen.findByText('Ghi nhận đối soát');
+  render(<EmployeePayrollAdminPage api={api} />);
+  fireEvent.click(await screen.findByRole('button',{name:'Xem điều chỉnh'})); await screen.findByText('Ghi nhận đối soát');
   expect(screen.queryByText('Ghi nhận chi bổ sung', { selector: 'button' })).toBeNull();
   fill('Mã thỏa thuận xử lý chênh lệch', 'agreed-resolution'); fill('Mã chứng từ hoàn tất đối soát', 'evidence-reference');
   fireEvent.submit(screen.getByText('Ghi nhận đối soát').closest('form'));
   await waitFor(() => expect(api.adjustmentDecision).toHaveBeenCalledWith('recovery', { action: 'RECONCILE', expectedVersion: 1,
     agreementReference: 'agreed-resolution', resolutionReference: 'evidence-reference' }, expect.any(String)));
+});
+
+beforeAll(() => {
+  window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
+
+test('Admin payment dialog preserves unknown payment payload and key and prevents replacement or dismissal', async () => {
+  const api = apiFixture();
+  api.advances.mockResolvedValue({items:[{id:'advance',employeeId,amountVnd:100000,status:'APPROVED',version:2}]});
+  api.advanceDecision.mockRejectedValueOnce({code:'TIMEOUT'}).mockResolvedValueOnce({id:'advance',version:3,status:'PAID'});
+  render(<EmployeePayrollAdminPage api={api}/>);
+  fireEvent.click(await screen.findByRole('button',{name:'Xem / xử lý'}));
+  fill('Mã giao dịch ngân hàng đã thực hiện','synthetic-transfer');
+  fireEvent.click(screen.getByRole('button',{name:'Ghi nhận đã chi trả'}));
+  await screen.findByText(/Giữ nguyên nội dung/);
+  expect(screen.getByLabelText('Mã giao dịch ngân hàng đã thực hiện')).toBeDisabled();
+  expect(screen.queryByRole('button',{name:'Đóng'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Kiểm tra lại cùng yêu cầu'}));
+  await waitFor(()=>expect(api.advanceDecision).toHaveBeenCalledTimes(2));
+  expect(api.advanceDecision.mock.calls[0]).toEqual(api.advanceDecision.mock.calls[1]);
 });

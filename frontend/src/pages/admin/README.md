@@ -59,3 +59,5 @@ SitterApplicationReviewPage embeds contract preparation/printing/signature
 verification before final approval. EmployeePayrollAdminPage defaults to a named
 employee/source-derived draft; legacy explicit assessment stays in advanced
 reconciliation. Contract and statement printing use a selected body-level portal.
+
+Payroll and settlement workspaces use full-width tables, server-derived reports and focused detail dialogs. Payroll retains automatic source-based preparation and selected payslip printing; legacy/advanced forms are collapsed. Settlement filtering is explicitly limited to the current cursor page. Reports are operational counts and persisted VND totals, never bank balances or proof of transfer. Policy/source gates remain authoritative; unknown commands freeze the modal and retry the original payload/key.
