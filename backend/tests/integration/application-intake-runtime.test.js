@@ -151,6 +151,10 @@ test('registration → private upload → application → scoped OTP status → 
   await request(app).get(contractRoot).expect(401);
 
   const effectiveOn=new Date(clockNow+86400000+7*3600000).toISOString().slice(0,10);
+  const invalidGender=await request(app).post(contractRoot).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-contract'}).send({applicationVersion:2,expectedRevision:0,
+    terms:employmentTerms({gender:'Name',identityNumber:'TEST12345678',plannedSigningOn:signedOn,effectiveOn})}).expect(422);
+  expect(invalidGender.body.error).toMatchObject({code:'VALIDATION_FAILED',fields:{gender:'INVALID_GENDER'}});
+  expect((await request(app).get(contractRoot).set(adminHeaders).expect(200)).body.data.current).toBeNull();
   const contract=(await request(app).post(contractRoot).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-contract'}).send({applicationVersion:2,expectedRevision:0,
     terms:employmentTerms({employeeName:'Ứng viên kiểm thử',identityNumber:'TEST12345678',plannedSigningOn:signedOn,effectiveOn})}).expect(201)).body.data;
   await request(app).post(`${contractRoot}/${contract.id}/decisions`).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-issue'}).send({action:'ISSUE',termsHash:contract.termsHash}).expect(200);
