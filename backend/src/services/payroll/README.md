@@ -3,6 +3,12 @@
 `employment-document.service.js` owns encrypted immutable application contracts,
 Admin issue/sign attestations and transactional activation into EmploymentContract.
 It receives the existing contact crypto port; no new secret/environment variable.
+New contract saves accept only `Nam`, `Nữ`, or `Khác` for gender (Unicode NFC,
+case and surrounding spaces normalized). Invalid values return HTTP 422,
+`VALIDATION_FAILED`, `error.fields.gender: INVALID_GENDER` in the HTTP envelope. Legacy unsigned
+documents with an invalid gender must be corrected in a new revision before
+issue/sign; encrypted historical terms and hashes are never rewritten.
+Signed/activated historical documents remain readable and printable unchanged.
 `payroll-draft.service.js` derives contractual calendars, fixed salary/allowance and
 verified service-credit previews, retaining explicit attendance/statutory evidence.
 `payroll.service.js` rechecks the source hash inside preparation and retains

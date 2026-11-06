@@ -106,3 +106,49 @@ test('draft print remains visibly unsigned and never issues a contract',async()=
  expect(print).toHaveBeenCalledTimes(1);expect(api.decide).not.toHaveBeenCalled();
  expect(screen.getAllByText('BẢN NHÁP – CHƯA CHỐT ĐỂ KÝ').length).toBeGreaterThan(0);print.mockRestore();
 });
+
+test.each(['Nam','Nữ','Khác'])('contract gender requires an explicit supported choice and saves %s',async(gender)=>{
+ const api={get:jest.fn().mockResolvedValue({current:null,history:[],prefill:{terms:{...terms,gender:'Name'},warnings:[]}}),save:jest.fn().mockResolvedValue({state:'DRAFT'})};
+ render(<EmploymentContractEditor application={application} api={api}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Soạn hợp đồng'}));
+ const control=screen.getByRole('combobox',{name:'Giới tính'});
+ expect(control).toHaveValue('');expect(control).toBeRequired();
+ expect(Array.from(control.options).map(option=>option.value)).toEqual(['','Nam','Nữ','Khác']);
+ fireEvent.change(screen.getByLabelText('Người đại diện ký'),{target:{value:'Edited representative'}});
+ const form=screen.getByRole('button',{name:'Lưu bản nháp hợp đồng'}).closest('form');
+ fireEvent.submit(form);
+ expect(api.save).not.toHaveBeenCalled();
+ expect(screen.getByRole('alert')).toHaveTextContent('Chọn Nam, Nữ hoặc Khác');
+ expect(screen.getByLabelText('Người đại diện ký')).toHaveValue('Edited representative');
+ fireEvent.change(control,{target:{value:gender}});fireEvent.submit(form);
+ await waitFor(()=>expect(api.save).toHaveBeenCalledTimes(1));
+ expect(api.save.mock.calls[0][1].terms).toMatchObject({gender,representativeName:'Edited representative'});
+});
+
+test.each(['DRAFT','ISSUED'])('legacy invalid gender in %s requires revision before issue, print or sign',async(state)=>{
+ const doc={id:'b'.repeat(24),terms:{...terms,gender:'Name'},reference:'HDLD-SYNTHETIC',state,revision:1};
+ const api={get:jest.fn().mockResolvedValue({current:doc,history:[]}),decide:jest.fn()};
+ render(<EmploymentContractEditor application={application} api={api}/>);
+ expect(await screen.findByRole('alert')).toHaveTextContent('Giới tính trong bản này không hợp lệ');
+ expect(screen.getByRole('button',{name:/Lưu PDF/})).toBeDisabled();
+ expect(screen.getByRole('button',{name:state==='DRAFT'?'Chốt nội dung bản in để ký':'Xác nhận hợp đồng hai bên đã ký'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('button',{name:'Tạo bản sửa hợp đồng'}));
+ expect(screen.getByRole('combobox',{name:'Giới tính'})).toHaveValue('');
+ expect(api.decide).not.toHaveBeenCalled();
+});
+
+test('API gender error focuses the field without losing data; signed historical terms are not rewritten',async()=>{
+ const api={get:jest.fn().mockResolvedValue({current:null,history:[],prefill:{terms,warnings:[]}}),save:jest.fn().mockRejectedValue({status:422,code:'VALIDATION_FAILED',fields:{gender:'INVALID_GENDER'}})};
+ const editor=render(<EmploymentContractEditor application={application} api={api}/>);
+ fireEvent.click(await screen.findByRole('button',{name:'Soạn hợp đồng'}));
+ fireEvent.submit(screen.getByRole('button',{name:'Lưu bản nháp hợp đồng'}).closest('form'));
+ expect(await screen.findByRole('alert')).toHaveFocus();
+ fireEvent.click(screen.getByRole('link',{name:'Giới tính',exact:true}));
+ expect(screen.getByRole('combobox',{name:'Giới tính'})).toHaveFocus();
+ expect(screen.getByLabelText('Người đại diện ký')).toHaveValue(terms.representativeName);
+ editor.unmount();
+ render(<EmploymentContractEditor application={application} api={{get:jest.fn().mockResolvedValue({current:{id:'b'.repeat(24),terms:{...terms,gender:'Name'},state:'SIGNED',revision:1},history:[]})}}/>);
+ expect(await screen.findByRole('button',{name:'In hợp đồng / Lưu PDF'})).toBeEnabled();
+ expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+ expect(screen.getAllByText(/Giới tính: Name/).length).toBeGreaterThan(0);
+});

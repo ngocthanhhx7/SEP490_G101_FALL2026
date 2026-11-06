@@ -4,7 +4,7 @@ import { Types } from 'mongoose';
 import { employmentDocumentModels } from '../../models/employment-document.model.js';
 import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
-import { employmentTermsInput, contractDate, contractFieldError } from '../../validators/employment-document.validator.js';
+import { employmentTermsInput, contractDate, contractFieldError, normalizeContractGender } from '../../validators/employment-document.validator.js';
 import { exact, id, number, fail } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -84,6 +84,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
         const latest = await Document.findOne({ applicationId }).sort({ revision: -1 }).session(session).lean();
         if (!row || String(latest._id) !== documentId || row.applicationVersion !== application.version || row.termsHash !== body.termsHash || row.state !== (body.action === 'ISSUE' ? 'DRAFT' : 'ISSUED')) fail('VERSION_CONFLICT', 'Current contract revision required', 409);
         const terms = view(row).terms;
+        if (!normalizeContractGender(terms.gender)) contractFieldError({ gender: 'INVALID_GENDER' });
         if (signedAt && (body.signedOn !== terms.plannedSigningOn || signedAt < new Date(new Date(new Date(row.issuedAt).getTime() + 7 * 3600000).toISOString().slice(0,10) + 'T00:00:00+07:00') || signedAt > contractDate(terms.effectiveOn))) contractFieldError({ signedOn: 'SIGNING_DATE' });
         return Document.findByIdAndUpdate(documentId, { $set: body.action === 'ISSUE' ? { state: 'ISSUED', issuedAt: new Date(clock()) }
           : { state: 'SIGNED', signedAt, verifiedAt: new Date(clock()), verifiedBy: actor.userId, archiveReference: body.archiveReference.trim() } }, { session, returnDocument: 'after' }).select('+encryptedTerms +archiveReference').lean();
