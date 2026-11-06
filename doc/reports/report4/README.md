@@ -107,3 +107,13 @@ mức hủy/hoàn/trách nhiệm chưa được duyệt không được tự t�
 
 Chỉ sửa tài liệu/diagram. Không có migration, seed, chỉnh `.env`, thao tác dữ liệu
 nghiệp vụ hoặc lý do triển khai lại application lên VPS từ thay đổi này.
+
+## Bản sửa theo mẫu schema và review bổ sung
+
+Schema hiện dùng đúng mẫu bảng header vàng/viền cyan, field/type và quan hệ
+crow-foot; các đường nối đi ngoài vùng chữ. `data-schema.drawio` có 18 trang
+cho 103 collection contracts; `data-relationships.drawio` có 10 trang theo miền.
+Bảng mô tả vẫn giữ Column, Type, Constraints, Notes và có giới hạn độ dài cụ thể.
+EMP-02/UC-21, PAY-03, MAP-01, UC-75 và MAIL-01 đã tách tương tác theo source.
+Google Docs đã đồng bộ text mới; ảnh gốc được giữ để thay bằng PNG theo chỉ dẫn
+ban đầu. Đủ trang và validator PASS không đồng nghĩa đã có approval cuối.

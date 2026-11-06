@@ -482,7 +482,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "bookingId",
@@ -491,7 +492,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "sitterId",
@@ -500,7 +502,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "completedAt",
@@ -516,7 +519,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "ordinal",
@@ -606,7 +610,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "allocationPolicyVersion",
@@ -615,7 +620,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "decisionVersion",
@@ -624,7 +630,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "sourceVersion",
@@ -633,7 +640,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "sourceHash",
@@ -642,7 +650,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "completionReference",
@@ -651,7 +660,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "paymentReference",
@@ -660,7 +670,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "allocationReference",
@@ -669,7 +680,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "assessmentReference",
@@ -678,7 +690,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "createdAt",
@@ -741,7 +754,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "weekKey",
@@ -750,7 +764,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "count",
@@ -798,7 +813,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "sitterId",
@@ -807,7 +823,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "completedAt",
@@ -823,7 +840,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "ordinal",
@@ -842,7 +860,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "_id",
@@ -890,7 +909,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "type",
@@ -909,7 +929,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "state",
@@ -2855,7 +2876,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "workplaceRegion",
@@ -2877,7 +2899,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "verifiedBy",
@@ -2992,7 +3015,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "decisionReason",
@@ -3001,7 +3025,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "requestedAt",
@@ -3046,7 +3071,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "policyVersion",
@@ -3070,7 +3096,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "_id",
@@ -3579,7 +3606,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "transferReference",
@@ -3589,7 +3617,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "_id",
@@ -3708,7 +3737,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "assessmentReference",
@@ -3718,7 +3748,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "status",
@@ -3777,7 +3808,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "resolvedBy",
@@ -3801,7 +3833,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "agreementReference",
@@ -3811,7 +3844,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "resolutionReference",
@@ -3821,7 +3855,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "_id",
@@ -3921,7 +3956,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "species",
@@ -3941,7 +3977,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "weightKg",
@@ -4024,7 +4061,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 2000
         },
         {
           "name": "state",
@@ -4113,7 +4151,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "location",
@@ -4123,7 +4162,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "point",
@@ -4176,7 +4216,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "state",
@@ -4317,7 +4358,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "species",
@@ -4333,7 +4375,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "active",
@@ -4400,7 +4443,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "species",
@@ -4428,7 +4472,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "_id",
@@ -4532,7 +4577,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 2000
         },
         {
           "name": "approvalSource",
@@ -4689,7 +4735,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "rules.label",
@@ -4698,7 +4745,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "rules.explanation",
@@ -4707,7 +4755,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "rules.scope",
@@ -5250,7 +5299,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 20
         },
         {
           "name": "name",
@@ -5259,7 +5309,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 200
         },
         {
           "name": "category",
@@ -5291,7 +5342,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 4000
         },
         {
           "name": "photos",
@@ -5308,7 +5360,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "sampleCatalog",
@@ -5382,7 +5435,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "version",
@@ -5467,7 +5521,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 200
         },
         {
           "name": "nameKey",
@@ -5476,7 +5531,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 400
         },
         {
           "name": "contactName",
@@ -5486,7 +5542,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "phone",
@@ -5496,7 +5553,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 10
         },
         {
           "name": "email",
@@ -5506,7 +5564,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 254
         },
         {
           "name": "productIds",
@@ -5687,7 +5746,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 20
         },
         {
           "name": "customerId",
@@ -5717,7 +5777,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 20
         },
         {
           "name": "lines.productName",
@@ -5726,7 +5787,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 200
         },
         {
           "name": "lines.quantity",
@@ -5793,7 +5855,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "deliveryAddress.location",
@@ -5802,7 +5865,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "deliveryAddress.areaCode",
@@ -5811,7 +5875,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "subtotal",
@@ -5873,7 +5938,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 64
         },
         {
           "name": "status",
@@ -5907,7 +5973,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 300
         },
         {
           "name": "returnReason",
@@ -5928,7 +5995,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "returnedAt",
@@ -5952,7 +6020,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "requestFingerprint",
@@ -5961,7 +6030,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "version",
@@ -6201,7 +6271,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "status",
@@ -6222,7 +6293,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 200
         },
         {
           "name": "purpose",
@@ -6231,7 +6303,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "effectiveAt",
@@ -6264,7 +6337,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 120
         },
         {
           "name": "sourceRef",
@@ -6273,7 +6347,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "contentHash",
@@ -6282,7 +6357,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "sections",
@@ -6298,7 +6374,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 200
         },
         {
           "name": "sections.paragraphs",
@@ -6425,7 +6502,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "effectiveAt",
@@ -6504,7 +6582,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 2,
+          "maxLength": 120
         },
         {
           "name": "body",
@@ -6514,7 +6594,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 3,
+          "maxLength": 10000
         },
         {
           "name": "effectiveAt",
@@ -6538,7 +6620,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 3,
+          "maxLength": 500
         },
         {
           "name": "recordedAt",
@@ -6607,7 +6691,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "locations",
@@ -6655,7 +6740,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 200
         },
         {
           "name": "faq.answer",
@@ -6664,7 +6750,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1500
         },
         {
           "name": "provisioningRunId",
@@ -6764,7 +6851,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "effectiveAt",
@@ -6854,7 +6942,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 2,
+          "maxLength": 80
         },
         {
           "name": "effectiveAt",
@@ -6878,7 +6968,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 3,
+          "maxLength": 500
         },
         {
           "name": "recordedAt",
@@ -6958,7 +7050,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 2,
+          "maxLength": 120
         },
         {
           "name": "description",
@@ -6967,7 +7061,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 2000
         },
         {
           "name": "scope",
@@ -6977,7 +7072,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 3,
+          "maxLength": 2000
         },
         {
           "name": "species",
@@ -7023,7 +7120,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 3,
+          "maxLength": 500
         },
         {
           "name": "recordedAt",
@@ -7087,7 +7186,9 @@
             "minlength",
             "maxlength",
             "regexp"
-          ]
+          ],
+          "minLength": 2,
+          "maxLength": 48
         },
         {
           "name": "createdBy",
@@ -7138,7 +7239,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "sitterId",
@@ -7147,7 +7249,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "requestWeekKey",
@@ -7195,7 +7298,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "earningSnapshots.visitId",
@@ -7205,7 +7309,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "earningSnapshots.earningPeriodKey",
@@ -7214,7 +7319,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "earningSnapshots.amountVnd",
@@ -7295,7 +7401,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "earningSnapshots.ledgerReference",
@@ -7305,7 +7412,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "earningSnapshots.transferRecordedAt",
@@ -7376,7 +7484,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "decisionVersion",
@@ -7385,7 +7494,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "decision",
@@ -7422,7 +7532,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "transfer.evidenceReference",
@@ -7431,7 +7542,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "transfer.amountVnd",
@@ -7460,7 +7572,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "transfer.recordedAt",
@@ -7544,7 +7657,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "sitterId",
@@ -7553,7 +7667,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "requestWeekKey",
@@ -7637,7 +7752,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "sitterId",
@@ -7646,7 +7762,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "visitId",
@@ -7656,7 +7773,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "bookingId",
@@ -7665,7 +7783,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "completedAt",
@@ -7681,7 +7800,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "earningPeriodKey",
@@ -7690,7 +7810,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "accruedVnd",
@@ -7771,7 +7892,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "ledgerReference",
@@ -7781,7 +7903,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "transferRecordedAt",
@@ -7813,7 +7936,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "reservation.reservedAt",
@@ -7935,7 +8059,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "lockType",
@@ -7957,7 +8082,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "state",
@@ -7978,7 +8104,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "createdAt",
@@ -8003,7 +8130,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "_id",
@@ -8052,7 +8180,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 220
         },
         {
           "name": "operationId",
@@ -8061,7 +8190,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "requestId",
@@ -8071,7 +8201,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "earningId",
@@ -8080,7 +8211,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "sitterId",
@@ -8089,7 +8221,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "fromBucket",
@@ -8140,7 +8273,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "decisionVersion",
@@ -8150,7 +8284,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "actorId",
@@ -8160,7 +8295,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "occurredAt",
@@ -8220,7 +8356,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "operation",
@@ -8229,7 +8366,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "key",
@@ -8238,7 +8376,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "fingerprint",
@@ -8247,7 +8386,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "result",
@@ -8306,7 +8446,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "operationId",
@@ -8315,7 +8456,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "requestId",
@@ -8324,7 +8466,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "type",
@@ -8333,7 +8476,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "actorId",
@@ -8343,7 +8487,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "earningIds",
@@ -8403,7 +8548,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "transfer",
@@ -8421,7 +8567,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "decisionVersion",
@@ -8431,7 +8578,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "aggregateVersion",
@@ -8492,7 +8640,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "operationId",
@@ -8501,7 +8650,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "requestId",
@@ -8510,7 +8660,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "type",
@@ -8519,7 +8670,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "payload",
@@ -8607,7 +8759,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "version",
@@ -8626,7 +8779,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "outcome",
@@ -8647,7 +8801,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "evidenceReference",
@@ -8656,7 +8811,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "amountVnd",
@@ -8744,7 +8900,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "requestId",
@@ -8753,7 +8910,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "_id",
@@ -8791,7 +8949,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "requestId",
@@ -8800,7 +8959,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "ownerActorId",
@@ -8809,7 +8969,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "mediaId",
@@ -8818,7 +8979,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "state",
@@ -8882,7 +9044,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "earningId",
@@ -8891,7 +9054,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "sitterId",
@@ -8900,7 +9064,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "sourceReference",
@@ -8909,7 +9074,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 160
         },
         {
           "name": "sourceType",
@@ -8953,7 +9119,8 @@
           "immutable": true,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "createdAt",
@@ -9081,7 +9248,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "contactChannel",
@@ -9174,7 +9342,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 2000
         },
         {
           "name": "employmentType",
@@ -9269,7 +9438,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 2000
         },
         {
           "name": "decisionReason",
@@ -9279,7 +9449,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "rejectedAt",
@@ -9580,7 +9751,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "_id",
@@ -9709,7 +9881,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "changedAt",
@@ -10104,7 +10277,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "provenance",
@@ -10179,7 +10353,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "sitterId",
@@ -10540,7 +10715,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 2000
         },
         {
           "name": "_id",
@@ -10917,7 +11093,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 1000
         },
         {
           "name": "areas",
@@ -10975,7 +11152,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "_id",
@@ -11227,7 +11405,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "effectiveAt",
@@ -11319,7 +11498,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 3,
+          "maxLength": 500
         },
         {
           "name": "recordedAt",
@@ -11444,7 +11625,9 @@
           "validators": [
             "minlength",
             "maxlength"
-          ]
+          ],
+          "minLength": 3,
+          "maxLength": 1000
         },
         {
           "name": "occurredAt",
@@ -11487,7 +11670,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 100
         },
         {
           "name": "roles",
@@ -11572,7 +11756,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 80
         },
         {
           "name": "policyConsents.contentHash",
@@ -11581,7 +11766,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 128
         },
         {
           "name": "policyConsents.effectiveAt",
@@ -11604,7 +11790,8 @@
           "immutable": false,
           "validators": [
             "maxlength"
-          ]
+          ],
+          "maxLength": 500
         },
         {
           "name": "_id",

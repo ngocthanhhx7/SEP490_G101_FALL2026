@@ -1,130 +1,274 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" version="24.7.17">
-  <diagram id="pay-03" name="PAY-03 Record a separate payroll adjustment">
-    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1050" math="0" shadow="0">
+<mxfile host="app.diagrams.net">
+  <diagram name="PAY-03 Adjustment submit / decisions / supplement / recovery" id="pay-03">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2378" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="ll_staff" value="Actor (Admin)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="30" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_staff" value="Admin" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="2098" as="geometry" />
         </mxCell>
-        <mxCell id="ll_ctrl" value=": CommandBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="215" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_ctrl" value=": PayrollController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="2098" as="geometry" />
         </mxCell>
-        <mxCell id="ll_serv" value=": PayrollAdjustmentService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="405" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_serv" value=": PayrollAdjustmentService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="2098" as="geometry" />
         </mxCell>
-        <mxCell id="ll_app_repo" value=": SourceRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="590" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_app_repo" value=": claimTransfer port" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="2098" as="geometry" />
         </mxCell>
-        <mxCell id="ll_user_repo" value=": GuardedPersistence" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="780" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_user_repo" value=": MongoDB + PayrollCommand" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="2098" as="geometry" />
         </mxCell>
-        <mxCell id="ll_smtp" value=": ResultProjection" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="965" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_smtp" value=": External payment evidence" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="2098" as="geometry" />
         </mxCell>
-        <mxCell id="act_ctrl" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="290" y="105" width="10" height="505" as="geometry" />
+        <mxCell id="frame-1" value="Request 1 — submit supplement OR recovery" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="334" />
         </mxCell>
-        <mxCell id="act_serv" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="475" y="145" width="10" height="425" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="185" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="265" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_user" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="850" y="345" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_smtp" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="1035" y="460" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="m_1" value="1: Record a separate payroll adjustment" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="105" y="105" as="sourcePoint" />
-            <mxPoint x="290" y="105" as="targetPoint" />
+        <mxCell id="msg-1" value="1: POST /api/v1/payroll/adjustments + CSRF/key; direction, amountVnd,&#10;assessmentReference, expected statement version" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="160" />
+            <mxPoint as="targetPoint" x="295" y="160" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_2" value="2: Require original statement reference, agreed reason/evidence and immutable source&#10;claim" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="300" y="145" as="sourcePoint" />
-            <mxPoint x="475" y="145" as="targetPoint" />
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="160" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: submitAdjustment: require Admin; validate positive integer amount and source&#10;reference" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="218" />
+            <mxPoint as="targetPoint" x="480" y="218" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_3" value="3: read authorized current source records / evidence" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="185" as="sourcePoint" />
-            <mxPoint x="665" y="185" as="targetPoint" />
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="218" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: transaction: employee guard + original statement/version; APPROVED or PAID&#10;required; RECOVERY requires PAID" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="276" />
+            <mxPoint as="targetPoint" x="855" y="276" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_4" value="4: source version, state and policy context" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="225" as="sourcePoint" />
-            <mxPoint x="485" y="225" as="targetPoint" />
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="276" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: unique statement/assessment claim; create SUBMITTED adjustment + event + command&#10;replay" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="334" />
+            <mxPoint as="targetPoint" x="855" y="334" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_5" value="5: verify policy, expiry and stable command identity" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="265" as="sourcePoint" />
-            <mxPoint x="665" y="265" as="targetPoint" />
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="334" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: SUBMITTED DTO; original statement unchanged. Duplicate assessment/state/version -&gt;&#10;409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="392" />
+            <mxPoint as="targetPoint" x="105" y="392" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_6" value="6: eligible context or explicit pending reason" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="305" as="sourcePoint" />
-            <mxPoint x="485" y="305" as="targetPoint" />
+        <mxCell id="frame-6" value="Request 2A — reject a SUBMITTED adjustment" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="465" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: POST /adjustments/:id/decisions; REJECT, expectedVersion, reason, new key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="525" />
+            <mxPoint as="targetPoint" x="295" y="525" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_7" value="7: Record supplement or agreed reconciliation separately; claim transfer reference&#10;exactly once" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="345" as="sourcePoint" />
-            <mxPoint x="850" y="345" as="targetPoint" />
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="525" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: decideAdjustment: current Admin, employee guard and SUBMITTED/version" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="583" />
+            <mxPoint as="targetPoint" x="480" y="583" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_8" value="8: durable result; no partial state on failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="850" y="385" as="sourcePoint" />
-            <mxPoint x="485" y="385" as="targetPoint" />
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="583" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: transaction: REJECTED + decision reason/actor/time + version + event/command" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="641" />
+            <mxPoint as="targetPoint" x="855" y="641" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_9" value="9: construct allowlisted outcome / evidence summary" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="420" as="sourcePoint" />
-            <mxPoint x="485" y="445" as="targetPoint" />
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="641" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: REJECTED result; no money transfer or salary balance modification" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="699" />
+            <mxPoint as="targetPoint" x="105" y="699" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-10" value="Request 2B — approve a SUBMITTED adjustment (alternative to rejection)" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="772" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: POST /adjustments/:id/decisions; APPROVE, expectedVersion, reason, key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="832" />
+            <mxPoint as="targetPoint" x="295" y="832" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="832" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: decideAdjustment: SUBMITTED/version and employee guard" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="890" />
+            <mxPoint as="targetPoint" x="480" y="890" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="890" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: transaction: APPROVED + audit fields/version/event/command" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="948" />
+            <mxPoint as="targetPoint" x="855" y="948" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="948" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: APPROVED result; approval itself does not execute payment or recovery" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1006" />
+            <mxPoint as="targetPoint" x="105" y="1006" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-14" value="Request 3A — SUPPLEMENT: record an evidenced external payment" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1079" width="1110" height="472" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: Operator performs authorized external payment outside this application; retain&#10;real transfer reference" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1139" />
+            <mxPoint as="targetPoint" x="105" y="1161" />
             <Array as="points">
-              <mxPoint x="525" y="420" />
-              <mxPoint x="525" y="445" />
+              <mxPoint x="145" y="1139" />
+              <mxPoint x="145" y="1161" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_10" value="10: publish/format acknowledged outcome only" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="460" as="sourcePoint" />
-            <mxPoint x="1035" y="460" as="targetPoint" />
+        <mxCell id="msg-15" value="15: POST /adjustments/:id/decisions; RECORD_PAYMENT, expectedVersion,&#10;transferReference, key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1219" />
+            <mxPoint as="targetPoint" x="295" y="1219" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_11" value="11: delivery/result acknowledgement" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1035" y="500" as="sourcePoint" />
-            <mxPoint x="485" y="500" as="targetPoint" />
+        <mxCell id="act-15" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1219" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: require APPROVED SUPPLEMENT and original statement PAID" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1277" />
+            <mxPoint as="targetPoint" x="480" y="1277" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_12" value="12: source-bound result or explicit failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="475" y="540" as="sourcePoint" />
-            <mxPoint x="300" y="540" as="targetPoint" />
+        <mxCell id="act-16" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1277" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: claimTransfer(reference, adjustmentId, same session)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1335" />
+            <mxPoint as="targetPoint" x="670" y="1335" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_13" value="13: command response / safe CLI summary" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="290" y="580" as="sourcePoint" />
-            <mxPoint x="105" y="580" as="targetPoint" />
+        <mxCell id="act-17" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1335" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-18" value="18: unique shared payroll source claim; reused reference -&gt; conflict" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1393" />
+            <mxPoint as="targetPoint" x="855" y="1393" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="status-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED&#10;Alternative: Original paid statement stays unchanged; UNKNOWN transfer requires reconciliation" style="shape=note;whiteSpace=wrap;html=0;fontSize=12;align=left;spacing=8;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="750" width="1050" height="130" />
+        <mxCell id="act-18" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1393" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-19" value="19: transaction: PAID + resolvedAt/by/reference + version/event/command" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1451" />
+            <mxPoint as="targetPoint" x="855" y="1451" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-19" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1451" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-20" value="20: PAID only after recorded evidence. Unknown external result -&gt; do not invent a&#10;confirmed payment" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1509" />
+            <mxPoint as="targetPoint" x="105" y="1509" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-21" value="Request 3B — RECOVERY: reconcile an agreed external resolution" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1582" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-21" value="21: POST /adjustments/:id/decisions; RECONCILE, expectedVersion, agreementReference,&#10;resolutionReference, key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1642" />
+            <mxPoint as="targetPoint" x="295" y="1642" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-21" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1642" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-22" value="22: require APPROVED RECOVERY; validate both agreement and resolution references" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1700" />
+            <mxPoint as="targetPoint" x="480" y="1700" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-22" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1700" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-23" value="23: transaction: RECONCILED + references/resolution metadata + version/event/command" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1758" />
+            <mxPoint as="targetPoint" x="855" y="1758" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-23" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1758" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-24" value="24: RECONCILED DTO; no automatic salary/advance balance deduction; no transfer claim&#10;in this branch" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1816" />
+            <mxPoint as="targetPoint" x="105" y="1816" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-25" value="Shared error / retry contract" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1889" width="1110" height="218" />
+        </mxCell>
+        <mxCell id="msg-25" value="25: Retry same operation after uncertain acknowledgement using original key/payload" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1949" />
+            <mxPoint as="targetPoint" x="295" y="1949" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-25" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1949" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-26" value="26: command wrapper rechecks current Admin, storage and payload fingerprint" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="2007" />
+            <mxPoint as="targetPoint" x="480" y="2007" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-26" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="2007" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-27" value="27: Same-key replay; changed payload -&gt; 409; missing resource -&gt; 404; invalid fields&#10;-&gt; 422; stale state/version -&gt; 409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="2065" />
+            <mxPoint as="targetPoint" x="105" y="2065" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="Source: payroll-adjustment.service.js, payroll.service.js command wrapper, payroll.validator.js. REJECT and APPROVE are alternative decisions; RECORD_PAYMENT and RECONCILE depend on direction. Original statement remains immutable. Application records external evidence; it does not initiate a bank transfer." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="2178" width="1100" height="145" />
         </mxCell>
       </root>
     </mxGraphModel>

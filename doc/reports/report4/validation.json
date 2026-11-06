@@ -1,12 +1,12 @@
 {
   "nativeFiles": 166,
-  "pagesIncludingCombinedCopies": 378,
-  "cells": 11504,
+  "pagesIncludingCombinedCopies": 381,
+  "cells": 16049,
   "useCases": 95,
   "schemaCollections": 103,
   "additionalDesignSections": 19,
   "supplementalFlows": 35,
   "errors": [],
   "status": "PASS",
-  "localExport": "Current corrected local design; original Google Docs table columns/headings retained. Added source-review clarifications remain pending final Drive synchronization."
+  "localExport": "Fresh Google Docs snapshot after semantic corrections; school table columns/headings retained. Figure replacement/export remains separate from text validation."
 }

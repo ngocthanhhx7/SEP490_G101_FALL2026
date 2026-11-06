@@ -494,9 +494,9 @@
         "id": "PAY-03",
         "title": "Record a separate payroll adjustment",
         "actor": "Admin",
-        "guard": "Require original statement reference, agreed reason/evidence and immutable source claim",
-        "effect": "Record supplement or agreed reconciliation separately; claim transfer reference exactly once",
-        "alternative": "Original paid statement stays unchanged; UNKNOWN transfer requires reconciliation",
+        "guard": "Admin submits a version-bound positive integer SUPPLEMENT or RECOVERY with unique assessmentReference; only APPROVED/PAID original statements allow submission, RECOVERY requires PAID",
+        "effect": "Separate SUBMITTED decisions APPROVE or REJECT require current version/reason. APPROVED SUPPLEMENT RECORD_PAYMENT requires original statement PAID and unique transfer claim, then becomes PAID. APPROVED RECOVERY RECONCILE requires agreement/resolution references, then becomes RECONCILED without automatic payroll/advance deduction",
+        "alternative": "Wrong direction/action/state, reused assessment/transfer reference, stale version or changed replay fingerprint returns conflict; unresolved external payment is not recorded as confirmed",
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/pay-03.drawio",
         "sources": [
@@ -1011,9 +1011,9 @@
         "id": "EMP-02",
         "title": "Issue, sign and activate an employment document",
         "actor": "Admin",
-        "guard": "Validate actual particulars, canonical gender, contract terms and document/application version",
-        "effect": "DRAFT -> ISSUED -> SIGNED -> ACTIVATED; retain encrypted immutable terms/hash and activate employment atomically",
-        "alternative": "Unsigned invalid legacy gender blocks issue/sign; signed history cannot be rewritten",
+        "guard": "Each request requires current Admin/session/CSRF and its own payload-bound operation key. Save requires INTERVIEW stage, matching identity, applicationVersion and expectedRevision",
+        "effect": "Separate save creates DRAFT; separate ISSUE checks latest DRAFT/hash/version and marks ISSUED; separate SIGN records real both-party/archive/date evidence and marks SIGNED. A later application APPROVE transaction promotes the eligible account, calls activate with the same session, creates the contract/status and commits application/audit/mail intent together",
+        "alternative": "Each request replays only its own same-key/payload outcome; stale revision/hash/state or missing signed contract returns conflict and approval rollback. No signature is fabricated",
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/emp-02.drawio",
         "sources": [
@@ -1279,9 +1279,9 @@
         "id": "MAIL-01",
         "title": "Retry durable application-status email",
         "actor": "Application mail worker",
-        "guard": "Lease a due encrypted recipient snapshot; check bounded attempts and stable provider operation identity",
-        "effect": "Send configured mail; record accepted/failure and next retry without rolling back saved application",
-        "alternative": "Provider acceptance is not inbox delivery; preserve record after exhausted attempts",
+        "guard": "Application version intent committed before worker; one bounded batch, atomic due-PENDING lease, recheck exact verified recipient",
+        "effect": "Call SMTP after claim; CAS to ACCEPTED, UNKNOWN, bounded safe-retry PENDING, terminal FAILED or contact SKIPPED",
+        "alternative": "Uncertain SMTP outcome or expired SENDING lease -> UNKNOWN, no automatic retry; known-safe retry only below three attempts; acceptance is not inbox delivery",
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/mail-01.drawio",
         "sources": [
@@ -1331,15 +1331,15 @@
         "id": "MAP-01",
         "title": "Search and confirm a service-address map point",
         "actor": "Customer",
-        "guard": "Authenticate same-origin map proxy; validate search/resolve input and supported coverage",
-        "effect": "Resolve provider result; explicit user pin confirmation saves private location/GeoJSON/version",
-        "alternative": "Missing provider or unsupported/ambiguous point remains explicit; do not expose provider key",
+        "guard": "Search and resolve use separate session/CSRF-protected map requests and bounded provider calls; explicit pin confirmation is a later Customer decision",
+        "effect": "LocationSearchService returns suggestions/coordinates only. A separate POST or PATCH /api/v1/pet-care/addresses invokes PetCareManagement with owner/version/area/pin validation and a guarded replayable MongoDB command",
+        "alternative": "Provider timeout or invalid reference yields map error with no address write; unsupported area, missing pin confirmation, stale version or foreign owner fails the separate address command; existing booking snapshots stay unchanged",
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/map-01.drawio",
         "sources": [
           "backend/src/services/maps/location-search.service.js"
         ],
-        "serviceOwner": "LocationSearchService"
+        "serviceOwner": "LocationSearchService (read provider); PetCareManagement (persist address)"
       },
       {
         "id": "MAP-02",

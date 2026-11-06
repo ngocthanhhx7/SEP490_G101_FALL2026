@@ -1,130 +1,208 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" version="24.7.17">
-  <diagram id="map-01" name="MAP-01 Search and confirm a service-address map point">
-    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1050" math="0" shadow="0">
+<mxfile host="app.diagrams.net">
+  <diagram name="MAP-01 Search / resolve / confirm / create-update address" id="map-01">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1972" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="ll_staff" value="Actor (Customer)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="30" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_staff" value="Customer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1692" as="geometry" />
         </mxCell>
-        <mxCell id="ll_ctrl" value=": CommandBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="215" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_ctrl" value=": Maps / PetCare Controllers" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1692" as="geometry" />
         </mxCell>
-        <mxCell id="ll_serv" value=": LocationSearchService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="405" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_serv" value=": LocationSearchService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1692" as="geometry" />
         </mxCell>
-        <mxCell id="ll_app_repo" value=": SourceRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="590" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_app_repo" value=": Vietmap Provider" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1692" as="geometry" />
         </mxCell>
-        <mxCell id="ll_user_repo" value=": GuardedPersistence" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="780" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_user_repo" value=": PetCareManagement" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1692" as="geometry" />
         </mxCell>
-        <mxCell id="ll_smtp" value=": ResultProjection" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="965" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_smtp" value=": MongoDB / CustomerAddress" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1692" as="geometry" />
         </mxCell>
-        <mxCell id="act_ctrl" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="290" y="105" width="10" height="505" as="geometry" />
+        <mxCell id="frame-1" value="Request 1 — search only; no address write" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="334" />
         </mxCell>
-        <mxCell id="act_serv" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="475" y="145" width="10" height="425" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="185" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="265" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_user" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="850" y="345" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_smtp" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="1035" y="460" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="m_1" value="1: Search and confirm a service-address map point" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="105" y="105" as="sourcePoint" />
-            <mxPoint x="290" y="105" as="targetPoint" />
+        <mxCell id="msg-1" value="1: POST /api/v1/maps/search {query}; signed-in role + CSRF; bounded rate limit" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="160" />
+            <mxPoint as="targetPoint" x="295" y="160" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_2" value="2: Authenticate same-origin map proxy; validate search/resolve input and supported&#10;coverage" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="300" y="145" as="sourcePoint" />
-            <mxPoint x="475" y="145" as="targetPoint" />
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="160" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: LocationSearchService.search: exact DTO and 3..200 character query" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="218" />
+            <mxPoint as="targetPoint" x="480" y="218" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_3" value="3: read authorized current source records / evidence" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="185" as="sourcePoint" />
-            <mxPoint x="665" y="185" as="targetPoint" />
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="218" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Vietmap search/v4 with server-side key, timeout and bounded response" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="276" />
+            <mxPoint as="targetPoint" x="670" y="276" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_4" value="4: source version, state and policy context" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="225" as="sourcePoint" />
-            <mxPoint x="485" y="225" as="targetPoint" />
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="276" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Provider candidates: label/provider/refId; empty results or safe MAPS_UNAVAILABLE" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="334" />
+            <mxPoint as="targetPoint" x="480" y="334" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_5" value="5: verify policy, expiry and stable command identity" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="265" as="sourcePoint" />
-            <mxPoint x="665" y="265" as="targetPoint" />
+        <mxCell id="msg-5" value="5: Return at most 5 suggestions; no GeoJSON/version persisted" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="392" />
+            <mxPoint as="targetPoint" x="105" y="392" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_6" value="6: eligible context or explicit pending reason" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="305" as="sourcePoint" />
-            <mxPoint x="485" y="305" as="targetPoint" />
+        <mxCell id="frame-6" value="Request 2 — resolve selected provider reference" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="465" width="1110" height="334" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: POST /api/v1/maps/places/resolve {provider,refId}; session/CSRF" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="525" />
+            <mxPoint as="targetPoint" x="295" y="525" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_7" value="7: Resolve provider result; explicit user pin confirmation saves private&#10;location/GeoJSON/version" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="345" as="sourcePoint" />
-            <mxPoint x="850" y="345" as="targetPoint" />
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="525" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: resolve: validate VIETMAP reference against configured provider" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="583" />
+            <mxPoint as="targetPoint" x="480" y="583" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_8" value="8: durable result; no partial state on failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="850" y="385" as="sourcePoint" />
-            <mxPoint x="485" y="385" as="targetPoint" />
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="583" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Vietmap place/v4; validate label and finite lon/lat" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="641" />
+            <mxPoint as="targetPoint" x="670" y="641" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_9" value="9: construct allowlisted outcome / evidence summary" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="420" as="sourcePoint" />
-            <mxPoint x="485" y="445" as="targetPoint" />
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="641" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Resolved label + coordinates or 503; API key stays server-side" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="699" />
+            <mxPoint as="targetPoint" x="480" y="699" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-10" value="10: Resolved point DTO only; user has not yet saved an address" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="757" />
+            <mxPoint as="targetPoint" x="105" y="757" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-11" value="User decision — explicit pin and coverage confirmation" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="830" width="1110" height="124" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Choose/adjust map pin and explicit pointConfirmed; enter&#10;label/location/area/access notes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="890" />
+            <mxPoint as="targetPoint" x="105" y="912" />
             <Array as="points">
-              <mxPoint x="525" y="420" />
-              <mxPoint x="525" y="445" />
+              <mxPoint x="145" y="890" />
+              <mxPoint x="145" y="912" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_10" value="10: publish/format acknowledged outcome only" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="460" as="sourcePoint" />
-            <mxPoint x="1035" y="460" as="targetPoint" />
+        <mxCell id="frame-12" value="Request 3 — persist owned address through a different service" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="985" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: POST /api/v1/pet-care/addresses&#10;{label,location,coordinates,areaCode,pointConfirmed,...}; CSRF/key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1045" />
+            <mxPoint as="targetPoint" x="295" y="1045" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_11" value="11: delivery/result acknowledgement" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1035" y="500" as="sourcePoint" />
-            <mxPoint x="485" y="500" as="targetPoint" />
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1045" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: PetCareManagement.address: Customer ownership; validated area and GeoJSON values" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1103" />
+            <mxPoint as="targetPoint" x="855" y="1103" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_12" value="12: source-bound result or explicit failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="475" y="540" as="sourcePoint" />
-            <mxPoint x="300" y="540" as="targetPoint" />
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1103" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: transaction: key/fingerprint replay + create owned CustomerAddress with&#10;confirmedAt/version + PetCareCommand" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="1161" />
+            <mxPoint as="targetPoint" x="1035" y="1161" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_13" value="13: command response / safe CLI summary" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="290" y="580" as="sourcePoint" />
-            <mxPoint x="105" y="580" as="targetPoint" />
+        <mxCell id="act-14" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1161" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: 201 address id/version; out-of-coverage/invalid pin -&gt; validation/confirmation&#10;error, not silent save" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="1219" />
+            <mxPoint as="targetPoint" x="105" y="1219" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="status-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED&#10;Alternative: Missing provider or unsupported/ambiguous point remains explicit; do not expose provider key" style="shape=note;whiteSpace=wrap;html=0;fontSize=12;align=left;spacing=8;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="750" width="1050" height="130" />
+        <mxCell id="frame-16" value="Request 4 — update existing address separately" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1292" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: PATCH /api/v1/pet-care/addresses/:id with expectedVersion + changed allowed fields&#10;+ key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1352" />
+            <mxPoint as="targetPoint" x="295" y="1352" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-16" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1352" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: updateOwned: scope owner, current state/version and shared mutation guard" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1410" />
+            <mxPoint as="targetPoint" x="855" y="1410" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-17" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1410" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-18" value="18: transaction: apply allowlisted values, increment version, save replay result;&#10;preserve existing booking snapshots" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="1468" />
+            <mxPoint as="targetPoint" x="1035" y="1468" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-18" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1468" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-19" value="19: Updated DTO or 404/409. Retry unchanged key/payload does not create a second&#10;address" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="1526" />
+            <mxPoint as="targetPoint" x="105" y="1526" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-20" value="Failure boundaries" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1599" width="1110" height="102" />
+        </mxCell>
+        <mxCell id="msg-20" value="20: Search/resolve timeout -&gt; MAPS_UNAVAILABLE; no address DB write. Address save&#10;errors do not turn search into persistence" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1659" />
+            <mxPoint as="targetPoint" x="105" y="1659" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="Source: maps.routes.js, location-search.service.js, pet-care.routes.js and pet-care-management.service.js. LocationSearchService never writes address records. Provider/technical failure remains separate from owner-confirmed save. Existing Google adapter is optional; selected production provider is Vietmap. Private notes are not sent to search provider." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1772" width="1100" height="145" />
         </mxCell>
       </root>
     </mxGraphModel>

@@ -115,7 +115,7 @@ Package descriptions
 
 [Existing figure retained; replace from matching native draw.io source.]
 
-Logical database views retain the supplied entity-card notation. Physical persistence uses BSON ObjectId/String keys, embedded documents and application-managed references. The existing nine tables preserve the school columns; Notes map their logical aliases to current source. EmergencyContact and a standalone DayOff request record are design concepts without current dedicated collections. Complete model fields/indexes and repository-managed collections are supplied in PWC_Report4_Data_Schema.docx, database/data-schema.drawio and database/data-relationships.drawio; they do not imply all planned workflows are deployed. Additional proposed domain contracts are supplied in planned-data-schema.md, PWC_Report4_Proposed_Domain_Schema.docx and database/planned-domain-schema.drawio. These 11 contracts complete the remaining design scope without claiming deployed collections or approved missing policies.
+Database views follow the user's school sample: yellow collection headers, cyan table outlines, field/type rows and crow-foot relationships connected at table boundaries. BSON types and declared required/unique constraints reflect MongoDB source; logical references are not SQL foreign keys. Physical persistence uses BSON ObjectId/String keys, embedded documents and application-managed references. The existing nine tables preserve the school columns; Notes map their logical aliases to current source. EmergencyContact and a standalone DayOff request record are design concepts without current dedicated collections. Complete model fields, numeric and length limits, explicit indexes and repository-managed collections are supplied in PWC_Report4_Data_Schema.docx, database/data-schema.drawio and database/data-relationships.drawio; they do not imply all planned workflows are deployed. Additional proposed domain contracts are supplied in planned-data-schema.md, PWC_Report4_Proposed_Domain_Schema.docx and database/planned-domain-schema.drawio. These 11 contracts complete the remaining design scope without claiming deployed collections or approved missing policies.
 
 [Existing figure retained; replace from matching native draw.io source.]
 
@@ -318,7 +318,7 @@ Diagram source: sequence/uc-19.drawio. authorize ADMIN and inspect employee stat
 
 ### 3.6 UC-21 — Manage Pet Sitter Contracts
 
-Diagram source: sequence/uc-21.drawio. validate encrypted particulars, Nam/Nữ/Khác, FT40/PT20 terms. DRAFT -> ISSUED -> SIGNED -> ACTIVATED; immutable signed revision. Alternative: invalid unsigned gender blocks issue/sign; signed history is preserved. Source/acceptance state: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED.
+Diagram source: sequence/uc-21.drawio. Actor: Admin. State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Export the completed native page at this location using the existing sequence notation.
 
 ## 4. Identity, Authentication and Account Management
 
@@ -998,11 +998,11 @@ Source references: backend/src/services/payroll/payroll.service.js; backend/src/
 
 ### 11.3 UC-75 — Review Pay Statement
 
-Diagram source: sequence/uc-75.drawio. Actor: Pet Sitter. State: PARTIAL_SCOPE_OR_ACCEPTANCE. Export the named complete draw.io page to PNG at this location; preserve the sample lifeline, activation, call/return and combined-fragment notation.
+Diagram source: sequence/uc-75.drawio. Actor: Pet Sitter. State: PARTIAL_SCOPE_OR_ACCEPTANCE. Export the completed native page at this location using the existing sequence notation.
 
-Preconditions and main interaction: read signed contract, verified credit and current statement version. employee reviews statement; payroll correction is separate audited revision. The service reads current source/version within the appropriate transaction/query scope; command acknowledgement is bound to its original operation identity.
+Preconditions and main interaction: PET_SITTER session; scoped own() query and validated independent pagination cursors; payroll storage available. Read owned contracts, salary advances, statements and adjustments; return public projections and next cursors without write transaction. Server access and current source/state checks remain authoritative.
 
-Alternative and recovery: FT10m/PT3m gross monthly; schedule is not attendance; no invented deductions. Access/input/state errors return explicit safe outcomes; uncertain provider or transfer acknowledgement requires source reconciliation. A replay does not repeat the original business effect.
+Alternative and recovery: No statement acceptance/complaint/three-day auto-close command is implemented; discrepancy correction is a separate Admin PAY-03 flow.
 
 Source references: backend/src/services/payroll/payroll.service.js; backend/src/models/payroll.model.js; backend/src/services/settlements/settlement.service.js.
 
@@ -1040,9 +1040,9 @@ Source references: backend/src/services/payroll/payroll.service.js; backend/src/
 
 Diagram source: sequence/pay-03.drawio. Actor: Admin. State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Service owner: PayrollAdjustmentService. Export the completed native page at this location using the existing sequence notation.
 
-Preconditions and main interaction: Require original statement reference, agreed reason/evidence and immutable source claim. Record supplement or agreed reconciliation separately; claim transfer reference exactly once. Server access and current source/state checks remain authoritative.
+Preconditions and main interaction: Admin submits a version-bound positive integer SUPPLEMENT or RECOVERY with unique assessmentReference; only APPROVED/PAID original statements allow submission, RECOVERY requires PAID. Separate SUBMITTED decisions APPROVE or REJECT require current version/reason. APPROVED SUPPLEMENT RECORD_PAYMENT requires original statement PAID and unique transfer claim, then becomes PAID. APPROVED RECOVERY RECONCILE requires agreement/resolution references, then becomes RECONCILED without automatic payroll/advance deduction. Server access and current source/state checks remain authoritative.
 
-Alternative and recovery: Original paid statement stays unchanged; UNKNOWN transfer requires reconciliation.
+Alternative and recovery: Wrong direction/action/state, reused assessment/transfer reference, stale version or changed replay fingerprint returns conflict; unresolved external payment is not recorded as confirmed.
 
 Source references: backend/src/services/payroll/payroll-adjustment.service.js; backend/src/models/payroll.model.js.
 
@@ -1440,7 +1440,7 @@ DomainNotifications operations: productOrder(options, session); payment(options,
 
 ### 17.2 UC-88 — View Notifications
 
-Diagram source: sequence/uc-88.drawio. Actor: Signed-in user (CUSTOMER / PET_SITTER / STAFF / ADMIN). State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Service owner: NotificationService. Export the completed native page at this location using the existing sequence notation.
+Diagram source: sequence/uc-88.drawio. Actor: Signed-in user (CUSTOMER / PET_SITTER / STAFF / ADMIN). State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Export the completed native page at this location using the existing sequence notation.
 
 Preconditions and main interaction: Authenticate recipient/current roles and bounded signed-cursor query; GET is read-only. GET lists scoped notifications. Separate POST /api/v1/notifications/:id/read-receipts with CSRF sets readAt only on an owned notification; repeat returns ALREADY_READ. Server access and current source/state checks remain authoritative.
 
@@ -1566,9 +1566,9 @@ Source references: backend/src/services/sitter-application.service.js; backend/s
 
 Diagram source: sequence/emp-02.drawio. Actor: Admin. State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Service owner: EmploymentDocumentService. Export the completed native page at this location using the existing sequence notation.
 
-Preconditions and main interaction: Validate actual particulars, canonical gender, contract terms and document/application version. DRAFT -> ISSUED -> SIGNED -> ACTIVATED; retain encrypted immutable terms/hash and activate employment atomically. Server access and current source/state checks remain authoritative.
+Preconditions and main interaction: Each request requires current Admin/session/CSRF and its own payload-bound operation key. Save requires INTERVIEW stage, matching identity, applicationVersion and expectedRevision. Separate save creates DRAFT; separate ISSUE checks latest DRAFT/hash/version and marks ISSUED; separate SIGN records real both-party/archive/date evidence and marks SIGNED. A later application APPROVE transaction promotes the eligible account, calls activate with the same session, creates the contract/status and commits application/audit/mail intent together. Server access and current source/state checks remain authoritative.
 
-Alternative and recovery: Unsigned invalid legacy gender blocks issue/sign; signed history cannot be rewritten.
+Alternative and recovery: Each request replays only its own same-key/payload outcome; stale revision/hash/state or missing signed contract returns conflict and approval rollback. No signature is fabricated.
 
 Source references: backend/src/services/payroll/employment-document.service.js; backend/src/services/applications/application-status-runtime.service.js; backend/src/controllers/employment-document.controller.js.
 
@@ -1721,9 +1721,9 @@ Source references: backend/src/jobs/operational-sweep.job.js.
 
 Diagram source: sequence/mail-01.drawio. Actor: Application mail worker. State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Service owner: ApplicationMailService. Export the completed native page at this location using the existing sequence notation.
 
-Preconditions and main interaction: Lease a due encrypted recipient snapshot; check bounded attempts and stable provider operation identity. Send configured mail; record accepted/failure and next retry without rolling back saved application. Server access and current source/state checks remain authoritative.
+Preconditions and main interaction: Application version intent committed before worker; one bounded batch, atomic due-PENDING lease, recheck exact verified recipient. Call SMTP after claim; CAS to ACCEPTED, UNKNOWN, bounded safe-retry PENDING, terminal FAILED or contact SKIPPED. Server access and current source/state checks remain authoritative.
 
-Alternative and recovery: Provider acceptance is not inbox delivery; preserve record after exhausted attempts.
+Alternative and recovery: Uncertain SMTP outcome or expired SENDING lease -> UNKNOWN, no automatic retry; known-safe retry only below three attempts; acceptance is not inbox delivery.
 
 Source references: backend/src/jobs/application-mail.job.js; backend/src/services/applications/application-mail.service.js.
 
@@ -1741,11 +1741,11 @@ PrivateImageService operations: upload(options); read(options). Domain decisions
 
 ### 22.2 MAP-01 — Search and confirm a service-address map point
 
-Diagram source: sequence/map-01.drawio. Actor: Customer. State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Service owner: LocationSearchService. Export the completed native page at this location using the existing sequence notation.
+Diagram source: sequence/map-01.drawio. Actor: Customer. State: SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Service owner: LocationSearchService (read provider); PetCareManagement (persist address). Export the completed native page at this location using the existing sequence notation.
 
-Preconditions and main interaction: Authenticate same-origin map proxy; validate search/resolve input and supported coverage. Resolve provider result; explicit user pin confirmation saves private location/GeoJSON/version. Server access and current source/state checks remain authoritative.
+Preconditions and main interaction: Search and resolve use separate session/CSRF-protected map requests and bounded provider calls; explicit pin confirmation is a later Customer decision. LocationSearchService returns suggestions/coordinates only. A separate POST or PATCH /api/v1/pet-care/addresses invokes PetCareManagement with owner/version/area/pin validation and a guarded replayable MongoDB command. Server access and current source/state checks remain authoritative.
 
-Alternative and recovery: Missing provider or unsupported/ambiguous point remains explicit; do not expose provider key.
+Alternative and recovery: Provider timeout or invalid reference yields map error with no address write; unsupported area, missing pin confirmation, stale version or foreign owner fails the separate address command; existing booking snapshots stay unchanged.
 
 Source references: backend/src/services/maps/location-search.service.js.
 
@@ -1864,9 +1864,7 @@ Queries are owner/role scoped before sorting and bounded pagination; keyset/curs
 
 # IV. Other Design Specifications
 
-Final source-review clarification: contact enquiry is an external delivery call with no persisted contact retry/deduplication record; CONTACT_DELIVERY_UNCERTAIN can mean the message was already sent. Offline training writes model then evidence sequentially, so a failed run can leave partial files; bundle validation rejects incomplete or mismatched evidence. Notification list GET and read-receipt POST are separate requests; the receipt responds 200 for READ/ALREADY_READ and 404 for an inaccessible notification. PWA manifest/service-worker artifacts are absent from the current frontend and remain proposed design.
-
-The following specifications complete the existing report scope without adding or reordering report sections. The accompanying native draw.io workbooks use the supplied class/sequence/package layouts; the database workbook uses entity cards. Each UC-01 through UC-95 has a named sequence page. Logical design coverage is distinct from deployed route/provider acceptance; the companion traceability registry records the current source paths and implementation gap for each flow.
+The following specifications complete the existing report scope without adding or reordering report sections. The accompanying native draw.io workbooks use the supplied class/sequence/package layouts; the database workbook uses the supplied yellow-header/cyan-outline field/type tables and crow-foot relationships. Each UC-01 through UC-95 has a named sequence page. Logical design coverage is distinct from deployed route/provider acceptance; the companion traceability registry records the current source paths and implementation gap for each flow. Final source-review clarifications: contact enquiry calls external delivery without a persisted contact retry store; unknown acknowledgement can mean mail was sent. Offline model and evidence files are written sequentially, so failed output may be partial and must fail bundle checks. Notification list and read receipt are separate GET/POST requests; receipt NOT_FOUND returns 404. Address search/resolve does not persist an address; explicit Customer pin confirmation invokes PetCareManagement separately. Contract save/ISSUE/SIGN and application approval are separate commands. Payroll supplement and recovery decisions follow distinct state/evidence branches. UC-75 reads own payroll without writes; application mail retains UNKNOWN outcomes without automatic resend.
 
 Integration and deployment: Cloudflare DNS/HTTPS proxies EC2 Caddy, which serves the built React SPA and routes /api to Express; MongoDB 8.0 replica set and OSRM run on the host. Private R2, SMTP, eSMS, payOS and Vietmap are server-side adapters. Reviewed main releases use immutable artifacts, external .env/database volumes, fresh backup/isolated restore, candidate readiness, blue/green activation and retained rollback. No Render/Vercel configuration is the production target.
 

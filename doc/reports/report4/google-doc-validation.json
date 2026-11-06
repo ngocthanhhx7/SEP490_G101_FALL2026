@@ -26,5 +26,21 @@
       "decodedPixelSha256": "bb8026866ebfafaf4de719bf76c0e0c3327da5e37a109ed5018b0000cbb180ba"
     },
     "note": "One inline ID changed during editing; decoded raster is identical. Current image size/placement retained."
+  },
+  "latestTextSync": {
+    "headingCount": 209,
+    "tableCount": 18,
+    "inlineFigureCount": 13,
+    "originalTableColumnsRetained": true,
+    "semanticFixes": [
+      "EMP-02",
+      "UC-21",
+      "PAY-03",
+      "MAP-01",
+      "UC-75",
+      "MAIL-01"
+    ],
+    "figureReplacement": "Original images retained; final PNG package supplied separately",
+    "status": "TEXT_SYNCED_REVIEW_PENDING"
   }
 }

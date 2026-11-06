@@ -1,188 +1,965 @@
 <?xml version='1.0' encoding='utf-8'?>
 <mxfile host="app.diagrams.net">
-  <diagram id="planned-0" name="EmergencyContact — UC-12 / care safety">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="EmergencyContact — DESIGN_PENDING_RUNTIME" id="planned-0">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="658" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="EmergencyContact&#10;proposed emergencycontacts" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="296" />
+        <mxCell id="EmergencyContact" value="proposed emergencycontacts" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="288" />
         </mxCell>
-        <mxCell id="fields" value="_id: ObjectId&#10;ownerId: ObjectId&#10;name: String&#10;phoneCiphertext: String&#10;relationship: String&#10;state: ACTIVE|ARCHIVED&#10;version: Integer&#10;createdAt: Date&#10;updatedAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="241" />
+        <mxCell id="EmergencyContact--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Private contact. Owner-authorized, explicit user-provided relationship; no inferred identity. Keep separately encrypted from public sitter profile." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="406" width="780" height="170" />
+        <mxCell id="EmergencyContact--_id--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--ownerId" value="123 ownerId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--ownerId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--name" value="A-Z name" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--name--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--phoneCiphertext" value="A-Z phoneCiphertext" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--phoneCiphertext--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--relationship" value="A-Z relationship" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--relationship--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--state--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--version" value="123 version" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--version--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--updatedAt" value="◷ updatedAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="EmergencyContact--updatedAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="EmergencyContact">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-12 / care safety&#10;Private contact. Owner-authorized, explicit user-provided relationship; no inferred identity. Keep separately encrypted from public sitter profile." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="413" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-1" name="DayOffRequest — UC-79">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="DayOffRequest — DESIGN_PENDING_RUNTIME" id="planned-1">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="798" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="DayOffRequest&#10;proposed dayoffrequests" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="416" />
+        <mxCell id="DayOffRequest" value="proposed dayoffrequests" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="428" />
         </mxCell>
-        <mxCell id="fields" value="_id: ObjectId&#10;sitterId: ObjectId&#10;startLocalDate: YYYY-MM-DD&#10;endLocalDate: YYYY-MM-DD&#10;reason: String&#10;state: SUBMITTED|APPROVED|REJECTED|WITHDRAWN&#10;availabilityVersion: Integer&#10;affectedVisitVersions: {visitId,version}[]&#10;decisionBy: ObjectId|null&#10;decisionReason: String|null&#10;version: Integer&#10;commandKey: String&#10;createdAt: Date&#10;decidedAt: Date|null" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="361" />
+        <mxCell id="DayOffRequest--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Approval writes date exclusions and replacement/handover events transactionally. Near-term withdrawal follows Staff decision; no automatic salary reduction. Dates use Asia/Ho_Chi_Minh." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="526" width="780" height="170" />
+        <mxCell id="DayOffRequest--_id--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--sitterId" value="123 sitterId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--sitterId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--startLocalDate" value="▦ startLocalDate" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--startLocalDate--type" value="YYYY-MM-DD" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--endLocalDate" value="▦ endLocalDate" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--endLocalDate--type" value="YYYY-MM-DD" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--reason" value="A-Z reason" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--reason--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--state--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--availabilityVersion" value="123 availabilityVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--availabilityVersion--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--affectedVisitVersions" value="▦ affectedVisitVersions" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--affectedVisitVersions--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--decisionBy" value="123 decisionBy" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--decisionBy--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--decisionReason" value="A-Z decisionReason" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--decisionReason--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--version" value="123 version" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--version--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--commandKey" value="A-Z commandKey" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--commandKey--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--decidedAt" value="◷ decidedAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="0" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="DayOffRequest--decidedAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="DayOffRequest">
+          <mxGeometry as="geometry" x="240" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-79&#10;Approval writes date exclusions and replacement/handover events transactionally. Near-term withdrawal follows Staff decision; no automatic salary reduction. Dates use Asia/Ho_Chi_Minh." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="553" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-2" name="BookingChangeRequest — UC-84 / UC-85">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="BookingChangeRequest — DESIGN_PENDING_RUNTIME" id="planned-2">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="826" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="BookingChangeRequest&#10;proposed bookingchangerequests" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="440" />
+        <mxCell id="BookingChangeRequest" value="proposed bookingchangerequests" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="456" />
         </mxCell>
-        <mxCell id="fields" value="_id: ObjectId&#10;bookingId: ObjectId&#10;visitId: ObjectId&#10;customerId: ObjectId&#10;oldSlot: {startAt:Date,endAt:Date}&#10;requestedSlot: {startAt:Date,endAt:Date}&#10;sourceVisitVersion: Integer&#10;policyVersion: String&#10;state: PENDING|APPROVED|REJECTED|EXPIRED&#10;decisionBy: ObjectId|null&#10;decisionReason: String|null&#10;expiresAt: Date&#10;version: Integer&#10;createdAt: Date&#10;decidedAt: Date|null" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="385" />
+        <mxCell id="BookingChangeRequest--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Time-only change preserves price snapshot. Request/decision/expiry use approved versioned cutoffs and occupancy recheck; unresolved policy is not replaced by guessed constants." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="550" width="780" height="170" />
+        <mxCell id="BookingChangeRequest--_id--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--bookingId" value="123 bookingId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--bookingId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--visitId" value="123 visitId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--visitId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--customerId" value="123 customerId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--customerId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--oldSlot" value="▦ oldSlot" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--oldSlot--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--requestedSlot" value="▦ requestedSlot" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--requestedSlot--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--sourceVisitVersion" value="123 sourceVisitVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--sourceVisitVersion--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--policyVersion" value="A-Z policyVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--policyVersion--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--state--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--decisionBy" value="123 decisionBy" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--decisionBy--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--decisionReason" value="A-Z decisionReason" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--decisionReason--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--expiresAt" value="◷ expiresAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--expiresAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--version" value="123 version" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--version--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--decidedAt" value="◷ decidedAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="0" y="428" width="240" height="28" />
+        </mxCell>
+        <mxCell id="BookingChangeRequest--decidedAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="BookingChangeRequest">
+          <mxGeometry as="geometry" x="240" y="428" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-84 / UC-85&#10;Time-only change preserves price snapshot. Request/decision/expiry use approved versioned cutoffs and occupancy recheck; unresolved policy is not replaced by guessed constants." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="581" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-3" name="IncidentCaseExtension — UC-47 / UC-48">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="IncidentCaseExtension — DESIGN_PENDING_RUNTIME" id="planned-3">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="854" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="IncidentCaseExtension&#10;proposed extension of existing cases" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="464" />
+        <mxCell id="IncidentCaseExtension" value="proposed extension of existing cases" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="484" />
         </mxCell>
-        <mxCell id="fields" value="_id: String&#10;kind: INCIDENT&#10;visitId: ObjectId&#10;bookingId: ObjectId&#10;reportedBy: ObjectId&#10;category: String&#10;description: String&#10;evidenceRefs: PrivateMediaRef[]&#10;state: OPEN|UNDER_REVIEW|RESOLVED|CLOSED&#10;followUpActions: {actorId,at,note,evidenceRefs}[]&#10;financialHold: Boolean&#10;proposedFinancialDecisionRef: String|null&#10;finalDecisionRef: String|null&#10;version: Integer&#10;createdAt: Date&#10;closedAt: Date|null" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="409" />
+        <mxCell id="IncidentCaseExtension--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Reuse case aggregate and audited financial locks. Staff proposes evidenced outcome; approved Admin decision is a separate reference. Do not assume incident route has current runtime acceptance." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="574" width="780" height="170" />
+        <mxCell id="IncidentCaseExtension--_id--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--kind" value="▦ kind" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--kind--type" value="INCIDENT" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--visitId" value="123 visitId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--visitId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--bookingId" value="123 bookingId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--bookingId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--reportedBy" value="123 reportedBy" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--reportedBy--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--category" value="A-Z category" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--category--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--description" value="A-Z description" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--description--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--evidenceRefs" value="▦ evidenceRefs" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--evidenceRefs--type" value="PrivateMediaRef[]" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--state--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--followUpActions" value="▦ followUpActions" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--followUpActions--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--financialHold" value="▦ financialHold" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--financialHold--type" value="Boolean" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--proposedFinancialDecisionRef" value="A-Z proposedFinancialDecisionRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--proposedFinancialDecisionRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--finalDecisionRef" value="A-Z finalDecisionRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--finalDecisionRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--version" value="123 version" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--version--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="428" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="428" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--closedAt" value="◷ closedAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="0" y="456" width="240" height="28" />
+        </mxCell>
+        <mxCell id="IncidentCaseExtension--closedAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="IncidentCaseExtension">
+          <mxGeometry as="geometry" x="240" y="456" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-47 / UC-48&#10;Reuse case aggregate and audited financial locks. Staff proposes evidenced outcome; approved Admin decision is a separate reference. Do not assume incident route has current runtime acceptance." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="609" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-4" name="GoodsReceipt — UC-70">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="GoodsReceipt — DESIGN_PENDING_RUNTIME" id="planned-4">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="714" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="GoodsReceipt&#10;proposed goodsreceipts" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="344" />
+        <mxCell id="GoodsReceipt" value="proposed goodsreceipts" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="344" />
         </mxCell>
-        <mxCell id="fields" value="_id: ObjectId&#10;supplierId: ObjectId&#10;receivedBy: ObjectId&#10;receivedAt: Date&#10;lines: {productId,receivedQty,acceptedQty,rejectedQty,rejectionReason}[]&#10;state: RECORDED&#10;stockLedgerRefs: String[]&#10;version: Integer&#10;idempotencyKey: String&#10;payloadFingerprint: String&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="289" />
+        <mxCell id="GoodsReceipt--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;All quantities integer &gt;=0; accepted+rejected=received per line. Record even all-rejected delivery; increment only accepted stock, deduplicate command/ledger. PR158 is not treated as merged runtime." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="454" width="780" height="170" />
+        <mxCell id="GoodsReceipt--_id--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--supplierId" value="123 supplierId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--supplierId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--receivedBy" value="123 receivedBy" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--receivedBy--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--receivedAt" value="◷ receivedAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--receivedAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--lines" value="▦ lines" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--lines--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--state--type" value="RECORDED" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--stockLedgerRefs" value="A-Z stockLedgerRefs" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--stockLedgerRefs--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--version" value="123 version" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--version--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--idempotencyKey" value="A-Z idempotencyKey" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--idempotencyKey--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--payloadFingerprint" value="A-Z payloadFingerprint" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--payloadFingerprint--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GoodsReceipt--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GoodsReceipt">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-70&#10;All quantities integer &gt;=0; accepted+rejected=received per line. Record even all-rejected delivery; increment only accepted stock, deduplicate command/ledger. PR158 is not treated as merged runtime." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="469" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-5" name="StockLedgerEntry — UC-70 / UC-71 / UC-95">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="StockLedgerEntry — DESIGN_PENDING_RUNTIME" id="planned-5">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="742" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="StockLedgerEntry&#10;proposed stockledgerentries" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="368" />
+        <mxCell id="StockLedgerEntry" value="proposed stockledgerentries" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="372" />
         </mxCell>
-        <mxCell id="fields" value="_id: String&#10;productId: ObjectId&#10;kind: RECEIPT|SALE|RETURN|ADJUSTMENT&#10;deltaOnHand: Integer&#10;deltaHeld: Integer&#10;sourceRef: String&#10;sourceVersion: Integer&#10;actorId: ObjectId&#10;reason: String&#10;beforeVersion: Integer&#10;afterVersion: Integer&#10;recordedAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="313" />
+        <mxCell id="StockLedgerEntry--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Append-only event/source identity. Current product/order snapshots remain authoritative until reviewed migration. Ledger must be committed with guarded stock update; never rewrite an old receipt." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="478" width="780" height="170" />
+        <mxCell id="StockLedgerEntry--_id--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--productId" value="123 productId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--productId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--kind" value="▦ kind" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--kind--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--deltaOnHand" value="123 deltaOnHand" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--deltaOnHand--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--deltaHeld" value="123 deltaHeld" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--deltaHeld--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--sourceRef" value="A-Z sourceRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--sourceRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--sourceVersion" value="123 sourceVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--sourceVersion--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--actorId" value="123 actorId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--actorId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--reason" value="A-Z reason" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--reason--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--beforeVersion" value="123 beforeVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--beforeVersion--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--afterVersion" value="123 afterVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--afterVersion--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--recordedAt" value="◷ recordedAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockLedgerEntry--recordedAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockLedgerEntry">
+          <mxGeometry as="geometry" x="240" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-70 / UC-71 / UC-95&#10;Append-only event/source identity. Current product/order snapshots remain authoritative until reviewed migration. Ledger must be committed with guarded stock update; never rewrite an old receipt." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="497" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-6" name="StockAdjustment — UC-95">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="StockAdjustment — DESIGN_PENDING_RUNTIME" id="planned-6">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="714" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="StockAdjustment&#10;proposed stockadjustments" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="344" />
+        <mxCell id="StockAdjustment" value="proposed stockadjustments" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="344" />
         </mxCell>
-        <mxCell id="fields" value="_id: ObjectId&#10;productId: ObjectId&#10;quantityDelta: Integer !=0&#10;reasonCode: DAMAGED|LOST|INTERNAL_USE|RECEIPT_CORRECTION&#10;reason: String&#10;actorId: ObjectId&#10;expectedStockVersion: Integer&#10;ledgerRef: String&#10;state: APPLIED&#10;idempotencyKey: String&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="289" />
+        <mxCell id="StockAdjustment--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Admin only; decrease cannot exceed sellable quantity, stock cannot go below zero. Atomic version/quantity guard plus immutable reason/audit; no change to earlier receipts." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="454" width="780" height="170" />
+        <mxCell id="StockAdjustment--_id--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--productId" value="123 productId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--productId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--quantityDelta" value="123 quantityDelta" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--quantityDelta--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--reasonCode" value="▦ reasonCode" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--reasonCode--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--reason" value="A-Z reason" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--reason--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--actorId" value="123 actorId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--actorId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--expectedStockVersion" value="123 expectedStockVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--expectedStockVersion--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--ledgerRef" value="A-Z ledgerRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--ledgerRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--state--type" value="APPLIED" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--idempotencyKey" value="A-Z idempotencyKey" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--idempotencyKey--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="StockAdjustment--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="StockAdjustment">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-95&#10;Admin only; decrease cannot exceed sellable quantity, stock cannot go below zero. Atomic version/quantity guard plus immutable reason/audit; no change to earlier receipts." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="469" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-7" name="GroomingVisitExtension — UC-58 / UC-59 / UC-60 / UC-91">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="GroomingVisitExtension — DESIGN_PENDING_RUNTIME" id="planned-7">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="798" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="GroomingVisitExtension&#10;proposed embedded visit.grooming" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="416" />
+        <mxCell id="GroomingVisitExtension" value="proposed embedded visit.grooming" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="428" />
         </mxCell>
-        <mxCell id="fields" value="receivedAt: Date|null&#10;receivedBy: ObjectId|null&#10;arrivalCondition: String&#10;arrivalEvidenceRefs: PrivateMediaRef[]&#10;declaredCareSnapshotRef: String&#10;surchargeProposal: {policyVersion,amountVnd,reason}|null&#10;customerConsentRef: String|null&#10;assignedSitterId: ObjectId|null&#10;workState: BOOKED|RECEIVED|IN_PROGRESS|READY|STOPPED|HANDED_BACK|CANCELLED&#10;stopReason: String|null&#10;readyAt: Date|null&#10;handedBackAt: Date|null&#10;paymentReceiptRef: String|null&#10;version: Integer" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="361" />
+        <mxCell id="GroomingVisitExtension--receivedAt" value="◷ receivedAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Reuse Booking/Visit instead of duplicate booking system. Qualified employee on shift; explicit consent for approved surcharge; final receipt evidence before hand-back. No unapproved surcharge rate is specified." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="526" width="780" height="170" />
+        <mxCell id="GroomingVisitExtension--receivedAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--receivedBy" value="123 receivedBy" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--receivedBy--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--arrivalCondition" value="A-Z arrivalCondition" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--arrivalCondition--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--arrivalEvidenceRefs" value="▦ arrivalEvidenceRefs" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--arrivalEvidenceRefs--type" value="PrivateMediaRef[]" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--declaredCareSnapshotRef" value="A-Z declaredCareSnapshotRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--declaredCareSnapshotRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--surchargeProposal" value="▦ surchargeProposal" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--surchargeProposal--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--customerConsentRef" value="A-Z customerConsentRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--customerConsentRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--assignedSitterId" value="123 assignedSitterId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--assignedSitterId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--workState" value="▦ workState" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--workState--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--stopReason" value="A-Z stopReason" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--stopReason--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--readyAt" value="◷ readyAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--readyAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--handedBackAt" value="◷ handedBackAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--handedBackAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--paymentReceiptRef" value="A-Z paymentReceiptRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--paymentReceiptRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--version" value="123 version" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="0" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="GroomingVisitExtension--version--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="GroomingVisitExtension">
+          <mxGeometry as="geometry" x="240" y="400" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-58 / UC-59 / UC-60 / UC-91&#10;Reuse Booking/Visit instead of duplicate booking system. Qualified employee on shift; explicit consent for approved surcharge; final receipt evidence before hand-back. No unapproved surcharge rate is specified." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="553" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-8" name="ProductFaultyClaim — UC-92 / UC-93">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="ProductFaultyClaim — DESIGN_PENDING_RUNTIME" id="planned-8">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="770" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="ProductFaultyClaim&#10;proposed productfaultyclaims" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="392" />
+        <mxCell id="ProductFaultyClaim" value="proposed productfaultyclaims" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="400" />
         </mxCell>
-        <mxCell id="fields" value="_id: ObjectId&#10;orderId: ObjectId&#10;customerId: ObjectId&#10;lines: {productId,quantity,reason}[]&#10;evidenceRefs: PrivateMediaRef[]&#10;claimPolicyVersion: String&#10;state: SUBMITTED|UNDER_REVIEW|APPROVED_EXCHANGE|APPROVED_REFUND|REJECTED|RESOLVED&#10;staffReview: {actorId,at,note}|null&#10;adminDecision: {actorId,at,reason,decision}|null&#10;replacementOrderRef: String|null&#10;refundRef: String|null&#10;version: Integer&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="337" />
+        <mxCell id="ProductFaultyClaim--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Owner/order/deadline/evidence check; Admin approves same-product exchange or external refund. Faulty goods are never restocked; new replacement stock is decremented once. Change-of-mind return is excluded." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="502" width="780" height="170" />
+        <mxCell id="ProductFaultyClaim--_id--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--orderId" value="123 orderId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--orderId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--customerId" value="123 customerId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--customerId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--lines" value="▦ lines" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--lines--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--evidenceRefs" value="▦ evidenceRefs" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--evidenceRefs--type" value="PrivateMediaRef[]" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--claimPolicyVersion" value="A-Z claimPolicyVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--claimPolicyVersion--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--state--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--staffReview" value="▦ staffReview" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--staffReview--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--adminDecision" value="▦ adminDecision" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--adminDecision--type" value="Document" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--replacementOrderRef" value="A-Z replacementOrderRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--replacementOrderRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--refundRef" value="A-Z refundRef" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--refundRef--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--version" value="123 version" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--version--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="344" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="0" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="ProductFaultyClaim--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="ProductFaultyClaim">
+          <mxGeometry as="geometry" x="240" y="372" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-92 / UC-93&#10;Owner/order/deadline/evidence check; Admin approves same-product exchange or external refund. Faulty goods are never restocked; new replacement stock is decremented once. Change-of-mind return is excluded." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="525" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-9" name="AccessNoteAudit — UC-90">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="AccessNoteAudit — DESIGN_PENDING_RUNTIME" id="planned-9">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="658" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="AccessNoteAudit&#10;proposed accessnoteaudits" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="296" />
+        <mxCell id="AccessNoteAudit" value="proposed accessnoteaudits" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="288" />
         </mxCell>
-        <mxCell id="fields" value="_id: String&#10;visitId: ObjectId&#10;actorId: ObjectId&#10;assignmentVersion: Integer&#10;careSnapshotHash: String&#10;action: READ_GRANTED|READ_DENIED&#10;reasonCode: String&#10;occurredAt: Date&#10;correlationId: String" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="241" />
+        <mxCell id="AccessNoteAudit--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Record actor/time/resource/decision, never note text, key code or address secrets. Current assigned-care reader does not itself establish this audit event." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="406" width="780" height="170" />
+        <mxCell id="AccessNoteAudit--_id--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--visitId" value="123 visitId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--visitId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--actorId" value="123 actorId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--actorId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--assignmentVersion" value="123 assignmentVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--assignmentVersion--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--careSnapshotHash" value="A-Z careSnapshotHash" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--careSnapshotHash--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--action" value="▦ action" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--action--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--reasonCode" value="A-Z reasonCode" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--reasonCode--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--occurredAt" value="◷ occurredAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--occurredAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--correlationId" value="A-Z correlationId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="AccessNoteAudit--correlationId--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="AccessNoteAudit">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;UC-90&#10;Record actor/time/resource/decision, never note text, key code or address secrets. Current assigned-care reader does not itself establish this audit event." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="413" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="planned-10" name="CustomerTierAssessment — SRS GBR-42 / JOB-05">
-    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+  <diagram name="CustomerTierAssessment — DESIGN_PENDING_RUNTIME" id="planned-10">
+    <mxGraphModel grid="1" gridSize="10" guides="1" page="1" pageWidth="1400" pageHeight="714" background="#ffffff">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="entity" value="CustomerTierAssessment&#10;proposed customertierassessments" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="70" width="780" height="344" />
+        <mxCell id="CustomerTierAssessment" value="proposed customertierassessments" style="swimlane;startSize=36;horizontal=1;rounded=0;html=0;fillColor=#FFFFE5;swimlaneFillColor=#ffffff;strokeColor=#22B8F0;fontColor=#202020;fontSize=15;fontStyle=1;align=center;collapsible=0;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="80" width="480" height="344" />
         </mxCell>
-        <mxCell id="fields" value="_id: ObjectId&#10;customerId: ObjectId&#10;policyVersion: String&#10;periodStart: Date&#10;periodEnd: Date&#10;verifiedSpendVnd: Integer&#10;receiptSourceHash: String&#10;assessedTier: String&#10;discountEligibility: Boolean&#10;state: DRAFT|APPROVED|SUPERSEDED&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
-          <mxGeometry as="geometry" x="0" y="55" width="780" height="289" />
+        <mxCell id="CustomerTierAssessment--_id" value="PK _id" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#22B8F0;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="36" width="240" height="28" />
         </mxCell>
-        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Disabled until approved tier names/thresholds/discounts and source rules exist. Only verified paid source joins; no arbitrary rates or fabricated profile DTO tier." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="100" y="454" width="780" height="170" />
+        <mxCell id="CustomerTierAssessment--_id--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="36" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--customerId" value="123 customerId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--customerId--type" value="ObjectId" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="64" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--policyVersion" value="A-Z policyVersion" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--policyVersion--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="92" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--periodStart" value="◷ periodStart" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--periodStart--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="120" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--periodEnd" value="◷ periodEnd" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--periodEnd--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="148" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--verifiedSpendVnd" value="123 verifiedSpendVnd" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--verifiedSpendVnd--type" value="Integer" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="176" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--receiptSourceHash" value="A-Z receiptSourceHash" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--receiptSourceHash--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="204" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--assessedTier" value="A-Z assessedTier" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--assessedTier--type" value="String" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="232" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--discountEligibility" value="▦ discountEligibility" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--discountEligibility--type" value="Boolean" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="260" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--state" value="▦ state" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--state--type" value="String (enum)" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="288" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--createdAt" value="◷ createdAt" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=7;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="0" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="CustomerTierAssessment--createdAt--type" value="Date" style="text;html=0;whiteSpace=wrap;overflow=hidden;align=left;verticalAlign=middle;fontSize=12;fontColor=#202020;spacingLeft=5;strokeColor=none;" vertex="1" parent="CustomerTierAssessment">
+          <mxGeometry as="geometry" x="240" y="316" width="240" height="28" />
+        </mxCell>
+        <mxCell id="scope" value="DESIGN_PENDING_RUNTIME&#10;SRS GBR-42 / JOB-05&#10;Disabled until approved tier names/thresholds/discounts and source rules exist. Only verified paid source joins; no arbitrary rates or fabricated profile DTO tier." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=12;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="140" y="469" width="1100" height="155" />
         </mxCell>
       </root>
     </mxGraphModel>

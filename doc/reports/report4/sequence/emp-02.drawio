@@ -1,130 +1,247 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" version="24.7.17">
-  <diagram id="emp-02" name="EMP-02 Issue, sign and activate an employment document">
-    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1050" math="0" shadow="0">
+<mxfile host="app.diagrams.net">
+  <diagram name="EMP-02 Separate DRAFT / ISSUE / SIGN / APPROVE requests" id="emp-02">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2204" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="ll_staff" value="Actor (Admin)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="30" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_staff" value="Admin" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1924" as="geometry" />
         </mxCell>
-        <mxCell id="ll_ctrl" value=": CommandBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="215" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_ctrl" value=": Contract / Application&#10;Controllers" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1924" as="geometry" />
         </mxCell>
-        <mxCell id="ll_serv" value=": EmploymentDocumentService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="405" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_serv" value=": EmploymentDocumentService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1924" as="geometry" />
         </mxCell>
-        <mxCell id="ll_app_repo" value=": SourceRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="590" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_app_repo" value=": SitterApplicationService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1924" as="geometry" />
         </mxCell>
-        <mxCell id="ll_user_repo" value=": GuardedPersistence" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="780" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_user_repo" value=": MongoDB (shared session)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1924" as="geometry" />
         </mxCell>
-        <mxCell id="ll_smtp" value=": ResultProjection" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="965" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_smtp" value=": Mail / Notification intent" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1924" as="geometry" />
         </mxCell>
-        <mxCell id="act_ctrl" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="290" y="105" width="10" height="505" as="geometry" />
+        <mxCell id="frame-1" value="Request 1 — save a new DRAFT revision" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="392" />
         </mxCell>
-        <mxCell id="act_serv" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="475" y="145" width="10" height="425" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="185" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="265" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_user" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="850" y="345" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_smtp" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="1035" y="460" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="m_1" value="1: Issue, sign and activate an employment document" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="105" y="105" as="sourcePoint" />
-            <mxPoint x="290" y="105" as="targetPoint" />
+        <mxCell id="msg-1" value="1: POST /sitter-applications/:id/employment-contract; expectedRevision,&#10;applicationVersion, terms; CSRF + key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="160" />
+            <mxPoint as="targetPoint" x="295" y="160" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_2" value="2: Validate actual particulars, canonical gender, contract terms and&#10;document/application version" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="300" y="145" as="sourcePoint" />
-            <mxPoint x="475" y="145" as="targetPoint" />
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="160" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: save(actor, applicationId, body, key); validate terms/gender/identity" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="218" />
+            <mxPoint as="targetPoint" x="480" y="218" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_3" value="3: read authorized current source records / evidence" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="185" as="sourcePoint" />
-            <mxPoint x="665" y="185" as="targetPoint" />
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="218" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: transaction: current Admin, INTERVIEW application guard, key fingerprint/replay,&#10;current revision" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="276" />
+            <mxPoint as="targetPoint" x="855" y="276" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_4" value="4: source version, state and policy context" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="225" as="sourcePoint" />
-            <mxPoint x="485" y="225" as="targetPoint" />
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="276" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: alt: same-key same-payload -&gt; existing document; changed key payload or&#10;version/state mismatch -&gt; 409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="334" />
+            <mxPoint as="targetPoint" x="480" y="334" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_5" value="5: verify policy, expiry and stable command identity" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="265" as="sourcePoint" />
-            <mxPoint x="665" y="265" as="targetPoint" />
+        <mxCell id="msg-5" value="5: for new command: counter + encrypted immutable DRAFT + termsHash + command in same&#10;transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="392" />
+            <mxPoint as="targetPoint" x="855" y="392" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_6" value="6: eligible context or explicit pending reason" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="305" as="sourcePoint" />
-            <mxPoint x="485" y="305" as="targetPoint" />
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="392" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: HTTP response: new DRAFT revision or safe error; no ISSUE/SIGN/activation yet" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="450" />
+            <mxPoint as="targetPoint" x="105" y="450" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_7" value="7: DRAFT -&gt; ISSUED -&gt; SIGNED -&gt; ACTIVATED; retain encrypted immutable terms/hash and&#10;activate employment atomically" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="345" as="sourcePoint" />
-            <mxPoint x="850" y="345" as="targetPoint" />
+        <mxCell id="frame-7" value="Request 2 — ISSUE the current DRAFT" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="523" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: POST .../:documentId/decisions; action ISSUE, termsHash, new key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="583" />
+            <mxPoint as="targetPoint" x="295" y="583" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_8" value="8: durable result; no partial state on failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="850" y="385" as="sourcePoint" />
-            <mxPoint x="485" y="385" as="targetPoint" />
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="583" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: decide(...): require latest DRAFT, same application version/hash and valid gender" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="641" />
+            <mxPoint as="targetPoint" x="480" y="641" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_9" value="9: construct allowlisted outcome / evidence summary" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="420" as="sourcePoint" />
-            <mxPoint x="485" y="445" as="targetPoint" />
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="641" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: transaction: DRAFT -&gt; ISSUED with issuedAt + command replay identity" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="699" />
+            <mxPoint as="targetPoint" x="855" y="699" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="699" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: ISSUED DTO; stale document/hash/state -&gt; VERSION_CONFLICT; invalid terms -&gt; field&#10;error" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="757" />
+            <mxPoint as="targetPoint" x="105" y="757" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-11" value="External activity — print and verify actual signatures" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="830" width="1110" height="124" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Read/print selected revision; both parties sign outside app. Admin retains actual&#10;signed archive reference" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="890" />
+            <mxPoint as="targetPoint" x="105" y="912" />
             <Array as="points">
-              <mxPoint x="525" y="420" />
-              <mxPoint x="525" y="445" />
+              <mxPoint x="145" y="890" />
+              <mxPoint x="145" y="912" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_10" value="10: publish/format acknowledged outcome only" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="460" as="sourcePoint" />
-            <mxPoint x="1035" y="460" as="targetPoint" />
+        <mxCell id="frame-12" value="Request 3 — record SIGN; a separate command" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="985" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: POST .../:documentId/decisions; SIGN, termsHash, signedOn, bothPartiesSigned=true,&#10;archiveReference, key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1045" />
+            <mxPoint as="targetPoint" x="295" y="1045" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_11" value="11: delivery/result acknowledgement" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1035" y="500" as="sourcePoint" />
-            <mxPoint x="485" y="500" as="targetPoint" />
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1045" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: decide(...): validate signing date, latest ISSUED state, current&#10;version/hash/gender" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1103" />
+            <mxPoint as="targetPoint" x="480" y="1103" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_12" value="12: source-bound result or explicit failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="475" y="540" as="sourcePoint" />
-            <mxPoint x="300" y="540" as="targetPoint" />
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1103" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: transaction: ISSUED -&gt; SIGNED + signature evidence metadata + command" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1161" />
+            <mxPoint as="targetPoint" x="855" y="1161" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_13" value="13: command response / safe CLI summary" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="290" y="580" as="sourcePoint" />
-            <mxPoint x="105" y="580" as="targetPoint" />
+        <mxCell id="act-14" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1161" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: SIGNED DTO or 422/409. No employee privileges granted by this command" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1219" />
+            <mxPoint as="targetPoint" x="105" y="1219" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="status-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED&#10;Alternative: Unsigned invalid legacy gender blocks issue/sign; signed history cannot be rewritten" style="shape=note;whiteSpace=wrap;html=0;fontSize=12;align=left;spacing=8;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="750" width="1050" height="130" />
+        <mxCell id="frame-16" value="Request 4 — approve the application; activation is inside this transaction" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1292" width="1110" height="450" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: POST /sitter-applications/:id/decisions; APPROVE, reason, expectedVersion, key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1352" />
+            <mxPoint as="targetPoint" x="295" y="1352" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-16" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1352" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: SitterApplicationService.decide: Admin; validate payload/replay and INTERVIEW&#10;version" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1410" />
+            <mxPoint as="targetPoint" x="670" y="1410" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-17" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1410" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-18" value="18: begin transaction: eligible owned verified Customer -&gt; add PET_SITTER; legacy&#10;unowned -&gt; create allowed user" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1468" />
+            <mxPoint as="targetPoint" x="855" y="1468" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-18" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1468" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-19" value="19: activate(application, employeeId, actor, SAME session)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1526" />
+            <mxPoint as="targetPoint" x="480" y="1526" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-19" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1526" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-20" value="20: require latest SIGNED document/current application version; create&#10;EmploymentContract; SIGNED -&gt; ACTIVATED; payroll event" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1584" />
+            <mxPoint as="targetPoint" x="855" y="1584" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-20" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1584" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-21" value="21: same transaction: SitterStatus ACTIVE + application APPROVED/version + audit +&#10;notifications/mail intent" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1642" />
+            <mxPoint as="targetPoint" x="855" y="1642" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-21" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1642" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-22" value="22: APPROVED result after commit. Any contract/account/version conflict rolls back&#10;promotion and activation together" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1700" />
+            <mxPoint as="targetPoint" x="105" y="1700" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-23" value="Replay and failure semantics" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1773" width="1110" height="160" />
+        </mxCell>
+        <mxCell id="msg-23" value="23: Retry an uncertain command with its original key and payload; each HTTP action has&#10;its own identity" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1833" />
+            <mxPoint as="targetPoint" x="295" y="1833" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-23" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1833" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-24" value="24: Same key/payload replays; changed fingerprint -&gt; 409. Missing session/role/CSRF -&gt;&#10;401/403; no fabricated signatures" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1891" />
+            <mxPoint as="targetPoint" x="105" y="1891" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. JS factories are service roles. SIGN verifies actual external evidence; never signs on behalf of a person. Signed history remains immutable. Each request validates current session/CSRF; transaction and replay do not make the whole multi-request lifecycle atomic." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="2004" width="1100" height="145" />
         </mxCell>
       </root>
     </mxGraphModel>

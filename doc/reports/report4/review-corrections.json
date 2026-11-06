@@ -15,5 +15,19 @@
     "EMP-03"
   ],
   "notificationReadAndReceiptSeparated": true,
-  "reviewSource": "independent semantic review; counts/validator are structural checks only"
+  "reviewSource": "independent semantic review; counts/validator are structural checks only",
+  "explicitMultiRequestFlows": [
+    "EMP-02",
+    "UC-21",
+    "PAY-03",
+    "MAP-01"
+  ],
+  "ownPayrollReadOnly": "UC-75",
+  "uncertainMailNoAutomaticRetry": "MAIL-01",
+  "lengthConstraintsReflected": 187,
+  "schemaNotation": "school yellow-header cyan-outline field/type tables; crow-foot ports and waypoints outside text",
+  "relationshipPages": 10,
+  "renderedPngPages": 212,
+  "driveTextSync": "Restored connector; fresh revision-guarded updates; original figure replacement remains separate",
+  "finalApproval": "pending independent review of next committed SHA"
 }

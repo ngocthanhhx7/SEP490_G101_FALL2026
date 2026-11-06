@@ -1,130 +1,222 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" version="24.7.17">
-  <diagram id="mail-01" name="MAIL-01 Retry durable application-status email">
-    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1050" math="0" shadow="0">
+<mxfile host="app.diagrams.net">
+  <diagram name="MAIL-01 Durable application mail and uncertain SMTP outcome" id="mail-01">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2141" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="ll_staff" value="Actor (Application mail worker)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="30" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_staff" value="Application workflow / Worker" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1861" as="geometry" />
         </mxCell>
-        <mxCell id="ll_ctrl" value=": ApplicationMailWorker" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="215" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_ctrl" value=": ApplicationMailService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1861" as="geometry" />
         </mxCell>
-        <mxCell id="ll_serv" value=": ApplicationMailService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="405" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_serv" value=": ApplicationMail collection" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1861" as="geometry" />
         </mxCell>
-        <mxCell id="ll_app_repo" value=": SourceRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="590" y="50" width="160" height="630" as="geometry" />
+        <mxCell id="ll_app_repo" value=": Verified Contact" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1861" as="geometry" />
         </mxCell>
-        <mxCell id="ll_user_repo" value=": GuardedPersistence" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="780" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_user_repo" value=": ContactDelivery" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1861" as="geometry" />
         </mxCell>
-        <mxCell id="ll_smtp" value=": ContactDelivery / SMTP" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=0;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="965" y="50" width="150" height="630" as="geometry" />
+        <mxCell id="ll_smtp" value=": SMTP provider" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1861" as="geometry" />
         </mxCell>
-        <mxCell id="act_ctrl" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="290" y="105" width="10" height="505" as="geometry" />
+        <mxCell id="frame-1" value="Enqueue belongs to the application domain transaction" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="276" />
         </mxCell>
-        <mxCell id="act_serv" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="475" y="145" width="10" height="425" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="185" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="265" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_user" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="850" y="345" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_smtp" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="1035" y="460" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="m_1" value="1: Retry durable application-status email" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="105" y="105" as="sourcePoint" />
-            <mxPoint x="290" y="105" as="targetPoint" />
+        <mxCell id="msg-1" value="1: After a new application version/state is saved: enqueue(application, SAME session)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="160" />
+            <mxPoint as="targetPoint" x="295" y="160" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_2" value="2: Lease a due encrypted recipient snapshot; check bounded attempts and stable&#10;provider operation identity" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="300" y="145" as="sourcePoint" />
-            <mxPoint x="475" y="145" as="targetPoint" />
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="160" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Verify current owned EMAIL contact and lookup; decrypt recipient only within&#10;private process" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="218" />
+            <mxPoint as="targetPoint" x="670" y="218" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_3" value="3: read authorized current source records / evidence" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="185" as="sourcePoint" />
-            <mxPoint x="665" y="185" as="targetPoint" />
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="218" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: upsert applicationId:version with $setOnInsert, encrypted snapshot, stable&#10;operationId, attempts=0; PENDING or SKIPPED" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="276" />
+            <mxPoint as="targetPoint" x="480" y="276" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_4" value="4: source version, state and policy context" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="225" as="sourcePoint" />
-            <mxPoint x="485" y="225" as="targetPoint" />
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="276" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Application transaction commits both application change and mail intent; SMTP is&#10;never inside it" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="334" />
+            <mxPoint as="targetPoint" x="105" y="334" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_5" value="5: verify policy, expiry and stable command identity" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="265" as="sourcePoint" />
-            <mxPoint x="665" y="265" as="targetPoint" />
+        <mxCell id="frame-5" value="Worker tick and lease recovery" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="407" width="1110" height="392" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: startApplicationMailWorker: immediate then 15-second tick; one runBatch at a time;&#10;batch limit 1..20" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="467" />
+            <mxPoint as="targetPoint" x="295" y="467" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_6" value="6: eligible context or explicit pending reason" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="305" as="sourcePoint" />
-            <mxPoint x="485" y="305" as="targetPoint" />
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="467" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Expired SENDING leases -&gt; UNKNOWN / ACKNOWLEDGEMENT_UNKNOWN; never automatically&#10;requeue" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="525" />
+            <mxPoint as="targetPoint" x="480" y="525" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_7" value="7: Send configured mail; record accepted/failure and next retry without rolling back&#10;saved application" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="345" as="sourcePoint" />
-            <mxPoint x="850" y="345" as="targetPoint" />
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="525" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Atomically claim oldest due PENDING: SENDING, leaseUntil=now+60s, increment&#10;attempts" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="583" />
+            <mxPoint as="targetPoint" x="480" y="583" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_8" value="8: durable result; no partial state on failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="850" y="385" as="sourcePoint" />
-            <mxPoint x="485" y="385" as="targetPoint" />
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="583" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Claimed encrypted snapshot or none; stop batch if none" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="641" />
+            <mxPoint as="targetPoint" x="295" y="641" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_9" value="9: construct allowlisted outcome / evidence summary" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="420" as="sourcePoint" />
-            <mxPoint x="485" y="445" as="targetPoint" />
-            <Array as="points">
-              <mxPoint x="525" y="420" />
-              <mxPoint x="525" y="445" />
-            </Array>
+        <mxCell id="msg-9" value="9: Recheck the exact owner verified EMAIL lookup before sending" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="699" />
+            <mxPoint as="targetPoint" x="670" y="699" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_10" value="10: publish/format acknowledged outcome only" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="460" as="sourcePoint" />
-            <mxPoint x="1035" y="460" as="targetPoint" />
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="699" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: If missing/replaced: SKIPPED / VERIFIED_EMAIL_UNAVAILABLE, clear lease; continue&#10;without SMTP" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="757" />
+            <mxPoint as="targetPoint" x="295" y="757" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_11" value="11: delivery/result acknowledgement" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1035" y="500" as="sourcePoint" />
-            <mxPoint x="485" y="500" as="targetPoint" />
+        <mxCell id="frame-11" value="External send happens only after a valid claim" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="830" width="1110" height="276" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: send SYSTEM/EMAIL/SITTER_APPLICATION_STATUS; original operationId and state;&#10;secret recipient not logged" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="890" />
+            <mxPoint as="targetPoint" x="855" y="890" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_12" value="12: source-bound result or explicit failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="475" y="540" as="sourcePoint" />
-            <mxPoint x="300" y="540" as="targetPoint" />
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="890" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: Configured SMTP call with bounded provider behavior" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="948" />
+            <mxPoint as="targetPoint" x="1035" y="948" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_13" value="13: command response / safe CLI summary" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="290" y="580" as="sourcePoint" />
-            <mxPoint x="105" y="580" as="targetPoint" />
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="948" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: ACCEPTED, safe retryable failure, terminal failure or uncertain acknowledgement" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="1006" />
+            <mxPoint as="targetPoint" x="855" y="1006" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="status-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED&#10;Alternative: Provider acceptance is not inbox delivery; preserve record after exhausted attempts" style="shape=note;whiteSpace=wrap;html=0;fontSize=12;align=left;spacing=8;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="750" width="1050" height="130" />
+        <mxCell id="msg-14" value="14: Normalized provider response; PROVIDER_UNAVAILABLE exception is safe retryable;&#10;other thrown error is uncertain" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="1064" />
+            <mxPoint as="targetPoint" x="295" y="1064" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-15" value="alt [ACCEPTED]" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1137" width="1110" height="160" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: CAS by id + SENDING + attempts: ACCEPTED, acceptedAt, safe code=null, clear lease" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1197" />
+            <mxPoint as="targetPoint" x="480" y="1197" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-15" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1197" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: Count accepted. SMTP acceptance does not prove inbox delivery" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1255" />
+            <mxPoint as="targetPoint" x="105" y="1255" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-17" value="alt [uncertain response, timeout or crash after possible SMTP acceptance]" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1328" width="1110" height="160" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: Response uncertain=true -&gt; UNKNOWN with safe code; an expired lease is also&#10;UNKNOWN on a later tick" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1388" />
+            <mxPoint as="targetPoint" x="480" y="1388" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-17" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1388" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-18" value="18: Stop automatic retry for this row. Operator reconciles actual provider/recipient&#10;evidence; do not invent delivery" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1446" />
+            <mxPoint as="targetPoint" x="105" y="1446" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-19" value="alt [known safe retryable failure AND attempts &lt; 3]" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1519" width="1110" height="160" />
+        </mxCell>
+        <mxCell id="msg-19" value="19: PENDING, nextAttemptAt=now+60s*attempts, safe failureCode, clear lease" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1579" />
+            <mxPoint as="targetPoint" x="480" y="1579" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-19" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1579" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-20" value="20: A later tick may claim same operationId again; maximum three attempts for safe&#10;failures" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1637" />
+            <mxPoint as="targetPoint" x="105" y="1637" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-21" value="alt [nonretryable failure OR attempts exhausted]" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1710" width="1110" height="160" />
+        </mxCell>
+        <mxCell id="msg-21" value="21: FAILED, safe failureCode, clear lease; retain durable row/history" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1770" />
+            <mxPoint as="targetPoint" x="480" y="1770" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-21" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1770" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-22" value="22: No automatic resend. A mail failure does not roll back the already saved&#10;application" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1828" />
+            <mxPoint as="targetPoint" x="105" y="1828" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="Source: application-mail.service.js and application-mail.job.js. ACCEPTED, UNKNOWN, PENDING, FAILED and SKIPPED are distinct states. An expired SENDING lease cannot safely prove delivery failure. Operation ID is stable across known-safe retries; it does not guarantee SMTP deduplication. Unknown results require reconciliation, not blind resend." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1941" width="1100" height="145" />
         </mxCell>
       </root>
     </mxGraphModel>

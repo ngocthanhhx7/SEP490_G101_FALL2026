@@ -109,11 +109,11 @@ Source: `backend/src/models/earning-accrual.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| id | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| bookingId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sitterId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| id | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| bookingId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | completedAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| weekKey | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| weekKey | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | ordinal | Number | required; min=1; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | serviceBasisVnd | Number | required; min=0; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | feeBasisPoints | Number | required; min=0; max=10000; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -122,15 +122,15 @@ Source: `backend/src/models/earning-accrual.model.js`
 | sitterTaxCostVnd | Number | required; min=0; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | platformTaxCostVnd | Number | required; min=0; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | accruedVnd | Number | required; min=0; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
-| policyVersion | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| allocationPolicyVersion | String | immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| decisionVersion | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sourceVersion | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sourceHash | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| completionReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| paymentReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| allocationReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| assessmentReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| policyVersion | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| allocationPolicyVersion | String | maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| decisionVersion | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sourceVersion | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sourceHash | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| completionReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| paymentReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| allocationReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| assessmentReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -144,8 +144,8 @@ Source: `backend/src/models/earning-accrual.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| sitterId | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| weekKey | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=160; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| weekKey | String | required; maxLength=160; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | count | Number | required; min=1; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -159,12 +159,12 @@ Source: `backend/src/models/earning-accrual.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| bookingId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sitterId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| bookingId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | completedAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| weekKey | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| weekKey | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | ordinal | Number | required; min=1; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
-| completionReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| completionReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
 Declared/provisioned indexes: `[[{"sitterId":1,"bookingId":1},{"unique":true}],[{"sitterId":1,"weekKey":1,"ordinal":1},{"unique":true}]]`
@@ -177,9 +177,9 @@ Source: `backend/src/models/earning-accrual.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| eventId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| eventId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | type | String | required; enum=['EARNING_ACCRUED']; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| snapshotId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| snapshotId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['PENDING', 'PUBLISHED'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -609,9 +609,9 @@ Source: `backend/src/models/payroll.model.js`
 | signedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | endsAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| contractReference | String | required; validators=maxlength | Excluded from default projection; explicit authorized read only |
+| contractReference | String | required; maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
 | workplaceRegion | Number | required; enum=[1, 2, 3, 4] | See schema/validator source; no SQL foreign-key enforcement implied |
-| workplaceReference | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| workplaceReference | String | required; maxLength=160; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | verifiedBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | recordedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -632,17 +632,17 @@ Source: `backend/src/models/payroll.model.js`
 | amountVnd | Number | required; min=0; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | status | String | required; enum=['SUBMITTED', 'APPROVED', 'REJECTED', 'WITHDRAWN', 'PAID'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | min=0; validators=user defined | default=0 |
-| reason | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| decisionReason | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| decisionReason | String | maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | requestedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | decidedBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | decidedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | paidBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | paidAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| transferReference | String | validators=maxlength | Excluded from default projection; explicit authorized read only |
+| transferReference | String | maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
 | policyVersion | String | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | settlementPeriod | String | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| settlementConsentReference | String | required; validators=maxlength | Excluded from default projection; explicit authorized read only |
+| settlementConsentReference | String | required; maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
 Declared/provisioned indexes: `[[{"employeeId":1,"monthKey":1,"status":1,"requestedAt":-1},{}],[{"employeeId":1,"requestedAt":-1,"_id":-1},{}],[{"status":1,"requestedAt":-1,"_id":-1},{}],[{"transferReference":1},{"unique":true,"partialFilterExpression":{"transferReference":{"$type":"string"}}}]]`
@@ -750,8 +750,8 @@ Source: `backend/src/models/payroll.model.js`
 | paidAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | voidedBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | voidedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| voidReason | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| transferReference | String | validators=maxlength | Excluded from default projection; explicit authorized read only |
+| voidReason | String | maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| transferReference | String | maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
 Declared/provisioned indexes: `[[{"employeeId":1,"periodStart":1,"periodEnd":1},{"name":"active_payroll_period","unique":true,"partialFilterExpression":{"status":{"$in":["PREPARED","APPROVED","PAID"]}}}],[{"transferReference":1},{"unique":true,"partialFilterExpression":{"transferReference":{"$type":"string"}}}],[{"employeeId":1,"periodEnd":-1,"_id":-1},{}],[{"periodEnd":-1,"_id":-1},{}]]`
@@ -769,20 +769,20 @@ Source: `backend/src/models/payroll.model.js`
 | statementVersion | Number | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | direction | String | required; enum=['SUPPLEMENT', 'RECOVERY'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | amountVnd | Number | required; min=1; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| assessmentReference | String | required; validators=maxlength | Excluded from default projection; explicit authorized read only |
+| reason | String | required; maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| assessmentReference | String | required; maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
 | status | String | required; enum=['SUBMITTED', 'APPROVED', 'REJECTED', 'PAID', 'RECONCILED'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | Schema permits omission; command validation still applies | default=0 |
 | requestedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | preparedBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | decidedBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | decidedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| decisionReason | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| decisionReason | String | maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | resolvedBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | resolvedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| transferReference | String | validators=maxlength | Excluded from default projection; explicit authorized read only |
-| agreementReference | String | validators=maxlength | Excluded from default projection; explicit authorized read only |
-| resolutionReference | String | validators=maxlength | Excluded from default projection; explicit authorized read only |
+| transferReference | String | maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
+| agreementReference | String | maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
+| resolutionReference | String | maxLength=160; validators=maxlength | Excluded from default projection; explicit authorized read only |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
 Declared/provisioned indexes: `[[{"statementId":1,"assessmentReference":1},{"unique":true}],[{"employeeId":1,"requestedAt":-1,"_id":-1},{}],[{"requestedAt":-1,"_id":-1},{}]]`
@@ -811,9 +811,9 @@ Source: `backend/src/models/pet-care.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | ownerId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| name | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| name | String | required; maxLength=100; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | species | String | required; enum=['DOG', 'CAT'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| breedCode | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| breedCode | String | required; maxLength=80; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | weightKg | Number | required; min=0.1; max=150 | See schema/validator source; no SQL foreign-key enforcement implied |
 | traits | Array[String] | Schema permits omission; command validation still applies | default=[] |
 | careNeedsConfirmed | Boolean | Schema permits omission; command validation still applies | default=False |
@@ -822,7 +822,7 @@ Source: `backend/src/models/pet-care.model.js`
 | careProfile | Map | Schema permits omission; command validation still applies | default={} |
 | careProfile.$* | Embedded | Schema permits omission; command validation still applies | nested path; not a SQL column |
 | careProfile.$*.status | String | required; enum=['KNOWN', 'UNKNOWN', 'NOT_PROVIDED'] | nested path; not a SQL column |
-| careProfile.$*.value | String | validators=maxlength | nested path; not a SQL column |
+| careProfile.$*.value | String | maxLength=2000; validators=maxlength | nested path; not a SQL column |
 | state | String | enum=['ACTIVE', 'ARCHIVED'] | default=ACTIVE |
 | version | Number | min=0; max=9007199254740991; validators=user defined | default=0 |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -840,14 +840,14 @@ Source: `backend/src/models/pet-care.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | ownerId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| label | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| location | String | required; validators=maxlength | Excluded from default projection; explicit authorized read only |
+| label | String | required; maxLength=100; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| location | String | required; maxLength=500; validators=maxlength | Excluded from default projection; explicit authorized read only |
 | point | Embedded | required | Excluded from default projection; explicit authorized read only |
 | point.type | String | enum=['Point'] | default=Point; nested path; not a SQL column |
 | point.coordinates | Array[Number] | required; validators=user defined | nested path; not a SQL column |
 | areaCode | String | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | pointConfirmedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| privateAccessNotes | String | validators=maxlength | Excluded from default projection; explicit authorized read only; default= |
+| privateAccessNotes | String | maxLength=1000; validators=maxlength | Excluded from default projection; explicit authorized read only; default= |
 | state | String | enum=['ACTIVE', 'ARCHIVED'] | default=ACTIVE |
 | version | Number | min=0; max=9007199254740991; validators=user defined | default=0 |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -881,9 +881,9 @@ Source: `backend/src/models/pet-care.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | code | String | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| label | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| label | String | required; maxLength=160; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | species | Array[String] | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| explanation | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| explanation | String | required; maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | active | Boolean | Schema permits omission; command validation still applies | default=True |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -900,10 +900,10 @@ Source: `backend/src/models/pet-care.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | code | String | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| name | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| name | String | required; maxLength=100; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | species | String | required; enum=['DOG', 'CAT'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | active | Boolean | Schema permits omission; command validation still applies | default=True |
-| source | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| source | String | required; maxLength=500; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | updatedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -924,7 +924,7 @@ Source: `backend/src/models/pricing.model.js`
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | approvedBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | approvedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; maxLength=2000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | approvalSource | String | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | billingMode | String | enum=['PER_UNIT', 'PER_VISIT', 'PER_DAY', 'PER_KM'] | default=PER_UNIT |
 | unitMinutes | Number | required; min=1; max=1440; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -938,9 +938,9 @@ Source: `backend/src/models/pricing.model.js`
 | comboPerVisitBps | Number | min=0; max=1000; validators=user defined | default=0 |
 | comboMaxBps | Number | min=0; max=1000; validators=user defined | default=0 |
 | rules | Array[subdocument] | Schema permits omission; command validation still applies | default=[] |
-| rules.code | String | required; validators=maxlength | nested path; not a SQL column |
-| rules.label | String | required; validators=maxlength | nested path; not a SQL column |
-| rules.explanation | String | required; validators=maxlength | nested path; not a SQL column |
+| rules.code | String | required; maxLength=80; validators=maxlength | nested path; not a SQL column |
+| rules.label | String | required; maxLength=160; validators=maxlength | nested path; not a SQL column |
+| rules.explanation | String | required; maxLength=1000; validators=maxlength | nested path; not a SQL column |
 | rules.scope | String | required; enum=['PET', 'VISIT'] | nested path; not a SQL column |
 | rules.bps | Number | min=0; max=20000; validators=user defined | default=0; nested path; not a SQL column |
 | rules.flatVnd | Number | min=0; max=9007199254740991; validators=user defined | default=0; nested path; not a SQL column |
@@ -1060,13 +1060,13 @@ Source: `backend/src/models/product.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| code | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| name | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| code | String | required; maxLength=20; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| name | String | required; maxLength=200; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | category | String | required; enum=['FOOD', 'ACCESSORY'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | petType | String | required; enum=['DOG', 'CAT'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| description | String | validators=maxlength | default= |
+| description | String | maxLength=4000; validators=maxlength | default= |
 | photos | Array[String] | Schema permits omission; command validation still applies | default=[] |
-| catalogSource | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| catalogSource | String | maxLength=100; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | sampleCatalog | Boolean | Schema permits omission; command validation still applies | default=False |
 | sellingPrice | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | stockOnHand | Number | min=0; max=9007199254740991; validators=user defined | default=0 |
@@ -1074,7 +1074,7 @@ Source: `backend/src/models/product.model.js`
 | visible | Boolean | Schema permits omission; command validation still applies | default=True |
 | deletedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | deletedBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| deletionReason | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| deletionReason | String | maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | min=0; max=9007199254740991; validators=user defined | default=0 |
 | detailsVersion | Number | min=0; max=9007199254740991; validators=user defined | default=0 |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1091,11 +1091,11 @@ Source: `backend/src/models/product.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| name | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| nameKey | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| contactName | String | validators=maxlength | default= |
-| phone | String | validators=maxlength | default= |
-| email | String | validators=maxlength | default= |
+| name | String | required; maxLength=200; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| nameKey | String | required; maxLength=400; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| contactName | String | maxLength=100; validators=maxlength | default= |
+| phone | String | maxLength=10; validators=maxlength | default= |
+| email | String | maxLength=254; validators=maxlength | default= |
 | productIds | Array[ObjectId] | validators=user defined | default=[] |
 | status | String | enum=['ACTIVE', 'STOPPED'] | default=ACTIVE |
 | version | Number | min=0; max=9007199254740991; validators=user defined | default=0 |
@@ -1132,36 +1132,36 @@ Source: `backend/src/models/product.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| code | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| code | String | required; maxLength=20; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | customerId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | lines | Array[subdocument] | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | lines.productId | ObjectId | required | nested path; not a SQL column |
-| lines.productCode | String | required; validators=maxlength | nested path; not a SQL column |
-| lines.productName | String | required; validators=maxlength | nested path; not a SQL column |
+| lines.productCode | String | required; maxLength=20; validators=maxlength | nested path; not a SQL column |
+| lines.productName | String | required; maxLength=200; validators=maxlength | nested path; not a SQL column |
 | lines.quantity | Number | required; min=1; max=99; validators=user defined | nested path; not a SQL column |
 | lines.sellingPriceWhenOrdered | Number | required; min=0; max=9007199254740991; validators=user defined | nested path; not a SQL column |
 | lines.resellableQuantity | Number | min=0; max=99; validators=user defined | nested path; not a SQL column |
 | receiveMethod | String | required; enum=['DELIVERY', 'PICKUP'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | deliveryAddress | Embedded | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | deliveryAddress.addressId | ObjectId | required | nested path; not a SQL column |
-| deliveryAddress.label | String | required; validators=maxlength | nested path; not a SQL column |
-| deliveryAddress.location | String | required; validators=maxlength | nested path; not a SQL column |
-| deliveryAddress.areaCode | String | required; validators=maxlength | nested path; not a SQL column |
+| deliveryAddress.label | String | required; maxLength=100; validators=maxlength | nested path; not a SQL column |
+| deliveryAddress.location | String | required; maxLength=500; validators=maxlength | nested path; not a SQL column |
+| deliveryAddress.areaCode | String | required; maxLength=80; validators=maxlength | nested path; not a SQL column |
 | subtotal | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | shippingFee | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | total | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | paymentMethod | String | required; enum=['COD', 'PAY_AT_SHOP', 'PREPAID'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | paid | Boolean | Schema permits omission; command validation still applies | default=False |
-| trackingCode | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| trackingCode | String | maxLength=64; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | status | String | enum=['PLACED', 'HANDED_TO_CARRIER', 'DELIVERED', 'BEING_RETURNED', 'RETURNED', 'READY', 'PICKED_UP', 'CANCELLED'] | default=PLACED |
 | deliveredAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| carrierReturnReason | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| carrierReturnReason | String | maxLength=300; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | returnReason | String | enum=['CUSTOMER_REFUSED', 'CARRIER_UNDELIVERABLE', 'SHOP_FAULT'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| returnNote | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| returnNote | String | maxLength=500; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | returnedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | refundMarked | Boolean | Schema permits omission; command validation still applies | default=False |
-| idempotencyKey | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| requestFingerprint | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| idempotencyKey | String | required; maxLength=128; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| requestFingerprint | String | required; maxLength=128; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | min=0; max=9007199254740991; validators=user defined | default=0 |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1211,18 +1211,18 @@ Source: `backend/src/models/public-policy-version.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | slug | String | required; enum=['terms', 'privacy', 'contact-verification', 'service-areas', 'booking', 'payments', 'cancellations-refunds', 'care-evidence', 'safety-complaints', 'sitter-onboarding', 'settlement-and-ratings', 'pwa']; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| versionId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| versionId | String | required; maxLength=80; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | status | String | required; enum=['DRAFT', 'APPROVED', 'RETIRED'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| title | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| purpose | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| title | String | required; maxLength=200; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| purpose | String | required; maxLength=500; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | expiresAt | Date | immutable | default=None |
 | approvedAt | Date | Schema permits omission; command validation still applies | default=None |
-| approvedBy | String | validators=maxlength | default=None |
-| sourceRef | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| contentHash | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| approvedBy | String | maxLength=120; validators=maxlength | default=None |
+| sourceRef | String | required; maxLength=500; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| contentHash | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | sections | Array[subdocument] | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| sections.heading | String | required; validators=maxlength | nested path; not a SQL column |
+| sections.heading | String | required; maxLength=200; validators=maxlength | nested path; not a SQL column |
 | sections.paragraphs | Array[String] | Schema permits omission; command validation still applies | nested path; not a SQL column |
 | sections.items | Array[String] | Schema permits omission; command validation still applies | nested path; not a SQL column |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1245,7 +1245,7 @@ Source: `backend/src/models/service-audit.model.js`
 | resourceId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=1 | See schema/validator source; no SQL foreign-key enforcement implied |
 | changedFields | Array[String] | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; maxLength=500; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | occurredAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1263,11 +1263,11 @@ Source: `backend/src/models/service-policy-version.model.js`
 | serviceId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=1; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['PUBLISHED', 'WITHDRAWN'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| title | String | validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| body | String | validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| title | String | minLength=2; maxLength=120; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| body | String | minLength=3; maxLength=10000; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | changedBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; minLength=3; maxLength=500; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | recordedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -1282,14 +1282,14 @@ Source: `backend/src/models/service-presentation.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | serviceId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| category | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| category | String | maxLength=80; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | locations | Array[String] | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | durationMinutes | Number | min=1; max=1440; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | preparation | Array[String] | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | exclusions | Array[String] | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | faq | Array[subdocument] | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| faq.question | String | required; validators=maxlength | nested path; not a SQL column |
-| faq.answer | String | required; validators=maxlength | nested path; not a SQL column |
+| faq.question | String | required; maxLength=200; validators=maxlength | nested path; not a SQL column |
+| faq.answer | String | required; maxLength=1500; validators=maxlength | nested path; not a SQL column |
 | provisioningRunId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | updatedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1310,7 +1310,7 @@ Source: `backend/src/models/service-price-audit.model.js`
 | resourceId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=1 | See schema/validator source; no SQL foreign-key enforcement implied |
 | changedFields | Array[String] | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; maxLength=500; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | occurredAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1329,10 +1329,10 @@ Source: `backend/src/models/service-price-version.model.js`
 | version | Number | required; min=1; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | amountVnd | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | currency | String | required; enum=['VND'] | default=VND |
-| unitLabel | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| unitLabel | String | required; minLength=2; maxLength=80; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | changedBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; minLength=3; maxLength=500; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | recordedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -1348,14 +1348,14 @@ Source: `backend/src/models/service-version.model.js`
 | --- | --- | --- | --- |
 | serviceId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=1; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
-| name | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| description | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| scope | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| name | String | required; minLength=2; maxLength=120; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| description | String | required; maxLength=2000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| scope | String | required; minLength=3; maxLength=2000; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | species | Array[String] | required; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | changedBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; minLength=3; maxLength=500; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | recordedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -1369,7 +1369,7 @@ Source: `backend/src/models/service.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| code | String | required; validators=minlength,maxlength,regexp | See schema/validator source; no SQL foreign-key enforcement implied |
+| code | String | required; minLength=2; maxLength=48; validators=minlength,maxlength,regexp | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1384,40 +1384,40 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| id | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sitterId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| id | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | requestWeekKey | String | required; immutable; validators=regexp | See schema/validator source; no SQL foreign-key enforcement implied |
 | startsAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | endsAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | earningIds | Array[String] | required; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | earningSnapshots | Array[subdocument] | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| earningSnapshots.earningId | String | required; validators=maxlength | nested path; not a SQL column |
-| earningSnapshots.visitId | String | validators=maxlength | default=None; nested path; not a SQL column |
-| earningSnapshots.earningPeriodKey | String | required; validators=maxlength | nested path; not a SQL column |
+| earningSnapshots.earningId | String | required; maxLength=128; validators=maxlength | nested path; not a SQL column |
+| earningSnapshots.visitId | String | maxLength=128; validators=maxlength | default=None; nested path; not a SQL column |
+| earningSnapshots.earningPeriodKey | String | required; maxLength=80; validators=maxlength | nested path; not a SQL column |
 | earningSnapshots.amountVnd | Number | required; min=0; max=9007199254740991; validators=user defined | nested path; not a SQL column |
 | earningSnapshots.pendingVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0; nested path; not a SQL column |
 | earningSnapshots.heldVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0; nested path; not a SQL column |
 | earningSnapshots.availableVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0; nested path; not a SQL column |
 | earningSnapshots.reservedVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0; nested path; not a SQL column |
 | earningSnapshots.paidVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0; nested path; not a SQL column |
-| earningSnapshots.explanation | String | validators=maxlength | default=None; nested path; not a SQL column |
-| earningSnapshots.ledgerReference | String | validators=maxlength | default=None; nested path; not a SQL column |
+| earningSnapshots.explanation | String | maxLength=500; validators=maxlength | default=None; nested path; not a SQL column |
+| earningSnapshots.ledgerReference | String | maxLength=128; validators=maxlength | default=None; nested path; not a SQL column |
 | earningSnapshots.transferRecordedAt | Date | Schema permits omission; command validation still applies | default=None; nested path; not a SQL column |
 | amountVnd | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | currency | String | required; enum=['VND']; immutable | default=VND |
 | status | String | required; enum=['SUBMITTED', 'APPROVED', 'REJECTED', 'WITHDRAWN', 'TRANSFER_PENDING', 'PAID'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=0; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | submittedAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| policyVersion | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| decisionVersion | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| policyVersion | String | required; maxLength=128; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| decisionVersion | String | required; maxLength=128; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | decision | Mixed | Schema permits omission; command validation still applies | default=None |
 | transfer | Embedded | Schema permits omission; command validation still applies | default=None |
 | transfer.outcome | String | required; enum=['CONFIRMED', 'UNKNOWN', 'AMOUNT_MISMATCH'] | nested path; not a SQL column |
-| transfer.reference | String | required; validators=maxlength | nested path; not a SQL column |
-| transfer.evidenceReference | String | required; validators=maxlength | nested path; not a SQL column |
+| transfer.reference | String | required; maxLength=160; validators=maxlength | nested path; not a SQL column |
+| transfer.evidenceReference | String | required; maxLength=160; validators=maxlength | nested path; not a SQL column |
 | transfer.amountVnd | Number | min=0; max=9007199254740991; validators=user defined | default=None; nested path; not a SQL column |
 | transfer.paidAt | Date | Schema permits omission; command validation still applies | default=None; nested path; not a SQL column |
-| transfer.recordedBy | String | required; validators=maxlength | nested path; not a SQL column |
+| transfer.recordedBy | String | required; maxLength=128; validators=maxlength | nested path; not a SQL column |
 | transfer.recordedAt | Date | required | nested path; not a SQL column |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1433,8 +1433,8 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| id | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sitterId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| id | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | requestWeekKey | String | required; immutable; validators=regexp | See schema/validator source; no SQL foreign-key enforcement implied |
 | startsAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | endsAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1452,24 +1452,24 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| earningId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sitterId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| visitId | String | immutable; validators=maxlength | default=None |
-| bookingId | String | immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| earningId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| visitId | String | maxLength=128; immutable; validators=maxlength | default=None |
+| bookingId | String | maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | completedAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| sourceSnapshotId | String | immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| earningPeriodKey | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sourceSnapshotId | String | maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| earningPeriodKey | String | required; maxLength=80; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | accruedVnd | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | pendingVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0 |
 | heldVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0 |
 | availableVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0 |
 | reservedVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0 |
 | paidVnd | Number | required; min=0; max=9007199254740991; validators=user defined | default=0 |
-| explanation | String | validators=maxlength | default=None |
-| ledgerReference | String | validators=maxlength | default=None |
+| explanation | String | maxLength=500; validators=maxlength | default=None |
+| ledgerReference | String | maxLength=128; validators=maxlength | default=None |
 | transferRecordedAt | Date | Schema permits omission; command validation still applies | default=None |
 | state | String | required; enum=['PENDING', 'HELD', 'AVAILABLE', 'RESERVED', 'PAID'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| reservation.requestId | String | validators=maxlength | default=None; nested path; not a SQL column |
+| reservation.requestId | String | maxLength=128; validators=maxlength | default=None; nested path; not a SQL column |
 | reservation.reservedAt | Date | Schema permits omission; command validation still applies | default=None; nested path; not a SQL column |
 | version | Number | required; min=0; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1487,14 +1487,14 @@ Source: `backend/src/models/settlement.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | resourceType | String | required; enum=['EARNING', 'ALLOCATION', 'REFUND', 'CASE'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| resourceId | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| resourceId | String | required; maxLength=128; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | lockType | String | required; enum=['REFUND', 'CASE', 'SETTLEMENT', 'HOLD'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| reference | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reference | String | required; maxLength=160; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['ACTIVE', 'RELEASED'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| actorId | String | validators=maxlength | default=None |
+| actorId | String | maxLength=128; validators=maxlength | default=None |
 | createdAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | releasedAt | Date | Schema permits omission; command validation still applies | default=None |
-| releasedBy | String | validators=maxlength | default=None |
+| releasedBy | String | maxLength=128; validators=maxlength | default=None |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
 Declared/provisioned indexes: `[[{"resourceType":1,"resourceId":1,"lockType":1,"reference":1},{"unique":true}],[{"resourceType":1,"resourceId":1,"state":1,"lockType":1},{}]]`
@@ -1507,17 +1507,17 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| lineId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| operationId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| requestId | String | immutable; validators=maxlength | default=None |
-| earningId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sitterId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| lineId | String | required; maxLength=220; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| operationId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| requestId | String | maxLength=128; immutable; validators=maxlength | default=None |
+| earningId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | fromBucket | String | enum=['PENDING', 'HELD', 'AVAILABLE', 'RESERVED', 'PAID', None]; immutable | default=None |
 | toBucket | String | required; enum=['PENDING', 'HELD', 'AVAILABLE', 'RESERVED', 'PAID']; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | amountVnd | Number | required; min=0; max=9007199254740991; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
-| policyVersion | String | immutable; validators=maxlength | default=None |
-| decisionVersion | String | immutable; validators=maxlength | default=None |
-| actorId | String | immutable; validators=maxlength | default=None |
+| policyVersion | String | maxLength=128; immutable; validators=maxlength | default=None |
+| decisionVersion | String | maxLength=128; immutable; validators=maxlength | default=None |
+| actorId | String | maxLength=128; immutable; validators=maxlength | default=None |
 | occurredAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -1531,10 +1531,10 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| actorId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| operation | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| key | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| fingerprint | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| actorId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| operation | String | required; maxLength=80; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| key | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| fingerprint | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | result | Mixed | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1549,19 +1549,19 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| eventId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| operationId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| requestId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| type | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| actorId | String | immutable; validators=maxlength | default=None |
+| eventId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| operationId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| requestId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| type | String | required; maxLength=100; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| actorId | String | maxLength=128; immutable; validators=maxlength | default=None |
 | earningIds | Array[String] | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | amountVnd | Number | min=0; max=9007199254740991; immutable; validators=user defined | default=None |
 | fromBucket | String | enum=['PENDING', 'HELD', 'AVAILABLE', 'RESERVED', 'PAID', None]; immutable | default=None |
 | toBucket | String | enum=['PENDING', 'HELD', 'AVAILABLE', 'RESERVED', 'PAID']; immutable | default=None |
-| reason | String | immutable; validators=maxlength | default=None |
+| reason | String | maxLength=500; immutable; validators=maxlength | default=None |
 | transfer | Mixed | immutable | default=None |
-| policyVersion | String | immutable; validators=maxlength | default=None |
-| decisionVersion | String | immutable; validators=maxlength | default=None |
+| policyVersion | String | maxLength=128; immutable; validators=maxlength | default=None |
+| decisionVersion | String | maxLength=128; immutable; validators=maxlength | default=None |
 | aggregateVersion | Number | min=0; immutable | default=None |
 | occurredAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1576,10 +1576,10 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| eventId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| operationId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| requestId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| type | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| eventId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| operationId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| requestId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| type | String | required; maxLength=100; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | payload | Mixed | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['PENDING', 'PUBLISHED', 'FAILED'] | default=PENDING |
 | attempts | Number | required; min=0 | default=0 |
@@ -1597,12 +1597,12 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| requestId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| requestId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=1; immutable; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
-| adminId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| adminId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | outcome | String | required; enum=['CONFIRMED', 'UNKNOWN', 'AMOUNT_MISMATCH']; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| reference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| evidenceReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| evidenceReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | amountVnd | Number | min=0; max=9007199254740991; immutable; validators=user defined | default=None |
 | paidAt | Date | immutable | default=None |
 | recordedAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1619,8 +1619,8 @@ Source: `backend/src/models/settlement.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | kind | String | required; enum=['TRANSFER', 'EVIDENCE']; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| reference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| requestId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| requestId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
 Declared/provisioned indexes: `[[{"kind":1,"reference":1},{"unique":true}]]`
@@ -1633,10 +1633,10 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| evidenceReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| requestId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| ownerActorId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| mediaId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| evidenceReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| requestId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| ownerActorId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| mediaId | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['UPLOADED', 'REVOKED'] | default=UPLOADED |
 | uploadedAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1651,14 +1651,14 @@ Source: `backend/src/models/settlement.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| id | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| earningId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sitterId | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
-| sourceReference | String | required; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| id | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| earningId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sitterId | String | required; maxLength=128; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sourceReference | String | required; maxLength=160; immutable; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | sourceType | String | required; enum=['CASE', 'REFUND', 'HOLD']; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | status | String | required; enum=['PENDING_ADMIN_REVIEW'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | proposedAmountVnd | Number | min=0; max=9007199254740991; validators=user defined | default=None |
-| createdBy | String | immutable; validators=maxlength | default=None |
+| createdBy | String | maxLength=128; immutable; validators=maxlength | default=None |
 | createdAt | Date | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -1681,7 +1681,7 @@ Source: `backend/src/models/sitter-application.model.js`
 | policyConsents.effectiveAt | Date | Schema permits omission; command validation still applies | nested path; not a SQL column |
 | policyConsents.consentedAt | Date | Schema permits omission; command validation still applies | nested path; not a SQL column |
 | policyConsents.sourceRef | String | Schema permits omission; command validation still applies | nested path; not a SQL column |
-| displayName | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| displayName | String | required; maxLength=100; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | contactChannel | String | required; enum=['EMAIL', 'PHONE'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | contactCiphertext | String | required | Excluded from default projection; explicit authorized read only |
 | contactLookupKey | String | required | Excluded from default projection; explicit authorized read only |
@@ -1692,7 +1692,7 @@ Source: `backend/src/models/sitter-application.model.js`
 | activePendingIdentityKey | String | Schema permits omission; command validation still applies | Excluded from default projection; explicit authorized read only |
 | ageEligible | Boolean | required; enum=[True] | See schema/validator source; no SQL foreign-key enforcement implied |
 | ageCheckedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| experience | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| experience | String | required; maxLength=2000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | employmentType | String | enum=['FULL_TIME', 'PART_TIME', None] | default=None |
 | requestedServices | Array[String] | required; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | workAreas | Array[String] | required; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1701,8 +1701,8 @@ Source: `backend/src/models/sitter-application.model.js`
 | privateDocuments.documentType | String | required; enum=['IDENTITY', 'IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT', 'CERTIFICATE', 'OTHER'] | nested path; not a SQL column |
 | privateDocuments.storageRef | String | required | Excluded from default projection; explicit authorized read only; nested path; not a SQL column |
 | state | String | required; enum=['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'] | default=PENDING |
-| interviewNote | String | validators=maxlength | default=None |
-| decisionReason | String | validators=maxlength | default=None |
+| interviewNote | String | maxLength=2000; validators=maxlength | default=None |
+| decisionReason | String | maxLength=1000; validators=maxlength | default=None |
 | rejectedAt | Date | Schema permits omission; command validation still applies | default=None |
 | reapplyAt | Date | Schema permits omission; command validation still applies | default=None |
 | provisionedUserId | ObjectId | Schema permits omission; command validation still applies | default=None |
@@ -1738,7 +1738,7 @@ Source: `backend/src/models/sitter-application.model.js`
 | resultUserId | ObjectId | Schema permits omission; command validation still applies | default=None |
 | reapplyAt | Date | Schema permits omission; command validation still applies | default=None |
 | documentId | String | Schema permits omission; command validation still applies | default=None |
-| correlationId | String | validators=maxlength | default=None |
+| correlationId | String | maxLength=128; validators=maxlength | default=None |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
 Declared/provisioned indexes: `[[{"resourceId":1,"occurredAt":-1},{}],[{"actorId":1,"occurredAt":-1},{}],[{"resourceId":1,"idempotencyDigest":1},{"unique":true,"partialFilterExpression":{"idempotencyDigest":{"$type":"string"}}}]]`
@@ -1768,7 +1768,7 @@ Source: `backend/src/models/sitter-application.model.js`
 | --- | --- | --- | --- |
 | userId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | status | String | required; enum=['ACTIVE', 'SUSPENDED'] | See schema/validator source; no SQL foreign-key enforcement implied |
-| statusReason | String | validators=maxlength | Excluded from default projection; explicit authorized read only; default=None |
+| statusReason | String | maxLength=1000; validators=maxlength | Excluded from default projection; explicit authorized read only; default=None |
 | changedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=0 | default=0 |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1832,7 +1832,7 @@ Source: `backend/src/models/sitter-matching.model.js`
 | rating | Number | min=1; max=5; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | onTime | Boolean | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | verifiedBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| sourceRef | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sourceRef | String | required; maxLength=500; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | provenance | Mixed | Schema permits omission; command validation still applies | Excluded from default projection; explicit authorized read only |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1849,7 +1849,7 @@ Source: `backend/src/models/sitter-matching.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | changedBy | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
-| sourceRef | String | validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| sourceRef | String | maxLength=500; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | sitterId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | visitId | ObjectId | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | startAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1909,7 +1909,7 @@ Source: `backend/src/models/sitter-matching.model.js`
 | weights.quality | Number | Schema permits omission; command validation still applies | nested path; not a SQL column |
 | weights.reliability | Number | Schema permits omission; command validation still applies | nested path; not a SQL column |
 | weights.workload | Number | Schema permits omission; command validation still applies | nested path; not a SQL column |
-| reason | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; maxLength=2000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | updatedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -1982,13 +1982,13 @@ Source: `backend/src/models/sitter-public-profile.model.js`
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
 | userId | ObjectId | required; immutable | See schema/validator source; no SQL foreign-key enforcement implied |
-| bio | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| bio | String | required; maxLength=1000; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | areas | Array[String] | required; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['SUBMITTED', 'APPROVED', 'REJECTED'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=1; validators=user defined | See schema/validator source; no SQL foreign-key enforcement implied |
 | reviewedBy | ObjectId | Schema permits omission; command validation still applies | default=None |
 | reviewedAt | Date | Schema permits omission; command validation still applies | default=None |
-| reason | String | validators=maxlength | Excluded from default projection; explicit authorized read only; default=None |
+| reason | String | maxLength=500; validators=maxlength | Excluded from default projection; explicit authorized read only; default=None |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | updatedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -2045,7 +2045,7 @@ Source: `backend/src/models/system-setting-audit.model.js`
 | resourceId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | version | Number | required; min=1 | See schema/validator source; no SQL foreign-key enforcement implied |
 | changedFields | Array[String] | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; maxLength=500; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | occurredAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
@@ -2065,7 +2065,7 @@ Source: `backend/src/models/system-setting-version.model.js`
 | enabled | Boolean | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | effectiveAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | changedBy | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; minLength=3; maxLength=500; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | recordedAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -2085,7 +2085,7 @@ Source: `backend/src/models/user-admin-audit.model.js`
 | roles | Array[String] | enum=['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | resourceType | String | required; enum=['user'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | resourceId | ObjectId | required | See schema/validator source; no SQL foreign-key enforcement implied |
-| reason | String | required; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| reason | String | required; minLength=3; maxLength=1000; validators=minlength,maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | occurredAt | Date | required | See schema/validator source; no SQL foreign-key enforcement implied |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 
@@ -2099,7 +2099,7 @@ Source: `backend/src/models/user.model.js`
 
 | Column | Type | Constraints | Notes |
 | --- | --- | --- | --- |
-| displayName | String | required; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
+| displayName | String | required; maxLength=100; validators=maxlength | See schema/validator source; no SQL foreign-key enforcement implied |
 | roles | Array[String] | required; enum=['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | state | String | required; enum=['ACTIVE', 'LOCKED', 'SUSPENDED'] | See schema/validator source; no SQL foreign-key enforcement implied |
 | authEpoch | Number | required; min=0 | default=0 |
@@ -2108,11 +2108,11 @@ Source: `backend/src/models/user.model.js`
 | fixtureKey | String | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |
 | policyConsents | Array[subdocument] | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | policyConsents.slug | String | required; enum=['terms', 'privacy'] | nested path; not a SQL column |
-| policyConsents.versionId | String | required; validators=maxlength | nested path; not a SQL column |
-| policyConsents.contentHash | String | required; validators=maxlength | nested path; not a SQL column |
+| policyConsents.versionId | String | required; maxLength=80; validators=maxlength | nested path; not a SQL column |
+| policyConsents.contentHash | String | required; maxLength=128; validators=maxlength | nested path; not a SQL column |
 | policyConsents.effectiveAt | Date | required | nested path; not a SQL column |
 | policyConsents.consentedAt | Date | required | nested path; not a SQL column |
-| policyConsents.sourceRef | String | required; validators=maxlength | nested path; not a SQL column |
+| policyConsents.sourceRef | String | required; maxLength=500; validators=maxlength | nested path; not a SQL column |
 | _id | ObjectId | primary identity | See schema/validator source; no SQL foreign-key enforcement implied |
 | createdAt | Date | immutable | See schema/validator source; no SQL foreign-key enforcement implied |
 | updatedAt | Date | Schema permits omission; command validation still applies | See schema/validator source; no SQL foreign-key enforcement implied |

@@ -107,8 +107,28 @@ trainer ghi model/evidence thành hai file tuần tự, và receipt NOT_FOUND tr
 Không mô tả một contact retry store, ghi artifact nguyên tử hoặc audit write không
 có trong source. Các bảng DOCX/schema được tái tạo cùng index provenance.
 
-Google Docs đã nhận phần II.4–22 và các sửa ngữ nghĩa chính. Sau đó connector Drive
-không còn khả dụng và browser tool trả “Local browser use is disabled in Work
-settings”; không đổi setting hoặc cố vượt quyền. Bản local DOCX/Markdown/native
-draw.io chứa các đính chính cuối về contact/trainer/receipt/PWA; đồng bộ những
-đính chính cuối lên Google Docs và refresh mục lục vẫn là việc còn lại.
+## Review bổ sung và đồng bộ Drive ngày 06/11/2026
+
+Connector Google Drive đã hoạt động trở lại. Đã đọc revision hiện tại và đồng bộ
+các đính chính bằng revision guard: EMP-02/UC-21 tách save, ISSUE, SIGN và approve;
+PAY-03 tách supplement/recovery và từng decision; MAP-01 tách search/resolve khỏi
+ghi địa chỉ. UC-75 chỉ đọc payroll của chính sitter, không có write transaction,
+acceptance command hoặc tự đóng sau 3 ngày. MAIL-01 thể hiện UNKNOWN khi SMTP
+không rõ acknowledgement hoặc lease SENDING hết hạn; không tự gửi lại các row đó.
+ACCEPTED chỉ là SMTP chấp nhận, không phải inbox delivery.
+
+Schema chuyển sang đúng mẫu bảng của người dùng: header vàng, viền cyan, cột
+field/type và crow-foot. Port nối nằm ở biên bảng theo vị trí field; waypoint đi
+qua khoảng trống, tránh phần chữ. 103 collection contracts nằm trên 18 trang
+field catalog; 10 trang relationship view và 11 proposed schema pages được ghi
+rõ phạm vi. Data dictionary giữ nguyên bốn cột; bổ sung 187 minLength/maxLength
+constraints từ 93 Mongoose schemas qua disconnected reflection, không kết nối DB.
+
+Đã xuất 212 PNG từ native workbooks bằng viewer diagrams.net. Xem ảnh render mới
+của relationship view, UC-75 và MAIL-01; không khẳng định đã kiểm mắt mọi trang.
+Google Docs hiện giữ 209 heading, 18 bảng và 13 ảnh gốc. Text đã đồng bộ; ảnh gốc
+vẫn cần thay từ bộ PNG theo vị trí được phép giữ của người dùng. Bản DOCX local
+được tái tạo từ snapshot mới, không khẳng định giữ nguyên pagination Google Docs.
+
+PR200 chưa có approval. Những thay đổi sau commit 6346a3f cần được commit và
+review lại đúng HEAD mới; các kiểm tra XML/count/path không thay review ngữ nghĩa.
