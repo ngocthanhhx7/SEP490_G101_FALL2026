@@ -1,0 +1,229 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron">
+  <diagram id="domain-media-maps" name="22. Map, Private Media and Public Contact Boundaries">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2130" math="0" shadow="0">
+      <root>
+        <mxCell id="p_0" value="" />
+        <mxCell id="p_1" parent="p_0" value="" />
+        <mxCell id="p_title" value="Class Diagram: Map, Private Media and Public Contact Boundaries" vertex="1" parent="p_1" style="text;html=0;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;">
+          <mxGeometry as="geometry" x="40" y="25" width="1080" height="38" />
+        </mxCell>
+        <mxCell id="maps_ctrl" value="MapsController «factory role»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="110" width="300" height="87" />
+        </mxCell>
+        <mxCell id="maps_ctrl_body" value="+ search(req,res)&#10;+ resolve(req,res)&#10;+ render(req,res)" vertex="1" parent="maps_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="maps_lookup" value="LocationSearchService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="110" width="320" height="87" />
+        </mxCell>
+        <mxCell id="maps_lookup_body" value="+ search(body)&#10;+ resolve(body)&#10;+ provider: VIETMAP / configured adapter" vertex="1" parent="maps_lookup" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="61" />
+        </mxCell>
+        <mxCell id="maps_render" value="MapRenderService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="290" width="320" height="70" />
+        </mxCell>
+        <mxCell id="maps_render_body" value="+ resource(path,query)&#10;+ allowlisted same-origin proxy" vertex="1" parent="maps_render" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="44" />
+        </mxCell>
+        <mxCell id="maps_provider" value="MapProviderHTTP «external port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="150" width="300" height="104" />
+        </mxCell>
+        <mxCell id="maps_provider_body" value="+ fetchImpl(url,options)&#10;+ fixed provider origin&#10;+ bounded timeout / response bytes&#10;No database/address writer" vertex="1" parent="maps_provider" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="map_ctrl_lookup" value="" edge="1" parent="p_1" source="maps_ctrl" target="maps_lookup" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="136.1" />
+              <mxPoint x="380.0" y="149.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="map_ctrl_render" value="" edge="1" parent="p_1" source="maps_ctrl" target="maps_render" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.42;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="146.54" />
+              <mxPoint x="380.0" y="321.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lookup_provider" value="" edge="1" parent="p_1" source="maps_lookup" target="maps_provider" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="136.1" />
+              <mxPoint x="780.0" y="196.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="render_provider" value="" edge="1" parent="p_1" source="maps_render" target="maps_provider" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.42;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="319.4" />
+              <mxPoint x="780.0" y="196.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="maps_source" value="Source: maps.controller.js → location-search.service.js / map-render.service.js, composed by maps.routes.js. Address confirmation/save is a separate PetCareManagement command, not a dependency from map lookup to media or MongoDB." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="450" width="1080" height="90" />
+        </mxCell>
+        <mxCell id="private_ctrl" value="PrivateImageController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="650" width="300" height="70" />
+        </mxCell>
+        <mxCell id="private_ctrl_body" value="+ upload(req,res)&#10;+ read(req,res)" vertex="1" parent="private_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="44" />
+        </mxCell>
+        <mxCell id="private_service" value="PrivateImageService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="650" width="320" height="104" />
+        </mxCell>
+        <mxCell id="private_service_body" value="+ upload({actor,body,contentType,idempotencyKey})&#10;+ read({actor,id})&#10;- decode / normalize bounded image&#10;- reserve owned pending image and quota" vertex="1" parent="private_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="78" />
+        </mxCell>
+        <mxCell id="private_image" value="PrivateImage «model»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="580" width="300" height="121" />
+        </mxCell>
+        <mxCell id="private_image_body" value="+ _id: String&#10;+ ownerId: ObjectId&#10;+ inputDigest / contentDigest: String&#10;+ storageRef: String&#10;+ state: PENDING | READY" vertex="1" parent="private_image" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="95" />
+        </mxCell>
+        <mxCell id="private_quota" value="PrivateImageQuota «model»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="760" width="300" height="70" />
+        </mxCell>
+        <mxCell id="private_quota_body" value="+ _id: ObjectId (owner)&#10;+ count: Number" vertex="1" parent="private_quota" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="44" />
+        </mxCell>
+        <mxCell id="private_media" value="PrivateMedia «injected port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="900" width="300" height="87" />
+        </mxCell>
+        <mxCell id="private_media_body" value="+ upload({storageRef,body,contentType})&#10;+ read({storageRef})&#10;Private R2 adapter configured separately" vertex="1" parent="private_media" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="private_ctrl_service" value="" edge="1" parent="p_1" source="private_ctrl" target="private_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="671.0" />
+              <mxPoint x="380.0" y="696.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="private_service_image" value="" edge="1" parent="p_1" source="private_service" target="private_image" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="681.2" />
+              <mxPoint x="780.0" y="634.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="private_service_quota" value="" edge="1" parent="p_1" source="private_service" target="private_quota" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.42;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="693.68" />
+              <mxPoint x="780.0" y="791.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="private_service_media" value="" edge="1" parent="p_1" source="private_service" target="private_media" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.54;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="706.16" />
+              <mxPoint x="780.0" y="939.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="private_source" value="Source: private-image.controller.js → private-image.service.js → private-image.model.js + injected media. Owner scope has no Admin/Staff read bypass. R2 upload occurs after the pending reservation; it is not rolled back by MongoDB." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1040" width="1080" height="90" />
+        </mxCell>
+        <mxCell id="avatar_ctrl" value="AvatarController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="1220" width="300" height="87" />
+        </mxCell>
+        <mxCell id="avatar_ctrl_body" value="+ metadata(req,res)&#10;+ content(req,res)&#10;+ change(req,res)" vertex="1" parent="avatar_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="avatar_service" value="AvatarService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="1220" width="320" height="87" />
+        </mxCell>
+        <mxCell id="avatar_service_body" value="+ get({actor,petId,content})&#10;+ change({actor,petId,expectedVersion,&#10;  idempotencyKey,remove,body,...})" vertex="1" parent="avatar_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="61" />
+        </mxCell>
+        <mxCell id="avatar_model" value="ProfileAvatar «model»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="1160" width="300" height="121" />
+        </mxCell>
+        <mxCell id="avatar_model_body" value="+ _id: user:id | pet:id&#10;+ version: Number&#10;+ body: Buffer (private)&#10;+ present: Boolean&#10;+ fingerprint: String" vertex="1" parent="avatar_model" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="95" />
+        </mxCell>
+        <mxCell id="avatar_scope" value="User / Pet «scope models»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="1370" width="300" height="87" />
+        </mxCell>
+        <mxCell id="avatar_scope_body" value="User: ACTIVE/current actor&#10;Pet: owned CUSTOMER resource&#10;Write guards current versions" vertex="1" parent="avatar_scope" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="avatar_ctrl_service" value="" edge="1" parent="p_1" source="avatar_ctrl" target="avatar_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="1246.1" />
+              <mxPoint x="380.0" y="1259.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="avatar_service_model" value="" edge="1" parent="p_1" source="avatar_service" target="avatar_model" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="1246.1" />
+              <mxPoint x="780.0" y="1214.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="avatar_service_scope" value="" edge="1" parent="p_1" source="avatar_service" target="avatar_scope" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.42;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="1256.54" />
+              <mxPoint x="780.0" y="1409.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="avatar_source" value="Source: avatar.controller.js → avatar.service.js → avatar.model.js, user.model.js and pet-care.model.js. Avatar version/present/fingerprint belongs to this contract; it is not the product-photo retention contract." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1530" width="1080" height="85" />
+        </mxCell>
+        <mxCell id="contact_ctrl" value="ContactController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="1690" width="300" height="70" />
+        </mxCell>
+        <mxCell id="contact_ctrl_body" value="+ createMessages(req,res)&#10;+ validateContactInput(body)" vertex="1" parent="contact_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="44" />
+        </mxCell>
+        <mxCell id="contact_service" value="ContactService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="1690" width="320" height="87" />
+        </mxCell>
+        <mxCell id="contact_service_body" value="+ send(body)&#10;+ config.contactInbox: validated mailbox&#10;Returns ACCEPTED or safe delivery error" vertex="1" parent="contact_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="61" />
+        </mxCell>
+        <mxCell id="notification_delivery" value="NotificationDelivery «injected port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="1690" width="300" height="87" />
+        </mxCell>
+        <mxCell id="notification_delivery_body" value="+ send(SYSTEM EMAIL command)&#10;A new operationId per request&#10;No durable contact retry store" vertex="1" parent="notification_delivery" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="contact_ctrl_service" value="" edge="1" parent="p_1" source="contact_ctrl" target="contact_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="1711.0" />
+              <mxPoint x="380.0" y="1729.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="contact_service_delivery" value="" edge="1" parent="p_1" source="contact_service" target="notification_delivery" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="1716.1" />
+              <mxPoint x="780.0" y="1729.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="contact_source" value="Source: contact.controller.js → contact.service.js → ports.notificationDelivery. CONTACT_DELIVERY_UNCERTAIN may mean the provider already sent the message; there is no database transaction or stored contact replay acknowledgement." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1880" width="1080" height="85" />
+        </mxCell>
+        <mxCell id="source-notation" value="Notation: dashed open arrows are dependencies. Boxes describe JavaScript factory roles, injected ports and model contracts, not ES class inheritance. No diamond implies lifecycle ownership. A shown source capability does not prove live route/provider acceptance." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1990" width="1080" height="95" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

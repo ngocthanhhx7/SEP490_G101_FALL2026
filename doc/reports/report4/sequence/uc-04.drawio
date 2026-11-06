@@ -1,0 +1,235 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-04 Replace an owned email or phone" id="uc-04">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2307" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Guest / account owner" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="2027" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": AuthController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="2027" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": OtpService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="2027" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Identity MongoDB" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="2027" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Verified-purpose handler / SessionService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="2027" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": ContactDelivery" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="2027" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="536" />
+        </mxCell>
+        <mxCell id="caption-1" value="Request a purpose-bound OTP" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Request challenge with channel/contact/purpose;&#10;CONTACT_CHANGE additionally requires current session/CSRF" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: begin: validate purpose/contact; bind contact-change&#10;requester user/session and application scope where&#10;applicable" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Transaction: read recipient throttle; enforce lock, resend&#10;cooldown and hourly send limit" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="349" />
+            <mxPoint as="targetPoint" x="670" y="349" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="349" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Invalidate earlier unused same-purpose challenge as RESENT;&#10;create new challenge with HMAC digest/expiry/requester&#10;binding; reserve throttle" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="407" />
+            <mxPoint as="targetPoint" x="670" y="407" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="407" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: AFTER transaction commit: send OTP with&#10;operationId=challengeId; no raw code/contact in logs" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="478" />
+            <mxPoint as="targetPoint" x="1035" y="478" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="478" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Provider outcome; non-ACCEPTED invalidates challenge&#10;DELIVERY_FAILED; CONTACT_CHANGE returns unavailable" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="536" />
+            <mxPoint as="targetPoint" x="480" y="536" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7: Public REGISTER/LOGIN challenge response remains PENDING&#10;metadata; this does not prove inbox delivery" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="594" />
+            <mxPoint as="targetPoint" x="105" y="594" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-8" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="667" width="1110" height="429" />
+        </mxCell>
+        <mxCell id="caption-8" value="Verify possession once" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="674" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Submit challengeId/channel/contact/purpose/six-digit code;&#10;current actor for contact change" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="787" />
+            <mxPoint as="targetPoint" x="295" y="787" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="787" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: verify: validate exact input and purpose scope; use contact&#10;lookup, not client userId" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="845" />
+            <mxPoint as="targetPoint" x="480" y="845" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="845" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: Begin transaction: read throttle then exact&#10;challenge/contactLookup/purpose; verify requester&#10;session/user if bound" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="903" />
+            <mxPoint as="targetPoint" x="670" y="903" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="903" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Locked, used/replaced/delivery-failed or expired challenge&#10;-&gt; explicit bounded failure" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="974" />
+            <mxPoint as="targetPoint" x="480" y="974" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-12" value="12: Timing-safe compare HMAC digest" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1032" />
+            <mxPoint as="targetPoint" x="480" y="1054" />
+            <Array as="points">
+              <mxPoint x="520" y="1032" />
+              <mxPoint x="520" y="1054" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-13" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1127" width="1110" height="233" />
+        </mxCell>
+        <mxCell id="caption-13" value="alt [wrong or expired code]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1134" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Persist incorrect count/lock or mark EXPIRED in transaction;&#10;at lock invalidate unused recipient challenges" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1247" />
+            <mxPoint as="targetPoint" x="670" y="1247" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1247" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: After transaction commits failure: OTP_INCORRECT/EXPIRED/ALR&#10;EADY_USED/REPLACED/DELIVERY_UNAVAILABLE or rate limit; no&#10;session" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1305" />
+            <mxPoint as="targetPoint" x="105" y="1305" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-15" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1391" width="1110" height="162" />
+        </mxCell>
+        <mxCell id="caption-15" value="alt [correct code]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1398" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: CAS unused challenge -&gt; usedAt; require modifiedCount=1;&#10;reset failure throttle" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1511" />
+            <mxPoint as="targetPoint" x="670" y="1511" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-15" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1511" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-16" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1584" width="1110" height="452" />
+        </mxCell>
+        <mxCell id="caption-16" value="CONTACT_CHANGE after correct OTP — same transaction" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1591" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: Recheck ACTIVE owner + exact current&#10;session/revocation/expiry and authEpoch match" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1704" />
+            <mxPoint as="targetPoint" x="670" y="1704" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-16" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1704" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: Read VERIFIED new contact lookup: same owner -&gt; verified no-&#10;op; different owner -&gt; CONTACT_UNAVAILABLE" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1762" />
+            <mxPoint as="targetPoint" x="670" y="1762" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-17" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1762" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-18" value="18: Mark own prior channel contacts REPLACED; create encrypted&#10;VERIFIED contact under unique lookup" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1820" />
+            <mxPoint as="targetPoint" x="670" y="1820" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-18" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1820" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-19" value="19: contactAudit.record CONTACT_LINKED/REPLACED with challengeId&#10;and same transaction/session" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1878" />
+            <mxPoint as="targetPoint" x="855" y="1878" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-19" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1878" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-20" value="20: Commit verified challenge + contact replacement + audit&#10;together" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1936" />
+            <mxPoint as="targetPoint" x="295" y="1936" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-21" value="21: 200 {verified:true}; unique race -&gt; CONTACT_UNAVAILABLE with&#10;consumed challenge, no stolen contact" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1994" />
+            <mxPoint as="targetPoint" x="105" y="1994" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="Source: auth.controller.js contact-change endpoints and otp-verification.service.js. A CONTACT_CHANGE challenge is requester user/session bound; an OTP for REGISTER/LOGIN cannot satisfy it. New contact already linked elsewhere is rejected. Decrypted contacts/code/digests are not exposed in audit/logs or diagrams." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="2107" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
