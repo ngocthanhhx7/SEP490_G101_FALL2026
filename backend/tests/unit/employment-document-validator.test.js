@@ -14,3 +14,13 @@ test.each([['endsOn',{termType:'FIXED',effectiveOn:'2026-11-06',endsOn:'2030-11-
 test('identity normalization is consistent with saved terms',()=>{
  expect(employmentTermsInput(employmentTerms({identityNumber:' 012345678901 '}),now).identityNumber).toBe('012345678901');
 });
+
+test.each(['Name', 'Male', 'Nam/Nữ', '', null, 1, { value: 'Nam' }])('rejects unsupported contract gender %p with a safe field reason', gender => {
+ const error=rejected({gender});
+ expect(error).toMatchObject({status:422,code:'VALIDATION_FAILED',details:{fields:{gender:'INVALID_GENDER'}}});
+ expect(error.details).toEqual({fields:{gender:'INVALID_GENDER'}});
+});
+
+test.each([['Nam','Nam'],['Nữ','Nữ'],['Khác','Khác'],[' nam ','Nam'],['NỮ','Nữ'],['Nu\u031b\u0303','Nữ']])('canonicalizes supported gender %s to %s', (gender,expected)=>{
+ expect(employmentTermsInput(employmentTerms({gender}),now).gender).toBe(expected);
+});

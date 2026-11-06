@@ -19,3 +19,8 @@ DRAFT print for checking; printing never issues, signs or activates a contract.
 After a command result, focus moves to the field-error summary or status notice,
 so feedback is visible even when submit sits below a long form. Error links focus
 their corresponding input without changing the route hash or dropping entries.
+
+Gender is a required selection (`Nam`, `Nữ`, `Khác`) with no default inference.
+Legacy invalid unsigned terms show a warning and require a new revision before
+issue, print or sign. Signed historical content remains unchanged. The API also
+validates gender independently of the browser and returns a localized field error.
