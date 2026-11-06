@@ -1,151 +1,166 @@
 <?xml version='1.0' encoding='utf-8'?>
 <mxfile host="app.diagrams.net" version="24.7.17">
   <diagram id="uc-25" name="UC-25 Create Booking">
-    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1250" math="0" shadow="0">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1180" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="ll_staff" value="Client (Customer)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="30" y="50" width="150" height="790.0" as="geometry" />
+        <mxCell id="ll_client" value="Client (Customer)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="140" height="820.0" as="geometry" />
         </mxCell>
-        <mxCell id="ll_ctrl" value=": BookingHttpBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="215" y="50" width="160" height="790.0" as="geometry" />
+        <mxCell id="ll_ctrl" value=": BookingCheckoutController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="220" y="50" width="170" height="820.0" as="geometry" />
         </mxCell>
-        <mxCell id="ll_serv" value=": BookingService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="405" y="50" width="150" height="790.0" as="geometry" />
+        <mxCell id="ll_serv" value=": BookingCheckoutService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="430" y="50" width="160" height="820.0" as="geometry" />
         </mxCell>
-        <mxCell id="ll_app_repo" value=": ReadRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="590" y="50" width="160" height="790.0" as="geometry" />
+        <mxCell id="ll_bill" value=": PaymentLinkOrchestration&#10;(checkout service role)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="630" y="50" width="140" height="820.0" as="geometry" />
         </mxCell>
-        <mxCell id="ll_user_repo" value=": TransactionRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="780" y="50" width="150" height="790.0" as="geometry" />
+        <mxCell id="ll_payos" value=": PayosProvider (PayOS API)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="800" y="50" width="160" height="820.0" as="geometry" />
         </mxCell>
-        <mxCell id="ll_smtp" value=": ResultProjection" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="965" y="50" width="150" height="790.0" as="geometry" />
-        </mxCell>
-        <mxCell id="combined-alt" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;pointerEvents=0;fillColor=none;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="160" width="1050" height="620" />
+        <mxCell id="ll_repo" value=": MongoCheckoutRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="990" y="50" width="165" height="820.0" as="geometry" />
         </mxCell>
         <mxCell id="act_ctrl" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="290" y="105" width="10" height="665.0" as="geometry" />
+          <mxGeometry x="300" y="105" width="10" height="730.0" as="geometry" />
         </mxCell>
         <mxCell id="act_serv" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="475" y="145" width="10" height="585.0" as="geometry" />
+          <mxGeometry x="505" y="180" width="10" height="610.0" as="geometry" />
         </mxCell>
-        <mxCell id="act_app1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="345.0" width="10" height="45" as="geometry" />
+        <mxCell id="act_repo" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1067" y="255" width="10" height="235.0" as="geometry" />
         </mxCell>
-        <mxCell id="act_app2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="425.0" width="10" height="45" as="geometry" />
+        <mxCell id="act_bill" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="695" y="335" width="10" height="410.0" as="geometry" />
         </mxCell>
-        <mxCell id="act_user" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="850" y="505.0" width="10" height="45" as="geometry" />
+        <mxCell id="act_payos" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="875" y="565.0" width="10" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="act_smtp" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="1035" y="620.0" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="m_1" value="1: Create Booking request (logical operation)" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+        <mxCell id="m_1" value="1: POST /api/v1/checkout/bookings (owned quote + selections)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="105" y="105" as="sourcePoint" />
-            <mxPoint x="290" y="105" as="targetPoint" />
+            <mxPoint x="110" y="105" as="sourcePoint" />
+            <mxPoint x="300" y="105" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_2" value="2: validate owner-bound nonexpired QUOTE/MATCH and schedule feasibility" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+        <mxCell id="m_2" value="2: validatePayload(dto)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="300" y="145" as="sourcePoint" />
-            <mxPoint x="475" y="145" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_3" value="3: load authorized current records / version" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="345.0" as="sourcePoint" />
-            <mxPoint x="665" y="345.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_4" value="4: scoped source records / immutable snapshots" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="385.0" as="sourcePoint" />
-            <mxPoint x="485" y="385.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_5" value="5: check transition, payload fingerprint and replay key" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="425.0" as="sourcePoint" />
-            <mxPoint x="665" y="425.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_6" value="6: current guarded state / prior command result" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="465.0" as="sourcePoint" />
-            <mxPoint x="485" y="465.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_7" value="7: transaction: booking + visit snapshots + intent + idempotency/outbox" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="505.0" as="sourcePoint" />
-            <mxPoint x="850" y="505.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_8" value="8: commit result; no partial state on rollback" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="850" y="545.0" as="sourcePoint" />
-            <mxPoint x="485" y="545.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_9" value="9: construct role-safe response DTO" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="580.0" as="sourcePoint" />
-            <mxPoint x="485" y="605.0" as="targetPoint" />
+            <mxPoint x="310" y="140" as="sourcePoint" />
+            <mxPoint x="310" y="165" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="525" y="580.0" />
-              <mxPoint x="525" y="605.0" />
+              <mxPoint x="350" y="140" />
+              <mxPoint x="350" y="165" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_10" value="10: format current outcome (no implied provider acceptance)" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+        <mxCell id="m_3" value="3: confirm(actor, body, idempotencyKey)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="620.0" as="sourcePoint" />
-            <mxPoint x="1035" y="620.0" as="targetPoint" />
+            <mxPoint x="310" y="180" as="sourcePoint" />
+            <mxPoint x="505" y="180" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_11" value="11: safe projection / replay acknowledgement" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+        <mxCell id="m_4" value="4: validate owned QUOTE / immutable server price snapshot" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1035" y="660.0" as="sourcePoint" />
-            <mxPoint x="485" y="660.0" as="targetPoint" />
+            <mxPoint x="515" y="215" as="sourcePoint" />
+            <mxPoint x="515" y="240" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="555" y="215" />
+              <mxPoint x="555" y="240" />
+            </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_12" value="12: success DTO or explicit domain failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+        <mxCell id="m_5" value="5: transaction: booking + visits + prepay intent + command/event" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="475" y="700.0" as="sourcePoint" />
-            <mxPoint x="300" y="700.0" as="targetPoint" />
+            <mxPoint x="515" y="255" as="sourcePoint" />
+            <mxPoint x="1067" y="255" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_13" value="13: HTTP envelope; preserve entered data on error" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+        <mxCell id="m_6" value="6: saved booking (AWAITING_PAYMENT for PREPAY)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="290" y="740.0" as="sourcePoint" />
-            <mxPoint x="105" y="740.0" as="targetPoint" />
+            <mxPoint x="1067" y="295" as="sourcePoint" />
+            <mxPoint x="515" y="295" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="note-25" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED&#10;Alternative: pet-time overlap/stale quote -&gt; 409; PREPAY deadline 15 min&#10;Logical operations, not assertions of JS class inheritance or live acceptance." style="shape=note;whiteSpace=wrap;html=0;size=16;fontSize=12;align=left;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="1010" width="1050" height="110" />
+        <mxCell id="m_7" value="7: check intent deadline / link replay or uncertain creation" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="515" y="525.0" as="sourcePoint" />
+            <mxPoint x="695" y="525.0" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="guard-failure" value="[authorization/input/state/provider guard fails]" style="text;html=0;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="50" y="185" width="1000" height="25" />
+        <mxCell id="m_8" value="8: createPaymentLink(payload)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="705" y="565.0" as="sourcePoint" />
+            <mxPoint x="875" y="565.0" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
-        <mxCell id="failure-return" value="Error: pet-time overlap/stale quote -&gt; 409; PREPAY deadline 15 min" style="html=0;verticalAlign=bottom;endArrow=open;dashed=1;fontSize=11;strokeColor=#000000;" edge="1" parent="1">
+        <mxCell id="m_9" value="9: hmacSha256(checksumKey)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="885" y="600.0" as="sourcePoint" />
+            <mxPoint x="885" y="625.0" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="925" y="600.0" />
+              <mxPoint x="925" y="625.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_10" value="10: POST /v2/payment-requests" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="885" y="640.0" as="sourcePoint" />
+            <mxPoint x="885" y="665.0" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="925" y="640.0" />
+              <mxPoint x="925" y="665.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_11" value="11: { checkoutUrl, qrCode, orderCode }" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="875" y="685.0" as="sourcePoint" />
+            <mxPoint x="705" y="685.0" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_12" value="12: paymentLinkDTO" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="695" y="725.0" as="sourcePoint" />
+            <mxPoint x="515" y="725.0" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_13" value="13: { booking }; no guaranteed sitter before acceptance" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="505" y="765.0" as="sourcePoint" />
+            <mxPoint x="310" y="765.0" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_14" value="14: 200 payment link — payment still UNPAID" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="805.0" as="sourcePoint" />
+            <mxPoint x="110" y="805.0" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="http-booking-response" value="6a: booking DTO / committed id" style="html=0;verticalAlign=bottom;endArrow=open;dashed=1;fontSize=11;strokeColor=#000000;" edge="1" parent="1">
           <mxGeometry as="geometry" relative="1">
-            <mxPoint as="sourcePoint" x="475" y="235" />
-            <mxPoint as="targetPoint" x="105" y="235" />
+            <mxPoint as="sourcePoint" x="505" y="350" />
+            <mxPoint as="targetPoint" x="300" y="350" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="alt-separator" value="" style="dashed=1;endArrow=none;strokeColor=#000000;" edge="1" parent="1">
+        <mxCell id="http-booking-created" value="6b: 201 Created — booking (no payment confirmation)" style="html=0;verticalAlign=bottom;endArrow=open;dashed=1;fontSize=11;strokeColor=#000000;" edge="1" parent="1">
           <mxGeometry as="geometry" relative="1">
-            <mxPoint as="sourcePoint" x="30" y="275" />
-            <mxPoint as="targetPoint" x="1080" y="275" />
+            <mxPoint as="sourcePoint" x="300" y="385" />
+            <mxPoint as="targetPoint" x="110" y="385" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="guard-success" value="[all authoritative guards pass; commit/query succeeds]" style="text;html=0;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="50" y="285" width="1000" height="25" />
+        <mxCell id="http-link-request" value="6c: POST /api/v1/checkout/bookings/:id/payment-link" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=11;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="110" y="425" />
+            <mxPoint as="targetPoint" x="300" y="425" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="http-link-command" value="6d: paymentLink(actor, bookingId)" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;fontSize=11;strokeColor=#000000;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="310" y="460" />
+            <mxPoint as="targetPoint" x="505" y="460" />
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>

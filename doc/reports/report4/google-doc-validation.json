@@ -42,5 +42,19 @@
     ],
     "figureReplacement": "Original images retained; final PNG package supplied separately",
     "status": "TEXT_SYNCED_REVIEW_PENDING"
+  },
+  "finalFlowTextSync": {
+    "headings": 209,
+    "headingsUnchangedSinceFullSync": true,
+    "tables": 18,
+    "tableRowsColumnsHeadersUnchanged": true,
+    "images": 13,
+    "imageIdsUnchanged": true,
+    "useCaseCodes": 95,
+    "missing": [],
+    "paragraphUpdates": 437,
+    "nativeDocxExport": true,
+    "imageReplacement": "User-authorized PNG handoff; original images retained",
+    "toc": "Refresh cached TOC after final image placement/pagination"
   }
 }

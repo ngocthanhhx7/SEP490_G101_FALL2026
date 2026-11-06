@@ -1,151 +1,139 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="app.diagrams.net" version="24.7.17">
+<mxfile host="app.diagrams.net">
   <diagram id="uc-09" name="UC-09 View Service Areas and Policies">
-    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1250" math="0" shadow="0">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1165" pageHeight="1424" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="ll_staff" value="Client (Guest / Customer)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="30" y="50" width="150" height="790.0" as="geometry" />
+        <mxCell id="ll_staff" value="Guest / Customer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1094" as="geometry" />
         </mxCell>
-        <mxCell id="ll_ctrl" value=": CatalogHttpBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="215" y="50" width="160" height="790.0" as="geometry" />
+        <mxCell id="ll_ctrl" value=": ServiceAreasPage" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1094" as="geometry" />
         </mxCell>
-        <mxCell id="ll_serv" value=": CatalogService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="405" y="50" width="150" height="790.0" as="geometry" />
+        <mxCell id="ll_serv" value=": PublicAreasController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1094" as="geometry" />
         </mxCell>
-        <mxCell id="ll_app_repo" value=": ReadRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="590" y="50" width="160" height="790.0" as="geometry" />
+        <mxCell id="ll_app_repo" value=": PublicServiceAreas" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1094" as="geometry" />
         </mxCell>
-        <mxCell id="ll_user_repo" value=": QueryProjection" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="780" y="50" width="150" height="790.0" as="geometry" />
+        <mxCell id="ll_user_repo" value=": ServiceCatalogController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1094" as="geometry" />
         </mxCell>
-        <mxCell id="ll_smtp" value=": ResultProjection" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
-          <mxGeometry x="965" y="50" width="150" height="790.0" as="geometry" />
+        <mxCell id="ll_smtp" value=": ServiceCatalogService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1094" as="geometry" />
         </mxCell>
-        <mxCell id="combined-alt" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;pointerEvents=0;fillColor=none;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="160" width="1050" height="620" />
+        <mxCell id="frame-1" value="sd" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="110" width="1130" height="451" />
         </mxCell>
-        <mxCell id="act_ctrl" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="290" y="105" width="10" height="665.0" as="geometry" />
+        <mxCell id="phase-title-1" value="Read coverage catalog" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="116" width="1020" height="35" />
         </mxCell>
-        <mxCell id="act_serv" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="475" y="145" width="10" height="585.0" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app1" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="345.0" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_app2" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="665" y="425.0" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_user" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="850" y="505.0" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="act_smtp" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
-          <mxGeometry x="1035" y="620.0" width="10" height="45" as="geometry" />
-        </mxCell>
-        <mxCell id="m_1" value="1: View Service Areas and Policies request (logical operation)" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="105" y="105" as="sourcePoint" />
-            <mxPoint x="290" y="105" as="targetPoint" />
+        <mxCell id="msg-1" value="1: Open service areas and policies page" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="170" />
+            <mxPoint as="targetPoint" x="295" y="170" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_2" value="2: validate public scope or current role/owner and bounded cursor" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="300" y="145" as="sourcePoint" />
-            <mxPoint x="475" y="145" as="targetPoint" />
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="170" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: GET /api/v1/service-areas" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="234" />
+            <mxPoint as="targetPoint" x="480" y="234" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_3" value="3: load authorized current records / version" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="345.0" as="sourcePoint" />
-            <mxPoint x="665" y="345.0" as="targetPoint" />
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="234" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: list()" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="298" />
+            <mxPoint as="targetPoint" x="670" y="298" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_4" value="4: scoped source records / immutable snapshots" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="385.0" as="sourcePoint" />
-            <mxPoint x="485" y="385.0" as="targetPoint" />
-          </mxGeometry>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="298" width="10" height="28" />
         </mxCell>
-        <mxCell id="m_5" value="5: apply bounded query/projection policy" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="425.0" as="sourcePoint" />
-            <mxPoint x="665" y="425.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_6" value="6: bounded consistent result set" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="665" y="465.0" as="sourcePoint" />
-            <mxPoint x="485" y="465.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_7" value="7: read allowlisted view service areas and policies projection; no domain&#10;mutation" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="505.0" as="sourcePoint" />
-            <mxPoint x="850" y="505.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_8" value="8: allowlisted result data" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="850" y="545.0" as="sourcePoint" />
-            <mxPoint x="485" y="545.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_9" value="9: construct role-safe response DTO" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="580.0" as="sourcePoint" />
-            <mxPoint x="485" y="605.0" as="targetPoint" />
+        <mxCell id="msg-4" value="4: Use enabled coverage catalog; exclude CITY entries; map code/name/description" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="362" />
+            <mxPoint as="targetPoint" x="670" y="384" />
             <Array as="points">
-              <mxPoint x="525" y="580.0" />
-              <mxPoint x="525" y="605.0" />
+              <mxPoint x="708" y="362" />
+              <mxPoint x="708" y="384" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="m_10" value="10: format current outcome (no implied provider acceptance)" style="html=0;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="485" y="620.0" as="sourcePoint" />
-            <mxPoint x="1035" y="620.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_11" value="11: safe projection / replay acknowledgement" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="1035" y="660.0" as="sourcePoint" />
-            <mxPoint x="485" y="660.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_12" value="12: success DTO or explicit domain failure" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="475" y="700.0" as="sourcePoint" />
-            <mxPoint x="300" y="700.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="m_13" value="13: HTTP envelope; preserve entered data on error" style="html=0;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="290" y="740.0" as="sourcePoint" />
-            <mxPoint x="105" y="740.0" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="note-9" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED&#10;Alternative: 401/403/404 for access; 422 for invalid input; 409 for stale state where applicable&#10;Logical operations, not assertions of JS class inheritance or live acceptance." style="shape=note;whiteSpace=wrap;html=0;size=16;fontSize=12;align=left;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="30" y="1010" width="1050" height="110" />
-        </mxCell>
-        <mxCell id="guard-failure" value="[authorization/input/state/provider guard fails]" style="text;html=0;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="50" y="185" width="1000" height="25" />
-        </mxCell>
-        <mxCell id="failure-return" value="Error: 401/403/404 for access; 422 for invalid input; 409 for stale state where&#10;applicable" style="html=0;verticalAlign=bottom;endArrow=open;dashed=1;fontSize=11;strokeColor=#000000;" edge="1" parent="1">
+        <mxCell id="msg-5" value="5: {available,areas}; disabled -&gt; false and empty areas" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
           <mxGeometry as="geometry" relative="1">
-            <mxPoint as="sourcePoint" x="475" y="235" />
-            <mxPoint as="targetPoint" x="105" y="235" />
+            <mxPoint as="sourcePoint" x="670" y="448" />
+            <mxPoint as="targetPoint" x="480" y="448" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="alt-separator" value="" style="dashed=1;endArrow=none;strokeColor=#000000;" edge="1" parent="1">
+        <mxCell id="msg-6" value="6: 200 public areas DTO, not proof a proposed map pin is inside coverage" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
           <mxGeometry as="geometry" relative="1">
-            <mxPoint as="sourcePoint" x="30" y="275" />
-            <mxPoint as="targetPoint" x="1080" y="275" />
+            <mxPoint as="sourcePoint" x="480" y="512" />
+            <mxPoint as="targetPoint" x="295" y="512" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="guard-success" value="[all authoritative guards pass; commit/query succeeds]" style="text;html=0;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry as="geometry" x="50" y="285" width="1000" height="25" />
+        <mxCell id="frame-7" value="sd" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="594" width="1130" height="365" />
+        </mxCell>
+        <mxCell id="phase-title-7" value="Read current published service policies independently" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="600" width="1020" height="35" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: GET /api/v1/services" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="654" />
+            <mxPoint as="targetPoint" x="855" y="654" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="654" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: publicList(): enabled catalog and effective ACTIVE service + published policy +&#10;valid price" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="718" />
+            <mxPoint as="targetPoint" x="1035" y="718" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="718" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: {available,services} or controlled integration failure" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="782" />
+            <mxPoint as="targetPoint" x="855" y="782" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-10" value="10: 200 published service scope/policy versions, title/body/effectiveAt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="846" />
+            <mxPoint as="targetPoint" x="295" y="846" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-11" value="11: Render areas and links to each service policy; separate pending/error state per&#10;request" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="910" />
+            <mxPoint as="targetPoint" x="105" y="910" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-12" value="alt" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="992" width="1130" height="109" />
+        </mxCell>
+        <mxCell id="phase-title-12" value="alt [disabled, unavailable or unresolved policy]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="998" width="1020" height="35" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: Show unavailable catalog or pending policy; never fabricate approved&#10;cancellation/refund/liability content" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1052" />
+            <mxPoint as="targetPoint" x="105" y="1052" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="source-scope-note" value="PARTIAL_SCOPE_OR_ACCEPTANCE. ServiceAreasPage uses public-catalog-api.js loadPublicServiceAreas and loadPublicCatalog. Public areas come from public-service-areas.service.js / DEMO_WORK_AREAS, not inferred map coverage. Public-policy.routes.js/public-policy-catalog.service.js exposes only approved/effective source-backed versions; absence is not approval of an invented policy. These GETs perform no command/transaction writes." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1174" width="1115" height="200" />
         </mxCell>
       </root>
     </mxGraphModel>

@@ -1,140 +1,140 @@
 <?xml version='1.0' encoding='utf-8'?>
 <mxfile host="Electron">
   <diagram id="domain-productsales" name="12. Product Catalogue, Cart, Orders and Returns">
-    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1044" math="0" shadow="0">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1690" math="0" shadow="0">
       <root>
         <mxCell id="p_0" />
         <mxCell id="p_1" parent="p_0" />
-        <mxCell id="p_title" parent="p_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Product Catalogue, Cart, Orders and Returns" vertex="1">
-          <mxGeometry height="30" width="620" x="260" y="28.5" as="geometry" />
+        <mxCell id="p_title" value="Class Diagram: Product Catalogue, Cart, Orders and Returns" vertex="1" parent="p_1" style="text;html=0;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;">
+          <mxGeometry as="geometry" x="40" y="25" width="1080" height="38" />
         </mxCell>
-        <mxCell id="p_quote_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ProductSalesRequestDTO" vertex="1">
-          <mxGeometry height="110.0" width="190" x="50" y="114.0" as="geometry" />
+        <mxCell id="order_ctrl" value="ProductOrderController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="110" width="300" height="87" />
         </mxCell>
-        <mxCell id="p_quote_req_fields" parent="p_quote_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ actorId: string&#10;+ resourceId?: string&#10;+ expectedVersion?: integer&#10;+ idempotencyKey?: string" vertex="1">
-          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        <mxCell id="order_ctrl_body" value="+ place(req,res)&#10;+ list(req,res)&#10;+ read(req,res)" vertex="1" parent="order_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
         </mxCell>
-        <mxCell id="p_basket_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="AuthorizedContext" vertex="1">
-          <mxGeometry height="94" width="190" x="50" y="361.0" as="geometry" />
+        <mxCell id="order_service" value="ProductOrderService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="110" width="320" height="155" />
         </mxCell>
-        <mxCell id="p_basket_req_fields" parent="p_basket_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ ownerId: string&#10;+ roles: Role[]&#10;+ currentState: string&#10;+ sourceVersion: integer" vertex="1">
-          <mxGeometry height="68" width="190" y="26" as="geometry" />
+        <mxCell id="order_service_body" value="+ place(actor,body,idempotencyKey)&#10;+ list(actor,query)&#10;+ read(actor,orderId)&#10;- unitOfWork: UnitOfWork&#10;- notifications: DomainNotifications&#10;- fingerprint/replay for placement&#10;- authoritative price and conditional hold" vertex="1" parent="order_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="129" />
         </mxCell>
-        <mxCell id="p_quote_res" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ProductSalesResultDTO" vertex="1">
-          <mxGeometry height="110.0" width="190" x="50" y="560.5" as="geometry" />
+        <mxCell id="order_models" value="Product order source «models»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="110" width="300" height="104" />
         </mxCell>
-        <mxCell id="p_quote_res_fields" parent="p_quote_res" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ data: allowlisted DTO&#10;+ version?: integer&#10;+ replayed?: boolean&#10;+ meta: ResponseMetadata" vertex="1">
-          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        <mxCell id="order_models_body" value="Product / ProductCart / ProductOrder&#10;ProductCounter / CustomerAddress&#10;Order snapshot: lines/prices/address&#10;Placement key scoped by customer" vertex="1" parent="order_models" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
         </mxCell>
-        <mxCell id="p_base_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PersistencePort" vertex="1">
-          <mxGeometry height="94" width="180" x="120" y="845.5" as="geometry" />
-        </mxCell>
-        <mxCell id="p_base_repo_methods" parent="p_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ findOne(filter): Promise&#10;+ updateOne(guard, change): Promise&#10;+ transaction(work): Promise" vertex="1">
-          <mxGeometry height="68" width="180" y="26" as="geometry" />
-        </mxCell>
-        <mxCell id="p_ctrl" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ProductOrderManagementController" vertex="1">
-          <mxGeometry height="178" width="230" x="420" y="114.0" as="geometry" />
-        </mxCell>
-        <mxCell id="p_ctrl_methods" parent="p_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ list(args)&#10;+ read(args)&#10;+ handToCarrier(args)&#10;+ markReady(args)&#10;+ markDelivered(args)&#10;+ markReturning(args)&#10;+ confirmReturned(args)&#10;+ handToCustomer(args)&#10;+ recordPayment(args)&#10;+ cancel(args)" vertex="1">
-          <mxGeometry height="152" width="230" y="26" as="geometry" />
-        </mxCell>
-        <mxCell id="p_serv" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ProductOrderService" vertex="1">
-          <mxGeometry height="110.0" width="240" x="415" y="418.0" as="geometry" />
-        </mxCell>
-        <mxCell id="p_serv_methods" parent="p_serv" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ place(args)&#10;+ list(args)&#10;+ read(args)" vertex="1">
-          <mxGeometry height="84.0" width="240" y="26" as="geometry" />
-        </mxCell>
-        <mxCell id="p_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ScopedPersistenceAdapter" vertex="1">
-          <mxGeometry height="95.0" width="240" x="415" y="836.0" as="geometry" />
-        </mxCell>
-        <mxCell id="p_repo_methods" parent="p_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ ownerScope: query predicate&#10;+ expectedState: state guard&#10;+ expectedVersion: integer&#10;+ commandKey: replay identity" vertex="1">
-          <mxGeometry height="69.0" width="240" y="26" as="geometry" />
-        </mxCell>
-        <mxCell id="p_calc" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ProductOrderManagementService" vertex="1">
-          <mxGeometry height="178" width="250" x="780" y="114.0" as="geometry" />
-        </mxCell>
-        <mxCell id="p_calc_methods" parent="p_calc" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ list(args)&#10;+ read(args)&#10;+ handToCarrier(args)&#10;+ markReady(args)&#10;+ handToCustomer(args)&#10;+ markDelivered(args)&#10;+ markReturning(args)&#10;+ confirmReturned(args)&#10;+ recordPayment(args)&#10;+ cancel(args)" vertex="1">
-          <mxGeometry height="152" width="250" y="26" as="geometry" />
-        </mxCell>
-        <mxCell id="p_policy" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ProductOrder" vertex="1">
-          <mxGeometry height="110.0" width="250" x="780" y="418.0" as="geometry" />
-        </mxCell>
-        <mxCell id="p_policy_fields" parent="p_policy" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ code: String&#10;+ customerId: ObjectId&#10;+ lines: Array[subdocument]&#10;+ receiveMethod: String&#10;+ deliveryAddress: Embedded" vertex="1">
-          <mxGeometry height="84.0" width="250" y="26" as="geometry" />
-        </mxCell>
-        <mxCell id="p_snap" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="Product" vertex="1">
-          <mxGeometry height="108" width="250" x="780" y="836.0" as="geometry" />
-        </mxCell>
-        <mxCell id="p_snap_fields" parent="p_snap" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ code: String&#10;+ name: String&#10;+ category: String&#10;+ petType: String&#10;+ description: String" vertex="1">
-          <mxGeometry height="82" width="250" y="26" as="geometry" />
-        </mxCell>
-        <mxCell id="rel_p_ctrl_serv" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_serv">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rel_p_serv_repo" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_repo">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rel_p_repo_base" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_base_repo">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rel_p_ctrl_req" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_quote_req">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rel_p_ctrl_basket" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_basket_req">
-          <mxGeometry relative="1" as="geometry">
+        <mxCell id="order_ctrl_service" value="" edge="1" parent="p_1" source="order_ctrl" target="order_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
             <Array as="points">
-              <mxPoint x="360" y="240.35" />
-              <mxPoint x="360" y="409.45" />
+              <mxPoint x="380.0" y="136.1" />
+              <mxPoint x="380.0" y="179.75" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel_p_serv_req" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.2;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="p_quote_req">
-          <mxGeometry relative="1" as="geometry">
+        <mxCell id="order_service_models" value="" edge="1" parent="p_1" source="order_service" target="order_models" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
             <Array as="points">
-              <mxPoint x="330" y="459.8" />
-              <mxPoint x="330" y="260.3" />
+              <mxPoint x="780.0" y="156.5" />
+              <mxPoint x="780.0" y="156.8" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel_p_serv_basket" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="p_basket_req">
-          <mxGeometry relative="1" x="0.0194" as="geometry">
+        <mxCell id="order_source" value="Source: product-order.controller.js → product-sales/product-order.service.js. Placement has its own customer/key/fingerprint replay behavior. ProductOrderManagement does not inherit that command acknowledgement contract." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="350" width="1080" height="90" />
+        </mxCell>
+        <mxCell id="manage_ctrl" value="ProductOrderManagementController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="540" width="300" height="121" />
+        </mxCell>
+        <mxCell id="manage_ctrl_body" value="+ list / read(req,res)&#10;+ handToCarrier / markReady(req,res)&#10;+ handToCustomer / markDelivered(req,res)&#10;+ markReturning / confirmReturned(req,res)&#10;+ recordPayment / cancel(req,res)" vertex="1" parent="manage_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="95" />
+        </mxCell>
+        <mxCell id="manage_service" value="ProductOrderManagementService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="540" width="320" height="189" />
+        </mxCell>
+        <mxCell id="manage_service_body" value="+ list / read(actor,...)&#10;+ handToCarrier / markReady(actor,id,body)&#10;+ handToCustomer / markDelivered(...)&#10;+ markReturning / confirmReturned(...)&#10;+ recordPayment / cancel(...)&#10;- unitOfWork: UnitOfWork&#10;- notifications: DomainNotifications&#10;- status/version CAS transaction&#10;- no persisted management-key replay" vertex="1" parent="manage_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="163" />
+        </mxCell>
+        <mxCell id="manage_models" value="Management source «models»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="540" width="300" height="104" />
+        </mxCell>
+        <mxCell id="manage_models_body" value="ProductOrder: state/version CAS&#10;Product: stockOnHand/quantityHeld&#10;ProductCustomerRefusal: order identity&#10;User: customer display projection" vertex="1" parent="manage_models" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="manage_phone" value="CustomerPhoneDirectory «port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="750" width="300" height="70" />
+        </mxCell>
+        <mxCell id="manage_phone_body" value="+ userIdsByPhone(phone)&#10;+ phonesOf(customerIds)" vertex="1" parent="manage_phone" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="44" />
+        </mxCell>
+        <mxCell id="manage_ctrl_service" value="" edge="1" parent="p_1" source="manage_ctrl" target="manage_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
             <Array as="points">
-              <mxPoint x="300" y="522.5" />
-              <mxPoint x="300" y="482.22" />
+              <mxPoint x="380.0" y="576.3" />
+              <mxPoint x="380.0" y="625.05" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel_p_serv_res" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_quote_res">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rel_p_serv_calc" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_calc">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="rel_p_serv_policy" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_policy">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points" />
-          </mxGeometry>
-        </mxCell>
-        <mxCell id="rel_p_serv_snap" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="p_snap">
-          <mxGeometry relative="1" as="geometry">
+        <mxCell id="manage_service_models" value="" edge="1" parent="p_1" source="manage_service" target="manage_models" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
             <Array as="points">
-              <mxPoint x="690" y="585.2" />
-              <mxPoint x="690" y="890.15" />
+              <mxPoint x="780.0" y="596.7" />
+              <mxPoint x="780.0" y="586.8" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel_p_repo_policy" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="p_policy">
-          <mxGeometry relative="1" x="0.0879" as="geometry">
+        <mxCell id="manage_service_phone" value="" edge="1" parent="p_1" source="manage_service" target="manage_phone" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.42;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
             <Array as="points">
-              <mxPoint x="655" y="926.25" />
-              <mxPoint x="720" y="926.25" />
-              <mxPoint x="720" y="741.0" />
-              <mxPoint x="905" y="741.0" />
+              <mxPoint x="780.0" y="619.38" />
+              <mxPoint x="780.0" y="781.5" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="rel_p_repo_snap" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" target="p_snap">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="manage_source" value="Source: product-order-management.controller.js → product-sales/product-order-management.service.js. Its dependency on product-order.service.js is the pure toOrderView(doc) export, not ProductOrderService lifecycle ownership. A repeated successful management transition can return a state conflict." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="960" width="1080" height="100" />
+        </mxCell>
+        <mxCell id="cart_ctrl" value="ProductCartController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="1160" width="300" height="70" />
+        </mxCell>
+        <mxCell id="cart_ctrl_body" value="+ read / addLine(req,res)&#10;+ setLine / removeLine(req,res)" vertex="1" parent="cart_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="44" />
+        </mxCell>
+        <mxCell id="cart_service" value="ProductCartService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="1160" width="320" height="121" />
+        </mxCell>
+        <mxCell id="cart_service_body" value="+ read(actor)&#10;+ addLine(actor,body)&#10;+ setLine(actor,productId,body)&#10;+ removeLine(actor,productId)&#10;- unitOfWork: UnitOfWork" vertex="1" parent="cart_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="95" />
+        </mxCell>
+        <mxCell id="cart_models" value="Product / ProductCart «models»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="1160" width="300" height="87" />
+        </mxCell>
+        <mxCell id="cart_models_body" value="Product: availability and current price&#10;ProductCart: customer-owned lines&#10;No inventory reservation by cart preview" vertex="1" parent="cart_models" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="cart_ctrl_service" value="" edge="1" parent="p_1" source="cart_ctrl" target="cart_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="1181.0" />
+              <mxPoint x="380.0" y="1214.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cart_service_models" value="" edge="1" parent="p_1" source="cart_service" target="cart_models" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="1196.3" />
+              <mxPoint x="780.0" y="1199.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cart_source" value="Source: product-cart.controller.js → product-sales/product-cart.service.js. product-order-pricing.js supplies pure priceProductOrder / sellableQuantity helpers. Order and cart writes use UnitOfWork.run; order placement/transitions use DomainNotifications.productOrder in the same domain transaction." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1410" width="1080" height="100" />
+        </mxCell>
+        <mxCell id="source-notation" value="Notation: dashed open arrows are dependencies. Boxes describe JavaScript factory roles, injected ports and model contracts, not ES class inheritance. No diamond implies lifecycle ownership. A shown source capability does not prove live route/provider acceptance." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1550" width="1080" height="95" />
         </mxCell>
       </root>
     </mxGraphModel>
@@ -165,7 +165,7 @@
         <mxCell id="p_quote_res_fields" parent="p_quote_res" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ resourceId: key&#10;+ state: domain state&#10;+ version: integer&#10;+ replayed: boolean" vertex="1">
           <mxGeometry height="84.0" width="190" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="p_base_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="GuardedPersistencePort" vertex="1">
+        <mxCell id="p_base_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="GuardedPersistencePort «interface, design»" vertex="1">
           <mxGeometry height="94" width="180" x="120" y="845.5" as="geometry" />
         </mxCell>
         <mxCell id="p_base_repo_methods" parent="p_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ findOwned(filter)&#10;+ compareAndSet(guard,change)&#10;+ runTransaction(work)" vertex="1">
@@ -207,13 +207,13 @@
         <mxCell id="p_snap_fields" parent="p_snap" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ code: String&#10;+ customerId: ObjectId&#10;+ lines: Array[subdocument]&#10;+ receiveMethod: String&#10;+ deliveryAddress: Embedded" vertex="1">
           <mxGeometry height="82" width="250" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="rel_p_ctrl_serv" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_serv">
+        <mxCell id="rel_p_ctrl_serv" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;startArrow=none;endArrow=open;dashed=1;dashPattern=5 3;" target="p_serv">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="rel_p_serv_repo" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_repo">
+        <mxCell id="rel_p_serv_repo" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;startArrow=none;endArrow=open;dashed=1;dashPattern=5 3;" target="p_repo">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="rel_p_repo_base" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_base_repo">
+        <mxCell id="rel_p_repo_base" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;dashed=1;dashPattern=5 3;" target="p_base_repo" value="proposed port realization">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="rel_p_ctrl_req" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_quote_req">

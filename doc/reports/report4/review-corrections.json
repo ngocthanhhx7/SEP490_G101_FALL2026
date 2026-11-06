@@ -29,5 +29,31 @@
   "relationshipPages": 10,
   "renderedPngPages": 212,
   "driveTextSync": "Restored connector; fresh revision-guarded updates; original figure replacement remains separate",
-  "finalApproval": "pending independent review of next committed SHA"
+  "finalApproval": "pending independent review of final integrated SHA",
+  "reviewedBaseline": "6346a3f",
+  "findingGroupsAddressedPendingIndependentRecheck": [
+    "F01",
+    "F02",
+    "F03",
+    "F04",
+    "F05",
+    "F06",
+    "F07",
+    "F08",
+    "F09",
+    "F10",
+    "F11",
+    "F12"
+  ],
+  "supplementalClassPagesRevised": 19,
+  "allUseCaseFlowPagesSourceOrProposed": 95,
+  "allSupplementalPagesSourceOrProposed": 35,
+  "combinedClassPages": 33,
+  "combinedSequencePages": 136,
+  "proposedFieldContracts": 147,
+  "proposedIndexes": 28,
+  "proposedTypedReferences": 48,
+  "fullDriveFlowParagraphUpdates": 437,
+  "pngFullHeightDimensionsVerified": 212,
+  "figuresInGoogleDoc": "Original 13 images retained for authorized replacement from exported PNGs"
 }

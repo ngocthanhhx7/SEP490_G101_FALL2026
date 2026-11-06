@@ -132,3 +132,46 @@ vẫn cần thay từ bộ PNG theo vị trí được phép giữ của ngườ
 
 PR200 chưa có approval. Những thay đổi sau commit 6346a3f cần được commit và
 review lại đúng HEAD mới; các kiểm tra XML/count/path không thay review ngữ nghĩa.
+
+## Tích hợp toàn bộ review F01–F12
+
+Bản sửa sau a7374ab đã đối chiếu lại toàn bộ 95 UC và 35 supplemental flow.
+19 class pages bổ sung được sửa dependency/ownership; giữ bốn mẫu gốc và các
+compartment/ký hiệu của nhóm. Class tổng được dựng lại từ file riêng (33 trang).
+Sequence tổng có 136 trang, gồm sáu mẫu chi tiết gốc và 130 flow được truy vết.
+Các trang dùng tương tác source cụ thể, tách request/alt/loop/read/command/provider;
+không áp generic replay acknowledgement cho query hoặc product management CAS.
+
+Đã sửa các khác biệt source được phát hiện trong quá trình rà lại: employment
+read có CONTRACT_READ audit; chỉ OSRM route cache lưu edge 15 phút; mail UNKNOWN
+không tự retry; payment-reminder helper không tự chuyển OVERDUE; product-photo
+xóa unretained blobs và không có avatar tombstone/history. Check-in hiện không
+enforce care ACK trong source writer, handover actor/guard và rating/objection
+deadline chưa đồng nhất toàn bộ SRS nên được ghi rõ là khoảng trống. Không tự
+triển khai business code hoặc giả acceptance để làm report có vẻ hoàn thành.
+
+11 proposed schema contracts có 147 field contracts, 28 index specifications và
+48 typed references; mọi state/command/event/reference scope đều ghi đề xuất,
+không phải migration đã chạy. Cash/VietQR và guest counter orders cần adapter/
+schema extension; current payments là PAYOS và ProductOrder.customerId là required.
+Những policy tiền/role chưa duyệt vẫn là release gate.
+
+Đã đồng bộ thêm 437 đoạn mô tả trên Google Docs bằng fresh revision guards.
+Đối chiếu trước/sau: 209 headings không đổi, 18 bảng giữ row/column/header và
+13 inline image IDs không đổi; có đủ 95 mã UC. Đã bỏ câu hướng dẫn template
+giới hạn 2–3 design sets theo phạm vi mở rộng mà user đã yêu cầu. Hai tên cũ trong
+TOC cache sẽ được refresh từ heading User/Pet hiện có khi chốt ảnh/phân trang.
+Bản DOCX trong delivery được export native từ Google Docs, giữ format nguồn;
+không dùng bản dựng local làm bằng chứng pagination chính xác.
+
+Export PNG cũ bị viewport cap 1800 px làm cắt đáy trang dài. Đã bỏ cap và xuất lại
+212 trang; kiểm actual image dimensions bằng manifest × deviceScale1.5 đạt đủ
+212, không thiếu/cắt theo viewport. Xem các mẫu render source/proposed và các
+đáy trang dài; không khẳng định mọi trang đã được kiểm bằng mắt. Bộ PNG dành cho
+thay ảnh tại vị trí hiện có theo ủy quyền ban đầu; ảnh cũ trong Doc chưa bị thay.
+
+Fresh GitHub lúc 18:08 Asia/Saigon vẫn main f6a6dca/develop5381c62; root clean,
+sáu stash và local .env checksum giữ nguyên. GET /ready trên web/www/api đều200.
+Probe nhầm /api/v1/ready trả404 trước đó không phải outage; đã kiểm đúng endpoint.
+Không có source runtime/env/DB/provider mutations hay rollout VPS từ task tài liệu.
+Commit sau tích hợp này vẫn cần independent final-SHA review và CI; chưa có approval.

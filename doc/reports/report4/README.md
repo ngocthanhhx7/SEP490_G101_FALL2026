@@ -117,3 +117,12 @@ Bảng mô tả vẫn giữ Column, Type, Constraints, Notes và có giới hạ
 EMP-02/UC-21, PAY-03, MAP-01, UC-75 và MAIL-01 đã tách tương tác theo source.
 Google Docs đã đồng bộ text mới; ảnh gốc được giữ để thay bằng PNG theo chỉ dẫn
 ban đầu. Đủ trang và validator PASS không đồng nghĩa đã có approval cuối.
+
+## Bộ tích hợp sau review F01–F12
+
+Class tổng 33 trang và sequence tổng 136 trang được dựng lại từ file riêng đã sửa.
+Đủ 95 UC và 35 luồng bổ sung; từng trang phân biệt source với DESIGN_PENDING_RUNTIME.
+Proposed schema hiện có per-field/state constraints, index keys/options và typed
+references. Report text đã đồng bộ; delivery có native DOCX và 212 PNG xuất đủ
+chiều cao. Không dùng snapshot reviewed-local-6346a3f làm bản hiện hành.
+Ảnh gốc của Google Doc được giữ để thay bằng PNG; refresh TOC sau đặt ảnh.
