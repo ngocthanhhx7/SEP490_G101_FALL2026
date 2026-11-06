@@ -11785,11 +11785,23 @@
           "contractNote": "Repository-managed BSON contract; no Mongoose/SQL schema enforcement. Conditional fields depend on transition. "
         }
       ],
-      "indexes": [],
+      "indexes": [
+        [
+          {
+            "carePlanState": 1,
+            "createdAt": 1,
+            "_id": 1
+          },
+          {}
+        ]
+      ],
       "options": {
         "strict": "repository/service validation",
         "versionKey": false
-      }
+      },
+      "indexSources": [
+        "backend/src/services/employee-scheduling/scheduling-storage.service.js"
+      ]
     },
     {
       "name": "Visit",
@@ -12008,11 +12020,39 @@
           "contractNote": "Repository-managed BSON contract; no Mongoose/SQL schema enforcement. Conditional fields depend on transition. "
         }
       ],
-      "indexes": [],
+      "indexes": [
+        [
+          {
+            "sitterId": 1,
+            "state": 1,
+            "startAt": 1,
+            "endAt": 1
+          },
+          {}
+        ],
+        [
+          {
+            "state": 1,
+            "startAt": 1,
+            "_id": 1
+          },
+          {}
+        ],
+        [
+          {
+            "startAt": 1,
+            "_id": 1
+          },
+          {}
+        ]
+      ],
       "options": {
         "strict": "repository/service validation",
         "versionKey": false
-      }
+      },
+      "indexSources": [
+        "backend/src/services/employee-scheduling/scheduling-storage.service.js"
+      ]
     },
     {
       "name": "PaymentIntent",
@@ -12126,11 +12166,24 @@
           "contractNote": "Repository-managed BSON contract; no Mongoose/SQL schema enforcement. Conditional fields depend on transition. "
         }
       ],
-      "indexes": [],
+      "indexes": [
+        [
+          {
+            "providerReference": 1
+          },
+          {
+            "name": "payment_intent_provider_reference",
+            "unique": true
+          }
+        ]
+      ],
       "options": {
         "strict": "repository/service validation",
         "versionKey": false
-      }
+      },
+      "indexSources": [
+        "backend/src/services/settlements/source-provisioning.js"
+      ]
     },
     {
       "name": "Payment",
@@ -12223,11 +12276,53 @@
           "contractNote": "Repository-managed BSON contract; no Mongoose/SQL schema enforcement. Conditional fields depend on transition. "
         }
       ],
-      "indexes": [],
+      "indexes": [
+        [
+          {
+            "provider": 1,
+            "providerEventId": 1
+          },
+          {
+            "name": "verified_provider_event",
+            "unique": true
+          }
+        ],
+        [
+          {
+            "bookingId": 1
+          },
+          {
+            "name": "one_verified_booking_receipt",
+            "unique": true,
+            "partialFilterExpression": {
+              "state": "VERIFIED"
+            }
+          }
+        ],
+        [
+          {
+            "provider": 1,
+            "providerTransactionReference": 1
+          },
+          {
+            "name": "one_verified_bank_reference",
+            "unique": true,
+            "partialFilterExpression": {
+              "state": "VERIFIED",
+              "providerTransactionReference": {
+                "$type": "string"
+              }
+            }
+          }
+        ]
+      ],
       "options": {
         "strict": "repository/service validation",
         "versionKey": false
-      }
+      },
+      "indexSources": [
+        "backend/src/services/settlements/source-provisioning.js"
+      ]
     },
     {
       "name": "TaxAssessment",
@@ -12292,11 +12387,27 @@
           "contractNote": "Repository-managed BSON contract; no Mongoose/SQL schema enforcement. Conditional fields depend on transition. "
         }
       ],
-      "indexes": [],
+      "indexes": [
+        [
+          {
+            "bookingId": 1
+          },
+          {
+            "name": "one_confirmed_booking_assessment",
+            "unique": true,
+            "partialFilterExpression": {
+              "state": "CONFIRMED"
+            }
+          }
+        ]
+      ],
       "options": {
         "strict": "repository/service validation",
         "versionKey": false
-      }
+      },
+      "indexSources": [
+        "backend/src/services/settlements/source-provisioning.js"
+      ]
     },
     {
       "name": "Case",
@@ -12687,11 +12798,23 @@
           "contractNote": "Repository-managed BSON contract; no Mongoose/SQL schema enforcement. Conditional fields depend on transition. "
         }
       ],
-      "indexes": [],
+      "indexes": [
+        [
+          {
+            "key": 1
+          },
+          {
+            "unique": true
+          }
+        ]
+      ],
       "options": {
         "strict": "repository/service validation",
         "versionKey": false
-      }
+      },
+      "indexSources": [
+        "backend/src/services/initial-catalog-provisioning.service.js"
+      ]
     },
     {
       "name": "DemoPopulationRun",
@@ -12742,5 +12865,6 @@
       }
     }
   ],
-  "scope": "93 reflected Mongoose models plus 10 repository-managed collection contracts. Flexible BSON/Mixed properties require service validators; this is source inventory, not production record export."
+  "scope": "93 reflected Mongoose models plus 10 repository-managed collection contracts. Flexible BSON/Mixed properties require service validators; this is source inventory, not production record export.",
+  "indexScope": "Declared Mongoose indexes plus explicit repository provisioning indexes. MongoDB implicit _id indexes are omitted; this is source evidence, not live index enumeration."
 }

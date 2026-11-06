@@ -6,6 +6,12 @@ Thiết kế đối chiếu ngày 06/11/2026 với develop `5381c62` và product
 giữ nguyên cấu trúc trường, tiêu đề, 18 bảng và số cột, cùng các vị trí ảnh.
 Các ảnh cũ được giữ để thay bằng PNG xuất từ các file dưới đây.
 
+Bản local đã chứa các sửa sau review ngữ nghĩa. Google Docs còn cần đồng bộ
+đính chính cuối về contact delivery, trainer ghi hai file tuần tự và notification
+receipt 404, rồi thay PNG/refresh mục lục. Connector Drive hiện không còn khả dụng;
+browser control bị tắt trong Work settings. Không coi bản Google Docs là đã hoàn
+thành đồng bộ cuối chỉ vì các file local đã được sửa.
+
 ## File để sử dụng
 
 - [Software Architecture](architecture/software-architecture.drawio): bản sao trang

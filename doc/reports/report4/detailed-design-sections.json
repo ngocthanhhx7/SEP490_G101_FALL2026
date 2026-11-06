@@ -204,7 +204,8 @@
           "backend/src/services/pricing/pricing.service.js",
           "backend/src/services/pricing/pricing-calculation.service.js",
           "backend/src/services/booking-proposals/checkout-snapshot.service.js"
-        ]
+        ],
+        "serviceOwner": "PricingService"
       },
       {
         "id": "BOOK-02",
@@ -218,7 +219,9 @@
         "sources": [
           "backend/src/services/booking-proposals/boarding-care-plan.service.js",
           "backend/src/services/booking-proposals/booking-care-plan.service.js"
-        ]
+        ],
+        "serviceOwner": "BoardingCarePlan",
+        "persistenceSemantics": "Return in-memory shift specifications; parent checkout transaction performs persistence"
       }
     ]
   },
@@ -342,7 +345,8 @@
         "sources": [
           "backend/src/services/employee-scheduling/visit-travel.service.js",
           "backend/src/models/employee-scheduling.model.js"
-        ]
+        ],
+        "serviceOwner": "VisitTravelService"
       }
     ]
   },
@@ -467,9 +471,9 @@
         "diagram": "sequence/pay-01.drawio",
         "sources": [
           "backend/src/services/payroll/payroll.service.js",
-          "backend/src/services/payroll/payroll-adjustment.service.js",
-          "backend/src/controllers/payroll.controller.js"
-        ]
+          "backend/src/models/payroll.model.js"
+        ],
+        "serviceOwner": "PayrollService"
       },
       {
         "id": "PAY-02",
@@ -482,9 +486,9 @@
         "diagram": "sequence/pay-02.drawio",
         "sources": [
           "backend/src/services/payroll/payroll.service.js",
-          "backend/src/services/payroll/payroll-adjustment.service.js",
-          "backend/src/controllers/payroll.controller.js"
-        ]
+          "backend/src/services/payroll/payroll-draft.service.js"
+        ],
+        "serviceOwner": "PayrollService"
       },
       {
         "id": "PAY-03",
@@ -496,10 +500,10 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/pay-03.drawio",
         "sources": [
-          "backend/src/services/payroll/payroll.service.js",
           "backend/src/services/payroll/payroll-adjustment.service.js",
-          "backend/src/controllers/payroll.controller.js"
-        ]
+          "backend/src/models/payroll.model.js"
+        ],
+        "serviceOwner": "PayrollAdjustmentService"
       }
     ]
   },
@@ -835,10 +839,11 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/ai-01.drawio",
         "sources": [
-          "backend/src/services/sitter-matching/model-registry.service.js",
-          "backend/src/services/ai-training/dataset-export.service.js",
-          "backend/src/controllers/sitter-recommendations.controller.js"
-        ]
+          "backend/src/services/ai-training/training-readiness.service.js",
+          "backend/src/services/ai-training/dataset-export.service.js"
+        ],
+        "serviceOwner": "TrainingReadinessService",
+        "persistenceSemantics": "Return counts/blockers only; no export/train/approval or business write"
       },
       {
         "id": "AI-02",
@@ -852,21 +857,23 @@
         "sources": [
           "backend/src/services/ai-training/dataset-export.service.js",
           "backend/scripts/ai/export-training-data.js"
-        ]
+        ],
+        "serviceOwner": "TrainingDatasetExporter"
       },
       {
         "id": "AI-03",
         "title": "Train and bundle a draft additive model",
         "actor": "Offline trainer",
         "guard": "Validate verified satisfaction label, feature availability and grouped chronological split",
-        "effect": "Fit five nonnegative weights; retain baseline/test MAE and produce DRAFT JSON/evidence; bundle exact hashes",
-        "alternative": "Synthetic/OSRM/heuristic labels or temporal leakage -> reject; no automatic approval",
+        "effect": "Train five weights and write model then evidence as separate sequential files; packaging validates both matching hashes",
+        "alternative": "Partial output can remain after failure; reject incomplete or mismatched bundle; no automatic approval",
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/ai-03.drawio",
         "sources": [
           "backend/scripts/ai/train_model.py",
           "backend/scripts/ai/bundle_model.py"
-        ]
+        ],
+        "serviceOwner": "OfflinePythonTrainer"
       },
       {
         "id": "AI-04",
@@ -881,7 +888,8 @@
           "backend/src/services/sitter-matching/model-registry.service.js",
           "backend/src/services/ai-training/dataset-export.service.js",
           "backend/src/controllers/sitter-recommendations.controller.js"
-        ]
+        ],
+        "serviceOwner": "ModelRegistry"
       },
       {
         "id": "AI-05",
@@ -896,7 +904,8 @@
           "backend/src/services/sitter-matching/model-registry.service.js",
           "backend/src/services/ai-training/dataset-export.service.js",
           "backend/src/controllers/sitter-recommendations.controller.js"
-        ]
+        ],
+        "serviceOwner": "ModelRegistry"
       },
       {
         "id": "AI-06",
@@ -911,12 +920,13 @@
           "backend/src/services/sitter-matching/model-registry.service.js",
           "backend/src/services/ai-training/dataset-export.service.js",
           "backend/src/controllers/sitter-recommendations.controller.js"
-        ]
+        ],
+        "serviceOwner": "ModelRegistry / RuleScoring"
       },
       {
         "id": "AI-07",
         "title": "Check vet-escort route and appointment feasibility",
-        "actor": "Customer / Staff",
+        "actor": "Customer; Staff handles review exceptions",
         "guard": "Require confirmed clinic, appointment, waiting budget and return scope; road route and buffered slot must cover the full plan",
         "effect": "Compare outward/return ETA, appointment and waiting against requested slot; rank only feasible candidates",
         "alternative": "Route unavailable, over review cap or infeasible appointment returns explicit review/conflict; specialized MATCH checkout still requires Staff scope review",
@@ -925,7 +935,8 @@
         "sources": [
           "backend/src/services/sitter-matching/recommendation.service.js",
           "backend/src/services/booking-proposals/match-selection.service.js"
-        ]
+        ],
+        "serviceOwner": "RecommendationService"
       },
       {
         "id": "AI-08",
@@ -939,7 +950,9 @@
         "sources": [
           "backend/src/services/sitter-matching/operational-ranker.service.js",
           "backend/src/services/employee-scheduling/employee-dispatch.service.js"
-        ]
+        ],
+        "serviceOwner": "OperationalRanker",
+        "persistenceSemantics": "Return ranked IDs and featureSnapshot in memory; no invitation/assignment/money write. Route cache may persist separately"
       }
     ]
   },
@@ -989,10 +1002,10 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/emp-01.drawio",
         "sources": [
-          "backend/src/services/payroll/employment-document.service.js",
-          "backend/src/services/applications/application-status-runtime.service.js",
-          "backend/src/controllers/employment-document.controller.js"
-        ]
+          "backend/src/services/sitter-application.service.js",
+          "backend/src/routes/sitter-application.routes.js"
+        ],
+        "serviceOwner": "SitterApplicationService"
       },
       {
         "id": "EMP-02",
@@ -1007,7 +1020,8 @@
           "backend/src/services/payroll/employment-document.service.js",
           "backend/src/services/applications/application-status-runtime.service.js",
           "backend/src/controllers/employment-document.controller.js"
-        ]
+        ],
+        "serviceOwner": "EmploymentDocumentService"
       },
       {
         "id": "EMP-03",
@@ -1020,9 +1034,10 @@
         "diagram": "sequence/emp-03.drawio",
         "sources": [
           "backend/src/services/payroll/employment-document.service.js",
-          "backend/src/services/applications/application-status-runtime.service.js",
-          "backend/src/controllers/employment-document.controller.js"
-        ]
+          "backend/src/services/payroll/employment-prefill.service.js"
+        ],
+        "serviceOwner": "EmploymentDocumentService",
+        "persistenceSemantics": "Return authorized prefill/document data; print is browser presentation, no source rewrite"
       }
     ]
   },
@@ -1074,9 +1089,9 @@
         "diagram": "sequence/fin-01.drawio",
         "sources": [
           "backend/src/services/settlements/settlement.service.js",
-          "backend/src/services/settlements/admin-settlement.service.js",
-          "backend/src/controllers/admin-settlement.controller.js"
-        ]
+          "backend/src/services/settlements/mongo-settlement.repository.js"
+        ],
+        "serviceOwner": "SettlementService"
       },
       {
         "id": "FIN-02",
@@ -1089,9 +1104,9 @@
         "diagram": "sequence/fin-02.drawio",
         "sources": [
           "backend/src/services/settlements/settlement.service.js",
-          "backend/src/services/settlements/admin-settlement.service.js",
-          "backend/src/controllers/admin-settlement.controller.js"
-        ]
+          "backend/src/services/settlements/admin-settlement.service.js"
+        ],
+        "serviceOwner": "SettlementService /\nAdminSettlementService"
       },
       {
         "id": "FIN-03",
@@ -1103,10 +1118,10 @@
         "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
         "diagram": "sequence/fin-03.drawio",
         "sources": [
-          "backend/src/services/settlements/settlement.service.js",
           "backend/src/services/settlements/admin-settlement.service.js",
-          "backend/src/controllers/admin-settlement.controller.js"
-        ]
+          "backend/src/services/settlements/mongo-settlement.repository.js"
+        ],
+        "serviceOwner": "AdminSettlementService"
       },
       {
         "id": "FIN-04",
@@ -1118,10 +1133,10 @@
         "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
         "diagram": "sequence/fin-04.drawio",
         "sources": [
-          "backend/src/services/settlements/settlement.service.js",
-          "backend/src/services/settlements/admin-settlement.service.js",
-          "backend/src/controllers/admin-settlement.controller.js"
-        ]
+          "backend/src/services/settlements/booking-financial-holds.service.js",
+          "backend/src/services/settlements/mongo-settlement.repository.js"
+        ],
+        "serviceOwner": "BookingFinancialHolds"
       }
     ]
   },
@@ -1170,10 +1185,9 @@
         "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
         "diagram": "sequence/job-01.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
-          "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "backend/src/jobs/visit-reminder.job.js"
+        ],
+        "serviceOwner": "VisitReminderJob"
       },
       {
         "id": "JOB-02",
@@ -1185,10 +1199,10 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/job-02.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
           "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "backend/src/services/employee-scheduling/employee-dispatch.service.js"
+        ],
+        "serviceOwner": "EmployeeDispatchService"
       },
       {
         "id": "JOB-03",
@@ -1200,10 +1214,9 @@
         "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
         "diagram": "sequence/job-03.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
-          "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "backend/src/jobs/payment-reminder-overdue.job.js"
+        ],
+        "serviceOwner": "PaymentReminderOverdueJob"
       },
       {
         "id": "JOB-04",
@@ -1215,10 +1228,10 @@
         "status": "DESIGN_PENDING_RUNTIME",
         "diagram": "sequence/job-04.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
-          "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "backend/src/services/product-sales/product-order-management.service.js",
+          "doc/reports/report4/planned-schema-inventory.json"
+        ],
+        "serviceOwner": "ProductHoldExpiryJob Â«designÂ»"
       },
       {
         "id": "JOB-05",
@@ -1230,25 +1243,23 @@
         "status": "DESIGN_PENDING_RUNTIME",
         "diagram": "sequence/job-05.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
-          "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "doc/reports/report4/planned-schema-inventory.json"
+        ],
+        "serviceOwner": "TierAssessmentJob Â«designÂ»"
       },
       {
         "id": "JOB-06",
         "title": "Plan a feasible sitter visit order",
         "actor": "Route planning job",
         "guard": "Validate current authorized visits, registered work windows, road matrix and workload bounds",
-        "effect": "Design/export: bounded route order recommendation that preserves authoritative assignments",
+        "effect": "Design: bounded visit-order advice can reuse schedule-insertion/road-ETA helpers; a complete route-order job is not present in current runtime",
         "alternative": "OSRM estimate is not live traffic or a training satisfaction label",
-        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "status": "DESIGN_PENDING_RUNTIME",
         "diagram": "sequence/job-06.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
-          "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "backend/src/services/sitter-matching/scheduling.service.js"
+        ],
+        "serviceOwner": "RouteOrderPlanner Â«designÂ»"
       },
       {
         "id": "JOB-07",
@@ -1260,10 +1271,9 @@
         "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
         "diagram": "sequence/job-07.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
-          "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "backend/src/jobs/operational-sweep.job.js"
+        ],
+        "serviceOwner": "OperationalSweepJob"
       },
       {
         "id": "MAIL-01",
@@ -1275,10 +1285,10 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/mail-01.drawio",
         "sources": [
-          "backend/src/services/applications/application-mail.service.js",
-          "backend/src/jobs/employee-dispatch.job.js",
-          "backend/src/controllers/sitter-application.controller.js"
-        ]
+          "backend/src/jobs/application-mail.job.js",
+          "backend/src/services/applications/application-mail.service.js"
+        ],
+        "serviceOwner": "ApplicationMailService"
       }
     ]
   },
@@ -1327,10 +1337,9 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/map-01.drawio",
         "sources": [
-          "backend/src/services/maps/location-search.service.js",
-          "backend/src/services/private-image.service.js",
-          "backend/src/controllers/private-image.controller.js"
-        ]
+          "backend/src/services/maps/location-search.service.js"
+        ],
+        "serviceOwner": "LocationSearchService"
       },
       {
         "id": "MAP-02",
@@ -1342,25 +1351,25 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/map-02.drawio",
         "sources": [
-          "backend/src/services/maps/location-search.service.js",
-          "backend/src/services/private-image.service.js",
-          "backend/src/controllers/private-image.controller.js"
-        ]
+          "backend/src/services/sitter-matching/routing.service.js",
+          "backend/src/services/sitter-matching/commercial-routing.service.js"
+        ],
+        "serviceOwner": "RoutingService"
       },
       {
         "id": "MEDIA-01",
         "title": "Upload and read private care or applicant evidence",
-        "actor": "Authorized owner / Staff",
-        "guard": "Validate session/role, media ownership/type, encoded size, pixels and quota",
-        "effect": "Normalize bounded image; store private R2 reference and authorize each resource read",
+        "actor": "Owner / authorized Admin applicant reviewer",
+        "guard": "Owner-only private-image upload/read; applicant-document review uses application authorization and quota. There is no blanket Staff/Admin ownership bypass",
+        "effect": "Normalize/store owned private image or read an application-bound document through its separately authorized service",
         "alternative": "Wrong owner/type/invalid image or unavailable provider -> reject; no public application URL",
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/media-01.drawio",
         "sources": [
-          "backend/src/services/maps/location-search.service.js",
           "backend/src/services/private-image.service.js",
-          "backend/src/controllers/private-image.controller.js"
-        ]
+          "backend/src/services/sitter-application.service.js"
+        ],
+        "serviceOwner": "PrivateImageService /\nSitterApplicationService"
       },
       {
         "id": "MEDIA-02",
@@ -1372,40 +1381,39 @@
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/media-02.drawio",
         "sources": [
-          "backend/src/services/maps/location-search.service.js",
-          "backend/src/services/private-image.service.js",
-          "backend/src/controllers/private-image.controller.js"
-        ]
+          "backend/src/services/avatar.service.js",
+          "backend/src/services/product-sales/product-photo.service.js"
+        ],
+        "serviceOwner": "AvatarService /\nProductPhotoService"
       },
       {
         "id": "CONTACT-01",
         "title": "Send a public contact enquiry",
         "actor": "Guest",
         "guard": "Validate bounded enquiry and server-configured inbox/provider; apply rate limits",
-        "effect": "Submit through backend contact-delivery port; return safe accepted/unavailable result",
-        "alternative": "A configured adapter does not prove inbox receipt; do not expose inbox credentials",
+        "effect": "Await notificationDelivery.send; return ACCEPTED or explicit unavailable/uncertain outcome without persisting a contact record",
+        "alternative": "CONTACT_DELIVERY_UNCERTAIN does not prove no message was sent; there is no durable contact retry/deduplication store",
         "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
         "diagram": "sequence/contact-01.drawio",
         "sources": [
-          "backend/src/services/maps/location-search.service.js",
-          "backend/src/services/private-image.service.js",
-          "backend/src/controllers/private-image.controller.js"
-        ]
+          "backend/src/services/contact.service.js"
+        ],
+        "serviceOwner": "ContactService",
+        "persistenceSemantics": "External delivery only; no contact database write"
       },
       {
         "id": "PWA-01",
         "title": "Install and recover the web application shell",
         "actor": "Browser user",
-        "guard": "Require supported browser/HTTPS and current manifest/service-worker asset version",
-        "effect": "Cache only approved application-shell assets; retain online/offline status and request retry feedback",
+        "guard": "Design requires supported browser/HTTPS, an implemented manifest and service worker; those artifacts are absent from the current frontend tree",
+        "effect": "Design: cache approved application-shell assets only after reviewed PWA implementation; preserve private API no-store and explicit offline failure",
         "alternative": "No offline financial command success, cached private API data or background GPS guarantee is inferred; device acceptance remains pending",
-        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "status": "DESIGN_PENDING_RUNTIME",
         "diagram": "sequence/pwa-01.drawio",
         "sources": [
-          "backend/src/services/maps/location-search.service.js",
-          "backend/src/services/private-image.service.js",
-          "backend/src/controllers/private-image.controller.js"
-        ]
+          "doc/architecture/p37-sds-api-diagram-synchronization-v1.md"
+        ],
+        "serviceOwner": "ApplicationShell Â«designÂ»"
       }
     ]
   }

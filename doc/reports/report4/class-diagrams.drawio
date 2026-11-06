@@ -114,72 +114,72 @@
     </mxGraphModel>
   </diagram>
   <diagram id="class-1-0" name="1.1 Service Pricing Subsystem (Backend Core)">
-    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="680" math="0" shadow="0">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="967" math="0" shadow="0">
       <root>
         <mxCell id="p_0" />
         <mxCell id="p_1" parent="p_0" />
         <mxCell id="p_title" parent="p_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Service Pricing Subsystem (Deterministic Rule Engine)" vertex="1">
-          <mxGeometry height="30" width="620" x="260" y="15" as="geometry" />
+          <mxGeometry height="30" width="620" x="260" y="27.0" as="geometry" />
         </mxCell>
         <mxCell id="p_quote_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="QuoteRequestDTO" vertex="1">
-          <mxGeometry height="110" width="190" x="50" y="60" as="geometry" />
+          <mxGeometry height="122" width="190" x="50" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_quote_req_fields" parent="p_quote_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ serviceId: string&#10;+ petIds: string[]&#10;+ durationMinutes: number&#10;+ visitCount: number = 1&#10;+ dayCount?: number&#10;+ distanceMeters?: number" vertex="1">
-          <mxGeometry height="84" width="190" y="26" as="geometry" />
+        <mxCell id="p_quote_req_fields" parent="p_quote_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ serviceId: string&#10;+ petIds: string[]&#10;+ durationMinutes: number&#10;+ visitCount: number = 1&#10;+ dayCount?: number&#10;+ distanceMeters?: number" vertex="1">
+          <mxGeometry height="96" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_basket_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="BasketQuoteRequestDTO" vertex="1">
-          <mxGeometry height="85" width="190" x="50" y="190" as="geometry" />
+          <mxGeometry height="85.0" width="190" x="50" y="342.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_basket_req_fields" parent="p_basket_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ items: QuoteRequestDTO[]&#10;+ comboDiscountBps?: number" vertex="1">
-          <mxGeometry height="59" width="190" y="26" as="geometry" />
+        <mxCell id="p_basket_req_fields" parent="p_basket_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ items: QuoteRequestDTO[]&#10;{no client discount or fee fields}" vertex="1">
+          <mxGeometry height="59.0" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_quote_res" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="QuoteResultDTO" vertex="1">
-          <mxGeometry height="110" width="190" x="50" y="295" as="geometry" />
+          <mxGeometry height="122" width="190" x="50" y="531.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_quote_res_fields" parent="p_quote_res" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ quoteId: string&#10;+ totalVnd: number&#10;+ subtotalVnd: number&#10;+ orderTierFeeVnd: number&#10;+ lines: QuoteLineDTO[]&#10;+ expiresAt: Date (TTL 10m)" vertex="1">
-          <mxGeometry height="84" width="190" y="26" as="geometry" />
+        <mxCell id="p_quote_res_fields" parent="p_quote_res" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ quoteId: string&#10;+ totalVnd: integer&#10;+ subtotalVnd: integer&#10;+ currency: &quot;VND&quot;&#10;+ lines: QuoteLineDTO[]&#10;+ expiresAt: Date (TTL 10m)" vertex="1">
+          <mxGeometry height="96" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_base_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PersistencePort" vertex="1">
-          <mxGeometry height="85" width="180" x="120" y="445" as="geometry" />
+          <mxGeometry height="85.0" width="180" x="120" y="801.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_base_repo_methods" parent="p_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findById(id): Promise&lt;T&gt;&#10;+ find(filter): Promise&lt;T[]&gt;&#10;+ create(doc): Promise&lt;T&gt;" vertex="1">
-          <mxGeometry height="59" width="180" y="26" as="geometry" />
+        <mxCell id="p_base_repo_methods" parent="p_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findById(id): Promise&lt;T&gt;&#10;+ find(filter): Promise&lt;T[]&gt;&#10;+ create(doc): Promise&lt;T&gt;" vertex="1">
+          <mxGeometry height="59.0" width="180" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_ctrl" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PricingController" vertex="1">
-          <mxGeometry height="95" width="230" x="420" y="60" as="geometry" />
+          <mxGeometry height="122" width="230" x="420" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_ctrl_methods" parent="p_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ quote(req, res): Promise&lt;void&gt;&#10;+ basket(req, res): Promise&lt;void&gt;&#10;+ read(req, res): Promise&lt;void&gt;&#10;+ policy(req, res): Promise&lt;void&gt;" vertex="1">
-          <mxGeometry height="69" width="230" y="26" as="geometry" />
+        <mxCell id="p_ctrl_methods" parent="p_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ quote(req,res)&#10;+ basket(req,res)&#10;+ read(req,res)&#10;+ policy(req,res)&#10;+ readCombo(req,res)&#10;+ updateCombo(req,res)" vertex="1">
+          <mxGeometry height="96" width="230" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_serv" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PricingService" vertex="1">
-          <mxGeometry height="110" width="240" x="415" y="220" as="geometry" />
+          <mxGeometry height="136" width="240" x="415" y="396.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_serv_methods" parent="p_serv" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ quote(ownerId, body): QuoteResultDTO&#10;+ basket(ownerId, body): BasketResultDTO&#10;+ readDecision(ownerId, id): DecisionDTO&#10;- save(ownerId, kind, snap, ttl): string" vertex="1">
-          <mxGeometry height="84" width="240" y="26" as="geometry" />
+        <mxCell id="p_serv_methods" parent="p_serv" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ quote(ownerId, body): QuoteResultDTO&#10;+ basket(ownerId, body): BasketResultDTO&#10;+ readDecision(ownerId, id): DecisionDTO&#10;- save(ownerId, kind, snap, ttl): string" vertex="1">
+          <mxGeometry height="110" width="240" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PricingRepository" vertex="1">
-          <mxGeometry height="95" width="240" x="415" y="440" as="geometry" />
+          <mxGeometry height="95.0" width="240" x="415" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_repo_methods" parent="p_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ context(ownerId, input): ContextData&#10;+ models: MongooseModels&#10;+ connection: Connection" vertex="1">
-          <mxGeometry height="69" width="240" y="26" as="geometry" />
+        <mxCell id="p_repo_methods" parent="p_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ context(ownerId, input): ContextData&#10;+ models: MongooseModels&#10;+ connection: Connection" vertex="1">
+          <mxGeometry height="69.0" width="240" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_calc" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PricingCalculation" vertex="1">
-          <mxGeometry height="95" width="250" x="780" y="60" as="geometry" />
+          <mxGeometry height="95.0" width="250" x="780" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_calc_methods" parent="p_calc" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ calculateQuote(input): QuoteBreakdown&#10;+ validatePricingPolicy(policy): void&#10;- fee(base, bps): number&#10;- matches(pet, when): boolean" vertex="1">
-          <mxGeometry height="69" width="250" y="26" as="geometry" />
+        <mxCell id="p_calc_methods" parent="p_calc" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ calculateQuote(input): QuoteBreakdown&#10;+ validatePricingPolicy(policy): void&#10;- fee(base, bps): number&#10;- matches(pet, when): boolean" vertex="1">
+          <mxGeometry height="69.0" width="250" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_policy" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PricingPolicy" vertex="1">
-          <mxGeometry height="110" width="250" x="780" y="220" as="geometry" />
+          <mxGeometry height="122" width="250" x="780" y="396.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_policy_fields" parent="p_policy" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ serviceId: ObjectId&#10;+ version: number&#10;+ billingMode: BillingModeEnum&#10;+ unitMinutes: number&#10;+ extraPetBps: number&#10;+ orderStepVnd: number = 5000000" vertex="1">
-          <mxGeometry height="84" width="250" y="26" as="geometry" />
+        <mxCell id="p_policy_fields" parent="p_policy" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ serviceId: ObjectId&#10;+ version: number&#10;+ billingMode: BillingModeEnum&#10;+ unitMinutes: number&#10;+ extraPetBps: number&#10;+ orderStepVnd: number = 5000000" vertex="1">
+          <mxGeometry height="96" width="250" y="26" as="geometry" />
         </mxCell>
         <mxCell id="p_snap" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="DecisionSnapshot" vertex="1">
-          <mxGeometry height="95" width="250" x="780" y="440" as="geometry" />
+          <mxGeometry height="95.0" width="250" x="780" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="p_snap_fields" parent="p_snap" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ ownerId: ObjectId&#10;+ kind: &quot;QUOTE&quot; | &quot;MATCH&quot;&#10;+ snapshot: Mixed&#10;+ expiresAt: Date [index TTL]" vertex="1">
-          <mxGeometry height="69" width="250" y="26" as="geometry" />
+        <mxCell id="p_snap_fields" parent="p_snap" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ ownerId: ObjectId&#10;+ kind: &quot;QUOTE&quot; | &quot;MATCH&quot;&#10;+ snapshot: Mixed&#10;+ expiresAt: Date [index TTL]" vertex="1">
+          <mxGeometry height="69.0" width="250" y="26" as="geometry" />
         </mxCell>
         <mxCell id="rel_p_ctrl_serv" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_serv">
           <mxGeometry relative="1" as="geometry" />
@@ -196,24 +196,24 @@
         <mxCell id="rel_p_ctrl_basket" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_basket_req">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="360" y="126.5" />
-              <mxPoint x="360" y="215.5" />
+              <mxPoint x="360" y="227.70000000000002" />
+              <mxPoint x="360" y="387.90000000000003" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="rel_p_serv_req" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.2;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="p_quote_req">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="330" y="242" />
-              <mxPoint x="330" y="137" />
+              <mxPoint x="330" y="435.6" />
+              <mxPoint x="330" y="246.6" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="rel_p_serv_basket" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="p_basket_req">
           <mxGeometry relative="1" x="0.0194" as="geometry">
             <Array as="points">
-              <mxPoint x="300" y="275" />
-              <mxPoint x="300" y="253.8" />
+              <mxPoint x="300" y="495.0" />
+              <mxPoint x="300" y="456.84000000000003" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -231,18 +231,18 @@
         <mxCell id="rel_p_serv_snap" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="p_snap">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="690" y="308" />
-              <mxPoint x="690" y="468.5" />
+              <mxPoint x="690" y="554.4" />
+              <mxPoint x="690" y="843.3000000000001" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="rel_p_repo_policy" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="p_policy">
           <mxGeometry relative="1" x="0.0879" as="geometry">
             <Array as="points">
-              <mxPoint x="655" y="487.5" />
-              <mxPoint x="720" y="487.5" />
-              <mxPoint x="720" y="390" />
-              <mxPoint x="905" y="390" />
+              <mxPoint x="655" y="877.5" />
+              <mxPoint x="720" y="877.5" />
+              <mxPoint x="720" y="702.0" />
+              <mxPoint x="905" y="702.0" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -253,90 +253,90 @@
     </mxGraphModel>
   </diagram>
   <diagram id="class-2-0" name="2. Booking Proposal &amp; PayOS Payment">
-    <mxGraphModel dx="867" dy="550" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1050" pageHeight="720" math="0" shadow="0">
+    <mxGraphModel dx="867" dy="550" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1050" pageHeight="1004" math="0" shadow="0">
       <root>
         <mxCell id="d2_0" />
         <mxCell id="d2_1" parent="d2_0" />
-        <mxCell id="d2_title" parent="d2_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Directed Booking Proposal &amp; PayOS Payment Integration" vertex="1">
-          <mxGeometry height="30" width="580" x="230" y="15" as="geometry" />
+        <mxCell id="d2_title" parent="d2_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Booking Checkout, Schedule Proposal and Verified PayOS Receipt" vertex="1">
+          <mxGeometry height="30" width="580" x="230" y="27.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_dto" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="CreateProposalDTO" vertex="1">
-          <mxGeometry height="95" width="180" x="60" y="60" as="geometry" />
+        <mxCell id="c2_prop_dto" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="BookingCheckoutDTO" vertex="1">
+          <mxGeometry height="136" width="180" x="60" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_dto_fields" parent="c2_prop_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ customerId: string&#10;+ sitterId: string&#10;+ serviceId: string&#10;+ petIds: string[]&#10;+ startDate: Date" vertex="1">
-          <mxGeometry height="69" width="180" y="26" as="geometry" />
+        <mxCell id="c2_prop_dto_fields" parent="c2_prop_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ quoteId: string&#10;+ visits: VisitSelectionDTO[]&#10;+ acceptServicePolicies: true&#10;(actor identity comes from session)" vertex="1">
+          <mxGeometry height="110" width="180" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_ctrl" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="DirectedProposalController" vertex="1">
-          <mxGeometry height="85" width="200" x="310" y="60" as="geometry" />
+        <mxCell id="c2_prop_ctrl" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="BookingCheckoutController" vertex="1">
+          <mxGeometry height="108" width="200" x="310" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_ctrl_methods" parent="c2_prop_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ createProposal(req, res)&#10;+ confirmProposal(req, res)&#10;+ cancelProposal(req, res)" vertex="1">
-          <mxGeometry height="59" width="200" y="26" as="geometry" />
+        <mxCell id="c2_prop_ctrl_methods" parent="c2_prop_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ options(req,res)&#10;+ availability(req,res)&#10;+ confirm(req,res)&#10;+ read(req,res)&#10;+ paymentLink(req,res)" vertex="1">
+          <mxGeometry height="82" width="200" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_pay_ctrl" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PaymentWebhookController" vertex="1">
-          <mxGeometry height="85" width="200" x="560" y="60" as="geometry" />
+        <mxCell id="c2_pay_ctrl" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="FinanceSourceController" vertex="1">
+          <mxGeometry height="85.0" width="200" x="560" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_pay_ctrl_methods" parent="c2_pay_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ handlePayosWebhook(req, res)&#10;+ getPaymentStatus(req, res)" vertex="1">
-          <mxGeometry height="59" width="200" y="26" as="geometry" />
+        <mxCell id="c2_pay_ctrl_methods" parent="c2_pay_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ payment(req,res)&#10;(signature-authenticated webhook)" vertex="1">
+          <mxGeometry height="59.0" width="200" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_smtp" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SmtpEmailService" vertex="1">
-          <mxGeometry height="85" width="180" x="810" y="60" as="geometry" />
+        <mxCell id="c2_smtp" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="DomainNotifications" vertex="1">
+          <mxGeometry height="85.0" width="180" x="810" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_smtp_methods" parent="c2_smtp" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ sendBookingConfirmation()&#10;+ sendPaymentReceipt()" vertex="1">
-          <mxGeometry height="59" width="180" y="26" as="geometry" />
+        <mxCell id="c2_smtp_methods" parent="c2_smtp" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ checkout(event,session)&#10;+ payment(event,session)" vertex="1">
+          <mxGeometry height="59.0" width="180" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c2_webhook_dto" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PayosWebhookDTO" vertex="1">
-          <mxGeometry height="85" width="180" x="60" y="230" as="geometry" />
+          <mxGeometry height="122" width="180" x="60" y="414.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_webhook_dto_fields" parent="c2_webhook_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ orderCode: number&#10;+ amountVnd: integer&#10;+ code: string&#10;+ signature: string" vertex="1">
-          <mxGeometry height="59" width="180" y="26" as="geometry" />
+        <mxCell id="c2_webhook_dto_fields" parent="c2_webhook_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ data: PayosReceiptData&#10;+ signature: string&#10;(data contains provider amount,&#10;orderCode, currency and reference)" vertex="1">
+          <mxGeometry height="96" width="180" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_service" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="DirectedProposalService" vertex="1">
-          <mxGeometry height="100" width="200" x="310" y="220" as="geometry" />
+        <mxCell id="c2_prop_service" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="BookingCheckoutService" vertex="1">
+          <mxGeometry height="108" width="200" x="310" y="396.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_service_methods" parent="c2_prop_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ createDirectedProposal(): Proposal&#10;+ confirmProposal(): Proposal&#10;+ confirmVersionedSchedule(): Proposal" vertex="1">
-          <mxGeometry height="74" width="200" y="26" as="geometry" />
+        <mxCell id="c2_prop_service_methods" parent="c2_prop_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ options(actor)&#10;+ confirm(actor,body,key)&#10;+ read(actor,bookingId)&#10;+ paymentLink(actor,bookingId,key)" vertex="1">
+          <mxGeometry height="82" width="200" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_bill_service" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="BillingService" vertex="1">
-          <mxGeometry height="100" width="200" x="560" y="220" as="geometry" />
+        <mxCell id="c2_bill_service" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PayosPaymentWebhookService" vertex="1">
+          <mxGeometry height="108" width="200" x="560" y="396.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_bill_service_methods" parent="c2_bill_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ createPaymentLink(): PayLink&#10;+ processWebhook(data): Tx&#10;+ reconcileVerifiedReceipt(): Result" vertex="1">
-          <mxGeometry height="74" width="200" y="26" as="geometry" />
+        <mxCell id="c2_bill_service_methods" parent="c2_bill_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ handleWebhook(payload)&#10;- verify and match server intent&#10;- classify apply/duplicate/reconcile" vertex="1">
+          <mxGeometry height="82" width="200" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c2_payos" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PayosProvider" vertex="1">
-          <mxGeometry height="95" width="180" x="810" y="220" as="geometry" />
+          <mxGeometry height="95.0" width="180" x="810" y="396.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_payos_methods" parent="c2_payos" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="- clientId: string&#10;- apiKey: string&#10;+ createPaymentLink(p): Res&#10;+ verifyWebhookSignature(): bool" vertex="1">
-          <mxGeometry height="69" width="180" y="26" as="geometry" />
+        <mxCell id="c2_payos_methods" parent="c2_payos" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ createPaymentLink(input)&#10;+ getPaymentLink(orderCode)&#10;+ verifyWebhook(payload)" vertex="1">
+          <mxGeometry height="69.0" width="180" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c2_base_repo" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PersistencePort" vertex="1">
-          <mxGeometry height="75" width="140" x="40" y="440" as="geometry" />
+          <mxGeometry height="80" width="140" x="40" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_base_repo_methods" parent="c2_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findById(id): Promise&lt;T&gt;&#10;+ update(id, data)" vertex="1">
-          <mxGeometry height="49" width="140" y="26" as="geometry" />
+        <mxCell id="c2_base_repo_methods" parent="c2_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findById(id): Promise&lt;T&gt;&#10;+ update(id, data)" vertex="1">
+          <mxGeometry height="54" width="140" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_repo" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="BookingProposalRepository" vertex="1">
-          <mxGeometry height="80" width="190" x="230" y="440" as="geometry" />
+        <mxCell id="c2_prop_repo" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="CheckoutPersistencePort" vertex="1">
+          <mxGeometry height="94" width="190" x="230" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_prop_repo_methods" parent="c2_prop_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findActiveByCustomer(id)&#10;+ updateStatus(id, state)" vertex="1">
-          <mxGeometry height="54" width="190" y="26" as="geometry" />
+        <mxCell id="c2_prop_repo_methods" parent="c2_prop_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ transaction(work)&#10;+ ownedBooking(actor,id)&#10;+ writeSnapshotsAndCommand(input)" vertex="1">
+          <mxGeometry height="68" width="190" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_tx_repo" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PaymentTransactionRepository" vertex="1">
-          <mxGeometry height="80" width="200" x="460" y="440" as="geometry" />
+        <mxCell id="c2_tx_repo" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="MongoPaymentWebhookRepository" vertex="1">
+          <mxGeometry height="80.0" width="200" x="460" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_tx_repo_methods" parent="c2_tx_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findByOrderCode(orderCode)&#10;+ recordTransaction(data)" vertex="1">
-          <mxGeometry height="54" width="200" y="26" as="geometry" />
+        <mxCell id="c2_tx_repo_methods" parent="c2_tx_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findPaymentIntentByProviderReference(ref)&#10;+ recordWebhookOutcome(input)" vertex="1">
+          <mxGeometry height="54.0" width="200" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_entity_prop" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="BookingProposal" vertex="1">
-          <mxGeometry height="95" width="150" x="700" y="430" as="geometry" />
+        <mxCell id="c2_entity_prop" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="Booking" vertex="1">
+          <mxGeometry height="150" width="150" x="700" y="774.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_entity_prop_fields" parent="c2_entity_prop" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ proposalId: string&#10;+ customerId: string&#10;+ sitterId: string&#10;+ amountVnd: integer&#10;+ state: ProposalState" vertex="1">
-          <mxGeometry height="69" width="150" y="26" as="geometry" />
+        <mxCell id="c2_entity_prop_fields" parent="c2_entity_prop" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ _id: ObjectId&#10;+ customerId: ObjectId&#10;+ quoteId: ObjectId&#10;+ paymentSnapshot: Money&#10;+ paymentMode / paymentState&#10;+ state / version" vertex="1">
+          <mxGeometry height="124" width="150" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c2_entity_tx" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PaymentTransaction" vertex="1">
-          <mxGeometry height="95" width="160" x="870" y="430" as="geometry" />
+        <mxCell id="c2_entity_tx" parent="d2_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="Payment" vertex="1">
+          <mxGeometry height="136" width="160" x="870" y="774.0" as="geometry" />
         </mxCell>
-        <mxCell id="c2_entity_tx_fields" parent="c2_entity_tx" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ transactionId: string&#10;+ orderCode: number&#10;+ amountVnd: integer&#10;+ status: PaymentStatus&#10;+ paidAt: Date" vertex="1">
-          <mxGeometry height="69" width="160" y="26" as="geometry" />
+        <mxCell id="c2_entity_tx_fields" parent="c2_entity_tx" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ _id: ObjectId&#10;+ bookingId / intentId: ObjectId&#10;+ providerEventId: string&#10;+ receiptMoney: Money&#10;+ state / receivedAt / version" vertex="1">
+          <mxGeometry height="110" width="160" y="26" as="geometry" />
         </mxCell>
         <mxCell id="e2_ctrl_serv" edge="1" parent="d2_1" source="c2_prop_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=diamond;startFill=1;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="c2_prop_service">
           <mxGeometry relative="1" as="geometry" />
@@ -347,16 +347,16 @@
         <mxCell id="e2_ctrl_dto" edge="1" parent="d2_1" source="c2_prop_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="c2_prop_dto">
           <mxGeometry relative="1" x="0.0133" as="geometry">
             <Array as="points">
-              <mxPoint x="310" y="107.5" />
+              <mxPoint x="310" y="193.5" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e2_payctrl_dto" edge="1" parent="d2_1" source="c2_pay_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="c2_webhook_dto">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="610" y="180" />
-              <mxPoint x="280" y="180" />
-              <mxPoint x="280" y="273" />
+              <mxPoint x="610" y="324.0" />
+              <mxPoint x="280" y="324.0" />
+              <mxPoint x="280" y="491.40000000000003" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -366,16 +366,16 @@
         <mxCell id="e2_propserv_repo" edge="1" parent="d2_1" source="c2_prop_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="c2_prop_repo">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="410" y="380" />
-              <mxPoint x="325" y="380" />
+              <mxPoint x="410" y="684.0" />
+              <mxPoint x="325" y="684.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e2_billserv_repo" edge="1" parent="d2_1" source="c2_bill_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="c2_tx_repo">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="660" y="380" />
-              <mxPoint x="560" y="380" />
+              <mxPoint x="660" y="684.0" />
+              <mxPoint x="560" y="684.0" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -385,16 +385,16 @@
         <mxCell id="e2_propserv_smtp" edge="1" parent="d2_1" source="c2_prop_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="c2_smtp">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="460" y="190" />
-              <mxPoint x="855" y="190" />
+              <mxPoint x="460" y="342.0" />
+              <mxPoint x="855" y="342.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e2_billserv_smtp" edge="1" parent="d2_1" source="c2_bill_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="c2_smtp">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="710" y="200" />
-              <mxPoint x="900" y="200" />
+              <mxPoint x="710" y="360.0" />
+              <mxPoint x="900" y="360.0" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -404,25 +404,25 @@
         <mxCell id="e2_txrepo_base" edge="1" parent="d2_1" source="c2_tx_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="c2_base_repo">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="560" y="550" />
-              <mxPoint x="110" y="550" />
+              <mxPoint x="560" y="990.0" />
+              <mxPoint x="110" y="990.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e2_proprepo_entity" edge="1" parent="d2_1" source="c2_prop_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.502;entryY=1.014;entryDx=0;entryDy=0;entryPerimeter=0;" target="c2_entity_prop">
           <mxGeometry relative="1" x="-0.0559" as="geometry">
             <Array as="points">
-              <mxPoint x="440" y="480" />
-              <mxPoint x="440" y="570" />
-              <mxPoint x="775.3" y="570" />
+              <mxPoint x="440" y="864.0" />
+              <mxPoint x="440" y="1026.0" />
+              <mxPoint x="775.3" y="1026.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e2_txrepo_entity" edge="1" parent="d2_1" source="c2_tx_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="c2_entity_tx">
           <mxGeometry relative="1" x="-0.078" as="geometry">
             <Array as="points">
-              <mxPoint x="610" y="400" />
-              <mxPoint x="950" y="400" />
+              <mxPoint x="610" y="720.0" />
+              <mxPoint x="950" y="720.0" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -430,78 +430,78 @@
     </mxGraphModel>
   </diagram>
   <diagram id="class-3-0" name="3. Sitter Onboarding &amp; Review">
-    <mxGraphModel dx="1253" dy="795" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1050" pageHeight="720" math="0" shadow="0">
+    <mxGraphModel dx="1253" dy="795" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1050" pageHeight="999" math="0" shadow="0">
       <root>
         <mxCell id="d3_0" />
         <mxCell id="d3_1" parent="d3_0" />
         <mxCell id="d3_title" parent="d3_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Pet Sitter Onboarding &amp; Profile Verification" vertex="1">
-          <mxGeometry height="30" width="550" x="250" y="15" as="geometry" />
+          <mxGeometry height="30" width="550" x="250" y="27.0" as="geometry" />
         </mxCell>
         <mxCell id="c3_app_dto" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SitterApplicationDTO" vertex="1">
-          <mxGeometry height="95" width="190" x="60" y="60" as="geometry" />
+          <mxGeometry height="220" width="190" x="60" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_app_dto_fields" parent="c3_app_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ fullName: string&#10;+ phone: string&#10;+ verifiedContact: encrypted reference&#10;+ applicantParticulars: encrypted data&#10;+ privateDocuments: OwnedDocumentRef[]" vertex="1">
-          <mxGeometry height="69" width="190" y="26" as="geometry" />
+        <mxCell id="c3_app_dto_fields" parent="c3_app_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ displayName: string&#10;+ contactChannel / contactValue&#10;+ dateOfBirth: LocalDate&#10;+ identityNumber: private string&#10;+ experience / employmentType&#10;+ requestedServices / workAreas&#10;+ documents: OwnedDocumentRef[]&#10;+ policyVersions: ConsentVersion[]" vertex="1">
+          <mxGeometry height="194" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_app_ctrl" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SitterApplicationController" vertex="1">
-          <mxGeometry height="85" width="210" x="400" y="60" as="geometry" />
+          <mxGeometry height="122" width="210" x="400" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_app_ctrl_methods" parent="c3_app_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ submitApplication(req, res)&#10;+ getApplicationStatus(req, res)&#10;+ reviewApplication(req, res)" vertex="1">
-          <mxGeometry height="59" width="210" y="26" as="geometry" />
+        <mxCell id="c3_app_ctrl_methods" parent="c3_app_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ getMine(req,res)&#10;+ updateMine(req,res)&#10;+ submit/list/get(req,res)&#10;+ startReview/startInterview(req,res)&#10;+ decide/changeStatus(req,res)" vertex="1">
+          <mxGeometry height="96" width="210" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c3_smtp" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SmtpEmailService" vertex="1">
-          <mxGeometry height="85" width="190" x="780" y="60" as="geometry" />
+        <mxCell id="c3_smtp" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ApplicationMailService" vertex="1">
+          <mxGeometry height="85.0" width="190" x="780" y="108.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_smtp_methods" parent="c3_smtp" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ sendApplicationSubmitted()&#10;+ sendApplicationApproved()&#10;+ sendApplicationRejected()" vertex="1">
-          <mxGeometry height="59" width="190" y="26" as="geometry" />
+        <mxCell id="c3_smtp_methods" parent="c3_smtp" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ enqueue(application,session)&#10;+ runBatch(options)&#10;+ list(applicationId)" vertex="1">
+          <mxGeometry height="59.0" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_review_dto" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ApplicationReviewDTO" vertex="1">
-          <mxGeometry height="85" width="190" x="60" y="230" as="geometry" />
+          <mxGeometry height="122" width="190" x="60" y="414.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_review_dto_fields" parent="c3_review_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ applicationId: string&#10;+ action: ReviewAction&#10;+ rejectionReason: string&#10;+ reviewerId: string" vertex="1">
-          <mxGeometry height="59" width="190" y="26" as="geometry" />
+        <mxCell id="c3_review_dto_fields" parent="c3_review_dto" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ action: APPROVE | REJECT&#10;+ reason: string&#10;+ expectedVersion: integer&#10;+ interviewNote?: string&#10;(actor from authorized session)" vertex="1">
+          <mxGeometry height="96" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_app_service" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SitterApplicationService" vertex="1">
-          <mxGeometry height="110" width="220" x="395" y="220" as="geometry" />
+          <mxGeometry height="136" width="220" x="395" y="396.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_app_service_methods" parent="c3_app_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ submitApplication(): App&#10;+ reviewApplication(): App&#10;+ generateSecureDocUrl(): string&#10;+ activateSignedEmployee(): User" vertex="1">
-          <mxGeometry height="84" width="220" y="26" as="geometry" />
+        <mxCell id="c3_app_service_methods" parent="c3_app_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ getMine / updateMine(args)&#10;+ submit / list / get(args)&#10;+ startReview / startInterview(args)&#10;+ decide / changeSitterStatus(args)&#10;+ readDocument(args)&#10;- signed-contract activation gate" vertex="1">
+          <mxGeometry height="110" width="220" y="26" as="geometry" />
         </mxCell>
-        <mxCell id="c3_cloudinary" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PrivateApplicantDocumentService" vertex="1">
-          <mxGeometry height="85" width="190" x="780" y="230" as="geometry" />
+        <mxCell id="c3_cloudinary" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PrivateApplicantDocumentPort" vertex="1">
+          <mxGeometry height="122" width="190" x="780" y="414.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_cloudinary_methods" parent="c3_cloudinary" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="- cloudName: string&#10;+ uploadDocument(buffer): string&#10;+ deleteDocument(publicId): bool" vertex="1">
-          <mxGeometry height="59" width="190" y="26" as="geometry" />
+        <mxCell id="c3_cloudinary_methods" parent="c3_cloudinary" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ verifyApplicantDocuments(input)&#10;+ readAuthorizedDocument(input)&#10;(private storage; no public URL)" vertex="1">
+          <mxGeometry height="96" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_base_repo" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PersistencePort" vertex="1">
-          <mxGeometry height="75" width="160" x="60" y="440" as="geometry" />
+          <mxGeometry height="75.0" width="160" x="60" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_base_repo_methods" parent="c3_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findById(id): Promise&lt;T&gt;&#10;+ update(id, data)" vertex="1">
-          <mxGeometry height="49" width="160" y="26" as="geometry" />
+        <mxCell id="c3_base_repo_methods" parent="c3_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findById(id): Promise&lt;T&gt;&#10;+ update(id, data)" vertex="1">
+          <mxGeometry height="49.0" width="160" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_app_repo" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SitterApplicationRepository" vertex="1">
-          <mxGeometry height="80" width="190" x="290" y="440" as="geometry" />
+          <mxGeometry height="94" width="190" x="290" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_app_repo_methods" parent="c3_app_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ findByContactHash(hash)&#10;+ findPendingReviews(): App[]" vertex="1">
-          <mxGeometry height="54" width="190" y="26" as="geometry" />
+        <mxCell id="c3_app_repo_methods" parent="c3_app_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ owner/contact-scoped read(filter)&#10;+ guarded application transition(args)" vertex="1">
+          <mxGeometry height="68" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_user_repo" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="UserRepository" vertex="1">
-          <mxGeometry height="80" width="190" x="530" y="440" as="geometry" />
+          <mxGeometry height="108" width="190" x="530" y="792.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_user_repo_methods" parent="c3_user_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ promoteOwnedAccount(data): User&#10;+ assignRole(userId, role): User" vertex="1">
-          <mxGeometry height="54" width="190" y="26" as="geometry" />
+        <mxCell id="c3_user_repo_methods" parent="c3_user_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ promote verified owned account&#10;+ preserve CUSTOMER membership&#10;+ require signed employment document" vertex="1">
+          <mxGeometry height="82" width="190" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_entity_app" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SitterApplication" vertex="1">
-          <mxGeometry height="95" width="170" x="790" y="330" as="geometry" />
+          <mxGeometry height="150" width="170" x="790" y="594.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_entity_app_fields" parent="c3_entity_app" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ applicationId: string&#10;+ status: ApplicationStatus&#10;+ contactHash: string&#10;+ documents: Document[]&#10;+ submittedAt: Date" vertex="1">
-          <mxGeometry height="69" width="170" y="26" as="geometry" />
+        <mxCell id="c3_entity_app_fields" parent="c3_entity_app" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ _id: ObjectId&#10;+ ownerUserId: ObjectId&#10;+ state / version&#10;+ contactLookupKey: private string&#10;+ privateDocuments: refs[]&#10;+ createdAt / updatedAt: Date" vertex="1">
+          <mxGeometry height="124" width="170" y="26" as="geometry" />
         </mxCell>
         <mxCell id="c3_entity_user" parent="d3_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="User" vertex="1">
-          <mxGeometry height="85" width="170" x="800" y="435" as="geometry" />
+          <mxGeometry height="136" width="170" x="800" y="783.0" as="geometry" />
         </mxCell>
-        <mxCell id="c3_entity_user_fields" parent="c3_entity_user" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ userId: string&#10;+ verifiedContact: encrypted reference&#10;+ role: Role&#10;+ isActive: boolean" vertex="1">
-          <mxGeometry height="59" width="170" y="26" as="geometry" />
+        <mxCell id="c3_entity_user_fields" parent="c3_entity_user" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=10;" value="+ _id: ObjectId&#10;+ displayName: string&#10;+ roles: Role[]&#10;+ state: ACTIVE|LOCKED|SUSPENDED&#10;+ authEpoch / version: integer" vertex="1">
+          <mxGeometry height="110" width="170" y="26" as="geometry" />
         </mxCell>
         <mxCell id="e3_ctrl_serv" edge="1" parent="d3_1" source="c3_app_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=diamond;startFill=1;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="c3_app_service">
           <mxGeometry relative="1" as="geometry" />
@@ -509,76 +509,76 @@
         <mxCell id="e3_ctrl_dto" edge="1" parent="d3_1" source="c3_app_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="c3_app_dto">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="400" y="107.5" />
+              <mxPoint x="400" y="193.5" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_ctrl_review_dto" edge="1" parent="d3_1" source="c3_app_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="c3_review_dto">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="453" y="180" />
-              <mxPoint x="320" y="180" />
-              <mxPoint x="320" y="273" />
+              <mxPoint x="453" y="324.0" />
+              <mxPoint x="320" y="324.0" />
+              <mxPoint x="320" y="491.40000000000003" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_serv_apprepo" edge="1" parent="d3_1" source="c3_app_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="c3_app_repo">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="450" y="390" />
-              <mxPoint x="385" y="390" />
+              <mxPoint x="450" y="702.0" />
+              <mxPoint x="385" y="702.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_serv_userrepo" edge="1" parent="d3_1" source="c3_app_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="c3_user_repo">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="560" y="390" />
-              <mxPoint x="625" y="390" />
+              <mxPoint x="560" y="702.0" />
+              <mxPoint x="625" y="702.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_serv_cloud" edge="1" parent="d3_1" source="c3_app_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="c3_cloudinary">
           <mxGeometry relative="1" x="0.0149" as="geometry">
             <Array as="points">
-              <mxPoint x="615" y="272.5" />
+              <mxPoint x="615" y="490.5" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_serv_smtp" edge="1" parent="d3_1" source="c3_app_service" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.8;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="c3_smtp">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="571" y="190" />
-              <mxPoint x="875" y="190" />
+              <mxPoint x="571" y="342.0" />
+              <mxPoint x="875" y="342.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_apprepo_base" edge="1" parent="d3_1" source="c3_app_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="c3_base_repo">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="290" y="477.5" />
+              <mxPoint x="290" y="859.5" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_userrepo_base" edge="1" parent="d3_1" source="c3_user_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="c3_base_repo">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="625" y="550" />
-              <mxPoint x="140" y="550" />
+              <mxPoint x="625" y="990.0" />
+              <mxPoint x="140" y="990.0" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_apprepo_entity" edge="1" parent="d3_1" source="c3_app_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="c3_entity_app">
           <mxGeometry relative="1" x="0.3285" as="geometry">
             <Array as="points">
-              <mxPoint x="500" y="480" />
-              <mxPoint x="500" y="377.5" />
+              <mxPoint x="500" y="864.0" />
+              <mxPoint x="500" y="679.5" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="e3_userrepo_entity" edge="1" parent="d3_1" source="c3_user_repo" target="c3_entity_user" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.3;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
           <mxGeometry relative="1" as="geometry">
-            <mxPoint x="800" y="480" as="targetPoint" />
+            <mxPoint x="800" y="864.0" as="targetPoint" />
           </mxGeometry>
         </mxCell>
       </root>

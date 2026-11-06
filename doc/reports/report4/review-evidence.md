@@ -96,3 +96,19 @@ Nhiệm vụ này không triển khai runtime: VPS tiếp tục ở reviewed mai
 Không kiểm thử thanh toán/OTP thật, ghi hợp đồng, ký thay, tạo booking thực hoặc
 giả dữ liệu training. Trạng thái GitHub review/CI/merge là bằng chứng riêng,
 không khẳng định một người đã đọc thủ công khi thao tác được agent hỗ trợ.
+
+## Sửa sau review ngữ nghĩa
+
+Review độc lập phát hiện và đã sửa: ánh xạ service sai trong supplemental sequence;
+readiness/ranking thuần đọc/tính toán bị gán durable business write; thiếu explicit
+raw collection indexes/provenance; UC-88 phải tách GET khỏi POST read receipt và
+hỗ trợ mọi role đăng nhập. Đã kiểm tra lại delivery uncertainty của contact form,
+trainer ghi model/evidence thành hai file tuần tự, và receipt NOT_FOUND trả 404.
+Không mô tả một contact retry store, ghi artifact nguyên tử hoặc audit write không
+có trong source. Các bảng DOCX/schema được tái tạo cùng index provenance.
+
+Google Docs đã nhận phần II.4–22 và các sửa ngữ nghĩa chính. Sau đó connector Drive
+không còn khả dụng và browser tool trả “Local browser use is disabled in Work
+settings”; không đổi setting hoặc cố vượt quyền. Bản local DOCX/Markdown/native
+draw.io chứa các đính chính cuối về contact/trainer/receipt/PWA; đồng bộ những
+đính chính cuối lên Google Docs và refresh mục lục vẫn là việc còn lại.

@@ -1,0 +1,19 @@
+{
+  "rawIndexCollections": [
+    "Payment",
+    "PaymentIntent",
+    "TaxAssessment",
+    "Visit",
+    "Booking",
+    "CatalogProvisioningRun"
+  ],
+  "supplementalOwnersExplicitlyMapped": 35,
+  "readOnlyComputationsCorrected": [
+    "AI-01",
+    "AI-08",
+    "BOOK-02",
+    "EMP-03"
+  ],
+  "notificationReadAndReceiptSeparated": true,
+  "reviewSource": "independent semantic review; counts/validator are structural checks only"
+}

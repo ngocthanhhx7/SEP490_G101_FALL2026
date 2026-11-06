@@ -1,14 +1,12 @@
 {
   "nativeFiles": 166,
   "pagesIncludingCombinedCopies": 378,
-  "cells": 11492,
+  "cells": 11504,
   "useCases": 95,
   "schemaCollections": 103,
   "additionalDesignSections": 19,
   "supplementalFlows": 35,
   "errors": [],
   "status": "PASS",
-  "dataDictionaryTables": 103,
-  "proposedSchemaContracts": 11,
-  "frontendBackendPackageUnchanged": true
+  "localExport": "Current corrected local design; original Google Docs table columns/headings retained. Added source-review clarifications remain pending final Drive synchronization."
 }
