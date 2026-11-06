@@ -1,0 +1,14 @@
+{
+  "nativeFiles": 166,
+  "pagesIncludingCombinedCopies": 378,
+  "cells": 11492,
+  "useCases": 95,
+  "schemaCollections": 103,
+  "additionalDesignSections": 19,
+  "supplementalFlows": 35,
+  "errors": [],
+  "status": "PASS",
+  "dataDictionaryTables": 103,
+  "proposedSchemaContracts": 11,
+  "frontendBackendPackageUnchanged": true
+}

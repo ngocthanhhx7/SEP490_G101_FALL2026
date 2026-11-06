@@ -1,0 +1,30 @@
+{
+  "headingsBefore": 42,
+  "headingsAfter": 209,
+  "originalHeadingsPreserved": true,
+  "tablesBefore": 18,
+  "tablesAfter": 18,
+  "tableHeadersAndColumnCountsPreserved": true,
+  "imagesBefore": 13,
+  "imagesAfter": 13,
+  "originalImageIdsPreserved": false,
+  "useCases": 95,
+  "missingUseCases": [],
+  "addedDetailedSections": 19,
+  "supplementalFlows": 35,
+  "revision": "AHj4eMS2ooW2nMPWky7wSadJuWeYZzYo5bk7C768YkyiNN_bFskNuFRWdoS15mpzl6u8XVt4PPzEO-dBCGto12SEyGnO7Elf8mn2NtCymg",
+  "imageContentPreserved": true,
+  "imageCheck": {
+    "unchangedInlineIds": 12,
+    "changedInlineId": {
+      "before": "kix.e1inx4vyfsfi",
+      "after": "kix.tbhv9tpqebrj",
+      "rasterSize": [
+        2048,
+        1821
+      ],
+      "decodedPixelSha256": "bb8026866ebfafaf4de719bf76c0e0c3327da5e37a109ed5018b0000cbb180ba"
+    },
+    "note": "One inline ID changed during editing; decoded raster is identical. Current image size/placement retained."
+  }
+}

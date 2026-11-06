@@ -1,0 +1,190 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="planned-0" name="EmergencyContact — UC-12 / care safety">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="EmergencyContact&#10;proposed emergencycontacts" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="296" />
+        </mxCell>
+        <mxCell id="fields" value="_id: ObjectId&#10;ownerId: ObjectId&#10;name: String&#10;phoneCiphertext: String&#10;relationship: String&#10;state: ACTIVE|ARCHIVED&#10;version: Integer&#10;createdAt: Date&#10;updatedAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="241" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Private contact. Owner-authorized, explicit user-provided relationship; no inferred identity. Keep separately encrypted from public sitter profile." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="406" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-1" name="DayOffRequest — UC-79">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="DayOffRequest&#10;proposed dayoffrequests" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="416" />
+        </mxCell>
+        <mxCell id="fields" value="_id: ObjectId&#10;sitterId: ObjectId&#10;startLocalDate: YYYY-MM-DD&#10;endLocalDate: YYYY-MM-DD&#10;reason: String&#10;state: SUBMITTED|APPROVED|REJECTED|WITHDRAWN&#10;availabilityVersion: Integer&#10;affectedVisitVersions: {visitId,version}[]&#10;decisionBy: ObjectId|null&#10;decisionReason: String|null&#10;version: Integer&#10;commandKey: String&#10;createdAt: Date&#10;decidedAt: Date|null" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="361" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Approval writes date exclusions and replacement/handover events transactionally. Near-term withdrawal follows Staff decision; no automatic salary reduction. Dates use Asia/Ho_Chi_Minh." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="526" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-2" name="BookingChangeRequest — UC-84 / UC-85">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="BookingChangeRequest&#10;proposed bookingchangerequests" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="440" />
+        </mxCell>
+        <mxCell id="fields" value="_id: ObjectId&#10;bookingId: ObjectId&#10;visitId: ObjectId&#10;customerId: ObjectId&#10;oldSlot: {startAt:Date,endAt:Date}&#10;requestedSlot: {startAt:Date,endAt:Date}&#10;sourceVisitVersion: Integer&#10;policyVersion: String&#10;state: PENDING|APPROVED|REJECTED|EXPIRED&#10;decisionBy: ObjectId|null&#10;decisionReason: String|null&#10;expiresAt: Date&#10;version: Integer&#10;createdAt: Date&#10;decidedAt: Date|null" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="385" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Time-only change preserves price snapshot. Request/decision/expiry use approved versioned cutoffs and occupancy recheck; unresolved policy is not replaced by guessed constants." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="550" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-3" name="IncidentCaseExtension — UC-47 / UC-48">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="IncidentCaseExtension&#10;proposed extension of existing cases" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="464" />
+        </mxCell>
+        <mxCell id="fields" value="_id: String&#10;kind: INCIDENT&#10;visitId: ObjectId&#10;bookingId: ObjectId&#10;reportedBy: ObjectId&#10;category: String&#10;description: String&#10;evidenceRefs: PrivateMediaRef[]&#10;state: OPEN|UNDER_REVIEW|RESOLVED|CLOSED&#10;followUpActions: {actorId,at,note,evidenceRefs}[]&#10;financialHold: Boolean&#10;proposedFinancialDecisionRef: String|null&#10;finalDecisionRef: String|null&#10;version: Integer&#10;createdAt: Date&#10;closedAt: Date|null" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="409" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Reuse case aggregate and audited financial locks. Staff proposes evidenced outcome; approved Admin decision is a separate reference. Do not assume incident route has current runtime acceptance." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="574" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-4" name="GoodsReceipt — UC-70">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="GoodsReceipt&#10;proposed goodsreceipts" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="344" />
+        </mxCell>
+        <mxCell id="fields" value="_id: ObjectId&#10;supplierId: ObjectId&#10;receivedBy: ObjectId&#10;receivedAt: Date&#10;lines: {productId,receivedQty,acceptedQty,rejectedQty,rejectionReason}[]&#10;state: RECORDED&#10;stockLedgerRefs: String[]&#10;version: Integer&#10;idempotencyKey: String&#10;payloadFingerprint: String&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="289" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;All quantities integer &gt;=0; accepted+rejected=received per line. Record even all-rejected delivery; increment only accepted stock, deduplicate command/ledger. PR158 is not treated as merged runtime." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="454" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-5" name="StockLedgerEntry — UC-70 / UC-71 / UC-95">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="StockLedgerEntry&#10;proposed stockledgerentries" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="368" />
+        </mxCell>
+        <mxCell id="fields" value="_id: String&#10;productId: ObjectId&#10;kind: RECEIPT|SALE|RETURN|ADJUSTMENT&#10;deltaOnHand: Integer&#10;deltaHeld: Integer&#10;sourceRef: String&#10;sourceVersion: Integer&#10;actorId: ObjectId&#10;reason: String&#10;beforeVersion: Integer&#10;afterVersion: Integer&#10;recordedAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="313" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Append-only event/source identity. Current product/order snapshots remain authoritative until reviewed migration. Ledger must be committed with guarded stock update; never rewrite an old receipt." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="478" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-6" name="StockAdjustment — UC-95">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="StockAdjustment&#10;proposed stockadjustments" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="344" />
+        </mxCell>
+        <mxCell id="fields" value="_id: ObjectId&#10;productId: ObjectId&#10;quantityDelta: Integer !=0&#10;reasonCode: DAMAGED|LOST|INTERNAL_USE|RECEIPT_CORRECTION&#10;reason: String&#10;actorId: ObjectId&#10;expectedStockVersion: Integer&#10;ledgerRef: String&#10;state: APPLIED&#10;idempotencyKey: String&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="289" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Admin only; decrease cannot exceed sellable quantity, stock cannot go below zero. Atomic version/quantity guard plus immutable reason/audit; no change to earlier receipts." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="454" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-7" name="GroomingVisitExtension — UC-58 / UC-59 / UC-60 / UC-91">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="GroomingVisitExtension&#10;proposed embedded visit.grooming" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="416" />
+        </mxCell>
+        <mxCell id="fields" value="receivedAt: Date|null&#10;receivedBy: ObjectId|null&#10;arrivalCondition: String&#10;arrivalEvidenceRefs: PrivateMediaRef[]&#10;declaredCareSnapshotRef: String&#10;surchargeProposal: {policyVersion,amountVnd,reason}|null&#10;customerConsentRef: String|null&#10;assignedSitterId: ObjectId|null&#10;workState: BOOKED|RECEIVED|IN_PROGRESS|READY|STOPPED|HANDED_BACK|CANCELLED&#10;stopReason: String|null&#10;readyAt: Date|null&#10;handedBackAt: Date|null&#10;paymentReceiptRef: String|null&#10;version: Integer" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="361" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Reuse Booking/Visit instead of duplicate booking system. Qualified employee on shift; explicit consent for approved surcharge; final receipt evidence before hand-back. No unapproved surcharge rate is specified." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="526" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-8" name="ProductFaultyClaim — UC-92 / UC-93">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="ProductFaultyClaim&#10;proposed productfaultyclaims" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="392" />
+        </mxCell>
+        <mxCell id="fields" value="_id: ObjectId&#10;orderId: ObjectId&#10;customerId: ObjectId&#10;lines: {productId,quantity,reason}[]&#10;evidenceRefs: PrivateMediaRef[]&#10;claimPolicyVersion: String&#10;state: SUBMITTED|UNDER_REVIEW|APPROVED_EXCHANGE|APPROVED_REFUND|REJECTED|RESOLVED&#10;staffReview: {actorId,at,note}|null&#10;adminDecision: {actorId,at,reason,decision}|null&#10;replacementOrderRef: String|null&#10;refundRef: String|null&#10;version: Integer&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="337" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Owner/order/deadline/evidence check; Admin approves same-product exchange or external refund. Faulty goods are never restocked; new replacement stock is decremented once. Change-of-mind return is excluded." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="502" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-9" name="AccessNoteAudit — UC-90">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="AccessNoteAudit&#10;proposed accessnoteaudits" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="296" />
+        </mxCell>
+        <mxCell id="fields" value="_id: String&#10;visitId: ObjectId&#10;actorId: ObjectId&#10;assignmentVersion: Integer&#10;careSnapshotHash: String&#10;action: READ_GRANTED|READ_DENIED&#10;reasonCode: String&#10;occurredAt: Date&#10;correlationId: String" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="241" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Record actor/time/resource/decision, never note text, key code or address secrets. Current assigned-care reader does not itself establish this audit event." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="406" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="planned-10" name="CustomerTierAssessment — SRS GBR-42 / JOB-05">
+    <mxGraphModel page="1" pageWidth="1000" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity" value="CustomerTierAssessment&#10;proposed customertierassessments" style="swimlane;startSize=55;whiteSpace=wrap;html=0;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="70" width="780" height="344" />
+        </mxCell>
+        <mxCell id="fields" value="_id: ObjectId&#10;customerId: ObjectId&#10;policyVersion: String&#10;periodStart: Date&#10;periodEnd: Date&#10;verifiedSpendVnd: Integer&#10;receiptSourceHash: String&#10;assessedTier: String&#10;discountEligibility: Boolean&#10;state: DRAFT|APPROVED|SUPERSEDED&#10;createdAt: Date" style="text;whiteSpace=wrap;html=0;align=left;verticalAlign=top;spacing=10;fontSize=13;" vertex="1" parent="entity">
+          <mxGeometry as="geometry" x="0" y="55" width="780" height="289" />
+        </mxCell>
+        <mxCell id="invariant" value="DESIGN_PENDING_RUNTIME&#10;Disabled until approved tier names/thresholds/discounts and source rules exist. Only verified paid source joins; no arbitrary rates or fabricated profile DTO tier." style="shape=note;whiteSpace=wrap;html=0;align=left;spacing=10;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="100" y="454" width="780" height="170" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

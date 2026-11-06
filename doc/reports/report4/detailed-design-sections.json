@@ -1,0 +1,1412 @@
+[
+  {
+    "number": 4,
+    "title": "Identity, Authentication and Account Management",
+    "group": "Identity",
+    "slug": "identity",
+    "classDiagram": "class/class-identity.drawio",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/controllers/auth.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/otp-verification.service.js",
+        "factory": "OtpService",
+        "operations": [
+          "begin(options)",
+          "verify(options)"
+        ]
+      },
+      {
+        "module": "backend/src/services/session.service.js",
+        "factory": "SessionService",
+        "operations": [
+          "authenticate(req)",
+          "getCurrentUser(auth)",
+          "verifyCsrf(auth, token)",
+          "issueInTransaction(user, mongoSession, options)",
+          "revoke(req)",
+          "revokeUserSessions(userId, options)",
+          "setCookie(res, issued, options)",
+          "clearCookie(res, options)",
+          "resumeCsrf(req, auth)"
+        ]
+      }
+    ],
+    "entities": [
+      "User",
+      "AuthSession"
+    ],
+    "useCases": [
+      "UC-01",
+      "UC-02",
+      "UC-03",
+      "UC-04",
+      "UC-05",
+      "UC-10",
+      "UC-11"
+    ],
+    "extras": []
+  },
+  {
+    "number": 5,
+    "title": "Pet Profiles and Service Addresses",
+    "group": "PetAndAddress",
+    "slug": "petandaddress",
+    "classDiagram": "class/class-petandaddress.drawio",
+    "sources": [
+      "backend/src/services/pet-care-management.service.js",
+      "backend/src/services/pet-care-context.service.js",
+      "backend/src/controllers/pet-care.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/pet-care-management.service.js",
+        "factory": "PetCareManagement",
+        "operations": [
+          "catalog()",
+          "listPets(ownerId)",
+          "listAddresses(ownerId, management)",
+          "createPet(ownerId, body, key)",
+          "createAddress(ownerId, body, key)",
+          "update(ownerId, kind, resourceId, body, key)",
+          "archive(ownerId, kind, resourceId, body, key)"
+        ]
+      },
+      {
+        "module": "backend/src/services/pet-care-context.service.js",
+        "factory": "PetCareContext",
+        "operations": [
+          "context(ownerId, input)"
+        ]
+      }
+    ],
+    "entities": [
+      "Pet",
+      "CustomerAddress"
+    ],
+    "useCases": [
+      "UC-12",
+      "UC-13",
+      "UC-14",
+      "UC-15"
+    ],
+    "extras": []
+  },
+  {
+    "number": 6,
+    "title": "Service Catalogue, Deterministic Pricing and Policies",
+    "group": "Catalog",
+    "slug": "catalog",
+    "classDiagram": "class/class-catalog.drawio",
+    "sources": [
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js",
+      "backend/src/controllers/service-catalog.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/service-catalog.service.js",
+        "factory": "ServiceCatalogService",
+        "operations": [
+          "create(options)",
+          "update(options)",
+          "setPolicy(options)",
+          "listAdmin(options)",
+          "publicList(options)",
+          "bookableSnapshot(serviceId, at)"
+        ]
+      },
+      {
+        "module": "backend/src/services/pricing/pricing.service.js",
+        "factory": "PricingService",
+        "operations": [
+          "quote(ownerId, body)",
+          "basket(ownerId, body)",
+          "readDecision(ownerId, decisionId)"
+        ]
+      }
+    ],
+    "entities": [
+      "ServiceVersion",
+      "PricingPolicy"
+    ],
+    "useCases": [
+      "UC-06",
+      "UC-07",
+      "UC-08",
+      "UC-09",
+      "UC-22",
+      "UC-23",
+      "UC-24"
+    ],
+    "extras": []
+  },
+  {
+    "number": 7,
+    "title": "Booking Lifecycle, Changes and Cancellations",
+    "group": "Booking",
+    "slug": "booking",
+    "classDiagram": "class/class-booking.drawio",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js",
+      "backend/src/controllers/booking-checkout.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/booking-proposals/booking-checkout.service.js",
+        "factory": "BookingCheckoutService",
+        "operations": [
+          "options(actor)",
+          "confirm(actor, body, key)",
+          "read(actor, bookingId)",
+          "paymentLink(actor, bookingId, key)"
+        ]
+      },
+      {
+        "module": "backend/src/services/customer-bookings.service.js",
+        "factory": "CustomerBookingsService",
+        "operations": [
+          "list(actor, query)"
+        ]
+      }
+    ],
+    "entities": [
+      "Booking",
+      "Visit"
+    ],
+    "useCases": [
+      "UC-25",
+      "UC-26",
+      "UC-27",
+      "UC-28",
+      "UC-32",
+      "UC-39",
+      "UC-84",
+      "UC-85",
+      "UC-49",
+      "UC-50"
+    ],
+    "extras": [
+      {
+        "id": "BOOK-01",
+        "title": "Quote and confirm a multi-line service basket",
+        "actor": "Customer",
+        "guard": "Validate every owned pet/service line and approved price/policy version; care traits are capabilities unless an approved surcharge exists",
+        "effect": "Compute combo once across visit count, cap at 10 percent, snapshot each line and allocate the one order fee without double counting",
+        "alternative": "Any changed selection invalidates stale quote; no guessed tax or automatic extra trait fee",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/book-01.drawio",
+        "sources": [
+          "backend/src/services/pricing/pricing.service.js",
+          "backend/src/services/pricing/pricing-calculation.service.js",
+          "backend/src/services/booking-proposals/checkout-snapshot.service.js"
+        ]
+      },
+      {
+        "id": "BOOK-02",
+        "title": "Split boarding into employee care shifts",
+        "actor": "Checkout / Staff",
+        "guard": "Validate confirmed customer visits, approved care plan and each service duration",
+        "effect": "Split boarding shifts to at most 480 minutes; allocate integer service-net snapshots by duration/remainders while preserving customer total and combo visit count",
+        "alternative": "More than sixty shifts or missing operational facts requires review; shift time is not invented attendance",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/book-02.drawio",
+        "sources": [
+          "backend/src/services/booking-proposals/boarding-care-plan.service.js",
+          "backend/src/services/booking-proposals/booking-care-plan.service.js"
+        ]
+      }
+    ]
+  },
+  {
+    "number": 8,
+    "title": "Employee Availability, Invitations and Dispatch",
+    "group": "Scheduling",
+    "slug": "scheduling",
+    "classDiagram": "class/class-scheduling.drawio",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/controllers/employee-scheduling.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+        "factory": "EmployeeDispatchService",
+        "operations": [
+          "readContext(visitId, session)",
+          "previewCandidates(actor, visitId, input)",
+          "queue(actor)",
+          "invite(actor, visitId, body, key)",
+          "runBatch(options)"
+        ]
+      },
+      {
+        "module": "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+        "factory": "EmployeeScheduleRepository",
+        "operations": [
+          "col(name)",
+          "employeeGuard(sitterId, session, authEpoch)",
+          "eligible(sitterId, visit, session, options)",
+          "runGuard(options, work)",
+          "find(sitterId, session)",
+          "contractAt(sitterId, start, end, session)",
+          "areaKeys(code)"
+        ]
+      }
+    ],
+    "entities": [
+      "EmployeeAvailability",
+      "EmployeeVisitOffer"
+    ],
+    "useCases": [
+      "UC-29",
+      "UC-30",
+      "UC-31",
+      "UC-33",
+      "UC-34",
+      "UC-35",
+      "UC-36",
+      "UC-38",
+      "UC-79",
+      "UC-80",
+      "UC-82"
+    ],
+    "extras": []
+  },
+  {
+    "number": 9,
+    "title": "Care Instructions, Execution, Reports and Location",
+    "group": "Care",
+    "slug": "care",
+    "classDiagram": "class/class-care.drawio",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/controllers/assigned-care.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/care/assigned-care.service.js",
+        "factory": "AssignedCareService",
+        "operations": [
+          "get(actor, visitId)",
+          "acknowledge(actor, visitId, body, key)",
+          "accessNotes(actor, visitId)"
+        ]
+      },
+      {
+        "module": "backend/src/services/settlements/booking-finance-source.service.js",
+        "factory": "BookingFinanceSourceService",
+        "operations": [
+          "readVisit(current, visitId)",
+          "checkIn(input)",
+          "updateChecklist(input)",
+          "checkOut(input)",
+          "confirmAssessment(options)",
+          "drain(options)",
+          "enqueue(booking, session)",
+          "touch(booking, session, fields)"
+        ]
+      }
+    ],
+    "entities": [
+      "Visit",
+      "CareMediaBinding"
+    ],
+    "useCases": [
+      "UC-37",
+      "UC-40",
+      "UC-41",
+      "UC-42",
+      "UC-43",
+      "UC-44",
+      "UC-45",
+      "UC-46",
+      "UC-78"
+    ],
+    "extras": [
+      {
+        "id": "TRAVEL-01",
+        "title": "Start, update and stop consented foreground travel sharing",
+        "actor": "Assigned sitter / Authorized viewer",
+        "guard": "Validate assigned visit, sharing consent, session version, fresh coordinate accuracy and bounded time window",
+        "effect": "Replace only the latest location, expose scoped ETA/map projection and expire/stop sharing; no historical travel trail retained",
+        "alternative": "Stale session, invalid coordinate, unsupported state or revoked assignment is rejected; real-device tracking acceptance remains separate",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/travel-01.drawio",
+        "sources": [
+          "backend/src/services/employee-scheduling/visit-travel.service.js",
+          "backend/src/models/employee-scheduling.model.js"
+        ]
+      }
+    ]
+  },
+  {
+    "number": 10,
+    "title": "Incidents, Complaints and Refund Decisions",
+    "group": "Cases",
+    "slug": "cases",
+    "classDiagram": "class/class-cases.drawio",
+    "sources": [
+      "backend/src/services/incidents/incident.service.js",
+      "backend/src/services/complaints/complaint.service.js",
+      "backend/src/controllers/complaint.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/incidents/incident.service.js",
+        "factory": "IncidentService",
+        "operations": [
+          "report(options)",
+          "create(options)",
+          "list(options)",
+          "listIncidents(options)",
+          "detail(options)",
+          "get(options)",
+          "resolve(options)",
+          "resolveIncident(options)"
+        ]
+      },
+      {
+        "module": "backend/src/services/complaints/complaint.service.js",
+        "factory": "ComplaintService",
+        "operations": [
+          "submit(options)",
+          "create(options)",
+          "createComplaint(options)",
+          "submitComplaint(options)",
+          "list(options)",
+          "get(options)",
+          "detail(options)",
+          "review(options)",
+          "resolve(options)",
+          "object(options)",
+          "disagree(options)",
+          "decide(options)",
+          "finalize(options)"
+        ]
+      }
+    ],
+    "entities": [
+      "Case",
+      "Refund"
+    ],
+    "useCases": [
+      "UC-47",
+      "UC-48",
+      "UC-51",
+      "UC-52",
+      "UC-53",
+      "UC-86"
+    ],
+    "extras": []
+  },
+  {
+    "number": 11,
+    "title": "Employee Payroll, Salary Advances and Adjustments",
+    "group": "Payroll",
+    "slug": "payroll",
+    "classDiagram": "class/class-payroll.drawio",
+    "sources": [
+      "backend/src/services/payroll/payroll.service.js",
+      "backend/src/services/payroll/payroll-adjustment.service.js",
+      "backend/src/controllers/payroll.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/payroll/payroll.service.js",
+        "factory": "PayrollService",
+        "operations": [
+          "payrollEmployees(actor)",
+          "previewStatement(actor, body)",
+          "prepareAutomaticStatement(actor, body, key)",
+          "recordContract(actor, body, key)",
+          "own(actor, query)",
+          "submitAdvance(actor, body, key)",
+          "decideAdvance(actor, advanceId, body, key)",
+          "overview(actor)",
+          "prepareStatement(actor, body, key, sourceDraft)",
+          "decideStatement(actor, statementId, body, key)",
+          "listStatements(actor, query)",
+          "listAdvances(actor, query)"
+        ]
+      },
+      {
+        "module": "backend/src/services/payroll/payroll-adjustment.service.js",
+        "factory": "PayrollAdjustmentService",
+        "operations": [
+          "submitAdjustment(actor, body, key)",
+          "decideAdjustment(actor, adjustmentId, body, key)",
+          "listAdjustments(actor, query)"
+        ]
+      }
+    ],
+    "entities": [
+      "PayrollStatement",
+      "SalaryAdvance"
+    ],
+    "useCases": [
+      "UC-20",
+      "UC-75",
+      "UC-76"
+    ],
+    "extras": [
+      {
+        "id": "PAY-01",
+        "title": "Request and decide a salary advance",
+        "actor": "Pet Sitter / Admin",
+        "guard": "Require active signed employment, approved monthly base, at most 50 percent and one approved advance/month",
+        "effect": "Submit/withdraw/reject/approve under month guard; retain rejection reason and agreed payroll offset",
+        "alternative": "Pending concurrent request or exhausted approved quota -> reject; no interest or fabricated statutory case",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/pay-01.drawio",
+        "sources": [
+          "backend/src/services/payroll/payroll.service.js",
+          "backend/src/services/payroll/payroll-adjustment.service.js",
+          "backend/src/controllers/payroll.controller.js"
+        ]
+      },
+      {
+        "id": "PAY-02",
+        "title": "Prepare source-based payroll and selected payslip print",
+        "actor": "Admin",
+        "guard": "Load signed terms, verified service credits and explicit attendance/KPI source decisions",
+        "effect": "Prepare immutable statement snapshots, agreed deductions/advances and identity reference; print selected statement",
+        "alternative": "Availability is not attendance; unresolved source/deduction remains pending rather than reduce salary",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/pay-02.drawio",
+        "sources": [
+          "backend/src/services/payroll/payroll.service.js",
+          "backend/src/services/payroll/payroll-adjustment.service.js",
+          "backend/src/controllers/payroll.controller.js"
+        ]
+      },
+      {
+        "id": "PAY-03",
+        "title": "Record a separate payroll adjustment",
+        "actor": "Admin",
+        "guard": "Require original statement reference, agreed reason/evidence and immutable source claim",
+        "effect": "Record supplement or agreed reconciliation separately; claim transfer reference exactly once",
+        "alternative": "Original paid statement stays unchanged; UNKNOWN transfer requires reconciliation",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/pay-03.drawio",
+        "sources": [
+          "backend/src/services/payroll/payroll.service.js",
+          "backend/src/services/payroll/payroll-adjustment.service.js",
+          "backend/src/controllers/payroll.controller.js"
+        ]
+      }
+    ]
+  },
+  {
+    "number": 12,
+    "title": "Product Catalogue, Cart, Orders and Returns",
+    "group": "ProductSales",
+    "slug": "productsales",
+    "classDiagram": "class/class-productsales.drawio",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/controllers/product-order-management.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/product-sales/product-order.service.js",
+        "factory": "ProductOrderService",
+        "operations": [
+          "place(actor, body, idempotencyKey)",
+          "list(actor, query)",
+          "read(actor, orderId)"
+        ]
+      },
+      {
+        "module": "backend/src/services/product-sales/product-order-management.service.js",
+        "factory": "ProductOrderManagementService",
+        "operations": [
+          "list(actor, query)",
+          "read(actor, orderId)",
+          "handToCarrier(actor, orderId, body)",
+          "markReady(actor, orderId, body)",
+          "handToCustomer(actor, orderId, body)",
+          "markDelivered(actor, orderId, body)",
+          "markReturning(actor, orderId, body)",
+          "confirmReturned(actor, orderId, body)",
+          "recordPayment(actor, orderId, body)",
+          "cancel(actor, orderId, body)"
+        ]
+      }
+    ],
+    "entities": [
+      "ProductOrder",
+      "Product"
+    ],
+    "useCases": [
+      "UC-55",
+      "UC-56",
+      "UC-57",
+      "UC-61",
+      "UC-62",
+      "UC-63",
+      "UC-64",
+      "UC-65",
+      "UC-66",
+      "UC-67",
+      "UC-68",
+      "UC-92",
+      "UC-93"
+    ],
+    "extras": []
+  },
+  {
+    "number": 13,
+    "title": "Suppliers, Goods Receipts and Stock Control",
+    "group": "Stock",
+    "slug": "stock",
+    "classDiagram": "class/class-stock.drawio",
+    "sources": [
+      "backend/src/services/product-sales/supplier-management.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/controllers/supplier-management.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/product-sales/supplier-management.service.js",
+        "factory": "SupplierManagementService",
+        "operations": [
+          "list(actor, query)",
+          "read(actor, supplierId)",
+          "create(actor, body)",
+          "update(actor, supplierId, body)",
+          "stop(actor, supplierId, body)",
+          "resume(actor, supplierId, body)"
+        ]
+      },
+      {
+        "module": "backend/src/services/product-sales/product-order-management.service.js",
+        "factory": "ProductOrderManagementService",
+        "operations": [
+          "list(actor, query)",
+          "read(actor, orderId)",
+          "handToCarrier(actor, orderId, body)",
+          "markReady(actor, orderId, body)",
+          "handToCustomer(actor, orderId, body)",
+          "markDelivered(actor, orderId, body)",
+          "markReturning(actor, orderId, body)",
+          "confirmReturned(actor, orderId, body)",
+          "recordPayment(actor, orderId, body)",
+          "cancel(actor, orderId, body)"
+        ]
+      }
+    ],
+    "entities": [
+      "Supplier",
+      "Product"
+    ],
+    "useCases": [
+      "UC-69",
+      "UC-70",
+      "UC-71",
+      "UC-95"
+    ],
+    "extras": []
+  },
+  {
+    "number": 14,
+    "title": "Shop Grooming and Pet Handover",
+    "group": "Grooming",
+    "slug": "grooming",
+    "classDiagram": "class/class-grooming.drawio",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/booking-proposals/boarding-care-plan.service.js",
+      "backend/src/controllers/booking-checkout.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/booking-proposals/booking-checkout.service.js",
+        "factory": "BookingCheckoutService",
+        "operations": [
+          "options(actor)",
+          "confirm(actor, body, key)",
+          "read(actor, bookingId)",
+          "paymentLink(actor, bookingId, key)"
+        ]
+      },
+      {
+        "module": "backend/src/services/booking-proposals/boarding-care-plan.service.js",
+        "factory": "BoardingCarePlan",
+        "operations": [
+          "boardingCarePlan(booking, shiftMinutes)"
+        ]
+      }
+    ],
+    "entities": [
+      "Booking",
+      "Visit"
+    ],
+    "useCases": [
+      "UC-58",
+      "UC-59",
+      "UC-60",
+      "UC-91"
+    ],
+    "extras": []
+  },
+  {
+    "number": 15,
+    "title": "Public Sitter Profiles and Verified Ratings",
+    "group": "Engagement",
+    "slug": "engagement",
+    "classDiagram": "class/class-engagement.drawio",
+    "sources": [
+      "backend/src/services/reviews/review.service.js",
+      "backend/src/services/sitter-public-profile.service.js",
+      "backend/src/controllers/review.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/reviews/review.service.js",
+        "factory": "ReviewService",
+        "operations": [
+          "rateVisit(options)",
+          "rate(options)",
+          "create(options)",
+          "createRating(options)",
+          "get(options)",
+          "detail(options)"
+        ]
+      },
+      {
+        "module": "backend/src/services/sitter-public-profile.service.js",
+        "factory": "SitterPublicProfileService",
+        "operations": [
+          "readOwn(options)",
+          "listPending(options)",
+          "submit(input)",
+          "review(input)"
+        ]
+      }
+    ],
+    "entities": [
+      "SitterPublicProfile",
+      "CustomerVisitReview"
+    ],
+    "useCases": [
+      "UC-72",
+      "UC-73",
+      "UC-74",
+      "UC-87"
+    ],
+    "extras": []
+  },
+  {
+    "number": 16,
+    "title": "Role Dashboards, Operational Reports and Audit",
+    "group": "Dashboards",
+    "slug": "dashboards",
+    "classDiagram": "class/class-dashboards.drawio",
+    "sources": [
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/payroll.service.js",
+      "backend/src/controllers/dashboard-read.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+        "factory": "MongoOperationalDashboardRepository",
+        "operations": [
+          "readSnapshot(options)"
+        ]
+      },
+      {
+        "module": "backend/src/services/dashboards/payroll.service.js",
+        "factory": "PayrollService",
+        "operations": [
+          "createPayrollService(options)"
+        ]
+      }
+    ],
+    "entities": [
+      "Booking",
+      "PayrollStatement"
+    ],
+    "useCases": [
+      "UC-54",
+      "UC-77",
+      "UC-81",
+      "UC-83",
+      "UC-89",
+      "UC-90",
+      "UC-94"
+    ],
+    "extras": []
+  },
+  {
+    "number": 17,
+    "title": "Notifications and Delivery Preferences",
+    "group": "Notification",
+    "slug": "notifications",
+    "classDiagram": "class/class-notifications.drawio",
+    "sources": [
+      "backend/src/services/notifications/notification.service.js",
+      "backend/src/services/notifications/domain-notifications.service.js",
+      "backend/src/controllers/notification.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/notifications/notification.service.js",
+        "factory": "NotificationService",
+        "operations": [
+          "list(options)",
+          "markRead(options)",
+          "publish(options)",
+          "updatePreferences(options)",
+          "registerPushSubscription(options)"
+        ]
+      },
+      {
+        "module": "backend/src/services/notifications/domain-notifications.service.js",
+        "factory": "DomainNotifications",
+        "operations": [
+          "productOrder(options, session)",
+          "payment(options, session)",
+          "payroll(options, session)",
+          "application(options, session)",
+          "visit(options, session)"
+        ]
+      }
+    ],
+    "entities": [
+      "Notification",
+      "NotificationEvent"
+    ],
+    "useCases": [
+      "UC-88"
+    ],
+    "extras": []
+  },
+  {
+    "number": 18,
+    "title": "AI Feature Provenance, Training and Model Lifecycle",
+    "group": "AiLifecycle",
+    "slug": "ai-lifecycle",
+    "classDiagram": "class/class-ai-lifecycle.drawio",
+    "sources": [
+      "backend/src/services/sitter-matching/model-registry.service.js",
+      "backend/src/services/ai-training/dataset-export.service.js",
+      "backend/src/controllers/sitter-recommendations.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/sitter-matching/model-registry.service.js",
+        "factory": "ModelRegistry",
+        "operations": [
+          "status(actor)",
+          "importArtifact(actor, body)",
+          "review(actor, modelId, body, key)"
+        ]
+      },
+      {
+        "module": "backend/src/services/ai-training/dataset-export.service.js",
+        "factory": "TrainingDatasetExporter",
+        "operations": [
+          "collect(options)"
+        ]
+      }
+    ],
+    "entities": [
+      "SitterRankModel",
+      "SitterRankModelReview"
+    ],
+    "useCases": [],
+    "extras": [
+      {
+        "id": "AI-01",
+        "title": "Inspect training readiness",
+        "actor": "Admin",
+        "guard": "Read source joins and feature timestamps; exclude synthetic/stale/unverified labels",
+        "effect": "Return verified counts, shortages and blocked reasons without exporting real rows",
+        "alternative": "Readiness does not train, import, approve or assign",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/ai-01.drawio",
+        "sources": [
+          "backend/src/services/sitter-matching/model-registry.service.js",
+          "backend/src/services/ai-training/dataset-export.service.js",
+          "backend/src/controllers/sitter-recommendations.controller.js"
+        ]
+      },
+      {
+        "id": "AI-02",
+        "title": "Export verified training observations",
+        "actor": "Operator CLI",
+        "guard": "Require explicit apply/private output and export secret; at least 200 observations/50 booking groups",
+        "effect": "HMAC opaque identifiers; write private point-in-time JSONL and source/hash manifest",
+        "alternative": "Too few valid groups or truncated source -> no export file",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/ai-02.drawio",
+        "sources": [
+          "backend/src/services/ai-training/dataset-export.service.js",
+          "backend/scripts/ai/export-training-data.js"
+        ]
+      },
+      {
+        "id": "AI-03",
+        "title": "Train and bundle a draft additive model",
+        "actor": "Offline trainer",
+        "guard": "Validate verified satisfaction label, feature availability and grouped chronological split",
+        "effect": "Fit five nonnegative weights; retain baseline/test MAE and produce DRAFT JSON/evidence; bundle exact hashes",
+        "alternative": "Synthetic/OSRM/heuristic labels or temporal leakage -> reject; no automatic approval",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/ai-03.drawio",
+        "sources": [
+          "backend/scripts/ai/train_model.py",
+          "backend/scripts/ai/bundle_model.py"
+        ]
+      },
+      {
+        "id": "AI-04",
+        "title": "Import draft artifact and evidence",
+        "actor": "Admin",
+        "guard": "Validate exact JSON shape, DRAFT state, temporal evidence, hashes and immutable version",
+        "effect": "Persist SitterRankModel plus private original artifact/evidence for later review",
+        "alternative": "Same version/different bytes or evidence mismatch -> conflict",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/ai-04.drawio",
+        "sources": [
+          "backend/src/services/sitter-matching/model-registry.service.js",
+          "backend/src/services/ai-training/dataset-export.service.js",
+          "backend/src/controllers/sitter-recommendations.controller.js"
+        ]
+      },
+      {
+        "id": "AI-05",
+        "title": "Approve and activate a reviewed model",
+        "actor": "Admin after independent source review",
+        "guard": "Operational gate: independent source/evaluation review. API verifies current ADMIN, reviewReference, review version, improved MAE and artifact/evidence integrity",
+        "effect": "Transaction records review decision and activation guard; only an approved valid model is selected",
+        "alternative": "A reviewReference string does not itself prove reviewer independence; importer/reviewer separation is a process gate, not a demonstrated API rejection. Stale version -> conflict",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/ai-05.drawio",
+        "sources": [
+          "backend/src/services/sitter-matching/model-registry.service.js",
+          "backend/src/services/ai-training/dataset-export.service.js",
+          "backend/src/controllers/sitter-recommendations.controller.js"
+        ]
+      },
+      {
+        "id": "AI-06",
+        "title": "Retire model and use rule fallback",
+        "actor": "Admin / Runtime",
+        "guard": "Validate current model review version or runtime artifact gate",
+        "effect": "Retire immutable model version or retain explainable 30/25/20/15/10 policy when model is unusable",
+        "alternative": "No model or bad artifact never changes prices, eligibility or money",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/ai-06.drawio",
+        "sources": [
+          "backend/src/services/sitter-matching/model-registry.service.js",
+          "backend/src/services/ai-training/dataset-export.service.js",
+          "backend/src/controllers/sitter-recommendations.controller.js"
+        ]
+      },
+      {
+        "id": "AI-07",
+        "title": "Check vet-escort route and appointment feasibility",
+        "actor": "Customer / Staff",
+        "guard": "Require confirmed clinic, appointment, waiting budget and return scope; road route and buffered slot must cover the full plan",
+        "effect": "Compare outward/return ETA, appointment and waiting against requested slot; rank only feasible candidates",
+        "alternative": "Route unavailable, over review cap or infeasible appointment returns explicit review/conflict; specialized MATCH checkout still requires Staff scope review",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/ai-07.drawio",
+        "sources": [
+          "backend/src/services/sitter-matching/recommendation.service.js",
+          "backend/src/services/booking-proposals/match-selection.service.js"
+        ]
+      },
+      {
+        "id": "AI-08",
+        "title": "Advise an operational employee invitation shortlist",
+        "actor": "Dispatch service",
+        "guard": "Start with the authoritative eligible employee IDs; validate optional model, source statistics and road insertion feasibility",
+        "effect": "Reorder candidate IDs with captured decision-time features; retain unscored eligible IDs for authoritative invitation checks",
+        "alternative": "Partial routing/statistics failure cannot disqualify an otherwise eligible employee or mutate money; final acceptance rechecks occupancy",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/ai-08.drawio",
+        "sources": [
+          "backend/src/services/sitter-matching/operational-ranker.service.js",
+          "backend/src/services/employee-scheduling/employee-dispatch.service.js"
+        ]
+      }
+    ]
+  },
+  {
+    "number": 19,
+    "title": "Employment Documents and Applicant Self-Service",
+    "group": "Employment",
+    "slug": "employment",
+    "classDiagram": "class/class-employment.drawio",
+    "sources": [
+      "backend/src/services/payroll/employment-document.service.js",
+      "backend/src/services/applications/application-status-runtime.service.js",
+      "backend/src/controllers/employment-document.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/payroll/employment-document.service.js",
+        "factory": "EmploymentDocumentService",
+        "operations": [
+          "get(actor, applicationId)",
+          "save(actor, applicationId, body, key)",
+          "decide(actor, applicationId, documentId, body, key)",
+          "activate(application, employeeId, actor, session)"
+        ]
+      },
+      {
+        "module": "backend/src/services/applications/application-status-runtime.service.js",
+        "factory": "ApplicationStatusRuntimeService",
+        "operations": [
+          "createApplicationStatusRuntimeService(options)"
+        ]
+      }
+    ],
+    "entities": [
+      "EmploymentDocument",
+      "EmploymentContract"
+    ],
+    "useCases": [],
+    "extras": [
+      {
+        "id": "EMP-01",
+        "title": "Track and edit an owned pending application",
+        "actor": "Signed-in applicant",
+        "guard": "Bind application to authenticated owner/current verified legacy contact; check PENDING version",
+        "effect": "Read status directly without second OTP; edit only allowed fields with idempotent optimistic update",
+        "alternative": "Admin review racing owner edit -> one guarded commit; processed application is read-only",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/emp-01.drawio",
+        "sources": [
+          "backend/src/services/payroll/employment-document.service.js",
+          "backend/src/services/applications/application-status-runtime.service.js",
+          "backend/src/controllers/employment-document.controller.js"
+        ]
+      },
+      {
+        "id": "EMP-02",
+        "title": "Issue, sign and activate an employment document",
+        "actor": "Admin",
+        "guard": "Validate actual particulars, canonical gender, contract terms and document/application version",
+        "effect": "DRAFT -> ISSUED -> SIGNED -> ACTIVATED; retain encrypted immutable terms/hash and activate employment atomically",
+        "alternative": "Unsigned invalid legacy gender blocks issue/sign; signed history cannot be rewritten",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/emp-02.drawio",
+        "sources": [
+          "backend/src/services/payroll/employment-document.service.js",
+          "backend/src/services/applications/application-status-runtime.service.js",
+          "backend/src/controllers/employment-document.controller.js"
+        ]
+      },
+      {
+        "id": "EMP-03",
+        "title": "Prefill and print a versioned contract",
+        "actor": "Admin",
+        "guard": "Authorize private application/contract; preserve saved terms over optional suggestions",
+        "effect": "Allowlist verified prefill and render the selected document revision/reference for print",
+        "alternative": "Missing original identity/schedule is reported; do not guess or mass-backfill",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/emp-03.drawio",
+        "sources": [
+          "backend/src/services/payroll/employment-document.service.js",
+          "backend/src/services/applications/application-status-runtime.service.js",
+          "backend/src/controllers/employment-document.controller.js"
+        ]
+      }
+    ]
+  },
+  {
+    "number": 20,
+    "title": "Legacy Earnings, Holds and Settlement Reconciliation",
+    "group": "Settlement",
+    "slug": "settlement",
+    "classDiagram": "class/class-settlement.drawio",
+    "sources": [
+      "backend/src/services/settlements/settlement.service.js",
+      "backend/src/services/settlements/admin-settlement.service.js",
+      "backend/src/controllers/admin-settlement.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/settlements/settlement.service.js",
+        "factory": "CommandRunner",
+        "operations": [
+          "readOwn(options)",
+          "withdraw(options)",
+          "submit(options)"
+        ]
+      },
+      {
+        "module": "backend/src/services/settlements/admin-settlement.service.js",
+        "factory": "AdminSettlementService",
+        "operations": [
+          "list(options)",
+          "decide(input)",
+          "recordTransfer(input)"
+        ]
+      }
+    ],
+    "entities": [
+      "SettlementRequest",
+      "Earning"
+    ],
+    "useCases": [],
+    "extras": [
+      {
+        "id": "FIN-01",
+        "title": "Reserve and submit legacy weekly settlement",
+        "actor": "Pet Sitter",
+        "guard": "Read eligible available legacy earnings and cross-week booking quota under transaction guards",
+        "effect": "Reserve earning slices and weekly claims; persist submitted request plus command/event atomically",
+        "alternative": "Open case/refund, missing tax/payment or conflicting reservation -> hold/conflict",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/fin-01.drawio",
+        "sources": [
+          "backend/src/services/settlements/settlement.service.js",
+          "backend/src/services/settlements/admin-settlement.service.js",
+          "backend/src/controllers/admin-settlement.controller.js"
+        ]
+      },
+      {
+        "id": "FIN-02",
+        "title": "Approve, reject or withdraw settlement",
+        "actor": "Admin / Owner",
+        "guard": "Authorize actor/current request version and approved financial policy",
+        "effect": "Approve immutable amount or release reservation on eligible rejection/withdrawal with audited reason",
+        "alternative": "Approved onward cannot be silently withdrawn; employee wages use payroll instead",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/fin-02.drawio",
+        "sources": [
+          "backend/src/services/settlements/settlement.service.js",
+          "backend/src/services/settlements/admin-settlement.service.js",
+          "backend/src/controllers/admin-settlement.controller.js"
+        ]
+      },
+      {
+        "id": "FIN-03",
+        "title": "Record transfer and reconcile uncertain result",
+        "actor": "Admin",
+        "guard": "Validate reserved request, immutable amount, independent transfer evidence and unique bank reference",
+        "effect": "PAID only for confirmed matching transfer; UNKNOWN or amount mismatch stays reconciliation state",
+        "alternative": "Replayed acknowledgement cannot double-pay or release/reuse bank reference",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/fin-03.drawio",
+        "sources": [
+          "backend/src/services/settlements/settlement.service.js",
+          "backend/src/services/settlements/admin-settlement.service.js",
+          "backend/src/controllers/admin-settlement.controller.js"
+        ]
+      },
+      {
+        "id": "FIN-04",
+        "title": "Apply and release a case or refund money hold",
+        "actor": "Staff / Admin",
+        "guard": "Use authoritative booking/earning guard and case/refund source reference",
+        "effect": "Add audited financial lock; release only after final explicit authorized conclusion",
+        "alternative": "After payout create approved adjustment; never automatic clawback",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/fin-04.drawio",
+        "sources": [
+          "backend/src/services/settlements/settlement.service.js",
+          "backend/src/services/settlements/admin-settlement.service.js",
+          "backend/src/controllers/admin-settlement.controller.js"
+        ]
+      }
+    ]
+  },
+  {
+    "number": 21,
+    "title": "Background Jobs and Durable Application Mail",
+    "group": "Jobs",
+    "slug": "jobs",
+    "classDiagram": "class/class-jobs.drawio",
+    "sources": [
+      "backend/src/services/applications/application-mail.service.js",
+      "backend/src/jobs/employee-dispatch.job.js",
+      "backend/src/controllers/sitter-application.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/applications/application-mail.service.js",
+        "factory": "ApplicationMailService",
+        "operations": [
+          "enqueue(application, session)",
+          "runBatch(options)",
+          "list(applicationId)"
+        ]
+      },
+      {
+        "module": "backend/src/jobs/employee-dispatch.job.js",
+        "factory": "EmployeeDispatchWorker",
+        "operations": [
+          "stop()"
+        ]
+      }
+    ],
+    "entities": [
+      "ApplicationMail",
+      "EarningAccrualTask"
+    ],
+    "useCases": [],
+    "extras": [
+      {
+        "id": "JOB-01",
+        "title": "Publish visit reminders",
+        "actor": "Scheduled job",
+        "guard": "Bound eligible due visits and deduplicate reminder event/recipient",
+        "effect": "Publish one reminder through durable notification/provider ports",
+        "alternative": "This job export is not proof of runtime startup or inbox acceptance",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/job-01.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      },
+      {
+        "id": "JOB-02",
+        "title": "Dispatch invitations and expire unanswered offers",
+        "actor": "Employee dispatch worker",
+        "guard": "Require composed enabled worker, current booking/payment/care plan and eligible employee",
+        "effect": "Bound queue pass; recheck eligibility/occupancy; persist expiring invitation and next-candidate event",
+        "alternative": "No eligible employee or stale visit -> Staff attention; recommendation never assigns directly",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/job-02.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      },
+      {
+        "id": "JOB-03",
+        "title": "Reconcile payment reminders and overdue state",
+        "actor": "Payment job",
+        "guard": "Check due intent/current provider result before payment/overdue decision",
+        "effect": "Record deduplicated reminder/reconciliation; retain unknown provider result for Staff",
+        "alternative": "No automatic debt collection or expired-order revival",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/job-03.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      },
+      {
+        "id": "JOB-04",
+        "title": "Expire unpaid or uncollected product holds",
+        "actor": "Scheduled job",
+        "guard": "Design: identify expired current-state order under stock/version guard",
+        "effect": "Design: cancel once and release only its held quantities; preserve attributable refusal rule",
+        "alternative": "Full deadline scheduler integration still needs verification; prepaid timeout is not customer refusal",
+        "status": "DESIGN_PENDING_RUNTIME",
+        "diagram": "sequence/job-04.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      },
+      {
+        "id": "JOB-05",
+        "title": "Recompute approved customer tier",
+        "actor": "Scheduled job",
+        "guard": "Design requires an approved tier threshold/discount source and verified paid annual spend",
+        "effect": "Design: versioned tier assessment from eligible service/product/counter receipts",
+        "alternative": "No approved current tier source means no invented discount, points or fake customer rank",
+        "status": "DESIGN_PENDING_RUNTIME",
+        "diagram": "sequence/job-05.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      },
+      {
+        "id": "JOB-06",
+        "title": "Plan a feasible sitter visit order",
+        "actor": "Route planning job",
+        "guard": "Validate current authorized visits, registered work windows, road matrix and workload bounds",
+        "effect": "Design/export: bounded route order recommendation that preserves authoritative assignments",
+        "alternative": "OSRM estimate is not live traffic or a training satisfaction label",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/job-06.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      },
+      {
+        "id": "JOB-07",
+        "title": "Flag late check-in and operational attention",
+        "actor": "Operational sweep",
+        "guard": "Evaluate current visit/time against approved policy under bounded repeated sweep",
+        "effect": "Design/export: deduplicated Staff notice and Needs action escalation",
+        "alternative": "Do not charge arbitrary late fees or mark an unobserved visit completed",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/job-07.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      },
+      {
+        "id": "MAIL-01",
+        "title": "Retry durable application-status email",
+        "actor": "Application mail worker",
+        "guard": "Lease a due encrypted recipient snapshot; check bounded attempts and stable provider operation identity",
+        "effect": "Send configured mail; record accepted/failure and next retry without rolling back saved application",
+        "alternative": "Provider acceptance is not inbox delivery; preserve record after exhausted attempts",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/mail-01.drawio",
+        "sources": [
+          "backend/src/services/applications/application-mail.service.js",
+          "backend/src/jobs/employee-dispatch.job.js",
+          "backend/src/controllers/sitter-application.controller.js"
+        ]
+      }
+    ]
+  },
+  {
+    "number": 22,
+    "title": "Map, Private Media and Public Contact Boundaries",
+    "group": "MediaMaps",
+    "slug": "media-maps",
+    "classDiagram": "class/class-media-maps.drawio",
+    "sources": [
+      "backend/src/services/maps/location-search.service.js",
+      "backend/src/services/private-image.service.js",
+      "backend/src/controllers/private-image.controller.js"
+    ],
+    "operations": [
+      {
+        "module": "backend/src/services/maps/location-search.service.js",
+        "factory": "LocationSearchService",
+        "operations": [
+          "search(body)",
+          "resolve(body)"
+        ]
+      },
+      {
+        "module": "backend/src/services/private-image.service.js",
+        "factory": "PrivateImageService",
+        "operations": [
+          "upload(options)",
+          "read(options)"
+        ]
+      }
+    ],
+    "entities": [
+      "PrivateImage",
+      "ProfileAvatar"
+    ],
+    "useCases": [],
+    "extras": [
+      {
+        "id": "MAP-01",
+        "title": "Search and confirm a service-address map point",
+        "actor": "Customer",
+        "guard": "Authenticate same-origin map proxy; validate search/resolve input and supported coverage",
+        "effect": "Resolve provider result; explicit user pin confirmation saves private location/GeoJSON/version",
+        "alternative": "Missing provider or unsupported/ambiguous point remains explicit; do not expose provider key",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/map-01.drawio",
+        "sources": [
+          "backend/src/services/maps/location-search.service.js",
+          "backend/src/services/private-image.service.js",
+          "backend/src/controllers/private-image.controller.js"
+        ]
+      },
+      {
+        "id": "MAP-02",
+        "title": "Read road ETA and bounded route matrix",
+        "actor": "Matching / Dispatch service",
+        "guard": "Validate provider, origin/points, timeout, response bounds and exact cache identity",
+        "effect": "Use Vietmap or OSRM road ETA plus policy buffers; store 15-minute matrix edges",
+        "alternative": "No straight-line fabricated ETA, live-traffic guarantee or label substitution",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/map-02.drawio",
+        "sources": [
+          "backend/src/services/maps/location-search.service.js",
+          "backend/src/services/private-image.service.js",
+          "backend/src/controllers/private-image.controller.js"
+        ]
+      },
+      {
+        "id": "MEDIA-01",
+        "title": "Upload and read private care or applicant evidence",
+        "actor": "Authorized owner / Staff",
+        "guard": "Validate session/role, media ownership/type, encoded size, pixels and quota",
+        "effect": "Normalize bounded image; store private R2 reference and authorize each resource read",
+        "alternative": "Wrong owner/type/invalid image or unavailable provider -> reject; no public application URL",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/media-01.drawio",
+        "sources": [
+          "backend/src/services/maps/location-search.service.js",
+          "backend/src/services/private-image.service.js",
+          "backend/src/controllers/private-image.controller.js"
+        ]
+      },
+      {
+        "id": "MEDIA-02",
+        "title": "Replace an avatar or product photo",
+        "actor": "Owner / Admin",
+        "guard": "Validate entity ownership or Admin permission, image bounds and current media version",
+        "effect": "Normalize bounded avatar/product bytes in MongoDB; update version/hash/tombstone transactionally",
+        "alternative": "Profile/product snapshot history and owner guards survive replacement/removal",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/media-02.drawio",
+        "sources": [
+          "backend/src/services/maps/location-search.service.js",
+          "backend/src/services/private-image.service.js",
+          "backend/src/controllers/private-image.controller.js"
+        ]
+      },
+      {
+        "id": "CONTACT-01",
+        "title": "Send a public contact enquiry",
+        "actor": "Guest",
+        "guard": "Validate bounded enquiry and server-configured inbox/provider; apply rate limits",
+        "effect": "Submit through backend contact-delivery port; return safe accepted/unavailable result",
+        "alternative": "A configured adapter does not prove inbox receipt; do not expose inbox credentials",
+        "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+        "diagram": "sequence/contact-01.drawio",
+        "sources": [
+          "backend/src/services/maps/location-search.service.js",
+          "backend/src/services/private-image.service.js",
+          "backend/src/controllers/private-image.controller.js"
+        ]
+      },
+      {
+        "id": "PWA-01",
+        "title": "Install and recover the web application shell",
+        "actor": "Browser user",
+        "guard": "Require supported browser/HTTPS and current manifest/service-worker asset version",
+        "effect": "Cache only approved application-shell assets; retain online/offline status and request retry feedback",
+        "alternative": "No offline financial command success, cached private API data or background GPS guarantee is inferred; device acceptance remains pending",
+        "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+        "diagram": "sequence/pwa-01.drawio",
+        "sources": [
+          "backend/src/services/maps/location-search.service.js",
+          "backend/src/services/private-image.service.js",
+          "backend/src/controllers/private-image.controller.js"
+        ]
+      }
+    ]
+  }
+]

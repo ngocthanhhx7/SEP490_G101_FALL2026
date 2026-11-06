@@ -1,0 +1,236 @@
+[
+  {
+    "name": "EmergencyContact",
+    "collectionOrEmbeddedPath": "proposed emergencycontacts",
+    "scope": "UC-12 / care safety",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "ownerId": "ObjectId",
+      "name": "String",
+      "phoneCiphertext": "String",
+      "relationship": "String",
+      "state": "ACTIVE|ARCHIVED",
+      "version": "Integer",
+      "createdAt": "Date",
+      "updatedAt": "Date"
+    },
+    "invariant": "Private contact. Owner-authorized, explicit user-provided relationship; no inferred identity. Keep separately encrypted from public sitter profile."
+  },
+  {
+    "name": "DayOffRequest",
+    "collectionOrEmbeddedPath": "proposed dayoffrequests",
+    "scope": "UC-79",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "sitterId": "ObjectId",
+      "startLocalDate": "YYYY-MM-DD",
+      "endLocalDate": "YYYY-MM-DD",
+      "reason": "String",
+      "state": "SUBMITTED|APPROVED|REJECTED|WITHDRAWN",
+      "availabilityVersion": "Integer",
+      "affectedVisitVersions": "{visitId,version}[]",
+      "decisionBy": "ObjectId|null",
+      "decisionReason": "String|null",
+      "version": "Integer",
+      "commandKey": "String",
+      "createdAt": "Date",
+      "decidedAt": "Date|null"
+    },
+    "invariant": "Approval writes date exclusions and replacement/handover events transactionally. Near-term withdrawal follows Staff decision; no automatic salary reduction. Dates use Asia/Ho_Chi_Minh."
+  },
+  {
+    "name": "BookingChangeRequest",
+    "collectionOrEmbeddedPath": "proposed bookingchangerequests",
+    "scope": "UC-84 / UC-85",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "bookingId": "ObjectId",
+      "visitId": "ObjectId",
+      "customerId": "ObjectId",
+      "oldSlot": "{startAt:Date,endAt:Date}",
+      "requestedSlot": "{startAt:Date,endAt:Date}",
+      "sourceVisitVersion": "Integer",
+      "policyVersion": "String",
+      "state": "PENDING|APPROVED|REJECTED|EXPIRED",
+      "decisionBy": "ObjectId|null",
+      "decisionReason": "String|null",
+      "expiresAt": "Date",
+      "version": "Integer",
+      "createdAt": "Date",
+      "decidedAt": "Date|null"
+    },
+    "invariant": "Time-only change preserves price snapshot. Request/decision/expiry use approved versioned cutoffs and occupancy recheck; unresolved policy is not replaced by guessed constants."
+  },
+  {
+    "name": "IncidentCaseExtension",
+    "collectionOrEmbeddedPath": "proposed extension of existing cases",
+    "scope": "UC-47 / UC-48",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "String",
+      "kind": "INCIDENT",
+      "visitId": "ObjectId",
+      "bookingId": "ObjectId",
+      "reportedBy": "ObjectId",
+      "category": "String",
+      "description": "String",
+      "evidenceRefs": "PrivateMediaRef[]",
+      "state": "OPEN|UNDER_REVIEW|RESOLVED|CLOSED",
+      "followUpActions": "{actorId,at,note,evidenceRefs}[]",
+      "financialHold": "Boolean",
+      "proposedFinancialDecisionRef": "String|null",
+      "finalDecisionRef": "String|null",
+      "version": "Integer",
+      "createdAt": "Date",
+      "closedAt": "Date|null"
+    },
+    "invariant": "Reuse case aggregate and audited financial locks. Staff proposes evidenced outcome; approved Admin decision is a separate reference. Do not assume incident route has current runtime acceptance."
+  },
+  {
+    "name": "GoodsReceipt",
+    "collectionOrEmbeddedPath": "proposed goodsreceipts",
+    "scope": "UC-70",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "supplierId": "ObjectId",
+      "receivedBy": "ObjectId",
+      "receivedAt": "Date",
+      "lines": "{productId,receivedQty,acceptedQty,rejectedQty,rejectionReason}[]",
+      "state": "RECORDED",
+      "stockLedgerRefs": "String[]",
+      "version": "Integer",
+      "idempotencyKey": "String",
+      "payloadFingerprint": "String",
+      "createdAt": "Date"
+    },
+    "invariant": "All quantities integer >=0; accepted+rejected=received per line. Record even all-rejected delivery; increment only accepted stock, deduplicate command/ledger. PR158 is not treated as merged runtime."
+  },
+  {
+    "name": "StockLedgerEntry",
+    "collectionOrEmbeddedPath": "proposed stockledgerentries",
+    "scope": "UC-70 / UC-71 / UC-95",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "String",
+      "productId": "ObjectId",
+      "kind": "RECEIPT|SALE|RETURN|ADJUSTMENT",
+      "deltaOnHand": "Integer",
+      "deltaHeld": "Integer",
+      "sourceRef": "String",
+      "sourceVersion": "Integer",
+      "actorId": "ObjectId",
+      "reason": "String",
+      "beforeVersion": "Integer",
+      "afterVersion": "Integer",
+      "recordedAt": "Date"
+    },
+    "invariant": "Append-only event/source identity. Current product/order snapshots remain authoritative until reviewed migration. Ledger must be committed with guarded stock update; never rewrite an old receipt."
+  },
+  {
+    "name": "StockAdjustment",
+    "collectionOrEmbeddedPath": "proposed stockadjustments",
+    "scope": "UC-95",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "productId": "ObjectId",
+      "quantityDelta": "Integer !=0",
+      "reasonCode": "DAMAGED|LOST|INTERNAL_USE|RECEIPT_CORRECTION",
+      "reason": "String",
+      "actorId": "ObjectId",
+      "expectedStockVersion": "Integer",
+      "ledgerRef": "String",
+      "state": "APPLIED",
+      "idempotencyKey": "String",
+      "createdAt": "Date"
+    },
+    "invariant": "Admin only; decrease cannot exceed sellable quantity, stock cannot go below zero. Atomic version/quantity guard plus immutable reason/audit; no change to earlier receipts."
+  },
+  {
+    "name": "GroomingVisitExtension",
+    "collectionOrEmbeddedPath": "proposed embedded visit.grooming",
+    "scope": "UC-58 / UC-59 / UC-60 / UC-91",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "receivedAt": "Date|null",
+      "receivedBy": "ObjectId|null",
+      "arrivalCondition": "String",
+      "arrivalEvidenceRefs": "PrivateMediaRef[]",
+      "declaredCareSnapshotRef": "String",
+      "surchargeProposal": "{policyVersion,amountVnd,reason}|null",
+      "customerConsentRef": "String|null",
+      "assignedSitterId": "ObjectId|null",
+      "workState": "BOOKED|RECEIVED|IN_PROGRESS|READY|STOPPED|HANDED_BACK|CANCELLED",
+      "stopReason": "String|null",
+      "readyAt": "Date|null",
+      "handedBackAt": "Date|null",
+      "paymentReceiptRef": "String|null",
+      "version": "Integer"
+    },
+    "invariant": "Reuse Booking/Visit instead of duplicate booking system. Qualified employee on shift; explicit consent for approved surcharge; final receipt evidence before hand-back. No unapproved surcharge rate is specified."
+  },
+  {
+    "name": "ProductFaultyClaim",
+    "collectionOrEmbeddedPath": "proposed productfaultyclaims",
+    "scope": "UC-92 / UC-93",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "orderId": "ObjectId",
+      "customerId": "ObjectId",
+      "lines": "{productId,quantity,reason}[]",
+      "evidenceRefs": "PrivateMediaRef[]",
+      "claimPolicyVersion": "String",
+      "state": "SUBMITTED|UNDER_REVIEW|APPROVED_EXCHANGE|APPROVED_REFUND|REJECTED|RESOLVED",
+      "staffReview": "{actorId,at,note}|null",
+      "adminDecision": "{actorId,at,reason,decision}|null",
+      "replacementOrderRef": "String|null",
+      "refundRef": "String|null",
+      "version": "Integer",
+      "createdAt": "Date"
+    },
+    "invariant": "Owner/order/deadline/evidence check; Admin approves same-product exchange or external refund. Faulty goods are never restocked; new replacement stock is decremented once. Change-of-mind return is excluded."
+  },
+  {
+    "name": "AccessNoteAudit",
+    "collectionOrEmbeddedPath": "proposed accessnoteaudits",
+    "scope": "UC-90",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "String",
+      "visitId": "ObjectId",
+      "actorId": "ObjectId",
+      "assignmentVersion": "Integer",
+      "careSnapshotHash": "String",
+      "action": "READ_GRANTED|READ_DENIED",
+      "reasonCode": "String",
+      "occurredAt": "Date",
+      "correlationId": "String"
+    },
+    "invariant": "Record actor/time/resource/decision, never note text, key code or address secrets. Current assigned-care reader does not itself establish this audit event."
+  },
+  {
+    "name": "CustomerTierAssessment",
+    "collectionOrEmbeddedPath": "proposed customertierassessments",
+    "scope": "SRS GBR-42 / JOB-05",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "customerId": "ObjectId",
+      "policyVersion": "String",
+      "periodStart": "Date",
+      "periodEnd": "Date",
+      "verifiedSpendVnd": "Integer",
+      "receiptSourceHash": "String",
+      "assessedTier": "String",
+      "discountEligibility": "Boolean",
+      "state": "DRAFT|APPROVED|SUPERSEDED",
+      "createdAt": "Date"
+    },
+    "invariant": "Disabled until approved tier names/thresholds/discounts and source rules exist. Only verified paid source joins; no arbitrary rates or fabricated profile DTO tier."
+  }
+]

@@ -1,0 +1,287 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="Identity and customer" id="rel-0">
+    <mxGraphModel page="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="User" value="User&#10;users&#10;displayName: String&#10;roles: Array[String]&#10;state: String&#10;authEpoch: Number&#10;version: Number&#10;synthetic: Boolean&#10;fixtureKey: String&#10;policyConsents: Array[subdocument]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Contact" value="Contact&#10;contacts&#10;userId: ObjectId&#10;channel: String&#10;canonicalCiphertext: String&#10;lookupKey: String&#10;state: String&#10;verifiedAt: Date&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="AuthSession" value="AuthSession&#10;authsessions&#10;sessionId: String&#10;userId: ObjectId&#10;tokenDigest: String&#10;csrfDigest: String&#10;authEpochAtIssue: Number&#10;expiresAt: Date&#10;revokedAt: Date&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Pet" value="Pet&#10;pets&#10;ownerId: ObjectId&#10;name: String&#10;species: String&#10;breedCode: String&#10;weightKg: Number&#10;traits: Array[String]&#10;careNeedsConfirmed: Boolean&#10;ageMonths: Number&#10;sex: String&#10;careProfile: Map&#10;state: String&#10;version: Number&#10;_id: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="CustomerAddress" value="CustomerAddress&#10;customeraddresses&#10;ownerId: ObjectId&#10;label: String&#10;location: String&#10;point: Embedded&#10;areaCode: String&#10;pointConfirmedAt: Date&#10;privateAccessNotes: String&#10;state: String&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Notification" value="Notification&#10;notifications&#10;_id: String&#10;eventId: String&#10;recipientId: String&#10;role: String&#10;eventType: String&#10;title: String&#10;message: String&#10;channel: String&#10;deepLink: String&#10;metadata: Mixed&#10;createdAt: Date&#10;readAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="edge0" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="User" target="Contact" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge1" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="User" target="AuthSession" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge2" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="User" target="Pet" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge3" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="User" target="CustomerAddress" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge4" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="User" target="Notification" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Employment and dispatch" id="rel-1">
+    <mxGraphModel page="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="SitterApplication" value="SitterApplication&#10;sitterapplications&#10;contractGuard: Number&#10;ownerUserId: ObjectId&#10;policyConsents: Array[subdocument]&#10;displayName: String&#10;contactChannel: String&#10;contactCiphertext: String&#10;contactLookupKey: String&#10;applicantParticularsCiphertext: String&#10;identityLookupKey: String&#10;activePendingOwnerUserId: ObjectId&#10;activePendingContactKey: String&#10;activePendingIdentityKey: String&#10;ageEligible: Boolean" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="EmploymentDocument" value="EmploymentDocument&#10;employmentdocuments&#10;applicationId: ObjectId&#10;applicationVersion: Number&#10;revision: Number&#10;reference: String&#10;employeeCode: String&#10;templateVersion: String&#10;state: String&#10;encryptedTerms: String&#10;termsHash: String&#10;createdBy: ObjectId&#10;createdAt: Date&#10;issuedAt: Date&#10;signedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="EmploymentContract" value="EmploymentContract&#10;employmentcontracts&#10;workScheduleMode: String&#10;minimumWeeklyMinutes: Number&#10;documentId: ObjectId&#10;employeeCode: String&#10;schedule: Mixed&#10;paySchedule: String&#10;monthlyAllowanceVnd: Number&#10;employeeId: ObjectId&#10;version: Number&#10;employmentType: String&#10;salaryBasis: String&#10;monthlyBaseVnd: Number&#10;payCycle: String" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="EmployeeAvailability" value="EmployeeAvailability&#10;employeeavailabilities&#10;_id: String&#10;zone: String&#10;workingWindows: Array[Mixed]&#10;areas: Array[String]&#10;dayOffDates: Array[String]&#10;state: String&#10;version: Number&#10;effectiveFrom: String" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="EmployeeVisitOffer" value="EmployeeVisitOffer&#10;employeevisitoffers&#10;visitId: ObjectId&#10;sitterId: String&#10;state: String&#10;version: Number&#10;offeredAt: Date&#10;deadline: Date&#10;startAt: Date&#10;endAt: Date&#10;serviceName: String&#10;areaCode: String&#10;pets: Array[Mixed]&#10;decidedAt: Date&#10;originRouteRequired: Boolean" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SitterMatchingProfile" value="SitterMatchingProfile&#10;aisitterprofiles&#10;changedBy: ObjectId&#10;userId: ObjectId&#10;serviceIds: Array[ObjectId]&#10;species: Array[String]&#10;areaCodes: Array[String]&#10;allowedTraits: Array[String]&#10;maxWeightKg: Number&#10;maxPets: Number&#10;active: Boolean&#10;timeZone: String&#10;windows: Array[subdocument]&#10;dayOffDates: Array[String]&#10;starts: Array[subdocument]" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="edge0" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="SitterApplication" target="EmploymentDocument" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge1" value="1 → 0..1 (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmploymentDocument" target="EmploymentContract" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge2" value="1 → 0..1 (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmploymentContract" target="EmployeeAvailability" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge3" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmployeeAvailability" target="EmployeeVisitOffer" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge4" value="1 → 0..1 (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmployeeAvailability" target="SitterMatchingProfile" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Orders and inventory" id="rel-2">
+    <mxGraphModel page="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Product" value="Product&#10;products&#10;code: String&#10;name: String&#10;category: String&#10;petType: String&#10;description: String&#10;photos: Array[String]&#10;catalogSource: String&#10;sampleCatalog: Boolean&#10;sellingPrice: Number&#10;stockOnHand: Number&#10;quantityHeld: Number&#10;visible: Boolean&#10;deletedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Supplier" value="Supplier&#10;suppliers&#10;name: String&#10;nameKey: String&#10;contactName: String&#10;phone: String&#10;email: String&#10;productIds: Array[ObjectId]&#10;status: String&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="ProductCart" value="ProductCart&#10;productcarts&#10;customerId: ObjectId&#10;lines: Array[subdocument]&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="ProductOrder" value="ProductOrder&#10;productorders&#10;code: String&#10;customerId: ObjectId&#10;lines: Array[subdocument]&#10;receiveMethod: String&#10;deliveryAddress: Embedded&#10;subtotal: Number&#10;shippingFee: Number&#10;total: Number&#10;paymentMethod: String&#10;paid: Boolean&#10;trackingCode: String&#10;status: String&#10;deliveredAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="ProductPhoto" value="ProductPhoto&#10;productphotos&#10;productId: ObjectId&#10;digest: String&#10;content: Buffer&#10;byteLength: Number&#10;width: Number&#10;height: Number&#10;uploadedBy: ObjectId&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="ProductCustomerRefusal" value="ProductCustomerRefusal&#10;productcustomerrefusals&#10;customerId: ObjectId&#10;orderId: ObjectId&#10;reason: String&#10;occurredAt: Date&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="edge0" value="0..* → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Supplier" target="Product" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge1" value="0..* → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="ProductCart" target="Product" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge2" value="0..* → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="ProductOrder" target="Product" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge3" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Product" target="ProductPhoto" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge4" value="1 → 0..1 (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="ProductOrder" target="ProductCustomerRefusal" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="AI and outcomes" id="rel-3">
+    <mxGraphModel page="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="SitterMatchingProfile" value="SitterMatchingProfile&#10;aisitterprofiles&#10;changedBy: ObjectId&#10;userId: ObjectId&#10;serviceIds: Array[ObjectId]&#10;species: Array[String]&#10;areaCodes: Array[String]&#10;allowedTraits: Array[String]&#10;maxWeightKg: Number&#10;maxPets: Number&#10;active: Boolean&#10;timeZone: String&#10;windows: Array[subdocument]&#10;dayOffDates: Array[String]&#10;starts: Array[subdocument]" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SitterScheduleBlock" value="SitterScheduleBlock&#10;aischeduleblocks&#10;changedBy: ObjectId&#10;sourceRef: String&#10;sitterId: ObjectId&#10;visitId: ObjectId&#10;startAt: Date&#10;endAt: Date&#10;point: Embedded&#10;endPoint: Embedded&#10;state: String&#10;holdExpiresAt: Date&#10;kind: String&#10;version: Number&#10;_id: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SitterVisitOutcome" value="SitterVisitOutcome&#10;aivisitoutcomes&#10;visitId: ObjectId&#10;sitterId: ObjectId&#10;serviceId: ObjectId&#10;petIds: Array[ObjectId]&#10;species: Array[String]&#10;occurredAt: Date&#10;resolution: String&#10;rating: Number&#10;onTime: Boolean&#10;verifiedBy: ObjectId&#10;sourceRef: String&#10;provenance: Mixed&#10;_id: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SitterRankingPolicy" value="SitterRankingPolicy&#10;airankingpolicies&#10;version: Number&#10;status: String&#10;effectiveAt: Date&#10;approvedBy: ObjectId&#10;approvedAt: Date&#10;approvalSource: String&#10;weights: Embedded&#10;reason: String&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SitterRankModel" value="SitterRankModel&#10;airankmodels&#10;artifactJson: String&#10;artifactSha256: String&#10;trainingEvidence: Mixed&#10;importedBy: ObjectId&#10;reviewVersion: Number&#10;version: String&#10;state: String&#10;weights: Embedded&#10;sha256: String&#10;trainingRows: Number&#10;testMae: Number&#10;baselineMae: Number&#10;testGroups: Number" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="DecisionSnapshot" value="DecisionSnapshot&#10;aidecisions&#10;ownerId: ObjectId&#10;kind: String&#10;requestHash: String&#10;expiresAt: Date&#10;snapshot: Mixed&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="edge0" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="SitterMatchingProfile" target="SitterScheduleBlock" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge1" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="SitterMatchingProfile" target="SitterVisitOutcome" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge2" value="1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="SitterRankingPolicy" target="DecisionSnapshot" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge3" value="0..1 → 0..* (logical reference)" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="SitterRankModel" target="DecisionSnapshot" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Booking / care / payment" id="rel-extra-0">
+    <mxGraphModel page="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Booking" value="Booking&#10;bookings&#10;_id: ObjectId&#10;customerId: ObjectId&#10;quoteId: ObjectId&#10;quoteVersion: Integer&#10;originalVisitCount: Integer&#10;visitIds: ObjectId[]&#10;state: String&#10;paymentMode: PREPAY|POSTPAY&#10;paymentState: String&#10;paymentSnapshot: {amountVnd:Integer,currency:VND}&#10;paymentDeadlineAt: Date (PREPAY)&#10;version: Integer" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Visit" value="Visit&#10;visits&#10;_id: ObjectId&#10;bookingId: ObjectId&#10;customerId: ObjectId&#10;serviceId: ObjectId&#10;petIds: ObjectId[]&#10;sitterId: ObjectId|null&#10;state: String&#10;version: Integer&#10;sequence: Integer&#10;areaCode: String&#10;requestedSitterId: ObjectId|null&#10;bookingMode: String" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="PaymentIntent" value="PaymentIntent&#10;paymentintents&#10;_id: ObjectId&#10;bookingId: ObjectId&#10;customerId: ObjectId&#10;provider: PAYOS&#10;providerReference: String&#10;amountVnd: Integer&#10;currency: VND&#10;state: PENDING|PAID|other guarded state&#10;version: Integer&#10;expiresAt: Date&#10;createdAt: Date&#10;paidAt: Date (verified callback)" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Payment" value="Payment&#10;payments&#10;_id: ObjectId&#10;bookingId: ObjectId|null&#10;intentId: ObjectId|null&#10;provider: PAYOS&#10;providerEventId: String&#10;providerTransactionReference: String&#10;state: VERIFIED|RECONCILIATION_REQUIRED&#10;receiptMoney: {amountVnd:Integer,currency:VND}&#10;reconcileReason: String (reconciliation)&#10;verifiedAt: Date (verified)&#10;receivedAt: Date&#10;version: Integer" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Case" value="Case&#10;cases&#10;_id: String (logical complaint identity)&#10;visitId: ObjectId&#10;bookingId: ObjectId&#10;customerId: ObjectId&#10;sitterId: ObjectId&#10;kind: COMPLAINT|other case contract&#10;category: String enum&#10;description: String&#10;evidenceRefs: {mediaId,kind,caption}[]&#10;state: OPEN|UNDER_REVIEW|RESOLVED|CLOSED&#10;version: Integer&#10;createdAt: ISO instant String" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="Refund" value="Refund&#10;refunds&#10;_id: ObjectId or legacy contract identity&#10;bookingId: ObjectId&#10;state: String (financial lock reader contract)" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="edge-0" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Booking" target="Visit" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-1" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Booking" target="PaymentIntent" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-2" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="PaymentIntent" target="Payment" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-3" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Visit" target="Case" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-4" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Booking" target="Refund" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Employee payroll" id="rel-extra-1">
+    <mxGraphModel page="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="EmploymentContract" value="EmploymentContract&#10;employmentcontracts&#10;workScheduleMode: String&#10;minimumWeeklyMinutes: Number&#10;documentId: ObjectId&#10;employeeCode: String&#10;schedule: Mixed&#10;paySchedule: String&#10;monthlyAllowanceVnd: Number&#10;employeeId: ObjectId&#10;version: Number&#10;employmentType: String&#10;salaryBasis: String&#10;monthlyBaseVnd: Number" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="PayrollServiceCredit" value="PayrollServiceCredit&#10;payrollservicecredits&#10;visitId: ObjectId&#10;bookingId: ObjectId&#10;employeeId: ObjectId&#10;completedAt: Date&#10;serviceNetVnd: Number&#10;careMinutes: Number&#10;onTime: Boolean&#10;reportsComplete: Boolean&#10;sourceVersion: Number&#10;policyVersion: String&#10;_id: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="PayrollStatement" value="PayrollStatement&#10;payrollstatements&#10;reference: String&#10;employeeName: String&#10;employeeCode: String&#10;employeeId: ObjectId&#10;contractId: ObjectId&#10;periodStart: Date&#10;periodEnd: Date&#10;monthKey: String&#10;dueAt: Date&#10;payCycle: String&#10;status: String&#10;version: Number" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SalaryAdvance" value="SalaryAdvance&#10;salaryadvances&#10;employeeId: ObjectId&#10;contractId: ObjectId&#10;monthKey: String&#10;amountVnd: Number&#10;status: String&#10;version: Number&#10;reason: String&#10;decisionReason: String&#10;requestedAt: Date&#10;decidedBy: ObjectId&#10;decidedAt: Date&#10;paidBy: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="PayrollAdjustment" value="PayrollAdjustment&#10;payrolladjustments&#10;employeeId: ObjectId&#10;statementId: ObjectId&#10;statementVersion: Number&#10;direction: String&#10;amountVnd: Number&#10;reason: String&#10;assessmentReference: String&#10;status: String&#10;version: Number&#10;requestedAt: Date&#10;preparedBy: ObjectId&#10;decidedBy: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="EmploymentDocument" value="EmploymentDocument&#10;employmentdocuments&#10;applicationId: ObjectId&#10;applicationVersion: Number&#10;revision: Number&#10;reference: String&#10;employeeCode: String&#10;templateVersion: String&#10;state: String&#10;encryptedTerms: String&#10;termsHash: String&#10;createdBy: ObjectId&#10;createdAt: Date&#10;issuedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="edge-0" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmploymentDocument" target="EmploymentContract" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-1" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmploymentContract" target="PayrollServiceCredit" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-2" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmploymentContract" target="PayrollStatement" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-3" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="PayrollStatement" target="PayrollAdjustment" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-4" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="EmploymentContract" target="SalaryAdvance" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Legacy settlement separation" id="rel-extra-2">
+    <mxGraphModel page="1" pageWidth="1600" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Earning" value="Earning&#10;earnings&#10;earningId: String&#10;sitterId: String&#10;visitId: String&#10;bookingId: String&#10;completedAt: Date&#10;sourceSnapshotId: String&#10;earningPeriodKey: String&#10;accruedVnd: Number&#10;pendingVnd: Number&#10;heldVnd: Number&#10;availableVnd: Number&#10;reservedVnd: Number" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SettlementRequest" value="SettlementRequest&#10;settlementrequests&#10;id: String&#10;sitterId: String&#10;requestWeekKey: String&#10;startsAt: Date&#10;endsAt: Date&#10;earningIds: Array[String]&#10;earningSnapshots: Array[subdocument]&#10;amountVnd: Number&#10;currency: String&#10;status: String&#10;version: Number&#10;submittedAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="EarningLedgerEntry" value="EarningLedgerEntry&#10;earningledgerentries&#10;lineId: String&#10;operationId: String&#10;requestId: String&#10;earningId: String&#10;sitterId: String&#10;fromBucket: String&#10;toBucket: String&#10;amountVnd: Number&#10;policyVersion: String&#10;decisionVersion: String&#10;actorId: String&#10;occurredAt: Date" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="40" width="430" height="350" />
+        </mxCell>
+        <mxCell id="SettlementTransfer" value="SettlementTransfer&#10;settlementtransfers&#10;requestId: String&#10;version: Number&#10;adminId: String&#10;outcome: String&#10;reference: String&#10;evidenceReference: String&#10;amountVnd: Number&#10;paidAt: Date&#10;recordedAt: Date&#10;_id: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="FinancialLock" value="FinancialLock&#10;financiallocks&#10;resourceType: String&#10;resourceId: String&#10;lockType: String&#10;reference: String&#10;state: String&#10;actorId: String&#10;createdAt: Date&#10;releasedAt: Date&#10;releasedBy: String&#10;_id: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="560" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="EarningAdjustment" value="EarningAdjustment&#10;earningadjustments&#10;id: String&#10;earningId: String&#10;sitterId: String&#10;sourceReference: String&#10;sourceType: String&#10;status: String&#10;proposedAmountVnd: Number&#10;createdBy: String&#10;createdAt: Date&#10;_id: ObjectId" style="rounded=0;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=13;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1090" y="520" width="430" height="350" />
+        </mxCell>
+        <mxCell id="edge-0" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Earning" target="SettlementRequest" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-1" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Earning" target="EarningLedgerEntry" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-2" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="SettlementRequest" target="SettlementTransfer" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-3" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Earning" target="FinancialLock" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+        <mxCell id="edge-4" value="logical reference / snapshot" style="edgeStyle=orthogonalEdgeStyle;endArrow=none;fontSize=12;html=0;" edge="1" source="Earning" target="EarningAdjustment" parent="1">
+          <mxGeometry as="geometry" relative="1" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

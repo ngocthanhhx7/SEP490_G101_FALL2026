@@ -1,0 +1,765 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" version="24.7.17">
+  <diagram name="Schema 01 — ApplicationMail, ProfileAvatar, CustomerVisitReview, CustomerReviewCommand, DecisionSnapshot, BookingEarningSnapshot" id="schema-1">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="964">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-ApplicationMail" value="ApplicationMail&#10;application_mails" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="302" />
+        </mxCell>
+        <mxCell id="fields-ApplicationMail" value="_id: String&#10;applicationId: ObjectId [required]&#10;ownerUserId: ObjectId&#10;applicationVersion: Number [required]&#10;applicationState: String [required]&#10;contactCiphertext: String&#10;operationId: String [required]&#10;deliveryState: String [required]&#10;attempts: Number&#10;failureCode: String&#10;createdAt: Date [required]&#10;nextAttemptAt: Date [required]&#10;leaseUntil: Date&#10;acceptedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ApplicationMail">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="256" />
+        </mxCell>
+        <mxCell id="entity-ProfileAvatar" value="ProfileAvatar&#10;profileavatars" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-ProfileAvatar" value="_id: String [required]&#10;version: Number [required]&#10;body: Buffer&#10;fingerprint: String [required]&#10;present: Boolean [required]&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ProfileAvatar">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+        <mxCell id="entity-CustomerVisitReview" value="CustomerVisitReview&#10;reviews" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="302" />
+        </mxCell>
+        <mxCell id="fields-CustomerVisitReview" value="_id: String&#10;visitId: String&#10;customerId: String&#10;sitterId: String&#10;direction: String&#10;rating: Number&#10;comment: String&#10;tags: Array[String]&#10;state: String&#10;visibility: String&#10;version: Number&#10;createdAt: Date&#10;updatedAt: Date&#10;verifiedSource: Mixed" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-CustomerVisitReview">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="256" />
+        </mxCell>
+        <mxCell id="entity-CustomerReviewCommand" value="CustomerReviewCommand&#10;customerreviewcommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="402" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-CustomerReviewCommand" value="_id: String&#10;payloadHash: String&#10;result: Mixed" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-CustomerReviewCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-DecisionSnapshot" value="DecisionSnapshot&#10;aidecisions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="402" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-DecisionSnapshot" value="ownerId: ObjectId [required]&#10;kind: String [required]&#10;requestHash: String [required]&#10;expiresAt: Date [required]&#10;snapshot: Mixed [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-DecisionSnapshot">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-BookingEarningSnapshot" value="BookingEarningSnapshot&#10;bookingearningsnapshots" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="402" width="540" height="482" />
+        </mxCell>
+        <mxCell id="fields-BookingEarningSnapshot" value="id: String [required]&#10;bookingId: String [required]&#10;sitterId: String [required]&#10;completedAt: Date [required]&#10;weekKey: String [required]&#10;ordinal: Number [required]&#10;serviceBasisVnd: Number [required]&#10;feeBasisPoints: Number [required]&#10;commissionVnd: Number [required]&#10;confirmedTaxVnd: Number [required]&#10;sitterTaxCostVnd: Number [required]&#10;platformTaxCostVnd: Number [required]&#10;accruedVnd: Number [required]&#10;policyVersion: String [required]&#10;allocationPolicyVersion: String&#10;decisionVersion: String [required]&#10;sourceVersion: String [required]&#10;sourceHash: String [required]&#10;completionReference: String [required]&#10;paymentReference: String [required]&#10;allocationReference: String [required]&#10;assessmentReference: String [required]&#10;createdAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-BookingEarningSnapshot">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="436" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 02 — WeeklyBookingCounter, CompletedBookingOrdinal, EarningAccrualOutbox, EmployeeAvailability, EmployeeAvailabilityRevision, EmployeeScheduleCommand" id="schema-2">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="550">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-WeeklyBookingCounter" value="WeeklyBookingCounter&#10;weeklybookingcounters" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-WeeklyBookingCounter" value="sitterId: String [required]&#10;weekKey: String [required]&#10;count: Number [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-WeeklyBookingCounter">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-CompletedBookingOrdinal" value="CompletedBookingOrdinal&#10;completedbookingordinals" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-CompletedBookingOrdinal" value="bookingId: String [required]&#10;sitterId: String [required]&#10;completedAt: Date [required]&#10;weekKey: String [required]&#10;ordinal: Number [required]&#10;completionReference: String [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-CompletedBookingOrdinal">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+        <mxCell id="entity-EarningAccrualOutbox" value="EarningAccrualOutbox&#10;earningaccrualoutboxes" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-EarningAccrualOutbox" value="eventId: String [required]&#10;type: String [required]&#10;snapshotId: String [required]&#10;state: String [required]&#10;createdAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EarningAccrualOutbox">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-EmployeeAvailability" value="EmployeeAvailability&#10;employeeavailabilities" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="276" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-EmployeeAvailability" value="_id: String&#10;zone: String&#10;workingWindows: Array[Mixed]&#10;areas: Array[String]&#10;dayOffDates: Array[String]&#10;state: String&#10;version: Number&#10;effectiveFrom: String" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmployeeAvailability">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-EmployeeAvailabilityRevision" value="EmployeeAvailabilityRevision&#10;employeeavailabilityrevisions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="276" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-EmployeeAvailabilityRevision" value="sitterId: String&#10;effectiveFrom: String&#10;version: Number&#10;workingWindows: Array[Mixed]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmployeeAvailabilityRevision">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-EmployeeScheduleCommand" value="EmployeeScheduleCommand&#10;employeeschedulecommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="276" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-EmployeeScheduleCommand" value="_id: String&#10;fingerprint: String&#10;result: Mixed&#10;createdAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmployeeScheduleCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 03 — EmployeeVisitOffer, EmployeeScheduleEvent, EmployeeScheduleProposal, EmployeeVisitTravel, EmploymentDocument, EmploymentDocumentCounter" id="schema-3">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1000">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-EmployeeVisitOffer" value="EmployeeVisitOffer&#10;employeevisitoffers" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="320" />
+        </mxCell>
+        <mxCell id="fields-EmployeeVisitOffer" value="visitId: ObjectId&#10;sitterId: String&#10;state: String&#10;version: Number&#10;offeredAt: Date&#10;deadline: Date&#10;startAt: Date&#10;endAt: Date&#10;serviceName: String&#10;areaCode: String&#10;pets: Array[Mixed]&#10;decidedAt: Date&#10;originRouteRequired: Boolean&#10;featureSnapshot: Mixed&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmployeeVisitOffer">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="274" />
+        </mxCell>
+        <mxCell id="entity-EmployeeScheduleEvent" value="EmployeeScheduleEvent&#10;employeescheduleevents" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-EmployeeScheduleEvent" value="type: String&#10;actorId: String&#10;sitterId: String&#10;visitId: String&#10;offerId: String&#10;at: Date&#10;detail: Mixed&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmployeeScheduleEvent">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-EmployeeScheduleProposal" value="EmployeeScheduleProposal&#10;employeescheduleproposals" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="446" />
+        </mxCell>
+        <mxCell id="fields-EmployeeScheduleProposal" value="customerId: String&#10;bookingId: String&#10;visitId: String&#10;sitterId: String&#10;areaCode: String&#10;previousAreaCode: String&#10;areaLabel: String&#10;slots: Array[Mixed]&#10;availabilityVersion: Number&#10;visitVersion: Number&#10;state: String&#10;version: Number&#10;expiresAt: Date&#10;priceSnapshot: Mixed&#10;petSnapshots: Array[Mixed]&#10;paymentState: String&#10;paymentRequired: Boolean&#10;createdBy: String&#10;createdAt: Date&#10;confirmedAt: Date&#10;selectedSlot: Mixed&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmployeeScheduleProposal">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="400" />
+        </mxCell>
+        <mxCell id="entity-EmployeeVisitTravel" value="EmployeeVisitTravel&#10;employeevisittravels" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="546" width="540" height="248" />
+        </mxCell>
+        <mxCell id="fields-EmployeeVisitTravel" value="_id: String&#10;sitterId: String&#10;state: String&#10;sharing: Boolean&#10;sessionId: String&#10;version: Number&#10;updatedAt: Date&#10;observedAt: Date&#10;coordinates: Array[Number]&#10;accuracyMeters: Number&#10;expiresAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmployeeVisitTravel">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="202" />
+        </mxCell>
+        <mxCell id="entity-EmploymentDocument" value="EmploymentDocument&#10;employmentdocuments" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="546" width="540" height="374" />
+        </mxCell>
+        <mxCell id="fields-EmploymentDocument" value="applicationId: ObjectId [required]&#10;applicationVersion: Number&#10;revision: Number&#10;reference: String&#10;employeeCode: String&#10;templateVersion: String&#10;state: String [required]&#10;encryptedTerms: String [required]&#10;termsHash: String&#10;createdBy: ObjectId&#10;createdAt: Date&#10;issuedAt: Date&#10;signedAt: Date&#10;verifiedBy: ObjectId&#10;verifiedAt: Date&#10;archiveReference: String&#10;employeeId: ObjectId&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmploymentDocument">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="328" />
+        </mxCell>
+        <mxCell id="entity-EmploymentDocumentCounter" value="EmploymentDocumentCounter&#10;employmentdocumentcounters" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="546" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-EmploymentDocumentCounter" value="_id: String&#10;value: Number" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmploymentDocumentCounter">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 04 — EmploymentDocumentCommand, FinanceSourceCommand, FinanceSourceEvent, EarningAccrualTask, CareMediaBinding, Contact" id="schema-4">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="562">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-EmploymentDocumentCommand" value="EmploymentDocumentCommand&#10;employmentdocumentcommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-EmploymentDocumentCommand" value="_id: String&#10;fingerprint: String&#10;documentId: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmploymentDocumentCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-FinanceSourceCommand" value="FinanceSourceCommand&#10;financesourcecommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-FinanceSourceCommand" value="_id: String&#10;fingerprint: String [required]&#10;result: Mixed [required]&#10;createdAt: Date [required]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-FinanceSourceCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-FinanceSourceEvent" value="FinanceSourceEvent&#10;financesourceevents" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-FinanceSourceEvent" value="_id: String&#10;type: String [required]&#10;bookingId: String&#10;actorId: String&#10;resourceId: String&#10;at: Date [required]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-FinanceSourceEvent">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-EarningAccrualTask" value="EarningAccrualTask&#10;earningaccrualtasks" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="270" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-EarningAccrualTask" value="_id: String&#10;bookingId: String [required]&#10;sitterId: String [required]&#10;state: String [required]&#10;revision: Number [required]&#10;nextAttemptAt: Date [required]&#10;lastCode: String&#10;updatedAt: Date [required]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EarningAccrualTask">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-CareMediaBinding" value="CareMediaBinding&#10;caremediabindings" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="270" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-CareMediaBinding" value="_id: String&#10;visitId: String [required]&#10;kind: String [required]&#10;ownerId: String&#10;contentDigest: String&#10;createdAt: Date [required]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-CareMediaBinding">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-Contact" value="Contact&#10;contacts" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="270" width="540" height="212" />
+        </mxCell>
+        <mxCell id="fields-Contact" value="userId: ObjectId [required]&#10;channel: String [required]&#10;canonicalCiphertext: String [required]&#10;lookupKey: String [required]&#10;state: String [required]&#10;verifiedAt: Date [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Contact">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="166" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 05 — OtpChallenge, OtpThrottle, AuthSession, Notification, NotificationEvent, EmploymentContract" id="schema-5">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="964">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-OtpChallenge" value="OtpChallenge&#10;otpchallenges" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="320" />
+        </mxCell>
+        <mxCell id="fields-OtpChallenge" value="challengeId: String [required]&#10;contactLookup: String [required]&#10;channel: String [required]&#10;purpose: String [required]&#10;codeDigest: String [required]&#10;expiresAt: Date [required]&#10;resendAt: Date [required]&#10;failedCount: Number [required]&#10;requesterSessionId: String&#10;requesterUserId: String&#10;usedAt: Date&#10;invalidationReason: String&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-OtpChallenge">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="274" />
+        </mxCell>
+        <mxCell id="entity-OtpThrottle" value="OtpThrottle&#10;otpthrottles" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="212" />
+        </mxCell>
+        <mxCell id="fields-OtpThrottle" value="contactLookup: String [required]&#10;sentAt: Array[Date]&#10;lastSentAt: Date&#10;failedCount: Number [required]&#10;lockedUntil: Date&#10;expiresAt: Date [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-OtpThrottle">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="166" />
+        </mxCell>
+        <mxCell id="entity-AuthSession" value="AuthSession&#10;authsessions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-AuthSession" value="sessionId: String [required]&#10;userId: ObjectId [required]&#10;tokenDigest: String [required]&#10;csrfDigest: String [required]&#10;authEpochAtIssue: Number [required]&#10;expiresAt: Date [required]&#10;revokedAt: Date&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-AuthSession">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-Notification" value="Notification&#10;notifications" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="420" width="540" height="266" />
+        </mxCell>
+        <mxCell id="fields-Notification" value="_id: String&#10;eventId: String&#10;recipientId: String [required]&#10;role: String&#10;eventType: String&#10;title: String&#10;message: String&#10;channel: String&#10;deepLink: String&#10;metadata: Mixed&#10;createdAt: Date [required]&#10;readAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Notification">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="220" />
+        </mxCell>
+        <mxCell id="entity-NotificationEvent" value="NotificationEvent&#10;notificationevents" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="420" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-NotificationEvent" value="_id: String&#10;fingerprint: String&#10;notificationIds: Array[String]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-NotificationEvent">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-EmploymentContract" value="EmploymentContract&#10;employmentcontracts" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="420" width="540" height="464" />
+        </mxCell>
+        <mxCell id="fields-EmploymentContract" value="workScheduleMode: String&#10;minimumWeeklyMinutes: Number&#10;documentId: ObjectId&#10;employeeCode: String&#10;schedule: Mixed&#10;paySchedule: String&#10;monthlyAllowanceVnd: Number&#10;employeeId: ObjectId [required]&#10;version: Number [required]&#10;employmentType: String [required]&#10;salaryBasis: String [required]&#10;monthlyBaseVnd: Number [required]&#10;payCycle: String [required]&#10;weeklyMinutes: Number [required]&#10;signedAt: Date [required]&#10;effectiveAt: Date [required]&#10;endsAt: Date&#10;contractReference: String [required]&#10;workplaceRegion: Number [required]&#10;workplaceReference: String [required]&#10;verifiedBy: ObjectId [required]&#10;recordedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EmploymentContract">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="418" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 06 — SalaryAdvance, PayrollMonthGuard, PayrollCommand, PayrollEvent, PayrollServiceCredit, PayrollStatement" id="schema-6">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1090">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-SalaryAdvance" value="SalaryAdvance&#10;salaryadvances" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="374" />
+        </mxCell>
+        <mxCell id="fields-SalaryAdvance" value="employeeId: ObjectId [required]&#10;contractId: ObjectId [required]&#10;monthKey: String [required]&#10;amountVnd: Number [required]&#10;status: String [required]&#10;version: Number&#10;reason: String [required]&#10;decisionReason: String&#10;requestedAt: Date [required]&#10;decidedBy: ObjectId&#10;decidedAt: Date&#10;paidBy: ObjectId&#10;paidAt: Date&#10;transferReference: String&#10;policyVersion: String [required]&#10;settlementPeriod: String [required]&#10;settlementConsentReference: String [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SalaryAdvance">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="328" />
+        </mxCell>
+        <mxCell id="entity-PayrollMonthGuard" value="PayrollMonthGuard&#10;payrollmonthguards" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-PayrollMonthGuard" value="_id: String&#10;version: Number&#10;pendingId: ObjectId&#10;approvedId: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PayrollMonthGuard">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-PayrollCommand" value="PayrollCommand&#10;payrollcommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-PayrollCommand" value="_id: String&#10;fingerprint: String&#10;sourceRequestHash: String&#10;result: Mixed&#10;createdAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PayrollCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-PayrollEvent" value="PayrollEvent&#10;payrollevents" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="474" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-PayrollEvent" value="employeeId: ObjectId&#10;resourceId: ObjectId&#10;actorId: ObjectId&#10;type: String&#10;reason: String&#10;at: Date&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PayrollEvent">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+        <mxCell id="entity-PayrollServiceCredit" value="PayrollServiceCredit&#10;payrollservicecredits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="474" width="540" height="248" />
+        </mxCell>
+        <mxCell id="fields-PayrollServiceCredit" value="visitId: ObjectId [required]&#10;bookingId: ObjectId [required]&#10;employeeId: ObjectId [required]&#10;completedAt: Date [required]&#10;serviceNetVnd: Number [required]&#10;careMinutes: Number [required]&#10;onTime: Boolean [required]&#10;reportsComplete: Boolean [required]&#10;sourceVersion: Number [required]&#10;policyVersion: String [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PayrollServiceCredit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="202" />
+        </mxCell>
+        <mxCell id="entity-PayrollStatement" value="PayrollStatement&#10;payrollstatements" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="474" width="540" height="536" />
+        </mxCell>
+        <mxCell id="fields-PayrollStatement" value="reference: String&#10;employeeName: String&#10;employeeCode: String&#10;employeeId: ObjectId [required]&#10;contractId: ObjectId [required]&#10;periodStart: Date [required]&#10;periodEnd: Date [required]&#10;monthKey: String [required]&#10;dueAt: Date [required]&#10;payCycle: String [required]&#10;status: String [required]&#10;version: Number&#10;breakdown: Mixed [required]&#10;assessment: Mixed [required]&#10;creditIds: Array[ObjectId]&#10;advanceIds: Array[ObjectId]&#10;preparedBy: ObjectId [required]&#10;preparedAt: Date [required]&#10;approvedBy: ObjectId&#10;approvedAt: Date&#10;paidBy: ObjectId&#10;paidAt: Date&#10;voidedBy: ObjectId&#10;voidedAt: Date&#10;voidReason: String&#10;transferReference: String&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PayrollStatement">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="490" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 07 — PayrollAdjustment, PayrollSourceClaim, Pet, CustomerAddress, PetCareCommand, PetTrait" id="schema-7">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="892">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-PayrollAdjustment" value="PayrollAdjustment&#10;payrolladjustments" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="410" />
+        </mxCell>
+        <mxCell id="fields-PayrollAdjustment" value="employeeId: ObjectId [required]&#10;statementId: ObjectId [required]&#10;statementVersion: Number [required]&#10;direction: String [required]&#10;amountVnd: Number [required]&#10;reason: String [required]&#10;assessmentReference: String [required]&#10;status: String [required]&#10;version: Number&#10;requestedAt: Date [required]&#10;preparedBy: ObjectId [required]&#10;decidedBy: ObjectId&#10;decidedAt: Date&#10;decisionReason: String&#10;resolvedBy: ObjectId&#10;resolvedAt: Date&#10;transferReference: String&#10;agreementReference: String&#10;resolutionReference: String&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PayrollAdjustment">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="364" />
+        </mxCell>
+        <mxCell id="entity-PayrollSourceClaim" value="PayrollSourceClaim&#10;payrollsourceclaims" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-PayrollSourceClaim" value="_id: String&#10;statementId: ObjectId&#10;advanceId: ObjectId&#10;adjustmentId: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PayrollSourceClaim">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-Pet" value="Pet&#10;pets" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="374" />
+        </mxCell>
+        <mxCell id="fields-Pet" value="ownerId: ObjectId [required]&#10;name: String [required]&#10;species: String [required]&#10;breedCode: String [required]&#10;weightKg: Number [required]&#10;traits: Array[String]&#10;careNeedsConfirmed: Boolean&#10;ageMonths: Number&#10;sex: String&#10;careProfile: Map&#10;careProfile.$*: Embedded&#10;careProfile.$*.status: String [required]&#10;careProfile.$*.value: String&#10;state: String&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Pet">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="328" />
+        </mxCell>
+        <mxCell id="entity-CustomerAddress" value="CustomerAddress&#10;customeraddresses" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="510" width="540" height="302" />
+        </mxCell>
+        <mxCell id="fields-CustomerAddress" value="ownerId: ObjectId [required]&#10;label: String [required]&#10;location: String [required]&#10;point: Embedded [required]&#10;point.type: String&#10;point.coordinates: Array[Number] [required]&#10;areaCode: String [required]&#10;pointConfirmedAt: Date [required]&#10;privateAccessNotes: String&#10;state: String&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-CustomerAddress">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="256" />
+        </mxCell>
+        <mxCell id="entity-PetCareCommand" value="PetCareCommand&#10;petcarecommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="510" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-PetCareCommand" value="_id: String [required]&#10;fingerprint: String [required]&#10;result: Mixed [required]&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PetCareCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-PetTrait" value="PetTrait&#10;aitraits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="510" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-PetTrait" value="code: String [required]&#10;label: String [required]&#10;species: Array[String] [required]&#10;explanation: String [required]&#10;active: Boolean&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PetTrait">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 08 — PetBreed, PricingPolicy, ApplicantDocument, ApplicantDocumentQuota, PrivateImage, PrivateImageQuota" id="schema-8">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1162">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-PetBreed" value="PetBreed&#10;aibreeds" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-PetBreed" value="code: String [required]&#10;name: String [required]&#10;species: String [required]&#10;active: Boolean&#10;source: String [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PetBreed">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-PricingPolicy" value="PricingPolicy&#10;aipricingpolicies" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="734" />
+        </mxCell>
+        <mxCell id="fields-PricingPolicy" value="serviceId: ObjectId [required]&#10;version: Number [required]&#10;status: String&#10;effectiveAt: Date [required]&#10;approvedBy: ObjectId&#10;approvedAt: Date&#10;reason: String [required]&#10;approvalSource: String&#10;billingMode: String&#10;unitMinutes: Number [required]&#10;orderStepVnd: Number&#10;orderStepBps: Number&#10;maxOrderTierBps: Number&#10;maxPets: Number&#10;extraPetBps: Number&#10;maxSurchargeBps: Number&#10;groupStrategy: String&#10;comboPerVisitBps: Number&#10;comboMaxBps: Number&#10;rules: Array[subdocument]&#10;rules.code: String [required]&#10;rules.label: String [required]&#10;rules.explanation: String [required]&#10;rules.scope: String [required]&#10;rules.bps: Number&#10;rules.flatVnd: Number&#10;rules.exclusiveGroup: String&#10;rules.when: Embedded&#10;rules.when.species: String&#10;rules.when.breedCodes: Array[String]&#10;rules.when.traitCode: String&#10;rules.when.minWeightKg: Number&#10;rules.when.maxWeightKg: Number&#10;rules.when.minWeightExclusive: Boolean&#10;rules.when.maxWeightInclusive: Boolean&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PricingPolicy">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="688" />
+        </mxCell>
+        <mxCell id="entity-ApplicantDocument" value="ApplicantDocument&#10;applicantdocuments" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="248" />
+        </mxCell>
+        <mxCell id="fields-ApplicantDocument" value="_id: String&#10;ownerId: ObjectId [required]&#10;inputDigest: String [required]&#10;storageRef: String [required]&#10;contentType: String&#10;contentDigest: String&#10;byteLength: Number&#10;state: String [required]&#10;createdAt: Date&#10;updatedAt: Date&#10;__v: Number" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ApplicantDocument">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="202" />
+        </mxCell>
+        <mxCell id="entity-ApplicantDocumentQuota" value="ApplicantDocumentQuota&#10;applicantdocumentquotas" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="834" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-ApplicantDocumentQuota" value="_id: ObjectId&#10;count: Number [required]&#10;__v: Number" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ApplicantDocumentQuota">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-PrivateImage" value="PrivateImage&#10;privateimages" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="834" width="540" height="248" />
+        </mxCell>
+        <mxCell id="fields-PrivateImage" value="_id: String&#10;ownerId: ObjectId [required]&#10;inputDigest: String [required]&#10;storageRef: String [required]&#10;contentType: String&#10;contentDigest: String&#10;byteLength: Number&#10;state: String [required]&#10;createdAt: Date&#10;updatedAt: Date&#10;__v: Number" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PrivateImage">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="202" />
+        </mxCell>
+        <mxCell id="entity-PrivateImageQuota" value="PrivateImageQuota&#10;privateimagequotas" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="834" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-PrivateImageQuota" value="_id: ObjectId&#10;count: Number [required]&#10;__v: Number" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PrivateImageQuota">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 09 — ProductPhoto, Product, Supplier, ProductCart, ProductOrder, ProductCustomerRefusal" id="schema-9">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1252">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-ProductPhoto" value="ProductPhoto&#10;productphotos" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-ProductPhoto" value="productId: ObjectId [required]&#10;digest: String [required]&#10;content: Buffer [required]&#10;byteLength: Number [required]&#10;width: Number [required]&#10;height: Number [required]&#10;uploadedBy: ObjectId [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ProductPhoto">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-Product" value="Product&#10;products" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="410" />
+        </mxCell>
+        <mxCell id="fields-Product" value="code: String [required]&#10;name: String [required]&#10;category: String [required]&#10;petType: String [required]&#10;description: String&#10;photos: Array[String]&#10;catalogSource: String&#10;sampleCatalog: Boolean&#10;sellingPrice: Number [required]&#10;stockOnHand: Number&#10;quantityHeld: Number&#10;visible: Boolean&#10;deletedAt: Date&#10;deletedBy: ObjectId&#10;deletionReason: String&#10;version: Number&#10;detailsVersion: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Product">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="364" />
+        </mxCell>
+        <mxCell id="entity-Supplier" value="Supplier&#10;suppliers" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="248" />
+        </mxCell>
+        <mxCell id="fields-Supplier" value="name: String [required]&#10;nameKey: String [required]&#10;contactName: String&#10;phone: String&#10;email: String&#10;productIds: Array[ObjectId]&#10;status: String&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Supplier">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="202" />
+        </mxCell>
+        <mxCell id="entity-ProductCart" value="ProductCart&#10;productcarts" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="510" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-ProductCart" value="customerId: ObjectId [required]&#10;lines: Array[subdocument]&#10;lines.productId: ObjectId [required]&#10;lines.quantity: Number [required]&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ProductCart">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-ProductOrder" value="ProductOrder&#10;productorders" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="510" width="540" height="662" />
+        </mxCell>
+        <mxCell id="fields-ProductOrder" value="code: String [required]&#10;customerId: ObjectId [required]&#10;lines: Array[subdocument] [required]&#10;lines.productId: ObjectId [required]&#10;lines.productCode: String [required]&#10;lines.productName: String [required]&#10;lines.quantity: Number [required]&#10;lines.sellingPriceWhenOrdered: Number [required]&#10;lines.resellableQuantity: Number&#10;receiveMethod: String [required]&#10;deliveryAddress: Embedded&#10;deliveryAddress.addressId: ObjectId [required]&#10;deliveryAddress.label: String [required]&#10;deliveryAddress.location: String [required]&#10;deliveryAddress.areaCode: String [required]&#10;subtotal: Number [required]&#10;shippingFee: Number [required]&#10;total: Number [required]&#10;paymentMethod: String [required]&#10;paid: Boolean&#10;trackingCode: String&#10;status: String&#10;deliveredAt: Date&#10;carrierReturnReason: String&#10;returnReason: String&#10;returnNote: String&#10;returnedAt: Date&#10;refundMarked: Boolean&#10;idempotencyKey: String [required]&#10;requestFingerprint: String [required]&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ProductOrder">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="616" />
+        </mxCell>
+        <mxCell id="entity-ProductCustomerRefusal" value="ProductCustomerRefusal&#10;productcustomerrefusals" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="510" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-ProductCustomerRefusal" value="customerId: ObjectId [required]&#10;orderId: ObjectId [required]&#10;reason: String [required]&#10;occurredAt: Date [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ProductCustomerRefusal">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 10 — ProductCounter, PublicPolicyVersion, ServiceAudit, ServicePolicyVersion, ServicePresentation, ServicePriceAudit" id="schema-10">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="820">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-ProductCounter" value="ProductCounter&#10;productcounters" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-ProductCounter" value="_id: String [required]&#10;value: Number&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ProductCounter">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-PublicPolicyVersion" value="PublicPolicyVersion&#10;publicpolicyversions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="374" />
+        </mxCell>
+        <mxCell id="fields-PublicPolicyVersion" value="slug: String [required]&#10;versionId: String [required]&#10;status: String [required]&#10;title: String [required]&#10;purpose: String [required]&#10;effectiveAt: Date [required]&#10;expiresAt: Date&#10;approvedAt: Date&#10;approvedBy: String&#10;sourceRef: String [required]&#10;contentHash: String [required]&#10;sections: Array[subdocument] [required]&#10;sections.heading: String [required]&#10;sections.paragraphs: Array[String]&#10;sections.items: Array[String]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PublicPolicyVersion">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="328" />
+        </mxCell>
+        <mxCell id="entity-ServiceAudit" value="ServiceAudit&#10;serviceaudits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-ServiceAudit" value="actorId: ObjectId [required]&#10;action: String [required]&#10;resourceType: String [required]&#10;resourceId: ObjectId [required]&#10;version: Number [required]&#10;changedFields: Array[String] [required]&#10;reason: String [required]&#10;effectiveAt: Date [required]&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ServiceAudit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-ServicePolicyVersion" value="ServicePolicyVersion&#10;servicepolicyversions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="474" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-ServicePolicyVersion" value="serviceId: ObjectId [required]&#10;version: Number [required]&#10;state: String [required]&#10;title: String&#10;body: String&#10;effectiveAt: Date [required]&#10;changedBy: ObjectId [required]&#10;reason: String [required]&#10;recordedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ServicePolicyVersion">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-ServicePresentation" value="ServicePresentation&#10;servicepresentations" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="474" width="540" height="266" />
+        </mxCell>
+        <mxCell id="fields-ServicePresentation" value="serviceId: ObjectId [required]&#10;category: String&#10;locations: Array[String]&#10;durationMinutes: Number&#10;preparation: Array[String]&#10;exclusions: Array[String]&#10;faq: Array[subdocument]&#10;faq.question: String [required]&#10;faq.answer: String [required]&#10;provisioningRunId: ObjectId [required]&#10;updatedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ServicePresentation">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="220" />
+        </mxCell>
+        <mxCell id="entity-ServicePriceAudit" value="ServicePriceAudit&#10;servicepriceaudits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="474" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-ServicePriceAudit" value="actorId: ObjectId [required]&#10;action: String [required]&#10;resourceType: String [required]&#10;resourceId: ObjectId [required]&#10;version: Number [required]&#10;changedFields: Array[String] [required]&#10;reason: String [required]&#10;effectiveAt: Date [required]&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ServicePriceAudit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 11 — ServicePriceVersion, ServiceVersion, Service, SettlementRequest, SettlementWeekClaim, Earning" id="schema-11">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1180">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-ServicePriceVersion" value="ServicePriceVersion&#10;servicepriceversions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-ServicePriceVersion" value="serviceId: ObjectId [required]&#10;version: Number [required]&#10;amountVnd: Number [required]&#10;currency: String [required]&#10;unitLabel: String [required]&#10;effectiveAt: Date [required]&#10;changedBy: ObjectId [required]&#10;reason: String [required]&#10;recordedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ServicePriceVersion">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-ServiceVersion" value="ServiceVersion&#10;serviceversions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="266" />
+        </mxCell>
+        <mxCell id="fields-ServiceVersion" value="serviceId: ObjectId [required]&#10;version: Number [required]&#10;name: String [required]&#10;description: String [required]&#10;scope: String [required]&#10;species: Array[String] [required]&#10;state: String [required]&#10;effectiveAt: Date [required]&#10;changedBy: ObjectId [required]&#10;reason: String [required]&#10;recordedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ServiceVersion">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="220" />
+        </mxCell>
+        <mxCell id="entity-Service" value="Service&#10;services" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-Service" value="code: String [required]&#10;createdBy: ObjectId [required]&#10;createdAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Service">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-SettlementRequest" value="SettlementRequest&#10;settlementrequests" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="366" width="540" height="734" />
+        </mxCell>
+        <mxCell id="fields-SettlementRequest" value="id: String [required]&#10;sitterId: String [required]&#10;requestWeekKey: String [required]&#10;startsAt: Date [required]&#10;endsAt: Date [required]&#10;earningIds: Array[String] [required]&#10;earningSnapshots: Array[subdocument]&#10;earningSnapshots.earningId: String [required]&#10;earningSnapshots.visitId: String&#10;earningSnapshots.earningPeriodKey: String [required]&#10;earningSnapshots.amountVnd: Number [required]&#10;earningSnapshots.pendingVnd: Number [required]&#10;earningSnapshots.heldVnd: Number [required]&#10;earningSnapshots.availableVnd: Number [required]&#10;earningSnapshots.reservedVnd: Number [required]&#10;earningSnapshots.paidVnd: Number [required]&#10;earningSnapshots.explanation: String&#10;earningSnapshots.ledgerReference: String&#10;earningSnapshots.transferRecordedAt: Date&#10;amountVnd: Number [required]&#10;currency: String [required]&#10;status: String [required]&#10;version: Number [required]&#10;submittedAt: Date [required]&#10;policyVersion: String [required]&#10;decisionVersion: String [required]&#10;decision: Mixed&#10;transfer: Embedded&#10;transfer.outcome: String [required]&#10;transfer.reference: String [required]&#10;transfer.evidenceReference: String [required]&#10;transfer.amountVnd: Number&#10;transfer.paidAt: Date&#10;transfer.recordedBy: String [required]&#10;transfer.recordedAt: Date [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementRequest">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="688" />
+        </mxCell>
+        <mxCell id="entity-SettlementWeekClaim" value="SettlementWeekClaim&#10;settlementweekclaims" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="366" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-SettlementWeekClaim" value="id: String [required]&#10;sitterId: String [required]&#10;requestWeekKey: String [required]&#10;startsAt: Date [required]&#10;endsAt: Date [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementWeekClaim">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-Earning" value="Earning&#10;earnings" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="366" width="540" height="464" />
+        </mxCell>
+        <mxCell id="fields-Earning" value="earningId: String [required]&#10;sitterId: String [required]&#10;visitId: String&#10;bookingId: String&#10;completedAt: Date&#10;sourceSnapshotId: String&#10;earningPeriodKey: String [required]&#10;accruedVnd: Number [required]&#10;pendingVnd: Number [required]&#10;heldVnd: Number [required]&#10;availableVnd: Number [required]&#10;reservedVnd: Number [required]&#10;paidVnd: Number [required]&#10;explanation: String&#10;ledgerReference: String&#10;transferRecordedAt: Date&#10;state: String [required]&#10;reservation.requestId: String&#10;reservation.reservedAt: Date&#10;version: Number [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Earning">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="418" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 12 — FinancialLock, EarningLedgerEntry, SettlementCommand, SettlementEvent, SettlementOutbox, SettlementTransfer" id="schema-12">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="802">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-FinancialLock" value="FinancialLock&#10;financiallocks" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-FinancialLock" value="resourceType: String [required]&#10;resourceId: String [required]&#10;lockType: String [required]&#10;reference: String [required]&#10;state: String [required]&#10;actorId: String&#10;createdAt: Date [required]&#10;releasedAt: Date&#10;releasedBy: String&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-FinancialLock">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-EarningLedgerEntry" value="EarningLedgerEntry&#10;earningledgerentries" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="284" />
+        </mxCell>
+        <mxCell id="fields-EarningLedgerEntry" value="lineId: String [required]&#10;operationId: String [required]&#10;requestId: String&#10;earningId: String [required]&#10;sitterId: String [required]&#10;fromBucket: String&#10;toBucket: String [required]&#10;amountVnd: Number [required]&#10;policyVersion: String&#10;decisionVersion: String&#10;actorId: String&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EarningLedgerEntry">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="238" />
+        </mxCell>
+        <mxCell id="entity-SettlementCommand" value="SettlementCommand&#10;settlementcommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-SettlementCommand" value="actorId: String [required]&#10;operation: String [required]&#10;key: String [required]&#10;fingerprint: String [required]&#10;result: Mixed [required]&#10;createdAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+        <mxCell id="entity-SettlementEvent" value="SettlementEvent&#10;settlementevents" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="384" width="540" height="338" />
+        </mxCell>
+        <mxCell id="fields-SettlementEvent" value="eventId: String [required]&#10;operationId: String [required]&#10;requestId: String [required]&#10;type: String [required]&#10;actorId: String&#10;earningIds: Array[String]&#10;amountVnd: Number&#10;fromBucket: String&#10;toBucket: String&#10;reason: String&#10;transfer: Mixed&#10;policyVersion: String&#10;decisionVersion: String&#10;aggregateVersion: Number&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementEvent">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="292" />
+        </mxCell>
+        <mxCell id="entity-SettlementOutbox" value="SettlementOutbox&#10;settlementoutboxes" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="384" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-SettlementOutbox" value="eventId: String [required]&#10;operationId: String [required]&#10;requestId: String [required]&#10;type: String [required]&#10;payload: Mixed [required]&#10;state: String [required]&#10;attempts: Number [required]&#10;createdAt: Date [required]&#10;publishedAt: Date&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementOutbox">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-SettlementTransfer" value="SettlementTransfer&#10;settlementtransfers" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="384" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-SettlementTransfer" value="requestId: String [required]&#10;version: Number [required]&#10;adminId: String [required]&#10;outcome: String [required]&#10;reference: String [required]&#10;evidenceReference: String [required]&#10;amountVnd: Number&#10;paidAt: Date&#10;recordedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementTransfer">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 13 — SettlementTransferClaim, SettlementEvidence, EarningAdjustment, SitterApplication, SitterApplicationAudit, SitterApplicationDownloadQuota" id="schema-13">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1198">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-SettlementTransferClaim" value="SettlementTransferClaim&#10;settlementtransferclaims" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-SettlementTransferClaim" value="kind: String [required]&#10;reference: String [required]&#10;requestId: String [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementTransferClaim">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-SettlementEvidence" value="SettlementEvidence&#10;settlementevidences" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-SettlementEvidence" value="evidenceReference: String [required]&#10;requestId: String [required]&#10;ownerActorId: String [required]&#10;mediaId: String [required]&#10;state: String [required]&#10;uploadedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SettlementEvidence">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+        <mxCell id="entity-EarningAdjustment" value="EarningAdjustment&#10;earningadjustments" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-EarningAdjustment" value="id: String [required]&#10;earningId: String [required]&#10;sitterId: String [required]&#10;sourceReference: String [required]&#10;sourceType: String [required]&#10;status: String [required]&#10;proposedAmountVnd: Number&#10;createdBy: String&#10;createdAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-EarningAdjustment">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+        <mxCell id="entity-SitterApplication" value="SitterApplication&#10;sitterapplications" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="330" width="540" height="788" />
+        </mxCell>
+        <mxCell id="fields-SitterApplication" value="contractGuard: Number&#10;ownerUserId: ObjectId&#10;policyConsents: Array[subdocument]&#10;policyConsents.slug: String&#10;policyConsents.versionId: String&#10;policyConsents.contentHash: String&#10;policyConsents.effectiveAt: Date&#10;policyConsents.consentedAt: Date&#10;policyConsents.sourceRef: String&#10;displayName: String [required]&#10;contactChannel: String [required]&#10;contactCiphertext: String [required]&#10;contactLookupKey: String [required]&#10;applicantParticularsCiphertext: String&#10;identityLookupKey: String [required]&#10;activePendingOwnerUserId: ObjectId&#10;activePendingContactKey: String&#10;activePendingIdentityKey: String&#10;ageEligible: Boolean [required]&#10;ageCheckedAt: Date [required]&#10;experience: String [required]&#10;employmentType: String&#10;requestedServices: Array[String] [required]&#10;workAreas: Array[String] [required]&#10;privateDocuments: Array[subdocument] [required]&#10;privateDocuments.documentId: String [required]&#10;privateDocuments.documentType: String [required]&#10;privateDocuments.storageRef: String [required]&#10;state: String [required]&#10;interviewNote: String&#10;decisionReason: String&#10;rejectedAt: Date&#10;reapplyAt: Date&#10;provisionedUserId: ObjectId&#10;version: Number [required]&#10;trackingCodeDigest: String&#10;submissionKeyDigest: String [required]&#10;submissionPayloadDigest: String [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterApplication">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="742" />
+        </mxCell>
+        <mxCell id="entity-SitterApplicationAudit" value="SitterApplicationAudit&#10;sitterapplicationaudits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="330" width="540" height="338" />
+        </mxCell>
+        <mxCell id="fields-SitterApplicationAudit" value="actorId: ObjectId&#10;actorRoles: Array[String] [required]&#10;action: String [required]&#10;resourceId: ObjectId [required]&#10;occurredAt: Date [required]&#10;state: String&#10;decision: String&#10;reasonDigest: String&#10;idempotencyDigest: String&#10;payloadDigest: String&#10;resultVersion: Number&#10;resultUserId: ObjectId&#10;reapplyAt: Date&#10;documentId: String&#10;correlationId: String&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterApplicationAudit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="292" />
+        </mxCell>
+        <mxCell id="entity-SitterApplicationDownloadQuota" value="SitterApplicationDownloadQuota&#10;sitterapplicationdownloadquotas" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="330" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-SitterApplicationDownloadQuota" value="actorId: ObjectId [required]&#10;windowStart: Date [required]&#10;count: Number [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterApplicationDownloadQuota">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 14 — SitterStatus, SitterMatchingProfile, SitterVisitOutcome, SitterScheduleBlock, RoutingMatrixCache, SitterRankingPolicy" id="schema-14">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1090">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-SitterStatus" value="SitterStatus&#10;sitterstatuses" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-SitterStatus" value="userId: ObjectId [required]&#10;status: String [required]&#10;statusReason: String&#10;changedAt: Date [required]&#10;version: Number [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterStatus">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-SitterMatchingProfile" value="SitterMatchingProfile&#10;aisitterprofiles" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="518" />
+        </mxCell>
+        <mxCell id="fields-SitterMatchingProfile" value="changedBy: ObjectId&#10;userId: ObjectId [required]&#10;serviceIds: Array[ObjectId] [required]&#10;species: Array[String] [required]&#10;areaCodes: Array[String] [required]&#10;allowedTraits: Array[String]&#10;maxWeightKg: Number [required]&#10;maxPets: Number [required]&#10;active: Boolean&#10;timeZone: String&#10;windows: Array[subdocument] [required]&#10;windows.weekday: Number [required]&#10;windows.startMinute: Number [required]&#10;windows.endMinute: Number [required]&#10;dayOffDates: Array[String]&#10;starts: Array[subdocument]&#10;starts.localDate: String [required]&#10;starts.point: Embedded [required]&#10;starts.point.type: String&#10;starts.point.coordinates: Array[Number] [required]&#10;starts.availableFrom: Date [required]&#10;starts.availableUntil: Date [required]&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterMatchingProfile">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="472" />
+        </mxCell>
+        <mxCell id="entity-SitterVisitOutcome" value="SitterVisitOutcome&#10;aivisitoutcomes" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="320" />
+        </mxCell>
+        <mxCell id="fields-SitterVisitOutcome" value="visitId: ObjectId [required]&#10;sitterId: ObjectId [required]&#10;serviceId: ObjectId [required]&#10;petIds: Array[ObjectId] [required]&#10;species: Array[String] [required]&#10;occurredAt: Date [required]&#10;resolution: String [required]&#10;rating: Number&#10;onTime: Boolean&#10;verifiedBy: ObjectId [required]&#10;sourceRef: String [required]&#10;provenance: Mixed&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterVisitOutcome">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="274" />
+        </mxCell>
+        <mxCell id="entity-SitterScheduleBlock" value="SitterScheduleBlock&#10;aischeduleblocks" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="618" width="540" height="392" />
+        </mxCell>
+        <mxCell id="fields-SitterScheduleBlock" value="changedBy: ObjectId&#10;sourceRef: String&#10;sitterId: ObjectId [required]&#10;visitId: ObjectId&#10;startAt: Date [required]&#10;endAt: Date [required]&#10;point: Embedded [required]&#10;point.type: String&#10;point.coordinates: Array[Number] [required]&#10;endPoint: Embedded&#10;endPoint.type: String&#10;endPoint.coordinates: Array[Number] [required]&#10;state: String [required]&#10;holdExpiresAt: Date&#10;kind: String&#10;version: Number&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterScheduleBlock">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="346" />
+        </mxCell>
+        <mxCell id="entity-RoutingMatrixCache" value="RoutingMatrixCache&#10;airoutingmatrixes" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="618" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-RoutingMatrixCache" value="key: String [required]&#10;minutes: Number [required]&#10;source: String [required]&#10;recordedAt: Date [required]&#10;expiresAt: Date [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-RoutingMatrixCache">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-SitterRankingPolicy" value="SitterRankingPolicy&#10;airankingpolicies" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="618" width="540" height="338" />
+        </mxCell>
+        <mxCell id="fields-SitterRankingPolicy" value="version: Number [required]&#10;status: String&#10;effectiveAt: Date [required]&#10;approvedBy: ObjectId&#10;approvedAt: Date&#10;approvalSource: String&#10;weights: Embedded [required]&#10;weights.fit: Number&#10;weights.travel: Number&#10;weights.quality: Number&#10;weights.reliability: Number&#10;weights.workload: Number&#10;reason: String [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterRankingPolicy">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="292" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 15 — SitterRankModel, SitterRankModelReview, SitterPublicProfile, SitterPublicProfileCommand, SitterPublicProfileAudit, SystemSettingAudit" id="schema-15">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="892">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-SitterRankModel" value="SitterRankModel&#10;airankmodels" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="482" />
+        </mxCell>
+        <mxCell id="fields-SitterRankModel" value="artifactJson: String&#10;artifactSha256: String&#10;trainingEvidence: Mixed&#10;importedBy: ObjectId&#10;reviewVersion: Number&#10;version: String [required]&#10;state: String&#10;weights: Embedded [required]&#10;weights.fit: Number&#10;weights.travel: Number&#10;weights.quality: Number&#10;weights.reliability: Number&#10;weights.workload: Number&#10;sha256: String [required]&#10;trainingRows: Number [required]&#10;testMae: Number [required]&#10;baselineMae: Number [required]&#10;testGroups: Number [required]&#10;trainedUntil: Date [required]&#10;approvedBy: ObjectId&#10;approvedAt: Date&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterRankModel">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="436" />
+        </mxCell>
+        <mxCell id="entity-SitterRankModelReview" value="SitterRankModelReview&#10;sitterrankmodelreviews" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="248" />
+        </mxCell>
+        <mxCell id="fields-SitterRankModelReview" value="_id: String&#10;modelId: ObjectId&#10;actorId: ObjectId&#10;action: String&#10;reason: String&#10;reviewReference: String&#10;fingerprint: String&#10;result: Mixed&#10;guardVersion: Number&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterRankModelReview">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="202" />
+        </mxCell>
+        <mxCell id="entity-SitterPublicProfile" value="SitterPublicProfile&#10;sitterpublicprofiles" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="248" />
+        </mxCell>
+        <mxCell id="fields-SitterPublicProfile" value="userId: ObjectId [required]&#10;bio: String [required]&#10;areas: Array[String] [required]&#10;state: String [required]&#10;version: Number [required]&#10;reviewedBy: ObjectId&#10;reviewedAt: Date&#10;reason: String&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterPublicProfile">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="202" />
+        </mxCell>
+        <mxCell id="entity-SitterPublicProfileCommand" value="SitterPublicProfileCommand&#10;sitterpublicprofilecommands" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="582" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-SitterPublicProfileCommand" value="actorId: ObjectId [required]&#10;operation: String [required]&#10;key: String [required]&#10;fingerprint: String [required]&#10;result: Mixed [required]&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterPublicProfileCommand">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+        <mxCell id="entity-SitterPublicProfileAudit" value="SitterPublicProfileAudit&#10;sitterpublicprofileaudits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="582" width="540" height="176" />
+        </mxCell>
+        <mxCell id="fields-SitterPublicProfileAudit" value="actorId: ObjectId [required]&#10;userId: ObjectId [required]&#10;action: String [required]&#10;version: Number [required]&#10;contentHash: String [required]&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SitterPublicProfileAudit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="130" />
+        </mxCell>
+        <mxCell id="entity-SystemSettingAudit" value="SystemSettingAudit&#10;systemsettingaudits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="582" width="540" height="230" />
+        </mxCell>
+        <mxCell id="fields-SystemSettingAudit" value="actorId: ObjectId [required]&#10;action: String [required]&#10;resourceType: String [required]&#10;resourceId: ObjectId [required]&#10;version: Number [required]&#10;changedFields: Array[String] [required]&#10;reason: String [required]&#10;effectiveAt: Date [required]&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SystemSettingAudit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="184" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 16 — SystemSettingVersion, UserAdminAudit, User, Booking, Visit, PaymentIntent" id="schema-16">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="1126">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-SystemSettingVersion" value="SystemSettingVersion&#10;systemsettingversions" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-SystemSettingVersion" value="key: String [required]&#10;version: Number [required]&#10;enabled: Boolean [required]&#10;effectiveAt: Date [required]&#10;changedBy: ObjectId [required]&#10;reason: String [required]&#10;recordedAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-SystemSettingVersion">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-UserAdminAudit" value="UserAdminAudit&#10;useradminaudits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="212" />
+        </mxCell>
+        <mxCell id="fields-UserAdminAudit" value="actorId: ObjectId [required]&#10;action: String [required]&#10;previousRoles: Array[String]&#10;roles: Array[String]&#10;resourceType: String [required]&#10;resourceId: ObjectId [required]&#10;reason: String [required]&#10;occurredAt: Date [required]&#10;_id: ObjectId" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-UserAdminAudit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="166" />
+        </mxCell>
+        <mxCell id="entity-User" value="User&#10;users" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="356" />
+        </mxCell>
+        <mxCell id="fields-User" value="displayName: String [required]&#10;roles: Array[String] [required]&#10;state: String [required]&#10;authEpoch: Number [required]&#10;version: Number [required]&#10;synthetic: Boolean&#10;fixtureKey: String&#10;policyConsents: Array[subdocument]&#10;policyConsents.slug: String [required]&#10;policyConsents.versionId: String [required]&#10;policyConsents.contentHash: String [required]&#10;policyConsents.effectiveAt: Date [required]&#10;policyConsents.consentedAt: Date [required]&#10;policyConsents.sourceRef: String [required]&#10;_id: ObjectId&#10;createdAt: Date&#10;updatedAt: Date" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-User">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="310" />
+        </mxCell>
+        <mxCell id="entity-Booking" value="Booking&#10;bookings" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="456" width="540" height="392" />
+        </mxCell>
+        <mxCell id="fields-Booking" value="_id: ObjectId&#10;customerId: ObjectId&#10;quoteId: ObjectId&#10;quoteVersion: Integer&#10;originalVisitCount: Integer&#10;visitIds: ObjectId[]&#10;state: String&#10;paymentMode: PREPAY|POSTPAY&#10;paymentState: String&#10;paymentSnapshot: {amountVnd:Integer,currency:VND}&#10;paymentDeadlineAt: Date (PREPAY)&#10;version: Integer&#10;financeGuardVersion: Integer&#10;createdAt: Date&#10;carePlanState: String&#10;careVisitCount: Integer&#10;checkoutSnapshot: {quote,selections,customerVisits,consentAt,policyVersion}&#10;carePlanSnapshot: {shiftMinutes,approvedBy,approvedAt,allocationVersion,source}&#10;completedAt: Date (completion transition)" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Booking">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="346" />
+        </mxCell>
+        <mxCell id="entity-Visit" value="Visit&#10;visits" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="456" width="540" height="590" />
+        </mxCell>
+        <mxCell id="fields-Visit" value="_id: ObjectId&#10;bookingId: ObjectId&#10;customerId: ObjectId&#10;serviceId: ObjectId&#10;petIds: ObjectId[]&#10;sitterId: ObjectId|null&#10;state: String&#10;version: Integer&#10;sequence: Integer&#10;areaCode: String&#10;requestedSitterId: ObjectId|null&#10;bookingMode: String&#10;recommendationRef: {matchId,selectedAt,advisory,featureSnapshot}&#10;assignedFeatureSnapshot: Mixed (decision-time features)&#10;location: String&#10;addressId: ObjectId (HOME)&#10;startAt: Date&#10;endAt: Date&#10;evidenceRefs: String[]&#10;snapshots: {serviceName,serviceAddress,serviceScope,priceVersion,careMinutes,employeeServiceNetVnd,care,pets,checklistItems,...}&#10;customerVisitId: String (care-shift source)&#10;customerScheduleConsent: Mixed (directed schedule)&#10;assignedAt: Date&#10;checkInAt: Date&#10;checkOutAt: Date&#10;checklist: Mixed (item completion)&#10;careAcknowledgement: {sitterId,version,acknowledgedAt}&#10;handoverRequired: Boolean (replacement)&#10;handoverAccepted: Boolean (replacement)&#10;completedAt: Date (CHECK_OUT)" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Visit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="544" />
+        </mxCell>
+        <mxCell id="entity-PaymentIntent" value="PaymentIntent&#10;paymentintents" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="456" width="540" height="320" />
+        </mxCell>
+        <mxCell id="fields-PaymentIntent" value="_id: ObjectId&#10;bookingId: ObjectId&#10;customerId: ObjectId&#10;provider: PAYOS&#10;providerReference: String&#10;amountVnd: Integer&#10;currency: VND&#10;state: PENDING|PAID|other guarded state&#10;version: Integer&#10;expiresAt: Date&#10;createdAt: Date&#10;paidAt: Date (verified callback)&#10;linkState: CREATING|READY|RECONCILIATION_REQUIRED&#10;checkoutUrl: HTTPS URL (READY)&#10;paymentLinkId: String (READY)" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-PaymentIntent">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="274" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 17 — Payment, TaxAssessment, Case, Refund, ContactChangeAudit, CatalogProvisioningRun" id="schema-17">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="946">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-Payment" value="Payment&#10;payments" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="266" />
+        </mxCell>
+        <mxCell id="fields-Payment" value="_id: ObjectId&#10;bookingId: ObjectId|null&#10;intentId: ObjectId|null&#10;provider: PAYOS&#10;providerEventId: String&#10;providerTransactionReference: String&#10;state: VERIFIED|RECONCILIATION_REQUIRED&#10;receiptMoney: {amountVnd:Integer,currency:VND}&#10;reconcileReason: String (reconciliation)&#10;verifiedAt: Date (verified)&#10;receivedAt: Date&#10;version: Integer" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Payment">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="220" />
+        </mxCell>
+        <mxCell id="entity-TaxAssessment" value="TaxAssessment&#10;taxassessments" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="40" width="540" height="194" />
+        </mxCell>
+        <mxCell id="fields-TaxAssessment" value="_id: ObjectId&#10;bookingId: ObjectId&#10;state: CONFIRMED&#10;totalTaxVnd: nonnegative safe Integer&#10;confirmedBy: ObjectId&#10;confirmedAt: Date&#10;evidenceReference: String&#10;version: Integer" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-TaxAssessment">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="148" />
+        </mxCell>
+        <mxCell id="entity-Case" value="Case&#10;cases" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="40" width="540" height="500" />
+        </mxCell>
+        <mxCell id="fields-Case" value="_id: String (logical complaint identity)&#10;visitId: ObjectId&#10;bookingId: ObjectId&#10;customerId: ObjectId&#10;sitterId: ObjectId&#10;kind: COMPLAINT|other case contract&#10;category: String enum&#10;description: String&#10;evidenceRefs: {mediaId,kind,caption}[]&#10;state: OPEN|UNDER_REVIEW|RESOLVED|CLOSED&#10;version: Integer&#10;createdAt: ISO instant String&#10;resolution: Mixed (audited resolution)&#10;summary: String (max 500)&#10;requestedOutcome: String (max 2000)&#10;serviceName: String|null&#10;involvedActorRefs: String[]&#10;objectionCount: Integer&#10;openedAt: ISO instant String&#10;actorId: String&#10;idempotencyKey: String&#10;financialHold: Boolean (case decision)&#10;staffNotes: String (private)&#10;latestObjection: Mixed&#10;decision: Mixed" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Case">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="454" />
+        </mxCell>
+        <mxCell id="entity-Refund" value="Refund&#10;refunds" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="600" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-Refund" value="_id: ObjectId or legacy contract identity&#10;bookingId: ObjectId&#10;state: String (financial lock reader contract)" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-Refund">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+        <mxCell id="entity-ContactChangeAudit" value="ContactChangeAudit&#10;account_contact_audit_events" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="610" y="600" width="540" height="266" />
+        </mxCell>
+        <mxCell id="fields-ContactChangeAudit" value="_id: String&#10;eventId: String&#10;logicalOperationId: String&#10;correlationId: String&#10;schemaVersion: Integer&#10;type: CONTACT_LINKED|CONTACT_REPLACED&#10;aggregateType: CONTACT&#10;aggregateId: ObjectId&#10;aggregateVersion: Integer&#10;actorRef: {userId:ObjectId}&#10;occurredAt: Date&#10;payload: {channel:EMAIL|PHONE}" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-ContactChangeAudit">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="220" />
+        </mxCell>
+        <mxCell id="entity-CatalogProvisioningRun" value="CatalogProvisioningRun&#10;catalogprovisioningruns" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1190" y="600" width="540" height="212" />
+        </mxCell>
+        <mxCell id="fields-CatalogProvisioningRun" value="_id: ObjectId&#10;key: String&#10;actorKind: SYSTEM_MIGRATION&#10;createdAt: Date&#10;source: String (source-dependent)&#10;skipped: Mixed[] (demo catalog)&#10;retired: String[] (demo catalog)&#10;authorization: String (initial/detail migration)&#10;created: Mixed (initial migration)" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-CatalogProvisioningRun">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="166" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Schema 18 — DemoPopulationRun" id="schema-18">
+    <mxGraphModel grid="1" page="1" pageWidth="1800" pageHeight="290">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="entity-DemoPopulationRun" value="DemoPopulationRun&#10;demopopulationruns" style="swimlane;startSize=46;horizontal=1;rounded=0;whiteSpace=wrap;html=0;fontSize=14;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="30" y="40" width="540" height="170" />
+        </mxCell>
+        <mxCell id="fields-DemoPopulationRun" value="_id: String&#10;summary: Mixed&#10;records: Mixed&#10;appliedAt: Date&#10;authorization: String (recorded explicit scope)" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=8;fontSize=12;" vertex="1" parent="entity-DemoPopulationRun">
+          <mxGeometry as="geometry" x="0" y="46" width="540" height="124" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

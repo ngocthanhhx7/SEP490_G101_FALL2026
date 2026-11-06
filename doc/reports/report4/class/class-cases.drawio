@@ -1,0 +1,281 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron">
+  <diagram id="domain-cases" name="10. Incidents, Complaints and Refund Decisions">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1044" math="0" shadow="0">
+      <root>
+        <mxCell id="p_0" />
+        <mxCell id="p_1" parent="p_0" />
+        <mxCell id="p_title" parent="p_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Incidents, Complaints and Refund Decisions" vertex="1">
+          <mxGeometry height="30" width="620" x="260" y="28.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="CasesRequestDTO" vertex="1">
+          <mxGeometry height="110.0" width="190" x="50" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_req_fields" parent="p_quote_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ actorId: string&#10;+ resourceId?: string&#10;+ expectedVersion?: integer&#10;+ idempotencyKey?: string" vertex="1">
+          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_basket_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="AuthorizedContext" vertex="1">
+          <mxGeometry height="94" width="190" x="50" y="361.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_basket_req_fields" parent="p_basket_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ ownerId: string&#10;+ roles: Role[]&#10;+ currentState: string&#10;+ sourceVersion: integer" vertex="1">
+          <mxGeometry height="68" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_res" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="CasesResultDTO" vertex="1">
+          <mxGeometry height="110.0" width="190" x="50" y="560.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_res_fields" parent="p_quote_res" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ data: allowlisted DTO&#10;+ version?: integer&#10;+ replayed?: boolean&#10;+ meta: ResponseMetadata" vertex="1">
+          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_base_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="PersistencePort" vertex="1">
+          <mxGeometry height="94" width="180" x="120" y="845.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_base_repo_methods" parent="p_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ findOne(filter): Promise&#10;+ updateOne(guard, change): Promise&#10;+ transaction(work): Promise" vertex="1">
+          <mxGeometry height="68" width="180" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ctrl" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ComplaintController" vertex="1">
+          <mxGeometry height="220" width="230" x="420" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ctrl_methods" parent="p_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ createVisitsByVisitId(args)&#10;+ createRoot(args)&#10;+ getRoot(args)&#10;+ getCasesByComplaintId(args)&#10;+ getByComplaintId(args)&#10;+ createByComplaintIdReview(args)&#10;+ createByComplaintIdResolution(args)&#10;+ createByComplaintIdObjections(args)&#10;+ createByComplaintIdDecision(args)&#10;+ createCasesByComplaintIdObjections(args)" vertex="1">
+          <mxGeometry height="194" width="230" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_serv" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentService" vertex="1">
+          <mxGeometry height="150" width="240" x="415" y="418.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_serv_methods" parent="p_serv" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ report(args)&#10;+ create(args)&#10;+ list(args)&#10;+ listIncidents(args)&#10;+ detail(args)&#10;+ get(args)&#10;+ resolve(args)&#10;+ resolveIncident(args)" vertex="1">
+          <mxGeometry height="124" width="240" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ScopedPersistenceAdapter" vertex="1">
+          <mxGeometry height="95.0" width="240" x="415" y="836.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_repo_methods" parent="p_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ ownerScope: query predicate&#10;+ expectedState: state guard&#10;+ expectedVersion: integer&#10;+ commandKey: replay identity" vertex="1">
+          <mxGeometry height="69.0" width="240" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_calc" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="ComplaintService" vertex="1">
+          <mxGeometry height="220" width="250" x="780" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_calc_methods" parent="p_calc" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ submit(args)&#10;+ create(args)&#10;+ createComplaint(args)&#10;+ submitComplaint(args)&#10;+ list(args)&#10;+ get(args)&#10;+ detail(args)&#10;+ review(args)&#10;+ resolve(args)&#10;+ object(args)&#10;+ disagree(args)&#10;+ decide(args)&#10;+ finalize(args)" vertex="1">
+          <mxGeometry height="194" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_policy" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="Case" vertex="1">
+          <mxGeometry height="122" width="250" x="780" y="418.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_policy_fields" parent="p_policy" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ _id: String (logical complaint identity)&#10;+ visitId: ObjectId&#10;+ bookingId: ObjectId&#10;+ customerId: ObjectId&#10;+ sitterId: ObjectId" vertex="1">
+          <mxGeometry height="96" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_snap" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="Refund" vertex="1">
+          <mxGeometry height="108" width="250" x="780" y="836.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_snap_fields" parent="p_snap" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ _id: ObjectId or legacy contract identity&#10;+ bookingId: ObjectId&#10;+ state: String (financial lock reader contract)" vertex="1">
+          <mxGeometry height="82" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_serv" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_serv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_repo" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_repo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_repo_base" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_base_repo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_req" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_quote_req">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_basket" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_basket_req">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="240.35" />
+              <mxPoint x="360" y="409.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_req" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.2;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="p_quote_req">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="459.8" />
+              <mxPoint x="330" y="260.3" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_basket" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="p_basket_req">
+          <mxGeometry relative="1" x="0.0194" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="522.5" />
+              <mxPoint x="300" y="482.22" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_res" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_quote_res">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_calc" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_calc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_policy" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_policy">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_snap" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="p_snap">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="690" y="585.2" />
+              <mxPoint x="690" y="890.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_repo_policy" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="p_policy">
+          <mxGeometry relative="1" x="0.0879" as="geometry">
+            <Array as="points">
+              <mxPoint x="655" y="926.25" />
+              <mxPoint x="720" y="926.25" />
+              <mxPoint x="720" y="741.0" />
+              <mxPoint x="905" y="741.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_repo_snap" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" target="p_snap">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="target-cases-incidentcaseextension" name="Incident case and audited resolution design — DESIGN_PENDING_RUNTIME">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1044" math="0" shadow="0">
+      <root>
+        <mxCell id="p_0" />
+        <mxCell id="p_1" parent="p_0" />
+        <mxCell id="p_title" parent="p_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Incident case and audited resolution design [DESIGN_PENDING_RUNTIME]" vertex="1">
+          <mxGeometry height="30" width="620" x="260" y="28.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionCommandDTO" vertex="1">
+          <mxGeometry height="110.0" width="190" x="50" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_req_fields" parent="p_quote_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ actorId: ObjectId&#10;+ resourceId: key&#10;+ expectedVersion: integer&#10;+ idempotencyKey: string" vertex="1">
+          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_basket_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="AuthoritativeSourceContext" vertex="1">
+          <mxGeometry height="94" width="190" x="50" y="361.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_basket_req_fields" parent="p_basket_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ owner / assignment binding&#10;+ current state / source version&#10;+ approved policy reference" vertex="1">
+          <mxGeometry height="68" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_res" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionResultDTO" vertex="1">
+          <mxGeometry height="110.0" width="190" x="50" y="560.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_res_fields" parent="p_quote_res" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ resourceId: key&#10;+ state: domain state&#10;+ version: integer&#10;+ replayed: boolean" vertex="1">
+          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_base_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="GuardedPersistencePort" vertex="1">
+          <mxGeometry height="94" width="180" x="120" y="845.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_base_repo_methods" parent="p_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ findOwned(filter)&#10;+ compareAndSet(guard,change)&#10;+ runTransaction(work)" vertex="1">
+          <mxGeometry height="68" width="180" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ctrl" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionController «design»" vertex="1">
+          <mxGeometry height="95.0" width="230" x="420" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ctrl_methods" parent="p_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ authorizeAndValidate(req)&#10;+ executeOwnedCommand(req,res)&#10;+ mapDomainError(error)" vertex="1">
+          <mxGeometry height="69.0" width="230" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_serv" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionService «design»" vertex="1">
+          <mxGeometry height="110.0" width="240" x="415" y="418.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_serv_methods" parent="p_serv" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ submitIncident(actor,dto,key)&#10;+ recordFollowUp(actor,dto,key)&#10;+ proposeFinancialDecision(actor,dto)&#10;+ concludeWithApprovedDecision(actor,dto)" vertex="1">
+          <mxGeometry height="84.0" width="240" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SourceRepository «design»" vertex="1">
+          <mxGeometry height="95.0" width="240" x="415" y="836.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_repo_methods" parent="p_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ persistCommandAndAudit(command)&#10;+ appendImmutableSource(source)&#10;+ claimEventOnce(key)" vertex="1">
+          <mxGeometry height="69.0" width="240" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_calc" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="CaseFinancialHoldPolicy «design»" vertex="1">
+          <mxGeometry height="95.0" width="250" x="780" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_calc_methods" parent="p_calc" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ requireEvidenceAndApprovedSource(context)&#10;+ retainHoldUntilFinalConclusion(case)" vertex="1">
+          <mxGeometry height="69.0" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_policy" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentCaseExtension" vertex="1">
+          <mxGeometry height="110.0" width="250" x="780" y="418.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_policy_fields" parent="p_policy" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ _id: String&#10;+ kind: INCIDENT&#10;+ visitId: ObjectId&#10;+ bookingId: ObjectId&#10;+ reportedBy: ObjectId" vertex="1">
+          <mxGeometry height="84.0" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_snap" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="Booking" vertex="1">
+          <mxGeometry height="108" width="250" x="780" y="836.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_snap_fields" parent="p_snap" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ _id: ObjectId&#10;+ customerId: ObjectId&#10;+ quoteId: ObjectId&#10;+ quoteVersion: Integer&#10;+ originalVisitCount: Integer" vertex="1">
+          <mxGeometry height="82" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_serv" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=1;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_serv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_repo" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=diamond;startFill=0;startSize=12;endArrow=none;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="p_repo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_repo_base" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_base_repo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_req" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_quote_req">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_basket" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_basket_req">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="240.35" />
+              <mxPoint x="360" y="409.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_req" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.2;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="p_quote_req">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="459.8" />
+              <mxPoint x="330" y="260.3" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_basket" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="p_basket_req">
+          <mxGeometry relative="1" x="0.0194" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="522.5" />
+              <mxPoint x="300" y="482.22" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_res" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_quote_res">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_calc" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_calc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_policy" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_policy">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_snap" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="p_snap">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="690" y="585.2" />
+              <mxPoint x="690" y="890.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_repo_policy" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="p_policy">
+          <mxGeometry relative="1" x="0.0879" as="geometry">
+            <Array as="points">
+              <mxPoint x="655" y="926.25" />
+              <mxPoint x="720" y="926.25" />
+              <mxPoint x="720" y="741.0" />
+              <mxPoint x="905" y="741.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_repo_snap" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" target="p_snap">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

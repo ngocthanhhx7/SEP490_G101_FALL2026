@@ -1,0 +1,1709 @@
+[
+  {
+    "id": "UC-01",
+    "title": "Register Account",
+    "feature": "FE-01 Registration and Authentication",
+    "requirement": "A guest creates a customer account with a full name and either an email or a phone number, without a password, and confirms it with one one-time code (includes Verify OTP). After registering, the customer is signed in and lands on the Customer Dashboard; the other email or phone number can be added later with Change Email or Phone Number.",
+    "group": "Identity",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "verify REGISTER OTP and approved policy consents",
+    "effect": "create CUSTOMER + verified contact + session atomically",
+    "alternative": "duplicate verified contact -> 409; invalid DTO -> 422",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/services/customer-registration.service.js",
+      "backend/src/services/account-settings.service.js"
+    ],
+    "diagram": "sequence/uc-01.drawio"
+  },
+  {
+    "id": "UC-02",
+    "title": "Log In",
+    "feature": "FE-01 Registration and Authentication",
+    "requirement": "A registered user enters a confirmed email or phone number and the code sent to it (includes Verify OTP) and reaches the dashboard of his or her role. The user stays signed in for 30 days (Customer, Pet Sitter) or 12 hours (Staff, Sale Staff, Admin). A locked Customer, Staff or Sale Staff account cannot sign in; a suspended pet sitter can still sign in but gets no new visits.",
+    "group": "Identity",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "consume valid LOGIN OTP; reload current account",
+    "effect": "issue opaque session only for ACTIVE allowed account",
+    "alternative": "locked account -> 403 after valid OTP; never issue session",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/services/customer-registration.service.js",
+      "backend/src/services/account-settings.service.js"
+    ],
+    "diagram": "sequence/uc-02.drawio"
+  },
+  {
+    "id": "UC-03",
+    "title": "Log Out",
+    "feature": "FE-01 Registration and Authentication",
+    "requirement": "A signed-in user ends the session from the header and returns to the home page.",
+    "group": "Identity",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "authenticate owned session",
+    "effect": "revoke session; clear pwc_session cookie",
+    "alternative": "expired/missing session cannot revoke another user",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/services/customer-registration.service.js",
+      "backend/src/services/account-settings.service.js"
+    ],
+    "diagram": "sequence/uc-03.drawio"
+  },
+  {
+    "id": "UC-04",
+    "title": "Change Email or Phone Number",
+    "feature": "FE-01 Registration and Authentication",
+    "requirement": "A signed-in user adds the email or phone number that the account does not have yet, or changes one, and confirms the new value with a code (includes Verify OTP). A user who has lost the only confirmed one is helped by an Admin after an identity check.",
+    "group": "Identity",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "verify new contact with purpose/session binding",
+    "effect": "replace verified contact under unique lookup and audit",
+    "alternative": "wrong contact/purpose -> reject; lost sole channel needs verified support",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/services/customer-registration.service.js",
+      "backend/src/services/account-settings.service.js"
+    ],
+    "diagram": "sequence/uc-04.drawio"
+  },
+  {
+    "id": "UC-05",
+    "title": "Verify OTP",
+    "feature": "FE-01 Registration and Authentication",
+    "requirement": "The system sends a 6-digit code to the email or phone number and checks the code the user types. Included by Register Account, Log In and Change Email or Phone Number. A code is valid for 5 minutes and can be sent again after 60 seconds, at most 5 codes an hour; five wrong codes block that email or phone number for 15 minutes.",
+    "group": "Identity",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate challenge expiry, attempts, purpose and contact",
+    "effect": "consume once; dispatch verified purpose handler",
+    "alternative": "expired/wrong/replayed code -> no account or session",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/services/customer-registration.service.js",
+      "backend/src/services/account-settings.service.js"
+    ],
+    "diagram": "sequence/uc-05.drawio"
+  },
+  {
+    "id": "UC-06",
+    "title": "View Home Page",
+    "feature": "FE-02 Public Service Information",
+    "requirement": "A guest or customer sees the introduction of the Paw World shop (food, accessories, bathing and grooming) and its home care services, with links to the products, the services and booking.",
+    "group": "Catalog",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view home page projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/service-catalog-runtime.js",
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js"
+    ],
+    "diagram": "sequence/uc-06.drawio"
+  },
+  {
+    "id": "UC-07",
+    "title": "View Service List",
+    "feature": "FE-02 Public Service Information",
+    "requirement": "A guest or customer sees the shop's bathing and grooming services and the home care services (home visits, dog walking and vet accompaniment) with their starting prices.",
+    "group": "Catalog",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view service list projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/service-catalog-runtime.js",
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js"
+    ],
+    "diagram": "sequence/uc-07.drawio"
+  },
+  {
+    "id": "UC-08",
+    "title": "View Service Details",
+    "feature": "FE-02 Public Service Information",
+    "requirement": "A guest or customer sees what a service includes, its limits, the price table and surcharges.",
+    "group": "Catalog",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view service details projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/service-catalog-runtime.js",
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js"
+    ],
+    "diagram": "sequence/uc-08.drawio"
+  },
+  {
+    "id": "UC-09",
+    "title": "View Service Areas and Policies",
+    "feature": "FE-02 Public Service Information",
+    "requirement": "A guest or customer sees the service areas (groups of wards and communes), the cancellation and refund policies and the responsibility policy: what Paw World covers, what it does not cover and what the customer must do.",
+    "group": "Catalog",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view service areas and policies projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/service-catalog-runtime.js",
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js"
+    ],
+    "diagram": "sequence/uc-09.drawio"
+  },
+  {
+    "id": "UC-10",
+    "title": "Manage User Accounts",
+    "feature": "FE-03 User Accounts and Customer Profiles",
+    "requirement": "The Admin searches and filters the accounts of every role, opens an account to see its details, creates accounts for new Staff and Sale Staff members (name, email and phone number; they sign in with a one-time code), corrects the full name of a pet sitter, a Staff or a Sale Staff member, who cannot change it themselves, and locks or unlocks Customer, Staff and Sale Staff accounts with a reason. A customer account with bookings or orders that are not finished cannot be locked. Roles cannot be changed: a role comes from the way the account was created.",
+    "group": "Identity",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "authorize ADMIN; validate account target/version",
+    "effect": "update allowed membership/state and authEpoch + audit",
+    "alternative": "no role escalation by customer; preserve membership constraints",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/services/customer-registration.service.js",
+      "backend/src/services/account-settings.service.js"
+    ],
+    "diagram": "sequence/uc-10.drawio"
+  },
+  {
+    "id": "UC-11",
+    "title": "Update Customer Profile",
+    "feature": "FE-03 User Accounts and Customer Profiles",
+    "requirement": "The customer updates his or her full name and one emergency contact (name, phone number and relationship), and sees his or her tier (Member, Silver or Gold) and its discount. The email and the phone number are added or changed with Change Email or Phone Number.",
+    "group": "Identity",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "authorize owner; allowlist displayName/profile input",
+    "effect": "persist profile; return acknowledgement and safe session projection",
+    "alternative": "server validation keeps submitted form; no tier fabricated",
+    "sources": [
+      "backend/src/services/otp-verification.service.js",
+      "backend/src/services/session.service.js",
+      "backend/src/services/customer-registration.service.js",
+      "backend/src/services/account-settings.service.js"
+    ],
+    "diagram": "sequence/uc-11.drawio"
+  },
+  {
+    "id": "UC-12",
+    "title": "Manage Service Addresses",
+    "feature": "FE-03 User Accounts and Customer Profiles",
+    "requirement": "The customer adds, edits and removes service addresses with home access notes. The customer picks the ward or commune, so the system knows the service area. Among pet sitters, only the pet sitter of a visit sees the access notes (View Home Access Notes); Staff see them only while handling that visit. An address outside every service area can be saved but is marked Not served and cannot be chosen for a booking. A booking keeps a copy of its address, so later edits do not change it. An address used by a booking that is not finished cannot be removed.",
+    "group": "PetAndAddress",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate owner, area, confirmed map point and version",
+    "effect": "save/archive address without changing booked snapshots",
+    "alternative": "active visits block archive; outside-area storage remains a gap",
+    "sources": [
+      "backend/src/services/pet-care-management.service.js",
+      "backend/src/models/pet-care.model.js"
+    ],
+    "diagram": "sequence/uc-12.drawio"
+  },
+  {
+    "id": "UC-13",
+    "title": "View Pet List",
+    "feature": "FE-04 Pet Profiles",
+    "requirement": "The customer sees his or her dogs and cats and removes a pet that is no longer cared for. A pet in a booking that is not finished cannot be removed.",
+    "group": "PetAndAddress",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view pet list projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/pet-care-management.service.js",
+      "backend/src/models/pet-care.model.js"
+    ],
+    "diagram": "sequence/uc-13.drawio"
+  },
+  {
+    "id": "UC-14",
+    "title": "Add Pet Profile",
+    "feature": "FE-04 Pet Profiles",
+    "requirement": "The customer adds a dog or a cat with its name (required), breed, weight, temperament, habits, feeding and care needs, vaccination status (last date; complete, not complete or unknown; an optional photo of the vaccination book) and photos. Pet sitters see the profile with each offer and visit; the vaccination status does not block a booking.",
+    "group": "PetAndAddress",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate owned DOG/CAT care fields; distinguish UNKNOWN",
+    "effect": "create pet + command replay result; upload owned avatar separately",
+    "alternative": "invalid species/weight/photo -> reject without partial profile overwrite",
+    "sources": [
+      "backend/src/services/pet-care-management.service.js",
+      "backend/src/models/pet-care.model.js"
+    ],
+    "diagram": "sequence/uc-14.drawio"
+  },
+  {
+    "id": "UC-15",
+    "title": "Update Pet Profile",
+    "feature": "FE-04 Pet Profiles",
+    "requirement": "The customer changes the details, care needs or photos of a pet. Visits that already have a pet sitter keep the confirmed instructions until the customer confirms the new version for them (see Confirm Care Instructions).",
+    "group": "PetAndAddress",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate owner/version and pet fields",
+    "effect": "save new pet revision; preserve care snapshots on existing visits",
+    "alternative": "active visit blocks archive; foreign owner -> not found",
+    "sources": [
+      "backend/src/services/pet-care-management.service.js",
+      "backend/src/models/pet-care.model.js"
+    ],
+    "diagram": "sequence/uc-15.drawio"
+  },
+  {
+    "id": "UC-16",
+    "title": "Submit Sitter Application",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "A guest who wants to become a pet sitter fills in the application without an account: full name, date of birth, phone number and email (both required), ID card number, service areas, experience, ID card photos, a portrait photo and certificates if any. The system checks that the person is at least 18 years old and has no Pending application with the same phone number, email or ID card, saves the application as Pending and emails a receipt with the application code.",
+    "group": "Onboarding",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate age/verified contact/consents/owned private documents",
+    "effect": "create PENDING application + audit + durable mail intent",
+    "alternative": "duplicate pending/reapply cooldown; mail failure preserves application",
+    "sources": [
+      "backend/src/services/sitter-application.service.js",
+      "backend/src/services/payroll/employment-document.service.js",
+      "backend/src/models/sitter-application.model.js"
+    ],
+    "diagram": "sequence/uc-16.drawio"
+  },
+  {
+    "id": "UC-17",
+    "title": "View Sitter Applications",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The Admin lists pending, approved and rejected applications.",
+    "group": "Onboarding",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view sitter applications projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/sitter-application.service.js",
+      "backend/src/services/payroll/employment-document.service.js",
+      "backend/src/models/sitter-application.model.js"
+    ],
+    "diagram": "sequence/uc-17.drawio"
+  },
+  {
+    "id": "UC-18",
+    "title": "Approve or Reject Sitter Application",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The Admin checks the application against a checklist (valid ID card, at least 18 years old, portrait photo, experience with pets) and calls the applicant for an interview. Approval creates an active pet sitter account from the phone number and email of the application and emails a welcome message. Rejection needs a reason from a list (for example Could not be reached); the email gives the reason and the date from which the person can apply again (30 days later).",
+    "group": "Onboarding",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "ADMIN reviews current application; require valid SIGNED contract for approval",
+    "effect": "activate contract + PET_SITTER membership + decision audit atomically",
+    "alternative": "unsigned/invalid legacy document cannot approve; rejection reason required",
+    "sources": [
+      "backend/src/services/sitter-application.service.js",
+      "backend/src/services/payroll/employment-document.service.js",
+      "backend/src/models/sitter-application.model.js"
+    ],
+    "diagram": "sequence/uc-18.drawio"
+  },
+  {
+    "id": "UC-19",
+    "title": "Suspend or Reinstate Pet Sitter",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The Admin suspends an approved pet sitter with a reason, so the pet sitter gets no new visits and pending offers are withdrawn. A pet sitter in the middle of a visit finishes it first. Visits the pet sitter has already accepted are offered automatically to other pet sitters and flagged for handover. The Admin can reinstate the pet sitter later, with a note.",
+    "group": "Onboarding",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "authorize ADMIN and inspect employee status/version",
+    "effect": "suspend/reinstate with reason; current dispatch eligibility rechecked",
+    "alternative": "no blanket rewrite of historical assignments or financial snapshots",
+    "sources": [
+      "backend/src/services/sitter-application.service.js",
+      "backend/src/services/payroll/employment-document.service.js",
+      "backend/src/models/sitter-application.model.js"
+    ],
+    "diagram": "sequence/uc-19.drawio"
+  },
+  {
+    "id": "UC-20",
+    "title": "View Sitter Earnings",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The pet sitter sees, for each booking or groomed pet, the work he or she finished with the visit pay (part-time), the difficulty bonus and the tips paid through PWC (shared equally among the pet sitters who did the work); the Admin sees the same for every pet sitter. The pay of each period is on the pay statement (Review Pay Statement). Paw World pays pet sitters outside the system.",
+    "group": "Payroll",
+    "actor": "Pet Sitter",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view sitter earnings projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/payroll/payroll.service.js",
+      "backend/src/models/payroll.model.js",
+      "backend/src/services/settlements/settlement.service.js"
+    ],
+    "diagram": "sequence/uc-20.drawio"
+  },
+  {
+    "id": "UC-21",
+    "title": "Manage Pet Sitter Contracts",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The Admin records the contract of each pet sitter: full-time (monthly pay, fixed shifts) or part-time (pay for each visit), with start and end dates. Paw World pays outside the system.",
+    "group": "Onboarding",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate encrypted particulars, Nam/Nữ/Khác, FT40/PT20 terms",
+    "effect": "DRAFT -> ISSUED -> SIGNED -> ACTIVATED; immutable signed revision",
+    "alternative": "invalid unsigned gender blocks issue/sign; signed history is preserved",
+    "sources": [
+      "backend/src/services/sitter-application.service.js",
+      "backend/src/services/payroll/employment-document.service.js",
+      "backend/src/models/sitter-application.model.js"
+    ],
+    "diagram": "sequence/uc-21.drawio"
+  },
+  {
+    "id": "UC-22",
+    "title": "Manage Services",
+    "feature": "FE-06 Service and Policy Management",
+    "requirement": "The Admin creates, updates and deactivates home care services and shop grooming services, including the checklist of tasks. A deactivated service cannot be booked any more, but bookings already made keep their price and terms.",
+    "group": "Catalog",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "ADMIN validates catalog version and service scope",
+    "effect": "create versioned service + audit; preserve historical bookings",
+    "alternative": "hide/delete cannot rewrite historical service snapshots",
+    "sources": [
+      "backend/src/routes/service-catalog-runtime.js",
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js"
+    ],
+    "diagram": "sequence/uc-22.drawio"
+  },
+  {
+    "id": "UC-23",
+    "title": "Configure Service Prices",
+    "feature": "FE-06 Service and Policy Management",
+    "requirement": "The Admin sets base prices, surcharges for pet size and extra pets, travel surcharges by service area, discounts for bookings with many visits (for example 5% from 7 visits, 10% from 20 visits) and the shipping fee of product orders by service area. A booking or an order keeps the prices that applied when it was made.",
+    "group": "Catalog",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "ADMIN validates approved deterministic pricing policy",
+    "effect": "save immutable approved price/policy revision in integer VND",
+    "alternative": "missing policy returns pending/error; AI never computes money",
+    "sources": [
+      "backend/src/routes/service-catalog-runtime.js",
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js"
+    ],
+    "diagram": "sequence/uc-23.drawio"
+  },
+  {
+    "id": "UC-24",
+    "title": "Configure Booking Policies",
+    "feature": "FE-06 Service and Policy Management",
+    "requirement": "The Admin sets the service areas (groups of wards and communes), the responsibility policy shown to customers, the minimum booking notice (24 hours), the longest booking (30 days), the free cancellation window (24 hours), the late cancellation fee (30% of the visit price), the payment deadline (48 hours), the refund rules, the travel time needed between two visits, the answer time for offers and how late a pet sitter may withdraw from a visit, and for the shop the refusal limit for cash on delivery, the payment deadline of prepaid orders, the pick-up deadline and the time to report a faulty product.",
+    "group": "Catalog",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "ADMIN validates versioned setting and approved policy source",
+    "effect": "save settings/audit; publish only approved terms/privacy versions",
+    "alternative": "unapproved cancellation/refund liability text remains unpublished",
+    "sources": [
+      "backend/src/routes/service-catalog-runtime.js",
+      "backend/src/services/service-catalog.service.js",
+      "backend/src/services/pricing/pricing.service.js"
+    ],
+    "diagram": "sequence/uc-24.drawio"
+  },
+  {
+    "id": "UC-25",
+    "title": "Create Booking",
+    "feature": "FE-07 Service Booking",
+    "requirement": "The customer chooses a service, the pets it is for, the address, the dates and one or two visit times a day, and the care needs, answers short questions about each pet's behaviour and health, sees the final price, including any discount for many visits and the tier discount, checks the care instructions filled in from the pet profiles, accepts the responsibility policy and confirms. The customer can ask for a preferred pet sitter who has cared for the pet before, who is offered the visits first; a pet sitter cannot be chosen by name. A booking must be made at least 24 hours ahead and can last at most 30 days. It is confirmed when it is placed and paid after the visits; its visits are offered to pet sitters automatically. A customer with an overdue payment cannot book; a customer with no paid bill yet can book at most 7 days and have only one unpaid booking; two bookings of one pet cannot overlap. Each visit time on each date becomes a separate visit.",
+    "group": "Booking",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate owner-bound nonexpired QUOTE/MATCH and schedule feasibility",
+    "effect": "transaction: booking + visit snapshots + intent + idempotency/outbox",
+    "alternative": "pet-time overlap/stale quote -> 409; PREPAY deadline 15 min",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-25.drawio"
+  },
+  {
+    "id": "UC-26",
+    "title": "View My Bookings",
+    "feature": "FE-07 Service Booking",
+    "requirement": "The customer lists his or her bookings by status.",
+    "group": "Booking",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view my bookings projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-26.drawio"
+  },
+  {
+    "id": "UC-27",
+    "title": "View Booking Details",
+    "feature": "FE-07 Service Booking",
+    "requirement": "The customer opens a booking to see its terms, assigned pet sitters, payments and reports.",
+    "group": "Booking",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view booking details projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-27.drawio"
+  },
+  {
+    "id": "UC-28",
+    "title": "View Visit Schedule",
+    "feature": "FE-08 Multiple-Visit Bookings",
+    "requirement": "The customer sees all visits of a booking, each with its own time window, pet sitter and status.",
+    "group": "Booking",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view visit schedule projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-28.drawio"
+  },
+  {
+    "id": "UC-29",
+    "title": "Set Working Hours",
+    "feature": "FE-09 Pet Sitter Availability",
+    "requirement": "A part-time pet sitter keeps his or her weekly working hours; a full-time pet sitter sees the shifts of the contract (Manage Shift Schedule) and does not set hours. Every pet sitter chooses his or her service areas; an Admin can change the service areas of a pet sitter. If a change affects visits the pet sitter has already accepted, those visits are flagged to Staff.",
+    "group": "Scheduling",
+    "actor": "Pet Sitter",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate signed contract and future effective self-registered windows",
+    "effect": "save availability revision under employee guard/version",
+    "alternative": "availability is not attendance; no automatic base salary reduction",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-29.drawio"
+  },
+  {
+    "id": "UC-30",
+    "title": "View Unassigned Visits",
+    "feature": "FE-10 Assignment and Conflict Checking",
+    "requirement": "The Staff member sees each visit waiting for a pet sitter with the state of its automatic offers, ordered by start time, and a Needs action list: visits the automatic offers could not fill (nobody accepted), visits still without a pet sitter 24 hours before they start, visits whose pet sitter has not checked in 30 minutes after the start, withdrawals less than 12 hours before a visit, visits affected by a pet sitter's change of working hours, visits not checked out 2 hours after their end, handovers not confirmed 1 hour before the visit, and the bookings of a customer with an overdue bill, so the Staff member can call the customer. A visit closed by the Staff member without check-out counts as done only if it has a check-in photo; otherwise it is cancelled at no charge and the pet sitter is not paid.",
+    "group": "Scheduling",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view unassigned visits projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-30.drawio"
+  },
+  {
+    "id": "UC-31",
+    "title": "Assign Sitter to Visit",
+    "feature": "FE-10 Assignment and Conflict Checking",
+    "requirement": "For a visit in the Needs action list, the Staff member opens the planning board, sees the free pet sitters ranked with reasons (the same ranking as the automatic offers) and gives the visit to one by hand, after calling him or her if needed. A pet sitter with an overlapping visit cannot be chosen; outside working hours or outside the pet sitter's service areas the system shows a warning and the Staff member confirms. If a pet sitter accepts an automatic offer for the same visit, or another Staff member assigns it, at the same moment, the first one saved keeps the visit and the Staff member who saved later is told.",
+    "group": "Scheduling",
+    "actor": "Staff / Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "recheck payment, care plan, employee eligibility and occupancy",
+    "effect": "create durable invitation; sitter acceptance performs assignment CAS",
+    "alternative": "AI advice is not assignment; concurrent occupancy -> 409",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-31.drawio"
+  },
+  {
+    "id": "UC-32",
+    "title": "View All Bookings",
+    "feature": "FE-10 Assignment and Conflict Checking",
+    "requirement": "The Staff member searches all bookings by customer, date and status and opens a booking to see its visits, pet sitters and payments.",
+    "group": "Booking",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view all bookings projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-32.drawio"
+  },
+  {
+    "id": "UC-33",
+    "title": "Monitor Today's Visits",
+    "feature": "FE-10 Assignment and Conflict Checking",
+    "requirement": "The Staff member sees all of today's visits with their live status: waiting for a pet sitter, assigned, arrived, in progress, finished. Visits where the pet sitter has not checked in 15 minutes after the start are shown in red and the Staff member calls the pet sitter; at 30 minutes the visit goes to Needs action, and the Staff member sends another pet sitter or cancels the visit at no charge. The customer's live card says that the pet sitter is late.",
+    "group": "Scheduling",
+    "actor": "Staff / Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted monitor today's visits projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-33.drawio"
+  },
+  {
+    "id": "UC-34",
+    "title": "View My Assignments",
+    "feature": "FE-11 Acceptance and Reassignment",
+    "requirement": "The pet sitter sees the visits offered to him or her and the visits already accepted, with today's visits in the planned order (JOB-06).",
+    "group": "Scheduling",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view my assignments projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-34.drawio"
+  },
+  {
+    "id": "UC-35",
+    "title": "Accept or Decline Visit Offer",
+    "feature": "FE-11 Acceptance and Reassignment",
+    "requirement": "The pet sitter accepts or declines an offered visit within the answer time (2 hours, or 30 minutes for a visit that starts within 24 hours); declining needs a reason. A declined or unanswered offer is passed automatically to the next pet sitter on the list. A full-time pet sitter is offered only visits inside his or her shifts. If Staff assign the visit by hand at the same moment, or the visit is no longer free, the first one saved keeps it and the pet sitter is told the visit is taken.",
+    "group": "Scheduling",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate owned pending offer, deadline and current employee eligibility",
+    "effect": "ACCEPT: CAS offer+visit+booking and revoke rivals; DECLINE: reason/event",
+    "alternative": "expired/changed offer or already assigned visit -> conflict",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-35.drawio"
+  },
+  {
+    "id": "UC-36",
+    "title": "View Visit Details",
+    "feature": "FE-11 Acceptance and Reassignment",
+    "requirement": "The pet sitter opens an offered or accepted visit to see the pet profile, the confirmed care instructions and the address. The home access notes are shown in the same screen under the rules of View Home Access Notes.",
+    "group": "Scheduling",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view visit details projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-36.drawio"
+  },
+  {
+    "id": "UC-37",
+    "title": "View Home Access Notes",
+    "feature": "FE-11 Acceptance and Reassignment",
+    "requirement": "The pet sitter of a visit sees the home access notes of its address (gate code, where the key is) from 1 hour before the visit until check-out. A replacement pet sitter sees them only after confirming the handover. Extends View Visit Details.",
+    "group": "Care",
+    "actor": "Pet Sitter",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "require assigned sitter, acknowledged care hash, handover and time window",
+    "effect": "return private access notes from immutable care snapshot only",
+    "alternative": "current runtime window ends at visit.endAt; audit/checkout semantics need reconciliation",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-37.drawio"
+  },
+  {
+    "id": "UC-38",
+    "title": "Reassign Sitter",
+    "feature": "FE-11 Acceptance and Reassignment",
+    "requirement": "The Staff member replaces the pet sitter of a visit. The customer and both pet sitters are notified, and the new pet sitter must confirm the handover.",
+    "group": "Scheduling",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "STAFF verifies replacement eligibility, occupancy and old assignment",
+    "effect": "logical design: replace guarded assignment and require handover",
+    "alternative": "production route composition/acceptance remains incomplete",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-38.drawio"
+  },
+  {
+    "id": "UC-39",
+    "title": "Cancel Booking or Visit",
+    "feature": "FE-12 Booking Changes and Cancellations",
+    "requirement": "The customer cancels a booking or a single visit. A visit cancelled 24 hours or more before it starts costs nothing; a later cancellation adds a late cancellation fee (30% of that visit's price) to the bill. The Staff member cancels, without any charge, a visit that still has no pet sitter 12 hours before it or whose pet sitter has not arrived 30 minutes after the start.",
+    "group": "Booking",
+    "actor": "Customer",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "authorize owner or STAFF; evaluate approved cancellation policy",
+    "effect": "logical design: guarded cancellation + audited ledger/refund proposal",
+    "alternative": "do not copy unapproved 30% fee from older report",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-39.drawio"
+  },
+  {
+    "id": "UC-40",
+    "title": "Confirm Care Instructions",
+    "feature": "FE-13 Care Instructions and Handover",
+    "requirement": "The customer confirms the care instructions for each visit, and the visit keeps the confirmed version. Instructions can be changed until 2 hours before a visit; later changes apply from the next visit. If the customer changes the instructions after a pet sitter is assigned, the pet sitter is notified and must confirm reading the new version before checking in.",
+    "group": "Care",
+    "actor": "Customer",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "verify customer owner and instruction cut-off/version",
+    "effect": "logical design: new instruction snapshot + assignee acknowledgement reset",
+    "alternative": "current checkout captures care; later full update flow remains pending",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-40.drawio"
+  },
+  {
+    "id": "UC-41",
+    "title": "Confirm Handover",
+    "feature": "FE-13 Care Instructions and Handover",
+    "requirement": "A replacement pet sitter reads the care instructions and the visit history and confirms them before starting the visit.",
+    "group": "Care",
+    "actor": "Pet Sitter",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "verify replacement assignment and latest handover/care snapshot",
+    "effect": "logical design: record version-bound handover acknowledgement",
+    "alternative": "replacement access/check-in denied until authoritative handover",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-41.drawio"
+  },
+  {
+    "id": "UC-42",
+    "title": "Check In",
+    "feature": "FE-14 Care Execution and Reporting",
+    "requirement": "The pet sitter records arriving at the customer's home with a photo taken on the phone, from 30 minutes before the visit starts. Only the pet sitter assigned to the visit can check in, and a replacement only after confirming the handover. The customer sees that the pet sitter has arrived.",
+    "group": "Care",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate assignee, time, acknowledgement and owned private CHECK_IN photo",
+    "effect": "bind media uniquely + guard visit IN_PROGRESS + event in transaction",
+    "alternative": "unowned/missing evidence, stale assignment or reused photo -> reject",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-42.drawio"
+  },
+  {
+    "id": "UC-43",
+    "title": "Check Out",
+    "feature": "FE-14 Care Execution and Reporting",
+    "requirement": "The pet sitter records leaving with a photo, after every required checklist item is done or skipped with a reason. The visit becomes Finished and the care report is sent to the customer. A visit not checked out 2 hours after its end goes to Staff, who close it with a reason; it counts as done only if it has a check-in photo.",
+    "group": "Care",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate assignee, checklist and owned CHECK_OUT photo",
+    "effect": "complete visit; evaluate whole booking; enqueue verified earning source",
+    "alternative": "incomplete checklist/open money case never fabricates payable earnings",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-43.drawio"
+  },
+  {
+    "id": "UC-44",
+    "title": "Complete Visit Checklist",
+    "feature": "FE-14 Care Execution and Reporting",
+    "requirement": "The pet sitter ticks the care checklist (food, water, litter, play) and adds notes and at least one photo. If no photo can be uploaded, the pet sitter gives a reason instead and Staff see that the visit has no photo. The pet sitter cannot check out until every required item is ticked or has a reason for being skipped.",
+    "group": "Care",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate required checklist item IDs against visit snapshot",
+    "effect": "guarded checklist updates with command replay and audit",
+    "alternative": "each required item completed or allowed reason; stale version conflicts",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-44.drawio"
+  },
+  {
+    "id": "UC-45",
+    "title": "View Care Report",
+    "feature": "FE-14 Care Execution and Reporting",
+    "requirement": "The customer or Staff reads the report of a visit with the checklist and photos.",
+    "group": "Care",
+    "actor": "Customer",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view care report projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-45.drawio"
+  },
+  {
+    "id": "UC-46",
+    "title": "View Dog Walk Location",
+    "feature": "FE-14 Care Execution and Reporting",
+    "requirement": "During a dog walk, from check-in to check-out, the pet sitter's phone sends its location and the customer sees where the dog is on a map, live only: the route and past locations are not kept after check-out. Only for dog walks; home visits and vet trips show no location.",
+    "group": "Care",
+    "actor": "Pet Sitter",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "authorize visit owner/assignee and consented active travel session",
+    "effect": "replace short-lived latest coordinate and expire sharing on stop",
+    "alternative": "current travel ETA is not complete dog-walk trail acceptance",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-46.drawio"
+  },
+  {
+    "id": "UC-47",
+    "title": "Report Incident",
+    "feature": "FE-15 Incident Handling",
+    "requirement": "A pet sitter or a customer reports a problem that happens during a visit, for example a sick pet or a pet sitter who cannot get into the home, with a description and photos. A customer who is not happy with the result of a visit afterwards submits a complaint instead (Submit Complaint).",
+    "group": "Cases",
+    "actor": "Customer",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "authorize participant; validate visit-related private evidence",
+    "effect": "logical design: incident case + audited event and financial hold",
+    "alternative": "incident router/export exists; end-to-end composition remains pending",
+    "sources": [
+      "backend/src/services/incidents/incident.service.js",
+      "backend/src/services/complaints/complaint.service.js",
+      "backend/src/services/complaints/mongo-complaint.repository.js",
+      "backend/src/services/refunds/refund.service.js"
+    ],
+    "diagram": "sequence/uc-47.drawio"
+  },
+  {
+    "id": "UC-48",
+    "title": "Resolve Incident",
+    "feature": "FE-15 Incident Handling",
+    "requirement": "The Staff member records the follow-up actions and the result. Money to be paid back (for example vet costs, or the price of a visit that should not be charged because the pet sitter could not get in) is proposed by the Staff member with evidence, at most the bill of the booking, and approved by the Admin; it is taken off the bill if it is not paid yet, or refunded if it is. While an incident is open the bill of the booking waits.",
+    "group": "Cases",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "STAFF records evidence/follow-up; ADMIN authorizes money decision",
+    "effect": "logical design: resolve incident with audited reason and money hold rules",
+    "alternative": "no guessed liability amounts or automatic payout",
+    "sources": [
+      "backend/src/services/incidents/incident.service.js",
+      "backend/src/services/complaints/complaint.service.js",
+      "backend/src/services/complaints/mongo-complaint.repository.js",
+      "backend/src/services/refunds/refund.service.js"
+    ],
+    "diagram": "sequence/uc-48.drawio"
+  },
+  {
+    "id": "UC-49",
+    "title": "Pay for Booking",
+    "feature": "FE-16 Payment Processing",
+    "requirement": "When a booking ends, the customer sees the bill (visits done, with the discount for many visits worked out again on the visits done and the tier discount, plus late cancellation fees, minus any amount the Admin approved for an incident or a complaint), may add a tip, and pays it online through payOS within 48 hours by scanning a VietQR code. A tip for a booking done by several pet sitters is shared equally among those who did the work. The bill is shown in the app and also emailed when the customer has an email. The system checks the payOS webhook and records the payment only once. While a complaint or an incident about the booking is open, and until its result is final (the customer has 72 hours to disagree), the bill waits. If a payment fails or payOS cannot create the payment link, the bill stays unpaid and the customer can try again.",
+    "group": "Payments",
+    "actor": "Customer",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "read authoritative owned booking/intent and server amount",
+    "effect": "create payOS link; only verified webhook may record payment",
+    "alternative": "redirect alone is not receipt; late/mismatch requires reconciliation",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/providers/payos/payment-webhook.service.js",
+      "backend/src/services/providers/payos/mongo-payment-webhook.repository.js"
+    ],
+    "diagram": "sequence/uc-49.drawio"
+  },
+  {
+    "id": "UC-50",
+    "title": "View Unpaid Bookings",
+    "feature": "FE-16 Payment Processing",
+    "requirement": "The Staff member lists bookings whose payment is waiting or overdue, with the amount and the due date, to contact the customers.",
+    "group": "Payments",
+    "actor": "Staff / Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view unpaid bookings projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/providers/payos/payment-webhook.service.js",
+      "backend/src/services/providers/payos/mongo-payment-webhook.repository.js"
+    ],
+    "diagram": "sequence/uc-50.drawio"
+  },
+  {
+    "id": "UC-51",
+    "title": "Process Refund",
+    "feature": "FE-17 Refund Processing",
+    "requirement": "The Admin approves, lowers or rejects (with a reason) every amount proposed by Staff for a complaint or an incident, at most the bill of the booking. If the bill is not paid yet the amount is taken off it; if it is paid, the refund is recorded and Paw World's accounting pays it back outside the system. Prepaid product orders that were cancelled, returned or found faulty are also listed here as refunds paid outside the system.",
+    "group": "Cases",
+    "actor": "Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "ADMIN verifies source case, paid receipt, cap and approved decision",
+    "effect": "logical design: approved refund record + external transfer reconciliation",
+    "alternative": "no refund API success without actual evidence; no invented tax/refund rate",
+    "sources": [
+      "backend/src/services/incidents/incident.service.js",
+      "backend/src/services/complaints/complaint.service.js",
+      "backend/src/services/complaints/mongo-complaint.repository.js",
+      "backend/src/services/refunds/refund.service.js"
+    ],
+    "diagram": "sequence/uc-51.drawio"
+  },
+  {
+    "id": "UC-52",
+    "title": "Submit Complaint",
+    "feature": "FE-18 Ratings and Complaints",
+    "requirement": "The customer files a complaint about the result of a booking or a visit within 7 days after the visit ends, and later sees his or her complaints with their status and result. The customer can disagree with the result once, within 3 days after receiving it, and the case then goes to the Admin. A problem during a visit is reported as an incident (Report Incident).",
+    "group": "Cases",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "verify customer owner and completed visit/booking deadline",
+    "effect": "persist complaint + case/booking finance guard + notification atomically",
+    "alternative": "duplicate/late complaint or foreign booking -> reject",
+    "sources": [
+      "backend/src/services/incidents/incident.service.js",
+      "backend/src/services/complaints/complaint.service.js",
+      "backend/src/services/complaints/mongo-complaint.repository.js",
+      "backend/src/services/refunds/refund.service.js"
+    ],
+    "diagram": "sequence/uc-52.drawio"
+  },
+  {
+    "id": "UC-53",
+    "title": "Handle Complaint",
+    "feature": "FE-18 Ratings and Complaints",
+    "requirement": "The Staff member follows a complaint until it is resolved and proposes any money to pay back, which the Admin approves (at most the bill). When the customer disagrees with the result, the Admin makes the final decision. While a complaint is open the bill of the booking waits.",
+    "group": "Cases",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "authorize STAFF/ADMIN and current case version/evidence",
+    "effect": "record proposed/final decision; retain financial hold until finality",
+    "alternative": "customer disagreement follows audited escalation; no direct arbitrary balance write",
+    "sources": [
+      "backend/src/services/incidents/incident.service.js",
+      "backend/src/services/complaints/complaint.service.js",
+      "backend/src/services/complaints/mongo-complaint.repository.js",
+      "backend/src/services/refunds/refund.service.js"
+    ],
+    "diagram": "sequence/uc-53.drawio"
+  },
+  {
+    "id": "UC-54",
+    "title": "View Admin Dashboard",
+    "feature": "FE-20 Admin Dashboard",
+    "requirement": "The Admin sees the numbers of today's visits and shop appointments, visits without a pet sitter, open incidents and complaints (those open more than 3 days shown apart), revenue and product sales.",
+    "group": "Dashboards",
+    "actor": "Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view admin dashboard projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/dashboard-runtime.routes.js",
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/mongo-payroll.repository.js"
+    ],
+    "diagram": "sequence/uc-54.drawio"
+  },
+  {
+    "id": "UC-55",
+    "title": "Browse Products",
+    "feature": "FE-21 Product Catalogue",
+    "requirement": "A guest or customer browses food and accessories by category and pet type, searches them and sees the price and whether each product is in stock.",
+    "group": "ProductSales",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted browse products projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-55.drawio"
+  },
+  {
+    "id": "UC-56",
+    "title": "View Product Details",
+    "feature": "FE-21 Product Catalogue",
+    "requirement": "A guest or customer sees the photos, description, price (with the customer's tier discount) and stock state of one product and adds it to the cart.",
+    "group": "ProductSales",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view product details projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-56.drawio"
+  },
+  {
+    "id": "UC-57",
+    "title": "Manage Products",
+    "feature": "FE-21 Product Catalogue",
+    "requirement": "The Admin creates and edits products (code, name, category, pet type, description, photos, selling price) and hides or shows them. A new product must be in the catalogue before its goods can be received.",
+    "group": "ProductSales",
+    "actor": "Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "ADMIN validates product detailsVersion and owned image input",
+    "effect": "persist create/edit/hide/delete reason audit + bounded photo blobs",
+    "alternative": "new product defaults hidden; stock version separate from detailsVersion",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-57.drawio"
+  },
+  {
+    "id": "UC-58",
+    "title": "Book Grooming Appointment",
+    "feature": "FE-22 Shop Grooming Appointments",
+    "requirement": "The customer books bathing or grooming at the shop: the pets, the services and a time slot, with short questions about each pet, and sees the final price for each pet before confirming. A very risky pet must be booked by calling the shop.",
+    "group": "Grooming",
+    "actor": "Customer",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "validate shop service/pets, requested slot and price snapshot",
+    "effect": "create booking in shared aggregate; shop lifecycle is logical design",
+    "alternative": "dedicated receive/groom/return acceptance incomplete",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/booking-proposals/boarding-care-plan.service.js"
+    ],
+    "diagram": "sequence/uc-58.drawio"
+  },
+  {
+    "id": "UC-59",
+    "title": "Check In Pet at Shop",
+    "feature": "FE-22 Shop Grooming Appointments",
+    "requirement": "The Staff member sees the day's shop appointments, records no-shows and checks each pet in with photos and its condition compared with the customer's answers. A listed surcharge needs the customer's consent, otherwise the pet is cancelled at no charge. The pet goes to a pet sitter with grooming skills on shift.",
+    "group": "Grooming",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "STAFF verifies appointment, pet condition/photo and surcharge consent",
+    "effect": "logical design: receive pet; assign grooming-qualified employee on shift",
+    "alternative": "no consent -> no imposed surcharge; risky pet routes to shop support",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/booking-proposals/boarding-care-plan.service.js"
+    ],
+    "diagram": "sequence/uc-59.drawio"
+  },
+  {
+    "id": "UC-60",
+    "title": "Hand Back Pet and Take Payment",
+    "feature": "FE-22 Shop Grooming Appointments",
+    "requirement": "The customer is told the pet is ready; the Staff member gives the pet back and takes the payment at the counter in cash or by VietQR, with a tip if the customer wants.",
+    "group": "Grooming",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "verify READY pet and customer; calculate authoritative payable amount",
+    "effect": "logical design: reconcile full counter payment before hand-back",
+    "alternative": "cash/VietQR confirmation requires audited real payment evidence",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/booking-proposals/boarding-care-plan.service.js"
+    ],
+    "diagram": "sequence/uc-60.drawio"
+  },
+  {
+    "id": "UC-61",
+    "title": "Manage Shopping Cart",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The customer adds, changes and removes products in the cart and sees the total with the tier discount.",
+    "group": "ProductSales",
+    "actor": "Customer",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate owned cart line and current sellable stock",
+    "effect": "add/change/remove cart lines; recompute authoritative totals",
+    "alternative": "selected-line checkout missing; current placement consumes whole cart",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-61.drawio"
+  },
+  {
+    "id": "UC-62",
+    "title": "Place Product Order",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The customer chooses delivery (shipping fee by service area) or pick-up at the shop, and pays in advance through payOS, in cash on delivery or at the shop on pick-up. Cash on delivery and payment at the shop are not offered to a customer over the refusal limit. Only the quantity available can be ordered, and placing the order holds it; a prepaid order not paid by the deadline is cancelled (JOB-04).",
+    "group": "ProductSales",
+    "actor": "Customer",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate full cart, receive/payment method, address and refusal count",
+    "effect": "transaction: order snapshots + conditional stock holds + command key",
+    "alternative": "shortage/conflict rollback; tier/provider completeness remains gated",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-62.drawio"
+  },
+  {
+    "id": "UC-63",
+    "title": "View My Orders",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The customer lists his or her product orders and opens one to see the items, the payment, the status and the carrier's tracking code.",
+    "group": "ProductSales",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view my orders projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-63.drawio"
+  },
+  {
+    "id": "UC-64",
+    "title": "Prepare and Ship Order",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The Sale Staff member prepares a delivery order, books the delivery on the carrier's site and enters the tracking code; when the parcel is handed to the carrier the hold ends and the stock on hand goes down.",
+    "group": "ProductSales",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "STAFF checks order state/version and carrier tracking data",
+    "effect": "hand-to-carrier: release hold and decrement stock exactly once",
+    "alternative": "carrier booking is external/manual; repeated command must not double decrement",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-64.drawio"
+  },
+  {
+    "id": "UC-65",
+    "title": "Update Delivery Status",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The Sale Staff member checks the carrier's site and records the carrier's status: handed to the carrier, delivered (cash on delivery collected), or being returned with the reason. The stock does not change here; returned goods are counted only when the parcel is back at the shop (Confirm Returned Order).",
+    "group": "ProductSales",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "STAFF verifies current delivery state and recorded carrier result",
+    "effect": "mark delivered or returning with reason; no return stock credit here",
+    "alternative": "stale transition rejected; no claim of automatic carrier integration",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-65.drawio"
+  },
+  {
+    "id": "UC-66",
+    "title": "Confirm Returned Order",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "When a returned parcel is back at the shop, the Sale Staff member checks the goods and records the reason and the quantity that can be sold again; only that quantity goes back to stock. Each order can be confirmed returned only once, so the stock is never added twice. Goods that cannot be sold again are not added back. A refusal counts against the customer only when the customer caused it; a prepaid order is marked for a refund.",
+    "group": "ProductSales",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "STAFF inspects returned parcel; validate per-line resellable quantity",
+    "effect": "confirm return once; credit only sellable units; record attributable refusal",
+    "alternative": "unresellable goods never restocked; prepaid refund remains reconciliation",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-66.drawio"
+  },
+  {
+    "id": "UC-67",
+    "title": "Hand Over Pick-up Order",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The Sale Staff member marks a pick-up order ready (the customer is told) and hands it over at the shop, taking the payment if it was not paid in advance; the hold ends and the stock on hand goes down. An order not collected by the deadline is cancelled (JOB-04).",
+    "group": "ProductSales",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "STAFF verifies pick-up READY state and full payment",
+    "effect": "guarded hand-to-customer; release hold and decrement stock once",
+    "alternative": "unpaid/stale pickup cannot complete; no false provider acceptance",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-67.drawio"
+  },
+  {
+    "id": "UC-68",
+    "title": "Sell at Counter",
+    "feature": "FE-24 Counter Sales",
+    "requirement": "The Sale Staff member looks up products and the quantity available, creates a counter order (the customer's phone number gives the tier discount and counts the sale toward the tier), which holds the stock, and takes cash or a VietQR payment; the customer can pay again or change the way to pay before the order is cancelled. A paid order ends the hold and takes the goods off the stock on hand; a cancelled one only ends the hold.",
+    "group": "ProductSales",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "STAFF validates counter lines and verified customer if supplied",
+    "effect": "logical design: held counter order then verified paid stock decrement",
+    "alternative": "counter UI/provider lifecycle not fully composed",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-68.drawio"
+  },
+  {
+    "id": "UC-69",
+    "title": "Manage Suppliers",
+    "feature": "FE-25 Suppliers and Stock",
+    "requirement": "The Admin adds, edits and deactivates suppliers (name, contact, products supplied).",
+    "group": "Stock",
+    "actor": "Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "ADMIN validates supplier normalized unique name/contact/products",
+    "effect": "create/update/stop/resume supplier under version guard",
+    "alternative": "duplicate normalized name -> conflict; old receipt history retained",
+    "sources": [
+      "backend/src/routes/product-sales.routes.js",
+      "backend/src/services/product-sales/supplier-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-69.drawio"
+  },
+  {
+    "id": "UC-70",
+    "title": "Record Goods Receipt",
+    "feature": "FE-25 Suppliers and Stock",
+    "requirement": "The Sale Staff member records each delivery from a supplier: for each product the quantity received, accepted and rejected with a reason. A receipt is always recorded, even when everything is rejected; the stock goes up by the accepted quantity; rejected goods are reported to the Admin and returned to the supplier outside the system; a make-up delivery is a new receipt.",
+    "group": "Stock",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "STAFF validates supplier and received/accepted/rejected quantities",
+    "effect": "logical design: immutable goods receipt; increase accepted stock only",
+    "alternative": "PR158 unmerged at baseline; do not model it as deployed code",
+    "sources": [
+      "backend/src/routes/product-sales.routes.js",
+      "backend/src/services/product-sales/supplier-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-70.drawio"
+  },
+  {
+    "id": "UC-71",
+    "title": "View Stock",
+    "feature": "FE-25 Suppliers and Stock",
+    "requirement": "The Sale Staff member or the Admin sees for each product the stock on hand, the quantity held by unfinished orders and the quantity available, the low-stock products, and the history of receipts and adjustments.",
+    "group": "Stock",
+    "actor": "Staff / Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view stock projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/product-sales.routes.js",
+      "backend/src/services/product-sales/supplier-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-71.drawio"
+  },
+  {
+    "id": "UC-72",
+    "title": "View Sitter Profile",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The customer opens the profile of the pet sitter assigned to a visit: photo, introduction, experience, visits done and rating. Staff see the full profile.",
+    "group": "Engagement",
+    "actor": "Guest / Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view sitter profile projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/reviews/review.service.js",
+      "backend/src/services/notifications/notification.service.js",
+      "backend/src/models/sitter-public-profile.model.js"
+    ],
+    "diagram": "sequence/uc-72.drawio"
+  },
+  {
+    "id": "UC-73",
+    "title": "Update Sitter Profile",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The pet sitter updates his or her photo, introduction and experience.",
+    "group": "Engagement",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "sitter edits own public bio/areas separately from application",
+    "effect": "submit profile for review; moderation stores version/hash audit",
+    "alternative": "only APPROVED profile exposed; private application never published",
+    "sources": [
+      "backend/src/services/reviews/review.service.js",
+      "backend/src/services/notifications/notification.service.js",
+      "backend/src/models/sitter-public-profile.model.js"
+    ],
+    "diagram": "sequence/uc-73.drawio"
+  },
+  {
+    "id": "UC-74",
+    "title": "View Sitter List",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The Staff member lists active pet sitters with their contract type, service areas, working hours or shifts, days off, rating, and the number of withdrawals and late check-ins in the last 30 days.",
+    "group": "Engagement",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view sitter list projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/reviews/review.service.js",
+      "backend/src/services/notifications/notification.service.js",
+      "backend/src/models/sitter-public-profile.model.js"
+    ],
+    "diagram": "sequence/uc-74.drawio"
+  },
+  {
+    "id": "UC-75",
+    "title": "Review Pay Statement",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "At the end of each pay period (part-time weekly, full-time monthly) the system makes the pet sitter's statement: contract pay or visit pay, difficulty bonuses and tips through PWC. The pet sitter checks it within 3 days and accepts it or complains with a reason; with no complaint the statement is closed after 3 days.",
+    "group": "Payroll",
+    "actor": "Pet Sitter",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "read signed contract, verified credit and current statement version",
+    "effect": "employee reviews statement; payroll correction is separate audited revision",
+    "alternative": "FT10m/PT3m gross monthly; schedule is not attendance; no invented deductions",
+    "sources": [
+      "backend/src/services/payroll/payroll.service.js",
+      "backend/src/models/payroll.model.js",
+      "backend/src/services/settlements/settlement.service.js"
+    ],
+    "diagram": "sequence/uc-75.drawio"
+  },
+  {
+    "id": "UC-76",
+    "title": "Close Pay Statement",
+    "feature": "FE-05 Pet Sitter Recruitment and Management",
+    "requirement": "The Admin answers each complaint about a statement by correcting it with a reason or explaining it; the system keeps the history and tells the pet sitter, then the statement is closed; there is no second review. The Admin pays outside the system and marks the statement paid; a mistake found after payment is adjusted in the next period.",
+    "group": "Payroll",
+    "actor": "Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "ADMIN verifies statement objections, agreed adjustments and transfer reference",
+    "effect": "close/pay recorded statement; retain original and separate later adjustments",
+    "alternative": "UNKNOWN transfer requires reconciliation; no automatic clawback",
+    "sources": [
+      "backend/src/services/payroll/payroll.service.js",
+      "backend/src/models/payroll.model.js",
+      "backend/src/services/settlements/settlement.service.js"
+    ],
+    "diagram": "sequence/uc-76.drawio"
+  },
+  {
+    "id": "UC-77",
+    "title": "View Customer Dashboard",
+    "feature": "FE-07 Service Booking",
+    "requirement": "The customer opens the dashboard after signing in and sees the next visits and shop appointments, bookings still waiting for a pet sitter, bills to pay and product orders in progress, with links to book a service, to the shop and to the pet list.",
+    "group": "Dashboards",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view customer dashboard projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/dashboard-runtime.routes.js",
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/mongo-payroll.repository.js"
+    ],
+    "diagram": "sequence/uc-77.drawio"
+  },
+  {
+    "id": "UC-78",
+    "title": "Track Visit Status",
+    "feature": "FE-08 Multiple-Visit Bookings",
+    "requirement": "The customer follows a visit as it happens: assigned, arrived, in progress, finished, report ready.",
+    "group": "Care",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted track visit status projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/care/assigned-care.service.js",
+      "backend/src/services/settlements/booking-finance-source.service.js",
+      "backend/src/services/employee-scheduling/visit-travel.service.js"
+    ],
+    "diagram": "sequence/uc-78.drawio"
+  },
+  {
+    "id": "UC-79",
+    "title": "Request Day Off",
+    "feature": "FE-09 Pet Sitter Availability",
+    "requirement": "The pet sitter asks for days off and a Staff member approves or rejects the request. When the request is approved, the pet sitter is taken off the accepted visits on those days; they are offered again automatically with a handover note, and Staff are told. A day off that touches a visit starting within 12 hours cannot be asked alone and goes to Staff as a withdrawal.",
+    "group": "Scheduling",
+    "actor": "Pet Sitter",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "verify employee/date and near-term assignment conflicts",
+    "effect": "logical design: day-off decision + guarded replacement invitations",
+    "alternative": "date exclusions exist; full request/approval workflow remains incomplete",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-79.drawio"
+  },
+  {
+    "id": "UC-80",
+    "title": "Manage Shift Schedule",
+    "feature": "FE-09 Pet Sitter Availability",
+    "requirement": "The Admin enters the fixed shifts of full-time pet sitters (home care and shop) in a calendar. Full-time pet sitters are offered visits only inside their shifts.",
+    "group": "Scheduling",
+    "actor": "Pet Sitter",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "employee self-registers future windows after signed approval",
+    "effect": "save versioned availability with FT40h/PT20h contractual minimum",
+    "alternative": "Report3 fixed Admin-entered shifts superseded by approved 2026-11-05 decision",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-80.drawio"
+  },
+  {
+    "id": "UC-81",
+    "title": "View Staff Dashboard",
+    "feature": "FE-10 Assignment and Conflict Checking",
+    "requirement": "The Staff member opens the dashboard after signing in and sees the numbers of today's visits and shop appointments, visits in Needs action, late visits, open incidents and complaints (those open more than 3 days shown apart), and unpaid bookings, each linking to its list.",
+    "group": "Dashboards",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view staff dashboard projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/dashboard-runtime.routes.js",
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/mongo-payroll.repository.js"
+    ],
+    "diagram": "sequence/uc-81.drawio"
+  },
+  {
+    "id": "UC-82",
+    "title": "Withdraw from Visit",
+    "feature": "FE-11 Acceptance and Reassignment",
+    "requirement": "The pet sitter withdraws from an accepted visit with a reason, at least 12 hours before it starts. The visit is offered automatically to the next pet sitter and flagged for handover. A later withdrawal goes to Staff's Needs action list.",
+    "group": "Scheduling",
+    "actor": "Pet Sitter",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "verify assigned sitter and permitted withdrawal timing/reason",
+    "effect": "logical design: release assignment guard; reoffer with handover requirement",
+    "alternative": "late withdrawal needs Staff action; complete runtime route pending",
+    "sources": [
+      "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+      "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+      "backend/src/services/sitter-offer.service.js"
+    ],
+    "diagram": "sequence/uc-82.drawio"
+  },
+  {
+    "id": "UC-83",
+    "title": "View Pet Sitter Dashboard",
+    "feature": "FE-11 Acceptance and Reassignment",
+    "requirement": "The pet sitter opens the dashboard after signing in and sees the offers waiting for an answer with the time left, today's visits in the planned order (JOB-06) and shop shifts, and the next visits, with links to working hours, days off, earnings and pay statements.",
+    "group": "Dashboards",
+    "actor": "Pet Sitter",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view pet sitter dashboard projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/dashboard-runtime.routes.js",
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/mongo-payroll.repository.js"
+    ],
+    "diagram": "sequence/uc-83.drawio"
+  },
+  {
+    "id": "UC-84",
+    "title": "Request Booking Change",
+    "feature": "FE-12 Booking Changes and Cancellations",
+    "requirement": "The customer asks to move a booking or a single visit to another time. Only the date and time can change, so the price stays the same. The new time must be at least 24 hours away, and the request must be sent at least 12 hours before the old time. Each visit can be moved only once.",
+    "group": "Booking",
+    "actor": "Customer",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "customer requests time-only change with owner/version and cut-off",
+    "effect": "logical design: pending change preserves old schedule and price snapshot",
+    "alternative": "no reschedule until Staff decision; original timings are older SRS requirements",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-84.drawio"
+  },
+  {
+    "id": "UC-85",
+    "title": "Approve Booking Change",
+    "feature": "FE-12 Booking Changes and Cancellations",
+    "requirement": "The Staff member approves or rejects a change request, and the affected assignments are updated. A request not handled 6 hours before the old time expires and the visit keeps its old time; the system expires such requests (JOB-02).",
+    "group": "Booking",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "STAFF verifies pending request deadline and new occupancy",
+    "effect": "logical design: guarded approved schedule or reasoned rejection/expiry",
+    "alternative": "expiry preserves old slot; production composition remains incomplete",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/customer-bookings.service.js"
+    ],
+    "diagram": "sequence/uc-85.drawio"
+  },
+  {
+    "id": "UC-86",
+    "title": "View Incidents",
+    "feature": "FE-15 Incident Handling",
+    "requirement": "The Staff member lists open and resolved incidents.",
+    "group": "Cases",
+    "actor": "Staff / Admin",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view incidents projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/services/incidents/incident.service.js",
+      "backend/src/services/complaints/complaint.service.js",
+      "backend/src/services/complaints/mongo-complaint.repository.js",
+      "backend/src/services/refunds/refund.service.js"
+    ],
+    "diagram": "sequence/uc-86.drawio"
+  },
+  {
+    "id": "UC-87",
+    "title": "Rate Visit",
+    "feature": "FE-18 Ratings and Complaints",
+    "requirement": "The customer rates a finished visit and leaves a comment. Each visit can be rated once, within 7 days after it ends.",
+    "group": "Engagement",
+    "actor": "Customer",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "verify owner, actual completed assigned visit, window and direction",
+    "effect": "create unique visit/direction review; verified outcome uses captured features",
+    "alternative": "only PUBLISHED CUSTOMER_TO_SITTER contributes public rating; no fake labels",
+    "sources": [
+      "backend/src/services/reviews/review.service.js",
+      "backend/src/services/notifications/notification.service.js",
+      "backend/src/models/sitter-public-profile.model.js"
+    ],
+    "diagram": "sequence/uc-87.drawio"
+  },
+  {
+    "id": "UC-88",
+    "title": "View Notifications",
+    "feature": "FE-19 Notifications",
+    "requirement": "A signed-in user sees updates about bookings, offers, payments, pet sitter changes, incidents, product orders and shop appointments; the Admin also sees goods receipts with rejected goods.",
+    "group": "Engagement",
+    "actor": "Customer",
+    "status": "SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED",
+    "guard": "authenticate recipient and active role; signed cursor/limit",
+    "effect": "return persisted notifications; mark own read state with CSRF",
+    "alternative": "cross-user/role notices hidden; no Socket.IO promise",
+    "sources": [
+      "backend/src/services/reviews/review.service.js",
+      "backend/src/services/notifications/notification.service.js",
+      "backend/src/models/sitter-public-profile.model.js"
+    ],
+    "diagram": "sequence/uc-88.drawio"
+  },
+  {
+    "id": "UC-89",
+    "title": "View Operational Reports",
+    "feature": "FE-20 Admin Dashboard",
+    "requirement": "The Admin filters bookings, visits, payments and refunds by period.",
+    "group": "Dashboards",
+    "actor": "Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view operational reports projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/dashboard-runtime.routes.js",
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/mongo-payroll.repository.js"
+    ],
+    "diagram": "sequence/uc-89.drawio"
+  },
+  {
+    "id": "UC-90",
+    "title": "View Audit Log",
+    "feature": "FE-20 Admin Dashboard",
+    "requirement": "The Admin checks who opened the home access notes of a visit and when; the notes themselves are not shown.",
+    "group": "Dashboards",
+    "actor": "Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "ADMIN authorizes audit scope; exclude actual home-entry secret text",
+    "effect": "logical design: read immutable access-event actor/time projection",
+    "alternative": "current access-note function does not itself persist this audit event",
+    "sources": [
+      "backend/src/routes/dashboard-runtime.routes.js",
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/mongo-payroll.repository.js"
+    ],
+    "diagram": "sequence/uc-90.drawio"
+  },
+  {
+    "id": "UC-91",
+    "title": "Update Grooming Status",
+    "feature": "FE-22 Shop Grooming Appointments",
+    "requirement": "The pet sitter on a shop shift sees the pets given to him or her, marks each one in progress or ready, stops a pet that is too dangerous to go on, and notes in the pet profile anything harder than declared.",
+    "group": "Grooming",
+    "actor": "Pet Sitter",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "assigned grooming employee verifies pet and current appointment state",
+    "effect": "logical design: IN_PROGRESS -> READY or STOPPED with reason",
+    "alternative": "full shop lifecycle requires implementation/acceptance",
+    "sources": [
+      "backend/src/services/booking-proposals/booking-checkout.service.js",
+      "backend/src/services/booking-proposals/boarding-care-plan.service.js"
+    ],
+    "diagram": "sequence/uc-91.drawio"
+  },
+  {
+    "id": "UC-92",
+    "title": "Report Faulty Product",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The customer reports a faulty or wrong product from an order with photos, within the time set by the Admin. Products are not taken back when the customer changes his or her mind.",
+    "group": "ProductSales",
+    "actor": "Customer",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "owner validates paid order, claim deadline and private evidence",
+    "effect": "logical design: persist faulty/wrong-product claim with version/audit",
+    "alternative": "not a change-of-mind return; no silent stock increase",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-92.drawio"
+  },
+  {
+    "id": "UC-93",
+    "title": "Handle Faulty Product Claim",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The Sale Staff member checks the claim and the Admin approves an exchange for the same product (new goods sent, stock goes down) or a refund paid outside the system. Faulty goods are not added back to stock, so no stock adjustment is made for them.",
+    "group": "ProductSales",
+    "actor": "Staff / Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "STAFF inspects claim; ADMIN approves same-product exchange or refund",
+    "effect": "logical design: one audited resolution and verified stock/transfer effect",
+    "alternative": "faulty goods never become sellable inventory; runtime integration pending",
+    "sources": [
+      "backend/src/services/product-sales/product-order.service.js",
+      "backend/src/services/product-sales/product-order-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-93.drawio"
+  },
+  {
+    "id": "UC-94",
+    "title": "View Sale Staff Dashboard",
+    "feature": "FE-23 Online Product Orders and Delivery",
+    "requirement": "The Sale Staff member opens the dashboard after signing in and sees the orders to prepare, orders ready for pick-up, returned parcels, faulty product claims to check and low-stock products, each linking to its list.",
+    "group": "Dashboards",
+    "actor": "Staff / Admin",
+    "status": "PARTIAL_SCOPE_OR_ACCEPTANCE",
+    "guard": "validate public scope or current role/owner and bounded cursor",
+    "effect": "read allowlisted view sale staff dashboard projection; no domain mutation",
+    "alternative": "401/403/404 for access; 422 for invalid input; 409 for stale state where applicable",
+    "sources": [
+      "backend/src/routes/dashboard-runtime.routes.js",
+      "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+      "backend/src/services/dashboards/mongo-payroll.repository.js"
+    ],
+    "diagram": "sequence/uc-94.drawio"
+  },
+  {
+    "id": "UC-95",
+    "title": "Adjust Stock",
+    "feature": "FE-25 Suppliers and Stock",
+    "requirement": "The Admin increases or decreases the stock of a product with a required reason (damaged, lost, internal use, wrong receipt). Old records are never edited and the stock cannot go below zero; a decrease cannot be more than the quantity available. This is not a stock count.",
+    "group": "Stock",
+    "actor": "Admin",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "guard": "ADMIN validates required reason, integer delta, version and available stock",
+    "effect": "logical design: append immutable adjustment; guarded nonnegative stock delta",
+    "alternative": "do not edit old receipts or decrease reserved stock; feature not deployed",
+    "sources": [
+      "backend/src/routes/product-sales.routes.js",
+      "backend/src/services/product-sales/supplier-management.service.js",
+      "backend/src/models/product.model.js"
+    ],
+    "diagram": "sequence/uc-95.drawio"
+  }
+]
