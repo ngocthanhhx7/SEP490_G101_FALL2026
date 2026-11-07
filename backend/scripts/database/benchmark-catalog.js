@@ -30,10 +30,10 @@ try {
   const services = await models.Service.find().lean();
   await Presentation.insertMany(services.filter(row => row.presentation).map(row => ({ serviceId: row._id, ...row.presentation })));
   const priceProvider = createServicePriceService({ connection, PriceVersion: models.ServicePriceVersion,
-    Audit: models.ServicePriceAudit, serviceExists: async id => !!await models.Service.exists({ _id: id }) });
+    serviceExists: async id => !!await models.Service.exists({ _id: id }) });
   const at = new Date();
   const options = { connection, Service: models.Service, ServiceVersion: models.ServiceVersion,
-    PolicyVersion: models.ServicePolicyVersion, Audit: models.ServiceAudit, Presentation,
+    PolicyVersion: models.ServicePolicyVersion, Audit: {}, Presentation,
     priceProvider, catalogSettings: { isEnabledAt: async () => true } };
   const candidates = { baseline: baseline.createServiceCatalogService(options), optimized: createServiceCatalogService(options) };
   assert.deepEqual(await candidates.baseline.publicList({ at }), await candidates.optimized.publicList({ at }));

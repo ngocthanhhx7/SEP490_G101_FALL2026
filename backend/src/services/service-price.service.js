@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
 import { AppError } from '../utils/app-error.js';
 
 function invalid(message = 'Price configuration is invalid') {
@@ -45,8 +46,8 @@ function priceView(price) {
   };
 }
 
-export function createServicePriceService({ connection, PriceVersion, Audit, serviceExists, clock = Date.now }) {
-  if (!connection?.transaction || !PriceVersion || !Audit || typeof serviceExists !== 'function'
+export function createServicePriceService({ connection, PriceVersion, serviceExists, clock = Date.now }) {
+  if (!connection?.transaction || !PriceVersion || typeof serviceExists !== 'function'
     || typeof clock !== 'function') throw new TypeError('Service price dependencies are required');
 
   async function list(serviceId) {
@@ -86,15 +87,10 @@ export function createServicePriceService({ connection, PriceVersion, Audit, ser
         }
         const now = new Date(clock());
         const [price] = await PriceVersion.create([{
+          changeAudit: createCatalogChange('SERVICE_PRICE_VERSIONED', ['amountVnd', 'currency', 'unitLabel']),
           serviceId: id, version: input.expectedVersion + 1, amountVnd: input.amountVnd,
           currency: 'VND', unitLabel: input.unitLabel, effectiveAt: input.effectiveAt,
           changedBy: new Types.ObjectId(actor.userId), reason: input.reason, recordedAt: now
-        }], { session });
-        await Audit.create([{
-          actorId: new Types.ObjectId(actor.userId), action: 'SERVICE_PRICE_VERSIONED',
-          resourceType: 'service-price', resourceId: id, version: price.version,
-          changedFields: ['amountVnd', 'currency', 'unitLabel'], reason: input.reason,
-          effectiveAt: input.effectiveAt, occurredAt: now
         }], { session });
         return priceView(price.toObject());
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });

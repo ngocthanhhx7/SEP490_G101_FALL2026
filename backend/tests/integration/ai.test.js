@@ -4,6 +4,7 @@ import { pricingRuntimeModule } from '../../src/routes/pricing.routes.js';
 import { petCareRuntimeModule } from '../../src/routes/pet-care.routes.js';
 import { servicePolicyVersionModel } from '../../src/models/service-policy-version.model.js';
 import { systemSettingVersionModel } from '../../src/models/system-setting-version.model.js';
+import { createCatalogChange } from '../../src/models/catalog-change-provenance.model.js';
 import { beforeAll, afterAll, beforeEach, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -529,10 +530,12 @@ test('Admin creates immutable policy versions; duplicate version conflicts and d
 });
 
 test('published service policies and catalog visibility gate AI quotes too', async () => {
-  await systemSettingVersionModel(connection).updateOne(
-    { key: 'SERVICE_CATALOG_VISIBLE' },
-    { $set: { enabled: false } }
-  );
+  await systemSettingVersionModel(connection).create({
+    key: 'SERVICE_CATALOG_VISIBLE', version: 2, enabled: false,
+    effectiveAt: new Date(clockNow), changedBy: admin._id,
+    reason: 'Synthetic visibility withdrawal', recordedAt: new Date(clockNow),
+    changeAudit: createCatalogChange('SERVICE_CATALOG_VISIBILITY_CHANGED', ['enabled'])
+  });
   await request(app)
     .post('/api/v1/pricing/quotes')
     .set(await authFor(customer))

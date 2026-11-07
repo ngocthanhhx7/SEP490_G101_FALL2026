@@ -7,7 +7,6 @@ import {
   requireSession
 } from '../middlewares/session.js';
 import { systemSettingVersionModel } from '../models/system-setting-version.model.js';
-import { systemSettingAuditModel } from '../models/system-setting-audit.model.js';
 import { createSessionService } from '../services/session.service.js';
 import { createSystemSettingsService } from '../services/system-settings.service.js';
 
@@ -22,7 +21,6 @@ export function systemSettingsModule({
   const service = createSystemSettingsService({
     connection,
     SettingVersion: systemSettingVersionModel(connection),
-    Audit: systemSettingAuditModel(connection),
     clock
   });
   const router = Router();
