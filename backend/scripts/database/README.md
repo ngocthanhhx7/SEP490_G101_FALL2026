@@ -68,3 +68,9 @@ writers restart. Do not overwrite foreign validators without review.
 full duplicate audits with embedded provenance at 1k/10k/100k. It measures logical
 BSON, data/index storage and writes; synthetic timing is not production capacity.
 See [catalog audit storage plan](../../../doc/database/catalog-audit-storage-plan-2026-11-07.md).
+
+`benchmark-catalog-point-lookups.js` runs isolated synthetic point-time queries at
+1k/10k/100k version documents with the current unique/history indexes. It compares
+selection equality, examined keys/documents and warmed latency without creating
+or dropping any production index. Fixtures exercise query shape, not full domain
+records; timing is not production capacity.
