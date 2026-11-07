@@ -1,5 +1,7 @@
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { settlementModels, settlementBucketNames } from '../../models/settlement.model.js';
+import { Types } from 'mongoose';
+import { userModel } from '../../models/user.model.js';
 import { AppError } from '../../utils/app-error.js';
 
 const BUCKET_TO_FIELD = Object.freeze({
@@ -381,9 +383,12 @@ export function createMongoSettlementRepository({ connection, models = settlemen
     const query = decoded ? { $or: [{ submittedAt: { $lt: decoded.submittedAt } },
       { submittedAt: decoded.submittedAt, id: { $lt: decoded.id } }] } : {};
     const rows = await requests.find(query).sort({ submittedAt: -1, id: -1 }).limit(limit + 1).lean().exec();
+    const summary=await requests.aggregate([{$group:{_id:'$status',count:{$sum:1},amountVnd:{$sum:'$amountVnd'}}}]).option({maxTimeMS:5000});
+    if(summary.some(r=>!Number.isSafeInteger(r.amountVnd))||!Number.isSafeInteger(summary.reduce((total,row)=>total+row.amountVnd,0)))throw new AppError(409,'SETTLEMENT_REPORT_OVERFLOW','Report exceeds supported integer amounts');
     const hasMore = rows.length > limit;
-    const items = rows.slice(0, limit).map(requestView);
-    return { items, nextCursor: hasMore ? encodeCursor(items[items.length - 1], cursorSecret) : null, decisionIds: [] };
+    const users = await userModel(connection).find({ _id: { $in: rows.filter(row => /^[a-f0-9]{24}$/i.test(row.sitterId)).map(row => new Types.ObjectId(row.sitterId)) } }).select('displayName').lean();
+    const items = rows.slice(0, limit).map(row => ({ ...requestView(row), sitterName: users.find(user => String(user._id) === row.sitterId)?.displayName ?? null }));
+    return { summary, items, nextCursor: hasMore ? encodeCursor(items[items.length - 1], cursorSecret) : null, decisionIds: [] };
   }
 
   async function registerEvidence({ requestId, ownerActorId, evidenceReference, mediaId, uploadedAt = new Date() }, session) {

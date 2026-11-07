@@ -58,8 +58,12 @@ remain unchanged; only the consented operational time and area are updated.
 Customer confirmation also pins the nominated employee as the operational requested
 sitter. The worker cannot replenish that consented choice with other employees;
 acceptance is still required and original checkout snapshots remain unchanged.
+Owner-scoped proposal reads additionally resolve the nominated sitter's display
+name with an allowlisted projection; contact and application details are not exposed.
 
 With AI enabled, automatic dispatch composes the advisory operational ranker.
 Only an exact permutation of authoritative eligible IDs is accepted. Incomplete,
 invalid or timed-out advice preserves deterministic ordering. A private selected
 feature snapshot is copied from the offer to the visit only on acceptance.
+
+`dispatch-workspace.service.js` supplies a read-only Vietnam-day projection: all-day counts and at most 50 chronologically sorted visits with allowlisted display names. ASSIGNED visits more than 15 minutes late without check-in are flagged for inspection, not automatically closed or deemed absent. Queue display names are enriched separately; the worker query, invitation eligibility and financial writes are unchanged.

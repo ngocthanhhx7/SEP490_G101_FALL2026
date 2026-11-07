@@ -1,3 +1,4 @@
+import { avatarRuntimeModule } from './routes/avatar.routes.js';
 import { pricingRuntimeModule } from './routes/pricing.routes.js';
 import { petCareRuntimeModule } from './routes/pet-care.routes.js';
 import { aiRuntimeModule } from './routes/sitter-recommendations.routes.js';
@@ -17,6 +18,7 @@ import { userAdminModule } from './routes/user-admin.routes.js';
 import { registerModules } from './routes/module-registry.js';
 import { createProviderPortOverrides } from './config/provider-ports.js';
 import { publicPolicyModule } from './routes/public-policy.routes.js';
+import { publicServiceAreasModule } from './routes/public-service-areas.routes.js';
 import { privateImageRuntimeModule, applicantDocumentRuntimeModule } from './routes/private-image.routes.js';
 import { sitterApplicationRuntimeModule } from './routes/sitter-application.routes.js';
 
@@ -81,6 +83,7 @@ export function createApp({
   if (auth && financeSources) auth.router.use(financeSources.router);
   app.locals.financeSources = financeSources?.service ?? null;
   const customerProfile = customerProfileRuntimeModule(context);
+  const avatars = avatarRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
@@ -126,8 +129,10 @@ export function createApp({
     contactModule(context),
     healthModule(context),
     publicPolicyModule(context),
+    publicServiceAreasModule(context),
     ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []),
+    ...(avatars ? [avatars] : []),
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),

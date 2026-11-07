@@ -72,6 +72,23 @@ New errors: `VERSION_CONFLICT` (409, none in R3) and `PRODUCT_CODES_EXHAUSTED` (
 
 ### Paged lists
 
+Admin products additionally return `summary: { total, visible, hidden, outOfStock }`
+for all non-deleted products, independently of search/page filters. Out of stock
+means `stockOnHand - quantityHeld <= 0`.
+
+### Product deletion
+
+`DELETE /api/v1/admin/products/:productId` takes `{ version, reason }`, with Admin
+session/CSRF. Reason must contain 20–1,000 trimmed NFC characters without control
+characters. Any order history (all statuses), on-hand stock or held quantity
+blocks deletion with `409 PRODUCT_DELETE_BLOCKED` and `hasOrders` / `hasStock`.
+Hiding through the existing PATCH remains available. Successful deletion returns
+`{ id, deleted: true }`, retains the code and actor/reason/time audit in MongoDB,
+and excludes the product from active lists, edits, photo reads/writes and shopping.
+It never removes order/supplier references or image blobs. This user-approved
+extension supersedes the original hide-only scope; see
+[verification and rules](../testing/product-management-lifecycle-2026-11-05.md).
+
 `page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). Supplier Management uses it, and Stock List is meant to. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
 
 ### Product photos
@@ -216,3 +233,7 @@ The API returns codes and English text; the frontend shows the Vietnamese wordin
 ## Demo data
 
 `npm run seed:products` prints the planned products (dry run). `npm run seed:products -- --apply` writes them to a development database only (`*_dev`, not production) and never overwrites an existing product. Nine synthetic products: eight Shown and `SP-0036` Hidden. Stock of `SP-0016`, `SP-0021` and `SP-0037` are sample numbers. Registered models get their collections and indexes from the normal deployment index command.
+
+## Product order pagination and notifications (2026-11-05)
+
+Customer and Admin order lists accept page (default 1) and limit (default 20, max 50), returning items/page/limit/total. Owner/role/search/tab filters apply before paging. Admin status counts remain global. Product placement and status/payment transitions write IN_APP notifications transactionally, deduplicated by order/version/recipient. Customer links select the owned order; active Admins receive new-order alerts. No SMS/email is enabled. See [Figma pagination and shopping verification](../testing/figma-pagination-shopping-2026-11-05.md).

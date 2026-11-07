@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Select, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
@@ -32,6 +33,7 @@ export function StaffVisitBoardPage({ apiRequest: suppliedRequest, operationKey 
   const initial = () => ({ date: vietnamToday(), areaCode: '', kind: 'ALL', state: '', needsAction: false, cursor: '' });
   const [draft, setDraft] = useState(initial);
   const [filter, setFilter] = useState(initial);
+  const [pageHistory, setPageHistory] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState(null);
   const [detailStatus, setDetailStatus] = useState('idle');
@@ -105,7 +107,7 @@ export function StaffVisitBoardPage({ apiRequest: suppliedRequest, operationKey 
     <a href="#visit-board-results" className="visit-board-skip">Bỏ qua đến kết quả</a>
     <header><p className="visit-board-eyebrow">PAW WORLD CARE · ĐIỀU PHỐI</p><h1>Bảng điều phối</h1>
       <p>Theo dõi lịch, lời mời và công việc cần xử lý. Thời gian Việt Nam (UTC+7).</p></header>
-    <form className="visit-board-filters" onSubmit={event => { event.preventDefault(); setFilter({ ...draft, cursor: '' }); setSelectedId(''); }}>
+    <form className="visit-board-filters" onSubmit={event => { event.preventDefault(); setPageHistory([]); setFilter({ ...draft, cursor: '' }); setSelectedId(''); }}>
       <Input label="Ngày vận hành" type="date" required value={draft.date} onChange={event => setDraft({ ...draft, date: event.target.value })} />
       <Input label="Mã khu vực" value={draft.areaCode} onChange={event => setDraft({ ...draft, areaCode: event.target.value })} hint="Để trống để xem các khu vực được cấp quyền." />
       <Select label="Loại công việc" value={draft.kind} onChange={event => setDraft({ ...draft, kind: event.target.value, state: '' })}>
@@ -134,8 +136,11 @@ export function StaffVisitBoardPage({ apiRequest: suppliedRequest, operationKey 
             {(row.visitId || row.kind === 'VISIT') && <Button variant="secondary" onClick={() => choose(row)} disabled={pending || uncertain}>Xử lý {row.visitId ?? row.id}</Button>}
           </article>
         </li>)}</ul>
-        <nav aria-label="Phân trang"><Button variant="secondary" disabled={!filter.cursor || pending} onClick={() => { setFilter({ ...filter, cursor: '' }); setSelectedId(''); }}>Về trang đầu</Button>
-          <Button disabled={!resource.data?.nextCursor || resource.status !== 'success' || pending} onClick={() => { setFilter({ ...filter, cursor: resource.data.nextCursor }); setSelectedId(''); }}>Trang tiếp</Button></nav>
+        <CursorPagination label="buổi chăm sóc" page={pageHistory.length + 1} hasNext={Boolean(resource.data?.nextCursor)}
+          disabled={pending || resource.status !== 'success'} nextLabel="Trang tiếp"
+          onFirst={() => { setPageHistory([]); setFilter({ ...filter, cursor: '' }); setSelectedId(''); }}
+          onPrevious={() => { setFilter({ ...filter, cursor: pageHistory.at(-1) }); setPageHistory(pageHistory.slice(0,-1)); setSelectedId(''); }}
+          onNext={() => { setPageHistory([...pageHistory,filter.cursor]); setFilter({ ...filter, cursor: resource.data.nextCursor }); setSelectedId(''); }} />
       </section>
       <aside className="visit-board-detail" aria-label="Xử lý buổi chăm sóc">
         <h2>Phương án điều phối</h2>

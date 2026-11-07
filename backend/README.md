@@ -4,6 +4,17 @@ Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1
 
 ## Demo Catalogue
 
+`GET /api/v1/service-areas` exposes the same demo operational zones as employee
+scheduling through `public-service-areas.service.js`. Disabled scheduling returns
+`available: false` and an empty list. This catalog is not a ward-boundary registry
+or a guarantee that a particular address/time has an available sitter.
+
+HTTP error semantics and safe frontend feedback are documented in
+[API errors](../doc/api/http-errors.md). Auth validation uses the error envelope;
+account lock is disclosed only after a valid OTP. Checkout reserves each pet's
+time across bookings in the same transaction as its shared pet write guard.
+Pet/address archive refuses unfinished visits and retains historical snapshots.
+
 The owner-authorized [Hanoi sample population](../doc/testing/hanoi-demo-population-2026-10-30.md)
 is provisioned by `scripts/deployment/provision-hanoi-demo.js` after reviewed release,
 backup and explicit database confirmation. It creates labelled coursework profiles,

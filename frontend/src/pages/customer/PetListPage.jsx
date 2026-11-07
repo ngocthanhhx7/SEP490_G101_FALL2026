@@ -1,3 +1,4 @@
+import { ProfileAvatar } from '../../components/common/ProfileAvatar.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -363,6 +364,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
           {visiblePets.map(pet => <li key={pet.id}>
             <article className="pet-card" aria-labelledby={`pet-name-${pet.id}`}>
               <div className="pet-card__topline">
+                <ProfileAvatar petId={pet.id} label={`Ảnh của ${pet.name}`} fallback={petSpeciesLabel(pet.species)} />
                 <span className="pet-card__species">{petSpeciesLabel(pet.species)}</span>
                 <span className={`pet-card__state pet-card__state--${pet.state.toLowerCase()}`}>
                   {pet.state === 'ARCHIVED' ? 'Đã lưu trữ' : 'Đang hoạt động'}

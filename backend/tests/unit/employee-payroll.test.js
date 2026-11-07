@@ -27,3 +27,9 @@ test('advance month boundary uses Vietnam time', () => {
   expect(payrollMonth(new Date('2026-10-31T16:59:59Z'))).toBe('2026-10');
   expect(payrollMonth(new Date('2026-10-31T17:00:00Z'))).toBe('2026-11');
 });
+
+test('employer deduction cannot exceed 30 percent after compulsory insurance and tax', () => {
+  const value = { ...input(), otherLawfulDeductionsVnd: 3285000 };
+  expect(calculateEmployeePayroll(value).otherLawfulDeductionsVnd).toBe(3285000);
+  expect(() => calculateEmployeePayroll({ ...value, otherLawfulDeductionsVnd: 3285001 })).toThrow();
+});

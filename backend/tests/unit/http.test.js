@@ -1,5 +1,5 @@
 import { describe, expect, jest, test } from '@jest/globals';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
@@ -7,6 +7,9 @@ import { requireSession, requireRoles } from '../../src/middlewares/session.js';
 import { validateCommand } from '../../src/validators/command.validator.js';
 import { registerModules } from '../../src/routes/module-registry.js';
 import { createPorts } from '../../src/config/ports.js';
+import { AppError } from '../../src/utils/app-error.js';
+import { publicServiceAreasModule } from '../../src/routes/public-service-areas.routes.js';
+import { DEMO_WORK_AREAS } from '../../src/constants/demo-work-areas.js';
 
 function fixture({ max = 100, connection, portOverrides } = {}) {
   const config = loadConfig({ NODE_ENV: 'test', MONGO_URI: 'mongodb://127.0.0.1:27017', MONGO_DB: 'synthetic_test', RATE_LIMIT_MAX: String(max) });
@@ -15,6 +18,7 @@ function fixture({ max = 100, connection, portOverrides } = {}) {
     moduleFactories: [({ ports }) => {
       const router = Router();
       router.get('/error', async () => { throw new Error('Synthetic secret and stack must never appear'); });
+      router.get('/limited', () => { throw new AppError(429, 'OTP_RATE_LIMITED', 'Wait before retrying', { retryAfterSeconds: 60 }); });
       router.get('/stream-error', (_req, res) => { res.write('partial'); throw new Error('Synthetic stream secret'); });
       router.get('/admin', requireSession(ports.session), requireRoles('ADMIN'), (_req, res) => res.json({ allowed: true }));
       router.get('/staff', requireSession(ports.session), requireRoles('STAFF'), (_req, res) => res.sendStatus(204));
@@ -27,6 +31,27 @@ function fixture({ max = 100, connection, portOverrides } = {}) {
 }
 
 describe('HTTP foundation (controlled DB/session doubles, not provider integration)', () => {
+  test('public coverage uses operational zones only when scheduling is enabled', async () => {
+    const disabled = await request(fixture().app).get('/api/v1/service-areas').expect(200);
+    expect(disabled.body.data).toEqual({ available: false, areas: [] });
+    const module = publicServiceAreasModule({ config: { auth: { enabled: true } }, env: { EMPLOYEE_SCHEDULING_ENABLED: 'true' } });
+    const app = express(); app.use(module.mount, module.router);
+    const enabled = await request(app).get('/api/v1/service-areas').expect(200);
+    expect(enabled.body.data.available).toBe(true);
+    expect(enabled.body.data.areas.map(row => row.id)).toEqual(DEMO_WORK_AREAS.filter(row => row.level !== 'CITY').map(row => row.code));
+    expect(enabled.body.data.areas[0]).toMatchObject({ name: 'Khu vực Hai Bà Trưng' });
+  });
+  test('unsupported JSON charset or compression is 415, not an internal server fault', async () => {
+    const { app } = fixture();
+    for (const [header, value] of [['Content-Type', 'application/json; charset=iso-8859-1'], ['Content-Encoding', 'unsupported']]) {
+      const response = await request(app).post('/api/v1/testing/command').set('Content-Type', 'application/json').set(header, value).send('{"name":"synthetic"}').expect(415);
+      expect(response.body.error.code).toBe('UNSUPPORTED_MEDIA_TYPE');
+      expect(JSON.stringify(response.body)).not.toContain('iso-8859-1');
+    }
+    const limited = await request(app).get('/api/v1/testing/limited').expect(429);
+    expect(limited.headers['retry-after']).toBe('60');
+    expect(limited.body.error.retryAfterSeconds).toBe(60);
+  });
   test('health does not report ready when database is absent', async () => {
     const { app } = fixture();
     const health = await request(app).get('/health').expect(200);

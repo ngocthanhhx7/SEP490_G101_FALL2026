@@ -47,6 +47,17 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P06 OTP policy using an isolated MongoDB replica set', () => {
+  test.each(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'])('locked %s gets a distinct denial only after valid OTP, without issuing a session', async role => {
+    const { user } = await createActiveUser({ role });
+    await User.updateOne({ _id: user._id }, { $set: { state: 'LOCKED' } });
+    const { otpService } = fixture();
+    const challenge = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
+    const verification = { ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' };
+    await expect(otpService.verify({ ...verification, code: '999999' })).rejects.toMatchObject({ code: 'OTP_INCORRECT', status: 400 });
+    await expect(otpService.verify({ ...verification, code: '004201' })).rejects.toMatchObject({ code: 'ACCOUNT_LOCKED', status: 403 });
+    expect(await models.AuthSession.countDocuments({})).toBe(0);
+    await expect(otpService.verify({ ...verification, code: '004201' })).rejects.toMatchObject({ code: 'OTP_ALREADY_USED' });
+  });
   test.each([['EMAIL', 'person@example.test'], ['PHONE', '+84912345678']])('%s login persists a session and logout revokes it', async (channel, contact) => {
     const { user } = await createActiveUser({ channel, contact });
     const { otpService, sessionService, sent } = fixture();

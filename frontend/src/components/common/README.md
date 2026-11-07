@@ -34,3 +34,11 @@ read-receipt events, aborts obsolete requests and resets private state on accoun
 role changes. Initial history does not produce toasts; unread dots use server counts.
 Receipt retries retain the same idempotency key and use the current session CSRF.
 The account trigger keeps its hover/click behavior without the decorative chevron.
+
+`PrintDocument` renders selected private print content in a body-level portal.
+Print media hides app chrome/layout entirely; normal screens hide the portal. It
+never changes the document signature or payment state.
+
+`OperationsWorkspace.jsx` supplies accessible, horizontally scrollable tables, status badges and source-labelled summary cards for dispatch, public profile review, payroll and settlement workspaces. It contains presentation only; missing reports show an em dash. Shared styles live in `styles/operations-workspace.css`.
+
+`AiTrainingReadiness` performs an explicit read-only Admin source audit and distinguishes eligible samples, quantity gaps, exclusions and truncation from model training/activation. Transport stays in ai-model-api.

@@ -1,3 +1,4 @@
+import { createDispatchWorkspaceService } from './dispatch-workspace.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/app-error.js';
 import { createSitterOfferService } from '../sitter-offer.service.js';
@@ -10,6 +11,7 @@ const oid = value => new Types.ObjectId(value);
 const offerView = row => row && ({ ...row, id: String(row._id), visitId: String(row.visitId), sitterId: row.sitterId });
 export function createEmployeeDispatchService({ repository, clock = Date.now, ranker, carePlans }) {
   const { models, col, uow, employeeGuard, eligible } = repository;
+  const workspace = createDispatchWorkspaceService({col,clock});
   const notifications = createSchedulingNotifications({ col, clock });
   const agentActor = Object.freeze({ userId: 'SYSTEM_DISPATCH', roles: ['SYSTEM'], state: 'ACTIVE' });
   async function command(actor, operation, payload, key, execute) {
@@ -180,8 +182,10 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     },
     async queue(actor) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
-      const rows = await queueRows(50);
-      return { workAreas: repository.coverageAreas, items: rows.map(row => ({ id: String(row._id), bookingId: String(row.bookingId), version: row.version, startAt: row.startAt,
+      const rows = await queueRows(51), today = await workspace.read();
+      const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,r.requestedSitterId]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
+      const name=id=>people.find(p=>String(p._id)===String(id))?.displayName??null;
+      return { today, queueHasMore: rows.length>50, workAreas: repository.coverageAreas, items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(row.requestedSitterId), version: row.version, startAt: row.startAt,
         endAt: row.endAt, serviceName: row.snapshots.serviceName, areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
         dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,

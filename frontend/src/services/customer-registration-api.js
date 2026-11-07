@@ -7,7 +7,8 @@ export class RegistrationApiError extends Error {
     this.name = 'RegistrationApiError';
     this.code = code;
     this.status = status;
-    this.retryAfterSeconds = details.retryAfterSeconds;
+    this.retryAfterSeconds = Number.isSafeInteger(details.retryAfterSeconds) && details.retryAfterSeconds > 0 ? details.retryAfterSeconds : undefined;
+    this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
     this.fieldErrors = details.fieldErrors;
   }
 }
@@ -52,10 +53,13 @@ export function createCustomerRegistrationApi({ fetchImpl = (...args) => fetch(.
 
     let envelope;
     try { envelope = await response.json(); }
-    catch { throw new RegistrationApiError(response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR', response.status); }
+    catch { throw new RegistrationApiError(response.ok ? 'INVALID_RESPONSE' : 'HTTP_ERROR', response.status, {
+      retryAfterSeconds: Number(response.headers?.get('Retry-After')), correlationId: response.headers?.get('X-Request-ID')
+    }); }
     if (!response.ok) {
       throw new RegistrationApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
-        retryAfterSeconds: envelope?.error?.retryAfterSeconds,
+        retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
+        correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         fieldErrors: envelope?.error?.fieldErrors,
       });
     }

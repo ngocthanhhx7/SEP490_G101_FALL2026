@@ -1,5 +1,24 @@
 # Persistence models
 
+Catalog versions own bounded `changeAudit` provenance: eventId, action and
+changedFields. Existing version fields own actor/reason/time/version/resource;
+no second audit record repeats them. Four version models retain their physical
+names and indexes, hide provenance by default and make fields immutable through
+Mongoose. Native validators require provenance only after verified migration;
+they validate shape, not raw-database immutability. Legacy audit factories remain
+for rollback/tooling and are not registered by runtime. See the
+[catalog migration plan](../../../doc/database/catalog-audit-storage-plan-2026-11-07.md).
+
+Service stores bounded one-to-one catalog metadata in `presentation`; its arrays
+are limited to 50 entries each. `service-presentation.model.js` keeps the legacy
+factory for explicit compatibility/migration tooling, but runtime no longer
+registers it. Missing embedded metadata falls back to `servicepresentations`.
+The additive migration keeps legacy data for rollback; ordinary deployment must
+not drop it. Provisioning mirrors changes while the legacy collection exists.
+Hourly document-view quota has a TTL on `windowStart`: 25 hours (the enforcement
+hour plus the owner's approved 24-hour diagnostic window). Access audits and
+upload/ownership quota counters retain their existing lifecycle.
+
 `product-photo.model.js` stores bounded normalized WebP bytes in `productphotos`,
 separate from lightweight product documents. Product ID/hash is unique; image
 references and details versions change transactionally. Mongo backup/restore
@@ -38,3 +57,17 @@ Matching models retain original artifact bytes/evidence and review versions.
 `SitterRankModelReview` adds durable approval/retirement replay and a transaction
 activation guard. Employee offers keep private feature snapshots; accepted visits
 retain the actual assignee snapshot. Existing collection names remain unchanged.
+
+`employment-document.model.js` adds encrypted immutable application contracts, a
+transactional document counter and command replay without renaming legacy payroll
+collections. EmploymentContract adds the signed document reference, generated code,
+contractual schedule and fixed allowance; PayrollStatement snapshots identity and
+reference for print. New collections are created by existing deployment indexing.
+
+EmploymentContract.workScheduleMode SELF_REGISTERED and minimumWeeklyMinutes preserve minimum-hours terms without copying operational availability into a signed contract. Existing fixed schedule records and collection names are unchanged.
+
+SitterApplication.applicantParticularsCiphertext optionally retains submitted DOB/identity under existing AES-GCM protection, select:false. Legacy hashes remain unchanged; no plaintext or invented identity backfill.
+
+SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submission fingerprint separately from versioned owner-edit replay. No collection name changes.
+
+`avatar.model.js` stores bounded JPEG blobs/version/tombstones in `profileavatars`; User/Pet collection names and projections remain unchanged. Sitter application document types add IDENTITY_FRONT/IDENTITY_BACK/PORTRAIT while preserving legacy IDENTITY.

@@ -63,8 +63,9 @@ describe('idempotency key and order list query', () => {
     expect(parseIdempotencyKey('synthetic-key-000001')).toBe('synthetic-key-000001');
     expect(code(() => parseIdempotencyKey(undefined))).toBe('VALIDATION_FAILED');
     expect(code(() => parseIdempotencyKey('short'))).toBe('VALIDATION_FAILED');
-    expect(parseOrderListQuery({})).toEqual({ limit: 20 });
+    expect(parseOrderListQuery({})).toEqual({ page: 1, limit: 20 });
     expect(code(() => parseOrderListQuery({ limit: '500' }))).toBe('VALIDATION_FAILED');
-    expect(code(() => parseOrderListQuery({ page: '2' }))).toBe('VALIDATION_FAILED');
+    expect(parseOrderListQuery({ page: '2' })).toEqual({ page: 2, limit: 20 });
+    expect(code(() => parseOrderListQuery({ page: '0' }))).toBe('VALIDATION_FAILED');
   });
 });

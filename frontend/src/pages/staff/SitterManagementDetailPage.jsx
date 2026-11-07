@@ -1,6 +1,7 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, RefreshCw, CalendarDays, FileCheck2, PauseCircle, PlayCircle, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { ArrowLeft, RefreshCw, CalendarDays, FileCheck2, PauseCircle, PlayCircle, ExternalLink } from 'lucide-react';
 import { Button, Dialog, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterLabel, managementDate, weekdayLabel } from '../../utils/sitter-management-format.js';
@@ -19,10 +20,10 @@ function WorkHistory({ api, userId }) {
     {resource.status === 'success' && <><div className="workspace-table-wrap" tabIndex={0} aria-label="Bảng công việc"><table className="workspace-table"><thead><tr><th>Bắt đầu</th><th>Kết thúc</th><th>Dịch vụ</th><th>Trạng thái</th></tr></thead>
       <tbody>{data.items.length ? data.items.map(v => <tr key={v.id}><td>{managementDate(v.startAt)}</td><td>{managementDate(v.endAt)}</td>
         <td>{v.serviceName ?? 'Chưa có tên dịch vụ'}</td><td><SitterStatus value={v.state} /></td></tr>) : <tr><td colSpan={4} className="workspace-empty">Chưa có công việc trong kỳ.</td></tr>}</tbody></table></div>
-      <div className="workspace-pagination"><span>{data.from} đến {data.to} · Trang {history.length + 1}</span><div>
-        <button className="workspace-icon-button" title="Trang công việc trước" aria-label="Trang công việc trước" disabled={!history.length} onClick={() => { const h = [...history]; setCursor(h.pop() ?? ''); setHistory(h); }}><ChevronLeft size={18} /></button>
-        <button className="workspace-icon-button" title="Trang công việc sau" aria-label="Trang công việc sau" disabled={!data.nextCursor} onClick={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}><ChevronRight size={18} /></button>
-      </div></div></>}
+      <CursorPagination page={history.length + 1} label="công việc" hasNext onFirst={() => { setCursor(''); setHistory([]); }}
+ onPrevious={() => { const h = [...history]; setCursor(h.pop() ?? ''); setHistory(h); }} onNext={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}
+ previousDisabled={!history.length} nextDisabled={!data.nextCursor}
+ previousLabel={"Trang công việc trước"} nextLabel={"Trang công việc sau"} summary={`${data.from} đến ${data.to}`} /></>}
   </section>;
 }
 

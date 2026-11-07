@@ -1,3 +1,4 @@
+import { APPLICATION_DOCUMENT_LABELS } from '../../constants/application-documents.js';
 import { useEffect, useState } from 'react';
 import { Button, Dialog, Notice } from '../../components/ui/index.js';
 
@@ -18,7 +19,7 @@ export function ApplicationDocumentDialog({ api, applicationId, document, onClos
       });
     return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [api, applicationId, document.documentId, attempt]);
-  const title = document.documentType === 'IDENTITY' ? 'Giấy tờ định danh' : 'Tài liệu bổ sung';
+  const title = APPLICATION_DOCUMENT_LABELS[document.documentType] ?? 'Tài liệu bổ sung';
   return <Dialog open onClose={onClose} title={title} className="application-document-dialog"
     description="Tài liệu riêng tư chỉ phục vụ thẩm định hồ sơ. Lượt xem được ghi nhận.">
     {view.status === 'loading' && <Notice state="loading" title="Đang mở tài liệu">Đang đọc ảnh từ kho riêng tư…</Notice>}

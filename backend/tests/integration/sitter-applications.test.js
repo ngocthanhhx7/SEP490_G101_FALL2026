@@ -1,3 +1,4 @@
+import { employmentTerms } from '../fixtures/employment-terms.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -37,7 +38,9 @@ function applicationBody(overrides = {}) {
     dateOfBirth: '1990-04-12', identityNumber: '012345678901',
     experience: 'Có ba năm chăm sóc chó mèo tại nhà.',
     requestedServices: ['Cho mèo ăn', 'Dắt chó đi dạo'], workAreas: ['Quận 1', 'Quận 3'],
-    documents: [{ documentId: 'identity-document', documentType: 'IDENTITY', storageRef: IDENTITY_REF }],
+    documents: [{ documentId: 'identity-document', documentType: 'IDENTITY_FRONT', storageRef: IDENTITY_REF },
+      {documentId:'back-document', documentType:'IDENTITY_BACK', storageRef:'document-ref-back-0001'},
+      {documentId:'portrait-document', documentType:'PORTRAIT', storageRef:'document-ref-portrait-0001'}],
     ...overrides
   };
 }
@@ -69,6 +72,14 @@ async function advanceToInterview(instance, admin, applicationId) {
       .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .set('Idempotency-Key', `stage-${path}-${applicationId}`).send({ expectedVersion }).expect(200);
   }
+}
+
+async function signedContract(instance, admin, applicationId) {
+  const root = `/api/v1/applications/${applicationId}/employment-contract`;
+  const post = path => request(instance).post(path).set('Cookie',admin.cookie).set('X-CSRF-Token',admin.csrf).set('Origin','http://127.0.0.1').set('Host','127.0.0.1');
+  const draft=(await post(root).set('Idempotency-Key','synthetic-contract-save').send({applicationVersion:2,expectedRevision:0,terms:employmentTerms()}).expect(201)).body.data;
+  await post(`${root}/${draft.id}/decisions`).set('Idempotency-Key','synthetic-contract-issue').send({action:'ISSUE',termsHash:draft.termsHash}).expect(200);
+  await post(`${root}/${draft.id}/decisions`).set('Idempotency-Key','synthetic-contract-sign').send({action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-10-14',archiveReference:'Synthetic signed physical archive',bothPartiesSigned:true}).expect(200);
 }
 
 beforeAll(async () => {
@@ -220,6 +231,7 @@ describe('P16 Admin application review and private documents', () => {
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
     await advanceToInterview(application, admin, submitted.body.data.id);
+    await signedContract(application, admin, submitted.body.data.id);
     const path = `/api/v1/applications/${submitted.body.data.id}/decisions`;
     const sendDecision = body => request(application).post(path).set('Cookie', admin.cookie)
       .set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
@@ -247,6 +259,7 @@ describe('P16 Admin application review and private documents', () => {
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
     await advanceToInterview(application, admin, submitted.body.data.id);
+    await signedContract(application, admin, submitted.body.data.id);
     await request(application).post(`/api/v1/applications/${submitted.body.data.id}/decisions`)
       .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .set('Idempotency-Key', 'decision-approve-status')
@@ -289,6 +302,7 @@ describe('P16 Admin application review and private documents', () => {
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
     await advanceToInterview(application, admin, submitted.body.data.id);
+    await signedContract(application, admin, submitted.body.data.id);
     const path = `/api/v1/applications/${submitted.body.data.id}/decisions`;
     const decide = (key, action) => request(application).post(path).set('Cookie', admin.cookie)
       .set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1').set('Idempotency-Key', key)
@@ -508,4 +522,31 @@ test('private document provider errors return a controlled JSON error instead of
   expect(failed.headers.location).toBeUndefined();
   expect(failed.body.error.code).toBe('PROVIDER_UNAVAILABLE');
   expect(JSON.stringify(failed.body)).not.toMatch(/AccessDenied|document-ref|cloudflarestorage/);
+});
+
+test('final approval fails closed until both parties signed the exact contract; rejected approval creates no employee', async () => {
+  const instance=app(), submitted=await submit(instance,applicationBody()).expect(201), admin=await login('ADMIN');
+  await advanceToInterview(instance,admin,submitted.body.data.id);
+  await request(instance).post(`/api/v1/applications/${submitted.body.data.id}/employment-contract`)
+    .set('Cookie',admin.cookie).set('X-CSRF-Token',admin.csrf).set('Origin','http://127.0.0.1').set('Host','127.0.0.1')
+    .set('Idempotency-Key','synthetic-wrong-person-contract').send({applicationVersion:2,expectedRevision:0,terms:employmentTerms({identityNumber:'987654321098'})}).expect(409)
+    .expect(response=>expect(response.body.error.code).toBe('CONTRACT_IDENTITY_MISMATCH'));
+  const result=await request(instance).post(`/api/v1/applications/${submitted.body.data.id}/decisions`)
+    .set('Cookie',admin.cookie).set('X-CSRF-Token',admin.csrf).set('Origin','http://127.0.0.1').set('Host','127.0.0.1')
+    .set('Idempotency-Key','synthetic-no-contract-approval').send({action:'APPROVE',reason:'Synthetic verified interview',expectedVersion:2}).expect(409);
+  expect(result.body.error.code).toBe('SIGNED_CONTRACT_REQUIRED');
+  expect(await User.countDocuments({roles:['PET_SITTER']})).toBe(0);
+  expect((await sitterApplicationModels(connection).SitterApplication.findById(submitted.body.data.id).lean()).state).toBe('INTERVIEW');
+});
+
+
+test('new applications require one front, one back and one portrait; duplicates cannot substitute a missing slot', async () => {
+  for (const type of ['IDENTITY_FRONT','IDENTITY_BACK','PORTRAIT']) {
+    const body=applicationBody();body.documents=body.documents.filter(d=>d.documentType!==type);
+    await submit(app(),body,'missing-slot-'+type).expect(422);
+  }
+  const body=applicationBody();body.documents.push({...body.documents[0],documentId:'another-front',storageRef:'another-front-storage-ref'});
+  await submit(app(),body,'duplicate-slot-command').expect(422);
+  await submit(app(),applicationBody({documents:[{documentId:'legacy',documentType:'IDENTITY',storageRef:IDENTITY_REF}]}),'legacy-new-command').expect(422);
+  expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(0);
 });

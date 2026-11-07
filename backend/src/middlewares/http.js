@@ -23,6 +23,12 @@ export function errorHandler(logger) {
     if (err instanceof AppError) ({ status, code, message, details } = err);
     else if (err.type === 'entity.parse.failed') [status, code, message] = [400, 'BAD_REQUEST', 'Invalid JSON body'];
     else if (err.type === 'entity.too.large') [status, code, message] = [413, 'PAYLOAD_TOO_LARGE', 'Request body exceeds limit'];
+    else if (['encoding.unsupported', 'charset.unsupported'].includes(err.type)) {
+      [status, code, message] = [415, 'UNSUPPORTED_MEDIA_TYPE', 'Request encoding or charset is not supported'];
+    }
+    if (Number.isSafeInteger(details.retryAfterSeconds) && details.retryAfterSeconds > 0) {
+      res.set('Retry-After', String(details.retryAfterSeconds));
+    }
     logger({ event: 'request_error', requestId: req.requestId, status, code });
     res.status(status).json(errorPayload(req, code, message, details));
   };

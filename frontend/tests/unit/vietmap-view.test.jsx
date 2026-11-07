@@ -16,6 +16,7 @@ test('initializes Vietmap, emits clicked and dragged pins, rechecks disabled and
   const f = fixture(), onSelect = jest.fn();
   const view = render(<VietmapView loadSdk={f.loadSdk} loadStyle={loadStyle} coordinates={[105.85, 21.01]} onSelect={onSelect} />);
   await waitFor(() => expect(f.sdk.Map).toHaveBeenCalled());
+  expect(f.sdk.Map).toHaveBeenCalledWith(expect.objectContaining({ pitch: 0, maxPitch: 0, dragRotate: false, touchPitch: false }));
   act(() => f.events.load());
   act(() => f.events.click({ lngLat: { lng: 105.87, lat: 21.03 } }));
   expect(onSelect).toHaveBeenLastCalledWith([105.87, 21.03]);

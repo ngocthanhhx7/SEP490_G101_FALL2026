@@ -6,6 +6,7 @@ import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import mongoose from 'mongoose';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import { createTrainingDatasetExporter } from '../../src/services/ai-training/dataset-export.service.js';
+import { createTrainingReadinessService } from '../../src/services/ai-training/training-readiness.service.js';
 import { matchingModels } from '../../src/models/sitter-matching.model.js';
 import { customerReviewModels } from '../../src/models/customer-review.model.js';
 import { financeSourceModels } from '../../src/models/finance-source.model.js';
@@ -42,6 +43,12 @@ beforeAll(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); });
 
 test('source join exports actual captured features with opaque IDs and trainer v1 contract, dry-run reveals counts only', async () => {
+  const readiness = createTrainingReadinessService({ connection });
+  await expect(readiness.read({state:'ACTIVE',roles:['CUSTOMER']})).rejects.toMatchObject({code:'FORBIDDEN'});
+  const report = await readiness.read({state:'ACTIVE',roles:['ADMIN']});
+  expect(report).toMatchObject({eligibleRows:240,bookingGroups:240,missingObservations:0,missingBookingGroups:0,automaticTraining:false,temporalEvaluationRequired:true});
+  expect(report).not.toHaveProperty('rows');
+  expect(JSON.stringify(report)).not.toContain(String(fixtures[0].booking._id));
   const dry = await exporter.collect(); expect(dry.summary).toMatchObject({ eligibleRows: 240, bookingGroups: 240, readyForTraining: true });
   expect(dry.rows.every(row => row === null)).toBe(true);
   const result = await exporter.collect({ key: 'synthetic-private-export-key-at-least-32-characters' });

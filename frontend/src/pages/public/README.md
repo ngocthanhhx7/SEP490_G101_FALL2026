@@ -26,6 +26,8 @@ HomePage implements Figma 280:7416 using local exported images/icons and FC DK C
 
 ServiceListPage reads the `q` query parameter so header search and footer service links share the same Vietnamese search behavior. Only published catalog entries carry real prices and service-detail actions. The empty/error states remain explicit; illustrative care cards do not create unpublished offers.
 
+ServiceListPage and ProductListPage use CatalogLayout with the shared sidebar controls in `styles/catalog-layout.css`: labeled search with keyword clearing, species/category dropdowns and filter reset. Service location and sorting also live in the sidebar. Result totals appear only in the shared bottom pagination. Product filters retain URL state and debounced search; service sorting and filtering reset pagination.
+
 The catalog uses photo cards, price badges, server-owned scope lists and detail links. service-visuals.js gives each of the 13 demo service codes its own local photograph, shared by list cards and detail pages; name/species fallbacks remain for other published services. Photo sources and licenses are recorded in public/assets/services/credits.json and credits.html. Editable prices come from the API. Header label: Dịch vụ. frontend/index.html explicitly selects the PawWorld paw SVG favicon.
 
 `PublicServiceCards` and `service-cards.css` own the shared published-service cards on Home and the catalogue: fixed-ratio photographs, category/species, duration/location, description, server price and detail action. Home uses the full image URL without assuming a Figma asset directory and selects home care, walking and bathing when published. The catalogue also supports resetting filters and sorting by base price or Vietnamese name. Descriptions are shown once; complete scope remains on the detail page.
@@ -52,3 +54,5 @@ Inherited product images and their source hashes are in `public/assets/products/
 no old checkout fees, ratings or sales figures are copied.
 
 Service and product lists share `CatalogLayout`: collapsible filters on the left, results on the right, stacked on mobile. Service filters use published categories/species/locations and base-price sorting; product filters use the API-supported category/pet type and preserve URL pagination/search. Home benefits cover both care and shopping without nutrition or provider promises.
+
+application-status/ApplicantWorkspacePage owns the authenticated application workspace and pending editor; registration routes existing active applicants here. Receipt-code verification is optional collapsed guest fallback, not a second challenge for signed-in owners.

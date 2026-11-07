@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
+import { paginate } from '../pagination.service.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { PRODUCT_ORDER_COUNTER_ID, PRODUCT_ORDER_CODE_PREFIX } from '../../constants/product-fields.js';
@@ -42,6 +44,7 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
   const { Product, ProductCart, ProductOrder, ProductCounter } = productSalesModels(connection);
   const { CustomerAddress } = petCareModels(connection);
   const unitOfWork = createUnitOfWork(connection);
+  const notifications = createDomainNotifications({ connection });
 
   async function replay(customerId, key, fingerprint) {
     const existing = await ProductOrder.findOne({ customerId, idempotencyKey: key }).lean();
@@ -61,7 +64,7 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
   // Check-and-hold in one conditional update: two concurrent orders can never reserve more than is sellable (GBR-35).
   async function holdLine(line, session) {
     const held = await Product.findOneAndUpdate(
-      { _id: line.productId, visible: true,
+      { _id: line.productId, visible: true, deletedAt: null,
         $expr: { $gte: [{ $subtract: ['$stockOnHand', '$quantityHeld'] }, line.quantity] } },
       { $inc: { quantityHeld: line.quantity, version: 1 } },
       { returnDocument: 'after', session });
@@ -118,6 +121,7 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
             ...(deliveryAddress ? { deliveryAddress } : {}), subtotal: totals.subtotal, shippingFee: totals.shippingFee,
             total: totals.total, paid: false, status: 'PLACED', idempotencyKey: key, requestFingerprint: fingerprint
           }], { session });
+          await notifications.productOrder({ order: created, placed: true }, session);
           await ProductCart.updateOne({ customerId }, { $set: { lines: [] }, $inc: { version: 1 } }, { session });
           return created.toObject();
         });
@@ -133,9 +137,9 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
     },
     async list(actor, query) {
       const customerId = requireCustomer(actor);
-      const { limit } = parseOrderListQuery(query);
-      const docs = await ProductOrder.find({ customerId }).sort({ createdAt: -1, _id: -1 }).limit(limit).lean();
-      return { items: docs.map(toOrderView) };
+      const { page, limit } = parseOrderListQuery(query);
+      const result = await paginate(ProductOrder, { filter: { customerId }, sort: { createdAt: -1, _id: -1 }, page, limit });
+      return { ...result, items: result.items.map(toOrderView) };
     },
     // Customers see only their own orders (GBR-02); another customer's id is indistinguishable from a missing one.
     async read(actor, orderId) {

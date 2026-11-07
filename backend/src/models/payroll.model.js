@@ -4,6 +4,8 @@ const money = { type: Number, min: 0, validate: Number.isSafeInteger };
 export function payrollModels(connection) {
   const options = { strict: 'throw', bufferCommands: false, versionKey: false };
   const contracts = new Schema({
+    workScheduleMode: { type: String, enum: ['SELF_REGISTERED'] }, minimumWeeklyMinutes: { type: Number, min: 1, max: 2880 },
+    documentId: oid, employeeCode: String, schedule: Schema.Types.Mixed, paySchedule: String, monthlyAllowanceVnd: money,
     employeeId: { type: oid, required: true }, version: { type: Number, min: 1, required: true, validate: Number.isSafeInteger },
     employmentType: { type: String, enum: ['FULL_TIME', 'PART_TIME'], required: true },
     salaryBasis: { type: String, enum: ['GROSS', 'NET'], required: true },
@@ -35,7 +37,7 @@ export function payrollModels(connection) {
   advances.index({ status: 1, requestedAt: -1, _id: -1 });
   advances.index({ transferReference: 1 }, { unique: true, partialFilterExpression: { transferReference: { $type: 'string' } } });
   const guards = new Schema({ _id: String, version: { type: Number, default: 0 }, pendingId: oid, approvedId: oid }, options);
-  const commands = new Schema({ _id: String, fingerprint: String, result: Schema.Types.Mixed, createdAt: Date }, options);
+  const commands = new Schema({ _id: String, fingerprint: String, sourceRequestHash: String, result: Schema.Types.Mixed, createdAt: Date }, options);
   const events = new Schema({ employeeId: oid, resourceId: oid, actorId: oid, type: String, reason: String, at: Date }, options);
   const credits = new Schema({
     visitId: { type: oid, required: true, unique: true }, bookingId: { type: oid, required: true }, employeeId: { type: oid, required: true },
@@ -46,6 +48,7 @@ export function payrollModels(connection) {
   }, options);
   credits.index({ employeeId: 1, completedAt: 1, _id: 1 });
   const statements = new Schema({
+    reference: String, employeeName: String, employeeCode: String,
     employeeId: { type: oid, required: true }, contractId: { type: oid, required: true },
     periodStart: { type: Date, required: true }, periodEnd: { type: Date, required: true }, monthKey: { type: String, required: true },
     dueAt: { type: Date, required: true }, payCycle: { type: String, enum: ['MONTHLY', 'WEEKLY'], required: true },

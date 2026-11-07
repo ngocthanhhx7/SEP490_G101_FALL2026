@@ -1,0 +1,29 @@
+.employment-contract-editor { margin: 24px 0; padding: 20px; border: 1px solid #d8d0e3; border-radius: 12px; overflow-wrap: anywhere; }
+.employment-contract-editor fieldset { display: grid; gap: 14px; min-width: 0; }
+.employment-contract-editor label { display: grid; gap: 6px; }
+.employment-contract-editor input:not([type=checkbox]), .employment-contract-editor select { width: 100%; box-sizing: border-box; min-width: 0; padding: 10px; font: inherit; }
+.employment-contract-editor input[type=checkbox] { width: auto; }
+.employment-contract-editor button { padding: 12px; margin: 8px 8px 8px 0; min-height: 44px; font: inherit; cursor: pointer; }
+.employment-contract-print { background: white; color: #111; padding: 30px; margin: 20px auto; max-width: 800px; font: 15px/1.6 'Times New Roman', serif; }
+.employment-contract-print header { text-align: center; }
+.employment-contract-print h1 { font-size: 23px; }
+.employment-contract-print h2 { font-size: 17px; }
+.employment-contract-print footer { font-size: 10px; }
+.employment-contract-signatures { display: grid; grid-template-columns: 1fr 1fr; text-align: center; gap: 25px; break-inside: avoid; }
+.contract-watermark { text-align: center; font-weight: bold; color: #812b2b; }
+@media(max-width: 600px) { .employment-contract-editor { padding: 12px; } .employment-contract-print { padding: 12px; } }
+@media print {
+  .pwc-print-document .employment-contract-print { width: auto; max-width: none; padding: 0; margin: 0; font-size: 12pt; }
+}
+.contract-validation-summary { border: 1px solid #a52232; border-radius: 8px; padding: 14px; background: #fff4f4; }
+.contract-validation-summary a, .contract-field-error { color: #8c1d2b; }
+.employment-contract-editor [aria-invalid=true] { border: 2px solid #a52232; }
+@media print { .employment-contract-print { overflow-wrap: anywhere; } .employment-contract-print header { break-inside: avoid; } }
+.employment-contract-print h1, .employment-contract-print h2 { font-family: 'Times New Roman', serif; letter-spacing: normal; }
+.employment-contract-signatures > section { display: grid; grid-template-rows: auto auto 1fr auto; min-height: 190px; align-content: start; }
+.employment-contract-signatures > section > br { display: none; }
+.employment-contract-signatures > section > p:last-child { grid-row: 4; align-self: end; }
+@media print {
+  html, body { background: #fff !important; }
+  .pwc-print-document .employment-contract-print h1, .pwc-print-document .employment-contract-print h2 { font-family: 'Times New Roman', serif !important; }
+}

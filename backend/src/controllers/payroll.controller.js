@@ -1,6 +1,10 @@
 import { controllerAction } from './controller-action.js';
 export function createPayrollController(service) {
   return {
+    overview: controllerAction(200, req=>service.overview(req.auth)),
+    employees: controllerAction(200, req => service.payrollEmployees(req.auth)),
+    preview: controllerAction(200, req => service.previewStatement(req.auth, req.body)),
+    automatic: controllerAction(201, req => service.prepareAutomaticStatement(req.auth, req.body, req.get('Idempotency-Key'))),
     submitAdjustment: controllerAction(201, req => service.submitAdjustment(req.auth, req.body, req.get('Idempotency-Key'))),
     adjustmentDecision: controllerAction(200, req => service.decideAdjustment(req.auth, req.params.id, req.body, req.get('Idempotency-Key'))),
     adjustments: controllerAction(200, req => service.listAdjustments(req.auth, req.query)),

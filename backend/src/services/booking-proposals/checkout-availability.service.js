@@ -4,6 +4,7 @@ import { petCareModels } from '../../models/pet-care.model.js';
 import { bookingCheckoutInput } from '../../validators/booking-checkout.validator.js';
 import { validatePricingSelection } from '../../validators/pricing-selection.validator.js';
 import { exact, fail } from '../../validators/pet-care.validator.js';
+import { readServicePresentation } from '../service-presentation.service.js';
 
 export function createCheckoutAvailabilityService({ connection, repository, clock = Date.now, facilityAddress, facilityCoordinates }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
@@ -28,7 +29,7 @@ export function createCheckoutAvailabilityService({ connection, repository, cloc
       const raw = quote.snapshot.input?.items?.[row.itemIndex];
       if (!raw) fail('VALIDATION_FAILED', 'Quoted item required');
       const selection = validatePricingSelection(raw), quoted = quote.snapshot.result?.items?.[row.itemIndex];
-      const presentation = await col('servicepresentations').findOne({ serviceId: oid(selection.serviceId) });
+      const presentation = await readServicePresentation(connection, selection.serviceId);
       if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
       const pets = await Pet.find({ _id: { $in: selection.petIds }, ownerId: actor.userId, state: 'ACTIVE' }).lean();
       if (pets.length !== selection.petIds.length || pets.some(pet => !quoted?.petVersions?.some(p => p.id === String(pet._id) && p.version === pet.version)))

@@ -45,7 +45,7 @@ order code, customer name or the customer's whole phone number (the phone is als
 hand to carrier, mark ready, record payment, hand to customer, mark delivered, mark being returned with the carrier's reason, confirm a returned order with the reason and the resellable quantity of each line). The phone shows as `0912 345 678`. The backend decides what
 is allowed and moves the stock; the page shows its answer and reloads after a conflict.
 
-`ProductManagementPage` is the `/admin/products` screen (menu group "Cửa hàng"): a paged list of every product (search by a part of the name or code, category and pet filters, Trước/Sau) and a side form to add or edit one. The code is read-only and given by the system on save, a new product is saved hidden, hiding a shown product asks MSG114 first, and the price takes `250000` or `250.000`. The form never shows or changes stock. Photos are shown but cannot be added here yet. The backend owns the code, the rules and the version check; a conflict offers a reload.
+`ProductManagementPage` at `/admin/products` uses a full-width paged table, explicit edit/delete actions, MongoDB overview counts and a modal editor including persisted image upload/replacement/removal. New products start hidden. Deletion requires a complete reason, current version, no stock/holds and no historical orders; blocked deletion offers hiding instead. The backend retains deletion audit and code. Unknown write replies require reload. See [product management verification](../../../../doc/testing/product-management-lifecycle-2026-11-05.md).
 
 `SupplierManagementPage` is the `/admin/suppliers` screen (menu group "Cửa hàng"): tabs Đang hợp tác / Ngừng hợp tác / Tất cả with their counts, a paged table (name and contact person, phone, number of products, status) and a side form to add or edit one. The form checks MSG01, MSG02, MSG03 and MSG125 before it sends; the backend checks again and decides MSG116. Ngừng hợp tác asks MSG118 first, Hợp tác lại does not; both are locked while the form has changes that are not saved. The products it supplies are chosen from the catalog with `components/product/ProductPicker.jsx`, hidden products included; the list is a record and does not limit goods receipts.
 
@@ -56,3 +56,12 @@ and unqualified source counts. It imports trainer DRAFT/evidence pairs and submi
 versioned model review decisions through `services/ai-model-api.js`. It never
 trains, fabricates ratings or claims aggregate counts satisfy verified data gates.
 Unknown write acknowledgements lock edited inputs and retain the same body/key.
+
+SitterApplicationReviewPage embeds contract preparation/printing/signature
+verification before final approval. EmployeePayrollAdminPage defaults to a named
+employee/source-derived draft; legacy explicit assessment stays in advanced
+reconciliation. Contract and statement printing use a selected body-level portal.
+
+Payroll and settlement workspaces use full-width tables, server-derived reports and focused detail dialogs. Payroll retains automatic source-based preparation and selected payslip printing; legacy/advanced forms are collapsed. Settlement filtering is explicitly limited to the current cursor page. Reports are operational counts and persisted VND totals, never bank balances or proof of transfer. Policy/source gates remain authoritative; unknown commands freeze the modal and retry the original payload/key.
+
+AI Models includes a separate bounded source-readiness audit. It does not train from public research/demo data or automatically promote a model.

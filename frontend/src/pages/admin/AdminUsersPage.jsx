@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import './admin-users.css';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -831,40 +832,17 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
                         </tbody>
                       </table>
                     </div>
-                    <div className="admin-pagination">
-                      <p>
-                        {users.length
-                          ? `Trang ${cursorHistory.length + 1}`
-                          : 'Không có kết quả'}
-                      </p>
-                      <div>
-                        <Button
-                          variant="secondary"
-                          disabled={
-                            !cursorHistory.length || list.status === 'loading'
-                          }
-                          onClick={() => {
+                    <CursorPagination page={cursorHistory.length + 1} label="người dùng" hasNext onFirst={() => { setCursor(''); setCursorHistory([]); }}
+ onPrevious={() => {
                             const previous = [...cursorHistory];
                             setCursor(previous.pop() ?? '');
                             setCursorHistory(previous);
-                          }}
-                        >
-                          Trước
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          disabled={
-                            !list.data?.nextCursor || list.status === 'loading'
-                          }
-                          onClick={() => {
+                          }} onNext={() => {
                             setCursorHistory((items) => [...items, cursor]);
                             setCursor(list.data.nextCursor);
                           }}
-                        >
-                          Tiếp theo
-                        </Button>
-                      </div>
-                    </div>
+ previousDisabled={!cursorHistory.length || list.status === 'loading'} nextDisabled={!list.data?.nextCursor || list.status === 'loading'}
+ previousLabel={"Trước"} nextLabel={"Tiếp theo"} />
                   </>
                 )}
               </section>

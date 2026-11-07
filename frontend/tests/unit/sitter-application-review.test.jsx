@@ -1,3 +1,7 @@
+jest.mock('../../src/components/payroll/EmploymentContractEditor.jsx', () => {
+  const React = jest.requireActual('react');
+  return { EmploymentContractEditor: ({ onVerified }) => { React.useEffect(() => { onVerified?.(true); }, [onVerified]); return <section>Signed contract fixture; lifecycle tested separately</section>; } };
+});
 ﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -69,6 +73,7 @@ test('approval requires a decision reason and describes upgrading the verified a
     <Routes><Route path="/admin/applications/:applicationId" element={<SitterApplicationReviewPage api={api} />} /></Routes>
   </MemoryRouter>);
   await screen.findByText('applicant@example.test · EMAIL');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Duyệt và cấp quyền Pet Sitter' }));
   expect(await screen.findByText('Nhập lý do duyệt, tối thiểu 3 ký tự.')).toBeVisible();
   expect(api.decide).not.toHaveBeenCalled();

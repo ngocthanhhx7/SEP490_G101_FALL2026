@@ -9,6 +9,7 @@ import { createSitterRecommendationApi } from '../../services/sitter-recommendat
 import { ApiError, createApiClient } from '../../services/api-client.js';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
 import { formatCatalogPrice } from '../../utils/catalog-format.js';
+import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import { serviceVisual } from './service-visuals.js';
 import { BookingConfirmation } from './BookingCheckout.jsx';
 import './service-booking.css';
@@ -28,6 +29,7 @@ function MatchingFeedback({ result }) {
   </div>;
 }
 function errorText(error) {
+  if (error.code === 'PRICING_REVIEW_REQUIRED' && typeof error.fieldErrors?.petTraits === 'string' && error.fieldErrors.petTraits.length <= 1000) return error.fieldErrors.petTraits;
   return ({ QUOTE_CHANGED: 'Hồ sơ, giá hoặc điều kiện đã thay đổi. Vui lòng lấy báo giá mới.',
     PRICING_REVIEW_REQUIRED: 'Một đặc điểm chăm sóc của thú cưng chưa có quy tắc giá được duyệt. Vui lòng liên hệ PawWorld để rà soát giá trước khi đặt dịch vụ.',
     PRICING_POLICY_UNAVAILABLE: 'Dịch vụ chưa có chính sách giá có hiệu lực. Vui lòng liên hệ PawWorld hoặc thử lại sau.',
@@ -48,7 +50,7 @@ function errorText(error) {
     VISIT_SCHEDULE_OVERLAP: 'Các buổi của cùng thú cưng bị trùng giờ.',
     VALIDATION_FAILED: 'Kiểm tra thời lượng, ngày giờ, địa chỉ và điều kiện dịch vụ.',
     FORBIDDEN: 'Tài khoản hiện tại không thể đặt dịch vụ.',
-    UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' })[error.code] ?? 'Chưa nhận được xác nhận. Vui lòng thử lại hoặc liên hệ PawWorld.';
+    UNAUTHENTICATED: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' })[error.code] ?? apiErrorFeedback(error, 'Chưa nhận được xác nhận. Vui lòng thử lại hoặc liên hệ PawWorld.');
 }
 
 export function BookingFlow({ service, api, matching, onBooked }) {
@@ -137,6 +139,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
       <fieldset disabled={busy}><legend>Thú cưng của bạn</legend>
         {pets.map(pet => <label className="booking-check" key={pet.id || pet._id}><input type="checkbox" checked={petIds.includes(pet.id || pet._id)} onChange={event => { invalidate(); const id = pet.id || pet._id; setPetIds(current => event.target.checked ? [...current, id] : current.filter(value => value !== id)); }} />{pet.name} · {pet.weightKg} kg</label>)}
         {!pets.length && <p>Chưa có hồ sơ {service.species.map(value => value === 'DOG' ? 'chó' : 'mèo').join(' / ')} phù hợp. <Link to="/account/pets" target="_blank">Thêm thú cưng</Link></p>}
+        {pets.some(pet => petIds.includes(pet.id || pet._id) && pet.traits?.includes('extended-play')) && <p role="status">Chơi cùng bé nằm trong thời lượng dịch vụ đã chọn; hệ thống không tự cộng thêm phút. Chọn thời lượng phù hợp trước khi lấy báo giá.</p>}
         <Link to="/account/pets" target="_blank">Cập nhật hồ sơ chăm sóc</Link>
         <button type="button" className="booking-refresh" onClick={setup.retry}><RefreshCw size={16} />Tải lại hồ sơ</button>
       </fieldset>

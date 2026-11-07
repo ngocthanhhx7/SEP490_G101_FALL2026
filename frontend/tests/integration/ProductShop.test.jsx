@@ -40,32 +40,58 @@ function show(api, path, user = customer) {
 }
 
 describe('Product List', () => {
+  test('quick add on the card requires login for guests and preserves the selected product', async () => {
+    const api = fakeApi(); show(api, '/products', null);
+    fireEvent.click(await screen.findByRole('button', { name: /Thêm Thức ăn hạt cho chó/ }));
+    expect(await screen.findByTestId('where')).toHaveTextContent('/sign-in|/products/p1|');
+    expect(api.addToCart).not.toHaveBeenCalled();
+  });
+  test('quick add reports the confirmed cart update and blocks another add after a lost acknowledgement', async () => {
+    const api = fakeApi(); show(api, '/products');
+    const add = await screen.findByRole('button', { name: /Thêm Thức ăn hạt cho chó/ });
+    await waitFor(() => expect(api.getCart).toHaveBeenCalled());
+    fireEvent.click(add);
+    await waitFor(() => expect(api.addToCart).toHaveBeenCalledWith('p1', 1));
+    expect(await screen.findByRole('link', { name: 'Xem giỏ hàng' })).toHaveAttribute('href', '/customer/cart');
+    api.addToCart.mockRejectedValueOnce(Object.assign(new Error('lost reply'), { code: 'NETWORK_ERROR', status: 0 }));
+    fireEvent.click(add);
+    await waitFor(() => expect(add).toBeDisabled());
+    expect(await screen.findByText(/Kiểm tra giỏ hàng hoặc tải lại/)).toBeVisible();
+    expect(api.addToCart).toHaveBeenCalledTimes(2);
+  });
+  test('notification links open the owner-scoped order even when it is outside the current list page', async () => {
+    const id = 'a'.repeat(24), api = fakeApi({ getOrder: jest.fn().mockResolvedValue({ data: order({ id, code: 'DH-0099' }) }) });
+    show(api, `/customer/product-orders?order=${id}`);
+    expect(await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0099' })).toBeVisible();
+    expect(api.getOrder).toHaveBeenCalledWith(id, expect.any(Object));
+  });
   test('a pending search preserves a filter selected before the debounce completes', async () => {
     const api = fakeApi();
     show(api, '/products', null);
-    await screen.findByText('Hiển thị 1 sản phẩm');
+    await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ });
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm sản phẩm theo tên' }), { target: { value: 'pate' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Thức ăn', exact: true }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Danh mục' }), { target: { value: 'FOOD' } });
     await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: 'FOOD', petType: '', page: 1 }, expect.any(Object)));
   });
   test('shows each product with price and availability and links to its details', async () => {
     const api = fakeApi({ listProducts: jest.fn().mockResolvedValue({ data: [product(), product({ id: 'p2', code: 'SP-0035', name: 'Vòng cổ có chuông, cỡ M',
       category: 'ACCESSORY', sellingPrice: 60000, available: 0, inStock: false })] }) });
     show(api, '/products', null);
-    expect(await screen.findByText('Hiển thị 2 sản phẩm')).toBeVisible();
+    expect(await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ })).toBeVisible();
+    expect(screen.queryByText('Hiển thị 2 sản phẩm')).not.toBeInTheDocument();
     expect(screen.getByText('250.000 đ')).toBeVisible();
-    expect(screen.getByText('Còn hàng')).toBeVisible();
+    expect(screen.getByRole('button', { name: /Thêm Thức ăn hạt cho chó/ })).toBeEnabled();
     expect(screen.getByText('Hết hàng')).toBeVisible();
-    expect(screen.getByRole('link', { name: /Xem chi tiết Thức ăn hạt cho chó/ })).toHaveAttribute('href', '/products/p1');
+    expect(screen.getByRole('link', { name: /^Thức ăn hạt cho chó/ })).toHaveAttribute('href', '/products/p1');
   });
 
   test('filters by pet type and searches by name', async () => {
     const api = fakeApi();
     show(api, '/products', null);
-    await screen.findByText('Hiển thị 1 sản phẩm');
-    fireEvent.click(screen.getByRole('button', { name: 'Chó' }));
+    await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Đối tượng' }), { target: { value: 'DOG' } });
     await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
-    expect(screen.getByRole('button', { name: 'Chó' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('combobox', { name: 'Đối tượng' })).toHaveValue('DOG');
     fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm sản phẩm theo tên' }), { target: { value: 'pate' } });
     await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: 'pate', category: '', petType: 'DOG', page: 1 }, expect.any(Object)));
   });
@@ -81,7 +107,21 @@ describe('Product List', () => {
     expect(await screen.findByText('Chưa tải được sản phẩm')).toBeVisible();
     expect(screen.queryByText('Không tìm thấy sản phẩm nào.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    expect(await screen.findByText('Hiển thị 1 sản phẩm')).toBeVisible();
+    expect(await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ })).toBeVisible();
+  });
+
+  test('sidebar search and dropdowns preserve filters, reset pages and clear keywords', async () => {
+    const api = fakeApi();
+    show(api, '/products?q=pate&category=FOOD&pet=CAT&page=2', null);
+    await screen.findByRole('link', { name: /^Thức ăn hạt cho chó/ });
+    const search = screen.getByRole('search');
+    expect(within(search).getByRole('combobox', { name: 'Danh mục' })).toHaveValue('FOOD');
+    expect(within(search).getByRole('combobox', { name: 'Đối tượng' })).toHaveValue('CAT');
+    fireEvent.click(within(search).getByRole('button', { name: 'Xóa từ khóa' }));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: 'FOOD', petType: 'CAT', page: 1 }, expect.any(Object)));
+    fireEvent.click(screen.getByRole('button', { name: 'Xóa bộ lọc' }));
+    await waitFor(() => expect(api.listProducts).toHaveBeenLastCalledWith({ search: '', category: '', petType: '', page: 1 }, expect.any(Object)));
+    expect(screen.queryByRole('button', { name: 'Xóa bộ lọc' })).not.toBeInTheDocument();
   });
 });
 
@@ -95,7 +135,7 @@ describe('Product Details', () => {
   test('adds the chosen quantity and confirms with the cart link', async () => {
     const api = fakeApi({ addToCart: jest.fn().mockResolvedValue(cartOf([line({ quantity: 2 })])) });
     show(api, '/products/p1');
-    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    await screen.findByRole('heading', { name: /^Thức ăn hạt cho chó/ });
     fireEvent.click(screen.getByRole('button', { name: 'Tăng số lượng' }));
     fireEvent.click(screen.getByRole('button', { name: 'Thêm vào giỏ hàng' }));
     expect(await screen.findByText(/Đã thêm sản phẩm vào giỏ hàng/)).toBeVisible();
@@ -106,7 +146,7 @@ describe('Product Details', () => {
   test('AC-13 pressing + at the sellable quantity shows MSG58 and the number does not go up (D-219)', async () => {
     const api = fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ available: 2 }) }) });
     show(api, '/products/p1');
-    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    await screen.findByRole('heading', { name: /^Thức ăn hạt cho chó/ });
     const quantity = () => screen.getByRole('status', { name: 'Số lượng' });
     const increase = screen.getByRole('button', { name: 'Tăng số lượng' });
     fireEvent.click(increase);
@@ -125,7 +165,7 @@ describe('Product Details', () => {
 
   test('AC-13 shows MSG58 for the only sellable item instead of silently locking +', async () => {
     show(fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ available: 1 }) }) }), '/products/p1');
-    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    await screen.findByRole('heading', { name: /^Thức ăn hạt cho chó/ });
     fireEvent.click(screen.getByRole('button', { name: 'Tăng số lượng' }));
     expect(screen.getByText('Chỉ còn 1 sản phẩm. Vui lòng giảm số lượng.')).toBeVisible();
   });
@@ -141,7 +181,7 @@ describe('Product Details', () => {
     const error = Object.assign(new Error('x'), { code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', status: 409 });
     const api = fakeApi({ addToCart: jest.fn().mockRejectedValue(error) });
     show(api, '/products/p1');
-    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    await screen.findByRole('heading', { name: /^Thức ăn hạt cho chó/ });
     api.getProduct.mockResolvedValue({ data: product({ available: 1 }) });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm vào giỏ hàng' }));
     expect(await screen.findByText('Chỉ còn 1 sản phẩm. Vui lòng giảm số lượng.')).toBeVisible();
@@ -150,7 +190,7 @@ describe('Product Details', () => {
   test('sends a guest to sign in and remembers the product page', async () => {
     const api = fakeApi();
     show(api, '/products/p1', null);
-    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    await screen.findByRole('heading', { name: /^Thức ăn hạt cho chó/ });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm vào giỏ hàng' }));
     expect(await screen.findByTestId('where')).toHaveTextContent('/sign-in|/products/p1');
     expect(api.addToCart).not.toHaveBeenCalled();

@@ -1,3 +1,4 @@
+import { createPayrollDraftService } from './payroll-draft.service.js';
 import { createHash } from 'node:crypto';
 import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
@@ -16,12 +17,12 @@ export const payrollMonth = at => new Date(at.getTime() + 7 * 3600000).toISOStri
 const publicAdvance = row => ({ id: String(row._id), amountVnd: row.amountVnd, currency: 'VND', monthKey: row.monthKey,
   settlementPeriod: row.settlementPeriod, status: row.status, version: row.version, reason: row.reason,
   decisionReason: row.decisionReason ?? null, requestedAt: row.requestedAt, paidAt: row.paidAt ?? null });
-const publicStatement = row => ({ id: String(row._id), employeeId: String(row.employeeId), periodStart: row.periodStart, periodEnd: row.periodEnd,
+const publicStatement = row => ({ reference: row.reference ?? null, employeeName: row.employeeName ?? null, employeeCode: row.employeeCode ?? null, id: String(row._id), employeeId: String(row.employeeId), periodStart: row.periodStart, periodEnd: row.periodEnd,
   dueAt: row.dueAt, status: row.status, version: row.version, payCycle: row.payCycle, breakdown: row.breakdown, paidAt: row.paidAt ?? null, voidReason: row.voidReason ?? null });
 
 export function createPayrollService({ connection, policy, clock = () => new Date(), cursorSecret }) {
   const models = payrollModels(connection), User = userModel(connection), { SitterStatus, SitterApplication } = sitterApplicationModels(connection);
-  const uow = createUnitOfWork(connection);
+  const uow = createUnitOfWork(connection), draftService = createPayrollDraftService({ connection, clock: () => now().getTime() });
   const notifications = createDomainNotifications({ connection, clock: () => new Date(clock()).getTime() });
   const now = () => new Date(clock());
   const codec = cursorSecret ? createScopedCursor({ secret: cursorSecret, namespace: 'employee-payroll-history-v1', clock: () => now().getTime() }) : null;
@@ -37,12 +38,14 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       { [field]: new Date(position.at), _id: { $lt: position.id } }] } : {}) };
     const rows = await model.find(filter).select(select).sort({ [field]: -1, _id: -1 }).limit(input.limit + 1).maxTimeMS(5000).lean();
     const items = rows.slice(0, input.limit), last = items.at(-1);
+    const names = kind.startsWith('admin-') ? await User.find({ _id: { $in: items.map(row => row.employeeId) } }).select('displayName').lean() : [];
+    const mapped = items.map(row => { const result = project(row); const name = names.find(user => String(user._id) === String(row.employeeId))?.displayName; return name ? { ...result, employeeName: result.employeeName ?? name } : result; });
     let nextCursor = null;
     if (rows.length > input.limit) {
       if (!codec) fail('PAYROLL_STORAGE_NOT_READY', 'Payroll cursor configuration required', 503);
       nextCursor = codec.encode({ id: String(last._id), at: last[field].toISOString() }, context);
     }
-    return { items: items.map(project), nextCursor, limit: input.limit };
+    return { items: mapped, nextCursor, limit: input.limit };
   }
   function role(actor, name) {
     if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles) || !actor.userId || actor.synthetic === true) fail('UNAUTHENTICATED', 'Authentication required', 401);
@@ -57,7 +60,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         const prior = await models.PayrollCommand.findById(commandId).session(session).lean();
         if (prior) { if (prior.fingerprint !== fingerprint) fail('IDEMPOTENCY_KEY_REUSED', 'Key already used', 409); return prior.result; }
         const result = await work(session);
-        await models.PayrollCommand.create([{ _id: commandId, fingerprint, result, createdAt: now() }], { session }); return result;
+        await models.PayrollCommand.create([{ _id: commandId, fingerprint, ...(input.sourceDraft ? { sourceRequestHash: hash({ input: input.sourceDraft.input, sourceHash: input.sourceDraft.sourceHash }) } : {}), result, createdAt: now() }], { session }); return result;
       }); } catch (error) { if (error.code !== 11000 || attempt >= 3) throw error; }
     }
   }
@@ -88,6 +91,18 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
   return {
     ...createPayrollAdjustmentService({ connection, models, role, command, employeeGuard, claimTransfer, event, page, now }),
     models,
+    payrollEmployees: actor => draftService.employees(actor),
+    previewStatement: (actor, body) => draftService.preview(actor, body),
+    async prepareAutomaticStatement(actor, body, key) {
+      role(actor, 'ADMIN');
+      if (!body || Object.keys(body).some(field => !['input','sourceHash'].includes(field)) || typeof body.sourceHash !== 'string') fail('VALIDATION_FAILED', 'Reviewed source draft required');
+      if (typeof key !== 'string' || !/^[A-Za-z0-9_:-]{8,128}$/.test(key)) fail('VALIDATION_FAILED', 'Operation key required');
+      const replay = await models.PayrollCommand.findById(hash([actor.userId, 'STATEMENT', key])).lean();
+      if (replay) { if (replay.sourceRequestHash !== hash(body)) fail('IDEMPOTENCY_KEY_REUSED', 'Operation key reused', 409); return replay.result; }
+      const preview = await draftService.preview(actor, body.input);
+      if (preview.sourceHash !== body.sourceHash) fail('PAYROLL_SOURCE_CHANGED', 'Sources changed; preview again', 409);
+      return this.prepareStatement(actor, preview.assessment, key, { input: body.input, sourceHash: body.sourceHash });
+    },
     async recordContract(actor, body, key) {
       role(actor, 'ADMIN'); const input = contractInput(body), approved = await policyFor('CONTRACT');
       if (input.salaryBasis !== approved.salaryBasis) fail('PAYROLL_POLICY_REQUIRED', 'Salary basis mismatch', 409);
@@ -125,7 +140,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       const adjustments = await page(models.PayrollAdjustment, { employeeId: actor.userId }, actor,
         { limit: input.limit, cursor: input.adjustmentCursor }, 'requestedAt', 'own-adjustments', publicPayrollAdjustment);
       return { contracts: contracts.map(c => ({ id: String(c._id), version: c.version, employmentType: c.employmentType, salaryBasis: c.salaryBasis,
-        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
+        monthlyBaseVnd: c.monthlyBaseVnd, payCycle: c.payCycle, weeklyMinutes: c.weeklyMinutes, workScheduleMode: c.workScheduleMode, minimumWeeklyMinutes: c.minimumWeeklyMinutes, signedAt: c.signedAt, effectiveAt: c.effectiveAt, endsAt: c.endsAt ?? null })),
         activeContractId: active ? String(active._id) : null, advances: advances.items, statements: statements.items,
         advanceNextCursor: advances.nextCursor, statementNextCursor: statements.nextCursor,
         adjustments: adjustments.items, adjustmentNextCursor: adjustments.nextCursor };
@@ -185,15 +200,31 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         await event(actor, record.employeeId, record._id, 'ADVANCE_' + input.action, input.reason, session); return publicAdvance(updated);
       });
     },
-    async prepareStatement(actor, body, key) {
+    async overview(actor) {
+      role(actor, 'ADMIN');
+      const [statements, advances] = await Promise.all([
+        models.PayrollStatement.aggregate([{ $group: { _id: '$status', count: { $sum: 1 }, amountVnd: { $sum: '$breakdown.payableVnd' } } }]).option({ maxTimeMS: 5000 }),
+        models.SalaryAdvance.aggregate([{ $match: { status: 'SUBMITTED' } }, { $group: { _id: null, count: { $sum: 1 } } }]).option({ maxTimeMS: 5000 })
+      ]);
+      const summary = { total: 0, prepared: 0, awaitingPaymentVnd: 0, pendingAdvances: advances[0]?.count ?? 0 };
+      for (const row of statements) {
+        summary.total += row.count;
+        if (row._id === 'PREPARED') summary.prepared = row.count;
+        if (row._id === 'APPROVED') summary.awaitingPaymentVnd = row.amountVnd;
+      }
+      if (Object.values(summary).some(value => !Number.isSafeInteger(value))) fail('PAYROLL_OVERFLOW', 'Report exceeds supported integer amounts', 409);
+      return { summary, asOf: now() };
+    },
+    async prepareStatement(actor, body, key, sourceDraft) {
       role(actor, 'ADMIN'); const input = payrollAssessmentInput(body); await policyFor('STATEMENT');
       if (input.periodEnd > now()) fail('VALIDATION_FAILED', 'Only completed work periods can be assessed');
       const monthKey = payrollMonth(input.periodStart);
       const [year, month] = monthKey.split('-').map(Number);
       const monthEnd = new Date(Date.UTC(year, month, 1) - 7 * 3600000);
       if (input.periodEnd > monthEnd) fail('VALIDATION_FAILED', 'Split cross-month work into separate assessments');
-      return command(actor, 'STATEMENT', key, input, async session => {
+      return command(actor, 'STATEMENT', key, { ...input, ...(sourceDraft ? { sourceDraft } : {}) }, async session => {
         await employeeGuard(input.employeeId, session);
+        if (sourceDraft && (await draftService.preview(actor, sourceDraft.input, session)).sourceHash !== sourceDraft.sourceHash) fail('PAYROLL_SOURCE_CHANGED', 'Sources changed; preview again', 409);
         const contract = await currentContract(input.employeeId, session, input.periodStart);
         if (contract.endsAt && contract.endsAt < input.periodEnd) fail('CONTRACT_REQUIRED', 'Split period at contract end', 409);
         if (await models.EmploymentContract.exists({ employeeId: input.employeeId, effectiveAt: { $gt: input.periodStart, $lt: input.periodEnd } }).session(session))
@@ -231,9 +262,11 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         const breakdown = { ...calculateEmployeePayroll({ ...baseInput, paidAdvanceVnd: repayments.reduce((sum, a) => sum + a.amountVnd, 0) }), advanceAllocations: repayments };
         if (existing.reduce((sum, s) => sum + s.breakdown.baseVnd, 0) + breakdown.baseVnd > contract.monthlyBaseVnd)
           fail('PAYROLL_RECONCILIATION_REQUIRED', 'Rounded monthly base requires reconciliation', 409);
-        const [statement] = await models.PayrollStatement.create([{ employeeId: input.employeeId, contractId: contract._id, periodStart: input.periodStart,
+        if (existing.reduce((sum, s) => sum + (s.breakdown.allowanceVnd ?? 0), 0) + breakdown.allowanceVnd > (contract.monthlyAllowanceVnd ?? 0)) fail('PAYROLL_RECONCILIATION_REQUIRED', 'Rounded monthly allowance requires reconciliation', 409);
+        const statementId = new models.PayrollStatement()._id, employee = await User.findById(input.employeeId).select('displayName').session(session).lean();
+        const [statement] = await models.PayrollStatement.create([{ _id: statementId, reference: `PL-${monthKey}-${String(statementId).toUpperCase()}`, employeeName: employee?.displayName, employeeCode: contract.employeeCode, employeeId: input.employeeId, contractId: contract._id, periodStart: input.periodStart,
           periodEnd: input.periodEnd, dueAt: input.dueAt, monthKey, payCycle: contract.payCycle, status: 'PREPARED', version: 0,
-          breakdown, assessment: input, creditIds: credits.map(c => c._id), advanceIds: repayments.map(a => a.advanceId), preparedBy: actor.userId, preparedAt: now() }], { session });
+          breakdown, assessment: { ...input, ...(sourceDraft ? { sourceDraft } : {}) }, creditIds: credits.map(c => c._id), advanceIds: repayments.map(a => a.advanceId), preparedBy: actor.userId, preparedAt: now() }], { session });
         for (const claim of [...credits.map(c => `credit:${c._id}`),
           ...(input.includeMonthlyBonus ? [`bonus:${input.employeeId}:${monthKey}`] : [])]) {
           if (await models.PayrollSourceClaim.exists({ _id: claim }).session(session)) fail('PAYROLL_SOURCE_ALREADY_USED', 'Payroll source already reserved', 409);

@@ -1,3 +1,4 @@
+import { AppError } from '../../utils/app-error.js';
 import {
   id,
   fail,
@@ -25,20 +26,16 @@ export function createPricingService({ repository, clock = Date.now }) {
   async function calculate(ownerId, body, deferOrderAdjustments = false) {
     const input = validatePricingSelection(body),
       context = await repository.context(ownerId, input);
-    if (
-      context.pets.some(
-        (p) =>
-          p.traits.length &&
-          !p.traits.every((t) =>
-            context.policy.rules.some((rule) => rule.when?.traitCode === t)
-          )
-      )
-    )
-      fail(
-        'PRICING_REVIEW_REQUIRED',
-        'Special-care trait has no approved price rule',
-        409
-      );
+    const missing = [...new Set(context.pets.flatMap(p => p.traits.filter(code =>
+      !context.policy.rules.some(rule => rule.when?.traitCode === code))))];
+    if (missing.length) {
+      const traits = await repository.models.PetTrait.find({ code: { $in: missing } })
+        .select('code label -_id').limit(100).lean();
+      const names = missing.map(code => traits.find(t => t.code === code)?.label ?? code);
+      throw new AppError(409, 'PRICING_REVIEW_REQUIRED', 'Special-care trait has no approved price rule', {
+        fieldErrors: { petTraits: `Đặc điểm chưa có quy tắc giá được duyệt: ${names.join(', ')}. PawWorld cần rà soát chính sách trước khi báo giá.`.slice(0, 1000) }
+      });
+    }
     const result = calculateQuote({
       baseAmountVnd: context.price.amountVnd,
       priceVersion: context.price.version,

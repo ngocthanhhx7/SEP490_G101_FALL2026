@@ -55,3 +55,12 @@ test('unavailable care source does not become an empty list and prevents creatio
   expect(screen.getByRole('button', { name: 'Thêm thú cưng' })).toBeDisabled();
   expect(screen.queryByText('Chưa có thú cưng')).not.toBeInTheDocument();
 });
+
+
+test('mounted pet list links to the owned avatar workspace',async()=>{
+  const pet={id:'b'.repeat(24),name:'Mây',species:'DOG',breedCode:'dog-test',weightKg:5,version:0};
+  const api={load:jest.fn().mockResolvedValue({data:{...catalog,items:[pet]}})};
+  render(<MemoryRouter><SessionProvider adapter={session}><CustomerCarePage api={api}/></SessionProvider></MemoryRouter>);
+  expect(await screen.findByRole('link',{name:'Ảnh và hồ sơ của Mây'})).toHaveAttribute('href','/account/pets/'+pet.id);
+  expect(screen.getByRole('img',{name:'Ảnh của Mây'})).toHaveAttribute('src',expect.stringContaining('/avatars/pets/'+pet.id+'/content'));
+});

@@ -5,6 +5,17 @@ import { requireOnlyKeys } from './product.validator.js';
 
 const invalid = (message) => new AppError(422, 'VALIDATION_FAILED', message);
 
+export function parseDeleteProduct(body) {
+  requireOnlyKeys(body, ['version', 'reason'], ['version', 'reason']);
+  if (!Number.isSafeInteger(body.version) || body.version < 0) throw invalid('version is invalid');
+  if (typeof body.reason !== 'string') throw invalid('reason is required');
+  const reason = body.reason.normalize('NFC').trim();
+  if (reason.length < 20 || reason.length > 1000 || /[\u0000-\u001f\u007f]/u.test(reason)) {
+    throw invalid('Deletion reason must contain 20 to 1000 characters without control characters');
+  }
+  return { version: body.version, reason };
+}
+
 // A field that does not pass is reported as `fields: { name: 'REQUIRED' }` so the screen can show the right message:
 // REQUIRED is MSG01, WHOLE_NUMBER is MSG113; TOO_LARGE, TOO_LONG and INVALID have no R3 message.
 function fieldsError(fields) {

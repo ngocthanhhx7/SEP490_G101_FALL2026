@@ -1,0 +1,58 @@
+{
+  "kind": "PWC_PUBLIC_CONTEXT_V1",
+  "sourceUrl": "https://open-meteo.com/en/docs/historical-weather-api",
+  "requestUrl": "https://archive-api.open-meteo.com/v1/archive?latitude=21.0285&longitude=105.8542&start_date=2025-01-01&end_date=2025-12-31&hourly=temperature_2m%2Crelative_humidity_2m%2Cprecipitation%2Cwind_speed_10m&timezone=Asia%2FHo_Chi_Minh&models=era5",
+  "licenseUrl": "https://open-meteo.com/en/license",
+  "license": "CC-BY-4.0",
+  "attribution": "Weather data by Open-Meteo.com (https://open-meteo.com/), ERA5 reanalysis; CC BY 4.0",
+  "model": "ERA5",
+  "requestedPoint": {
+    "latitude": 21.0285,
+    "longitude": 105.8542
+  },
+  "returnedPoint": {
+    "latitude": 21.0,
+    "longitude": 105.75
+  },
+  "collectedAt": "2026-11-05T10:40:50.028757+00:00",
+  "sha256": "402c5ba6aa97bb44877dce9b9f00754598dc674218fd4d8f6c5da22cdb8940d3",
+  "bytes": 317785,
+  "summary": {
+    "hourlyRows": 8760,
+    "columns": {
+      "temperature_2m": {
+        "rows": 8760,
+        "missing": 0,
+        "min": 8.3,
+        "max": 39.8
+      },
+      "relative_humidity_2m": {
+        "rows": 8760,
+        "missing": 0,
+        "min": 24,
+        "max": 100
+      },
+      "precipitation": {
+        "rows": 8760,
+        "missing": 0,
+        "min": 0.0,
+        "max": 13.3
+      },
+      "wind_speed_10m": {
+        "rows": 8760,
+        "missing": 0,
+        "min": 0.2,
+        "max": 33.3
+      }
+    }
+  },
+  "rankTrainingEligible": false,
+  "productionFeatureEligible": false,
+  "status": "QUARANTINED_RESEARCH_ONLY",
+  "limitations": [
+    "Reanalysis, not a measured sitter journey or customer review",
+    "Availability at dispatch time is not proven",
+    "One grid cell cannot represent all Hanoi districts",
+    "No weather-to-delay or pet-health causal coefficient inferred"
+  ]
+}

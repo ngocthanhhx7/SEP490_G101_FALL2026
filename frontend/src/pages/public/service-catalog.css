@@ -3,8 +3,6 @@
 .pwc-service-list-page .pwc-page-intro .pwc-eyebrow { margin: 0 0 8px; font-size: 11px; color: #78677f; letter-spacing: 0; }
 .pwc-service-list-page .pwc-page-intro h1 { font-size: 36px; line-height: 1.2; color: #2c0050; }
 .pwc-service-list-page .pwc-page-intro .pwc-lead { margin-top: 10px; color: #6a6470; font-size: 15px; }
-.pwc-service-list-page .pwc-catalog-filters { display: grid; grid-template-columns: minmax(0, 1.7fr) repeat(3, minmax(0, 1fr)); gap: 16px; max-width: none; margin: 0; padding: 0 0 22px; border: 0; border-bottom: 1px solid #e6e2e8; border-radius: 0; background: transparent; align-items: end; }
-.pwc-service-list-page .pwc-catalog-filters label { display: grid; gap: 7px; min-width: 0; font-size: 12px; font-weight: 800; color: #54475c; }
 .pwc-service-facts { display: flex; flex-wrap: wrap; gap: 8px 16px; color: #5c5261; font-size: 14px; line-height: 22px; }
 .pwc-service-facts span { border-bottom: 1px solid #e0d8e5; }
 .pwc-service-basket-section { margin-top: 48px; padding-block: 24px; border-block: 1px solid #d5c9dc; }
@@ -19,18 +17,6 @@
 .pwc-basket-total dl > div { display: flex; justify-content: space-between; gap: 20px; padding: 8px 0; }
 .pwc-basket-total dd { margin: 0; white-space: nowrap; }
 .pwc-basket-total dl > div:last-child { border-top: 1px solid #d5c9dc; font-weight: 800; font-size: 20px; }
-.pwc-service-list-page .pwc-filter-search { flex: 1; }
-.pwc-service-list-page .pwc-catalog-filters input, .pwc-service-list-page .pwc-catalog-filters select { width: 100%; min-width: 0; height: 44px; min-height: 44px; padding: 9px 12px; background: white; border: 1px solid #ddd7e2; border-radius: 6px; color: #40334b; font: 600 13px/22px Nunito, sans-serif; }
-.pwc-filter-input { position: relative; display: flex; align-items: center; min-width: 0; }
-.pwc-filter-input > svg { position: absolute; left: 12px; color: #8a7e93; pointer-events: none; }
-.pwc-service-list-page .pwc-filter-input input { padding-left: 38px; padding-right: 36px; }
-.pwc-filter-input input::-webkit-search-cancel-button { display: none; }
-.pwc-filter-input button { position: absolute; right: 5px; display: grid; place-items: center; width: 32px; height: 32px; border: 0; background: transparent; color: #6a5a75; cursor: pointer; }
-.pwc-catalog-summary { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; min-height: 66px; padding-block: 14px; }
-.pwc-service-list-page .pwc-service-result-count { color: #786d80; margin: 0; font-size: 13px; }
-.pwc-clear-filters { display: inline-flex; align-items: center; gap: 4px; padding: 4px 0; border: 0; background: transparent; color: #684786; font: 700 12px/20px Nunito, sans-serif; cursor: pointer; }
-.pwc-catalog-sort { display: flex; align-items: center; gap: 8px; margin-left: auto; color: #786d80; font-size: 12px; }
-.pwc-catalog-sort select { max-width: 190px; min-height: 36px; border: 0; background: transparent; color: #4c3b57; font: 700 12px/20px Nunito, sans-serif; cursor: pointer; }
 .pwc-service-list-page .pwc-photo-credits { margin-top: 18px; font-size: 11px; color: #8c8194; }
 .pwc-service-inclusions { list-style: none; padding: 0; margin: 18px 0 0; }
 .pwc-service-inclusions li { position: relative; padding-left: 26px; margin: 10px 0; line-height: 25px; color: #5a525c; overflow-wrap: anywhere; }
@@ -95,15 +81,9 @@
  .pwc-service-process ol { grid-template-columns: 1fr; }
  .pwc-service-work > h2, .pwc-service-pricing > h2, .pwc-service-process > h2, .pwc-service-faq > h2 { font-size: 28px; }
 }
-@media(max-width:1000px) { .pwc-service-list-page .pwc-catalog-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media(max-width:640px) {
  .pwc-service-list-page { padding: 24px 0 40px; }
  .pwc-service-list-page .pwc-page-intro h1 { font-size: 30px; }
  .pwc-service-list-page .pwc-page-intro .pwc-lead { font-size: 14px; }
- .pwc-service-list-page .pwc-catalog-filters { gap: 12px; }
- .pwc-service-list-page .pwc-filter-search { grid-column: 1 / -1; }
- .pwc-service-list-page .pwc-catalog-filters label { width: 100%; }
  .pwc-catalog-help { flex-direction: column; align-items: start; padding-block: 24px; }
- .pwc-catalog-sort { gap: 2px; }
- .pwc-catalog-sort > span { display: none; }
 }

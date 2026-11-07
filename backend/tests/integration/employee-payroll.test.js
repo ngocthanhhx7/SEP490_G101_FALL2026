@@ -195,3 +195,11 @@ test('an expired latest contract does not revive an earlier open-ended version',
   expect((await service.own(sitter)).activeContractId).toBeNull();
   await expect(service.submitAdvance(sitter, advance(), 'advance-ended-contract')).rejects.toMatchObject({ code: 'CONTRACT_REQUIRED' });
 });
+
+test('payroll overview is Admin-only and privately cached', async () => {
+  await request(app).get('/api/v1/payroll/overview').expect(401);
+  await request(app).get('/api/v1/payroll/overview').set('x-test-actor','sitter').expect(403);
+  const response = await request(app).get('/api/v1/payroll/overview').set('x-test-actor','admin').expect(200);
+  expect(response.headers['cache-control']).toContain('no-store');
+  expect(response.body.data.summary).toMatchObject({ total:expect.any(Number),prepared:expect.any(Number),awaitingPaymentVnd:expect.any(Number),pendingAdvances:expect.any(Number) });
+});

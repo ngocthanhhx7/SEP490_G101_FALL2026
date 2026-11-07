@@ -212,7 +212,10 @@ describe('P07 Customer registration over P06 OTP with isolated MongoDB', () => {
 
     clockNow += 60000;
     const second = await startChallenge(app);
-    await request(app).post('/api/v1/otp-verifications').send(verificationBody(second)).expect(409);
+    const wrong = await request(app).post('/api/v1/otp-verifications').send(verificationBody(second, { code: '999999' })).expect(400);
+    expect(wrong.body.error.code).toBe('OTP_INCORRECT');
+    const duplicate = await request(app).post('/api/v1/otp-verifications').send(verificationBody(second)).expect(409);
+    expect(duplicate.body.error.code).toBe('CONTACT_ALREADY_LINKED');
     expect(await User.countDocuments({})).toBe(1);
     expect(await models.Contact.countDocuments({ state: 'VERIFIED' })).toBe(1);
     expect(await models.AuthSession.countDocuments({ revokedAt: null })).toBe(1);

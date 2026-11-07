@@ -5,3 +5,5 @@ Controllers translate req/auth/body/params to service calls, preserve HTTP statu
 Application private-document reads return bounded PNG/JPEG bytes with private,
 no-store and inline headers after the service's Admin/document/quota/audit checks.
 They no longer redirect a browser to an R2 capability URL.
+
+`avatar.controller.js` translates avatar metadata, binary reads and versioned PUT/DELETE commands; domain authorization/decoding stays in the avatar service.
