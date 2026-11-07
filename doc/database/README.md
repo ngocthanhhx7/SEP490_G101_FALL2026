@@ -16,3 +16,5 @@ Model names now split into pet-care/pricing/decision-snapshot/sitter-matching fa
 - [Catalog audit storage — 07/11/2026](catalog-audit-storage-plan-2026-11-07.md): thiết kế dữ liệu gốc, loại bỏ audit trùng lặp qua provenance trong canonical version, validator và reverse migration.
 
 - [Concurrency guard schema — 08/11/2026](concurrency-guard-schema-2026-11-08.md): mô tả khóa raw hiện hữu, sparse/hidden và concurrency invariants; không backfill/index mới.
+
+- [Catalog effective reads — 08/11/2026](catalog-effective-reads-2026-11-08.md): dùng unique index hiện hữu cho point-in-time selection, giữ nguyên dữ liệu và index.

@@ -159,8 +159,10 @@ async function latest(Model, serviceId, session) {
 }
 
 async function effective(Model, serviceId, at) {
+  // Unique (serviceId,effectiveAt) makes a version tie impossible and lets the
+  // existing unique index serve this point lookup without a blocking sort.
   return Model.findOne({ serviceId, effectiveAt: { $lte: at } })
-    .sort({ effectiveAt: -1, version: -1 })
+    .sort({ effectiveAt: -1 })
     .lean();
 }
 

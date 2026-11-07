@@ -53,7 +53,7 @@ export function createServicePriceService({ connection, PriceVersion, serviceExi
   async function list(serviceId) {
     const id = serviceObjectId(serviceId);
     if (!await serviceExists(id.toString())) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Service not found');
-    const prices = await PriceVersion.find({ serviceId: id }).sort({ effectiveAt: -1, version: -1 }).lean();
+    const prices = await PriceVersion.find({ serviceId: id }).sort({ effectiveAt: -1 }).lean();
     return prices.map(priceView);
   }
 
@@ -67,7 +67,7 @@ export function createServicePriceService({ connection, PriceVersion, serviceExi
     const id = serviceObjectId(serviceId);
     if (!await serviceExists(id.toString())) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Service not found');
     const price = await PriceVersion.findOne({ serviceId: id, effectiveAt: { $lte: at } })
-      .sort({ effectiveAt: -1, version: -1 }).lean();
+      .sort({ effectiveAt: -1 }).lean();
     return price ? priceView(price) : null;
   }
 
