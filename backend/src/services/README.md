@@ -56,3 +56,8 @@ Product order lists page after authoritative role/owner filters. Domain notifica
 Public profile moderation lists SUBMITTED/APPROVED/REJECTED states with state-scoped cursors, bounded user display-name lookups and aggregate counts across current profile records. Counts do not represent historical application submissions or immutable review events.
 
 `avatar.service.js` owns owner-scoped normalized avatar bytes, transaction/version/retry guards and parent-profile concurrency; applicant document slots remain in sitter-application service. See [profile media](../../../doc/testing/profile-media-2026-11-05.md).
+
+`booking-read-storage.service.js` owns aggregate preflight and explicitly confirmed
+provision of the raw bookings owner/cursor index. Deployment asserts an equivalent
+plain two-field index (including reverse scans); it never silently creates one.
+Missing/null legacy owners are preserved, unknown types/conflicts block apply.

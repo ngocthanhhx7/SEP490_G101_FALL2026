@@ -1,0 +1,10 @@
+import { performance } from 'node:perf_hooks';
+import mongoose from 'mongoose';
+import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
+const replica=await MongoMemoryReplSet.create({binary:{version:'8.0.34'},replSet:{count:1}});let connection;
+try{connection=await mongoose.createConnection(replica.getUri(),{dbName:'synthetic_booking_index_writes',autoIndex:false,autoCreate:false}).asPromise();const collections={existing:connection.db.collection('base'),ownerIndex:connection.db.collection('candidate')},owners=Array.from({length:100},()=>new mongoose.Types.ObjectId()),samples={existing:[],ownerIndex:[]};
+for(const[name,c]of Object.entries(collections)){await c.createIndex({carePlanState:1,createdAt:1,_id:1});if(name==='ownerIndex')await c.createIndex({customerId:1,_id:-1});}
+for(let batch=0;batch<60;batch++){const rows=Array.from({length:1000},(_,i)=>({_id:new mongoose.Types.ObjectId(),customerId:owners[(batch*1000+i)%100],state:'AWAITING_PAYMENT',carePlanState:'PENDING',createdAt:new Date('2026-11-08T00:00:00Z'),checkoutSnapshot:{customerVisits:[{snapshots:{serviceName:'Synthetic care'}}]}}));const order=batch%2?['ownerIndex','existing']:['existing','ownerIndex'];for(const name of order){const start=performance.now();await collections[name].insertMany(rows);if(batch>=50)samples[name].push(performance.now()-start);}}
+await connection.db.admin().command({fsync:1});const results={};for(const[name,c]of Object.entries(collections)){const stats=await connection.db.command({collStats:c.collectionName}),times=samples[name].sort((a,b)=>a-b);results[name]={seededDocuments:50000,measuredBatches:10,documentsPerBatch:1000,p50BatchMs:times[4],p95BatchMs:times[9],indexBytes:stats.totalIndexSize,indexes:stats.nindexes,documents:stats.count};}
+console.log(JSON.stringify({synthetic:true,mongoVersion:'8.0.34',results,note:'Alternating writer order; single bulk-insert client and same docs/IDs, checkpointed after both. Measures index write overhead, not API transaction/production throughput. Ten batches provide limited latency confidence.'},null,2));
+}finally{await connection?.close();await replica.stop();}
