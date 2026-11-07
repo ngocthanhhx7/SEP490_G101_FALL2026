@@ -162,7 +162,7 @@ Who may record a goods receipt is `RECORD_GOODS_RECEIPTS` in `backend/src/consta
 | Method and path | Purpose |
 | --- | --- |
 | `GET /api/v1/admin/goods-receipts/suppliers` | The suppliers that can be chosen on a new receipt: only those that are `ACTIVE` (Đang hợp tác), in Vietnamese letter order. `{ items: [{ id, name }] }` |
-| `GET /api/v1/admin/goods-receipts/products` | Product search for the "Thêm sản phẩm" box: `search` (part of a name or a code, any case, at most 100 characters), `page`, `limit` (at most 10). Any product in the catalog, hidden ones too: `{ items: [{ id, code, name, visible }], page, limit, total }` |
+| `GET /api/v1/admin/goods-receipts/products` | Product search for the "Thêm sản phẩm" box: `search` (part of a name or a code, any case, at most 100 characters), `page`, `limit` (at most 10). Products with `deletedAt: null`, hidden ones too (AC-31, D-262): `{ items: [{ id, code, name, visible }], page, limit, total }` |
 | `GET /api/v1/admin/goods-receipts` | The 10 newest receipts, newest first (the "Phiếu nhập gần đây" column). No query. `{ items: [{ id, code, supplierName, receivedOn, recordedAt, totalReceived, totalAccepted, totalRejected }] }` |
 | `GET /api/v1/admin/goods-receipts/:code` | One receipt by its code, with its lines. The link of a MSG122 notice opens the Goods Receipt page with `?receipt=PN-0012`, and the page reads the receipt through this call. A code that does not exist or has the wrong shape is `404` |
 | `POST /api/v1/admin/goods-receipts` | Saves a receipt (201). Needs the session CSRF token and an `Idempotency-Key` (see "Sending a save again"). Body: `supplierId` and `lines`, nothing else |
@@ -175,7 +175,7 @@ Rules (R3 AC-31). Every wrong field is reported in one `422 VALIDATION_FAILED` a
 | --- | --- | --- |
 | `supplierId` | needed; must be a supplier that is `ACTIVE` when the receipt is saved (AC-30) | `REQUIRED` (MSG01), `INVALID`; `409 SUPPLIER_NOT_ACTIVE` when it has stopped, `422 SUPPLIER_NOT_FOUND` when it does not exist |
 | `lines` | at least one, at most 50 | `REQUIRED`, `TOO_MANY`, `INVALID` |
-| line `productId` | a product in the catalog, hidden or not; each product once in a receipt. **Nothing limits it to the products the supplier supplies** (R3 does not say so): `422 PRODUCT_NOT_FOUND` with `productIds` lists the missing ones | `REQUIRED`, `INVALID`, `DUPLICATE` |
+| line `productId` | a product in the catalog, hidden or not, with `deletedAt: null`; rechecked inside the save transaction (AC-31, D-262). Each product once in a receipt. **Nothing limits it to the products the supplier supplies** (R3 does not say so): `422 PRODUCT_NOT_FOUND` with `productIds` lists the missing or deleted ones, with no new error code or MSG | `REQUIRED`, `INVALID`, `DUPLICATE` |
 | line `quantityReceived` | a whole number from 1 to 100000 | `INVALID` (MSG113), `TOO_LARGE` |
 | line `quantityAccepted` | a whole number from 0 to `quantityReceived`; a missing value is wrong too | `INVALID` (MSG119) |
 | line `rejectReason` | needed when `quantityAccepted < quantityReceived`, at most 300 characters; dropped when nothing is rejected | `REQUIRED` (MSG120), `TOO_LONG`, `INVALID` |

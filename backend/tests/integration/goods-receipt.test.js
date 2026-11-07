@@ -151,6 +151,38 @@ describe('suppliers and products for a new receipt', () => {
       expect((await admin.get(`${RECEIPTS}/products`).query(query)).status).toBe(422);
     }
   });
+
+  // AC-31 / D-262: deleted products leave the picker; hidden products remain receivable.
+  test('AC-31 D-262 excludes deleted products from search and totals but still finds hidden products', async () => {
+    const deletedId = await idOf('SP-0012');
+    await models.Product.updateOne({ _id: deletedId }, { $set: { deletedAt: new Date(), visible: false } });
+    const deleted = (await admin.get(`${RECEIPTS}/products`).query({ search: 'SP-0012' }).expect(200)).body.data;
+    expect(deleted.items).toEqual([]);
+    expect(deleted.total).toBe(0);
+    const all = (await admin.get(`${RECEIPTS}/products`).expect(200)).body.data;
+    expect(all.items.some((product) => product.id === deletedId)).toBe(false);
+    expect(all.total).toBe(await models.Product.countDocuments({ deletedAt: null }));
+    const hidden = (await admin.get(`${RECEIPTS}/products`).query({ search: 'SP-0036' }).expect(200)).body.data;
+    expect(hidden.items).toEqual([{ id: await idOf('SP-0036'), code: 'SP-0036', name: expect.any(String), visible: false }]);
+  });
+
+  // AC-31 / D-262: a product selected before deletion is checked again when saving.
+  test.each([0, 3])('AC-31 D-262 rejects a product deleted after selection with %i accepted units and rolls back the whole receipt', async (accepted) => {
+    const supplierId = await makeSupplier();
+    const selected = (await admin.get(`${RECEIPTS}/products`).query({ search: 'SP-0014' }).expect(200)).body.data.items[0];
+    await models.Product.updateOne({ _id: selected.id }, { $set: { deletedAt: new Date(), visible: false } });
+    const before = await models.Product.find().sort({ code: 1 }).lean();
+    const res = await save({ supplierId, lines: [await line('SP-0012', 5, 5), {
+      productId: selected.id, quantityReceived: 3, quantityAccepted: accepted, rejectReason: 'Synthetic rejected goods'
+    }] }).expect(422);
+    expect(res.body.error.code).toBe('PRODUCT_NOT_FOUND');
+    expect(res.body.error.productIds).toEqual([selected.id]);
+    expect(await models.Product.find().sort({ code: 1 }).lean()).toEqual(before);
+    expect(await models.GoodsReceipt.countDocuments()).toBe(0);
+    expect(await models.ProductCounter.findById('GOODS_RECEIPT').lean()).toBeNull();
+    expect((await models.Supplier.findById(supplierId).lean()).lastReceiptAt).toBeUndefined();
+    expect(await notices()).toEqual([]);
+  });
 });
 
 describe('saving a receipt (UC-70, AC-31)', () => {

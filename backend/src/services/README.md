@@ -1,5 +1,10 @@
 # Domain services
 
+Goods Receipt product search and saving exclude deleted products (`deletedAt`
+must be null or absent), while hidden products remain eligible (AC-31, D-262).
+The save transaction rechecks eligibility and returns the existing
+`422 PRODUCT_NOT_FOUND` for missing or deleted products without changing stock.
+
 `catalog-audit-migration.service.js` owns copy, verified cleanup and reverse-copy
 orchestration for provenance embedded in immutable catalog versions. It reconstructs
 legacy audit views from canonical facts, preserves BSON types/IDs, never

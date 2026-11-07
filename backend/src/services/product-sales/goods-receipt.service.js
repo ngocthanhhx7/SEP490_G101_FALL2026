@@ -96,11 +96,11 @@ export function createGoodsReceiptService({ connection, clock = Date.now, notifi
         .limit(GOODS_RECEIPT_LIMITS.suppliersMax).select('name').lean();
       return { items: docs.map((doc) => ({ id: String(doc._id), name: doc.name })) };
     },
-    // Products for the line picker: part of a name or a code, hidden products too (R3: any product in the catalog).
+    // AC-31 / D-262: hidden products remain receivable; deleted products are no longer in the catalog.
     async searchProducts(actor, query) {
       requireReceiptRecorder(actor);
       const { search, page, limit } = parseReceiptProductQuery(query);
-      const filter = {};
+      const filter = { deletedAt: null };
       if (search) {
         const pattern = { $regex: escapeRegex(search), $options: 'i' };
         filter.$or = [{ name: pattern }, { code: pattern }];
@@ -149,7 +149,7 @@ export function createGoodsReceiptService({ connection, clock = Date.now, notifi
               ? productSalesErrors.supplierNotActive() : productSalesErrors.supplierNotFound();
           }
           const ids = input.lines.map((line) => line.productId);
-          const products = new Map((await Product.find({ _id: { $in: ids } }).session(session).lean())
+          const products = new Map((await Product.find({ _id: { $in: ids }, deletedAt: null }).session(session).lean())
             .map((doc) => [String(doc._id), doc]));
           const missing = ids.filter((id) => !products.has(id));
           if (missing.length) throw productSalesErrors.productNotFound(missing);
@@ -167,7 +167,7 @@ export function createGoodsReceiptService({ connection, clock = Date.now, notifi
 
           for (const line of lines) {
             if (line.quantityAccepted > 0) {
-              const applied = await Product.updateOne({ _id: line.productId },
+              const applied = await Product.updateOne({ _id: line.productId, deletedAt: null },
                 { $inc: { stockOnHand: line.quantityAccepted, version: 1 } }, { session });
               if (applied.matchedCount !== 1) throw productSalesErrors.productNotFound([line.productId]);
             }
