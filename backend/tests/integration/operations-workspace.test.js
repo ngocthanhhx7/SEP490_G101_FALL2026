@@ -122,12 +122,14 @@ test('public profile states have global counts, bounded names and state-scoped c
 
 test('payroll overview uses persisted states and integer amounts, never paid amounts as pending', async () => {
   const models = payrollModels(connection);
+  await models.PayrollStatement.init();
   await models.PayrollStatement.collection.insertMany([
     { status: 'PREPARED', breakdown: { payableVnd: 100 } },
     { status: 'APPROVED', breakdown: { payableVnd: 2500000 } },
     { status: 'PAID', breakdown: { payableVnd: 9000000 } },
     { status: 'VOIDED', breakdown: { payableVnd: 400 } },
-  ]);
+  ].map(row => ({ employeeId: oid(), periodStart: new Date('2026-11-01T00:00:00Z'),
+    periodEnd: new Date('2026-12-01T00:00:00Z'), ...row })));
   await models.SalaryAdvance.collection.insertMany([
     { status: 'SUBMITTED', amountVnd: 100 },
     { status: 'PAID', amountVnd: 200 },
