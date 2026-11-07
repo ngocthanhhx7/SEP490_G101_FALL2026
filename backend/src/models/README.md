@@ -1,5 +1,14 @@
 # Persistence models
 
+Catalog versions own bounded `changeAudit` provenance: eventId, action and
+changedFields. Existing version fields own actor/reason/time/version/resource;
+no second audit record repeats them. Four version models retain their physical
+names and indexes, hide provenance by default and make fields immutable through
+Mongoose. Native validators require provenance only after verified migration;
+they validate shape, not raw-database immutability. Legacy audit factories remain
+for rollback/tooling and are not registered by runtime. See the
+[catalog migration plan](../../../doc/database/catalog-audit-storage-plan-2026-11-07.md).
+
 Service stores bounded one-to-one catalog metadata in `presentation`; its arrays
 are limited to 50 entries each. `service-presentation.model.js` keeps the legacy
 factory for explicit compatibility/migration tooling, but runtime no longer

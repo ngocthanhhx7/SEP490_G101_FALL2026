@@ -46,7 +46,7 @@ beforeAll(async () => {
   });
   prices = module.prices;
   app = createApp({ config, connection, lifecycle: { draining: false }, moduleFactories: [() => module] });
-  await Promise.all([connection.model('ServicePriceVersion').init(), connection.model('ServicePriceAudit').init()]);
+  await connection.model('ServicePriceVersion').init();
 }, 600000);
 
 afterAll(async () => {
@@ -80,6 +80,8 @@ describe('P17 service price configuration on isolated MongoDB', () => {
       .send({ expectedVersion: 0, amountVnd: 50000, unitLabel: 'mỗi lượt', effectiveAt: firstAt, reason: 'Giá đã duyệt' })
       .expect(201);
     expect(first.body.data).toMatchObject({ version: 1, amountVnd: 50000, currency: 'VND', unitLabel: 'mỗi lượt' });
+    expect(JSON.stringify(first.body)).not.toContain('changeAudit');
+    expect(connection.models.ServicePriceAudit).toBeUndefined();
     expect(await prices.getActivePrice(serviceId, new Date())).toBeNull();
     expect(await prices.getActivePrice(serviceId, new Date(new Date(firstAt).getTime() + 1))).toMatchObject({ amountVnd: 50000 });
 
@@ -93,7 +95,7 @@ describe('P17 service price configuration on isolated MongoDB', () => {
       .toMatchObject({ version: 1, amountVnd: 50000 });
     expect(await prices.getActivePrice(serviceId, new Date(new Date(secondAt).getTime() + 1)))
       .toMatchObject({ version: 2, amountVnd: 80000 });
-    expect(await connection.model('ServicePriceAudit').countDocuments({ resourceId: serviceId })).toBe(2);
+    expect(await connection.model('ServicePriceVersion').countDocuments({ serviceId, 'changeAudit.eventId': { $type: 'objectId' } })).toBe(2);
   });
 
   test('concurrent writes against one version return one conflict instead of overwriting', async () => {
@@ -106,6 +108,7 @@ describe('P17 service price configuration on isolated MongoDB', () => {
     ]);
     expect(results.map(response => response.status).sort()).toEqual([201, 409]);
     expect(await connection.model('ServicePriceVersion').countDocuments({ serviceId, version: 3 })).toBe(1);
-    expect(await connection.model('ServicePriceAudit').countDocuments({ resourceId: serviceId, version: 3 })).toBe(1);
+    expect(await connection.model('ServicePriceVersion').countDocuments({ serviceId, version: 3,
+      'changeAudit.action': 'SERVICE_PRICE_VERSIONED', 'changeAudit.eventId': { $type: 'objectId' } })).toBe(1);
   });
 });

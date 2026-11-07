@@ -66,7 +66,7 @@ beforeAll(async () => {
   });
   await Promise.all([
     connection.model('Service').init(), connection.model('ServiceVersion').init(),
-    connection.model('ServicePolicyVersion').init(), connection.model('ServiceAudit').init()
+    connection.model('ServicePolicyVersion').init()
   ]);
 }, 600000);
 
@@ -96,6 +96,8 @@ describe('P17 service catalog module on isolated MongoDB', () => {
     }).expect(201);
     serviceId = result.body.data.id;
     expect(serviceId).toMatch(/^[0-9a-f]{24}$/i);
+    expect(JSON.stringify(result.body)).not.toContain('changeAudit');
+    expect(connection.models.ServiceAudit).toBeUndefined();
 
     await request(app).post('/api/v1/services/admin/' + serviceId + '/policies')
       .set(headers('STAFF')).send({}).expect(403);
@@ -158,9 +160,10 @@ describe('P17 service catalog module on isolated MongoDB', () => {
       });
     const results = await Promise.all([update('Dắt chó lượt một'), update('Dắt chó lượt hai')]);
     expect(results.map(response => response.status).sort()).toEqual([200, 409]);
+    expect(JSON.stringify(results.map(response => response.body))).not.toContain('changeAudit');
     expect(await connection.model('ServiceVersion').countDocuments({ serviceId, version: 2 })).toBe(1);
-    expect(await connection.model('ServiceAudit').countDocuments({
-      resourceId: serviceId, version: 2, action: 'SERVICE_VERSIONED'
+    expect(await connection.model('ServiceVersion').countDocuments({
+      serviceId, version: 2, 'changeAudit.action': 'SERVICE_VERSIONED', 'changeAudit.eventId': { $type: 'objectId' }
     })).toBe(1);
   });
 });

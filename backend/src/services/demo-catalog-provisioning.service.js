@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
 import { demoCatalogKey, demoServiceCatalog, demoTraits, demoPricingPolicy } from '../constants/demo-service-catalog.js';
 import { provisionInitialCatalog } from './initial-catalog-provisioning.service.js';
 import { provisionServicePresentation } from './service-presentation.service.js';
@@ -47,9 +48,7 @@ export async function provisionDemoCatalog({ connection, clock = Date.now }) {
       const { _id, ...previous } = latest; void _id;
       const reason = 'Owner replaced initial catalogue with demo sheet services; retain historical versions.';
       await connection.models.ServiceVersion.create([{ ...previous, version: latest.version + 1, state: 'INACTIVE', effectiveAt: now,
-        changedBy: runId, reason, recordedAt: now }], { session });
-      await connection.models.ServiceAudit.create([{ actorId: runId, action: 'SERVICE_VERSIONED', resourceType: 'service', resourceId: service._id,
-        version: latest.version + 1, changedFields: ['state'], reason, effectiveAt: now, occurredAt: now }], { session });
+        changeAudit: createCatalogChange('SERVICE_VERSIONED', ['state']), changedBy: runId, reason, recordedAt: now }], { session });
       retired.push(code);
     }
     await runs.insertOne({ _id: runId, key: demoCatalogKey, actorKind: 'SYSTEM_MIGRATION', createdAt: now,

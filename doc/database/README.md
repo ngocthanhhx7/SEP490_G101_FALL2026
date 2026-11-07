@@ -13,3 +13,4 @@ Mongoose definitions tại backend/src/models/platform-data.model.js: Pet, Custo
 Model names now split into pet-care/pricing/decision-snapshot/sitter-matching factories. Physical legacy Ai* collections are preserved explicitly by `model-definitions.js`; routing cache remains `airoutingmatrixes`. The aggregate platform factory is seed/test composition only.
 
 - [MongoDB optimization plan — 07/11/2026](mongodb-optimization-plan-2026-11-07.md): baseline trực tiếp, inventory 103 collection, phạm vi audit và rollout/migration/rollback theo từng đợt.
+- [Catalog audit storage — 07/11/2026](catalog-audit-storage-plan-2026-11-07.md): thiết kế dữ liệu gốc, loại bỏ audit trùng lặp qua provenance trong canonical version, validator và reverse migration.
