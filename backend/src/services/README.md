@@ -1,5 +1,11 @@
 # Domain services
 
+`service-presentation.service.js` reads embedded Service metadata with legacy
+fallback and owns provisioning compatibility writes. Its migration service
+performs aggregate-only dry-run or explicitly confirmed additive copies; it
+never removes the legacy collection. `service-catalog.service.js` batches public
+policy/price reads and projects catalog metadata without private audit fields.
+
 Product management deletion retains a MongoDB tombstone and its actor/reason,
 blocks all order history and remaining/reserved stock, and serializes with
 product/stock writes. Active reads exclude tombstones. The list's global summary

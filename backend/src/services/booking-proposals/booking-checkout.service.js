@@ -11,7 +11,7 @@ import { notificationModels } from '../../models/notification.model.js';
 import { serviceVersionModel } from '../../models/service-version.model.js';
 import { servicePolicyVersionModel } from '../../models/service-policy-version.model.js';
 import { servicePriceVersionModel } from '../../models/service-price-version.model.js';
-import { servicePresentationModel } from '../../models/service-presentation.model.js';
+import { readServicePresentation } from '../service-presentation.service.js';
 import { systemSettingVersionModel } from '../../models/system-setting-version.model.js';
 import { pricingModels } from '../../models/pricing.model.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
@@ -25,7 +25,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
   const { Notification } = notificationModels(connection);
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
   const Version = serviceVersionModel(connection), Policy = servicePolicyVersionModel(connection), Price = servicePriceVersionModel(connection),
-    Presentation = servicePresentationModel(connection), Setting = systemSettingVersionModel(connection), { PricingPolicy } = pricingModels(connection);
+    Setting = systemSettingVersionModel(connection), { PricingPolicy } = pricingModels(connection);
   const col = name => connection.db.collection(name), oid = value => new Types.ObjectId(value), now = () => new Date(clock());
   const uow = createUnitOfWork(connection);
   function customer(actor) {
@@ -108,7 +108,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           const price = await Price.findOne(filter).sort({ effectiveAt: -1, version: -1 }).session(session).lean();
           const policy = await Policy.findOne(filter).sort({ effectiveAt: -1, version: -1 }).session(session).lean();
           const pricing = await PricingPolicy.findOne({ ...filter, status: 'APPROVED', approvedAt: { $lte: at, $ne: null } }).sort({ version: -1 }).session(session).lean();
-          const presentation = await Presentation.findOne({ serviceId: selection.serviceId }).session(session).lean();
+          const presentation = await readServicePresentation(connection, selection.serviceId, session);
           if (version?.state !== 'ACTIVE' || version.version !== quoted.serviceVersion || price?.version !== quoted.priceVersion ||
             pricing?.version !== quoted.policyVersion || policy?.state !== 'PUBLISHED' || policy.version !== quoted.servicePolicyVersion)
             fail('QUOTE_CHANGED', 'Service, price or policy changed; quote again', 409);
