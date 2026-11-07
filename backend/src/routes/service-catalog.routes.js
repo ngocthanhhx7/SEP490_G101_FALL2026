@@ -10,7 +10,6 @@ import { serviceModel } from '../models/service.model.js';
 import { serviceVersionModel } from '../models/service-version.model.js';
 import { servicePolicyVersionModel } from '../models/service-policy-version.model.js';
 import { serviceAuditModel } from '../models/service-audit.model.js';
-import { servicePresentationModel } from '../models/service-presentation.model.js';
 import { createSessionService } from '../services/session.service.js';
 import { createServiceCatalogService } from '../services/service-catalog.service.js';
 
@@ -36,7 +35,6 @@ export function serviceCatalogModule({
     ServiceVersion: serviceVersionModel(connection),
     PolicyVersion: servicePolicyVersionModel(connection),
     Audit: serviceAuditModel(connection),
-    Presentation: servicePresentationModel(connection),
     priceProvider,
     catalogSettings,
     clock

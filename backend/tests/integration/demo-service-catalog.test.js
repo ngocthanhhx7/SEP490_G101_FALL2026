@@ -27,6 +27,8 @@ beforeAll(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 test('serves thirteen real services with metadata and immutable legacy histories', async () => {
+  expect(connection.models.ServicePresentation).toBeUndefined();
+  expect(await connection.db.listCollections({ name: 'servicepresentations' }).toArray()).toEqual([]);
   const response = await request(app).get('/api/v1/services').expect(200);
   expect(response.body.data.services).toHaveLength(13);
   for (const service of response.body.data.services) {
@@ -37,6 +39,33 @@ test('serves thirteen real services with metadata and immutable legacy histories
   expect(await connection.models.ServiceVersion.countDocuments({ state: 'INACTIVE' })).toBe(2);
   expect(await connection.collection('users').countDocuments()).toBe(0);
   expect((await provisionDemoCatalog({ connection })).state).toBe('ALREADY_APPLIED');
+});
+
+test('public catalog batches policy and price reads while retaining published effective data', async () => {
+  const commands = [];
+  const previousDebug = connection.get('debug');
+  connection.set('debug', (collection, method) => commands.push({ collection, method }));
+  let response;
+  try { response = await request(app).get('/api/v1/services').expect(200); }
+  finally { connection.set('debug', previousDebug ?? false); }
+  expect(response.body.data.services).toHaveLength(13);
+  expect(commands).toHaveLength(5);
+  expect(commands.filter(row => row.collection === 'servicepolicyversions')).toEqual([
+    { collection: 'servicepolicyversions', method: 'aggregate' }
+  ]);
+  expect(commands.filter(row => row.collection === 'servicepriceversions')).toEqual([
+    { collection: 'servicepriceversions', method: 'aggregate' }
+  ]);
+  const serviceId = response.body.data.services.find(row => row.code === 'home-care').id;
+  const policy = await connection.models.ServicePolicyVersion.findOne({ serviceId }).sort({ version: -1 }).lean();
+  const { _id, ...previous } = policy;
+  void _id;
+  const withdrawal = await connection.models.ServicePolicyVersion.create({ ...previous, version: policy.version + 1,
+    state: 'WITHDRAWN', effectiveAt: new Date(), recordedAt: new Date() });
+  try {
+    const withdrawn = await request(app).get('/api/v1/services').expect(200);
+    expect(withdrawn.body.data.services.some(row => row.id === serviceId)).toBe(false);
+  } finally { await connection.models.ServicePolicyVersion.deleteOne({ _id: withdrawal._id }); }
 });
 test('basket discounts six visits once at six percent with source versions and owner checks', async () => {
   const catalog = (await request(app).get('/api/v1/services')).body.data.services;
