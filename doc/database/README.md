@@ -14,3 +14,5 @@ Model names now split into pet-care/pricing/decision-snapshot/sitter-matching fa
 
 - [MongoDB optimization plan — 07/11/2026](mongodb-optimization-plan-2026-11-07.md): baseline trực tiếp, inventory 103 collection, phạm vi audit và rollout/migration/rollback theo từng đợt.
 - [Catalog audit storage — 07/11/2026](catalog-audit-storage-plan-2026-11-07.md): thiết kế dữ liệu gốc, loại bỏ audit trùng lặp qua provenance trong canonical version, validator và reverse migration.
+
+- [Concurrency guard schema — 08/11/2026](concurrency-guard-schema-2026-11-08.md): mô tả khóa raw hiện hữu, sparse/hidden và concurrency invariants; không backfill/index mới.

@@ -1,4 +1,5 @@
 import { oid, integer, geo, registerModels, Schema, sub } from './model-definitions.js';
+import { concurrencyGuardField } from './concurrency-guard.field.js';
 const careField = sub({
   status: { type: String, enum: ['KNOWN', 'UNKNOWN', 'NOT_PROVIDED'], required: true },
   value: { type: String, maxlength: 2000 }
@@ -7,6 +8,7 @@ export function petCareModels(connection) {
   return registerModels(connection, {
     Pet: {
       fields: {
+        bookingGuard: concurrencyGuardField(),
         ownerId: { type: oid, required: true, index: true },
         name: { type: String, required: true, maxlength: 100 },
         species: { type: String, enum: ['DOG', 'CAT'], required: true },
@@ -28,6 +30,7 @@ export function petCareModels(connection) {
     },
     CustomerAddress: {
       fields: {
+        bookingGuard: concurrencyGuardField(),
         ownerId: { type: oid, required: true, index: true },
         label: { type: String, required: true, maxlength: 100 },
         location: {

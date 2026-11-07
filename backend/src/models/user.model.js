@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { concurrencyGuardField } from './concurrency-guard.field.js';
 
 export function userModel(connection) {
   const policyConsentSchema = new Schema({
@@ -10,6 +11,8 @@ export function userModel(connection) {
     sourceRef: { type: String, required: true, maxlength: 500 },
   }, { _id: false, strict: 'throw' });
   const schema = new Schema({
+    contractGuard: concurrencyGuardField(),
+    schedulingGuardVersion: concurrencyGuardField(),
     displayName: { type: String, required: true, maxlength: 100 },
     roles: { type: [String], enum: ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'], required: true },
     state: { type: String, enum: ['ACTIVE', 'LOCKED', 'SUSPENDED'], required: true },
