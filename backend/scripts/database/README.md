@@ -74,3 +74,16 @@ See [catalog audit storage plan](../../../doc/database/catalog-audit-storage-pla
 selection equality, examined keys/documents and warmed latency without creating
 or dropping any production index. Fixtures exercise query shape, not full domain
 records; timing is not production capacity.
+
+`provision-booking-owner-index.js` defaults to bounded aggregate dry-run and never
+creates an absent bookings collection. Apply requires `--apply`, matching
+`CONFIRMED_BOOKING_INDEX_DATABASE`, fresh `CONFIRMED_BOOKING_INDEX_DIGEST`, and
+`CONFIRMED_BOOKING_INDEX=customerId:1,_id:-1`. It adds one non-unique index only,
+reuses equivalent plain indexes, preserves existing data/indexes and reports any
+concurrent owner/_id change after build (`ownerKeyDigest` covers only these
+fields, not the complete booking snapshot). No drop/TTL/backfill is performed.
+
+`benchmark-booking-owner-index.js` and `benchmark-booking-owner-writes.js` run
+synthetic isolated query/storage and bulk-write comparisons. Both checkpoint
+before storage measurements. These fixtures do not establish production latency
+or full booking schema validity.
