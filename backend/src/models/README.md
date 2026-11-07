@@ -1,5 +1,15 @@
 # Persistence models
 
+Service stores bounded one-to-one catalog metadata in `presentation`; its arrays
+are limited to 50 entries each. `service-presentation.model.js` keeps the legacy
+factory for explicit compatibility/migration tooling, but runtime no longer
+registers it. Missing embedded metadata falls back to `servicepresentations`.
+The additive migration keeps legacy data for rollback; ordinary deployment must
+not drop it. Provisioning mirrors changes while the legacy collection exists.
+Hourly document-view quota has a TTL on `windowStart`: 25 hours (the enforcement
+hour plus the owner's approved 24-hour diagnostic window). Access audits and
+upload/ownership quota counters retain their existing lifecycle.
+
 `product-photo.model.js` stores bounded normalized WebP bytes in `productphotos`,
 separate from lightweight product documents. Product ID/hash is unique; image
 references and details versions change transactionally. Mongo backup/restore
