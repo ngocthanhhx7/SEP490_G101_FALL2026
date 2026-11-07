@@ -1,4 +1,6 @@
 import { Types } from 'mongoose';
+import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
+import { catalogVersionRecord } from '../utils/catalog-version-record.js';
 import { AppError } from '../utils/app-error.js';
 
 const SERVICE_FIELDS = ['name', 'description', 'scope', 'species', 'state'];
@@ -195,7 +197,6 @@ export function createServiceCatalogService({
   Service,
   ServiceVersion,
   PolicyVersion,
-  Audit,
   Presentation,
   priceProvider,
   catalogSettings,
@@ -206,7 +207,6 @@ export function createServiceCatalogService({
     !Service ||
     !ServiceVersion ||
     !PolicyVersion ||
-    !Audit ||
     typeof priceProvider?.getActivePrice !== 'function' ||
     typeof catalogSettings?.isEnabledAt !== 'function' ||
     typeof clock !== 'function'
@@ -236,6 +236,7 @@ export function createServiceCatalogService({
             [
               {
                 serviceId: service._id,
+                changeAudit: createCatalogChange('SERVICE_CREATED', [...SERVICE_FIELDS, 'code']),
                 version: 1,
                 name: input.name,
                 description: input.description,
@@ -250,25 +251,9 @@ export function createServiceCatalogService({
             ],
             { session }
           );
-          await Audit.create(
-            [
-              {
-                actorId: new Types.ObjectId(actor.userId),
-                action: 'SERVICE_CREATED',
-                resourceType: 'service',
-                resourceId: service._id,
-                version: 1,
-                changedFields: [...SERVICE_FIELDS, 'code'],
-                reason: input.reason,
-                effectiveAt: input.effectiveAt,
-                occurredAt: now
-              }
-            ],
-            { session }
-          );
           return {
             id: service._id.toString(),
-            ...version.toObject(),
+            ...catalogVersionRecord(version),
             serviceId: service._id.toString()
           };
         },
@@ -307,6 +292,7 @@ export function createServiceCatalogService({
             [
               {
                 serviceId: id,
+                changeAudit: createCatalogChange('SERVICE_VERSIONED', SERVICE_FIELDS),
                 version: input.expectedVersion + 1,
                 name: input.name,
                 description: input.description,
@@ -321,23 +307,7 @@ export function createServiceCatalogService({
             ],
             { session }
           );
-          await Audit.create(
-            [
-              {
-                actorId: new Types.ObjectId(actor.userId),
-                action: 'SERVICE_VERSIONED',
-                resourceType: 'service',
-                resourceId: id,
-                version: version.version,
-                changedFields: [...SERVICE_FIELDS],
-                reason: input.reason,
-                effectiveAt: input.effectiveAt,
-                occurredAt: now
-              }
-            ],
-            { session }
-          );
-          return { ...version.toObject(), serviceId: id.toString() };
+          return { ...catalogVersionRecord(version), serviceId: id.toString() };
         },
         {
           readPreference: 'primary',
@@ -374,6 +344,7 @@ export function createServiceCatalogService({
             [
               {
                 serviceId: id,
+                changeAudit: createCatalogChange('POLICY_VERSIONED', input.state === 'PUBLISHED' ? ['state', 'title', 'body'] : ['state']),
                 version: input.expectedVersion + 1,
                 state: input.state,
                 ...(input.state === 'PUBLISHED'
@@ -387,26 +358,7 @@ export function createServiceCatalogService({
             ],
             { session }
           );
-          await Audit.create(
-            [
-              {
-                actorId: new Types.ObjectId(actor.userId),
-                action: 'POLICY_VERSIONED',
-                resourceType: 'service-policy',
-                resourceId: id,
-                version: version.version,
-                changedFields: [
-                  'state',
-                  ...(input.state === 'PUBLISHED' ? ['title', 'body'] : [])
-                ],
-                reason: input.reason,
-                effectiveAt: input.effectiveAt,
-                occurredAt: now
-              }
-            ],
-            { session }
-          );
-          return { ...version.toObject(), serviceId: id.toString() };
+          return { ...catalogVersionRecord(version), serviceId: id.toString() };
         },
         {
           readPreference: 'primary',

@@ -1,5 +1,4 @@
-import { servicePriceAuditModel } from '../models/service-price-audit.model.js';
-import { systemSettingAuditModel } from '../models/system-setting-audit.model.js';
+import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
 import { Types } from 'mongoose';
 import { initialServiceCatalog } from '../constants/initial-service-catalog.js';
 import { serviceModel } from '../models/service.model.js';
@@ -7,7 +6,6 @@ import { serviceVersionModel } from '../models/service-version.model.js';
 import { servicePolicyVersionModel } from '../models/service-policy-version.model.js';
 import { servicePriceVersionModel } from '../models/service-price-version.model.js';
 import { systemSettingVersionModel } from '../models/system-setting-version.model.js';
-import { serviceAuditModel } from '../models/service-audit.model.js';
 
 export async function provisionInitialCatalog({
   config,
@@ -23,10 +21,7 @@ export async function provisionInitialCatalog({
     serviceVersionModel,
     servicePolicyVersionModel,
     servicePriceVersionModel,
-    systemSettingVersionModel,
-    serviceAuditModel,
-    servicePriceAuditModel,
-    systemSettingAuditModel
+    systemSettingVersionModel
   ].forEach((factory) => factory(connection));
   const models = connection.models;
   const names = [
@@ -34,10 +29,7 @@ export async function provisionInitialCatalog({
     'ServiceVersion',
     'ServicePolicyVersion',
     'ServicePriceVersion',
-    'ServiceAudit',
-    'ServicePriceAudit',
-    'SystemSettingVersion',
-    'SystemSettingAudit'
+    'SystemSettingVersion'
   ];
   // Explicit provisioning, never on application startup. Preserve existing prices/settings.
   for (const name of names) {
@@ -75,6 +67,7 @@ export async function provisionInitialCatalog({
       await models.ServiceVersion.create(
         [
           {
+            changeAudit: createCatalogChange('SERVICE_CREATED', ['name', 'description', 'scope', 'species', 'state']),
             serviceId,
             version: 1,
             name: item.name,
@@ -93,6 +86,7 @@ export async function provisionInitialCatalog({
       await models.ServicePolicyVersion.create(
         [
           {
+            changeAudit: createCatalogChange('POLICY_VERSIONED', ['state', 'title', 'body']),
             serviceId,
             version: 1,
             state: 'PUBLISHED',
@@ -109,6 +103,7 @@ export async function provisionInitialCatalog({
       await models.ServicePriceVersion.create(
         [
           {
+            changeAudit: createCatalogChange('SERVICE_PRICE_VERSIONED', ['amountVnd', 'unitLabel']),
             serviceId,
             version: 1,
             amountVnd: item.amountVnd,
@@ -118,46 +113,6 @@ export async function provisionInitialCatalog({
             changedBy: actorId,
             reason,
             recordedAt: now
-          }
-        ],
-        { session }
-      );
-      for (const [action, resourceType, changedFields] of [
-        [
-          'SERVICE_CREATED',
-          'service',
-          ['name', 'description', 'scope', 'species', 'state']
-        ],
-        ['POLICY_VERSIONED', 'service-policy', ['state', 'title', 'body']]
-      ])
-        await models.ServiceAudit.create(
-          [
-            {
-              actorId,
-              action,
-              resourceType,
-              resourceId: serviceId,
-              version: 1,
-              changedFields,
-              reason,
-              effectiveAt: now,
-              occurredAt: now
-            }
-          ],
-          { session }
-        );
-      await models.ServicePriceAudit.create(
-        [
-          {
-            actorId,
-            action: 'SERVICE_PRICE_VERSIONED',
-            resourceType: 'service-price',
-            resourceId: serviceId,
-            version: 1,
-            changedFields: ['amountVnd', 'unitLabel'],
-            reason,
-            effectiveAt: now,
-            occurredAt: now
           }
         ],
         { session }
@@ -174,9 +129,10 @@ export async function provisionInitialCatalog({
         key: 'SERVICE_CATALOG_VISIBLE'
       }).session(session))
     ) {
-      const [setting] = await models.SystemSettingVersion.create(
+      await models.SystemSettingVersion.create(
         [
           {
+            changeAudit: createCatalogChange('SERVICE_CATALOG_VISIBILITY_CHANGED', ['enabled']),
             key: 'SERVICE_CATALOG_VISIBLE',
             version: 1,
             enabled: true,
@@ -184,22 +140,6 @@ export async function provisionInitialCatalog({
             changedBy: actorId,
             reason,
             recordedAt: now
-          }
-        ],
-        { session }
-      );
-      await models.SystemSettingAudit.create(
-        [
-          {
-            actorId,
-            action: 'SERVICE_CATALOG_VISIBILITY_CHANGED',
-            resourceType: 'system-setting',
-            resourceId: setting._id,
-            version: 1,
-            changedFields: ['enabled'],
-            reason,
-            effectiveAt: now,
-            occurredAt: now
           }
         ],
         { session }

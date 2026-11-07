@@ -42,3 +42,29 @@ Keep source provisioning frozen until post-copy comparison passes. Roll back
 code to the previous release while legacy data remains; no reverse copy is needed.
 Physical cleanup is a separate approval after the rollback window and fresh
 comparison. This command does not drop collections or activate TTL indexes.
+
+`migrate-catalog-audits.js` defaults to copy dry-run. It adds only three provenance
+fields to each existing canonical version, retaining all legacy sources. It never
+invents history or overwrites conflicts. `--phase=cleanup` proposes three legacy
+audit-store drops after full coverage and required native validators;
+`--phase=restore` reconstructs old records, including post-cutover events, before
+old-code rollback. Restore leaves embedded metadata intact.
+
+Apply requires `--apply`, `CONFIRMED_CATALOG_AUDIT_DATABASE` and a fresh
+`CONFIRMED_CATALOG_AUDIT_DIGEST`. For restore this is the returned version digest;
+for copy/cleanup it is the source digest. Cleanup/restore also require
+`CONFIRMED_CATALOG_AUDIT_CLEANUP=source-copies-only` and
+`CONFIRMED_CATALOG_WRITERS_DRAINED=true`. Flags are operator assertions, not proof
+of permission, backup or drain. Caps: 10,000 source and version records, source
+64 KiB, parent 1 MiB, batch 100 and bounded queries. BSON types remain intact.
+
+App readWrite lacks collMod. Existing operator credentials install the reviewed
+four strict/error validators only after clean copy/catch-up. Never grant app
+privileges to retry. Before rollback, reverse-copy and verify, then operator
+changes these validators to the reviewed optional-provenance form before old
+writers restart. Do not overwrite foreign validators without review.
+
+`benchmark-catalog-audit-storage.js` uses isolated synthetic MongoDB to compare
+full duplicate audits with embedded provenance at 1k/10k/100k. It measures logical
+BSON, data/index storage and writes; synthetic timing is not production capacity.
+See [catalog audit storage plan](../../../doc/database/catalog-audit-storage-plan-2026-11-07.md).
