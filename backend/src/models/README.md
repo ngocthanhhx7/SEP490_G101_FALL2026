@@ -1,5 +1,11 @@
 # Persistence models
 
+`concurrency-guard.field.js` describes existing raw transaction guards on User,
+Pet, CustomerAddress, SitterStatus and SitterMatchingProfile. Fields are optional,
+hidden and nonnegative safe integers, with no default, index or backfill. Do not
+remove these parent writes: eligibility changes must conflict with guarded work.
+See [guard schema plan](../../../doc/database/concurrency-guard-schema-2026-11-08.md).
+
 Catalog versions own bounded `changeAudit` provenance: eventId, action and
 changedFields. Existing version fields own actor/reason/time/version/resource;
 no second audit record repeats them. Four version models retain their physical
