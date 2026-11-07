@@ -1,8 +1,10 @@
+import { sitterApplicationApi } from '../../services/sitter-application-api.js';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { loginDestination } from '../../utils/role-access.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { otpFeedback } from '../../utils/otp-feedback.js';
+import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import './auth-public.css';
 import './sign-in.css';
 
@@ -20,7 +22,7 @@ function messageFor(error) {
     OTP_DELIVERY_UNAVAILABLE: 'Chưa thể gửi mã OTP. Vui lòng thử lại sau.',
     PROVIDER_UNAVAILABLE: 'Chưa thể gửi mã OTP. Vui lòng thử lại sau hoặc chọn liên hệ đã xác minh khác.',
   };
-  return messages[error?.code] ?? 'Đăng nhập chưa thành công. Vui lòng thử lại.';
+  return messages[error?.code] ?? apiErrorFeedback(error, 'Đăng nhập chưa thành công. Vui lòng thử lại.');
 }
 
 export function SignInPage() {
@@ -49,7 +51,12 @@ export function SignInPage() {
   }
 
   useEffect(() => {
-    if (session.status === 'authenticated') navigate(loginDestination(session.user, location.state?.from), { replace: true });
+    if(session.status!=='authenticated')return;
+    let active=true;
+    (async()=>{let destination=loginDestination(session.user,location.state?.from);
+      if(session.user.roles.includes('CUSTOMER')&&!session.user.roles.some(r=>['ADMIN','STAFF','PET_SITTER'].includes(r))){try{const result=await sitterApplicationApi.getMine();if(result.data.application)destination='/sitter/application-status';}catch{/* Keep normal navigation when the profile service is unavailable. */}}
+      if(active)navigate(destination,{replace:true});
+    })();return()=>{active=false;};
   }, [session.status, session.user, navigate, location.state]);
 
   useEffect(() => {
@@ -91,7 +98,7 @@ export function SignInPage() {
         setStep('contact'); setCode(''); setChallengeId('');
         setError('Mã đã được xác minh nhưng tài khoản chưa thể đăng nhập. Vui lòng liên hệ hỗ trợ.'); return;
       }
-      navigate(loginDestination(result.user, location.state?.from), { replace: true });
+      // Session refresh drives one landing decision, including the owned application.
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
   }

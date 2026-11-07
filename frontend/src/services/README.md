@@ -1,5 +1,11 @@
 # API services
 
+`api-client.js` preserves HTTP status, a validated correlation UUID and positive
+retry interval even for HTML gateway errors. Pages use the pure
+`utils/api-error-feedback.js` fallback after their domain-specific messages;
+never display an upstream message or automatically replay a failed mutation.
+`useApiResource` keeps the HTTP status separately from its UI loading state.
+
 Product Management transports bounded binary photos through the shared API client
 with same-origin cookies, CSRF and `X-Product-Version`. Image writes use their own
 routes and do not expose arbitrary photo URLs in the ordinary product editor DTO.
@@ -11,7 +17,9 @@ transport for directed booking; pages do not call the transport directly.
 from `/workspaces/:kind/analytics`; it never calculates financial figures.
 
 `employee-scheduling-api.js` owns assigned care/acknowledgement/access-note
-transport. `service-basket-api.js` owns quote, checkout and Customer rating calls;
+transport, execution reads and existing check-in/checklist/check-out commands.
+Its injected private-image transport uploads evidence with a separate stable key.
+`service-basket-api.js` owns quote, checkout and Customer rating calls;
 pending or malformed acknowledgements retain the caller's operation key. Neither
 adapter persists private care in browser storage or supplies authoritative prices.
 
@@ -43,3 +51,7 @@ shared API client and CSRF/idempotency handling; it never computes rankings.
 `employment-document-api.js` owns application contract transport; `payroll-draft-api.js`
 validates employee/source-preview/prepare acknowledgements. Components never build
 shared endpoint URLs or persist contract/assessment data in browser storage.
+
+Sitter application API includes private owned get/update methods. Update acknowledgements require a versioned result; UI retains the original payload/key on uncertain responses. Login uses the owned read for the applicant landing.
+
+pagination-response.js validates optional page/limit/total envelopes for shop order transports. Owner-scoped order reads resolve notification deep links. Cards and pages continue using the shared API client.

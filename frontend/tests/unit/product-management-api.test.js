@@ -4,9 +4,23 @@ const envelope = (data) => ({ data, meta: { schemaVersion: 1 } });
 const reply = (status, body) => ({ status, ok: status < 400, json: async () => body });
 const product = { id: 'p1', code: 'SP-0012', name: 'Dây dắt chó', category: 'ACCESSORY', petType: 'DOG', description: '', photos: [],
   sellingPrice: 250000, visible: true, version: 0 };
-const page = (items, over = {}) => envelope({ items, page: 1, limit: 20, total: items.length, ...over });
+const page = (items, over = {}) => envelope({ items, page: 1, limit: 20, total: items.length, summary: { total: 9, visible: 8, hidden: 1, outOfStock: 0 }, ...over });
 
 const api = (fetchImpl, getCsrfToken = () => 'csrf-token') => createProductManagementApi({ fetchImpl, getCsrfToken });
+
+test('deletes with CSRF and a reason/version; validates acknowledgement and database overview', async () => {
+  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope({ id: 'p1', deleted: true })));
+  await api(fetchImpl).deleteProduct('p1', { version: 2, reason: 'Ngừng kinh doanh mẫu sản phẩm này.' });
+  const [url, request] = fetchImpl.mock.calls[0];
+  expect(url).toBe('/api/v1/admin/products/p1');
+  expect(request.method).toBe('DELETE');
+  expect(request.headers.get('X-CSRF-Token')).toBe('csrf-token');
+  expect(JSON.parse(request.body)).toEqual({ version: 2, reason: 'Ngừng kinh doanh mẫu sản phẩm này.' });
+  await expect(api(jest.fn().mockResolvedValue(reply(200, envelope({ id: 'p2', deleted: true })))).deleteProduct('p1', {}))
+    .rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  await expect(api(jest.fn().mockResolvedValue(reply(200, page([], { summary: { total: 2, visible: 3, hidden: 0, outOfStock: 0 } })))).listProducts())
+    .rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
 
 test('uploads binary images with CSRF/version and uses the same version on replacement/removal', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope(product)));

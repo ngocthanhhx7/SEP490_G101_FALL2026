@@ -1,3 +1,4 @@
+import { beforeAll } from '@jest/globals';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SitterPublicProfilePage } from '../../src/pages/sitter/SitterPublicProfilePage.jsx';
 import { SitterProfileReviewsPage } from '../../src/pages/staff/SitterProfileReviewsPage.jsx';
@@ -22,8 +23,9 @@ test('sitter sends a separate public bio and retries an uncertain submission usi
 
 test('review queue has empty/error states and sends versioned reviewer decision', async () => {
   const review = jest.fn(async () => { throw { code: 'VERSION_CONFLICT' }; });
-  const api = { list: async () => ({ items: [{ userId: 'a'.repeat(24), bio: 'Synthetic submitted bio', areas: ['HN-01'], version: 3 }], nextCursor: null }), review };
+  const api = { list: async () => ({ items: [{ userId: 'a'.repeat(24), bio: 'Synthetic submitted bio', areas: ['HN-01'], state:'SUBMITTED', version: 3 }], nextCursor: null }), review };
   const { unmount } = render(<SitterProfileReviewsPage api={api} />);
+  fireEvent.click(await screen.findByRole('button', {name:'Xem và duyệt'}));
   fireEvent.change(await screen.findByLabelText('Lý do'), { target: { value: 'Reviewed content' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu quyết định' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('VERSION_CONFLICT');
@@ -31,4 +33,24 @@ test('review queue has empty/error states and sends versioned reviewer decision'
   unmount();
   render(<SitterProfileReviewsPage api={{ list: async () => ({ items: [], nextCursor: null }) }} />);
   await waitFor(() => expect(screen.getByText('Không có hồ sơ chờ duyệt.')).toBeInTheDocument());
+});
+
+beforeAll(() => {
+  window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
+
+test('unknown review freezes decision and keeps its original key until acknowledged', async () => {
+  const row = {userId:'a'.repeat(24),bio:'Synthetic public bio',areas:[],version:1,state:'SUBMITTED'};
+  const api = {list:jest.fn().mockResolvedValue({items:[row]}),review:jest.fn().mockRejectedValue({code:'TIMEOUT'})};
+  render(<SitterProfileReviewsPage api={api}/>);
+  fireEvent.click(await screen.findByRole('button',{name:'Xem và duyệt'}));
+  fireEvent.change(screen.getByLabelText('Lý do'),{target:{value:'Synthetic review reason'}});
+  fireEvent.click(screen.getByRole('button',{name:'Lưu quyết định'}));
+  await screen.findByRole('alert');
+  expect(screen.getByLabelText('Lý do')).toBeDisabled();
+  expect(screen.queryByRole('button',{name:'Đóng'})).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Kiểm tra lại cùng quyết định'}));
+  await waitFor(()=>expect(api.review).toHaveBeenCalledTimes(2));
+  expect(api.review.mock.calls[0]).toEqual(api.review.mock.calls[1]);
 });

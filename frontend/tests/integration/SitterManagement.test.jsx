@@ -117,7 +117,9 @@ test('selected sitter reaches invitation command and cannot replace customer dir
       { id: 'visit2', version: 5, dispatchState: 'NEEDS_STAFF', serviceName: 'Ca chỉ định khác', requestedSitterId: appId, startAt: asOf, endAt: asOf }
     ] } }) };
   render(<MemoryRouter><EmployeeDispatchPage api={api} selectedSitter={id} /></MemoryRouter>);
-  const buttons = await screen.findAllByRole('button', { name: 'Mời người đã chọn' });
-  expect(buttons[1]).toBeDisabled(); fireEvent.click(buttons[0]);
+  const rows = await screen.findAllByRole('button', {name:'Xem / xử lý'});
+  fireEvent.click(rows[1]); expect(screen.getByRole('button',{name:'Mời người đã chọn'})).toBeDisabled();
+  fireEvent.click(screen.getByRole('button',{name:'Đóng'}));
+  fireEvent.click(rows[0]); fireEvent.click(screen.getByRole('button',{name:'Mời người đã chọn'}));
   await waitFor(() => expect(invite).toHaveBeenCalledWith('visit1', 4, expect.any(String), id));
 });

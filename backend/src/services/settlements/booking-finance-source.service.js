@@ -238,6 +238,16 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
     return results;
   }
   return Object.freeze({
+    async readVisit(current, visitId) {
+      actor(current, 'PET_SITTER');
+      return unitOfWork.run(async session => {
+        const { visit } = await visitContext(current, visitId, session);
+        return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
+          checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
+          checklistItemIds: visit.snapshots?.checklistItemIds ?? null,
+          checklist: (visit.checklist ?? []).map(({ itemId, status, reason }) => ({ itemId, status, ...(reason ? { reason } : {}) })) };
+      });
+    },
     checkIn: input => executeVisit({ ...input, operation: 'CHECK_IN' }),
     updateChecklist: input => executeVisit({ ...input, operation: 'CHECKLIST' }),
     checkOut: input => executeVisit({ ...input, operation: 'CHECK_OUT' }),

@@ -44,6 +44,7 @@ export function ProductCheckoutPage() {
       const order = await api.placeOrder(body, command.current.key);
       command.current = null;
       await refresh().catch(() => {});
+      window.dispatchEvent(new window.Event('pwc:notifications-changed'));
       navigate('/customer/product-orders', { state: { placed: order.code } });
     } catch (failure) {
       if (isUncertainOutcome(failure)) {

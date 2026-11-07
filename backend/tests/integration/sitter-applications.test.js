@@ -38,7 +38,9 @@ function applicationBody(overrides = {}) {
     dateOfBirth: '1990-04-12', identityNumber: '012345678901',
     experience: 'Có ba năm chăm sóc chó mèo tại nhà.',
     requestedServices: ['Cho mèo ăn', 'Dắt chó đi dạo'], workAreas: ['Quận 1', 'Quận 3'],
-    documents: [{ documentId: 'identity-document', documentType: 'IDENTITY', storageRef: IDENTITY_REF }],
+    documents: [{ documentId: 'identity-document', documentType: 'IDENTITY_FRONT', storageRef: IDENTITY_REF },
+      {documentId:'back-document', documentType:'IDENTITY_BACK', storageRef:'document-ref-back-0001'},
+      {documentId:'portrait-document', documentType:'PORTRAIT', storageRef:'document-ref-portrait-0001'}],
     ...overrides
   };
 }
@@ -535,4 +537,16 @@ test('final approval fails closed until both parties signed the exact contract; 
   expect(result.body.error.code).toBe('SIGNED_CONTRACT_REQUIRED');
   expect(await User.countDocuments({roles:['PET_SITTER']})).toBe(0);
   expect((await sitterApplicationModels(connection).SitterApplication.findById(submitted.body.data.id).lean()).state).toBe('INTERVIEW');
+});
+
+
+test('new applications require one front, one back and one portrait; duplicates cannot substitute a missing slot', async () => {
+  for (const type of ['IDENTITY_FRONT','IDENTITY_BACK','PORTRAIT']) {
+    const body=applicationBody();body.documents=body.documents.filter(d=>d.documentType!==type);
+    await submit(app(),body,'missing-slot-'+type).expect(422);
+  }
+  const body=applicationBody();body.documents.push({...body.documents[0],documentId:'another-front',storageRef:'another-front-storage-ref'});
+  await submit(app(),body,'duplicate-slot-command').expect(422);
+  await submit(app(),applicationBody({documents:[{documentId:'legacy',documentType:'IDENTITY',storageRef:IDENTITY_REF}]}),'legacy-new-command').expect(422);
+  expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(0);
 });

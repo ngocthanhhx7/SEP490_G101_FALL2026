@@ -6,3 +6,5 @@ The screen uses P04 controls and provisional tokens. No final Figma acceptance i
 
 Verified rejected results link back to /register?role=sitter only when canReapply
 is true. The registration intake and submission recheck eligibility independently.
+
+ApplicantWorkspacePage now owns the default route. It resolves the session first, then loads /applications/me without receipt/OTP, with PENDING-only optimistic edits and retained private document IDs. Guest legacy verification remains collapsed. Login checks owned application for the customer landing; normal account routes remain available. No private data is stored in browser storage.

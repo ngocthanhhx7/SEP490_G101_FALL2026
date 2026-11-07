@@ -1,8 +1,10 @@
+import { applyCareTraitDecision } from '../../src/services/pricing/care-trait-policy.service.js';
 import { createHash } from 'node:crypto';
 import { pricingRuntimeModule } from '../../src/routes/pricing.routes.js';
 import { petCareRuntimeModule } from '../../src/routes/pet-care.routes.js';
 import { servicePolicyVersionModel } from '../../src/models/service-policy-version.model.js';
 import { systemSettingVersionModel } from '../../src/models/system-setting-version.model.js';
+import { createCatalogChange } from '../../src/models/catalog-change-provenance.model.js';
 import { beforeAll, afterAll, beforeEach, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -528,10 +530,12 @@ test('Admin creates immutable policy versions; duplicate version conflicts and d
 });
 
 test('published service policies and catalog visibility gate AI quotes too', async () => {
-  await systemSettingVersionModel(connection).updateOne(
-    { key: 'SERVICE_CATALOG_VISIBLE' },
-    { $set: { enabled: false } }
-  );
+  await systemSettingVersionModel(connection).create({
+    key: 'SERVICE_CATALOG_VISIBLE', version: 2, enabled: false,
+    effectiveAt: new Date(clockNow), changedBy: admin._id,
+    reason: 'Synthetic visibility withdrawal', recordedAt: new Date(clockNow),
+    changeAudit: createCatalogChange('SERVICE_CATALOG_VISIBILITY_CHANGED', ['enabled'])
+  });
   await request(app)
     .post('/api/v1/pricing/quotes')
     .set(await authFor(customer))
@@ -647,7 +651,10 @@ test('changed pricing policy caps and special care readiness fail closed', async
     .post('/api/v1/pricing/quotes')
     .set(await authFor(customer))
     .send(quoteBody())
-    .expect(409);
+    .expect(409).expect(response => {
+      expect(response.body.error.code).toBe('PRICING_REVIEW_REQUIRED');
+      expect(response.body.error.fieldErrors.petTraits).toContain('not-priced-yet');
+    });
 });
 test('approved additive model is used only after hash and holdout checks, invalid model falls back', async () => {
   const payload = {
@@ -824,4 +831,32 @@ test('a slow routing lookup cannot save a ready snapshot after the lead-time win
   expect(await models.DecisionSnapshot.countDocuments({ kind: 'MATCH' })).toBe(
     0
   );
+});
+
+test('training readiness is private, Admin-only and read-only with bounded audit rate', async () => {
+  await request(app).get('/api/v1/ai/admin/training-readiness').expect(401);
+  await request(app).get('/api/v1/ai/admin/training-readiness').set(await authFor(customer)).expect(403);
+  const headers=await authFor(admin), before=await models.SitterVisitOutcome.countDocuments();
+  for(let i=0;i<3;i++) {
+    const result=await request(app).get('/api/v1/ai/admin/training-readiness').set(headers).expect(200);
+    expect(result.headers['cache-control']).toContain('no-store');
+    expect(result.body.data).toMatchObject({eligibleRows:0,readyForTraining:false,automaticTraining:false,missingObservations:200,scanLimit:500});
+    expect(result.body.data).not.toHaveProperty('rows');
+  }
+  await request(app).get('/api/v1/ai/admin/training-readiness').set(headers).expect(429);
+  expect(await models.SitterVisitOutcome.countDocuments()).toBe(before);
+});
+
+
+test('owned booking quote recovers after approved care-trait policy migration; unknown traits remain blocked', async()=>{
+ const headers=await authFor(customer);
+ const baseline=await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(201);
+ await models.PetTrait.create({code:'slow-introduction',label:'Cần làm quen chậm',species:['DOG','CAT'],explanation:'Synthetic capability requirement',active:true});
+ await models.Pet.updateOne({_id:petId},{$set:{traits:['slow-introduction','carrier-assistance','escape-risk','extended-play']}});
+ await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(409).expect(r=>expect(r.body.error.fieldErrors.petTraits).toContain('Cần làm quen chậm'));
+ const plan=await applyCareTraitDecision({connection,clock:()=>clockNow});await applyCareTraitDecision({connection,apply:true,expectedPlanHash:plan.planHash,clock:()=>clockNow});
+ const result=await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(201);
+ expect(result.body.data.totalVnd).toBe(baseline.body.data.totalVnd);
+ await models.Pet.updateOne({_id:petId},{$push:{traits:'unapproved-new-trait'}});
+ await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(409);
 });

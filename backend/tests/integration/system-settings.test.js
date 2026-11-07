@@ -43,7 +43,7 @@ beforeAll(async () => {
   const module = systemSettingsModule({ config, connection, sessionService });
   settings = module.settings;
   app = createApp({ config, connection, lifecycle: { draining: false }, moduleFactories: [() => module] });
-  await Promise.all([connection.model('SystemSettingVersion').init(), connection.model('SystemSettingAudit').init()]);
+  await connection.model('SystemSettingVersion').init();
 }, 600000);
 
 afterAll(async () => {
@@ -80,7 +80,8 @@ describe('P17 system settings on isolated MongoDB', () => {
     }).expect(201);
     expect(await settings.isEnabledAt(new Date(new Date(disableAt).getTime() - 1))).toBe(true);
     expect(await settings.isEnabledAt(new Date(new Date(disableAt).getTime() + 1))).toBe(false);
-    expect(await connection.model('SystemSettingAudit').countDocuments({ actorId: actors.ADMIN })).toBe(2);
+    expect(await connection.model('SystemSettingVersion').countDocuments({ changedBy: actors.ADMIN,
+      'changeAudit.action': 'SERVICE_CATALOG_VISIBILITY_CHANGED', 'changeAudit.eventId': { $type: 'objectId' } })).toBe(2);
   });
 
   test('same-version concurrent setting changes produce a conflict and one audit entry', async () => {
@@ -90,7 +91,10 @@ describe('P17 system settings on isolated MongoDB', () => {
       });
     const results = await Promise.all([submit(true), submit(false)]);
     expect(results.map(response => response.status).sort()).toEqual([201, 409]);
+    expect(JSON.stringify(results.map(response => response.body))).not.toContain('changeAudit');
+    expect(connection.models.SystemSettingAudit).toBeUndefined();
     expect(await connection.model('SystemSettingVersion').countDocuments({ key: 'SERVICE_CATALOG_VISIBLE', version: 3 })).toBe(1);
-    expect(await connection.model('SystemSettingAudit').countDocuments({ version: 3 })).toBe(1);
+    expect(await connection.model('SystemSettingVersion').countDocuments({ version: 3,
+      'changeAudit.eventId': { $type: 'objectId' } })).toBe(1);
   });
 });

@@ -45,3 +45,30 @@ Khi lưu từ nháp, server đọc lại contract/ca và kiểm tra source hash 
 Toàn bộ thông tin định danh, địa chỉ, điều khoản hợp đồng được mã hóa AES-GCM bằng cơ chế khóa hiện có, không ghi vào log hoặc localStorage. Chỉ API Admin có no-store mới trả bản giải mã để soạn/in/đối chiếu; dữ liệu nhạy cảm không đi vào email thông báo tuyển dụng. EmploymentContract chỉ nhận dữ liệu lương/lịch cần thiết. Mỗi lần sửa tạo bản bất biến mới; bản ký/đã kích hoạt không bị thay nội dung. Không backfill trạng thái đã ký hoặc hồ sơ nhân viên cũ.
 
 Kiểm thử sử dụng MongoDB replica set và giấy tờ, chữ ký xác nhận, công, chứng từ tổng hợp tách biệt. Không tạo hợp đồng, ký thay, trả lương hoặc gửi email tuyển dụng thật trên production để chứng minh chức năng.
+
+## Contract validation and printing follow-up 05/11/2026
+
+Source audit found generic combined validation errors masked the failing fields,
+preventing an Admin from correcting a draft and reaching the print step. Drafts
+can now be printed with a prominent draft watermark; only ISSUE fixes the signing
+version, SIGN records separately verified paper signatures, and approval activates
+that exact signed revision. Error responses include safe field names/reason codes,
+not entered private values; UI retains inputs and identifies each correction.
+
+The existing Vietnamese labour-contract template covers the ten principal groups
+in Article 21 of the Labour Code and Article 3 of Circular 10/2020/TT-BLDTBXH.
+Checked official source on 05/11/2026:
+https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=146696&Keyword=
+This does not certify the truth of legal-entity information, signing authority,
+self-entered clauses or actual signatures. No real contract was signed or approved
+for test purposes. Business 40/20-hour commitments and historical signed wording
+are preserved.
+
+### Feedback visibility follow-up
+
+A browser audit on the previous build found the validation summary was 3,375–4,288
+pixels above the viewport after submitting at the bottom of the contract form.
+The editor now focuses the summary/status after command acknowledgement; error
+links focus the corresponding control without changing route hash or input data.
+This is presentation only: signature checks, idempotency and document contents
+remain unchanged.

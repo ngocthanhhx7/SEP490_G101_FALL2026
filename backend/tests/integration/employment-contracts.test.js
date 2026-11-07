@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import mongoose from 'mongoose';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
@@ -21,6 +21,25 @@ beforeAll(async () => {
   for(const model of Object.values(connection.models)){await model.createCollection();await model.createIndexes();}
 },180000);
 afterAll(async()=>{await connection?.close();await replica?.stop();});
+
+test.each([['DRAFT','ISSUE'],['ISSUED','SIGN']])('legacy %s with invalid gender cannot transition and correction creates a new immutable revision',async(state,action)=>{
+  const applicationId=oid();
+  await connection.collection('sitterapplications').insertOne({_id:applicationId,submissionKeyDigest:'synthetic-gender-'+String(applicationId),state:'INTERVIEW',version:2,
+    identityLookupKey:createHmac('sha256','synthetic-contract-lookup-secret-32-chars').update('applicant-identity\0'+'012345678901').digest('hex')});
+  const terms=employmentTerms({gender:'Name',effectiveOn:'2026-11-06',plannedSigningOn:'2026-11-05'});
+  const termsHash=createHash('sha256').update(JSON.stringify(terms)).digest('hex');
+  const encryptedTerms=crypto.encrypt(JSON.stringify(terms));
+  const {EmploymentDocument}=employmentDocumentModels(connection);
+  const row=await EmploymentDocument.create({applicationId,applicationVersion:2,revision:1,reference:'SYNTHETIC-'+String(applicationId),employeeCode:'NV-SYNTHETIC',state,
+    termsHash,encryptedTerms,issuedAt:new Date(clock()),createdAt:new Date(clock())});
+  await expect(service.decide(admin,String(applicationId),String(row._id),{action,termsHash,...(action==='SIGN'?{signedOn:'2026-11-05',archiveReference:'Synthetic archive',bothPartiesSigned:true}:{})},'synthetic-gender-'+state))
+    .rejects.toMatchObject({status:422,code:'VALIDATION_FAILED',details:{fields:{gender:'INVALID_GENDER'}}});
+  expect(await EmploymentDocument.findById(row._id).select('+encryptedTerms').lean()).toMatchObject({state,termsHash,encryptedTerms});
+  const corrected=await service.save(admin,String(applicationId),{applicationVersion:2,expectedRevision:1,terms:{...terms,gender:'Nữ'}},'synthetic-gender-correct-'+state);
+  expect(corrected).toMatchObject({revision:2,state:'DRAFT',terms:{gender:'Nữ'}});
+  expect(corrected.termsHash).not.toBe(termsHash);
+  expect(await EmploymentDocument.findById(row._id).select('+encryptedTerms').lean()).toMatchObject({state,termsHash,encryptedTerms});
+});
 test('immutable encrypted document is issued, actually signed then activated atomically as payroll source',async()=>{
   const terms=employmentTerms({effectiveOn:'2026-11-06',plannedSigningOn:'2026-11-05'}),body={applicationVersion:2,expectedRevision:0,terms};
   const draft=await service.save(admin,String(appId),body,'synthetic-contract-save');
@@ -31,7 +50,7 @@ test('immutable encrypted document is issued, actually signed then activated ato
   await expect(service.save(admin,String(appId),{...body,terms:{...terms,monthlyBaseVnd:11000000}},'synthetic-contract-save')).rejects.toMatchObject({code:'IDEMPOTENCY_CONFLICT'});
   await expect(service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-05',archiveReference:'Synthetic paper archive',bothPartiesSigned:true},'synthetic-early-sign')).rejects.toMatchObject({code:'VERSION_CONFLICT'});
   await service.decide(admin,String(appId),draft.id,{action:'ISSUE',termsHash:draft.termsHash},'synthetic-contract-issue');
-  await expect(service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-07',archiveReference:'Synthetic archive',bothPartiesSigned:true},'synthetic-future-sign')).rejects.toMatchObject({code:'VALIDATION_FAILED'});
+  await expect(service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-07',archiveReference:'Synthetic archive',bothPartiesSigned:true},'synthetic-future-sign')).rejects.toMatchObject({code:'VALIDATION_FAILED',details:{fields:{signedOn:'SIGNING_DATE'}}});
   await service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-05',archiveReference:'Synthetic paper archive',bothPartiesSigned:true},'synthetic-contract-sign');
   const employeeId=oid();
   await connection.transaction(async session=>{const application=await connection.collection('sitterapplications').findOne({_id:appId},{session});await service.activate(application,employeeId,admin,session);});

@@ -5,6 +5,8 @@ function respond(res, req, status, data) {
 
 export function createSitterApplicationController({ service, intake } = {}) {
   return {
+    getMine: async (req,res)=>respond(res,req,200,await service.getMine({actor:req.auth})),
+    updateMine: async (req,res)=>respond(res,req,200,await service.updateMine({actor:req.auth,body:req.body,idempotencyKey:req.get('idempotency-key'),correlationId:req.requestId})),
     getIntake: async (req, res) => respond(res, req, 200, await intake.getIntake({ actor: req.auth })),
     createRoot: async (req, res) => {
       const result = await service.submit({

@@ -42,3 +42,21 @@
   .pwc-pm-photos li:hover .pwc-pm-photo-actions, .pwc-pm-photos li:focus-within .pwc-pm-photo-actions { opacity: 1; }
   .pwc-product-image-manager .pwc-pm-photo-action { width: 1.5rem; height: 1.5rem; border-radius: .4rem; }
 }
+
+/* Product lists use the entire workspace; editing opens above it instead of reserving an empty column. */
+.pwc-pm-list-layout { min-width: 0; }
+.pwc-pm-page .pwc-shop-table { min-width: 58rem; }
+.pwc-pm-page .pwc-shop-table th { white-space: nowrap; padding-block: 1rem; }
+.pwc-pm-page .pwc-shop-table td:first-child { white-space: normal; min-width: 18rem; width: 48%; }
+.pwc-pm-page .pwc-shop-line > div:last-child { overflow-wrap: anywhere; }
+.pwc-pm-page .pwc-shop-line .pwc-shop-photo { width: 3.5rem; }
+.pwc-pm-page .pwc-shop-table-wrap { padding: 0; }
+.pwc-pm-delete { color: var(--shop-danger); }
+.pwc-pm-overview { margin: 0 0 1.5rem; }
+.pwc-pm-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin: 0 0 .75rem; }
+.pwc-pm-metrics > div { border: 1px solid var(--shop-border); border-radius: 1rem; background: white; padding: 1.25rem; }
+.pwc-pm-metrics dt { color: var(--shop-muted); font-weight: 700; }
+.pwc-pm-metrics dd { margin: .5rem 0 0; font-size: 1.8rem; font-weight: 800; color: var(--shop-green); }
+.pwc-pm-editor-dialog { width: min(46rem, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); }
+.pwc-pm-editor-dialog .pwc-pm-form { border: 0; box-shadow: none; padding: 0; }
+@media (max-width: 45rem) { .pwc-pm-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; } .pwc-pm-metrics > div { padding: 1rem; } }

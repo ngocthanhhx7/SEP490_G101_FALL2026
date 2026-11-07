@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useState } from 'react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
@@ -15,6 +16,7 @@ const labels = { COMPLETED: 'Hoàn thành', Completed: 'Hoàn thành', CANCELLED
   Withdrawn: 'Đã rút', StaffClosed: 'Nhân viên đóng buổi', STAFF_CLOSED: 'Nhân viên đóng buổi', PAID: 'Đã quyết toán', Paid: 'Đã quyết toán' };
 function ProjectionContent({ api, title, description, kind, targetId, searchable, filterDates = true }) {
   const [query, setQuery] = useState({});
+  const [history, setHistory] = useState([]);
   const [search, setSearch] = useState('');
   const [dates, setDates] = useState({ from: '', to: '' });
   const load = useCallback(({ signal }) => api.read({ ...query, targetId, signal }), [api, query, targetId]);
@@ -23,7 +25,7 @@ function ProjectionContent({ api, title, description, kind, targetId, searchable
   return <section className="pwc-projection">
     <h1>{title}</h1><p>{description}</p>
     {(filterDates || searchable) && <form className="pwc-projection__filters" onSubmit={event => {
-      event.preventDefault(); setQuery({ ...dates, ...(searchable ? { search } : {}) });
+      event.preventDefault(); setHistory([]); setQuery({ ...dates, ...(searchable ? { search } : {}) });
     }}>
       {filterDates && <><label>Từ ngày<input type="date" value={dates.from} onChange={event => setDates({ ...dates, from: event.target.value })} /></label>
       <label>Đến ngày<input type="date" min={dates.from || undefined} value={dates.to} onChange={event => setDates({ ...dates, to: event.target.value })} /></label></>}
@@ -56,10 +58,10 @@ function ProjectionContent({ api, title, description, kind, targetId, searchable
         </>}
         {kind === 'payroll' && <p>{format(item.amountVnd)} VND — tuần yêu cầu {item.requestWeekKey}</p>}
       </li>)}</ul>
-      <div className="pwc-projection__pagination">
-        {query.cursor && <Button onClick={() => setQuery(({ cursor: _cursor, ...rest }) => rest)}>Về trang đầu</Button>}
-        <Button disabled={!data.nextCursor} onClick={() => setQuery({ ...query, cursor: data.nextCursor })}>Trang tiếp</Button>
-      </div>
+      <CursorPagination label="báo cáo" page={history.length + 1} hasNext={Boolean(data.nextCursor)} nextLabel="Trang tiếp"
+        onFirst={() => { setHistory([]); setQuery(({ cursor: _cursor, ...rest }) => rest); }}
+        onPrevious={() => { setQuery({ ...query, cursor: history.at(-1) }); setHistory(history.slice(0,-1)); }}
+        onNext={() => { setHistory([...history,query.cursor]); setQuery({ ...query, cursor: data.nextCursor }); }} />
     </>}
     {kind === 'earnings' && <p>Thu nhập không đồng nghĩa tiền đã chuyển. Khả dụng, đang giữ và khoản dành cho yêu cầu tất toán là các trạng thái riêng. Việc gửi yêu cầu tất toán thuộc luồng tất toán; trang này chỉ xem.</p>}
   </section>;

@@ -12,7 +12,7 @@ function text(value, max = 160) {
   return value.trim();
 }
 function project(row) {
-  const result = { id: row.id, sitterId: row.sitterId, requestWeekKey: row.requestWeekKey,
+  const result = { id: row.id, sitterId: row.sitterId, ...(row.sitterName ? { sitterName: row.sitterName } : {}), requestWeekKey: row.requestWeekKey,
     amountVnd: row.amountVnd, currency: 'VND', status: row.status, version: row.version,
     submittedAt: row.submittedAt };
   if (Array.isArray(row.earningIds)) result.earningIds = [...row.earningIds];
@@ -81,7 +81,7 @@ export function createAdminSettlementService({ unitOfWork, repository, policy, c
       const decisionIds = resolved?.ready === true && resolved.policyVersion && resolved.decisionVersion
         && Array.isArray(resolved.decisionIds) && !resolved.decisionIds.length ? []
         : resolved?.decisionIds?.length ? resolved.decisionIds : ['FIN-07-ELIG', 'FIN-07-POSTPAY', 'FIN-08-EDIT'];
-      return { items: page.items.map(project), nextCursor: page.nextCursor ?? null,
+      return { summary: page.summary ?? null, items: page.items.map(project), nextCursor: page.nextCursor ?? null,
         decisionIds: [...new Set([...decisionIds, ...(page.decisionIds ?? [])])] };
     },
     async decide(input) {

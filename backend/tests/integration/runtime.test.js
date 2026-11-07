@@ -285,8 +285,9 @@ describe('real isolated MongoDB 8.0.34 replica-set smoke', () => {
       const lockedLogin = await request(adminRuntime.server).post('/api/v1/sessions').send({
         challengeId: lockedChallenge.body.data.challengeId, channel: 'EMAIL', contact: locked.email,
         purpose: 'LOGIN', code: delivered.code
-      }).expect(200);
-      expect(lockedLogin.body.data.authenticated).toBe(false);
+      }).expect(403);
+      expect(lockedLogin.body.error.code).toBe('ACCOUNT_LOCKED');
+      expect(lockedLogin.headers['set-cookie']).toBeUndefined();
 
       const unlock = await request(adminRuntime.server).post(`/api/v1/users/${customer.user._id}/lock-decisions`)
         .set(decisionHeaders).send({ action: 'UNLOCK', expectedVersion: 1, reason: 'Review complete' }).expect(200);

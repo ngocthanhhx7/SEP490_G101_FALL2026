@@ -12,7 +12,8 @@ test('real Admin settlement route loads same-origin payroll and appears in navig
     render(<MemoryRouter initialEntries={['/admin/settlements']}><App sessionAdapter={{
       resolve: async () => ({ status: 'authenticated', user: { id: 'admin', roles: ['ADMIN'] } }),
       getCsrfToken: () => 'synthetic-csrf' }} /></MemoryRouter>);
-    expect(await screen.findByText(/Chờ quyết định/)).toHaveTextContent('FIN-08-EDIT');
+    expect(await screen.findByText('Chưa mở thao tác duyệt hoặc ghi nhận chuyển khoản.')).toBeVisible();
+    expect(screen.getByText('Điều chỉnh khoản thu và yêu cầu đã lập')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Duyệt tất toán' })).toHaveAttribute('href', '/admin/settlements');
     expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/admin/settlements', expect.objectContaining({ credentials: 'same-origin' }));
   } finally { globalThis.fetch = original; }
@@ -45,10 +46,10 @@ test('same-role account change clears prior payroll rows and command state', asy
     render(<MemoryRouter initialEntries={['/admin/settlements']}><SessionProvider adapter={{
       resolve: async () => session('first'), login: async () => session('second')
     }}><SwitchAccount /><AppRoutes /></SessionProvider></MemoryRouter>);
-    expect(await screen.findByRole('heading', { name: 'private-first' })).toBeVisible();
+    expect(await screen.findByTitle('private-first')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Switch account' }));
-    await waitFor(() => expect(screen.queryByRole('heading', { name: 'private-first' })).not.toBeInTheDocument());
-    expect(await screen.findByRole('heading', { name: 'private-second' })).toBeVisible();
+    await waitFor(() => expect(screen.queryByTitle('private-first')).not.toBeInTheDocument());
+    expect(await screen.findByTitle('private-second')).toBeVisible();
     expect(globalThis.fetch.mock.calls.filter(([url]) => !String(url).includes('/notifications?'))).toHaveLength(2);
   } finally { globalThis.fetch = original; }
 });

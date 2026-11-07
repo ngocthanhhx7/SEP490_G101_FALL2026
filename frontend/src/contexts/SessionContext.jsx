@@ -46,6 +46,14 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
     return () => window.removeEventListener(SESSION_INVALIDATED_EVENT, handleInvalidated);
   }, [invalidate]);
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
+  // A confirmed profile save may update presentation without unloading protected
+  // routes or changing session identity, roles, credentials or permissions.
+  const updateDisplayName = useCallback(profile => {
+    if (typeof profile?.id !== 'string' || typeof profile.displayName !== 'string'
+      || !profile.displayName.trim() || profile.displayName.length > 100) return;
+    setSession(current => current.status === 'authenticated' && current.user?.id === profile.id
+      ? { ...current, user: { ...current.user, displayName: profile.displayName } } : current);
+  }, []);
   const getCsrfToken = useCallback(() => adapterRef.current.getCsrfToken?.() ?? null, []);
   const requestLoginOtp = useCallback(async (input) => {
     const action = adapterRef.current.requestLoginOtp;
@@ -82,14 +90,15 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
     await logoutAction();
     invalidate();
   }, [invalidate]);
-  const value = useMemo(() => ({ ...session, invalidate, refresh, getCsrfToken,
+  const value = useMemo(() => ({ ...session, invalidate, refresh, updateDisplayName, getCsrfToken,
     requestLoginOtp, login, logout }),
-  [session, invalidate, refresh, getCsrfToken, requestLoginOtp, login, logout]);
+  [session, invalidate, refresh, updateDisplayName, getCsrfToken, requestLoginOtp, login, logout]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
-export function useSession() {
+export function useSession({ optional = false } = {}) {
   const session = useContext(SessionContext);
+  if (!session && optional) return { status: 'guest', user: null };
   if (!session) throw new Error('SessionProvider required');
   return session;
 }

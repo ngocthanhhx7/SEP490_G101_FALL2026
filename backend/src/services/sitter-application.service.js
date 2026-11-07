@@ -21,7 +21,7 @@ function invalid(message = 'Application request is invalid') {
     experience: 'Mô tả kinh nghiệm từ 10 đến 2.000 ký tự.',
     requestedServices: 'Chọn từ 1 đến 30 dịch vụ, không chọn trùng.',
     workAreas: 'Nhập từ 1 đến 10 khu vực, mỗi khu vực tối đa 80 ký tự.',
-    documents: 'Kiểm tra ảnh giấy tờ: một ảnh định danh và tối đa 5 ảnh bổ sung, không trùng ảnh.',
+    documents: 'Cần mặt trước CCCD, mặt sau CCCD, ảnh chân dung và tối đa 5 ảnh bổ sung, không trùng ảnh.',
     employmentType: 'Chọn toàn thời gian hoặc bán thời gian.'
   };
   throw new AppError(422, 'VALIDATION_FAILED', message, field ? { fieldErrors: { [field]: labels[field] ?? 'Kiểm tra thông tin này.' } } : {});
@@ -97,19 +97,23 @@ function validateIdempotencyKey(value) {
   return value;
 }
 
-function normalizeDocuments(value) {
-  if (!Array.isArray(value) || value.length < 1 || value.length > 6) invalid('documents are required');
+function normalizeDocuments(value, requireComplete = false) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 8) invalid('documents are required');
   const documents = value.map(document => {
     if (!document || typeof document !== 'object' || Array.isArray(document)
       || Object.keys(document).some(key => !['documentId', 'documentType', 'storageRef'].includes(key))) invalid('documents are invalid');
     const documentId = safeText(document.documentId, { max: 128, field: 'documentId' });
     const documentType = document.documentType;
-    if (!['IDENTITY', 'CERTIFICATE', 'OTHER'].includes(documentType)) invalid('documentType is invalid');
+    if (!['IDENTITY', 'IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT', 'CERTIFICATE', 'OTHER'].includes(documentType)) invalid('documentType is invalid');
     const storageRef = document.storageRef;
     if (typeof storageRef !== 'string' || !/^[A-Za-z0-9_-]{16,256}$/.test(storageRef)) invalid('storageRef is invalid');
     return { documentId, documentType, storageRef };
   });
-  if (!documents.some(document => document.documentType === 'IDENTITY')) invalid('An identity document is required');
+  if (requireComplete) {
+    if (['IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT'].some(type => documents.filter(d => d.documentType === type).length !== 1)
+      || documents.some(d => d.documentType === 'IDENTITY')
+      || documents.filter(d => ['CERTIFICATE', 'OTHER'].includes(d.documentType)).length > 5) invalid('documents must include both identity sides and a portrait');
+  } else if (!documents.some(d => ['IDENTITY', 'IDENTITY_FRONT'].includes(d.documentType))) invalid('documents require an identity image');
   if (new Set(documents.map(document => document.documentId)).size !== documents.length
     || new Set(documents.map(document => document.storageRef)).size !== documents.length) invalid('documents contain duplicates');
   return documents;
@@ -236,6 +240,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         submittedAt: priorSubmission.createdAt.toISOString(), applicationCode, replayed: true };
     }
 
+    normalizeDocuments(body.documents, true);
     const tooEarly = await Applicant.exists({
       $or: [{ contactLookupKey: contact.lookupKey }, { identityLookupKey }, ...(actor?.userId ? [{ ownerUserId: actor.userId }] : [])],
       state: 'REJECTED', reapplyAt: { $gt: new Date(now) }
@@ -635,9 +640,74 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     return content;
   }
 
+  async function ownerContext(actor, session) {
+    if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['CUSTOMER','PET_SITTER'].includes(role)) || actor.roles.some(role=>['ADMIN','STAFF'].includes(role)) || !Types.ObjectId.isValid(actor.userId))
+      throw new AppError(403,'FORBIDDEN','Applicant account required');
+    const user = await User.findOne({ _id:actor.userId,state:'ACTIVE',synthetic:false,...(actor.authEpoch !== undefined ? {authEpoch:actor.authEpoch} : {}) }).session(session ?? null).lean();
+    if (!user) throw new AppError(403,'FORBIDDEN','Current applicant account required');
+    if(session){const locked=await connection.collection('users').findOneAndUpdate({_id:user._id,state:'ACTIVE',synthetic:false,authEpoch:user.authEpoch},{$inc:{applicationGuard:1}},{session,returnDocument:'after'});if(!locked)throw new AppError(403,'FORBIDDEN','Current applicant account required');}
+    const contacts = await identityModels(connection).Contact.find({userId:actor.userId,state:'VERIFIED'}).select('+lookupKey').session(session ?? null).lean();
+    const filter = {$or:[{ownerUserId:actor.userId},{ownerUserId:null,contactLookupKey:{$in:contacts.map(row=>row.lookupKey)}}]};
+    return {filter,contacts};
+  }
+  async function getMine({actor}) {
+    const {filter}=await ownerContext(actor);
+    const row=await Applicant.findOne(filter).sort({createdAt:-1,_id:-1}).select('+contactCiphertext +applicantParticularsCiphertext').lean();
+    if (!row) return {application:null};
+    const particulars=row.applicantParticularsCiphertext ? JSON.parse(contactCrypto.decrypt(row.applicantParticularsCiphertext)) : {};
+    const transitions=await Audit.find({resourceId:row._id,action:{$in:['APPLICATION_SUBMITTED','APPLICATION_UPDATED','APPLICATION_REVIEW_STARTED','APPLICATION_DECIDED']}}).sort({occurredAt:1,_id:1}).select('action state occurredAt').limit(100).lean();
+    return {application:{id:String(row._id),state:row.state,version:row.version,canEdit:row.state==='PENDING',displayName:row.displayName,
+      contact:{channel:row.contactChannel,value:contactCrypto.decrypt(row.contactCiphertext)},dateOfBirth:particulars.dateOfBirth??'',identityNumber:particulars.identityNumber??'',
+      employmentType:row.employmentType??'',experience:row.experience,requestedServices:row.requestedServices,workAreas:row.workAreas,
+      documents:row.privateDocuments.map(d=>({documentId:d.documentId,documentType:d.documentType})),submittedAt:row.createdAt.toISOString(),updatedAt:row.updatedAt.toISOString(),
+      rejectionReason:row.state==='REJECTED'?row.decisionReason:null,reapplyAt:row.reapplyAt?.toISOString()??null,
+      timeline:transitions.map(t=>({action:t.action,state:t.state,at:t.occurredAt.toISOString()}))}};
+  }
+  async function updateMine({actor,body,idempotencyKey,correlationId}) {
+    const {filter}=await ownerContext(actor);
+    const keys=['applicationId','expectedVersion','displayName','dateOfBirth','identityNumber','employmentType','experience','requestedServices','workAreas','documents'];
+    if (!body || Object.keys(body).some(key=>!keys.includes(key)) || keys.some(key=>!Object.hasOwn(body,key)) || !Types.ObjectId.isValid(body.applicationId) || !Number.isSafeInteger(body.expectedVersion) || body.expectedVersion<0) invalid();
+    const displayName=safeText(body.displayName,{max:100,field:'displayName'}),identityValue=canonicalIdentity(body.identityNumber),now=clock();
+    if (!isAdult(body.dateOfBirth,now)) throw new AppError(422,'AGE_REQUIREMENT_NOT_MET','Applicant must be at least 18');
+    if (!['FULL_TIME','PART_TIME'].includes(body.employmentType)) invalid('employmentType is invalid');
+    const owned=await Applicant.findOne({...filter,_id:body.applicationId}).select('+privateDocuments.storageRef').lean();
+    if(!owned)throw new AppError(404,'RESOURCE_NOT_FOUND','Application unavailable');
+    const resolved=Array.isArray(body.documents)?body.documents.map(d=>{const old=owned.privateDocuments.find(x=>x.documentId===d?.documentId&&x.documentType===d?.documentType);
+      return old&&d.storageRef===d.documentId?{...d,storageRef:old.storageRef}:d;}):body.documents;
+    const experience=safeText(body.experience,{min:10,max:2000,field:'experience'}),requestedServices=stringList(body.requestedServices,'requestedServices'),workAreas=stringList(body.workAreas,'workAreas'),documents=normalizeDocuments(resolved,true);
+    const key=validateIdempotencyKey(idempotencyKey),id=new Types.ObjectId(body.applicationId),idempotencyDigest=hash(lookupSecret,'application-owner-update\0'+actor.userId+'\0'+key),payloadDigest=hashPayload(lookupSecret,body);
+    const replay=async session=>{
+      const previous=await Audit.findOne({resourceId:id,idempotencyDigest,actorId:actor.userId}).select('+payloadDigest').session(session??null).lean();
+      if(!previous)return null;
+      if(!sameDigest(previous.payloadDigest,payloadDigest))throw new AppError(409,'IDEMPOTENCY_CONFLICT','Operation key reused');
+      return {id:String(id),state:previous.state,version:previous.resultVersion,replayed:true};
+    };
+    if(!await Applicant.exists({...filter,_id:id}))throw new AppError(404,'RESOURCE_NOT_FOUND','Application unavailable');
+    const prior=await replay();if(prior)return prior;
+    const existing=await Applicant.findOne({...filter,_id:id}).select('+contactLookupKey +privateDocuments.storageRef').lean();
+    if(existing.state!=='PENDING')throw new AppError(409,'APPLICATION_EDIT_CLOSED','Review has already started');
+    const retained=documents.filter(d=>existing.privateDocuments.some(old=>old.documentId===d.documentId&&old.documentType===d.documentType&&old.storageRef===d.storageRef));
+    const added=documents.filter(d=>!retained.includes(d));
+    if(added.length){const verified=await privateMedia.verifyApplicantDocuments({documents:added,contactLookupKey:existing.contactLookupKey,actor});
+      if(!Array.isArray(verified)||verified.length!==added.length||verified.some(d=>!added.some(x=>x.documentId===d.documentId&&x.storageRef===d.storageRef&&x.documentType===d.documentType)))throw new AppError(503,'PROVIDER_UNAVAILABLE','Private documents not verified');}
+
+    try{return await connection.transaction(async session=>{
+      const fresh=await ownerContext(actor,session),again=await replay(session);if(again)return again;
+      const identityLookupKey=hash(lookupSecret,'applicant-identity\0'+identityValue);
+      if(await Applicant.exists({_id:{$ne:id},identityLookupKey,state:'REJECTED',reapplyAt:{$gt:new Date(now)}}).session(session))throw new AppError(409,'REAPPLY_NOT_AVAILABLE','Identity remains in reapply cooldown');
+      if(await Applicant.exists({_id:{$ne:id},identityLookupKey,state:{$in:ACTIVE_STATES}}).session(session))throw new AppError(409,'APPLICATION_ALREADY_PENDING','Identity already has pending application');
+      const saved=await Applicant.findOneAndUpdate({...fresh.filter,_id:id,state:'PENDING',version:body.expectedVersion},{$set:{displayName,experience,requestedServices,workAreas,employmentType:body.employmentType,
+        identityLookupKey,activePendingIdentityKey:identityLookupKey,ageEligible:true,ageCheckedAt:new Date(now),privateDocuments:documents,
+        applicantParticularsCiphertext:contactCrypto.encrypt(JSON.stringify({dateOfBirth:body.dateOfBirth,identityNumber:identityValue}))},$inc:{version:1}},{session,returnDocument:'after'}).lean();
+      if(!saved)throw new AppError(409,'VERSION_CONFLICT','Application changed; reload');
+      await Audit.create([{actorId:actor.userId,actorRoles:actor.roles,action:'APPLICATION_UPDATED',resourceId:id,occurredAt:new Date(now),state:'PENDING',idempotencyDigest,payloadDigest,resultVersion:saved.version,correlationId:correlationId??null}],{session});
+      return {id:String(id),state:'PENDING',version:saved.version,replayed:false};
+    });}catch(error){if(error.code===11000){const result=await replay();if(result)return result;throw new AppError(409,'APPLICATION_ALREADY_PENDING','Pending identity conflict');}throw error;}
+  }
+
   async function startInterview(input) {
     assertAdmin(input.actor);
     return changeToReview({ ...input, targetState: 'INTERVIEW' });
   }
-  return Object.freeze({ submit, list, get, startReview, startInterview, decide, changeSitterStatus, readDocument });
+  return Object.freeze({ getMine, updateMine, submit, list, get, startReview, startInterview, decide, changeSitterStatus, readDocument });
 }

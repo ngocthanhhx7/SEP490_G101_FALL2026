@@ -99,7 +99,7 @@ test('homepage lets a visitor retry after a catalog error', async () => {
   renderHome(loadCatalog);
 
   expect(await screen.findByRole('alert')).toHaveTextContent(
-    'Chưa tải được thông tin'
+    'Không thể kết nối máy chủ'
   );
   fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
   expect(

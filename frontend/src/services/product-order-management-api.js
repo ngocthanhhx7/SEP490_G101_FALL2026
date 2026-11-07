@@ -1,3 +1,4 @@
+import { readPagination } from './pagination-response.js';
 import { ApiError, createApiClient } from './api-client.js';
 
 const RECEIVE_METHODS = ['DELIVERY', 'PICKUP'];
@@ -32,14 +33,15 @@ export function createProductOrderManagementApi(options) {
     checkOrder(notPending(await request(`/admin/product-orders/${id(orderId)}/${action}`, { method: 'POST', body })).data);
   return {
     // The tab counts ride in meta so the page keeps them even when the current tab is empty.
-    async listOrders({ tab = 'ALL', search = '' } = {}, { signal } = {}) {
+    async listOrders({ tab = 'ALL', search = '', page = 1 } = {}, { signal } = {}) {
       const params = new globalThis.URLSearchParams();
       if (tab !== 'ALL') params.set('tab', tab);
       if (search) params.set('search', search);
+      if (page > 1) params.set('page', String(page));
       const query = params.toString();
       const response = await request(`/admin/product-orders${query ? `?${query}` : ''}`, { signal });
       if (!Array.isArray(response.data?.items)) invalid();
-      return { ...response, data: response.data.items.map(checkOrder), meta: { ...response.meta, counts: checkCounts(response.data.counts) } };
+      return { ...response, data: response.data.items.map(checkOrder), meta: { ...response.meta, counts: checkCounts(response.data.counts), page: readPagination(response.data) } };
     },
     handToCarrier: (orderId, trackingCode) => act(orderId, 'hand-to-carrier', { trackingCode }),
     markReady: (orderId) => act(orderId, 'mark-ready'),

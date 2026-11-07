@@ -11,3 +11,16 @@ retain original body/key; no private terms are persisted in browser storage.
 Template v2 shows only the approved minimum 40/20 weekly hours and self-registration terms; no weekday/daily-hour inputs. Rendering preserves historical v1 document wording. Minimum-only automatic salary supports full months without invented calendars; exceptions need verified advanced reconciliation.
 
 The contract editor prefers saved terms, then private profile prefill, then safe generic defaults. Admin can edit suggestions; resource refresh does not overwrite mounted uncontrolled inputs. Prefill hints never sign/issue/save by themselves and are not stored in browser storage.
+
+Field validation reports safe field names/reasons only (no entered values). The
+editor retains inputs, links errors to their controls and allows a watermarked
+DRAFT print for checking; printing never issues, signs or activates a contract.
+
+After a command result, focus moves to the field-error summary or status notice,
+so feedback is visible even when submit sits below a long form. Error links focus
+their corresponding input without changing the route hash or dropping entries.
+
+Gender is a required selection (`Nam`, `Nữ`, `Khác`) with no default inference.
+Legacy invalid unsigned terms show a warning and require a new revision before
+issue, print or sign. Signed historical content remains unchanged. The API also
+validates gender independently of the browser and returns a localized field error.

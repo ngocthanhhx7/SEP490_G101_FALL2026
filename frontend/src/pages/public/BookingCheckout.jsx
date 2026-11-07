@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { CalendarCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { googleMapsDirections } from '../../utils/maps.js';
+import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { VerifiedVisitRating } from '../customer/VerifiedVisitRating.jsx';
 import './booking-checkout.css';
@@ -10,7 +11,7 @@ import './booking-checkout.css';
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cơ sở', OUTDOOR: 'Ngoài trời' };
 const statuses = { AWAITING_PAYMENT: 'Chờ thanh toán', PAYMENT_EXPIRED: 'Đã hết hạn thanh toán', DISPATCH_PENDING: 'Chờ phân công', ASSIGNED: 'Đã phân công', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn tất' };
-const errorText = code => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ sơ đã thay đổi. Vui lòng lấy báo giá mới.',
+const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ sơ đã thay đổi. Vui lòng lấy báo giá mới.',
   MATCH_EXPIRED: 'Gợi ý đã hết hạn. Vui lòng tìm lại sitter.', MATCH_CHANGED: 'Hồ sơ hoặc lịch khác với gợi ý. Vui lòng tìm lại sitter.',
   MATCH_ALREADY_USED: 'Gợi ý này đã tạo đơn. Kiểm tra đơn của bạn trước khi tìm lại.',
   RESOURCE_NOT_FOUND: 'Báo giá, địa chỉ hoặc đơn không còn khả dụng.', QUOTE_ALREADY_USED: 'Báo giá này đã được dùng để đặt dịch vụ.',
@@ -18,7 +19,7 @@ const errorText = code => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s�
   PAYMENT_PROVIDER_UNAVAILABLE: 'Chưa thể tạo link thanh toán. Đơn vẫn đang chờ thanh toán.',
   PAYMENT_LINK_RECONCILIATION_REQUIRED: 'Yêu cầu thanh toán đang cần đối soát. Vui lòng liên hệ Paw World Care.',
   COMMAND_PENDING: 'Yêu cầu đang được xử lý.', INVALID_STATE: 'Đơn không còn ở trạng thái có thể thanh toán.',
-  VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[code] || 'Chưa xác nhận được thao tác. Vui lòng thử lại.';
+  VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[error.code] || apiErrorFeedback(error, 'Chưa xác nhận được thao tác. Vui lòng thử lại.');
 
 export function BookingCheckoutForm({ quote, services, api, onConfirmed, recommendation }) {
   const addresses = useApiResource(api.addresses), options = useApiResource(api.checkoutOptions), [busy, setBusy] = useState(false), [error, setError] = useState(null), [uncertain, setUncertain] = useState(false);
@@ -41,7 +42,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     }
     locked.current = true; setBusy(true); setError(null);
     try { const response = await api.confirm(command.current.body, command.current.key); onConfirmed(response); }
-    catch (failure) { setError(errorText(failure.code)); setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(failure.code) || failure.status >= 500); }
+    catch (failure) { setError(errorText(failure)); setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(failure.code) || failure.status >= 500); }
     finally { locked.current = false; setBusy(false); }
   };
   return <form className="pwc-booking-checkout" onSubmit={submit}><h3>Lịch chăm sóc</h3>
@@ -88,7 +89,7 @@ function BookingConfirmationDetail({ bookingId, api, load }) {
       const result = await api.paymentLink(bookingId, key.current), url = new URL(result.checkoutUrl);
       if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/')) throw new Error('Invalid payment URL');
       setLink(url.href);
-    } catch (failure) { setError(errorText(failure.code)); } finally { locked.current = false; setBusy(false); }
+    } catch (failure) { setError(errorText(failure)); } finally { locked.current = false; setBusy(false); }
   };
   if (resource.status === 'loading') return <p role="status">Đang tải đơn…</p>;
   if (resource.status !== 'success') return <div role="alert"><p>Chưa tải được đơn.</p><button type="button" onClick={resource.retry}>Tải lại đơn</button></div>;
@@ -99,7 +100,10 @@ function BookingConfirmationDetail({ bookingId, api, load }) {
     <ul>{booking.visits.map(row => <li key={row.id}><strong>{row.serviceName}</strong> · {new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<br />{locations[row.location]}: {row.serviceAddress}
       {googleMapsDirections(row.serviceAddress) && <p><a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a></p>}
       </li>)}</ul>
-    {(booking.careShifts || []).map(row => <div key={row.id}>{booking.state === 'COMPLETED' && row.state === 'COMPLETED'
+    {(booking.careShifts || []).map(row => <div key={row.id}><h4>{row.serviceName}</h4><p>{({ ASSIGNED: 'Người chăm sóc đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn tất ca' })[row.state] ?? row.state}</p>
+      {row.checkInAt && <p>Bắt đầu: {new Date(row.checkInAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
+      {row.checkOutAt && <p>Hoàn tất: {new Date(row.checkOutAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
+      {booking.state === 'COMPLETED' && row.state === 'COMPLETED'
       ? <VerifiedVisitRating api={api} visit={row} />
       : <VisitTravel api={api} visitId={row.id} startAt={row.startAt} endAt={row.endAt} />}</div>)}
     {(booking.scheduleProposals || []).filter(row => row.state === 'PENDING_CUSTOMER_CONFIRMATION' && new Date(row.expiresAt) > new Date()).map(row =>

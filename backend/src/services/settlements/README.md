@@ -1,5 +1,11 @@
 # Weekly settlement boundary (P41 / WBS-N05)
 
+The employee execution reader in `booking-finance-source.service.js` exposes only
+the assigned employee's state, version, timestamps and checklist at
+`GET /api/v1/visits/:id/execution`. It shares the existing assignment/status/booking
+authorization with primary commands. Media references, entry notes and financial
+snapshots are omitted. Reading never creates completion or financial evidence.
+
 ## Integration update, 2026-10-30
 
 The [approved FIN-07/08 addendum](../../../../doc/requirements/finance-decisions-2026-10-30.md)

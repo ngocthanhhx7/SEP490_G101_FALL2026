@@ -1,3 +1,4 @@
+import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, RefreshCw, CalendarDays, ClipboardList, Wallet, Users } from 'lucide-react';
@@ -49,8 +50,10 @@ function DashboardContent({ api, kind }) {
           <td><Link to={target}>Mở công việc</Link></td></tr>)}
         {!data.items.length && <tr><td colSpan={4} className="workspace-empty">Chưa có buổi chăm sóc</td></tr>}
       </tbody></table></div>
-      <div className="workspace-pagination"><span>Trang {history.length + 1}</span><div><Button variant="secondary" disabled={!history.length} onClick={() => { setCursor(history.at(-1)); setHistory(history.slice(0, -1)); }}>Trước</Button>
-        <Button variant="secondary" disabled={!data.nextCursor} onClick={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}>Tiếp theo</Button></div></div>
+      <CursorPagination page={history.length + 1} label="công việc" hasNext onFirst={() => { setCursor(''); setHistory([]); }}
+ onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0, -1)); }} onNext={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}
+ previousDisabled={!history.length} nextDisabled={!data.nextCursor}
+ previousLabel={"Trước"} nextLabel={"Tiếp theo"} />
     </section>}
   </div>;
 }

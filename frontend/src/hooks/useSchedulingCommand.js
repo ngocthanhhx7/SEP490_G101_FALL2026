@@ -1,6 +1,13 @@
 import { useRef, useState } from 'react';
 
 const errors = {
+  CHECK_IN_TOO_EARLY: 'Chưa đến giờ check-in. Có thể bắt đầu từ 30 phút trước ca.',
+  CHECK_OUT_DEADLINE_PASSED: 'Đã quá hạn check-out. Cần liên hệ điều phối để đối chiếu ca.',
+  CHECKLIST_REQUIRED: 'Cần lưu đủ nội dung chăm sóc trước khi check-out.',
+  CHECKLIST_INVALID: 'Nội dung chăm sóc chưa đầy đủ; mục không thực hiện cần ghi rõ lý do.',
+  EVIDENCE_NOT_READY: 'Ảnh bằng chứng chưa sẵn sàng. Kiểm tra ảnh đã tải lên.',
+  EVIDENCE_ALREADY_USED: 'Ảnh đã được dùng làm bằng chứng. Chọn ảnh khác cho thao tác này.',
+  INVALID_PRIVATE_IMAGE: 'Chọn ảnh JPG hoặc PNG, tối đa 5 MB.',
   SHIFT_START_REACHED: 'Ca đã đến giờ. Cần khách xác nhận lịch mới trước khi mời người nhận ca.',
   NO_ELIGIBLE_SITTER: 'Chưa có nhân viên phù hợp với khu vực và ca này.',
   DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Nhân viên khách chỉ định chưa có ca phù hợp. Cần thống nhất lại lịch với khách.',
@@ -36,7 +43,7 @@ export function useSchedulingCommand(onSuccess) {
       if (result?.pending || result?.status === 202) { setPending(true); setMessage('Đang chờ xác nhận.'); return; }
       operation.current = null; setPending(false); setMessage('Đã xác nhận.'); onSuccess?.();
     } catch (error) {
-      const uncertain = !error.status || ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR'].includes(error.code);
+      const uncertain = !error.status || error.status >= 500 || ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'INVALID_RESPONSE'].includes(error.code);
       setPending(uncertain);
       if (!uncertain) operation.current = null;
       setMessage(uncertain ? 'Chưa nhận được xác nhận. Kiểm tra lại cùng yêu cầu.' : errors[error.code] || 'Chưa thể thực hiện. Kiểm tra dữ liệu và tải lại.');

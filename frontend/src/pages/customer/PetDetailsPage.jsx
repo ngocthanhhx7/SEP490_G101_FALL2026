@@ -1,3 +1,4 @@
+import { AvatarEditor, ProfileAvatar } from '../../components/common/ProfileAvatar.jsx';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button, Dialog, Input, Notice, Select } from '../../components/ui/index.js';
@@ -575,7 +576,7 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
   return <section className="pet-details" aria-labelledby="pet-details-title">
     <div className="pet-details__topline">{backAction}<span>Hồ sơ thú cưng</span></div>
     <header className="pet-details__header">
-      <div className="pet-details__avatar" aria-hidden="true">{pet.species === 'DOG' ? 'Chó' : 'Mèo'}</div>
+      <ProfileAvatar petId={pet.id} label={`Ảnh của ${pet.name}`} fallback={pet.species === 'DOG' ? 'Chó' : 'Mèo'} />
       <div className="pet-details__heading">
         <p className="pet-details__eyebrow">{pet.species === 'DOG' ? 'Hồ sơ chó' : 'Hồ sơ mèo'}</p>
         <h1 id="pet-details-title">{pet.name}</h1>
@@ -593,13 +594,7 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
     {archived && <Notice state="info" title="Hồ sơ đã lưu trữ">
       Bạn vẫn có thể xem thông tin phục vụ lịch sử. Lưu trữ không xóa hoặc thay đổi snapshot của booking/visit đã xác nhận.
     </Notice>}
-    {!archived && <div className="pet-details__photo-card">
-      <div><h2>Ảnh nhận diện</h2><p>Ảnh riêng tư chưa khả dụng vì kho media và quyền tải/xem chưa được tích hợp.</p></div>
-      <Button variant="secondary" disabled aria-describedby="pet-photo-pending">Thêm ảnh (chưa khả dụng)</Button>
-      <span id="pet-photo-pending" className="pet-details__visually-hidden">
-        Chưa có nhà cung cấp upload media riêng tư hoặc hợp đồng đọc ảnh đã tích hợp.
-      </span>
-    </div>}
+    {!archived && <AvatarEditor petId={pet.id} onSaved={resource.retry} label={`Ảnh của ${pet.name}`} fallback={pet.species === 'DOG' ? 'Chó' : 'Mèo'} />}
 
     <Notice state="pending" title="PROVISIONAL · INTEGRATION_PENDING">
       Màn hình và PetView adapter đang chờ tích hợp. Route đăng ký, phiên/CSRF thật và quyền sở hữu phía server chưa được xác minh. Lịch sử/audit hồ sơ và cơ chế snapshot booking/visit chưa được nối; quy tắc dự kiến theo P01 là sửa hồ sơ không tự đổi hướng dẫn đã xác nhận.
@@ -645,13 +640,6 @@ export function PetDetailsPage({ petId: suppliedPetId, api = petProfileApi, onBa
             onStatusChange={updateFieldStatus} onValueChange={updateFieldValue} />)}
         </div>
       </section>)}
-
-      <section className="pet-details__section" aria-labelledby="pet-edit-photo-title">
-        <h2 id="pet-edit-photo-title">Ảnh riêng tư</h2>
-        <Notice state="pending" title="Chưa thể tải ảnh lên">
-          Tính năng ảnh đang chờ tích hợp nhà cung cấp media riêng tư, kiểm tra tệp và hợp đồng quyền truy cập. Chưa có tệp nào được tải lên.
-        </Notice>
-      </section>
 
       <div className="pet-details__form-actions">
         <Button type="submit" loading={saving} loadingLabel="Đang chờ máy chủ…" disabled={submitDisabled}>

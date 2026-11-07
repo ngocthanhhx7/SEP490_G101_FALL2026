@@ -99,6 +99,19 @@ def mae(rows, weights):
     return sum(abs(sum(a * b for a, b in zip(row["x"], weights)) - row["y"]) for row in rows) / len(rows)
 
 
+def project_weights(values):
+    """Euclidean projection onto the non-negative, sum-100 simplex."""
+    ordered = sorted(values, reverse=True)
+    running = 0.0
+    threshold = 0.0
+    for index, value in enumerate(ordered, 1):
+        running += value
+        candidate = (running - 100.0) / index
+        if value > candidate:
+            threshold = candidate
+    return [max(0.0, value-threshold) for value in values]
+
+
 def fit(train):
     weights = BASELINE[:]
     for _ in range(1000):
@@ -107,9 +120,12 @@ def fit(train):
             error = sum(a * b for a, b in zip(row["x"], weights)) - row["y"]
             for index, value in enumerate(row["x"]):
                 gradient[index] += 2 * error * value / len(train)
-        weights = [max(0.001, w - 0.04 * g) for w, g in zip(weights, gradient)]
-        total = sum(weights)
-        weights = [w * 100 / total for w in weights]
+        # Projection preserves the approved non-negative additive contract.
+        # Renormalizing a clipped gradient is not the constrained gradient step.
+        updated = project_weights([w - 0.1 * g for w, g in zip(weights, gradient)])
+        if max(abs(a-b) for a, b in zip(updated, weights)) < 1e-9:
+            break
+        weights = updated
     return weights
 
 

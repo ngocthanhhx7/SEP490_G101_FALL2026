@@ -21,6 +21,12 @@ import { createPayrollService } from '../../src/services/payroll/payroll.service
 import { employeePayrollPolicyResolver } from '../../src/constants/employee-payroll-policy.js';
 import { createEmployeeDispatchService } from '../../src/services/employee-scheduling/employee-dispatch.service.js';
 import { createEmployeeScheduleRepository } from '../../src/services/employee-scheduling/employee-schedule.repository.js';
+import { financeSourceRuntime } from '../../src/routes/finance-source-runtime.js';
+import sharp from 'sharp';
+import { privateImageModule } from '../../src/routes/private-image.routes.js';
+import { privateImageModels } from '../../src/models/private-image.model.js';
+import { requireSession, requireCsrf } from '../../src/middlewares/session.js';
+import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 
 const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-10-30T03:00:00Z');
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
@@ -51,6 +57,84 @@ beforeAll(async () => {
   for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
+
+test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
+  const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { 'snapshots.checklistItemIds': ['pet-condition'] } });
+  const session = { authenticate: async req => {
+    const record = [sitter, customer, staff].find(value => value.userId === req.get('x-test-actor'));
+    return record && { ...record, expiresAt: clock() + 60000 };
+  }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
+  const bytes = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#38a178' } }).png().toBuffer();
+  const stored = new Map();
+  for (const model of Object.values(privateImageModels(connection))) { await model.createCollection(); await model.createIndexes(); }
+  const images = privateImageModule({ connection, secret: 'synthetic-private-media-secret-32-chars', maxImagesPerUser: 10,
+    requireAuthenticated: requireSession(session, { clock }), csrf: requireCsrf(session),
+    media: { upload: async value => stored.set(value.storageRef, value), read: async value => stored.get(value.storageRef) } });
+  const finance = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } },
+    env: { FINANCE_SOURCES_ENABLED: 'true' }, sessionService: session, clock });
+  const server = express(); server.use(express.json(), requestId); server.use(images.mount, images.router);
+  server.use('/api/v1', finance.router); server.use(module.mount, module.router); server.use(errorHandler(() => {}));
+  const headers = (who, key) => ({ 'x-test-actor': who.userId, 'x-csrf-token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' });
+  const root = '/api/v1/employee-scheduling';
+  const proposed = await request(server).post(`${root}/visits/${row._id}/schedule-proposals`).set(headers(staff, 'synthetic-propose-care'))
+    .send({ expectedVersion: 0, startAt: '2026-10-30T03:15:00Z' }).expect(200);
+  const proposal = proposed.body.data;
+  const confirmation = { expectedVersion: 0, selectedSlot: proposal.slots[0] };
+  const confirmed = await request(server).post(`${root}/proposals/${proposal.id}/confirmation`).set(headers(customer, 'synthetic-confirm-care')).send(confirmation).expect(200);
+  const replay = await request(server).post(`${root}/proposals/${proposal.id}/confirmation`).set(headers(customer, 'synthetic-confirm-care')).send(confirmation).expect(200);
+  expect(replay.body.data).toEqual(confirmed.body.data);
+  await request(server).post(`${root}/offers/${confirmed.body.data.offer.id}/acceptances`).set(headers(sitter, 'synthetic-accept-care')).send({ expectedVersion: 0 }).expect(200);
+  const endpoint = `/api/v1/visits/${row._id}`;
+  let current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
+  const upload = async key => (await request(server).post(images.mount).set(headers(sitter, key)).set('Content-Type', 'image/png').send(bytes).expect(201)).body.data.id;
+  const mediaIn = await upload('synthetic-private-care-in');
+  const input = { expectedVersion: current.version, mediaId: mediaIn };
+  const checkedIn = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
+  const repeated = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
+  expect(repeated.body.data).toEqual(checkedIn.body.data);
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'IN_PROGRESS', checkInAt: new Date(clock()), checkOutAt: null });
+  const mediaOut = await upload('synthetic-private-care-out');
+  await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-out-before-checklist')).send({ expectedVersion: checkedIn.body.data.version, mediaId: mediaOut }).expect(409);
+  const saved = await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-care'))
+    .send({ expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] }).expect(200);
+  current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
+  expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
+  await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
+  expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'COMPLETED', checkOutAt: new Date(clock()) });
+  expect((await checkout.read(customer, String(row.bookingId))).state).toBe('COMPLETED');
+  await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
+  expect(stored.size).toBe(2);
+  expect(await connection.collection('caremediabindings').countDocuments({ visitId: String(row._id) })).toBe(2);
+});
+
+test('execution read is assigned-sitter scoped and omits private notes, media and money', async () => {
+  const sitter = await employee(), other = await employee(), row = await visit();
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId),
+    state: 'ASSIGNED', 'snapshots.checklistItemIds': ['service-scope', 'pet-condition'],
+    privateAccessNotes: 'Synthetic private note', evidenceRefs: [{ mediaId: 'a'.repeat(64) }] } });
+  const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()) });
+  const result = await service.readVisit(sitter, String(row._id));
+  expect(result).toMatchObject({ visitId: String(row._id), state: 'ASSIGNED', version: 0, checklistItemIds: ['service-scope', 'pet-condition'] });
+  expect(Object.keys(result).sort()).toEqual(['visitId', 'state', 'version', 'startAt', 'endAt', 'checkInAt', 'checkOutAt', 'checklistItemIds', 'checklist'].sort());
+  await expect(service.readVisit(other, String(row._id))).rejects.toMatchObject({ status: 404 });
+  await expect(service.readVisit(customer, String(row._id))).rejects.toMatchObject({ status: 403 });
+  const runtime = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } }, env: { FINANCE_SOURCES_ENABLED: 'true' }, clock,
+    sessionService: { authenticate: async req => {
+      const actors = [sitter, other, customer];
+      const actor = actors.find(value => value.userId === req.get('x-test-actor'));
+      return actor && { ...actor, expiresAt: clock() + 60000 };
+    }, verifyCsrf: async () => false } });
+  const server = express(); server.use(express.json(), requestId); server.use('/api/v1', runtime.router); server.use(errorHandler(() => {}));
+  const url = `/api/v1/visits/${row._id}/execution`;
+  await request(server).get(url).expect(401);
+  await request(server).get(url).set('x-test-actor', customer.userId).expect(403);
+  await request(server).get(url).set('x-test-actor', other.userId).expect(404);
+  const response = await request(server).get(url).set('x-test-actor', sitter.userId).expect(200).expect('Cache-Control', 'private, no-store');
+  expect(response.body.data.visitId).toBe(String(row._id));
+  await request(server).post(`/api/v1/visits/${row._id}/check-ins`).set('x-test-actor', sitter.userId).send({ expectedVersion: 0 }).expect(403);
+});
 
 async function employee({ configure = true, contract = true } = {}) {
   const value = actor('PET_SITTER'), userId = new mongoose.Types.ObjectId(value.userId);
@@ -454,10 +538,12 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
 
 test('Staff proposes a new directed time; only the owning customer may confirm before an atomic invitation is created', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-11-23T02:00:00Z', requestedSitterId: sitter.userId });
+  await connection.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(sitter.userId) }, { $set: { displayName: 'Synthetic assigned sitter' } });
   const old = await connection.collection('bookings').findOne({ _id: row.bookingId });
   const body = { expectedVersion: 0, startAt: '2026-11-23T04:00:00Z' };
   const proposal = await module.proposals.propose(staff, String(row._id), body, 'staff-proposes-time');
   expect(proposal.state).toBe('PENDING_CUSTOMER_CONFIRMATION');
+  expect(await module.proposals.getProposal({ actor: customer, proposalId: proposal.id })).toMatchObject({ sitter: { displayName: 'Synthetic assigned sitter' } });
   expect((await connection.collection('visits').findOne({ _id: row._id })).startAt).toEqual(row.startAt);
   expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(0);
   const stranger = actor('CUSTOMER');

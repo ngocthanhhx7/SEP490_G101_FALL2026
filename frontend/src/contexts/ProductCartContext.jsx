@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { useSession } from './SessionContext.jsx';
 import { createProductSalesApi } from '../services/product-sales-api.js';
 import { hasRole } from '../utils/role-access.js';
+import { ApiError } from '../services/api-client.js';
 
 const ProductCartContext = createContext(null);
 
@@ -14,6 +15,7 @@ export function ProductCartProvider({ api: apiOverride, children }) {
   const enabled = session.status === 'authenticated' && hasRole(session.user, 'CUSTOMER');
   const [state, setState] = useState({ status: 'idle', cart: null });
   const generation = useRef(0);
+  const mutationQueue = useRef(Promise.resolve());
   const owner = enabled ? userId : null;
   const ownerRef = useRef(owner);
   const ownerEpoch = useRef(0);
@@ -41,19 +43,24 @@ export function ProductCartProvider({ api: apiOverride, children }) {
   const apply = useCallback(async (operation) => {
     const started = ownerEpoch.current;
     const startedOwner = ownerRef.current;
-    const cart = await operation();
-    if (!startedOwner || started !== ownerEpoch.current || startedOwner !== ownerRef.current) return cart;
-    generation.current++;
-    setState({ status: 'ready', cart });
-    return cart;
+    const task = mutationQueue.current.catch(() => {}).then(async () => {
+      if (!startedOwner || started !== ownerEpoch.current || startedOwner !== ownerRef.current) throw new ApiError('SESSION_CHANGED', 401);
+      const cart = await operation();
+      if (started !== ownerEpoch.current || startedOwner !== ownerRef.current) return cart;
+      generation.current++;
+      setState({ status: 'ready', cart });
+      return cart;
+    });
+    mutationQueue.current = task.catch(() => {});
+    return task;
   }, []);
 
   const value = useMemo(() => ({
-    api, enabled, status: state.status, cart: state.cart, lineCount: state.cart?.lineCount ?? 0, refresh,
+    api, enabled, sessionStatus: session.status, status: state.status, cart: state.cart, lineCount: state.cart?.lineCount ?? 0, refresh,
     addLine: (productId, quantity) => apply(() => api.addToCart(productId, quantity)),
     setLine: (productId, quantity) => apply(() => api.setCartLine(productId, quantity)),
     removeLine: (productId) => apply(() => api.removeCartLine(productId))
-  }), [api, enabled, state, refresh, apply]);
+  }), [api, enabled, session.status, state, refresh, apply]);
   return <ProductCartContext.Provider value={value}>{children}</ProductCartContext.Provider>;
 }
 

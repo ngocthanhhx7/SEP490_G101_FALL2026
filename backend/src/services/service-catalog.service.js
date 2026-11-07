@@ -1,4 +1,6 @@
 import { Types } from 'mongoose';
+import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
+import { catalogVersionRecord } from '../utils/catalog-version-record.js';
 import { AppError } from '../utils/app-error.js';
 
 const SERVICE_FIELDS = ['name', 'description', 'scope', 'species', 'state'];
@@ -195,7 +197,6 @@ export function createServiceCatalogService({
   Service,
   ServiceVersion,
   PolicyVersion,
-  Audit,
   Presentation,
   priceProvider,
   catalogSettings,
@@ -206,7 +207,6 @@ export function createServiceCatalogService({
     !Service ||
     !ServiceVersion ||
     !PolicyVersion ||
-    !Audit ||
     typeof priceProvider?.getActivePrice !== 'function' ||
     typeof catalogSettings?.isEnabledAt !== 'function' ||
     typeof clock !== 'function'
@@ -236,6 +236,7 @@ export function createServiceCatalogService({
             [
               {
                 serviceId: service._id,
+                changeAudit: createCatalogChange('SERVICE_CREATED', [...SERVICE_FIELDS, 'code']),
                 version: 1,
                 name: input.name,
                 description: input.description,
@@ -250,25 +251,9 @@ export function createServiceCatalogService({
             ],
             { session }
           );
-          await Audit.create(
-            [
-              {
-                actorId: new Types.ObjectId(actor.userId),
-                action: 'SERVICE_CREATED',
-                resourceType: 'service',
-                resourceId: service._id,
-                version: 1,
-                changedFields: [...SERVICE_FIELDS, 'code'],
-                reason: input.reason,
-                effectiveAt: input.effectiveAt,
-                occurredAt: now
-              }
-            ],
-            { session }
-          );
           return {
             id: service._id.toString(),
-            ...version.toObject(),
+            ...catalogVersionRecord(version),
             serviceId: service._id.toString()
           };
         },
@@ -307,6 +292,7 @@ export function createServiceCatalogService({
             [
               {
                 serviceId: id,
+                changeAudit: createCatalogChange('SERVICE_VERSIONED', SERVICE_FIELDS),
                 version: input.expectedVersion + 1,
                 name: input.name,
                 description: input.description,
@@ -321,23 +307,7 @@ export function createServiceCatalogService({
             ],
             { session }
           );
-          await Audit.create(
-            [
-              {
-                actorId: new Types.ObjectId(actor.userId),
-                action: 'SERVICE_VERSIONED',
-                resourceType: 'service',
-                resourceId: id,
-                version: version.version,
-                changedFields: [...SERVICE_FIELDS],
-                reason: input.reason,
-                effectiveAt: input.effectiveAt,
-                occurredAt: now
-              }
-            ],
-            { session }
-          );
-          return { ...version.toObject(), serviceId: id.toString() };
+          return { ...catalogVersionRecord(version), serviceId: id.toString() };
         },
         {
           readPreference: 'primary',
@@ -374,6 +344,7 @@ export function createServiceCatalogService({
             [
               {
                 serviceId: id,
+                changeAudit: createCatalogChange('POLICY_VERSIONED', input.state === 'PUBLISHED' ? ['state', 'title', 'body'] : ['state']),
                 version: input.expectedVersion + 1,
                 state: input.state,
                 ...(input.state === 'PUBLISHED'
@@ -387,26 +358,7 @@ export function createServiceCatalogService({
             ],
             { session }
           );
-          await Audit.create(
-            [
-              {
-                actorId: new Types.ObjectId(actor.userId),
-                action: 'POLICY_VERSIONED',
-                resourceType: 'service-policy',
-                resourceId: id,
-                version: version.version,
-                changedFields: [
-                  'state',
-                  ...(input.state === 'PUBLISHED' ? ['title', 'body'] : [])
-                ],
-                reason: input.reason,
-                effectiveAt: input.effectiveAt,
-                occurredAt: now
-              }
-            ],
-            { session }
-          );
-          return { ...version.toObject(), serviceId: id.toString() };
+          return { ...catalogVersionRecord(version), serviceId: id.toString() };
         },
         {
           readPreference: 'primary',
@@ -420,7 +372,7 @@ export function createServiceCatalogService({
   }
 
   async function listAdmin({ includePolicyText = false } = {}) {
-    const services = await Service.find({}).sort({ code: 1 }).lean();
+    const services = await Service.find({}).select('code').sort({ code: 1 }).lean();
     const ids = services.map((service) => service._id);
     const at = new Date(clock());
     const grouped = (Model, filter, sort) =>
@@ -506,14 +458,19 @@ export function createServiceCatalogService({
       (version) => version.serviceId
     );
     const serviceDetails = await Service.find({ _id: { $in: serviceIds } })
-      .select('code')
+      .select('code presentation')
       .lean();
     const codes = new Map(
       serviceDetails.map((service) => [service._id.toString(), service.code])
     );
-    const presentations = Presentation
-      ? await Presentation.find({ serviceId: { $in: serviceIds } }).lean()
+    const legacyIds = serviceDetails.filter(service => !service.presentation).map(service => service._id);
+    const presentations = legacyIds.length
+      ? Presentation
+        ? await Presentation.find({ serviceId: { $in: legacyIds } }).lean()
+        : await connection.db.collection('servicepresentations').find({ serviceId: { $in: legacyIds } }).toArray()
       : [];
+    presentations.push(...serviceDetails.filter(service => service.presentation)
+      .map(service => ({ ...service.presentation, serviceId: service._id })));
     const detailMap = new Map(
       presentations.map((item) => [
         item.serviceId.toString(),
@@ -526,15 +483,26 @@ export function createServiceCatalogService({
         }
       ])
     );
+    // Select the effective policy before testing PUBLISHED: a withdrawal must
+    // not resurrect an older published version. Fetch once for the whole list.
+    const policyRows = await PolicyVersion.aggregate([
+      { $match: { serviceId: { $in: serviceIds }, effectiveAt: { $lte: at } } },
+      { $sort: { effectiveAt: -1, version: -1 } },
+      { $group: { _id: '$serviceId', current: { $first: '$$ROOT' } } }
+    ]).option({ maxTimeMS: 5000 });
+    const policies = new Map(policyRows.map(row => [String(row._id), row.current]));
+    const prices = typeof priceProvider.getActivePrices === 'function'
+      ? await priceProvider.getActivePrices(serviceIds.map(String), at) : null;
     const services = [];
     for (const version of current.values()) {
       if (version.state !== 'ACTIVE') continue;
-      const policy = await effective(PolicyVersion, version.serviceId, at);
+      const policy = policies.get(String(version.serviceId));
       if (!policy || policy.state !== 'PUBLISHED') continue;
-      const price = await priceProvider.getActivePrice(
-        version.serviceId.toString(),
-        at
-      );
+      if (!codes.has(String(version.serviceId))) {
+        throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Service not found');
+      }
+      const price = prices ? prices.get(String(version.serviceId))
+        : await priceProvider.getActivePrice(version.serviceId.toString(), at);
       if (!price) continue;
       services.push({
         id: version.serviceId.toString(),

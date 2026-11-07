@@ -6,7 +6,7 @@ const STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'];
 export function sitterApplicationModels(connection) {
   const documentSchema = new Schema({
     documentId: { type: String, required: true },
-    documentType: { type: String, enum: ['IDENTITY', 'CERTIFICATE', 'OTHER'], required: true },
+    documentType: { type: String, enum: ['IDENTITY', 'IDENTITY_FRONT', 'IDENTITY_BACK', 'PORTRAIT', 'CERTIFICATE', 'OTHER'], required: true },
     storageRef: { type: String, required: true, select: false }
   }, { _id: false, versionKey: false, strict: 'throw' });
 
@@ -56,7 +56,7 @@ export function sitterApplicationModels(connection) {
     actorRoles: { type: [String], required: true, default: [] },
     action: {
       type: String,
-      enum: ['APPLICATION_SUBMITTED', 'APPLICATION_VIEWED', 'APPLICATION_REVIEW_STARTED',
+      enum: ['APPLICATION_UPDATED', 'APPLICATION_SUBMITTED', 'APPLICATION_VIEWED', 'APPLICATION_REVIEW_STARTED',
         'APPLICATION_DECIDED', 'APPLICATION_DOCUMENT_REQUESTED', 'SITTER_SUSPENDED', 'SITTER_REINSTATED'],
       required: true
     },
@@ -85,6 +85,9 @@ export function sitterApplicationModels(connection) {
     count: { type: Number, required: true, min: 0, default: 0 }
   }, { versionKey: false, strict: 'throw', bufferCommands: false });
   quotaSchema.index({ actorId: 1, windowStart: 1 }, { unique: true });
+  // One-hour enforcement window plus the owner's approved 24-hour diagnostic
+  // retention. The separate access audit and ownership counters never expire here.
+  quotaSchema.index({ windowStart: 1 }, { expireAfterSeconds: 25 * 60 * 60 });
 
   const sitterStatusSchema = new Schema({
     userId: { type: Schema.Types.ObjectId, required: true },

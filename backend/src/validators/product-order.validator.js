@@ -1,5 +1,6 @@
+import { PAGE_QUERY_KEYS, parsePageQuery } from './pagination.validator.js';
 import { AppError } from '../utils/app-error.js';
-import { PRODUCT_RECEIVE_METHODS, PRODUCT_PAYMENT_BY_RECEIVE_METHOD, PRODUCT_LIMITS } from '../constants/product-fields.js';
+import { PRODUCT_RECEIVE_METHODS, PRODUCT_PAYMENT_BY_RECEIVE_METHOD } from '../constants/product-fields.js';
 import { parseObjectId, requireOnlyKeys } from './product.validator.js';
 
 const IDEMPOTENCY_KEY = /^[A-Za-z0-9._:-]{8,128}$/;
@@ -35,13 +36,8 @@ export function parsePlaceOrder(body) {
 }
 
 export function parseOrderListQuery(query = {}) {
-  if (Object.keys(query).some((key) => key !== 'limit')) throw new AppError(422, 'VALIDATION_FAILED', 'Query is invalid');
-  if (query.limit === undefined) return { limit: PRODUCT_LIMITS.defaultPageSize };
-  const limit = Number(query.limit);
-  if (!/^\d{1,3}$/.test(String(query.limit)) || limit < 1 || limit > PRODUCT_LIMITS.maxPageSize) {
-    throw new AppError(422, 'VALIDATION_FAILED', 'limit is invalid');
-  }
-  return { limit };
+  if (Object.keys(query).some(key => !PAGE_QUERY_KEYS.includes(key))) throw new AppError(422, 'VALIDATION_FAILED', 'Query is invalid');
+  return parsePageQuery(query);
 }
 
 export { parseObjectId };

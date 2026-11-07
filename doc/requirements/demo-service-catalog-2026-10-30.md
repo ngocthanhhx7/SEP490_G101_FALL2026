@@ -41,3 +41,7 @@ Backend: 81 suites/769 tests passed; frontend: 73 suites/458 tests passed, lint/
 Playwright: 1440×1000 and 390×844, all13 images rendered, category/location filters and detail
 navigation passed, no page errors or horizontal overflow. Later changes require fresh checks.
 Review coordination defaults to Ngọc Thành; independent PR approval is still required.
+
+## Care traits clarified 05/11/2026
+
+Owner confirmed slow introduction, carrier assistance and escape prevention are capability requirements without surcharge. Extended play stays within the selected billed service duration; no automatic extra minutes or trait fee. Existing coat/skin/weight/behaviour fees remain unchanged. See [versioned migration and checks](../testing/booking-care-trait-pricing-2026-11-05.md).

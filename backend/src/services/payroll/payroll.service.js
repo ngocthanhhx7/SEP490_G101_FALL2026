@@ -38,12 +38,14 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       { [field]: new Date(position.at), _id: { $lt: position.id } }] } : {}) };
     const rows = await model.find(filter).select(select).sort({ [field]: -1, _id: -1 }).limit(input.limit + 1).maxTimeMS(5000).lean();
     const items = rows.slice(0, input.limit), last = items.at(-1);
+    const names = kind.startsWith('admin-') ? await User.find({ _id: { $in: items.map(row => row.employeeId) } }).select('displayName').lean() : [];
+    const mapped = items.map(row => { const result = project(row); const name = names.find(user => String(user._id) === String(row.employeeId))?.displayName; return name ? { ...result, employeeName: result.employeeName ?? name } : result; });
     let nextCursor = null;
     if (rows.length > input.limit) {
       if (!codec) fail('PAYROLL_STORAGE_NOT_READY', 'Payroll cursor configuration required', 503);
       nextCursor = codec.encode({ id: String(last._id), at: last[field].toISOString() }, context);
     }
-    return { items: items.map(project), nextCursor, limit: input.limit };
+    return { items: mapped, nextCursor, limit: input.limit };
   }
   function role(actor, name) {
     if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles) || !actor.userId || actor.synthetic === true) fail('UNAUTHENTICATED', 'Authentication required', 401);
@@ -197,6 +199,21 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (!updated) fail('VERSION_CONFLICT', 'Advance changed', 409);
         await event(actor, record.employeeId, record._id, 'ADVANCE_' + input.action, input.reason, session); return publicAdvance(updated);
       });
+    },
+    async overview(actor) {
+      role(actor, 'ADMIN');
+      const [statements, advances] = await Promise.all([
+        models.PayrollStatement.aggregate([{ $group: { _id: '$status', count: { $sum: 1 }, amountVnd: { $sum: '$breakdown.payableVnd' } } }]).option({ maxTimeMS: 5000 }),
+        models.SalaryAdvance.aggregate([{ $match: { status: 'SUBMITTED' } }, { $group: { _id: null, count: { $sum: 1 } } }]).option({ maxTimeMS: 5000 })
+      ]);
+      const summary = { total: 0, prepared: 0, awaitingPaymentVnd: 0, pendingAdvances: advances[0]?.count ?? 0 };
+      for (const row of statements) {
+        summary.total += row.count;
+        if (row._id === 'PREPARED') summary.prepared = row.count;
+        if (row._id === 'APPROVED') summary.awaitingPaymentVnd = row.amountVnd;
+      }
+      if (Object.values(summary).some(value => !Number.isSafeInteger(value))) fail('PAYROLL_OVERFLOW', 'Report exceeds supported integer amounts', 409);
+      return { summary, asOf: now() };
     },
     async prepareStatement(actor, body, key, sourceDraft) {
       role(actor, 'ADMIN'); const input = payrollAssessmentInput(body); await policyFor('STATEMENT');
