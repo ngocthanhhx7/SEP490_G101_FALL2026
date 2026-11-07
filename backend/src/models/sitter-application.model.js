@@ -1,5 +1,6 @@
 import { Schema } from 'mongoose';
 import { applicationMailModel } from './application-mail.model.js';
+import { concurrencyGuardField } from './concurrency-guard.field.js';
 
 const STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'];
 
@@ -90,6 +91,7 @@ export function sitterApplicationModels(connection) {
   quotaSchema.index({ windowStart: 1 }, { expireAfterSeconds: 25 * 60 * 60 });
 
   const sitterStatusSchema = new Schema({
+    schedulingGuardVersion: concurrencyGuardField(),
     userId: { type: Schema.Types.ObjectId, required: true },
     status: { type: String, enum: ['ACTIVE', 'SUSPENDED'], required: true },
     statusReason: { type: String, default: null, maxlength: 1000, select: false },
