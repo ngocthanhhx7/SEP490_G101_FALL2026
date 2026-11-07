@@ -15,7 +15,7 @@ const equivalent = indexes => indexes.find(index => compatibleKey(index.key) && 
 export async function inspectBookingReadStorage(connection) {
   const info = await connection.db.listCollections({ name: 'bookings' }, { maxTimeMS: 5000 }).next();
   const report = { state: 'DRY_RUN', collectionExists: !!info, documents: 0, owners: {}, invalidIdentifiers: 0,
-    invalidOwners: 0, equivalentIndex: null, conflicts: 0, dataDigest: null, digest: null };
+    invalidOwners: 0, equivalentIndex: null, conflicts: 0, ownerKeyDigest: null, digest: null };
   if (!info) return report;
   const collection = connection.db.collection('bookings'), indexes = await collection.listIndexes({ maxTimeMS: 5000 }).toArray();
   report.equivalentIndex = equivalent(indexes)?.name ?? null;
@@ -33,11 +33,11 @@ export async function inspectBookingReadStorage(connection) {
     if (!['objectId', 'missing', 'null'].includes(ownerType)) report.invalidOwners++;
     hash.update(BSON.serialize({ _id: doc._id, ...(Object.hasOwn(doc, 'customerId') ? { customerId: doc.customerId } : {}) }));
   }
-  report.dataDigest = hash.digest('hex');
+  report.ownerKeyDigest = hash.digest('hex');
   // Bind an apply to both current data and index options, never to document count alone.
   const metadata = indexes.map(({ name, key, unique, sparse, partialFilterExpression, expireAfterSeconds, collation, hidden }) =>
     ({ name, key, unique, sparse, partialFilterExpression, expireAfterSeconds, collation, hidden })).sort((a, b) => a.name.localeCompare(b.name));
-  report.digest = createHash('sha256').update(report.dataDigest).update(BSON.serialize({ indexes: metadata })).digest('hex');
+  report.digest = createHash('sha256').update(report.ownerKeyDigest).update(BSON.serialize({ indexes: metadata })).digest('hex');
   return report;
 }
 
@@ -52,7 +52,7 @@ export async function provisionBookingReadStorage({ connection, apply = false, e
   await assertBookingReadStorage(connection);
   const after = await inspectBookingReadStorage(connection);
   if (after.conflicts || after.invalidIdentifiers || after.invalidOwners) throw new Error('Post-build booking preflight failed; retain index for investigation');
-  return { ...after, state: 'INDEX_READY', created: true, dataChangedDuringBuild: before.dataDigest !== after.dataDigest };
+  return { ...after, state: 'INDEX_READY', created: true, ownerKeysChangedDuringBuild: before.ownerKeyDigest !== after.ownerKeyDigest };
 }
 
 export async function assertBookingReadStorage(connection) {

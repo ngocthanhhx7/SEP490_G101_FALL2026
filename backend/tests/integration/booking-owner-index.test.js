@@ -38,7 +38,7 @@ test('dry-run never creates storage and apply requires matching data and index m
   await expect(provisionBookingReadStorage({ connection, apply: true, expectedDigest: before.digest })).rejects.toThrow();
   const current = await inspectBookingReadStorage(connection);
   expect(await provisionBookingReadStorage({ connection, apply: true, expectedDigest: current.digest })).toMatchObject({
-    state: 'INDEX_READY', created: true, dataDigest: before.dataDigest, dataChangedDuringBuild: false });
+    state: 'INDEX_READY', created: true, ownerKeyDigest: before.ownerKeyDigest, ownerKeysChangedDuringBuild: false });
   expect(await provisionBookingReadStorage({ connection, apply: true,
     expectedDigest: (await inspectBookingReadStorage(connection)).digest })).toMatchObject({ state: 'ALREADY_READY', created: false });
   expect(await c.countDocuments()).toBe(4000);
@@ -65,7 +65,7 @@ test('indexed pages preserve ownership, cursor context, expired-payment DTO and 
   expect(stats.executionStats.totalKeysExamined).toBe(21);
   const empty = await c.find({ customerId: new mongoose.Types.ObjectId() }, { maxTimeMS: 5000 }).sort({ _id: -1 }).limit(21).explain('executionStats');
   expect(empty.executionStats.totalDocsExamined).toBe(0);
-  expect((await inspectBookingReadStorage(connection)).dataDigest).toBe(pre.dataDigest);
+  expect((await inspectBookingReadStorage(connection)).ownerKeyDigest).toBe(pre.ownerKeyDigest);
 });
 
 test('legacy missing/null owners remain untouched; malformed owner types block provision', async () => {
