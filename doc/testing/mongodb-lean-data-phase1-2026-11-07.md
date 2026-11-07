@@ -71,3 +71,13 @@ metadata và tạo TTL có thể xóa 7 quota; không drop collection trong đ�
 Sau rollout đọc catalog/guards và dry-run identical/count/digest. Chỉ cleanup
 legacy sau cửa sổ rollback, fresh comparison và xác nhận cụ thể. Các provider,
 HR signature/payment/dispatch business writes không được kiểm thử thật từ fixture.
+
+## Sửa fixture sau release CI
+
+PR release #202 có một lượt CI thất bại ở `operations-workspace.test.js` dù
+CI feature/develop thành công. Fixture payroll chèn nhiều active statements
+không có employee/period; khi `active_payroll_period` đã build xong, các key đều
+null nên E11000. Đã tái hiện ổn định bằng việc await `PayrollStatement.init()`.
+Fixture nay chờ index và cấp employeeId synthetic riêng cùng period cụ thể;
+không bỏ/đổi unique index, không thay payroll runtime hay dữ liệu thật. Gate
+release vẫn cần CI của head mới thành công; không coi lượt thất bại là pass.
