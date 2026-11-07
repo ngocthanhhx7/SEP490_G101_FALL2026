@@ -86,6 +86,10 @@ test('missing historical evidence is never fabricated and existing provenance is
   expect(report.uncoveredVersions).toBe(1);
   await expect(migrateCatalogAudits({ connection, apply: true, expectedDigest: report.digest })).rejects.toThrow();
   await connection.db.collection('servicepolicyversions').deleteOne({ version: 2 });
+  await connection.db.collection('serviceversions').updateOne({ _id: data[0].version._id }, { $set: { changeAudit: null } });
+  report = await migrateCatalogAudits({ connection });
+  expect(report).toMatchObject({ conflicts: 1, invalidVersion: 1 });
+  await expect(migrateCatalogAudits({ connection, apply: true, expectedDigest: report.digest })).rejects.toThrow();
   await connection.db.collection('serviceversions').updateOne({ _id: data[0].version._id },
     { $set: { changeAudit: createCatalogChange('SERVICE_CREATED', ['different']) } });
   report = await migrateCatalogAudits({ connection });

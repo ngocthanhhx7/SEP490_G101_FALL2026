@@ -74,7 +74,7 @@ async function inspect(connection) {
       const base = { ...parent }; delete base.changeAudit;
       report.provenanceBytes += bytes({ ...base, changeAudit: change }) - bytes(base);
       if (!Object.hasOwn(parent, 'changeAudit')) report.pending++;
-      else if (await validVersion(models[index], parent, parent.changeAudit)
+      else if (parent.changeAudit && await validVersion(models[index], parent, parent.changeAudit)
         && fingerprint(catalogAuditRecord(definition, parent)) === signature) report.embedded++;
       else report.conflicts++;
     }
