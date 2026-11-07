@@ -1,5 +1,10 @@
 # Product shop components
 
+`StockHistoryPanel` reads receipt history for the selected stock product, displays
+`receivedOn` and accepted quantity including +0, and appends signed-cursor pages.
+Unmounting or changing requests aborts them and ignores late responses. No order
+events or fabricated adjustments appear; additional history kinds require an API extension.
+
 `ProductImageManager` previews and confirms Admin gallery uploads/replacements/
 removals. It revokes preview URLs, blocks writes during dirty text edits, requires
 reload after unknown acknowledgements and never treats a local preview as saved.

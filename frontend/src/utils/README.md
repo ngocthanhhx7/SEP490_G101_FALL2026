@@ -1,5 +1,8 @@
 # Pure UI helpers
 
+`stock-format.js` formats integer stock quantities and signed history deltas, including
++0. It performs no availability or status calculation. Receipt days reuse `formatDay`.
+
 `product-photo.js` maps generated product-photo URLs to the Admin reader for hidden
 product previews. Static assets keep their paths; this is URL formatting only.
 
