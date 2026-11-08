@@ -1,5 +1,10 @@
 # Domain services
 
+`legacy-storage-retirement.service.js` owns bounded empty-store inspection and
+explicit retirement/restoration for the fixed compensation profile legacy set.
+It verifies metadata and keeps compound index field order; it never deletes
+business records or chooses collections by their emptiness alone.
+
 `catalog-audit-migration.service.js` owns copy, verified cleanup and reverse-copy
 orchestration for provenance embedded in immutable catalog versions. It reconstructs
 legacy audit views from canonical facts, preserves BSON types/IDs, never
