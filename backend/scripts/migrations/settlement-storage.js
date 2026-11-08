@@ -1,6 +1,7 @@
 import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
 import { provisionSettlementStorage } from '../../src/services/settlements/provisioning.js';
+import { storageProfile } from '../../src/config/storage-profile.js';
 
 if (!process.argv.includes('--apply')) {
   console.log(JSON.stringify({ state: 'DRY_RUN', operation: 'Create missing settlement collections and indexes; optional explicit retirement of the known sparse visit ownership index; never rewrite records' }));
@@ -11,7 +12,7 @@ if (!process.argv.includes('--apply')) {
     if (config.nodeEnv === 'production') throw new Error('Production provisioning is outside this command scope');
     connection = await connectDatabase(config);
     await provisionSettlementStorage(connection,
-      { retireLegacyVisitIndex: process.argv.includes('--retire-legacy-visit-index') });
+      { retireLegacyVisitIndex: process.argv.includes('--retire-legacy-visit-index'), compensationProfile: storageProfile(process.env) });
     console.log(JSON.stringify({ state: 'STORAGE_PROVISIONED', policyState: 'UNCHANGED' }));
   } catch {
     console.error('Settlement provisioning failed; raw database details omitted');

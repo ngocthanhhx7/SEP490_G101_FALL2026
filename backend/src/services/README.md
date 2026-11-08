@@ -65,3 +65,7 @@ Public profile moderation lists SUBMITTED/APPROVED/REJECTED states with state-sc
 provision of the raw bookings owner/cursor index. Deployment asserts an equivalent
 plain two-field index (including reverse scans); it never silently creates one.
 Missing/null legacy owners are preserved, unknown types/conflicts block apply.
+
+`retired-compensation.service.js` is the EMPLOYEE compatibility facade for legacy
+settlement/earnings routes. It returns a retired-domain error after existing HTTP
+security middleware, and never registers or queries legacy compensation storage.

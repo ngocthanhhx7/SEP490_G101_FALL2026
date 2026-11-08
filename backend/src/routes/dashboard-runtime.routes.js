@@ -20,14 +20,15 @@ import { createMongoDashboardRepositories } from '../services/dashboards/mongo-p
 import { createWorkspaceAnalytics } from '../services/dashboards/workspace-analytics.service.js';
 import { createWorkspaceAnalyticsController } from '../controllers/workspace-analytics.controller.js';
 import { requireSession } from '../middlewares/session.js';
+import { storageProfile } from '../config/storage-profile.js';
 
 // The application registry composes durable readers. Missing primary collections
 // remain INTEGRATION_PENDING rather than becoming successful empty projections.
-export function dashboardReadRuntimeModule({ config, connection, clock = Date.now,
+export function dashboardReadRuntimeModule({ config, connection, clock = Date.now, env = {},
   repositories = {}, sessionService } = {}) {
   if (!config?.auth?.enabled) return null;
   const durableRepositories = createMongoDashboardRepositories({ connection,
-    cursorSecret: config.auth.tokenSecret });
+    cursorSecret: config.auth.tokenSecret, compensationProfile: storageProfile(env) });
   // Explicit ports override the durable readers for isolated integration checks.
   const sourceRepositories = { ...durableRepositories, ...repositories };
   const session = sessionService ?? createSessionService({ connection,

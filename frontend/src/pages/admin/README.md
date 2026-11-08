@@ -1,5 +1,10 @@
 # Admin pages
 
+Approved employee payroll offers `VOID_UNPAID` only after an explicit no-payment
+attestation and reason. This preserves the old breakdown, releases source claims
+server-side and lets Admin prepare salary again while disputed booking commission
+remains held. Paid statements use the existing separate reconciliation workflow.
+
 Product Management includes a separate `ProductImageManager` after saving the
 product. Save pending text changes before gallery edits. Upload, replacement and
 confirmed removal return the updated product version; unknown acknowledgements
