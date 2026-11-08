@@ -25,8 +25,8 @@ legacy audit views from canonical facts, preserves BSON types/IDs, never
 overwrites conflicts, defaults to aggregate dry-run and requires writer-drain
 confirmation for cleanup/reverse. It does not migrate pricing or financial state.
 
-`service-presentation.service.js` reads embedded Service metadata with legacy
-fallback and owns provisioning compatibility writes. Its migration service
+`service-presentation.service.js` reads and provisions canonical embedded Service
+metadata without legacy fallback or mirror writes. Its migration service
 performs aggregate-only dry-run or explicitly confirmed additive copies; it
 never removes the legacy collection. `service-catalog.service.js` batches public
 policy/price reads and projects catalog metadata without private audit fields.

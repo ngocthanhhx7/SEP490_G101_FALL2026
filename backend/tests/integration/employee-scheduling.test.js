@@ -610,6 +610,35 @@ test('system recovery previews precise area, requires customer consent and reche
   expect((await connection.collection('visits').findOne({ _id: row._id })).state).toBe('ASSIGNED');
 });
 
+test('dispatch batches projected account/status prefilters while retaining authoritative eligibility', async () => {
+  const workers = await Promise.all(Array.from({ length: 4 }, () => employee()));
+  const row = await visit();
+  await connection.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(workers[1].userId) }, { $set: { state: 'LOCKED' } });
+  await connection.collection('sitterstatuses').updateOne({ userId: new mongoose.Types.ObjectId(workers[2].userId) }, { $set: { status: 'SUSPENDED' } });
+  const reads = [], checked = [];
+  const repository = { ...module.repository,
+    col: name => {
+      const collection = module.repository.col(name);
+      return new Proxy(collection, { get(target, key) {
+        if (key === 'find') return (query, options) => {
+          if (['users', 'sitterstatuses'].includes(name) && (query._id?.$in || query.userId?.$in)
+            && !options?.projection?.displayName) reads.push({ name, query, projection: options?.projection });
+          return target.find(query, options);
+        };
+        const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
+      } });
+    }, eligible: async (...args) => { checked.push(args[0]); return module.repository.eligible(...args); }
+  };
+  const dispatch = createEmployeeDispatchService({ repository, clock });
+  const result = await dispatch.previewCandidates(staff, String(row._id), { startAt: row.startAt.toISOString() });
+  expect(reads).toHaveLength(2);
+  expect(reads.map(read => read.projection)).toEqual([{ _id: 1 }, { userId: 1 }]);
+  expect(reads.every(read => (read.query._id?.$in ?? read.query.userId.$in).length <= 100)).toBe(true);
+  expect(checked).toContain(workers[0].userId);
+  expect(checked).not.toContain(workers[1].userId); expect(checked).not.toContain(workers[2].userId);
+  expect(result.items.some(item => item.sitterId === workers[0].userId)).toBe(true);
+});
+
 test('recovery rejects unrelated areas, customer-selected sitter replacement, missing origin, unpaid and boarding changes', async () => {
   const sitter = await employee(), other = await employee();
   const row = await visit({ start: '2026-11-26T02:00:00Z', requestedSitterId: sitter.userId });

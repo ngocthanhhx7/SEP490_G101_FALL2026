@@ -449,12 +449,20 @@ export function createServiceCatalogService({
     const parentIds = serviceDetails.map(service => service._id);
     // Select the effective state before filtering ACTIVE so retirement cannot
     // resurrect an older active service; return one row per service, not history.
-    const versions = await ServiceVersion.aggregate([
-      { $match: { serviceId: { $in: parentIds }, effectiveAt: { $lte: at } } },
+    const latest = ids => [
+      { $match: { serviceId: ids, effectiveAt: { $lte: at } } },
       { $sort: { serviceId: -1, effectiveAt: -1 } },
       { $group: { _id: '$serviceId', current: { $first: '$$ROOT' } } },
       { $replaceRoot: { newRoot: '$current' } }
+    ];
+    const versions = await ServiceVersion.aggregate([
+      ...latest({ $in: parentIds }),
+      // Do not conceal orphan errors while optimizing valid parent traversal.
+      // This disjoint index-range branch keeps the former ACTIVE/PUBLISHED
+      // missing-parent 404 and does not scan each parent's historical rows.
+      { $unionWith: { coll: ServiceVersion.collection.name, pipeline: [...latest({ $nin: parentIds }), { $limit: 1001 }] } }
     ]).option({ maxTimeMS: 5000 });
+    if (versions.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
     const current = new Map();
     for (const version of versions)
       if (!current.has(version.serviceId.toString()))
@@ -462,6 +470,13 @@ export function createServiceCatalogService({
     const serviceIds = [...current.values()].map(
       (version) => version.serviceId
     );
+    const knownParents = new Set(parentIds.map(String)), unknownParents = serviceIds.filter(id => !knownParents.has(String(id)));
+    if (unknownParents.length) {
+      // A parent may have been created after the initial read; preserve the
+      // existing non-snapshot read contract before classifying it as missing.
+      serviceDetails.push(...await Service.find({ _id: { $in: unknownParents } }).select('code presentation').limit(1001).lean());
+      if (serviceDetails.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
+    }
     const codes = new Map(
       serviceDetails.map((service) => [service._id.toString(), service.code])
     );
