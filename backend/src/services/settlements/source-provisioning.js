@@ -11,6 +11,8 @@ const primaryIndexes = [
 ];
 const lookupIndexes = ['cases', 'refunds', 'visits'].map(name =>
   [name, { bookingId: 1 }, { name: 'booking_source_lookup' }]);
+// Shared with the read-only metadata inspector; provisioning remains explicit.
+export const financeSourceIndexes = [...primaryIndexes, ...lookupIndexes];
 
 export async function provisionFinanceSources(connection, { legacyTasks = false } = {}) {
   for (const model of Object.values(financeSourceModels(connection, { legacyTasks }))) {
@@ -21,7 +23,7 @@ export async function provisionFinanceSources(connection, { legacyTasks = false 
       await connection.db.createCollection(name);
     }
   }
-  for (const [name, keys, options] of [...primaryIndexes, ...lookupIndexes]) await connection.db.collection(name).createIndex(keys, options);
+  for (const [name, keys, options] of financeSourceIndexes) await connection.db.collection(name).createIndex(keys, options);
 }
 
 export async function assertFinanceSourceStorage(connection, { legacyTasks = false } = {}) {

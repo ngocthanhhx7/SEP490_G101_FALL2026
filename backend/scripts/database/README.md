@@ -1,5 +1,17 @@
 # MongoDB diagnostics
 
+`check-storage-contracts.js [--catalog-provenance=required|optional|unasserted]`
+only reads collection/index metadata for the selected runtime and feature flags.
+Run with `node --env-file-if-exists=.env scripts/database/check-storage-contracts.js
+--catalog-provenance=required` after the required-provenance catalog cutover.
+The default leaves catalog provenance unasserted; rollback tooling may explicitly
+select `optional`. It never creates storage, starts jobs or calls providers.
+Exit 1 means a critical mismatch or unreadable metadata; missing nonunique read
+indexes produce warnings with exit 0. `READY` covers only the manifest contracts;
+`unasserted` explicitly lists validator/collection coverage gaps, including raw
+financial validators that have no approved native contract. No usage/latency or
+full financial integrity claim follows. See the [scope and evidence](../../../doc/database/storage-contract-drift-2026-11-08.md).
+
 `refine-catalog-storage.js --scope=presentations|indexes` defaults to a new private
 manifest dry-run. Apply/restore require explicit database, digest and writer
 freeze. Follow the [refinement plan](../../../doc/database/database-layout-refinement-2026-11-08.md)
