@@ -5,13 +5,16 @@ import { provisionInitialCatalog } from './initial-catalog-provisioning.service.
 import { provisionServicePresentation } from './service-presentation.service.js';
 import { pricingModels } from '../models/pricing.model.js';
 import { petCareModels } from '../models/pet-care.model.js';
+import { referenceCatalogSource } from '../models/reference-catalog-source.js';
+import { provisionReferenceCatalogStorage } from './reference-catalog-storage.service.js';
 
-export async function provisionDemoCatalog({ connection, clock = Date.now }) {
+export async function provisionDemoCatalog({ connection, clock = Date.now, referenceCatalog }) {
+  const { PetTrait } = petCareModels(connection, { referenceCatalog });
+  if (referenceCatalogSource(connection) === 'target') await provisionReferenceCatalogStorage(connection.db);
   const catalog = await provisionInitialCatalog({ connection, clock, entries: demoServiceCatalog,
     runKey: demoCatalogKey + '-services', authorization: 'Owner requested the demo service sheet and confirmed combo/weight rules on 2026-10-30' });
   const { PricingPolicy } = pricingModels(connection);
-  const { PetTrait } = petCareModels(connection);
-  for (const model of [PricingPolicy, PetTrait]) { await model.createCollection(); await model.createIndexes(); }
+  for (const model of [PricingPolicy, ...(referenceCatalogSource(connection) === 'legacy' ? [PetTrait] : [])]) { await model.createCollection(); await model.createIndexes(); }
   const runs = connection.collection('catalogprovisioningruns');
   const result = await connection.transaction(async session => {
     if (await runs.findOne({ key: demoCatalogKey }, { session })) return { state: 'ALREADY_APPLIED' };

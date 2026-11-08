@@ -1,5 +1,10 @@
 # Domain services
 
+`reference-catalog-migration.service.js` owns bounded insert-only catalog copy and
+checkpointed reverse reconciliation after target writes. Its storage service
+provisions strict typed validation and three indexes; readers inherit one
+connection-scoped source and never combine legacy with target data.
+
 `legacy-storage-retirement.service.js` owns bounded empty-store inspection and
 explicit retirement/restoration for the fixed compensation profile legacy set.
 It verifies metadata and keeps compound index field order; it never deletes

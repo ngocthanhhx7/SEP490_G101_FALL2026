@@ -2,6 +2,14 @@
 
 Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
 
+Reference catalog candidate: `ensure-indexes.js`, `provision-demo-catalog.js`
+and `provision-hanoi-demo.js` accept `--reference-catalog=target`. The same option
+is supported by the affected seed/demo CLIs. Default is legacy. Choice is bound to
+the connection before any model construction and cannot be switched later.
+Target deployment provisions only `reference_catalog` for breeds/traits, asserts
+strict validator/exact index shape, and rejects leaked legacy registry models.
+See [candidate cutover plan](../../../doc/database/reference-catalog-candidate.md).
+
 `provision-demo-catalog.js` installs the owner-approved 13-service sheet catalog.
 Dry-run is the default. After backup, use the reviewed image with `--apply` and
 explicit `CONFIRMED_CATALOG_KEY=pawworld-demo-sheet-2026-10-30-v1` plus

@@ -1,5 +1,17 @@
 # Persistence models
 
+`reference-catalog.model.js` is an opt-in typed candidate for PetBreed/PetTrait.
+`petCareModels(connection)` retains `aibreeds`/`aitraits`; explicitly supplying
+`{ referenceCatalog: 'target' }` returns kind-scoped Mongoose discriminators in
+`reference_catalog`. IDs and per-kind code uniqueness remain stable. The internal
+kind is hidden from ordinary query projections. Connection source is locked by
+`reference-catalog-source.js`; conflicting factories/registry leaks fail closed.
+The target replaces the generic active/code index with a BREED-only partial index
+on active/species/name; it still has exactly three indexes including `_id_`.
+`reference-catalog.storage.js` declares its native strict/error validator and
+indexes. Legacy remains default; runtime/seed/deployment source opt-in is explicit.
+See [migration/cutover plan](../../../doc/database/reference-catalog-candidate.md).
+
 `concurrency-guard.field.js` describes existing raw transaction guards on User,
 Pet, CustomerAddress, SitterStatus and SitterMatchingProfile. Fields are optional,
 hidden and nonnegative safe integers, with no default, index or backfill. Do not

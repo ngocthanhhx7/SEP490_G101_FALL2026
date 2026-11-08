@@ -1,5 +1,8 @@
 import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
+import { referenceCatalogCliSource } from '../../src/models/reference-catalog-source.js';
+import { referenceCatalogSource } from '../../src/models/reference-catalog-source.js';
+import { provisionReferenceCatalogStorage } from '../../src/services/reference-catalog-storage.service.js';
 import { matchingModels } from '../../src/models/sitter-matching.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { DEFAULT_WEIGHTS } from '../../src/services/sitter-matching/scoring.service.js';
@@ -84,12 +87,13 @@ if (!process.argv.includes('--apply'))
 else {
   let connection;
   try {
-    connection = await connectDatabase(loadConfig());
+    connection = await connectDatabase(loadConfig(), { referenceCatalog: referenceCatalogCliSource() });
     const models = {
       ...matchingModels(connection),
       ...petCareModels(connection)
     };
-    for (const model of Object.values(models)) await model.createIndexes();
+    if (referenceCatalogSource(connection) === 'target') await provisionReferenceCatalogStorage(connection.db);
+    for (const model of Object.values(models)) if (model.collection.name !== 'reference_catalog') await model.createIndexes();
     const result = await connection.transaction(async (session) => {
       for (const breed of breeds)
         await models.PetBreed.updateOne(
