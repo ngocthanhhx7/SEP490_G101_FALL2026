@@ -1,5 +1,12 @@
 # Weekly settlement boundary (P41 / WBS-N05)
 
+The EMPLOYEE booking-finance composition does not instantiate legacy partner
+accrual or register its 16 earning/settlement models. Explicit LEGACY_PARTNER
+composition retains that producer. This does not retire existing collections:
+settlement routes, earnings dashboards and complaint holds still have separate
+legacy dependencies. See the [collection architecture review](../../../../doc/database/collection-architecture-2026-11-08.md)
+before changing provisioning or removing storage.
+
 The employee execution reader in `booking-finance-source.service.js` exposes only
 the assigned employee's state, version, timestamps and checklist at
 `GET /api/v1/visits/:id/execution`. It shares the existing assignment/status/booking
