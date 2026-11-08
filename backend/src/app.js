@@ -34,6 +34,7 @@ import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.ro
 import { mapsRuntimeModule } from './routes/maps.routes.js';
 import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
 import { customerReadRuntime } from './routes/customer-read-runtime.js';
+import { storageProfile, assertProfileModels } from './config/storage-profile.js';
 
 
 export function createApp({
@@ -71,6 +72,7 @@ export function createApp({
     })
   );
   app.use(express.json({ limit: '64kb', strict: true }));
+  const compensationProfile = storageProfile(env);
   const context = { config, connection, lifecycle, ports, clock, env };
   const ai = aiRuntimeModule(context);
   const pricing = pricingRuntimeModule(context);
@@ -82,6 +84,7 @@ export function createApp({
   const financeSources = financeSourceRuntime(context);
   if (auth && financeSources) auth.router.use(financeSources.router);
   app.locals.financeSources = financeSources?.service ?? null;
+  app.locals.compensationProfile = compensationProfile;
   const customerProfile = customerProfileRuntimeModule(context);
   const avatars = avatarRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
@@ -154,6 +157,7 @@ export function createApp({
     ...(ai ? [ai] : []),
     ...suppliedModules.filter(module => !auth || module.name !== 'dashboard-read')
   ]);
+  if (connection?.models) assertProfileModels(connection, compensationProfile);
   app.use(notFound, errorHandler(logger));
   return app;
 }

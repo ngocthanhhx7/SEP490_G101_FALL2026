@@ -52,7 +52,7 @@ test.each([undefined, 'EMPLOYEE'])('employee composition (%s) does not provision
 test('explicit legacy composition retains its collections, unique indexes and producer', async () => {
   const connection = await connect('explicit_legacy');
   createBookingFinanceSourceService({ connection, compensationModel: 'LEGACY_PARTNER' });
-  await provisionDeploymentStorage({ connection });
+  await provisionDeploymentStorage({ connection, env: { COMPENSATION_PROFILE: 'LEGACY_PARTNER' } });
   const physical = (await connection.db.listCollections({}, { nameOnly: true }).toArray()).map(row => row.name);
   expect(legacyCollections).toHaveLength(16);
   expect(legacyCollections.every(name => physical.includes(name))).toBe(true);

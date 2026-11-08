@@ -9,13 +9,15 @@ import { createFinanceSourceController } from '../controllers/finance-source.con
 import { createComplaintService } from '../services/complaints/complaint.service.js';
 import { createMongoComplaintRepository } from '../services/complaints/mongo-complaint.repository.js';
 import { createComplaintRouter } from './complaint.routes.js';
+import { storageProfile } from '../config/storage-profile.js';
 
 export function financeSourceRuntime({ config, connection, env = {}, clock = Date.now, sessionService }) {
   if (env.FINANCE_SOURCES_ENABLED !== undefined && !['true', 'false'].includes(env.FINANCE_SOURCES_ENABLED)) {
     throw new TypeError('FINANCE_SOURCES_ENABLED must be true or false');
   }
   if (env.FINANCE_SOURCES_ENABLED !== 'true' || !config.auth?.enabled || !connection?.db) return null;
-  const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()), compensationModel: 'EMPLOYEE' });
+  const compensationModel = storageProfile(env);
+  const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()), compensationModel });
   const session = sessionService ?? createSessionService({ connection, clock,
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const payos = loadPayosConfig(env);
@@ -24,7 +26,7 @@ export function financeSourceRuntime({ config, connection, env = {}, clock = Dat
   const controller = createFinanceSourceController({ service, webhook });
   const router = Router();
   const complaints = createComplaintService({ repository: createMongoComplaintRepository({ connection,
-    finance: service, cursorSecret: config.auth.tokenSecret }), clock: () => new Date(clock()) });
+    finance: service, cursorSecret: config.auth.tokenSecret, compensationModel }), clock: () => new Date(clock()) });
   router.use('/complaints', createComplaintRouter({ service: complaints, sessionService: session }));
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
   const auth = requireSession(session, { clock }), csrf = requireCsrf(session), sitter = requireRoles('PET_SITTER');

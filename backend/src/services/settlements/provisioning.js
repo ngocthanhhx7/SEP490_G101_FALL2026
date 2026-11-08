@@ -1,9 +1,11 @@
 import { settlementModels } from '../../models/settlement.model.js';
 import { earningAccrualModels } from '../../models/earning-accrual.model.js';
+import { storageProfile } from '../../config/storage-profile.js';
 
 // Explicit, additive provisioning; never invoked by server startup. Existing
 // incompatible indexes/data fail for operator review instead of being dropped.
-export async function provisionSettlementStorage(connection, { retireLegacyVisitIndex = false } = {}) {
+export async function provisionSettlementStorage(connection, { retireLegacyVisitIndex = false, compensationProfile = 'LEGACY_PARTNER' } = {}) {
+  if (storageProfile({ COMPENSATION_PROFILE: compensationProfile }) !== 'LEGACY_PARTNER') throw new Error('Legacy compensation provisioning requires LEGACY_PARTNER');
   const models = { ...settlementModels(connection), ...earningAccrualModels(connection) };
   for (const model of Object.values(models)) {
     await model.createCollection();

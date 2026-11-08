@@ -38,7 +38,7 @@ beforeEach(async () => {
   actors = [0, 1].map(() => ({ userId: String(oid()), state: 'ACTIVE', roles: ['PET_SITTER'], expiresAt: at.getTime() + 86400000 }));
   admin = { userId: String(oid()), state: 'ACTIVE', roles: ['ADMIN'], expiresAt: at.getTime() + 86400000 };
   customer = { userId: String(oid()), state: 'ACTIVE', roles: ['CUSTOMER'], expiresAt: at.getTime() + 86400000 };
-  complaints = createComplaintService({ repository: createMongoComplaintRepository({ connection, finance: service,
+  complaints = createComplaintService({ repository: createMongoComplaintRepository({ connection, finance: service, compensationModel: 'LEGACY_PARTNER',
     cursorSecret: 'synthetic-complaint-cursor-secret-0001' }), clock: () => at });
   for (const actor of actors) await models.SitterStatus.create({ userId: actor.userId, status: 'ACTIVE', changedAt: at });
   booking = { _id: oid(), customerId: new mongoose.Types.ObjectId(customer.userId),

@@ -3,10 +3,12 @@ import { payrollModels } from '../../models/payroll.model.js';
 import { exact, id, number, fail } from '../../validators/pet-care.validator.js';
 import { contractDate } from '../../validators/employment-document.validator.js';
 import { calculateEmployeePayroll } from './payroll-calculation.service.js';
+import { createCommissionSources } from './commission-source.service.js';
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const DAY = 86400000;
 export function createPayrollDraftService({ connection, clock = Date.now }) {
   const { EmploymentContract: Contract, PayrollServiceCredit: Credit, SalaryAdvance: Advance } = payrollModels(connection);
+  const commissionSources = createCommissionSources({ connection });
   const admin = actor => { if (actor?.state !== 'ACTIVE' || !actor.roles?.includes('ADMIN')) fail('FORBIDDEN', 'Admin required', 403); };
   return {
     async employees(actor) {
@@ -47,22 +49,28 @@ export function createPayrollDraftService({ connection, clock = Date.now }) {
       if (input.attendanceConfirmed !== true || input.statutoryConfirmed !== true) fail('PAYROLL_EVIDENCE_REQUIRED', 'Verify attendance, overtime/night pay, tax and insurance before preparing', 422);
       const credits = await Credit.find({ employeeId: input.employeeId, completedAt: { $gte:start,$lt:end } }).sort({ _id:1 }).limit(1001).session(session ?? null).lean();
       if (credits.length>1000) fail('PAYROLL_REVIEW_REQUIRED','Too many service credits',409);
+      const commission = await commissionSources.payable(input.employeeId, end, session);
       const assessment = { employeeId:input.employeeId,periodStart:start.toISOString(),periodEnd:end.toISOString(),dueAt:due.toISOString(),
         scheduledMonthMinutes,paidPeriodMinutes:plannedPeriodMinutes-input.unpaidMinutes,kpiTargetMinutes:0,seriousViolationConfirmed:false,includeMonthlyBonus:false,
         overtimeVnd:input.overtimeVnd,employeeInsuranceVnd:input.employeeInsuranceVnd,incomeTaxVnd:input.incomeTaxVnd,otherLawfulDeductionsVnd:input.otherLawfulDeductionsVnd,
         assessmentReference:input.attendanceReference.trim()+' | '+input.statutoryReference.trim(),deductionConsentReference:input.deductionConsentReference.trim(),advanceRepayments:[] };
       if (assessment.assessmentReference.length>160) fail('VALIDATION_FAILED','Combined source references must fit 160 characters');
       const breakdown=calculateEmployeePayroll({contract,scheduledMinutes:scheduledMonthMinutes,paidMinutes:assessment.paidPeriodMinutes,
-        serviceNetVnd:credits.reduce((sum,row)=>sum+row.serviceNetVnd,0),kpi:{targetMinutes:0,completedMinutes:credits.reduce((sum,row)=>sum+row.careMinutes,0),onTimeBps:0,reportBps:0,seriousViolationConfirmed:false},
+        serviceNetVnd:commission.payable.reduce((sum,row)=>sum+row.serviceNetVnd,0),kpi:{targetMinutes:0,completedMinutes:credits.reduce((sum,row)=>sum+row.careMinutes,0),onTimeBps:0,reportBps:0,seriousViolationConfirmed:false},
         overtimeVnd:input.overtimeVnd,employeeInsuranceVnd:input.employeeInsuranceVnd,incomeTaxVnd:input.incomeTaxVnd,otherLawfulDeductionsVnd:input.otherLawfulDeductionsVnd});
       const advances=await Advance.find({employeeId:input.employeeId,status:'PAID',settlementPeriod:{$lte:month}}).select('_id amountVnd').limit(100).session(session ?? null).lean();
       const sourceHash=hash({policyVersion:breakdown.policyVersion,contractId:String(contract._id),version:contract.version,schedule:contract.schedule,workScheduleMode:contract.workScheduleMode,minimumWeeklyMinutes:contract.minimumWeeklyMinutes,terms:[contract.monthlyBaseVnd,contract.monthlyAllowanceVnd],assessment,
-        credits:credits.map(row=>[String(row._id),row.sourceVersion,row.serviceNetVnd,row.careMinutes]),advances:advances.map(row=>[String(row._id),row.amountVnd])});
+        credits:credits.map(row=>[String(row._id),row.sourceVersion,row.serviceNetVnd,row.careMinutes]),
+        payableCommission:commission.payable.map(row=>[String(row._id),row.sourceVersion,row.serviceNetVnd]),
+        heldCommission:commission.held.map(row=>String(row._id)),advances:advances.map(row=>[String(row._id),row.amountVnd])});
       return {sourceHash,assessment,breakdown,contract:{reference:contract.employeeCode??String(contract._id),version:contract.version,payCycle:contract.payCycle,paySchedule:contract.paySchedule??null},
         scheduleBasis:selfRegistered?'MONTHLY_MINIMUM_COMMITMENT':'FIXED_CONTRACT_CALENDAR',minimumWeeklyMinutes:contract.minimumWeeklyMinutes??null,calendar:days,scheduledMonthMinutes,plannedPeriodMinutes,paidPeriodMinutes:assessment.paidPeriodMinutes,serviceCredits:credits.length,
+        payableCommissionCredits:commission.payable.length,heldCommissionCredits:commission.held.length,
+        carriedCommissionCredits:commission.payable.filter(row=>row.completedAt<start).length,
         warnings:[...(selfRegistered?['Hợp đồng chỉ ghi số giờ tối thiểu; lịch do nhân viên tự đăng ký sau. Lương cơ bản/phụ cấp đủ tháng không bị giảm do ít ca hoặc chưa đăng ký lịch. Kỳ lẻ và nghỉ không lương phải dùng bảng công đã xác minh tại đối soát nâng cao.']:[]),'Nghỉ lễ/phép có lương và thời gian công ty chưa bố trí việc không tự bị trừ. Lịch đăng ký chỉ phục vụ điều phối, không phải bảng công.',
           'Thưởng KPI và đối trừ tạm ứng chỉ thêm sau khi có mục tiêu, đánh giá và thỏa thuận đã xác minh; bản nháp này không tự chốt hai khoản đó.',
-          ...(advances.length?['Có khoản tạm ứng đã chi cần đối soát riêng; chưa tự đối trừ.']:[])]};
+          ...(advances.length?['Có khoản tạm ứng đã chi cần đối soát riêng; chưa tự đối trừ.']:[]),
+          ...(commission.held.length?['Hoa hồng booking có khiếu nại/hoàn tiền chưa kết luận đang được giữ; lương cơ bản và phụ cấp không bị giảm.']:[])]};
     }
   };
 }

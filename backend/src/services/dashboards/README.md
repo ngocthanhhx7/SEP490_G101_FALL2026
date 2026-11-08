@@ -1,5 +1,10 @@
 # P28 read projections
 
+In EMPLOYEE composition, old partner earnings and settlement-payroll readers
+return the retired-domain error through the original auth/role routes, without
+registering/querying legacy stores. Employee payroll uses `/api/v1/payroll/*`.
+The repositories below remain available for explicit LEGACY_PARTNER compatibility.
+
 `workspace-analytics.service.js` aggregates authoritative counts, daily trends
 and distributions over 7/30/90 Vietnam calendar days in a snapshot transaction.
 Customer reads join owned bookings; Sitter reads constrain assignment owner.

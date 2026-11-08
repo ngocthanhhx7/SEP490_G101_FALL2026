@@ -4,6 +4,8 @@ import { createMongoSettlementRepository } from '../services/settlements/mongo-s
 import { createAdminSettlementService } from '../services/settlements/admin-settlement.service.js';
 import { adminSettlementModule } from './admin-settlements.routes.js';
 import { createPrivateTransferEvidenceRepository } from '../services/settlements/private-transfer-evidence.repository.js';
+import { storageProfile } from '../config/storage-profile.js';
+import { retiredSettlementService } from '../services/retired-compensation.service.js';
 
 const unresolvedPolicy = Object.freeze({
   resolve: async () => ({ ready: false, decisionIds: ['FIN-07-ELIG', 'FIN-07-POSTPAY', 'FIN-08-EDIT'] })
@@ -12,11 +14,12 @@ const unresolvedPolicy = Object.freeze({
 // P34 supplies the same authenticated session and approved P51 policy resolver
 // used by the sitter request module. The default policy intentionally blocks all
 // money mutations until those decisions are actually available.
-export function adminSettlementRuntimeModule({ config, connection, sessionService, policy,
+export function adminSettlementRuntimeModule({ config, connection, sessionService, policy, env = {},
   clock = Date.now } = {}) {
   if (!config?.auth?.enabled || !connection) return null;
   const session = sessionService ?? createSessionService({ connection, clock,
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
+  if (storageProfile(env) === 'EMPLOYEE') return adminSettlementModule({ service: retiredSettlementService, sessionService: session });
   const repository = createMongoSettlementRepository({ connection,
     cursorSecret: config.auth.tokenSecret,
     privateEvidence: createPrivateTransferEvidenceRepository({ connection }) });
