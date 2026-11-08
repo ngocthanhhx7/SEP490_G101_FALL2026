@@ -31,6 +31,10 @@ test('navigates cursor stack, resets on service switch and keeps current latestV
   fireEvent.click(screen.getByRole('button', { name: /Dịch vụ hai/ }));
   await screen.findByText(/Phiên bản 10 ·/); expect(screen.getByText('Trang 1')).toBeInTheDocument();
   expect(api.mock.calls.filter(([path]) => path.includes('/second/')).every(([path]) => !path.includes('before='))).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: /Dịch vụ một/ }));
+  await screen.findByText(/Phiên bản 3 ·/); expect(screen.getByText('Trang 1')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: /Dịch vụ hai/ }));
+  await screen.findByText(/Phiên bản 10 ·/);
   fireEvent.change(screen.getByLabelText(/Giá \(VND\)/), { target: { value: '2000' } });
   fireEvent.change(screen.getByLabelText(/Đơn vị áp dụng/), { target: { value: 'giờ' } });
   fireEvent.change(screen.getByLabelText(/Lý do thay đổi/), { target: { value: 'Synthetic update' } });

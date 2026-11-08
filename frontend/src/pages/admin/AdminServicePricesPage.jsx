@@ -113,7 +113,9 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
         {servicesResource.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem">Yêu cầu này không được phép.</Notice>}
         {servicesResource.status === 'empty' && <Notice state="empty" title="Chưa có dịch vụ">Tạo dịch vụ trước khi cấu hình giá.</Notice>}
         {services.length > 0 && <ul className="admin-price-service-items">{services.map(service => <li key={service.id}>
-          <button type="button" disabled={pending} aria-pressed={selected?.id === service.id} onClick={() => { setSelectedId(service.id); setFeedback(null); }}>
+          <button type="button" disabled={pending} aria-pressed={selected?.id === service.id} onClick={() => {
+            setSelectedId(service.id); setHistory({ serviceId: service.id, cursors: [null] }); setFeedback(null);
+          }}>
             <strong>{service.name}</strong><small>{service.code}</small>
           </button>
         </li>)}</ul>}
