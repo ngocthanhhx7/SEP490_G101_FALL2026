@@ -4,6 +4,13 @@ const envelope = (data = []) => ({ data, meta: { schemaVersion: 1 } });
 const response = (status, data) => ({ status, ok: status >= 200 && status < 300,
   json: async () => data });
 
+test('preserves only validated stock error details, including zero availability', async () => {
+  const fetchImpl = async () => response(409, { error: { code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', available: 0, productId: 'a'.repeat(24) } });
+  await expect(createApiClient({ fetchImpl })('/products')).rejects.toMatchObject({ available: 0, productId: 'a'.repeat(24) });
+  const invalid = new ApiError('SYNTHETIC', 409, { available: -1, productId: '../secret' });
+  expect(invalid.available).toBeUndefined(); expect(invalid.productId).toBeUndefined();
+});
+
 test('retains correlation ID and retry interval without exposing backend message', async () => {
   const correlationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   const fetchImpl = async () => response(429, { error: { code: 'OTP_RATE_LIMITED', retryAfterSeconds: 60, message: 'private' }, meta: { correlationId } });

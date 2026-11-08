@@ -9,3 +9,5 @@ Pure DTO checks and primitive validation live here. No HTTP response handling, d
 Employment contract validation returns all incorrect fields under error.fields,
 including dates, identities, regional wage and signing evidence; no private input
 values are reflected. Existing 422 codes and domain guards remain authoritative.
+
+`counter-sale.validator.js` chặn field lạ, sản phẩm lặp, quantity ngoài 1–99, quá 30 dòng, search quá 100, contact quá 254 ký tự. Preview cho phép draft rỗng; create cần ít nhất một dòng. Chuẩn hoá/tra liên hệ và kiểm Customer còn hoạt động thuộc service.

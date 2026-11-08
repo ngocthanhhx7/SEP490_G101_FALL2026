@@ -63,3 +63,5 @@ reconciliation. Contract and statement printing use a selected body-level portal
 Payroll and settlement workspaces use full-width tables, server-derived reports and focused detail dialogs. Payroll retains automatic source-based preparation and selected payslip printing; legacy/advanced forms are collapsed. Settlement filtering is explicitly limited to the current cursor page. Reports are operational counts and persisted VND totals, never bank balances or proof of transfer. Policy/source gates remain authoritative; unknown commands freeze the modal and retry the original payload/key.
 
 AI Models includes a separate bounded source-readiness audit. It does not train from public research/demo data or automatically promote a model.
+
+`CounterSalePage.jsx` ghép Tra sản phẩm, Đơn tại quầy và Đơn chưa xong; URL `?order=<id>` mở lại đơn trên máy khác. `counter-sale.css` dùng token sẵn có, không đổi theme. Sau tạo khoá dòng/khách; unpaid có thu tiền/huỷ, paid có hoàn tất, terminal có tạo đơn mới. UI chỉ hiện totals/audit tiền backend trả.

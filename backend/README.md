@@ -1,5 +1,7 @@
 # Backend — Paw World Care
 
+Counter Sale (UC-68) dùng `/api/v1/admin/counter-orders`, chỉ Admin với session/CSRF hiện có. Hằng/giới hạn ở `src/constants/counter-sale-fields.js`, input ở `src/validators/counter-sale.validator.js`; route chỉ ghép controller và services. Xem [hợp đồng API](../doc/api/product-sales-v1.md#counter-sale-uc-68). Test gồm `tests/integration/counter-sale.test.js` và `tests/unit/counter-sale-validator.test.js`. Không cần biến môi trường hoặc provider mới.
+
 Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và runtime REGISTER handler. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
 
 ## Demo Catalogue

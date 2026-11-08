@@ -14,3 +14,5 @@ selected. `QuantityStepper` enforces the API's 99-per-line ceiling in addition t
 available stock. `ProductPhoto` falls back to the brand mark for broken images.
 
 `ProductCard` adapts Figma 2:3052: database image/name/description/price, dashed footer and explicit cart button. Guest clicks preserve the product on login; confirmed writes update the shared cart, unknown replies require checking/reloading. Styling stays in product-shop.css without competing legacy card overrides.
+
+`CounterProductTable.jsx` tra/paging/thêm sản phẩm hiện, khoá Hết hàng. `CounterOrderPanel.jsx` hiển thị khách, dòng, totals server và bước tiền mặt, dùng QuantityStepper hiện có. `CounterOpenOrders.jsx` mở lại hàng đợi oldest-first từ backend, có paging. Component nhận API/callback, không tính tiền/tồn hoặc quyết định chuyển trạng thái.

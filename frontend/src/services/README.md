@@ -55,3 +55,5 @@ shared endpoint URLs or persist contract/assessment data in browser storage.
 Sitter application API includes private owned get/update methods. Update acknowledgements require a versioned result; UI retains the original payload/key on uncertain responses. Login uses the owned read for the applicant landing.
 
 pagination-response.js validates optional page/limit/total envelopes for shop order transports. Owner-scoped order reads resolve notification deep links. Cards and pages continue using the shared API client.
+
+`counter-sale-api.js` dùng shared client cho `/admin/counter-orders`, kiểm DTO quầy riêng để không nới enum online. Lookup gửi POST body, chỉ nhận id/tên, không đưa contact lên URL. Create gửi key cùng lines/customerId, không gửi tiền/status. Shared ApiError giữ available nguyên không âm và productId ObjectId hợp lệ để MSG58 dùng số authoritative, kể cả 0.

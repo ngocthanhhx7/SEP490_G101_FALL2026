@@ -201,3 +201,29 @@ The API returns codes and English text; the frontend shows the Vietnamese wordin
 ## Product order pagination and notifications (2026-11-05)
 
 Customer and Admin order lists accept page (default 1) and limit (default 20, max 50), returning items/page/limit/total. Owner/role/search/tab filters apply before paging. Admin status counts remain global. Product placement and status/payment transitions write IN_APP notifications transactionally, deduplicated by order/version/recipient. Customer links select the owned order; active Admins receive new-order alerts. No SMS/email is enabled. See [Figma pagination and shopping verification](../testing/figma-pagination-shopping-2026-11-05.md).
+
+## Counter Sale (UC-68)
+
+Mọi endpoint dưới `/api/v1/admin/counter-orders` cần session ACTIVE và quyền SELL_AT_COUNTER (chỉ ADMIN). Không đăng nhập 401, role khác 403; Cache-Control private, no-store; mọi POST cần CSRF. Không dùng giỏ Customer hoặc provider/env mới.
+
+| Method/path | Input | Kết quả |
+| --- | --- | --- |
+| GET `/products` | search tên/mã ≤100, page, limit | items id/code/name/sellingPrice/available, page/limit/total; chỉ visible/chưa xoá |
+| POST `/customer-lookups` | contact ≤254 ký tự | customer id/displayName hoặc null, không trả contact/hạng |
+| POST `/previews` | lines productId/quantity, cho phép rỗng | lines giá/thành tiền/available, subtotal/tierDiscount/shippingFee/total; chỉ đọc |
+| POST `/` | lines 1–30, quantity 1–99, optional customerId; Idempotency-Key 8–128 | 201 AWAITING_PAYMENT, giữ hàng atomic, giá chốt lúc tạo |
+| GET `/` | page20/max50 | AWAITING_PAYMENT/PAID mọi Admin, oldest createdAt/_id trước |
+| GET `/:orderId` | ObjectId | đơn quầy kể cả terminal; online ID 404 |
+| POST `/:orderId/record-cash` | body rỗng | đủ total một lần, PAID/paid=true; audit amount/receivedAt/receivedBy |
+| POST `/:orderId/complete` | body rỗng | chỉ PAID; COMPLETED, trừ quantityHeld và stockOnHand |
+| POST `/:orderId/cancel` | body rỗng | chỉ AWAITING_PAYMENT chưa paid; CANCELLED, chỉ giải phóng quantityHeld |
+
+Tìm khớp đủ mobile Việt Nam bằng normalizer hiện có (0/84/+84 và dấu phân cách, tối đa 32 ký tự); email trim/lowercase. Chỉ Contact VERIFIED, User ACTIVE có CUSTOMER. Không thấy là null/MSG110, vẫn bán ẩn danh. Kiểm lại khách lúc tạo, không còn khả dụng trả 422 COUNTER_CUSTOMER_UNAVAILABLE. Không phản chiếu contact vào log/DTO.
+
+Đơn dùng collection/mã DH chung, channel/receiveMethod COUNTER, paymentMethod COUNTER_CASH, customer có thể null và tên được snapshot, tierDiscount/shippingFee=0. DTO thêm createdBy, cashPayment hoặc null, completedAt/cancelledAt; không trả key/fingerprint. Backend tính integer VND, không nhận giá/total/status. UI khoá dòng/khách sau create; muốn sửa thì huỷ đơn chưa trả rồi tạo mới.
+
+Create dùng actor-scoped key nội bộ `counter/<sha256>`, unique index counterCreatedBy/idempotencyKey riêng channel; fingerprint gồm actor/khách/lines đã sort. Cùng nội dung/key trả cùng đơn, đổi quantity/khách trả 409 IDEMPOTENCY_CONFLICT. Key raw online không chứa `/`, tránh trùng namespace. DH cấp atomic ngoài transaction, có thể có khoảng trống.
+
+Giữ hàng bằng conditional update stockOnHand-quantityHeld>=quantity và insert cùng transaction; một dòng hỏng rollback tất cả. Online/quầy tranh hàng không giữ vượt. Thiếu trả 409 PRODUCT_QUANTITY_EXCEEDS_AVAILABLE với productId/available (kể cả 0, MSG58); hidden/deleted/missing trả PRODUCT_UNAVAILABLE. Thu tiền không đổi kho. Guard channel/status/paid/version và replay cùng bước không lặp audit/stock. Hoàn tất trước trả là ORDER_NOT_PAID/MSG105, sai bước ORDER_STATE_CONFLICT, kho không khớp ORDER_STOCK_MISMATCH và rollback.
+
+Quầy bị loại khỏi list/search/detail/count và mọi mutation của Order Management/My Orders. Legacy online thiếu channel vẫn hoạt động. Chưa có VietQR, hạng/giảm%, in hoá đơn, tự huỷ JOB-04, Sale Staff hoặc notification online cho quầy. Draft trong memory; recovery dành cho đơn đã lưu. Deployment cần provision hai index additive mới trước writers bằng lệnh hiện có; không xoá index customer/key, đổi collection hoặc backfill legacy.
