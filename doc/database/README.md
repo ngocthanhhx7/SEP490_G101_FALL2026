@@ -26,3 +26,5 @@ Model names now split into pet-care/pricing/decision-snapshot/sitter-matching fa
 - [Collection architecture — 08/11/2026](collection-architecture-2026-11-08.md): ownership của 100 collection, legacy producer registration và các bước retirement/consolidation; chưa phê duyệt drop.
 
 - [Demo core reset — 08/11/2026](demo-core-reset-2026-11-08.md): giữ catalog/account core, chọn sitter theo seed manifest và dọn workflow trong transaction; command mặc định dry-run, chưa phê duyệt live apply.
+
+- [Employee storage profile — 08/11/2026](employee-storage-profile-2026-11-08.md): profile-aware composition/provisioning, protected legacy API retirement and authoritative booking commission holds.

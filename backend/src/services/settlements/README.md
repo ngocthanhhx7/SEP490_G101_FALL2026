@@ -2,9 +2,10 @@
 
 The EMPLOYEE booking-finance composition does not instantiate legacy partner
 accrual or register its 16 earning/settlement models. Explicit LEGACY_PARTNER
-composition retains that producer. This does not retire existing collections:
-settlement routes, earnings dashboards and complaint holds still have separate
-legacy dependencies. See the [collection architecture review](../../../../doc/database/collection-architecture-2026-11-08.md)
+composition retains that producer. EMPLOYEE endpoints now return HTTP 410 after
+auth/role/CSRF; complaint holds use case/refund sources and the payroll employee
+guard, and the accrual worker only runs in LEGACY_PARTNER. Physical cleanup remains
+separate. See the [collection architecture review](../../../../doc/database/collection-architecture-2026-11-08.md)
 before changing provisioning or removing storage.
 
 The employee execution reader in `booking-finance-source.service.js` exposes only

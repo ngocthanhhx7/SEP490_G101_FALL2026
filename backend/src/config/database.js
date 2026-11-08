@@ -12,7 +12,7 @@ export async function connectDatabase(config) {
   try {
     connection = mongoose.createConnection(config.mongoUri, {
       dbName: config.database, serverSelectionTimeoutMS: config.connectTimeoutMs,
-      connectTimeoutMS: config.connectTimeoutMs, autoIndex: false, bufferCommands: false,
+      connectTimeoutMS: config.connectTimeoutMs, autoCreate: false, autoIndex: false, bufferCommands: false,
       maxPoolSize: 10
     });
     // Never log raw driver errors: they can contain credentials/hostnames.

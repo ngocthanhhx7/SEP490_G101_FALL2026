@@ -7,16 +7,19 @@ import { createBookingFinancialHolds } from '../settlements/booking-financial-ho
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
 import { createScopedCursor } from '../../utils/scoped-cursor.js';
 import { hasRole } from '../../utils/roles.js';
+import { createEmployeeBookingHolds } from '../payroll/employee-booking-hold.service.js';
 
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const oid = value => typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value) ? new Types.ObjectId(value) : null;
 const fail = (status, code) => { throw new AppError(status, code, code); };
 const key = identity => `complaint:${hash(identity)}`;
 
-export function createMongoComplaintRepository({ connection, finance, cursorSecret }) {
+export function createMongoComplaintRepository({ connection, finance, cursorSecret, compensationModel = 'EMPLOYEE' }) {
+  if (!['EMPLOYEE', 'LEGACY_PARTNER'].includes(compensationModel)) throw new TypeError('Invalid compensation model');
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
   const unitOfWork = createUnitOfWork(connection);
-  const holds = createBookingFinancialHolds({ connection, finance });
+  const holds = compensationModel === 'EMPLOYEE' ? createEmployeeBookingHolds({ connection, finance })
+    : createBookingFinancialHolds({ connection, finance });
   const col = name => connection.db.collection(name);
   const codec = createScopedCursor({ secret: cursorSecret, namespace: 'complaint-primary-v1' });
   const serialize = row => row ? { ...row, id: String(row._id), visitId: String(row.visitId),
