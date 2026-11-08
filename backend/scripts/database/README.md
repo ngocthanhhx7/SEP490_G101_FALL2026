@@ -1,5 +1,18 @@
 # MongoDB diagnostics
 
+`validate-raw-operational.js` defaults to bounded aggregate preflight of six raw
+stores; it reports invalid counts/digests without private document values. Existing
+foreign validators block installation. `--manifest=<new-private-file>` saves a
+new rollback snapshot; `--apply` requires that new journal path plus matching
+`CONFIRMED_RAW_VALIDATION_DATABASE`, `CONFIRMED_RAW_VALIDATION_DIGEST` and
+`CONFIRMED_RAW_VALIDATION_CONTRACT=raw-operational-v1`. These are per-operation
+confirmations, not new runtime .env settings. The journal uses fsync/atomic replace
+before each DDL and records partial/unknown acknowledgements. `--restore` consumes
+the apply journal and a fresh digest, retains new writes and only restores known
+prior validator options. Multi-collection DDL is not atomic. An app principal
+without collMod must not be granted additional privileges to retry; use the
+existing authorized operator workflow. See the [mandatory rollout gates](../../../doc/database/raw-operational-validation-2026-11-08.md).
+
 `check-storage-contracts.js [--catalog-provenance=required|optional|unasserted]`
 only reads collection/index metadata for the selected runtime and feature flags.
 Run with `node --env-file-if-exists=.env scripts/database/check-storage-contracts.js

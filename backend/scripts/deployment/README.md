@@ -45,6 +45,12 @@ all-history payroll period index stop deployment for a reviewed migration; this
 command never drops or replaces an existing index. A failed run may leave additive
 collections/indexes in place and is safe to repeat after the conflict is resolved.
 
+Finance-enabled activation also requires the six reviewed raw native validator
+contracts. New raw collections receive their source options; existing missing or
+drifted validators stop activation and require the separate guarded operator
+preflight/install/reverse command. ensure-indexes never performs collMod or
+overwrites a foreign validator. See the [native validation gates](../../../doc/database/raw-operational-validation-2026-11-08.md).
+
 `extract-hanoi-routing.py` clips an operator-supplied public OSM PBF using
 separately installed osmium 4.3.2, preserving routing tags, complete references
 and relevant turn restrictions. It refuses existing output, emits hashes and

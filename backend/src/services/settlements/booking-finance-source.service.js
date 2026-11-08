@@ -212,7 +212,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         if (await col('taxassessments').findOne({ bookingId: booking._id }, { session })) fail(409, 'ASSESSMENT_ALREADY_CONFIRMED');
         const at = now(), id = new Types.ObjectId();
         await col('taxassessments').insertOne({ _id: id, bookingId: booking._id, state: 'CONFIRMED', totalTaxVnd,
-          confirmedBy: oid(current.userId), confirmedAt: at, evidenceReference, version: 0 }, { session });
+          confirmedBy: oid(current.userId), confirmedAt: at, evidenceReference, version: 0, storageContractVersion: 1 }, { session });
         const updated = await touch(booking, session);
         await enqueue(updated, session);
         await event('TaxAssessmentConfirmed', booking, current.userId, String(id), session);

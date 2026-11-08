@@ -74,3 +74,21 @@ Cursor API/UI remains conditional on measured deep-page workload and a complete
 compatible navigation/count/summary contract; this change does not claim offset,
 exact count or global summary have bounded scan cost. See the
 [unified backlog](optimization-backlog-2026-11-08.md).
+
+## Deployed acceptance
+
+PR258 and release259 passed required checks, assigned independent reviews and
+Leader merges. Main b64c147 application CI passed. Reviewed artifact1,850 files
+and430 runtime source files matched hashes; GREEN3001 readiness/public API200,
+guest financial/history401, restart0/OOMfalse. Existing30 products were compared
+through16 native public/Admin query shapes and102 pages at limit3: full DTO,
+filtered totals/global summaries match the previous ordering, zero writes.
+
+Fresh backup pwc-20261108T122452Z, SHA256
+dd820fe0bc6eee0abb3e04eb73c07571e821a585a79eac8df3575f70ae62be96,
+restored82 collections before activation. Retained82/585/203 raw BSON and index/
+validator metadata digests stayed unchanged; environment/providers unchanged.
+Source rollback targets reviewed97db1dc without restoring old database writes.
+Origin frontend hashes match the reviewed build. Local HTTP probes of public
+HTML and JS returned Cloudflare403 during this rollout, so no fresh public-edge
+byte equality is claimed; no Cloudflare setting was changed to bypass that limit.
