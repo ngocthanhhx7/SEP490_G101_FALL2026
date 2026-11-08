@@ -1,6 +1,6 @@
 # Current lifecycle and retention decision matrix
 
-This is a concrete no-purge proposal for the current82 physical namespaces, based on the aggregate-only native snapshot2026-11-08 12:51UTC (82 collections/585 documents/203 indexes, not one transactional snapshot). Native raw validation later changes six validators, not names/indexes/TTL. No private document values are included. The previous83-store inventory is filtered by actual current names; retired servicepresentations is absent.
+This matrix records the 82 physical namespaces in the aggregate-only native snapshot2026-11-08 12:51UTC (82 collections/585 documents/203 indexes, not one transactional snapshot). After six native validator changes and the separately approved empty queue retirement at13:54UTC, current production has81 collections/585 documents/201 indexes. The queue row remains as disposition history. No private document values are included. The previous83-store inventory is filtered by the snapshot names; retired servicepresentations is absent.
 
 ## Proposed boundaries and unresolved decisions
 
@@ -9,7 +9,7 @@ This is a concrete no-purge proposal for the current82 physical namespaces, base
 - For private documents/images/mail, prepare coordinated metadata/object minimization only after purpose-end, application/contract/dispute status and provider deletion/recovery obligations are specified. Deleting metadata alone does not prove private object erasure or release replay/UNKNOWN guarantees.
 - Quota/counter/guard stores are state, not disposable logs: reset requires a proven cap/uniqueness/replay migration.
 - Active master data and catalog/policy/history retain existing archive/tombstone/version behavior. Historical references are not duplication defects.
-- The only proposed physical drop is the separately prepared empty earningaccrualtasks queue. The old approvals do not authorize it; see the [exact decision scope](empty-accrual-queue-retirement-2026-11-08.md).
+- The only new physical drop was earningaccrualtasks after a separate explicit owner decision and restore rehearsal. That action is complete; no other purge is authorized. See the [exact scope and acceptance](empty-accrual-queue-retirement-2026-11-08.md).
 
 No blanket TTL, automatic archival, UNKNOWN resend or private-content purge is proposed. Owner policy is a decision gate; payOS/SMTP/R2/provider receipts and raw refund producer mapping remain integration gates. A future concrete purge cannot be approved by this matrix alone.
 
@@ -38,7 +38,7 @@ No blanket TTL, automatic archival, UNKNOWN resend or private-content purge is p
 | customeraddresses | 31 | None | KEEP; purpose-end/hold + coordinated private-object/provider erasure and recovery gate |
 | customerreviewcommands | 0 | None | KEEP state/replay; domain cap/uniqueness/replay migration before reset/expiry |
 | demopopulationruns | 1 | None | KEEP state/replay; domain cap/uniqueness/replay migration before reset/expiry |
-| earningaccrualtasks | 0 | None | New decision: empty queue only; exact metadata/backup/reverse/freeze gate |
+| earningaccrualtasks | 0 | None | RETIRED after separate owner approval; exact queue-only DDL, backup/reverse and core parity verified |
 | employeeavailabilities | 2 | None | KEEP current owner/archive/version lifecycle; explicit reference-safe migration before removal |
 | employeeavailabilityrevisions | 5 | None | KEEP current owner/archive/version lifecycle; explicit reference-safe migration before removal |
 | employeeschedulecommands | 0 | None | KEEP state/replay; domain cap/uniqueness/replay migration before reset/expiry |
