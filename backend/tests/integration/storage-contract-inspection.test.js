@@ -10,6 +10,7 @@ import { catalogProvenanceValidator } from '../../src/models/catalog-change-prov
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { provisionDeploymentStorage } from '../../src/services/deployment-storage.service.js';
+import { rawOperationalCollectionOptions } from '../../src/models/raw-operational.storage.js';
 
 let replica, connection;
 beforeAll(async () => {
@@ -145,6 +146,7 @@ test('selected EMPLOYEE target runtime is inspected without jobs, providers, pro
     SESSION_TOKEN_SECRET: 'synthetic-token-secret-for-inspector', SESSION_CSRF_SECRET: 'synthetic-csrf-secret-for-inspector',
     CONTACT_LOOKUP_SECRET: 'synthetic-lookup-secret-for-inspector', CONTACT_ENCRYPTION_KEY: '12345678901234567890123456789012' };
   createApp({ config: loadConfig(runtimeEnv), connection, env: runtimeEnv, referenceCatalog: 'target', lifecycle: { draining: false } });
+  await connection.db.createCollection('bookings', rawOperationalCollectionOptions('bookings'));
   await connection.db.collection('bookings').createIndex({ customerId: 1, _id: -1 });
   await provisionDeploymentStorage({ connection, env: runtimeEnv });
   const commands = [], listener = event => commands.push(event.commandName);

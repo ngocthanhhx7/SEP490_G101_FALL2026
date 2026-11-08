@@ -1,5 +1,11 @@
 # Persistence models
 
+`raw-operational.storage.js` declares narrow native counter contracts for six raw
+stores and versioned current payment/tax receipt shapes. Missing/null historical
+counters and unmarked history remain compatible; refunds has no asserted native
+contract. Existing validators are never overwritten by ordinary provisioning.
+See the [staged validation plan](../../../doc/database/raw-operational-validation-2026-11-08.md).
+
 `reference-catalog.model.js` provides the active typed PetBreed/PetTrait store.
 `petCareModels(connection)` defaults to the target in production; explicitly supplying
 `{ referenceCatalog: 'target' }` returns kind-scoped Mongoose discriminators in

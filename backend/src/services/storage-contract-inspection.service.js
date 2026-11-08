@@ -3,6 +3,7 @@ import { financeSourceIndexes } from './settlements/source-provisioning.js';
 import { schedulingSourceIndexes } from './employee-scheduling/scheduling-storage.service.js';
 import { referenceCatalogCollectionOptions, referenceCatalogIndexes } from '../models/reference-catalog.storage.js';
 import { CATALOG_VERSION_AUDITS, catalogProvenanceValidator } from '../models/catalog-change-provenance.model.js';
+import { rawOperationalCollections, rawOperationalCollectionOptions } from '../models/raw-operational.storage.js';
 
 const MAX_TIME_MS = 5000;
 const collationFields = ['locale', 'caseLevel', 'caseFirst', 'strength', 'numericOrdering',
@@ -54,6 +55,7 @@ export function buildStorageContractManifest({ connection, env = {}, catalogProv
   if (env.FINANCE_SOURCES_ENABLED === 'true') {
     for (const name of ['bookings', 'visits', 'payments', 'taxassessments', 'paymentintents', 'cases', 'refunds']) store(name);
     for (const [name, key, options] of financeSourceIndexes) add(name, key, { ...options, requireName: true }, 'finance-source');
+    for (const name of rawOperationalCollections) Object.assign(store(name).options, rawOperationalCollectionOptions(name));
   }
   if (env.EMPLOYEE_SCHEDULING_ENABLED === 'true') {
     for (const [name, key] of schedulingSourceIndexes) add(name, key, {}, 'employee-scheduling');
