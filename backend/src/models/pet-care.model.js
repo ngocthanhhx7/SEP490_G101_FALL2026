@@ -1,11 +1,14 @@
 import { oid, integer, geo, registerModels, Schema, sub } from './model-definitions.js';
 import { concurrencyGuardField } from './concurrency-guard.field.js';
+import { referenceCatalogModels } from './reference-catalog.model.js';
+import { selectReferenceCatalogSource } from './reference-catalog-source.js';
 const careField = sub({
   status: { type: String, enum: ['KNOWN', 'UNKNOWN', 'NOT_PROVIDED'], required: true },
   value: { type: String, maxlength: 2000 }
 });
-export function petCareModels(connection) {
-  return registerModels(connection, {
+export function petCareModels(connection, { referenceCatalog } = {}) {
+  referenceCatalog = selectReferenceCatalogSource(connection, referenceCatalog);
+  const models = registerModels(connection, {
     Pet: {
       fields: {
         bookingGuard: concurrencyGuardField(),
@@ -60,25 +63,30 @@ export function petCareModels(connection) {
       },
       indexes: []
     },
-    PetTrait: {
-      fields: {
-        code: { type: String, required: true },
-        label: { type: String, required: true, maxlength: 160 },
-        species: { type: [String], required: true },
-        explanation: { type: String, required: true, maxlength: 1000 },
-        active: { type: Boolean, default: true }
+    ...(referenceCatalog === 'legacy' ? {
+      PetTrait: {
+        fields: {
+          code: { type: String, required: true },
+          label: { type: String, required: true, maxlength: 160 },
+          species: { type: [String], required: true },
+          explanation: { type: String, required: true, maxlength: 1000 },
+          active: { type: Boolean, default: true }
+        },
+        indexes: [[{ code: 1 }, { unique: true }]]
       },
-      indexes: [[{ code: 1 }, { unique: true }]]
-    },
-    PetBreed: {
-      fields: {
-        code: { type: String, required: true },
-        name: { type: String, required: true, maxlength: 100 },
-        species: { type: String, enum: ['DOG', 'CAT'], required: true },
-        active: { type: Boolean, default: true },
-        source: { type: String, required: true, maxlength: 500 }
-      },
-      indexes: [[{ code: 1 }, { unique: true }]]
-    }
+      PetBreed: {
+        fields: {
+          code: { type: String, required: true },
+          name: { type: String, required: true, maxlength: 100 },
+          species: { type: String, enum: ['DOG', 'CAT'], required: true },
+          active: { type: Boolean, default: true },
+          source: { type: String, required: true, maxlength: 500 }
+        },
+        indexes: [[{ code: 1 }, { unique: true }]]
+      }
+    } : {})
   });
+  if (referenceCatalog === 'legacy') return models;
+  const { PetBreed, PetTrait } = referenceCatalogModels(connection);
+  return { ...models, PetBreed, PetTrait };
 }

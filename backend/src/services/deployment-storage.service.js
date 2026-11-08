@@ -3,17 +3,22 @@ import { provisionEmployeeScheduling, assertEmployeeSchedulingStorage } from './
 import { assertPayrollStorage } from './payroll/payroll-storage.service.js';
 import { assertBookingReadStorage } from './booking-read-storage.service.js';
 import { storageProfile, assertProfileModels } from '../config/storage-profile.js';
+import { assertReferenceCatalogModels, referenceCatalogSource } from '../models/reference-catalog-source.js';
+import { provisionReferenceCatalogStorage } from './reference-catalog-storage.service.js';
 
 // Called by the deployment command after runtime modules register their models.
 // Additive only: incompatible indexes/data must stop deployment for review.
 export async function provisionDeploymentStorage({ connection, env = {} }) {
   assertProfileModels(connection, storageProfile(env));
+  assertReferenceCatalogModels(connection);
+  if (referenceCatalogSource(connection) === 'target') await provisionReferenceCatalogStorage(connection.db);
   for (const key of ['FINANCE_SOURCES_ENABLED', 'EMPLOYEE_SCHEDULING_ENABLED', 'BOOKING_CHECKOUT_ENABLED']) {
     if (env[key] !== undefined && !['true', 'false'].includes(env[key])) throw new TypeError(`Invalid ${key}`);
   }
   if (env.FINANCE_SOURCES_ENABLED === 'true') await provisionFinanceSources(connection);
   if (env.EMPLOYEE_SCHEDULING_ENABLED === 'true') await provisionEmployeeScheduling(connection);
   for (const model of Object.values(connection.models)) {
+    if (model.collection.name === 'reference_catalog') continue;
     await model.createCollection();
     await model.createIndexes();
   }

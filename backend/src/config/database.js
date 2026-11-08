@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { selectReferenceCatalogSource } from '../models/reference-catalog-source.js';
 
 export class DatabaseStartupError extends Error {
   constructor(code = 'DB_CONNECTION_UNAVAILABLE') {
@@ -7,7 +8,7 @@ export class DatabaseStartupError extends Error {
   }
 }
 
-export async function connectDatabase(config) {
+export async function connectDatabase(config, { referenceCatalog } = {}) {
   let connection;
   try {
     connection = mongoose.createConnection(config.mongoUri, {
@@ -17,6 +18,7 @@ export async function connectDatabase(config) {
     });
     // Never log raw driver errors: they can contain credentials/hostnames.
     connection.on('error', () => {});
+    if (referenceCatalog !== undefined) selectReferenceCatalogSource(connection, referenceCatalog);
     await connection.asPromise();
     const hello = await connection.db.admin().command({ hello: 1 }, { timeoutMS: config.connectTimeoutMs });
     const build = await connection.db.admin().command({ buildInfo: 1 }, { timeoutMS: config.connectTimeoutMs });

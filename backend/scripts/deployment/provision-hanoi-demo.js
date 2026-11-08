@@ -1,5 +1,6 @@
 import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
+import { referenceCatalogCliSource } from '../../src/models/reference-catalog-source.js';
 import { HANOI_DEMO_KEY } from '../../src/constants/hanoi-demo-population.js';
 import { hanoiDemoSummary, provisionHanoiDemo } from '../../src/services/hanoi-demo-population.service.js';
 
@@ -9,7 +10,7 @@ try {
   else {
     const config = loadConfig();
     if (process.env.CONFIRMED_DEMO_KEY !== HANOI_DEMO_KEY || process.env.CONFIRMED_DEMO_DATABASE !== config.database) throw new Error('TARGET_CONFIRMATION_REQUIRED');
-    connection = await connectDatabase(config);
+  connection = await connectDatabase(config, { referenceCatalog: referenceCatalogCliSource() });
     console.log(JSON.stringify(await provisionHanoiDemo({ connection, auth: config.auth })));
   }
 } catch {

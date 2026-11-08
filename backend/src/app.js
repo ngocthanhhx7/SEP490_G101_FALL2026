@@ -35,6 +35,7 @@ import { mapsRuntimeModule } from './routes/maps.routes.js';
 import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
 import { customerReadRuntime } from './routes/customer-read-runtime.js';
 import { storageProfile, assertProfileModels } from './config/storage-profile.js';
+import { selectReferenceCatalogSource, assertReferenceCatalogModels } from './models/reference-catalog-source.js';
 
 
 export function createApp({
@@ -45,9 +46,11 @@ export function createApp({
   moduleFactories = [],
   logger = () => {},
   env = process.env,
-  clock = Date.now
+  clock = Date.now,
+  referenceCatalog
 }) {
   const app = express();
+  if (connection?.models) selectReferenceCatalogSource(connection, referenceCatalog);
   const basePorts = createPorts();
   const providerPortOverrides = createProviderPortOverrides({
     env,
@@ -158,6 +161,7 @@ export function createApp({
     ...suppliedModules.filter(module => !auth || module.name !== 'dashboard-read')
   ]);
   if (connection?.models) assertProfileModels(connection, compensationProfile);
+  if (connection?.models) assertReferenceCatalogModels(connection);
   app.use(notFound, errorHandler(logger));
   return app;
 }
