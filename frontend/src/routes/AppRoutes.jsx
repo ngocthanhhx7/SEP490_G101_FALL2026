@@ -76,6 +76,14 @@ import { GoodsReceiptPage } from '../pages/admin/GoodsReceiptPage.jsx';
 import { createGoodsReceiptApi } from '../services/goods-receipt-api.js';
 import { StockListPage } from '../pages/admin/StockListPage.jsx';
 import { createStockListApi } from '../services/stock-list-api.js';
+import { StockAdjustmentPage } from '../pages/admin/StockAdjustmentPage.jsx';
+import { createStockAdjustmentApi } from '../services/stock-adjustment-api.js';
+
+function StockAdjustmentRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createStockAdjustmentApi({ getCsrfToken }), [getCsrfToken]);
+  return <StockAdjustmentPage key={user?.id} api={api} />;
+}
 
 function StockListRoute() {
   const { user } = useSession();
@@ -169,6 +177,7 @@ const navigationByRole = {
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
     ['Nhập hàng', '/admin/goods-receipts', 'Cửa hàng'],
     ['Tồn kho', '/admin/stock', 'Cửa hàng'],
+    ['Điều chỉnh tồn kho', '/admin/stock-adjustments', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Duyệt tất toán', '/admin/settlements', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
@@ -272,6 +281,7 @@ export function AppRoutes({
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
           <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
           <Route path="admin/stock" element={<StockListRoute />} />
+          <Route path="admin/stock-adjustments" element={<StockAdjustmentRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
             path="admin/service-prices"

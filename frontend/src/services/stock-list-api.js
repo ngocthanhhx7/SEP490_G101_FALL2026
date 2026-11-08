@@ -1,5 +1,6 @@
 import { ApiError, createApiClient } from './api-client.js';
 import { STOCK_STATUSES, STOCK_HISTORY_KINDS } from '../constants/stock-list.js';
+import { STOCK_ADJUSTMENT_REASON_LABELS } from '../constants/stock-adjustment.js';
 
 const text = value => typeof value === 'string' && value.length > 0;
 const count = value => Number.isSafeInteger(value) && value >= 0;
@@ -15,9 +16,11 @@ function checkHistory(data) {
   checkStock(data.product);
   for (const item of data.items) {
     if (!item || !text(item.id) || !Object.hasOwn(STOCK_HISTORY_KINDS, item.kind) || !text(item.referenceCode)
-      || !text(item.supplierName) || !/^\d{4}-\d{2}-\d{2}$/u.test(item.receivedOn)
       || typeof item.occurredAt !== 'string' || !Number.isFinite(Date.parse(item.occurredAt))
       || !Number.isSafeInteger(item.quantityChange)) invalid();
+    if (item.kind === 'GOODS_RECEIPT') {
+      if (!text(item.supplierName) || !/^\d{4}-\d{2}-\d{2}$/u.test(item.receivedOn)) invalid();
+    } else if (!Object.hasOwn(STOCK_ADJUSTMENT_REASON_LABELS,item.reason) || !text(item.recorderName) || item.quantityChange === 0) invalid();
   }
   return data;
 }

@@ -1,5 +1,5 @@
 import { AppError } from '../utils/app-error.js';
-import { STOCK_TABS } from '../constants/stock-list-fields.js';
+import { STOCK_TABS, STOCK_HISTORY_KINDS } from '../constants/stock-list-fields.js';
 import { PRODUCT_LIMITS } from '../constants/product-fields.js';
 import { parsePageQuery, PAGE_QUERY_KEYS } from './pagination.validator.js';
 
@@ -28,6 +28,7 @@ export function parseStockHistoryQuery(query = {}) {
 // Signed data still gets a shape check before entering a Mongo query.
 export function parseStockHistoryPosition(value) {
   if (!value || typeof value.id !== 'string' || !/^[a-f\d]{24}$/iu.test(value.id)
-    || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt))) throw invalid();
-  return { id: value.id, createdAt: new Date(value.createdAt) };
+    || typeof value.createdAt !== 'string' || !Number.isFinite(Date.parse(value.createdAt))
+    || (value.kind !== undefined && !STOCK_HISTORY_KINDS.includes(value.kind))) throw invalid();
+  return { id: value.id, createdAt: new Date(value.createdAt), ...(value.kind === undefined ? {} : { kind: value.kind }) };
 }

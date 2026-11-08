@@ -6,6 +6,15 @@ const history = { product, items: [{ id: 'r1', kind: 'GOODS_RECEIPT', referenceC
   receivedOn: '2026-11-01', supplierName: 'Synthetic supplier', quantityChange: 0 }], nextCursor: null };
 const response = value => ({ ok: true, status: 200, json: async () => ({ data: value, meta: { schemaVersion: 1 } }) });
 
+test('AC-33 accepts the discriminated adjustment event without receipt-only fields', async () => {
+  const event={id:'a1',kind:'STOCK_ADJUSTMENT',referenceCode:'DC-0001',occurredAt:'2026-11-08T00:00:00Z',reason:'DAMAGED',recorderName:'Synthetic Admin',quantityChange:-2};
+  const api=createStockListApi({fetchImpl:jest.fn().mockResolvedValue(response({...history,items:[event]}))});
+  expect((await api.readHistory('p1')).items).toEqual([event]);
+  for(const bad of [{...event,reason:'OTHER'},{...event,recorderName:''},{...event,quantityChange:0}]) {
+    await expect(createStockListApi({fetchImpl:jest.fn().mockResolvedValue(response({...history,items:[bad]}))}).readHistory('p1')).rejects.toMatchObject({code:'INVALID_RESPONSE'});
+  }
+});
+
 test('transports stock filters, paging, history cursor and AbortSignal; keeps server status without inferring a threshold', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(response(data));
   const api = createStockListApi({ fetchImpl });

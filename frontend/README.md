@@ -1,4 +1,4 @@
-﻿# Frontend
+# Frontend
 
 P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.22.1, npm 11.19.1, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
 
@@ -8,6 +8,13 @@ page/search limits; availability/status decisions stay in the backend.
 paging, selection, receivedOn history/+0, load more, retries and late responses.
 `tests/unit/stock-list-api.test.js` checks transport/DTOs/cancellation;
 `tests/unit/stock-format.test.js` checks quantities and signed deltas. Run via `npm test`.
+
+Stock Adjustment uses `src/constants/stock-adjustment.js` for labels/bounds and
+`product-messages.js` for MSG113/MSG123/MSG124 and existing required-field MSG01.
+Its integration test covers blank quantity/reason, preview, save/reset, stock conflict,
+stable-key retry, double submit, paging and stale selection responses. Unit tests cover
+its API, validation and formatting. Stock List also tests mixed history; the shared
+API client validates the optional current `available` value in conflict errors.
 
 From `frontend/`:
 

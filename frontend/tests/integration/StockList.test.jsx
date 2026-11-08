@@ -68,3 +68,13 @@ test('shows the common failure and can retry list and history', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
   expect(await screen.findByText('PN-0002')).toBeVisible();
 });
+
+test('AC-33 shows an adjustment reason, Admin, Vietnam date and negative sign alongside an unchanged receipt', async () => {
+  const adjustment = { id:'a1',kind:'STOCK_ADJUSTMENT',referenceCode:'DC-0001',occurredAt:'2026-11-07T18:30:00Z',reason:'DAMAGED',recorderName:'Nhật kiểm tra',quantityChange:-2 };
+  const api=fakeApi({readHistory:jest.fn().mockResolvedValue({product:products[0],items:[adjustment,item(1)],nextCursor:null})});
+  render(<StockListPage api={api} />); await select('Hạt cho chó');
+  expect(await screen.findByText('Điều chỉnh: hàng hỏng')).toBeVisible();
+  expect(screen.getByText('Nhật kiểm tra')).toBeVisible(); expect(screen.getByText('−2')).toBeVisible();
+  expect(screen.getByText('08/11/2026')).toBeVisible(); expect(screen.getByText('01/11/2026')).toBeVisible();
+  expect(screen.getByText('Phiếu nhập')).toBeVisible();
+});

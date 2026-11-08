@@ -2,6 +2,12 @@
 
 `stock-list.validator.js` checks stock tab/search/page filters and bounded history
 cursor queries. Decoded history positions are validated before entering model queries.
+History kind is optional for legacy receipt cursors and restricted to known sources.
+
+`stock-adjustment.validator.js` checks product ID, adjustment type, positive integer
+quantity within the technical bound and one of four required reasons. Unknown body
+keys are refused. It also parses paged records and bounded product search; stock
+eligibility and available quantities remain service decisions.
 
 Pure DTO checks and primitive validation live here. No HTTP response handling, database reads or service imports. Domain services decide eligibility, pricing and scheduling; validators reject malformed input including impossible calendar dates.
 

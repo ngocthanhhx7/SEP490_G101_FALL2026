@@ -1,9 +1,9 @@
 import { productSalesModels } from '../../models/product.model.js';
 import { PRODUCT_PERMISSIONS } from '../../constants/product-permissions.js';
 import { STOCK_LOW_THRESHOLD } from '../../constants/stock-list-fields.js';
-import { parseStockQuery, parseStockHistoryQuery, parseStockHistoryPosition } from '../../validators/stock-list.validator.js';
+import { parseStockQuery, parseStockHistoryQuery } from '../../validators/stock-list.validator.js';
 import { parseObjectId } from '../../validators/product.validator.js';
-import { createScopedCursor } from '../../utils/scoped-cursor.js';
+import { createStockHistoryService } from './stock-history.service.js';
 import { paginate } from '../pagination.service.js';
 import { productSalesErrors } from './product-sales-errors.js';
 
@@ -25,10 +25,8 @@ function toStock(doc) {
 
 // Read models only: no stock reservation, receipt write, or order lifecycle changes.
 export function createStockListService({ connection, cursorSecret, clock = Date.now }) {
-  const { Product, GoodsReceipt } = productSalesModels(connection);
-  // Lazy initialization preserves composition for other product modules that do not use history.
-  let historyCursor;
-  const cursorCodec = () => (historyCursor ??= createScopedCursor({ secret: cursorSecret, namespace: 'stock-receipt-history', clock }));
+  const { Product } = productSalesModels(connection);
+  const history = createStockHistoryService({ connection, cursorSecret, clock });
   return Object.freeze({
     async list(actor, query) {
       requireStockViewer(actor);
@@ -52,19 +50,7 @@ export function createStockListService({ connection, cursorSecret, clock = Date.
       const { limit, cursor } = parseStockHistoryQuery(query);
       const product = await Product.findOne({ _id: id, deletedAt: null }).lean();
       if (!product) throw productSalesErrors.notFound();
-      const context = { actor: actor.userId, product: String(product._id) };
-      const filter = { 'lines.productId': id };
-      if (cursor) {
-        const position = parseStockHistoryPosition(cursorCodec().decode(cursor, context));
-        filter.$or = [{ createdAt: { $lt: position.createdAt } }, { createdAt: position.createdAt, _id: { $lt: position.id } }];
-      }
-      const receipts = await GoodsReceipt.find(filter, { code: 1, createdAt: 1, receivedOn: 1, supplierName: 1,
-        lines: { $elemMatch: { productId: id } } }).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).lean();
-      const shown = receipts.slice(0, limit), last = shown.at(-1);
-      return { product: toStock(product), items: shown.map(receipt => ({ id: String(receipt._id), kind: 'GOODS_RECEIPT',
-        referenceCode: receipt.code, occurredAt: receipt.createdAt.toISOString(), receivedOn: receipt.receivedOn,
-        supplierName: receipt.supplierName, quantityChange: receipt.lines[0].quantityAccepted })),
-      nextCursor: receipts.length > limit ? cursorCodec().encode({ id: String(last._id), createdAt: last.createdAt.toISOString() }, context) : null };
+      return { product: toStock(product), ...await history.page({ actorId: actor.userId, productId: String(product._id), limit, cursor }) };
     }
   });
 }

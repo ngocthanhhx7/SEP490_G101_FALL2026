@@ -1,12 +1,20 @@
 # Domain services
 
 `product-sales/stock-list.service.js` provides read-only Admin stock levels and scoped
-receipt history for `PRODUCT_PERMISSIONS.VIEW_STOCK`. It includes hidden products,
+history for `PRODUCT_PERMISSIONS.VIEW_STOCK`. It includes hidden products,
 excludes deleted ones, and computes availability/status without stock or order writes.
-Global tab counts ignore search/page filters. Receipt history projects only the selected
-product's accepted quantity (including zero), ordered by `createdAt`/`_id` descending;
-`receivedOn` is the displayed day. Signed cursors use the existing session secret and
-are bound to actor/product. See the [API contract](../../../doc/api/product-sales-v1.md).
+Global tab counts ignore search/page filters. `product-sales/stock-history.service.js`
+merges bounded receipt/adjustment queries by `createdAt`/`_id`/`kind` descending.
+Receipts retain accepted quantity (including zero) and displayed `receivedOn`;
+adjustments expose signed quantity, reason and recorder. Signed cursors use the
+existing session secret, bind actor/product and accept legacy receipt positions.
+See the [API contract](../../../doc/api/product-sales-v1.md).
+
+`product-sales/stock-adjustment.service.js` owns Admin-only product search/detail,
+paged immutable records and stock adjustment transactions. Conditional stock updates
+serialize with order holds, leave holds/orders/detailsVersion unchanged and increment
+stock version. DC allocation, snapshots and actor-scoped replay commit together.
+Duplicate key races have bounded retries; rejected commands roll back all writes.
 
 Goods Receipt product search and saving exclude deleted products (`deletedAt`
 must be null or absent), while hidden products remain eligible (AC-31, D-262).

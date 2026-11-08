@@ -1,5 +1,12 @@
 # Persistence models
 
+`product.model.js` also registers `StockAdjustment` in `stockadjustments`: immutable
+DC number/code, product and recorder snapshots, type, quantity, reason, timestamps
+and private idempotency key/fingerprint. Unique indexes guard code, number and
+recorder/key; creation/id and product/creation/id indexes support lists/history.
+Its separate `ProductCounter` key is `STOCK_ADJUSTMENT`. Provision these indexes
+through the existing deployment index command; runtime startup does not migrate data.
+
 Catalog versions own bounded `changeAudit` provenance: eventId, action and
 changedFields. Existing version fields own actor/reason/time/version/resource;
 no second audit record repeats them. Four version models retain their physical

@@ -1,5 +1,12 @@
 # Admin pages
 
+`StockAdjustmentPage.jsx` renders `/admin/stock-adjustments`: one product selected
+through the shared ProductSearch, authoritative stock outputs, decrease/increase,
+blank required quantity/reason, local preview and immutable paged records. Saves
+keep a stable command key until content changes; success retains product/type and
+clears quantity/reason. `stock-adjustment.css` scopes the two-column/mobile layout
+and uses existing theme tokens. API calls remain in the injected service.
+
 `StockListPage.jsx` composes the read-only `/admin/stock` screen with server tabs,
 bounded search, shared pagination and a selected product's receipt history.
 `stock-list.css` scopes its layout, stacking history below the list on small screens.
