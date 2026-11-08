@@ -11,7 +11,8 @@ export function storageProfile(env = {}) {
 }
 
 export function assertProfileModels(connection, profile) {
-  if (profile === 'EMPLOYEE' && Object.values(connection.models).some(model => legacyCompensationCollections.includes(model.collection.name))) {
+  if (profile === 'EMPLOYEE' && Object.values(connection.models).some(model => legacyCompensationCollections.includes(model.collection.name)
+    || model.collection.name === 'earningaccrualtasks')) {
     throw new Error('EMPLOYEE profile must not register legacy compensation models');
   }
 }

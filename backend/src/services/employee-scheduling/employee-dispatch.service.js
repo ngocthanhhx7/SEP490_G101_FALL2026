@@ -113,13 +113,17 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     const allowed = [];
     const rejected = {};
     const evidence = new Map();
+    const ids = rows.map(row => oid(row._id));
+    const [users, statuses] = ids.length ? await Promise.all([
+      col('users').find({ _id: { $in: ids }, state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } }, { projection: { _id: 1 } }).limit(101).toArray(),
+      col('sitterstatuses').find({ userId: { $in: ids }, status: 'ACTIVE' }, { projection: { userId: 1 } }).limit(101).toArray()
+    ]) : [[], []];
+    const activeUsers = new Set(users.map(user => String(user._id))), activeStatuses = new Set(statuses.map(status => String(status.userId)));
     let next = 0;
     async function scan() {
       while (next < rows.length) {
         const row = rows[next++];
-        const user = await col('users').findOne({ _id: oid(row._id), state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } });
-        const status = await col('sitterstatuses').findOne({ userId: oid(row._id), status: 'ACTIVE' });
-        if (!user || !status) { rejected.SITTER_NOT_ELIGIBLE = (rejected.SITTER_NOT_ELIGIBLE ?? 0) + 1; continue; }
+        if (!activeUsers.has(row._id) || !activeStatuses.has(row._id)) { rejected.SITTER_NOT_ELIGIBLE = (rejected.SITTER_NOT_ELIGIBLE ?? 0) + 1; continue; }
         try { evidence.set(row._id, await eligible(row._id, visit, undefined, { requireOrigin: true })); allowed.push(row._id); }
         catch (error) { if (error.status !== 409) throw error; rejected[error.code] = (rejected[error.code] ?? 0) + 1; }
       }

@@ -1,7 +1,7 @@
 # Persistence models
 
-`reference-catalog.model.js` is an opt-in typed candidate for PetBreed/PetTrait.
-`petCareModels(connection)` retains `aibreeds`/`aitraits`; explicitly supplying
+`reference-catalog.model.js` provides the active typed PetBreed/PetTrait store.
+`petCareModels(connection)` defaults to the target in production; explicitly supplying
 `{ referenceCatalog: 'target' }` returns kind-scoped Mongoose discriminators in
 `reference_catalog`. IDs and per-kind code uniqueness remain stable. The internal
 kind is hidden from ordinary query projections. Connection source is locked by
@@ -9,8 +9,10 @@ kind is hidden from ordinary query projections. Connection source is locked by
 The target replaces the generic active/code index with a BREED-only partial index
 on active/species/name; it still has exactly three indexes including `_id_`.
 `reference-catalog.storage.js` declares its native strict/error validator and
-indexes. Legacy remains default; runtime/seed/deployment source opt-in is explicit.
-See [migration/cutover plan](../../../doc/database/reference-catalog-candidate.md).
+indexes. Production runtime/seed/deployment share the target default; development
+and tests retain `legacy` unless explicitly selected. Production `legacy` is
+reserved for controlled compatibility tooling, not normal provisioning.
+See [cutover plan](../../../doc/database/reference-catalog-cutover-2026-11-08.md).
 
 `concurrency-guard.field.js` describes existing raw transaction guards on User,
 Pet, CustomerAddress, SitterStatus and SitterMatchingProfile. Fields are optional,
@@ -30,9 +32,9 @@ for rollback/tooling and are not registered by runtime. See the
 Service stores bounded one-to-one catalog metadata in `presentation`; its arrays
 are limited to 50 entries each. `service-presentation.model.js` keeps the legacy
 factory for explicit compatibility/migration tooling, but runtime no longer
-registers it. Missing embedded metadata falls back to `servicepresentations`.
-The additive migration keeps legacy data for rollback; ordinary deployment must
-not drop it. Provisioning mirrors changes while the legacy collection exists.
+registers it. Runtime reads and provisioning use only the embedded parent;
+legacy registration stops app/deployment composition. Retire the verified old
+copies only through the [refinement maintenance plan](../../../doc/database/database-layout-refinement-2026-11-08.md).
 Hourly document-view quota has a TTL on `windowStart`: 25 hours (the enforcement
 hour plus the owner's approved 24-hour diagnostic window). Access audits and
 upload/ownership quota counters retain their existing lifecycle.

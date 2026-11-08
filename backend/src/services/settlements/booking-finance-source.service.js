@@ -20,7 +20,7 @@ const oid = value => typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value)
 // fee, completion instant, eligibility flag or payment amount from a browser.
 export function createBookingFinanceSourceService({ connection, clock = () => new Date(), compensationModel = 'EMPLOYEE' }) {
   if (!['EMPLOYEE', 'LEGACY_PARTNER'].includes(compensationModel)) throw new TypeError('Invalid compensation model');
-  const storage = financeSourceModels(connection);
+  const storage = financeSourceModels(connection, { legacyTasks: compensationModel === 'LEGACY_PARTNER' });
   const unitOfWork = createUnitOfWork(connection);
   // Register legacy earning/settlement storage only for its explicit producer.
   // Deployment provisions every registered model, even when no rows are written.
@@ -70,7 +70,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       || typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_:-]{8,128}$/.test(idempotencyKey)) fail(422, 'VALIDATION_FAILED');
     const key = digest([current.userId, operation, resourceId, idempotencyKey]);
     const fingerprint = digest({ expectedVersion, payload });
-    await assertFinanceSourceStorage(connection);
+    await assertFinanceSourceStorage(connection, { legacyTasks: compensationModel === 'LEGACY_PARTNER' });
     if (compensationModel === 'EMPLOYEE') await assertPayrollStorage(connection);
     return retry(async session => {
       const context = await authorize(session);
@@ -222,7 +222,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
   async function drain({ limit = 25 } = {}) {
     if (compensationModel === 'EMPLOYEE') return [];
     if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TypeError('Bounded accrual batch required');
-    await assertFinanceSourceStorage(connection);
+    await assertFinanceSourceStorage(connection, { legacyTasks: true });
     const tasks = await storage.EarningAccrualTask.find({ state: 'PENDING', nextAttemptAt: { $lte: now() } })
       .sort({ nextAttemptAt: 1, _id: 1 }).limit(limit).lean();
     const results = [];

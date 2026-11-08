@@ -161,6 +161,17 @@ export function createUserAdminService({ connection, User, Contact, Audit, sessi
     const auditAction = action === 'LOCK' ? 'USER_LOCKED' : 'USER_UNLOCKED';
     const reason = submittedReason.trim();
     return connection.transaction(async session => {
+      const self = String(userId).toLowerCase() === String(actor.userId).toLowerCase();
+      // A different actor must conflict with concurrent permission revocation.
+      // Self-lock uses the target CAS below, without incrementing its version twice.
+      if (!self) {
+        const admin = await User.findOneAndUpdate({ _id: actor.userId, roles: 'ADMIN', state: 'ACTIVE', synthetic: { $ne: true } },
+          { $inc: { version: 1 } }, { session, returnDocument: 'after' });
+        if (!admin) throw new AppError(403, 'FORBIDDEN', 'Administrator permission changed');
+      } else {
+        const admin = await User.exists({ _id: actor.userId, roles: 'ADMIN', state: 'ACTIVE', synthetic: { $ne: true } }).session(session);
+        if (!admin) throw new AppError(403, 'FORBIDDEN', 'Administrator permission changed');
+      }
       const user = await User.findOneAndUpdate({
         _id: new Types.ObjectId(userId), synthetic: { $ne: true }, state: sourceState, version: expectedVersion
       }, { $set: { state: targetState }, $inc: { authEpoch: 1, version: 1 } }, {

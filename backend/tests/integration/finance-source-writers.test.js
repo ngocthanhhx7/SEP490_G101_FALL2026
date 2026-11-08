@@ -20,9 +20,9 @@ const col = name => connection.db.collection(name);
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'finance_primary_writer_test', autoIndex: false }).asPromise();
-  await provisionSettlementStorage(connection); await provisionFinanceSources(connection);
+  await provisionSettlementStorage(connection); await provisionFinanceSources(connection, { legacyTasks: true });
   await col('privateimages').insertOne({ _id: 'provisioning-sentinel' }); await col('privateimages').deleteMany({});
-  models = { ...financeSourceModels(connection), ...earningAccrualModels(connection), ...settlementModels(connection),
+  models = { ...financeSourceModels(connection, { legacyTasks: true }), ...earningAccrualModels(connection), ...settlementModels(connection),
     ...payrollModels(connection), SitterStatus: sitterApplicationModels(connection).SitterStatus };
   for (const model of Object.values(payrollModels(connection))) { await model.createCollection(); await model.createIndexes(); }
   await models.SitterStatus.createCollection(); await models.SitterStatus.createIndexes();

@@ -36,6 +36,7 @@ import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
 import { customerReadRuntime } from './routes/customer-read-runtime.js';
 import { storageProfile, assertProfileModels } from './config/storage-profile.js';
 import { selectReferenceCatalogSource, assertReferenceCatalogModels } from './models/reference-catalog-source.js';
+import { assertEmbeddedPresentationModels } from './models/service-presentation.model.js';
 
 
 export function createApp({
@@ -162,6 +163,7 @@ export function createApp({
   ]);
   if (connection?.models) assertProfileModels(connection, compensationProfile);
   if (connection?.models) assertReferenceCatalogModels(connection);
+  if (connection?.models) assertEmbeddedPresentationModels(connection);
   app.use(notFound, errorHandler(logger));
   return app;
 }

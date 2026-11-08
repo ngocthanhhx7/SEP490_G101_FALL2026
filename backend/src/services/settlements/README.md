@@ -2,7 +2,10 @@
 
 The EMPLOYEE booking-finance composition does not instantiate legacy partner
 accrual or register its 16 earning/settlement models. Explicit LEGACY_PARTNER
-composition retains that producer. EMPLOYEE endpoints now return HTTP 410 after
+composition retains that producer and its `earningaccrualtasks` queue. The shared
+finance factory defaults to excluding that queue; provisioning/readiness use the
+same explicit profile option. Raw cases/refunds/visits have nonunique bookingId
+lookup indexes for financial source/hold reads. EMPLOYEE endpoints now return HTTP 410 after
 auth/role/CSRF; complaint holds use case/refund sources and the payroll employee
 guard, and the accrual worker only runs in LEGACY_PARTNER. Physical cleanup remains
 separate. See the [collection architecture review](../../../../doc/database/collection-architecture-2026-11-08.md)
