@@ -1,5 +1,12 @@
 # Domain services
 
+`raw-operational-validation.service.js` owns bounded preflight, journaled explicit
+install and known-contract reverse for six native raw validators. It preserves
+current data/indexes and refuses foreign validators/stale digests; no automatic
+collMod runs during application startup or normal provisioning. Missing raw stores
+created by explicit finance provisioning receive their source-declared options.
+Existing stores require the reviewed operator command and isolated restore gates.
+
 `storage-contract-inspection.service.js` builds a runtime-scoped metadata manifest
 and compares ordered index keys/options, critical constraints and read-index drift
 without reading business documents or changing storage. Raw finance/scheduling

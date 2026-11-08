@@ -59,7 +59,7 @@ export function createMongoPaymentWebhookRepository({ connection, finance }) {
         await col('payments').insertOne({ _id: paymentId, bookingId: booking?._id ?? null, intentId,
           provider: 'PAYOS', providerEventId: eventId, providerTransactionReference: receipt.providerTransactionReference,
           state: reason ? 'RECONCILIATION_REQUIRED' : 'VERIFIED', receiptMoney: { amountVnd: receipt.amountVnd, currency: receipt.currency },
-          ...(reason ? { reconcileReason: reason } : { verifiedAt: at }), receivedAt: at, version: 0 }, { session });
+          ...(reason ? { reconcileReason: reason } : { verifiedAt: at }), receivedAt: at, version: 0, storageContractVersion: 1 }, { session });
         if (!reason) {
           const changed = await col('paymentintents').updateOne({ _id: intentId, version: intent.version, state: 'PENDING' },
             { $set: { state: 'PAID', paidAt: at }, $inc: { version: 1 } }, { session });

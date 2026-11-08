@@ -1,5 +1,6 @@
 import { financeSourceModels } from '../../models/finance-source.model.js';
 import { AppError } from '../../utils/app-error.js';
+import { rawOperationalCollectionOptions } from '../../models/raw-operational.storage.js';
 
 const primaryIndexes = [
   ['payments', { provider: 1, providerEventId: 1 }, { name: 'verified_provider_event', unique: true }],
@@ -20,7 +21,7 @@ export async function provisionFinanceSources(connection, { legacyTasks = false 
   }
   for (const name of ['bookings', 'visits', 'payments', 'taxassessments', 'paymentintents', 'cases', 'refunds']) {
     if (!(await connection.db.listCollections({ name }, { nameOnly: true }).toArray()).length) {
-      await connection.db.createCollection(name);
+      await connection.db.createCollection(name, rawOperationalCollectionOptions(name));
     }
   }
   for (const [name, keys, options] of financeSourceIndexes) await connection.db.collection(name).createIndex(keys, options);
