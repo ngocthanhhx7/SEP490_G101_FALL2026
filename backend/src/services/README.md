@@ -1,5 +1,10 @@
 # Domain services
 
+`service-presentation-retirement.service.js` verifies the complete embedded copy
+and bounded legacy store before explicit cleanup; restore retains old IDs but
+reads current canonical parent values. `catalog-index-retirement.service.js`
+handles only two known redundant nonunique indexes and preserves unique guards.
+
 `reference-catalog-retirement.service.js` verifies an exact copy before retiring
 two fixed legacy catalogs. Private Extended JSON manifests retain the baseline
 for metadata restoration and guarded reverse after target writes.

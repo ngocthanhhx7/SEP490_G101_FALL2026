@@ -1,5 +1,10 @@
 # MongoDB diagnostics
 
+`refine-catalog-storage.js --scope=presentations|indexes` defaults to a new private
+manifest dry-run. Apply/restore require explicit database, digest and writer
+freeze. Follow the [refinement plan](../../../doc/database/database-layout-refinement-2026-11-08.md)
+and exact live-operation approval; default runtime provisioning performs no drop.
+
 `retire-reference-catalog.js` inspects the two matched legacy catalogs before
 retirement or restores/reconciles them before rollback. Read the
 [cutover procedure](../../../doc/database/reference-catalog-cutover-2026-11-08.md).

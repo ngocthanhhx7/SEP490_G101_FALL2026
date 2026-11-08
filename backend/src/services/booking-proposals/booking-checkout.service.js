@@ -98,15 +98,15 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         const money = checkoutVisitMoney(result);
         if (input.visits.length !== money.length) fail('VALIDATION_FAILED', 'Schedule every quoted visit');
         const deadline = new Date(at.getTime() + PREPAY_WINDOW_MS), prepay = money.length > 1 || selections.some(row => row.dayCount > 1);
-        const visible = await Setting.findOne({ key: 'SERVICE_CATALOG_VISIBLE', effectiveAt: { $lte: at } }).sort({ effectiveAt: -1, version: -1 }).session(session).lean();
+        const visible = await Setting.findOne({ key: 'SERVICE_CATALOG_VISIBLE', effectiveAt: { $lte: at } }).sort({ effectiveAt: -1 }).session(session).lean();
         if (visible?.enabled !== true) fail('SERVICE_UNAVAILABLE', 'Catalogue unavailable', 409);
         const bookingId = new Types.ObjectId(), visits = [], seenPets = new Set(), seenAddresses = new Set();
         for (let itemIndex = 0; itemIndex < selections.length; itemIndex++) {
           const selection = selections[itemIndex], quoted = result.items[itemIndex];
           const filter = { serviceId: oid(selection.serviceId), effectiveAt: { $lte: at } };
-          const version = await Version.findOne(filter).sort({ effectiveAt: -1, version: -1 }).session(session).lean();
-          const price = await Price.findOne(filter).sort({ effectiveAt: -1, version: -1 }).session(session).lean();
-          const policy = await Policy.findOne(filter).sort({ effectiveAt: -1, version: -1 }).session(session).lean();
+          const version = await Version.findOne(filter).sort({ effectiveAt: -1 }).session(session).lean();
+          const price = await Price.findOne(filter).sort({ effectiveAt: -1 }).session(session).lean();
+          const policy = await Policy.findOne(filter).sort({ effectiveAt: -1 }).session(session).lean();
           const pricing = await PricingPolicy.findOne({ ...filter, status: 'APPROVED', approvedAt: { $lte: at, $ne: null } }).sort({ version: -1 }).session(session).lean();
           const presentation = await readServicePresentation(connection, selection.serviceId, session);
           if (version?.state !== 'ACTIVE' || version.version !== quoted.serviceVersion || price?.version !== quoted.priceVersion ||
