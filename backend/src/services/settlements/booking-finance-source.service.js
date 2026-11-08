@@ -22,8 +22,11 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
   if (!['EMPLOYEE', 'LEGACY_PARTNER'].includes(compensationModel)) throw new TypeError('Invalid compensation model');
   const storage = financeSourceModels(connection);
   const unitOfWork = createUnitOfWork(connection);
-  const sources = createMongoEarningSources({ connection });
-  const accrual = createEarningAccrualService({ connection, unitOfWork, sources, clock });
+  // Register legacy earning/settlement storage only for its explicit producer.
+  // Deployment provisions every registered model, even when no rows are written.
+  const accrual = compensationModel === 'LEGACY_PARTNER'
+    ? createEarningAccrualService({ connection, unitOfWork, sources: createMongoEarningSources({ connection }), clock })
+    : null;
   const statuses = sitterApplicationModels(connection).SitterStatus;
   const col = name => connection.db.collection(name);
   const now = () => { const value = new Date(clock()); if (!Number.isFinite(value.getTime())) throw new TypeError('Invalid source clock'); return value; };
