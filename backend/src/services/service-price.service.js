@@ -98,8 +98,9 @@ export function createServicePriceService({ connection, PriceVersion, serviceExi
   }
 
   async function getActivePrices(serviceIds, at = new Date(clock())) {
+    if (serviceIds.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
     const rows = await PriceVersion.aggregate([{ $match: { serviceId: { $in: serviceIds.map(serviceObjectId) }, effectiveAt: { $lte: at } } },
-      { $sort: { effectiveAt: -1, version: -1 } }, { $group: { _id: '$serviceId', price: { $first: '$$ROOT' } } }]).option({ maxTimeMS: 5000 });
+      { $sort: { serviceId: -1, effectiveAt: -1 } }, { $group: { _id: '$serviceId', price: { $first: '$$ROOT' } } }]).option({ maxTimeMS: 5000 });
     return new Map(rows.map(row => [String(row._id), priceView(row.price)]));
   }
   return Object.freeze({ list, latestVersion, getActivePrice, getActivePrices, createVersion });

@@ -18,7 +18,7 @@ export function createPetCareContext(connection, clock = Date.now) {
       const [service, version, pets, address, clinic] = await Promise.all([
         Service.findById(serviceId).lean(),
         ServiceVersion.findOne({ serviceId, effectiveAt: { $lte: now } })
-          .sort({ effectiveAt: -1, version: -1 })
+          .sort({ effectiveAt: -1 })
           .lean(),
         models.Pet.find({
           _id: { $in: input.petIds },
@@ -46,13 +46,13 @@ export function createPetCareContext(connection, clock = Date.now) {
       ]);
       const [servicePolicy, catalog] = await Promise.all([
         ServicePolicy.findOne({ serviceId, effectiveAt: { $lte: now } })
-          .sort({ effectiveAt: -1, version: -1 })
+          .sort({ effectiveAt: -1 })
           .lean(),
         Setting.findOne({
           key: 'SERVICE_CATALOG_VISIBLE',
           effectiveAt: { $lte: now }
         })
-          .sort({ effectiveAt: -1, version: -1 })
+          .sort({ effectiveAt: -1 })
           .lean()
       ]);
       if (servicePolicy?.state !== 'PUBLISHED' || catalog?.enabled !== true)

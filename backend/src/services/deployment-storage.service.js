@@ -5,11 +5,13 @@ import { assertBookingReadStorage } from './booking-read-storage.service.js';
 import { storageProfile, assertProfileModels } from '../config/storage-profile.js';
 import { assertReferenceCatalogModels, referenceCatalogSource } from '../models/reference-catalog-source.js';
 import { provisionReferenceCatalogStorage } from './reference-catalog-storage.service.js';
+import { assertEmbeddedPresentationModels } from '../models/service-presentation.model.js';
 
 // Called by the deployment command after runtime modules register their models.
 // Additive only: incompatible indexes/data must stop deployment for review.
 export async function provisionDeploymentStorage({ connection, env = {} }) {
   assertProfileModels(connection, storageProfile(env));
+  assertEmbeddedPresentationModels(connection);
   assertReferenceCatalogModels(connection);
   if (referenceCatalogSource(connection) === 'target') await provisionReferenceCatalogStorage(connection.db);
   for (const key of ['FINANCE_SOURCES_ENABLED', 'EMPLOYEE_SCHEDULING_ENABLED', 'BOOKING_CHECKOUT_ENABLED']) {
