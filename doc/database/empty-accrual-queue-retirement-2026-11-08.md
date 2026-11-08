@@ -1,11 +1,25 @@
 # Optional empty accrual queue retirement
 
-## Decision scope — not approved for production drop
+## Final decision and acceptance
 
-Only `earningaccrualtasks` is proposed. It is empty and unregistered under the
+The owner explicitly approved deleting this empty queue after final review,
+backup/restore and live dry-run. The action completed at13:54UTC using reviewed
+main ea093a1 (PR264/release265). Exactly one drop targeted earningaccrualtasks;
+81 collections/585 documents/201 indexes remain. All retained core BSON, index
+and validator metadata matched before/after; six native financial contracts and
+seven existing TTL contracts remain intact. API546bf193, environment and readiness
+are unchanged. See [final acceptance](optimization-acceptance-2026-11-08.md).
+
+This approval was consumed for that exact empty namespace; it grants no other
+cleanup, retention, replay or provider operation. The historical proposal below
+explains the scope and guards. Do not rerun apply against an absent namespace.
+
+## Historical decision scope
+
+Only `earningaccrualtasks` was proposed. It was empty and unregistered under the
 active EMPLOYEE profile; existing approval for the16 legacy compensation stores
 does not cover this collection. Do not add it to that old retirement manifest.
-This increment prepares a separate default-read-only command and rollback path.
+The increment prepared a separate default-read-only command and rollback path.
 No live drop runs without the owner's new explicit decision after review and
 fresh backup/restore rehearsal.
 
