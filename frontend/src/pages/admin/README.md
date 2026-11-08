@@ -1,5 +1,9 @@
 # Admin pages
 
+Service price history uses bounded cursor pages with first/previous/next/reload.
+Service changes and acknowledged saves reset to the first page; stale history
+cannot supply a write version. A version conflict refreshes without retrying POST.
+
 Approved employee payroll offers `VOID_UNPAID` only after an explicit no-payment
 attestation and reason. This preserves the old breakdown, releases source claims
 server-side and lets Admin prepare salary again while disputed booking commission
