@@ -19,6 +19,9 @@ issue/sign; encrypted historical terms and hashes are never rewritten.
 Signed/activated historical documents remain readable and printable unchanged.
 `payroll-draft.service.js` derives contractual calendars, fixed salary/allowance and
 verified service-credit previews, retaining explicit attendance/statutory evidence.
+Its employee directory selects latest version through the existing employee/version
+index, retaining the 200-employee guard before role filtering. No new index or
+effective-date interpretation is introduced by this traversal optimization.
 `payroll.service.js` rechecks the source hash inside preparation and retains
 approval/payment/adjustment state machines. Care hours are not attendance.
 
