@@ -19,7 +19,9 @@ species/name ordering was not stable in the old contract and remains unspecified
 Legacy is the default for the first additive release. `selectReferenceCatalogSource`
 binds a source to one Mongoose connection before model registration. Factories
 inherit the bound choice; conflicting choices and leaked opposing collection
-registrations are refused. There is no global switch, per-query fallback or union.
+registrations are refused. The subsequent [production cutover release](reference-catalog-cutover-2026-11-08.md)
+defaults production processes to target after copy/shadow; dev/test stays legacy.
+There is no per-query fallback or union.
 
 Programmatic opt-ins:
 
