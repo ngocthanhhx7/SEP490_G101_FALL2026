@@ -4,7 +4,8 @@ Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-e
 
 Reference catalog candidate: `ensure-indexes.js`, `provision-demo-catalog.js`
 and `provision-hanoi-demo.js` accept `--reference-catalog=target`. The same option
-is supported by the affected seed/demo CLIs. Default is legacy. Choice is bound to
+is supported by the affected seed/demo CLIs. After the reviewed copy/shadow gate,
+production defaults to target; dev/test default to legacy. Choice is bound to
 the connection before any model construction and cannot be switched later.
 Target deployment provisions only `reference_catalog` for breeds/traits, asserts
 strict validator/exact index shape, and rejects leaked legacy registry models.

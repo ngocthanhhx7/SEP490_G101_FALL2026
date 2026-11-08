@@ -1,5 +1,9 @@
 # MongoDB diagnostics
 
+`retire-reference-catalog.js` inspects the two matched legacy catalogs before
+retirement or restores/reconciles them before rollback. Read the
+[cutover procedure](../../../doc/database/reference-catalog-cutover-2026-11-08.md).
+
 `retire-legacy-storage.js` inspects the fixed 16 retired partner-compensation
 stores and writes a new metadata manifest. Apply requires an empty-store digest,
 database confirmation and writer freeze; restore recreates missing empty stores

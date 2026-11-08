@@ -1,8 +1,11 @@
 const choices = new WeakMap();
 const LEGACY = ['aibreeds', 'aitraits'];
+// Production switches only after the reviewed additive migration/shadow gate.
+// This shared default covers runtime and operator CLIs without rewriting .env.
+export const defaultReferenceCatalogSource = () => process.env.NODE_ENV === 'production' ? 'target' : 'legacy';
 
 export function referenceCatalogSource(connection) {
-  return choices.get(connection) ?? 'legacy';
+  return choices.get(connection) ?? defaultReferenceCatalogSource();
 }
 
 export function selectReferenceCatalogSource(connection, source = referenceCatalogSource(connection)) {
@@ -22,5 +25,5 @@ export function assertReferenceCatalogModels(connection) {
 export function referenceCatalogCliSource(argv = process.argv.slice(2)) {
   const flags = argv.filter(arg => arg.startsWith('--reference-catalog'));
   if (flags.length > 1 || (flags.length && !['--reference-catalog=legacy', '--reference-catalog=target'].includes(flags[0]))) throw new TypeError('Invalid reference catalog argument');
-  return flags[0]?.split('=')[1] ?? 'legacy';
+  return flags[0]?.split('=')[1] ?? defaultReferenceCatalogSource();
 }

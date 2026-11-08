@@ -1,5 +1,9 @@
 # Domain services
 
+`reference-catalog-retirement.service.js` verifies an exact copy before retiring
+two fixed legacy catalogs. Private Extended JSON manifests retain the baseline
+for metadata restoration and guarded reverse after target writes.
+
 `reference-catalog-migration.service.js` owns bounded insert-only catalog copy and
 checkpointed reverse reconciliation after target writes. Its storage service
 provisions strict typed validation and three indexes; readers inherit one
