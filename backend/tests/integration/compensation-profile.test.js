@@ -37,6 +37,7 @@ test.each(['EMPLOYEE', 'LEGACY_PARTNER'])('whole app provisions exactly its comp
   connection.getClient().off('commandStarted', listener);
   const registered = Object.values(connection.models).map(m => m.collection.name).filter(name => legacyCompensationCollections.includes(name));
   expect(registered).toHaveLength(profile === 'EMPLOYEE' ? 0 : 16);
+  expect(Boolean(connection.models.EarningAccrualTask)).toBe(profile === 'LEGACY_PARTNER');
   await expect(assertRuntimeStorageProfile(connection, profile)).rejects.toMatchObject({ code: 'STORAGE_PROFILE_NOT_READY' });
   // The owner cursor index is explicitly approved/provisioned separately from deployment.
   await connection.db.createCollection('bookings');
@@ -46,6 +47,11 @@ test.each(['EMPLOYEE', 'LEGACY_PARTNER'])('whole app provisions exactly its comp
   await expect(assertRuntimeStorageProfile(connection, profile)).resolves.toBeUndefined();
   const physical = (await connection.db.listCollections({}, { nameOnly: true }).toArray()).map(row => row.name);
   expect(physical.filter(name => legacyCompensationCollections.includes(name))).toHaveLength(profile === 'EMPLOYEE' ? 0 : 16);
+  expect(physical.includes('earningaccrualtasks')).toBe(profile === 'LEGACY_PARTNER');
+  for (const name of ['cases', 'refunds', 'visits']) {
+    const indexes = await connection.collection(name).listIndexes().toArray();
+    expect(indexes.find(index => index.name === 'booking_source_lookup')).toMatchObject({ key: { bookingId: 1 } });
+  }
 });
 
 test('employee retired endpoints preserve authentication/role/CSRF before 410 and query no legacy store', async () => {

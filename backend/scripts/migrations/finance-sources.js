@@ -14,7 +14,7 @@ if (!process.argv.includes('--apply')) {
     connection = await connectDatabase(config);
     const compensationProfile = storageProfile(process.env);
     if (compensationProfile === 'LEGACY_PARTNER') await provisionSettlementStorage(connection, { compensationProfile });
-    await provisionFinanceSources(connection);
+    await provisionFinanceSources(connection, { legacyTasks: compensationProfile === 'LEGACY_PARTNER' });
     console.log(JSON.stringify({ state: 'FINANCE_SOURCE_STORAGE_PROVISIONED', policyState: 'UNCHANGED' }));
   } catch {
     console.error('Finance source provisioning failed; raw database details omitted'); process.exitCode = 1;
