@@ -1,5 +1,12 @@
 # Domain services
 
+`storage-contract-inspection.service.js` builds a runtime-scoped metadata manifest
+and compares ordered index keys/options, critical constraints and read-index drift
+without reading business documents or changing storage. Raw finance/scheduling
+declarations are shared with their explicit provisioners. Specialized catalog
+validators are checked only for their declared/selected contracts; uncovered
+validators and physical stores remain visible as unasserted scope.
+
 `service-presentation-retirement.service.js` verifies the complete embedded copy
 and bounded legacy store before explicit cleanup; restore retains old IDs but
 reads current canonical parent values. `catalog-index-retirement.service.js`
