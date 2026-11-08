@@ -6,6 +6,7 @@ import { storageProfile, assertProfileModels } from '../config/storage-profile.j
 import { assertReferenceCatalogModels, referenceCatalogSource } from '../models/reference-catalog-source.js';
 import { provisionReferenceCatalogStorage } from './reference-catalog-storage.service.js';
 import { assertEmbeddedPresentationModels } from '../models/service-presentation.model.js';
+import { assertSingleAccountRoleStorage } from './single-account-role.service.js';
 
 // Called by the deployment command after runtime modules register their models.
 // Additive only: incompatible indexes/data must stop deployment for review.
@@ -24,6 +25,7 @@ export async function provisionDeploymentStorage({ connection, env = {} }) {
     await model.createCollection();
     await model.createIndexes();
   }
+  if (connection.models.User) await assertSingleAccountRoleStorage(connection.db);
   if (connection.models.PayrollStatement) await assertPayrollStorage(connection);
   if (env.FINANCE_SOURCES_ENABLED === 'true') await assertFinanceSourceStorage(connection, { legacyTasks: storageProfile(env) === 'LEGACY_PARTNER' });
   if (env.EMPLOYEE_SCHEDULING_ENABLED === 'true') await assertEmployeeSchedulingStorage(connection);

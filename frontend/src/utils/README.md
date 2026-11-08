@@ -1,5 +1,9 @@
 # Pure UI helpers
 
+`role-access.js` accepts exactly one account role (including the legacy scalar
+adapter shape). Mixed/duplicate roles fail closed; they are not normalized by
+privilege priority. ADMIN retains the existing STAFF-operation permission rule.
+
 `product-photo.js` maps generated product-photo URLs to the Admin reader for hidden
 product previews. Static assets keep their paths; this is URL formatting only.
 

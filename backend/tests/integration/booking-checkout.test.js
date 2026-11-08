@@ -52,7 +52,9 @@ beforeAll(async () => {
     point: { type: 'Point', coordinates: [105.85, 21.02] }, pointConfirmedAt: at, areaCode: 'DISTRICT_HAI_BA_TRUNG', version: 0 });
   const session = { authenticate: async req => {
     const name = req.get('x-test-actor');
-    const actor = ['ADMIN', 'STAFF', 'PET_SITTER'].includes(name) ? { ...owner, roles: ['CUSTOMER', name] } : ({ owner, other })[name];
+    const mixedRole = name?.startsWith('mixed-') ? name.slice(6) : null;
+    const actor = mixedRole ? { ...owner, roles: ['CUSTOMER', mixedRole] }
+      : ['ADMIN', 'STAFF', 'PET_SITTER'].includes(name) ? { ...owner, roles: [name] } : ({ owner, other })[name];
     return actor ? { ...actor, expiresAt: at.getTime() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   const module = bookingCheckoutRuntimeModule({ config: { auth: { enabled: true } }, connection, clock: () => at.getTime(), provider, sessionService: session,
@@ -120,6 +122,7 @@ test.each(['ADMIN', 'STAFF', 'PET_SITTER'])('checkout service rejects retained C
     const response = await request(app).get('/api/v1/checkout' + path).set('x-test-actor', role).expect(403);
     expect(response.body.error.code).toBe('FORBIDDEN');
   }
+  await request(app).get('/api/v1/checkout/options').set('x-test-actor', 'mixed-' + role).expect(401);
   const response = await request(app).post('/api/v1/checkout/bookings').set('x-test-actor', role)
     .set('Origin', 'http://127.0.0.1:5188').set('X-CSRF-Token', 'synthetic-csrf').send({}).expect(403);
   expect(response.body.error.code).toBe('FORBIDDEN');

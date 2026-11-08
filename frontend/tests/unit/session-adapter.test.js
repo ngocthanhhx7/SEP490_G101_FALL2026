@@ -6,7 +6,7 @@ describe('API session adapter', () => {
   test('maps the authenticated GET /me projection without exposing extra fields', async () => {
     const request = jest.fn(async () => ({ data: { user: {
       id: '507f1f77bcf86cd799439011', displayName: 'Synthetic Customer',
-      roles: ['CUSTOMER', 'CUSTOMER'], contact: 'private@example.test'
+      roles: ['CUSTOMER'], contact: 'private@example.test'
     } }, status: 200 }));
     const adapter = createApiSessionAdapter({ request });
     const signal = new AbortController().signal;
@@ -112,4 +112,9 @@ test('a late unauthorized session read cannot erase a successful login CSRF', as
 test('preserves registration guidance only after successful OTP verification', async () => {
  const adapter = createApiSessionAdapter({ request: async () => ({status:200,data:{authenticated:false,reason:'REGISTRATION_REQUIRED'}}) });
  await expect(adapter.login()).resolves.toEqual({status:'guest',reason:'REGISTRATION_REQUIRED'});
+});
+
+test.each([[], ['CUSTOMER', 'CUSTOMER'], ['CUSTOMER', 'PET_SITTER'], ['ADMIN', 'STAFF']].map(roles => ({ roles })))('rejects non-singleton account roles $roles', async ({ roles }) => {
+  const adapter = createApiSessionAdapter({ request: async () => ({ status: 200, data: { user: { id: 'synthetic-id', displayName: 'Synthetic', roles } } }) });
+  await expect(adapter.resolve()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });

@@ -62,10 +62,11 @@ test('concurrent same-key submission has one result; stale review and changed-ke
 
 test('self approval, unauthorized actor and suspended sitter cannot publish', async () => {
   await submit();
-  await users.updateOne({ _id: sitter.userId }, { $addToSet: { roles: 'STAFF' } });
-  await expect(service.review({ actor: { ...sitter, roles: ['PET_SITTER', 'STAFF'] }, userId: sitter.userId,
+  await users.updateOne({ _id: sitter.userId }, { $set: { roles: ['STAFF'] } });
+  await expect(service.review({ actor: { ...sitter, roles: ['STAFF'] }, userId: sitter.userId,
     body: { decision: 'APPROVE', reason: 'Self', expectedVersion: 1 }, idempotencyKey: 'self-approval-1' }))
     .rejects.toMatchObject({ status: 403 });
+  await users.updateOne({ _id: sitter.userId }, { $set: { roles: ['PET_SITTER'] } });
   await expect(service.listPending({ actor: sitter })).rejects.toMatchObject({ status: 403 });
   await statuses.updateOne({ userId: sitter.userId }, { $set: { status: 'SUSPENDED' } });
   await expect(approve(1)).rejects.toMatchObject({ code: 'SITTER_NOT_ELIGIBLE' });

@@ -1,5 +1,21 @@
 # MongoDB diagnostics
 
+`migrate-single-account-role.js` defaults to a bounded read-only plan saved at a
+new private `SINGLE_ACCOUNT_ROLE_MANIFEST` path. `--apply` requires matching
+`CONFIRMED_SINGLE_ROLE_DATABASE`, `CONFIRMED_SINGLE_ROLE_DIGEST`,
+`CONFIRMED_SINGLE_ROLE_CONTRACT=SINGLE_ACCOUNT_ROLE_V1` and
+`CONFIRMED_SINGLE_ROLE_WRITERS_FROZEN=true`. These are per-operation confirmations,
+not runtime .env changes. Unknown/ambiguous roles and foreign validators block.
+Drain old writers, including approval's former add-to-set writer, before apply.
+Use the reviewed main source and a fresh backup/isolated replica rehearsal.
+
+For `--restore-validator`, point `SINGLE_ACCOUNT_ROLE_MANIFEST` at the original
+apply journal and confirm a fresh inspection digest. It only restores the known
+prior validator; migrated roles and revoked sessions remain. Journal files use
+exclusive private creation, fsync and atomic replace. Never elevate the app role
+to obtain collMod; use the existing authorized database operator. See the
+[scope, cutover and rollback](../../../doc/architecture/single-account-role-2026-11-09.md).
+
 `retire-empty-accrual-queue.js` prepares only the empty earningaccrualtasks
 namespace under EMPLOYEE. It does not extend the old16-store retirement scope.
 Set a new private `EMPTY_ACCRUAL_QUEUE_MANIFEST` path for default dry-run. Apply/
