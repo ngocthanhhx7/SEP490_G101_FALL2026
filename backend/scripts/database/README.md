@@ -1,5 +1,13 @@
 # MongoDB diagnostics
 
+`reset-demo-workflows.js` defaults to a bounded read-only dry-run. The explicit
+`--apply` path requires the matching database/digest and confirmed writer drain;
+it deletes demo workflow records and manifested demo sitters, reconciles product
+reservations and verifies retained BSON in one transaction. It does not drop
+collections/indexes or modify environment/provider objects. Follow the
+[reset and rollback plan](../../../doc/database/demo-core-reset-2026-11-08.md)
+and obtain approval for the concrete live operation before apply.
+
 `audit-layout.js` uses the configured backend environment to read collection
 sizes, indexes, scalar unique-key duplicate counts and 12 explicitly declared
 current references. Run with `node --env-file-if-exists=.env
