@@ -3,6 +3,8 @@ import { Types } from 'mongoose';
 import { HANOI_DEMO_KEY, hanoiDemoZones, demoSitterNames, demoCustomerNames } from '../constants/hanoi-demo-population.js';
 import { userModel } from '../models/user.model.js';
 import { petCareModels } from '../models/pet-care.model.js';
+import { referenceCatalogSource } from '../models/reference-catalog-source.js';
+import { provisionReferenceCatalogStorage } from './reference-catalog-storage.service.js';
 import { matchingModels } from '../models/sitter-matching.model.js';
 import { sitterApplicationModels } from '../models/sitter-application.model.js';
 import { sitterPublicProfileModels } from '../models/sitter-public-profile.model.js';
@@ -18,15 +20,19 @@ export const hanoiDemoSummary = () => ({ key: HANOI_DEMO_KEY, zones: hanoiDemoZo
   contacts: 0, bookings: 0, payments: 0, ratings: 0, outcomes: 0, trainingEligible: false,
   scheduleFrom: '2026-10-30', scheduleUntil: '2026-12-28', source: 'USER_AUTHORIZED_COURSEWORK_FIXTURE' });
 
-export async function provisionHanoiDemo({ connection, auth }) {
-  const models = { User: userModel(connection), ...petCareModels(connection), ...matchingModels(connection),
+export async function provisionHanoiDemo({ connection, auth, referenceCatalog }) {
+  const models = { User: userModel(connection), ...petCareModels(connection, { referenceCatalog }), ...matchingModels(connection),
     ...sitterApplicationModels(connection), ...sitterPublicProfileModels(connection), ...employeeSchedulingModels(connection), ...payrollModels(connection) };
   const crypto = createContactCrypto({ lookupSecret: auth.contactLookupSecret, encryptionKey: auth.contactEncryptionKey });
   const services = await connection.collection('services').find({ code: { $in: ['home-care', 'dog-walking'] } }).toArray();
   if (services.length !== 2) throw new Error('DEMO_CATALOG_REQUIRED');
   const breeds = await models.PetBreed.find({ active: true }).lean();
   if (!breeds.some(row => row.species === 'DOG') || !breeds.some(row => row.species === 'CAT')) throw new Error('PET_BREEDS_REQUIRED');
-  for (const model of Object.values(models)) { await model.createCollection(); await model.createIndexes(); }
+  if (referenceCatalogSource(connection) === 'target') await provisionReferenceCatalogStorage(connection.db);
+  for (const model of Object.values(models)) {
+    if (model.collection.name === 'reference_catalog') continue;
+    await model.createCollection(); await model.createIndexes();
+  }
   const runs = connection.collection('demopopulationruns');
   return connection.transaction(async session => {
     const previous = await runs.findOne({ _id: HANOI_DEMO_KEY }, { session });

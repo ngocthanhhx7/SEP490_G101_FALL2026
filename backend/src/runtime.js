@@ -6,6 +6,8 @@ import { startEarningAccrualWorker } from './jobs/earning-accrual.job.js';
 import { startEmployeeDispatchWorker } from './jobs/employee-dispatch.job.js';
 import { startApplicationMailWorker } from './jobs/application-mail.job.js';
 import { assertRuntimeStorageProfile } from './config/storage-profile.js';
+import { referenceCatalogSource } from './models/reference-catalog-source.js';
+import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
 
 export async function startRuntime({ env = process.env, logger = () => {}, ...appOptions } = {}) {
   const config = loadConfig(env);
@@ -15,6 +17,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
     if (config.nodeEnv === 'production') await assertRuntimeStorageProfile(connection, app.locals.compensationProfile);
+    if (referenceCatalogSource(connection) === 'target') await assertReferenceCatalogStorage(connection.db);
     server = createServer(app);
     server.requestTimeout = 15000;
     server.headersTimeout = 10000;
