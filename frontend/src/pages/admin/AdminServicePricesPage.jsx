@@ -29,6 +29,7 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
   const [reason, setReason] = useState('');
   const [pending, setPending] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [history, setHistory] = useState({ serviceId: null, cursors: [null] });
   const apiRequest = useMemo(() => suppliedRequest ?? createApiClient({
     getCsrfToken: session.getCsrfToken, onUnauthorized: session.invalidate
   }), [suppliedRequest, session.getCsrfToken, session.invalidate]);
@@ -36,15 +37,26 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
   const servicesResource = useApiResource(loadServices);
   const services = Array.isArray(servicesResource.data) ? servicesResource.data : [];
   const selected = services.find(service => service.id === selectedId) ?? services[0] ?? null;
-  const loadPrices = useCallback(options => selected
-    ? apiRequest('/service-prices/admin/' + selected.id, options)
-    : Promise.resolve({ data: { prices: [], latestVersion: 0 } }), [apiRequest, selected?.id]);
+  const cursors = history.serviceId === selected?.id ? history.cursors : [null];
+  const before = cursors.at(-1);
+  const scope = `${selected?.id ?? ''}~${before ?? ''}`;
+  const loadPrices = useCallback(async options => {
+    if (!selected) return { data: { prices: [], latestVersion: 0, scope } };
+    const query = new globalThis.URLSearchParams({ limit: '20', ...(before ? { before } : {}) });
+    const result = await apiRequest('/service-prices/admin/' + selected.id + '/history?' + query, options);
+    return { ...result, data: { ...result.data, scope } };
+  }, [apiRequest, selected?.id, before, scope]);
   const pricesResource = useApiResource(loadPrices);
-  const prices = pricesResource.data?.prices ?? [];
+  const historyReady = pricesResource.status === 'success' && pricesResource.data?.scope === scope;
+  const prices = historyReady ? pricesResource.data.prices : [];
+  const resetHistory = () => {
+    setHistory({ serviceId: selected?.id, cursors: [null] });
+    pricesResource.retry();
+  };
 
   const save = async event => {
     event.preventDefault();
-    if (!selected || !isAdmin || pending) return;
+    if (!selected || !isAdmin || pending || !historyReady) return;
     if (!/^(0|[1-9]\d*)$/.test(amountText) || !Number.isSafeInteger(Number(amountText))) {
       setFeedback({ state: 'error', text: 'Nhập số nguyên VND từ 0 đến giới hạn số nguyên an toàn.' });
       return;
@@ -65,10 +77,11 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
       else {
         setFeedback({ state: 'success', text: 'Máy chủ đã ghi nhận phiên bản giá mới.' });
         setAmountText(''); setUnitLabel(''); setReason(''); setEffectiveAt(localDateTime());
-        pricesResource.retry();
+        resetHistory();
       }
     } catch (error) {
       setFeedback({ state: error.status === 403 ? 'forbidden' : 'error', text: errorMessage(error) });
+      if (error.status === 409) resetHistory();
     } finally { setPending(false); }
   };
 
@@ -100,7 +113,7 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
         {servicesResource.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem">Yêu cầu này không được phép.</Notice>}
         {servicesResource.status === 'empty' && <Notice state="empty" title="Chưa có dịch vụ">Tạo dịch vụ trước khi cấu hình giá.</Notice>}
         {services.length > 0 && <ul className="admin-price-service-items">{services.map(service => <li key={service.id}>
-          <button type="button" aria-pressed={selected?.id === service.id} onClick={() => setSelectedId(service.id)}>
+          <button type="button" disabled={pending} aria-pressed={selected?.id === service.id} onClick={() => { setSelectedId(service.id); setFeedback(null); }}>
             <strong>{service.name}</strong><small>{service.code}</small>
           </button>
         </li>)}</ul>}
@@ -114,12 +127,21 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
           action={<Button variant="secondary" onClick={pricesResource.retry}>Thử lại</Button>}>Kiểm tra kết nối rồi thử lại.</Notice>}
         {pricesResource.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem giá">Yêu cầu này không được phép.</Notice>}
         {pricesResource.status === 'empty' && <Notice state="empty" title="Chưa cấu hình giá">Dịch vụ chưa có phiên bản giá hiệu lực.</Notice>}
-        {prices.length === 0 && pricesResource.status === 'success'
+        {prices.length === 0 && historyReady
           && <Notice state="empty" title="Chưa cấu hình giá">Dịch vụ chưa có phiên bản giá hiệu lực.</Notice>}
         {prices.length > 0 && <ol className="admin-price-history">{prices.map(price => <li key={price.version}>
           <div><strong>{money(price.amountVnd)}</strong><span>{price.unitLabel}</span></div>
           <small>Phiên bản {price.version} · hiệu lực {new Date(price.effectiveAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</small>
         </li>)}</ol>}
+        <nav aria-label="Phân trang lịch sử giá">
+          <Button variant="secondary" disabled={pending || !historyReady || cursors.length === 1} onClick={resetHistory}>Trang đầu</Button>
+          <Button variant="secondary" disabled={pending || !historyReady || cursors.length === 1}
+            onClick={() => setHistory({ serviceId: selected.id, cursors: cursors.slice(0, -1) })}>Trang trước</Button>
+          <span aria-live="polite">Trang {cursors.length}</span>
+          <Button variant="secondary" disabled={pending || !historyReady || !pricesResource.data?.nextCursor}
+            onClick={() => setHistory({ serviceId: selected.id, cursors: [...cursors, pricesResource.data.nextCursor] })}>Trang sau</Button>
+          <Button variant="secondary" disabled={pending} onClick={resetHistory}>Tải lại lịch sử</Button>
+        </nav>
         {isAdmin && selected && <form className="admin-price-form" onSubmit={save}>
           <h3>Tạo phiên bản giá</h3>
           <Input label="Giá (VND)" required inputMode="numeric" pattern="(0|[1-9][0-9]*)" value={amountText}
@@ -130,7 +152,7 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
             onChange={event => setEffectiveAt(event.target.value)} />
           <Input label="Lý do thay đổi" required minLength={3} maxLength={500} value={reason}
             onChange={event => setReason(event.target.value)} />
-          <Button type="submit" loading={pending} loadingLabel="Đang lưu…">Lưu phiên bản giá</Button>
+          <Button type="submit" disabled={!historyReady} loading={pending} loadingLabel="Đang lưu…">Lưu phiên bản giá</Button>
         </form>}
       </section>
     </section>
