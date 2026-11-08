@@ -13,7 +13,7 @@ export function createPayrollDraftService({ connection, clock = Date.now }) {
   return {
     async employees(actor) {
       admin(actor);
-      const contracts = await Contract.aggregate([{ $sort: { version: -1 } }, { $group: { _id: '$employeeId', contract: { $first: '$$ROOT' } } }, { $limit: 201 }]);
+      const contracts = await Contract.aggregate([{ $sort: { employeeId: -1, version: -1 } }, { $group: { _id: '$employeeId', contract: { $first: '$$ROOT' } } }, { $limit: 201 }]);
       if (contracts.length > 200) fail('PAYROLL_REVIEW_REQUIRED', 'Employee directory requires paged review', 409);
       const users = await connection.collection('users').find({ _id: { $in: contracts.map(row => row._id) }, roles: 'PET_SITTER' }, { projection: { displayName: 1 } }).toArray();
       return { items: users.map(user => { const c = contracts.find(row => String(row._id) === String(user._id)).contract;
