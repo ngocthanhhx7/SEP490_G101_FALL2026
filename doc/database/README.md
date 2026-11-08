@@ -20,3 +20,5 @@ Model names now split into pet-care/pricing/decision-snapshot/sitter-matching fa
 - [Catalog effective reads — 08/11/2026](catalog-effective-reads-2026-11-08.md): dùng unique index hiện hữu cho point-in-time selection, giữ nguyên dữ liệu và index.
 
 - [Booking owner index — 08/11/2026](booking-owner-index-2026-11-08.md): scoped cursor query, read/write tradeoff, explicit provision and deployment assertion.
+
+- [Calendar batch reads — 08/11/2026](calendar-batch-reads-2026-11-08.md): bounded revision range, same-day version tie and snapshot consistency, no migration/index changes.
