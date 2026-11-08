@@ -24,3 +24,5 @@ Model names now split into pet-care/pricing/decision-snapshot/sitter-matching fa
 - [Calendar batch reads — 08/11/2026](calendar-batch-reads-2026-11-08.md): bounded revision range, same-day version tie and snapshot consistency, no migration/index changes.
 
 - [Collection architecture — 08/11/2026](collection-architecture-2026-11-08.md): ownership của 100 collection, legacy producer registration và các bước retirement/consolidation; chưa phê duyệt drop.
+
+- [Demo core reset — 08/11/2026](demo-core-reset-2026-11-08.md): giữ catalog/account core, chọn sitter theo seed manifest và dọn workflow trong transaction; command mặc định dry-run, chưa phê duyệt live apply.

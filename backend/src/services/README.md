@@ -29,6 +29,10 @@ Changes increment authEpoch/version, revoke sessions and audit old/new roles.
 
 Services own domain decisions, data access orchestration and provider interactions. They import models/config/validators/utils/constants; never routes/controllers/middleware. Pricing is deterministic in `pricing/`; AI only recommends sitters in `sitter-matching/`. Shared owned-pet/service context has no pricing prerequisite. Private provider/default ports fail closed if unconfigured.
 
+`demo-workflow-reset.service.js` is an operator-only bounded reset with snapshot
+digests, seed-manifest selection, reservation reconciliation and transaction
+postchecks. Runtime composition never calls it. See the [maintenance plan](../../../doc/database/demo-core-reset-2026-11-08.md).
+
 `pet-care-management.service.js` owns Customer pet/address intake, owner-scoped
 edit/archive and durable command replay. `customer-bookings.service.js` provides
 bounded owner-filtered history with signed cursors. Notification persistence lives
