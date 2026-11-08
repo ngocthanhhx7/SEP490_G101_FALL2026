@@ -10,6 +10,7 @@ import { schedulingDate, windowsCover, schedulingWeekStart, occupiedMinutes, wor
 import { edgeKey, cachedMatrix } from '../sitter-matching/routing.service.js';
 import { matchingModels } from '../../models/sitter-matching.model.js';
 import { SCHEDULE_RULES } from '../sitter-matching/scheduling.service.js';
+import { createCalendarReader } from './calendar-read.service.js';
 
 const oid = value => new Types.ObjectId(value), DAY = 86400000;
 const ACTIVE_VISITS = ['ASSIGNED', 'IN_PROGRESS'];
@@ -60,18 +61,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
   const commandId = (sitterId, key, kind = 'availability') => digest([sitterId, kind, key]);
   const availabilityRepository = {
     findBySitterId: ({ sitterId, transaction }) => find(sitterId, transaction),
-    async listCalendar({ sitterId, fromLocalDate, toLocalDate }) {
-      const result = [];
-      const [current, capability] = await Promise.all([find(sitterId), col('aisitterprofiles').findOne({ userId: oid(sitterId) })]);
-      const offDates = new Set([...(current?.dayOffDates ?? []), ...(capability?.dayOffDates ?? [])]);
-      for (let at = Date.parse(`${fromLocalDate}T00:00:00Z`); at <= Date.parse(`${toLocalDate}T00:00:00Z`); at += DAY) {
-        const localDate = new Date(at).toISOString().slice(0, 10), weekday = new Date(at).getUTCDay() || 7;
-        const revision = await revisionAt(sitterId, localDate);
-        const windows = (revision?.workingWindows ?? []).filter(row => row.weekday === weekday);
-        result.push({ localDate, available: windows.length > 0 && !offDates.has(localDate), windows, isDayOff: offDates.has(localDate) });
-      }
-      return result;
-    },
+    listCalendar: createCalendarReader({ connection, Availability: models.EmployeeAvailability, Revision: models.EmployeeAvailabilityRevision }),
     findCommand: ({ sitterId, idempotencyKey, transaction }) => models.EmployeeScheduleCommand.findById(commandId(sitterId, idempotencyKey)).session(transaction).lean(),
     createIfAbsent: ({ sitterId, transaction }) => ensure(sitterId, transaction),
     async replaceIfVersion({ sitterId, expectedVersion, patch, transaction }) {

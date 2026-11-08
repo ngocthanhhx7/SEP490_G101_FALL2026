@@ -87,3 +87,8 @@ fields, not the complete booking snapshot). No drop/TTL/backfill is performed.
 synthetic isolated query/storage and bulk-write comparisons. Both checkpoint
 before storage measurements. These fixtures do not establish production latency
 or full booking schema validity.
+
+`benchmark-calendar-reads.js` compares the old per-day calendar with batched
+snapshot reads at1k/10k/100k revisions and1/7/31days. It checks identical output,
+data command count, returned document BSON and warmed latency in isolated MongoDB.
+Short ranges may pay consistency overhead; timings are not production capacity.
