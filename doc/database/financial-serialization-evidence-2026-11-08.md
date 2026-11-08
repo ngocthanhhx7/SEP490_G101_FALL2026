@@ -40,3 +40,9 @@ findAndModify, and repeated synthetic applications need distinct submissionKeyDi
 under the existing unique index. Both fixtures were corrected; no runtime guard,
 index or test assertion was weakened. Final six cases passed; full required CI and
 independent final-SHA checks remain merge/deployment gates.
+
+Those gates subsequently passed for PR261/release262: final independent focused
+49 tests, fresh merged-tree20 native/financial tests and configured CI passed.
+Reviewed main546bf193 is serving with the six native contracts enforced; see
+[final acceptance](raw-operational-validation-2026-11-08.md#final-reviewed-production-acceptance).
+These are source/native regression results, not live provider receipts.

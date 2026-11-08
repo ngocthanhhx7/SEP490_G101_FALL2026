@@ -1,5 +1,11 @@
 # Domain services
 
+`empty-accrual-queue-retirement.service.js` inspects/retires/restores one exact
+empty legacy queue with profile, namespace, metadata, freeze, confirmation and
+journal guards. It never changes the old16-store manifest or core records.
+Restoration refuses conflicting/nonempty state and can finish a known partial
+empty index restoration. Runtime never invokes this operator-only service.
+
 `raw-operational-validation.service.js` owns bounded preflight, journaled explicit
 install and known-contract reverse for six native raw validators. It preserves
 current data/indexes and refuses foreign validators/stale digests; no automatic
