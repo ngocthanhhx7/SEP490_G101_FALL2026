@@ -95,3 +95,20 @@ do not claim raw collection-options bytes return to the original representation.
 No data/index restore is performed. Nontransactional metadata reads and concurrent
 valid writes can block postflight acceptance; reconcile the journal rather than
 rolling back new business documents.
+
+## Final reviewed production acceptance
+
+PR261 and release262 passed independent final-SHA review and required CI. Main
+546bf193 is serving BLUE3000. Fresh backup130407Z, SHA256
+18a186acc3fcd9c9f2e94750979607bea5242b7f560dc32e6ff3fbbbca4459e1,
+was restored into an isolated replica set using the final reviewed source before
+enforcement. Six apply/reverse contracts, negative transaction rollback, unknown
+commit retry and preservation of post-apply writes passed without stopping API.
+
+Production journal raw-native-enforcement-20261108T131052Z records exactly six
+collMod operations, no document/index mutation and no account-role change.
+82 collections/585 documents/203 indexes and raw BSON hash c8c1ca30… stayed intact;
+metadata hash changed to dc7b8d52… solely for those six native validators/options.
+Deployment metadata assertion, readiness, runtime/release hashes, guest auth and
+read-only drift checks passed. Product16-query/102-page DTO/count/summary parity
+also passed with zero writes. Provider acceptance remains outside this evidence.

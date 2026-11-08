@@ -1,5 +1,15 @@
 # MongoDB diagnostics
 
+`retire-empty-accrual-queue.js` prepares only the empty earningaccrualtasks
+namespace under EMPLOYEE. It does not extend the old16-store retirement scope.
+Set a new private `EMPTY_ACCRUAL_QUEUE_MANIFEST` path for default dry-run. Apply/
+restore also require exact `CONFIRMED_EMPTY_ACCRUAL_QUEUE_DATABASE`, fresh
+`CONFIRMED_EMPTY_ACCRUAL_QUEUE_DIGEST`,
+`CONFIRMED_EMPTY_ACCRUAL_QUEUE_SCOPE=earningaccrualtasks-empty-employee-only` and
+`CONFIRMED_EMPTY_ACCRUAL_QUEUE_WRITERS_FROZEN=true`; journal writes are durable.
+These flags do not grant owner approval. Production drop requires the separate
+decision and [concrete gates](../../../doc/database/empty-accrual-queue-retirement-2026-11-08.md).
+
 `validate-raw-operational.js` defaults to bounded aggregate preflight of six raw
 stores; it reports invalid counts/digests without private document values. Existing
 foreign validators block installation. `--manifest=<new-private-file>` saves a
