@@ -44,6 +44,11 @@ product/stock writes. Active reads exclude tombstones. The list's global summary
 counts active/visible/hidden/out-of-stock products directly from persistence.
 See [product management rules](../../../doc/testing/product-management-lifecycle-2026-11-05.md).
 
+Default product lists use the existing unique code ordering without the redundant
+_id sort suffix; search/category/pet queries retain their measured original shape.
+Exact filtered totals and global Admin summaries remain separate authoritative
+reads. Offset/deep-page work still grows; see the [conditional query evidence](../../../doc/database/product-default-query-2026-11-08.md).
+
 `product-sales/product-photo.service.js` owns Admin gallery changes, bounded
 decoding, metadata-free normalization, version checks and transactional MongoDB
 blob/reference cleanup. Public reads require a shown product still referencing

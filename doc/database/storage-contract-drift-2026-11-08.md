@@ -73,3 +73,30 @@ wrong; creating the required fixture index before provisioning resolved it.
 No production guard was changed. All159 backend suites/1,455 tests passed;
 backend/frontend lint, architecture and frontend build passed. Independent
 final-SHA review and operational acceptance remain release gates.
+
+## Operational acceptance, 2026-11-08
+
+PR255 and release256 were independently inspected/reviewed under the assigned
+accounts and merged by the Leader. Feature, both release checks and reviewed
+main32cfb192 application CI passed. The reviewed main artifact was installed with
+the deployment lock, exact archive/file checksums and matching dependency
+manifests. A read-only192MiB command container used that reviewed source and the
+unchanged runtime dependency image; it did not switch the serving API slot.
+
+Live required-provenance inspection checked78 collections/118 index contracts:
+zero critical/zero performance findings. Actual command monitoring recorded80
+metadata/session-cleanup commands and zero writes. Four physical collections
+remain unasserted: earningaccrualtasks, demopopulationruns,
+catalogprovisioningruns and account_contact_audit_events. Seventy-three validator
+contracts are also unasserted; absence of findings does not establish coverage for
+them. This is no new native financial enforcement or universal integrity proof.
+
+Fresh backup `pwc-20261108T115405Z.archive.gz`, SHA256
+`3d930cf2bdf981ad14e26d86456e80a4de460ad414637f330aba1f4ccc88aad3`,
+restored82 collections in isolation before operation. That restore was standalone;
+the transaction-capable regression evidence comes from isolated replica-set tests,
+not the restore. No transaction rehearsal is claimed for a metadata-only command.
+Post-operation serving API remained reviewed97db1dc BLUE3000, readiness/status/auth
+checks and source hashes passed, and82 collections/585 documents/203 indexes had
+unchanged retained raw BSON/metadata hashes. Environment/providers were unchanged.
+Operator rollback removes/selects the prior tool source without restoring old data.

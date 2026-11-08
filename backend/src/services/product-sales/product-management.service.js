@@ -59,7 +59,9 @@ export function createProductManagementService({ connection }) {
         const pattern = { $regex: escapeRegex(search), $options: 'i' };
         filter.$or = [{ name: pattern }, { code: pattern }];
       }
-      const result = await paginate(Product, { filter, sort: { code: 1, _id: 1 }, page, limit });
+      // Code is globally unique; keep filtered shapes unchanged after skew benchmarks.
+      const sort = search || category || petType ? { code: 1, _id: 1 } : { code: 1 };
+      const result = await paginate(Product, { filter, sort, page, limit });
       const [summary] = await Product.aggregate([
         { $match: { deletedAt: null } },
         { $group: { _id: null, total: { $sum: 1 },
