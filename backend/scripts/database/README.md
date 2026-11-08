@@ -1,5 +1,10 @@
 # MongoDB diagnostics
 
+`retire-legacy-storage.js` inspects the fixed 16 retired partner-compensation
+stores and writes a new metadata manifest. Apply requires an empty-store digest,
+database confirmation and writer freeze; restore recreates missing empty stores
+only. Read the [retirement and rollback procedure](../../../doc/database/legacy-storage-retirement-2026-11-08.md).
+
 `reset-demo-workflows.js` defaults to a bounded read-only dry-run. The explicit
 `--apply` path requires the matching database/digest and confirmed writer drain;
 it deletes demo workflow records and manifested demo sitters, reconciles product
