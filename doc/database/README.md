@@ -2,6 +2,11 @@
 
 Thư mục chứa thiết kế logical records, quan hệ, khóa/index đề xuất, snapshots và invariants. P01 chuẩn hóa Mongoose schema; module owner và P34 áp migration/tích hợp theo phân công. Thiết kế không là bằng chứng database hoặc transaction đã chạy.
 
+- [Acceptance tối ưu database/API — 08/11/2026](optimization-acceptance-2026-11-08.md): kết quả đã triển khai/kiểm chứng, runtime, backup/recovery và giới hạn provider/retention còn lại.
+- [Backlog thống nhất](optimization-backlog-2026-11-08.md) và [ma trận lifecycle/retention](lifecycle-retention-matrix-2026-11-08.md): bao phủ 50 source IDs; queue đã retire theo quyết định riêng, không áp TTL mới.
+
+Các thiết kế và checkpoint cũ bên dưới giữ ngữ cảnh lịch sử; không dùng số collection hoặc trạng thái phê duyệt cũ thay cho acceptance mới.
+
 - [P51 financial ledger/data v1.0](p51-financial-ledger-v1.md): integer VND, allocation/receipt/refund/earning, weekly quota và reservation xuyên tuần; công thức còn mở chưa được triển khai.
 - [P01 logical data/schema/index/atomic contract v1](p01-data-contract-v1.md):17 entities, snapshots và multi-document transaction/occupancy guards; chưa có models/migration hoặc DB verification.
 
