@@ -14,6 +14,25 @@ function renderPage(api) {
 }
 
 describe('account settings page', () => {
+  test.each([
+    ['Đổi email', 'Email', 'new@example.test', 'n***@example.test'],
+    ['Thêm số điện thoại', 'Số điện thoại', '0912345678', '+•••••••5678'],
+    ['Thêm số điện thoại', 'Số điện thoại', '+84912345678', '+•••••••5678']
+  ])('shows only the masked destination in the %s OTP step (%s, %s)', async (action, label, contact, maskedContact) => {
+    const { container } = renderPage({
+      getContacts: async () => [oldEmail],
+      requestContactOtp: async () => ({ challengeId: 'challenge', expiresInSeconds: 300, resendAfterSeconds: 60, maskedContact })
+    });
+    await screen.findByText(oldEmail.value);
+    fireEvent.click(screen.getByRole('button', { name: action }));
+    fireEvent.change(screen.getByRole('textbox', { name: label }), { target: { value: contact } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã xác minh' }));
+
+    expect(await screen.findByText(maskedContact)).toBeVisible();
+    expect(container.innerHTML).not.toContain(contact);
+    expect(screen.queryByDisplayValue(contact)).not.toBeInTheDocument();
+  });
+
   test('keeps account identity read-only and changes a contact only after OTP verification', async () => {
     let contacts = [oldEmail];
     const api = {

@@ -130,6 +130,7 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
         challengeId: result.challengeId,
         channel,
         contact: normalizedContact,
+        maskedContact: result.maskedContact,
         expiresAt: startedAt + Math.min(result.expiresInSeconds || OTP_LIFETIME_SECONDS, OTP_LIFETIME_SECONDS) * 1000,
         resendAt: startedAt + Math.max(result.resendAfterSeconds || RESEND_SECONDS, RESEND_SECONDS) * 1000,
       });
@@ -247,12 +248,14 @@ export function CustomerRegistrationPage({ api = customerRegistrationApi, intent
 
         <fieldset className="registration-contact-fieldset">
           <legend>Email đăng ký</legend>
-          <input ref={contactRef} id="registration-contact" name="contact" type={contactType}
-            autoComplete={channel === 'EMAIL' ? 'email' : 'tel'} inputMode={channel === 'PHONE' ? 'tel' : undefined}
-            value={contact} disabled={busy} required readOnly={Boolean(challenge)} placeholder={channel === 'EMAIL' ? 'hello@pawworld.com' : '+84 912 345 678'}
-            aria-label={contactLabel} aria-invalid={Boolean(errors.contact)}
-            aria-describedby={errors.contact ? 'registration-contact-error' : 'registration-contact-hint'}
-            onChange={event => changeContact(event.target.value)} />
+          {phase === 'otp'
+            ? <input type="text" aria-label={contactLabel} value={challenge?.maskedContact ?? ''} readOnly />
+            : <input ref={contactRef} id="registration-contact" name="contact" type={contactType}
+              autoComplete={channel === 'EMAIL' ? 'email' : 'tel'} inputMode={channel === 'PHONE' ? 'tel' : undefined}
+              value={contact} disabled={busy} required placeholder={channel === 'EMAIL' ? 'hello@pawworld.com' : '+84 912 345 678'}
+              aria-label={contactLabel} aria-invalid={Boolean(errors.contact)}
+              aria-describedby={errors.contact ? 'registration-contact-error' : 'registration-contact-hint'}
+              onChange={event => changeContact(event.target.value)} />}
           {errors.contact && <span id="registration-contact-error" className="registration-field-error">{errors.contact}</span>}
           {!errors.contact && <span id="registration-contact-hint" className="registration-hint">
             {channel === 'EMAIL' ? 'Mã sẽ được gửi đến email này.' : 'Nhập số Việt Nam hoặc số quốc tế có mã vùng.'}

@@ -31,6 +31,7 @@ export function SignInPage() {
   const location = useLocation();
   const [channel, setChannel] = useState(CHANNELS.EMAIL);
   const [contact, setContact] = useState('');
+  const [maskedContact, setMaskedContact] = useState('');
   const [challengeId, setChallengeId] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState('contact');
@@ -78,6 +79,7 @@ export function SignInPage() {
     setBusy(true);
     try {
       const result = await session.requestLoginOtp({ channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: loginContact() });
+      setMaskedContact(result.maskedContact);
       setChallengeId(result.challengeId); setCode(''); setStep('otp'); setCooldown(result.resendAfterSeconds ?? 60);
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
@@ -108,6 +110,7 @@ export function SignInPage() {
     setBusy(true); setError('');
     try {
       const result = await session.requestLoginOtp({ channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: loginContact() });
+      setMaskedContact(result.maskedContact);
       setChallengeId(result.challengeId); setCode(''); setCooldown(result.resendAfterSeconds ?? 60);
     } catch (requestError) { setError(messageFor(requestError)); }
     finally { setBusy(false); }
@@ -144,7 +147,7 @@ export function SignInPage() {
         {error && <p id="sign-in-error" className="sign-in-error" role="alert">{error}</p>}
         <button type="submit" disabled={busy || cooldown > 0}>{busy ? 'Đang gửi mã…' : cooldown > 0 ? `Gửi lại sau ${cooldown}s` : 'Gửi mã OTP'}</button>
       </form> : <form onSubmit={verifyCode} noValidate>
-        <p className="sign-in-sent" role="status">Yêu cầu gửi mã tới <strong>{contact}</strong> đã được tiếp nhận. {channel === CHANNELS.EMAIL ? 'Vui lòng kiểm tra hộp thư và thư rác.' : 'Vui lòng kiểm tra tin nhắn SMS trên điện thoại.'}</p>
+        <p className="sign-in-sent" role="status">Yêu cầu gửi mã{maskedContact && <> tới <strong>{maskedContact}</strong></>} đã được tiếp nhận. {channel === CHANNELS.EMAIL ? 'Vui lòng kiểm tra hộp thư và thư rác.' : 'Vui lòng kiểm tra tin nhắn SMS trên điện thoại.'}</p>
         <label className="sign-in-field"><span>Mã OTP 6 chữ số</span>
           <input className="sign-in-otp" inputMode="numeric" autoComplete="one-time-code" placeholder="000000" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} disabled={busy} aria-invalid={!!error} aria-describedby={error ? 'sign-in-error' : undefined} required maxLength={6} />
         </label>
