@@ -1,3 +1,4 @@
+import { createSitterOriginService } from '../services/employee-scheduling/sitter-origin.service.js';
 import { Router } from 'express';
 import { createEmployeeSchedulingController } from '../controllers/employee-scheduling.controller.js';
 import { createEmployeeScheduleRepository } from '../services/employee-scheduling/employee-schedule.repository.js';
@@ -26,11 +27,13 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
     ranker: config.ai?.enabled ? createOperationalRanker({ connection, routingProvider, clock }) : undefined });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const proposals = createEmployeeScheduleProposalService({ repository, dispatch, clock });
-  const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals }), router = Router();
+  const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, origins: createSitterOriginService({ repository, clock }) }), router = Router();
   const csrf = requireCsrf(session), sitter = requireRoles('PET_SITTER'), staff = requireRoles('STAFF', 'ADMIN');
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); res.vary('Cookie'); next(); }, requireSession(session, { clock }));
   router.get('/availability', sitter, c.availability);
   router.put('/availability', sitter, csrf, c.saveAvailability);
+  router.get('/day-origins', sitter, c.origins);
+  router.put('/day-origins', sitter, csrf, c.saveOrigin);
   router.get('/calendar', sitter, c.calendar);
   router.get('/work-areas', sitter, c.areas);
   router.put('/work-areas', sitter, csrf, c.saveAreas);

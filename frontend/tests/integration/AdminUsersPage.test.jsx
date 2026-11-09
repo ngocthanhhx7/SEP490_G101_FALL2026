@@ -28,14 +28,17 @@ test('changes roles from details only after confirmation and refreshes acknowled
   fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết Lê Minh An' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đổi vai trò' }));
   const dialog = within(screen.getByRole('dialog', { name: 'Đổi vai trò' }));
-  expect(dialog.getByRole('checkbox', { name: 'Pet sitter' })).toBeDisabled();
-  fireEvent.click(dialog.getByRole('checkbox', { name: 'Nhân viên' }));
+  expect(dialog.getByRole('radio', { name: 'Pet sitter' })).toBeDisabled();
+  fireEvent.click(dialog.getByRole('radio', { name: 'Nhân viên' }));
+  expect(dialog.getByRole('radio', { name: 'Nhân viên' })).toBeChecked();
+  expect(dialog.getByRole('radio', { name: 'Khách hàng' })).not.toBeChecked();
+  expect(dialog.queryByRole('checkbox')).not.toBeInTheDocument();
   fireEvent.change(dialog.getByLabelText(/^Lý do đổi vai trò/), { target: { value: 'Phân công hỗ trợ vận hành' } });
   fireEvent.click(dialog.getByRole('button', { name: 'Tiếp tục' }));
   expect(api.mock.calls.filter(([path]) => path.endsWith('/role-decisions'))).toHaveLength(0);
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận thay đổi' }));
   await screen.findByText('Đã cập nhật vai trò');
-  expect(api).toHaveBeenCalledWith(`/users/${userRecord.id}/role-decisions`, { method: 'POST', body: { roles: ['CUSTOMER', 'STAFF'], expectedVersion: 0, reason: 'Phân công hỗ trợ vận hành' } });
+  expect(api).toHaveBeenCalledWith(`/users/${userRecord.id}/role-decisions`, { method: 'POST', body: { roles: ['STAFF'], expectedVersion: 0, reason: 'Phân công hỗ trợ vận hành' } });
 });
 
 test('uncertain role responses require reload and never show success or resubmit', async () => {
@@ -46,7 +49,7 @@ test('uncertain role responses require reload and never show success or resubmit
   renderPage(api);
   fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết Lê Minh An' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Đổi vai trò' }));
-  fireEvent.click(screen.getByRole('checkbox', { name: 'Nhân viên' }));
+  fireEvent.click(screen.getByRole('radio', { name: 'Nhân viên' }));
   fireEvent.change(screen.getByLabelText(/^Lý do đổi vai trò/), { target: { value: 'Synthetic reason' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục' }));
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận thay đổi' }));
@@ -61,6 +64,34 @@ function renderPage(apiRequest, adapter = { resolve: async () => ({ status: 'aut
     <AdminUsersPage apiRequest={apiRequest} />
   </SessionProvider></MemoryRouter>);
 }
+
+test('Pet sitter keeps one read-only role and directs administration to the approved application workflow', async () => {
+  const sitter = { ...userRecord, roles: ['PET_SITTER'] };
+  const api = jest.fn(async path => ({ status: 200, data: path.startsWith('/users?') ? { users: [sitter], nextCursor: null } : sitter }));
+  renderPage(api);
+  fireEvent.click(await screen.findByRole('button', { name: 'Xem chi tiết Lê Minh An' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đổi vai trò' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'Đổi vai trò' }));
+  expect(dialog.getByRole('radio', { name: 'Pet sitter' })).toBeChecked();
+  for (const radio of dialog.getAllByRole('radio')) expect(radio).toBeDisabled();
+  expect(dialog.getByRole('link', { name: 'xét hồ sơ ứng tuyển' })).toHaveAttribute('href', '/admin/sitter-applications');
+  expect(dialog.queryByRole('button', { name: 'Tiếp tục' })).not.toBeInTheDocument();
+  fireEvent.submit(document.getElementById('admin-role-decision'));
+  expect(api.mock.calls.some(([path]) => path.endsWith('/role-decisions'))).toBe(false);
+});
+
+test('legacy mixed-role data is flagged for reload rather than silently selecting a privileged role', async () => {
+  const malformed = { ...userRecord, roles: ['CUSTOMER', 'ADMIN'] };
+  const api = jest.fn(async path => ({ status: 200, data: path.startsWith('/users?') ? { users: [malformed], nextCursor: null } : malformed }));
+  renderPage(api);
+  expect(await screen.findByText('Cần kiểm tra vai trò')).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Xem chi tiết Lê Minh An' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đổi vai trò' }));
+  const dialog = within(screen.getByRole('dialog', { name: 'Đổi vai trò' }));
+  expect(dialog.getByRole('button', { name: 'Tải lại trạng thái' })).toBeVisible();
+  expect(dialog.queryByRole('button', { name: 'Tiếp tục' })).not.toBeInTheDocument();
+  expect(dialog.getAllByRole('radio').filter(radio => radio.checked)).toHaveLength(0);
+});
 
 test('Admin account screen loads the server projection and exposes its personal account/logout dropdown on hover', async () => {
   const apiRequest = jest.fn(async () => ({ data: { users: [userRecord], nextCursor: null }, status: 200 }));

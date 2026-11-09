@@ -1,5 +1,6 @@
 import { financeSourceModels } from '../../models/finance-source.model.js';
 import { AppError } from '../../utils/app-error.js';
+import { rawOperationalCollectionOptions } from '../../models/raw-operational.storage.js';
 
 const primaryIndexes = [
   ['payments', { provider: 1, providerEventId: 1 }, { name: 'verified_provider_event', unique: true }],
@@ -9,20 +10,24 @@ const primaryIndexes = [
   ['taxassessments', { bookingId: 1 }, { name: 'one_confirmed_booking_assessment', unique: true, partialFilterExpression: { state: 'CONFIRMED' } }],
   ['paymentintents', { providerReference: 1 }, { name: 'payment_intent_provider_reference', unique: true }]
 ];
+const lookupIndexes = ['cases', 'refunds', 'visits'].map(name =>
+  [name, { bookingId: 1 }, { name: 'booking_source_lookup' }]);
+// Shared with the read-only metadata inspector; provisioning remains explicit.
+export const financeSourceIndexes = [...primaryIndexes, ...lookupIndexes];
 
-export async function provisionFinanceSources(connection) {
-  for (const model of Object.values(financeSourceModels(connection))) {
+export async function provisionFinanceSources(connection, { legacyTasks = false } = {}) {
+  for (const model of Object.values(financeSourceModels(connection, { legacyTasks }))) {
     await model.createCollection(); await model.createIndexes();
   }
   for (const name of ['bookings', 'visits', 'payments', 'taxassessments', 'paymentintents', 'cases', 'refunds']) {
     if (!(await connection.db.listCollections({ name }, { nameOnly: true }).toArray()).length) {
-      await connection.db.createCollection(name);
+      await connection.db.createCollection(name, rawOperationalCollectionOptions(name));
     }
   }
-  for (const [name, keys, options] of primaryIndexes) await connection.db.collection(name).createIndex(keys, options);
+  for (const [name, keys, options] of financeSourceIndexes) await connection.db.collection(name).createIndex(keys, options);
 }
 
-export async function assertFinanceSourceStorage(connection) {
+export async function assertFinanceSourceStorage(connection, { legacyTasks = false } = {}) {
   try {
     for (const [name, keys, options] of primaryIndexes) {
       const indexes = await connection.db.collection(name).listIndexes().toArray();
@@ -30,7 +35,12 @@ export async function assertFinanceSourceStorage(connection) {
       if (!index?.unique || JSON.stringify(index.key) !== JSON.stringify(keys)
         || JSON.stringify(index.partialFilterExpression) !== JSON.stringify(options.partialFilterExpression)) throw new Error('Missing source index');
     }
-    for (const model of Object.values(financeSourceModels(connection))) {
+    for (const [name, keys, options] of lookupIndexes) {
+      const index = (await connection.db.collection(name).listIndexes().toArray()).find(row => row.name === options.name);
+      if (!index || index.unique || index.sparse || index.partialFilterExpression || index.hidden || index.expireAfterSeconds !== undefined
+        || JSON.stringify(index.key) !== JSON.stringify(keys)) throw new Error('Missing source lookup index');
+    }
+    for (const model of Object.values(financeSourceModels(connection, { legacyTasks }))) {
       const indexes = await model.collection.listIndexes().toArray();
       if (!indexes.some(row => row.name === '_id_' && row.key._id === 1)) throw new Error('Missing source collection');
       if (model.modelName === 'CareMediaBinding' && !indexes.some(row => row.unique

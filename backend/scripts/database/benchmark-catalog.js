@@ -17,6 +17,8 @@ if (!/^[a-f0-9]{40}$/.test(baselineSha ?? '')) throw new Error('Provide --baseli
 const source = execFileSync('git', ['show', `${baselineSha}:backend/src/services/service-catalog.service.js`], { encoding: 'utf8', windowsHide: true });
 const appErrorUrl = new URL('../../src/utils/app-error.js', import.meta.url).href;
 const baselineSource = source.replace("'../utils/app-error.js'", JSON.stringify(appErrorUrl))
+  .replace("'../models/catalog-change-provenance.model.js'", JSON.stringify(new URL('../../src/models/catalog-change-provenance.model.js', import.meta.url).href))
+  .replace("'../utils/catalog-version-record.js'", JSON.stringify(new URL('../../src/utils/catalog-version-record.js', import.meta.url).href))
   .replace("'mongoose'", JSON.stringify(import.meta.resolve('mongoose')));
 const baseline = await import(`data:text/javascript;base64,${Buffer.from(baselineSource).toString('base64')}`);
 const replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });

@@ -2,24 +2,27 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Dialog, Input, Notice } from '../../components/ui/index.js';
 import { changeUserRoles } from '../../services/user-admin-api.js';
+import { isSingleRole } from '../../utils/role-access.js';
 
 const OPTIONS = [['CUSTOMER', 'Khách hàng'], ['PET_SITTER', 'Pet sitter'], ['STAFF', 'Nhân viên'], ['ADMIN', 'Quản trị viên']];
 export function UserRolesDialog({ user, request, onClose, onChanged, onReload }) {
-  const [roles, setRoles] = useState([...user.roles]);
+  const validCurrentRole = isSingleRole(user.roles);
+  const sitterManaged = validCurrentRole && user.roles[0] === 'PET_SITTER';
+  const [role, setRole] = useState(validCurrentRole ? user.roles[0] : '');
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [reconcile, setReconcile] = useState(false);
+  const [reconcile, setReconcile] = useState(!validCurrentRole);
   const [confirm, setConfirm] = useState(false);
-  const changed = [...roles].sort().join(',') !== [...user.roles].sort().join(',');
+  const changed = validCurrentRole && role !== user.roles[0];
   async function submit(event) {
     event.preventDefault();
-    if (busy || reconcile) return;
-    if (!roles.length || !changed || reason.trim().length < 3) { setError('Chọn ít nhất một vai trò khác hiện tại và nhập lý do từ 3 ký tự.'); return; }
+    if (busy || reconcile || sitterManaged) return;
+    if (!role || !changed || reason.trim().length < 3) { setError('Chọn đúng một vai trò mới và nhập lý do từ 3 ký tự.'); return; }
     if (!confirm) { setConfirm(true); return; }
     setBusy(true); setError('');
     try {
-      await changeUserRoles(request, user, roles, reason.trim());
+      await changeUserRoles(request, user, [role], reason.trim());
       onChanged(user);
     } catch (failure) {
       const messages = {
@@ -38,22 +41,25 @@ export function UserRolesDialog({ user, request, onClose, onChanged, onReload })
   return <Dialog open onClose={() => { if (!busy) onClose(); }} title={confirm ? 'Xác nhận đổi vai trò' : 'Đổi vai trò'}
     dismissible={!busy} description={user.displayName} footer={<>
       <Button variant="secondary" disabled={busy} onClick={onClose}>Hủy</Button>
-      {reconcile ? <Button onClick={onReload}>Tải lại trạng thái</Button> : <Button form="admin-role-decision" type="submit" loading={busy} loadingLabel="Đang cập nhật…" disabled={!roles.length || !changed || reason.trim().length < 3}>{confirm ? 'Xác nhận thay đổi' : 'Tiếp tục'}</Button>}
+      {reconcile ? <Button onClick={onReload}>Tải lại trạng thái</Button> : !sitterManaged && <Button form="admin-role-decision" type="submit" loading={busy} loadingLabel="Đang cập nhật…" disabled={!role || !changed || reason.trim().length < 3}>{confirm ? 'Xác nhận thay đổi' : 'Tiếp tục'}</Button>}
     </>}>
     <form id="admin-role-decision" className="admin-role-form" onSubmit={submit}>
-      <fieldset hidden={confirm} disabled={busy || confirm || reconcile}><legend>Vai trò tài khoản</legend>
+      <fieldset hidden={confirm} disabled={busy || confirm || reconcile || sitterManaged}><legend>Vai trò tài khoản</legend>
         <div className="admin-role-options">{OPTIONS.map(([value, label]) => <label key={value}>
-          <input type="checkbox" checked={roles.includes(value)} disabled={value === 'PET_SITTER'}
-            onChange={event => { setRoles(previous => event.target.checked ? [...previous, value] : previous.filter(role => role !== value)); setError(''); }} />{label}
+          <input type="radio" name="account-role" value={value} checked={role === value} disabled={value === 'PET_SITTER'}
+            onChange={() => { setRole(value); setError(''); }} />{label}
         </label>)}</div>
       </fieldset>
       {!confirm && <>
+        <p className="admin-muted">Mỗi tài khoản chỉ có một vai trò. Vai trò mới sẽ thay thế vai trò hiện tại.</p>
         <p className="admin-muted">Quyền Pet sitter được cấp qua <Link to="/admin/sitter-applications">xét hồ sơ ứng tuyển</Link>; tạm ngưng hoặc khôi phục tại hồ sơ đã duyệt.</p>
-        <Input label="Lý do đổi vai trò" value={reason} onChange={event => { setReason(event.target.value); setError(''); }} required minLength={3} maxLength={1000} disabled={busy || reconcile} />
+        {sitterManaged && <Notice state="pending" title="Vai trò do hồ sơ Pet sitter quản lý">Tài khoản này giữ vai trò Pet sitter. Việc tạm ngưng hoặc khôi phục được thực hiện tại hồ sơ đã duyệt.</Notice>}
+        {!validCurrentRole && <Notice state="error" title="Cần tải lại vai trò">Thông tin vai trò chưa hợp lệ. Tải lại trạng thái trước khi thao tác.</Notice>}
+        {!sitterManaged && <Input label="Lý do đổi vai trò" value={reason} onChange={event => { setReason(event.target.value); setError(''); }} required minLength={3} maxLength={1000} disabled={busy || reconcile} />}
       </>}
       {confirm && <Notice state="pending" title="Quyền truy cập sẽ thay đổi">
         <p>Vai trò hiện tại: {OPTIONS.filter(([value]) => user.roles.includes(value)).map(([, label]) => label).join(', ')}.</p>
-        <p>Vai trò mới: {OPTIONS.filter(([value]) => roles.includes(value)).map(([, label]) => label).join(', ')}.</p>
+        <p>Vai trò mới: {OPTIONS.find(([value]) => role === value)?.[1]}.</p>
         <p className="admin-role-reason">Lý do: {reason}</p>
         <p>Tất cả phiên của tài khoản sẽ bị thu hồi. Người dùng cần đăng nhập lại.</p>
         {!busy && !reconcile && <Button variant="ghost" onClick={() => setConfirm(false)}>Chỉnh lại</Button>}

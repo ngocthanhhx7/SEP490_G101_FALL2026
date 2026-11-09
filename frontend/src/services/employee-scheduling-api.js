@@ -27,6 +27,8 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
         result.data?.state !== (action === 'check-outs' ? 'COMPLETED' : 'IN_PROGRESS')) throw new ApiError('INVALID_RESPONSE');
       return result;
     },
+    getOrigins: ({ signal } = {}) => get('/day-origins', signal),
+    saveOrigin: (body, key) => mutate('/day-origins', body, key, 'PUT'),
     getAvailability: ({ signal } = {}) => get('/availability', signal),
     listCalendar: ({ fromLocalDate, toLocalDate, signal }) => get(`/calendar?${new globalThis.URLSearchParams({ fromLocalDate, toLocalDate })}`, signal),
     saveAvailability: ({ idempotencyKey, ...body }) => mutate('/availability', body, idempotencyKey, 'PUT'),

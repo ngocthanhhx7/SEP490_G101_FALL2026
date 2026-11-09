@@ -41,7 +41,7 @@ test('return URL reads actual unpaid state; a disabled provider never creates a 
     paymentDeadlineAt: '2099-01-01T00:00:00Z', visits: [] });
   api.paymentLink.mockRejectedValue({ code: 'PAYMENT_PROVIDER_UNAVAILABLE' });
   render(<MemoryRouter initialEntries={['/services?booking=booking']}><BookingConfirmation api={api} /></MemoryRouter>);
-  await screen.findByText('Chờ thanh toán'); fireEvent.click(screen.getByText('Tạo link thanh toán'));
+  await screen.findByText('Chờ thanh toán trước'); fireEvent.click(screen.getByText('Tạo link thanh toán'));
   await screen.findByText('Chưa thể tạo link thanh toán. Đơn vẫn đang chờ thanh toán.');
   expect(screen.queryByText('Thanh toán qua payOS')).toBeNull(); expect(api.booking).toHaveBeenCalledWith('booking', expect.any(Object));
 });
@@ -49,7 +49,7 @@ test('return URL reads actual unpaid state; a disabled provider never creates a 
 test('expired booking has no payment command', async () => {
   const api = apiFixture(); api.booking.mockResolvedValue({ id: 'booking', totalVnd: 120000, state: 'PAYMENT_EXPIRED', paymentState: 'UNPAID', paymentDeadlineAt: '2020-01-01', visits: [] });
   render(<MemoryRouter initialEntries={['/services?booking=booking']}><BookingConfirmation api={api} /></MemoryRouter>);
-  await screen.findByText('Đã hết hạn thanh toán'); expect(screen.queryByText('Tạo link thanh toán')).toBeNull();
+  await screen.findByText('Hết hạn thanh toán'); expect(screen.queryByText('Tạo link thanh toán')).toBeNull();
 });
 
 test('recommended checkout freezes the selected service schedule and carries only the match reference', async () => {
@@ -64,4 +64,15 @@ test('recommended checkout freezes the selected service schedule and carries onl
   fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
   await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
   expect(api.confirm.mock.calls[0][0].visits).toEqual([{ itemIndex: 0, location: 'HOME', addressId: 'address', startAt: recommendation.startAt, requestedSitterId: 'sitter', matchId: 'match' }]);
+});
+
+
+test('explicit account detail id loads the owned order and presents recognizable service and pet names', async () => {
+  const api = apiFixture(); api.booking.mockResolvedValue({ id: 'saved-order', state: 'DISPATCH_PENDING', totalVnd: 120000,
+    visits: [{ id: 'visit', serviceName: 'Cắt móng', petNames: ['Milo'], startAt: '2026-11-12T02:00:00Z', location: 'HOME', serviceAddress: 'Địa chỉ đã đặt' }], careShifts: [], scheduleProposals: [] });
+  render(<MemoryRouter><BookingConfirmation api={api} bookingId="saved-order" /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'Cắt móng' })).toBeVisible();
+  expect(screen.getByText('Buổi 1 · Milo')).toBeVisible();
+  expect(screen.getByText('Chờ người chăm sóc')).toBeVisible();
+  expect(api.booking).toHaveBeenCalledWith('saved-order', expect.any(Object));
 });

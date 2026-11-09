@@ -8,6 +8,15 @@ Stock status chips use existing semantic success tokens for Còn hàng, shop war
 tokens for Sắp hết hàng, and the shared muted gray style for Hết hàng. These rules
 are local to Stock List; shared theme definitions remain unchanged.
 
+Service price history uses bounded cursor pages with first/previous/next/reload.
+Service changes and acknowledged saves reset to the first page; stale history
+cannot supply a write version. A version conflict refreshes without retrying POST.
+
+Approved employee payroll offers `VOID_UNPAID` only after an explicit no-payment
+attestation and reason. This preserves the old breakdown, releases source claims
+server-side and lets Admin prepare salary again while disputed booking commission
+remains held. Paid statements use the existing separate reconciliation workflow.
+
 Product Management includes a separate `ProductImageManager` after saving the
 product. Save pending text changes before gallery edits. Upload, replacement and
 confirmed removal return the updated product version; unknown acknowledgements
@@ -17,6 +26,10 @@ require reload. Image bytes live in MongoDB and hidden photos use the Admin read
 and detail panel. It confirms before submission, reconciles uncertain responses
 through reload and refreshes list/detail after acknowledgement. Admins cannot
 change their own roles. Pet Sitter access stays in application/status review.
+The dialog now selects one radio role, replacing membership rather than adding
+checkbox roles. Pet Sitter accounts show a read-only role and link to application
+management. Mixed/invalid legacy data requires reload; it never selects a role
+by privilege priority. User rows and account details show a single role label.
 
 `ServiceWorkspacePage` is the composed `/admin/services` route: searchable,
 filtered, sorted and paginated catalog table with current effective prices.

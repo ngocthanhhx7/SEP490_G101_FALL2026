@@ -1,5 +1,13 @@
 # Employment contracts and payroll
 
+`commission-source.service.js` excludes unresolved case/refund booking credits
+from commission, carries unclaimed released credits to a later period and checks
+statement sources again at approval/payment. Complaint and completion writers
+touch the same employee guard as payroll decisions. Base/allowance and immutable
+paid statements are preserved. `VOID_UNPAID` requires Admin reason and an explicit
+no-payment attestation before releasing claims from an approved unpaid statement.
+See the [storage profile and hold plan](../../../../doc/database/employee-storage-profile-2026-11-08.md).
+
 `employment-document.service.js` owns encrypted immutable application contracts,
 Admin issue/sign attestations and transactional activation into EmploymentContract.
 It receives the existing contact crypto port; no new secret/environment variable.
@@ -11,6 +19,9 @@ issue/sign; encrypted historical terms and hashes are never rewritten.
 Signed/activated historical documents remain readable and printable unchanged.
 `payroll-draft.service.js` derives contractual calendars, fixed salary/allowance and
 verified service-credit previews, retaining explicit attendance/statutory evidence.
+Its employee directory selects latest version through the existing employee/version
+index, retaining the 200-employee guard before role filtering. No new index or
+effective-date interpretation is introduced by this traversal optimization.
 `payroll.service.js` rechecks the source hash inside preparation and retains
 approval/payment/adjustment state machines. Care hours are not attendance.
 

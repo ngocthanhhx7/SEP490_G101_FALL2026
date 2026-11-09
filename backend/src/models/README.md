@@ -1,5 +1,37 @@
 # Persistence models
 
+User keeps the existing `roles` array field with exactly one supported role.
+`user-role.storage.js` declares the same narrow native users validator; new
+collections receive it through schema.collectionOptions. Existing validators are
+not replaced at startup. Historical audit role snapshots remain unchanged.
+See the [single-role migration/rollback plan](../../../doc/architecture/single-account-role-2026-11-09.md).
+
+`raw-operational.storage.js` declares narrow native counter contracts for six raw
+stores and versioned current payment/tax receipt shapes. Missing/null historical
+counters and unmarked history remain compatible; refunds has no asserted native
+contract. Existing validators are never overwritten by ordinary provisioning.
+See the [staged validation plan](../../../doc/database/raw-operational-validation-2026-11-08.md).
+
+`reference-catalog.model.js` provides the active typed PetBreed/PetTrait store.
+`petCareModels(connection)` defaults to the target in production; explicitly supplying
+`{ referenceCatalog: 'target' }` returns kind-scoped Mongoose discriminators in
+`reference_catalog`. IDs and per-kind code uniqueness remain stable. The internal
+kind is hidden from ordinary query projections. Connection source is locked by
+`reference-catalog-source.js`; conflicting factories/registry leaks fail closed.
+The target replaces the generic active/code index with a BREED-only partial index
+on active/species/name; it still has exactly three indexes including `_id_`.
+`reference-catalog.storage.js` declares its native strict/error validator and
+indexes. Production runtime/seed/deployment share the target default; development
+and tests retain `legacy` unless explicitly selected. Production `legacy` is
+reserved for controlled compatibility tooling, not normal provisioning.
+See [cutover plan](../../../doc/database/reference-catalog-cutover-2026-11-08.md).
+
+`concurrency-guard.field.js` describes existing raw transaction guards on User,
+Pet, CustomerAddress, SitterStatus and SitterMatchingProfile. Fields are optional,
+hidden and nonnegative safe integers, with no default, index or backfill. Do not
+remove these parent writes: eligibility changes must conflict with guarded work.
+See [guard schema plan](../../../doc/database/concurrency-guard-schema-2026-11-08.md).
+
 Catalog versions own bounded `changeAudit` provenance: eventId, action and
 changedFields. Existing version fields own actor/reason/time/version/resource;
 no second audit record repeats them. Four version models retain their physical
@@ -12,9 +44,9 @@ for rollback/tooling and are not registered by runtime. See the
 Service stores bounded one-to-one catalog metadata in `presentation`; its arrays
 are limited to 50 entries each. `service-presentation.model.js` keeps the legacy
 factory for explicit compatibility/migration tooling, but runtime no longer
-registers it. Missing embedded metadata falls back to `servicepresentations`.
-The additive migration keeps legacy data for rollback; ordinary deployment must
-not drop it. Provisioning mirrors changes while the legacy collection exists.
+registers it. Runtime reads and provisioning use only the embedded parent;
+legacy registration stops app/deployment composition. Retire the verified old
+copies only through the [refinement maintenance plan](../../../doc/database/database-layout-refinement-2026-11-08.md).
 Hourly document-view quota has a TTL on `windowStart`: 25 hours (the enforcement
 hour plus the owner's approved 24-hour diagnostic window). Access audits and
 upload/ownership quota counters retain their existing lifecycle.
@@ -71,3 +103,5 @@ SitterApplication.applicantParticularsCiphertext optionally retains submitted DO
 SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submission fingerprint separately from versioned owner-edit replay. No collection name changes.
 
 `avatar.model.js` stores bounded JPEG blobs/version/tombstones in `profileavatars`; User/Pet collection names and projections remain unchanged. Sitter application document types add IDENTITY_FRONT/IDENTITY_BACK/PORTRAIT while preserving legacy IDENTITY.
+
+EmploymentContract adds optional supersededAt/supersededBy/supersededReason metadata for an explicitly corrected erroneous future version. Current-contract selection excludes superseded rows; historical contract IDs/versions remain intact. No index or native validator is changed.

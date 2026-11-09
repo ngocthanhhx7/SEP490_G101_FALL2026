@@ -1,5 +1,9 @@
-const ROLE_PRIORITY = ['ADMIN', 'STAFF', 'PET_SITTER', 'CUSTOMER'];
+const ACCOUNT_ROLES = ['ADMIN', 'STAFF', 'PET_SITTER', 'CUSTOMER'];
 const LANDINGS = { ADMIN: '/admin/dashboard', STAFF: '/staff', PET_SITTER: '/sitter', CUSTOMER: '/' };
+
+export function isSingleRole(roles) {
+  return Array.isArray(roles) && roles.length === 1 && ACCOUNT_ROLES.includes(roles[0]);
+}
 
 export function userRoles(user) {
   return Array.isArray(user?.roles) ? user.roles : [user?.role];
@@ -7,8 +11,7 @@ export function userRoles(user) {
 
 export function primaryRole(user) {
   const roles = userRoles(user);
-  if (!roles.length || roles.some(role => !ROLE_PRIORITY.includes(role))) return undefined;
-  return ROLE_PRIORITY.find(role => userRoles(user).includes(role));
+  return isSingleRole(roles) ? roles[0] : undefined;
 }
 
 export function hasRole(user, role) {

@@ -11,9 +11,9 @@ const allowedResource = { _id: RESOURCE_ID, ownerId: 'customer-1', state: 'ACTIV
 const actor = (userId, roles) => ({ userId, roles, state: 'ACTIVE', expiresAt: Date.now() + 60_000 });
 
 describe('session role middleware', () => {
-  test.each(['PET_SITTER', 'STAFF', 'ADMIN'])('retained Customer membership cannot authorize purchases for %s', role => {
+  test.each(['PET_SITTER', 'STAFF', 'ADMIN'])('a multi-role actor fails closed for Customer and %s', role => {
     expect(hasRole(['CUSTOMER', role], 'CUSTOMER')).toBe(false);
-    expect(hasRole(['CUSTOMER', role], role)).toBe(true);
+    expect(hasRole(['CUSTOMER', role], role)).toBe(false);
     const next = jest.fn();
     requireRoles('CUSTOMER')({ auth: actor('employee', ['CUSTOMER', role]) }, {}, next);
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ status: 403, code: 'FORBIDDEN' }));
@@ -39,6 +39,8 @@ describe('session role middleware', () => {
     expect(next).toHaveBeenCalledWith();
 
     await expect(requireSession({ authenticate: async () => ({ ...actor('a', ['ROOT']) }) })({}, {}, jest.fn()))
+      .rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    await expect(requireSession({ authenticate: async () => actor('a', ['CUSTOMER', 'ADMIN']) })({}, {}, jest.fn()))
       .rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
   });
 });

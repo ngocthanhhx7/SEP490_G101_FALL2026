@@ -52,7 +52,9 @@ beforeAll(async () => {
     point: { type: 'Point', coordinates: [105.85, 21.02] }, pointConfirmedAt: at, areaCode: 'DISTRICT_HAI_BA_TRUNG', version: 0 });
   const session = { authenticate: async req => {
     const name = req.get('x-test-actor');
-    const actor = ['ADMIN', 'STAFF', 'PET_SITTER'].includes(name) ? { ...owner, roles: ['CUSTOMER', name] } : ({ owner, other })[name];
+    const mixedRole = name?.startsWith('mixed-') ? name.slice(6) : null;
+    const actor = mixedRole ? { ...owner, roles: ['CUSTOMER', mixedRole] }
+      : ['ADMIN', 'STAFF', 'PET_SITTER'].includes(name) ? { ...owner, roles: [name] } : ({ owner, other })[name];
     return actor ? { ...actor, expiresAt: at.getTime() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   const module = bookingCheckoutRuntimeModule({ config: { auth: { enabled: true } }, connection, clock: () => at.getTime(), provider, sessionService: session,
@@ -120,6 +122,7 @@ test.each(['ADMIN', 'STAFF', 'PET_SITTER'])('checkout service rejects retained C
     const response = await request(app).get('/api/v1/checkout' + path).set('x-test-actor', role).expect(403);
     expect(response.body.error.code).toBe('FORBIDDEN');
   }
+  await request(app).get('/api/v1/checkout/options').set('x-test-actor', 'mixed-' + role).expect(401);
   const response = await request(app).post('/api/v1/checkout/bookings').set('x-test-actor', role)
     .set('Origin', 'http://127.0.0.1:5188').set('X-CSRF-Token', 'synthetic-csrf').send({}).expect(403);
   expect(response.body.error.code).toBe('FORBIDDEN');
@@ -191,12 +194,16 @@ test('directed availability uses authoritative eligibility and checkout rejects 
   const q = await quote('home-care', 1), body = input(q), visit = body.visits[0];
   const result = await availability.search(owner, { quoteId: q.quoteId, visit });
   expect(result.sitters).toContainEqual({ id: String(sitterId), displayName: 'Synthetic available sitter' });
+  const directory = await availability.search(owner, { quoteId: q.quoteId, visit, directory: true, page: 1 });
+  expect(directory.sitters).toContainEqual(expect.objectContaining({ id: String(sitterId), eligible: true, rating: null, reviewCount: 0 }));
   await expect(availability.search(other, { quoteId: q.quoteId, visit })).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
   const before = await connection.collection('bookings').countDocuments();
   await connection.collection('visits').insertOne({ _id: oid(), sitterId, state: 'ASSIGNED', startAt: new Date(visit.startAt),
     endAt: new Date(Date.parse(visit.startAt)+3600000), location: 'HOME', addressId: address._id, snapshots: { point: address.point } });
   const unavailable = await availability.search(owner, { quoteId: q.quoteId, visit });
   expect(unavailable.sitters.map(row => row.id)).not.toContain(String(sitterId));
+  const full = await availability.search(owner, { quoteId: q.quoteId, visit, directory: true });
+  expect(full.sitters).toContainEqual(expect.objectContaining({ id: String(sitterId), eligible: false, unavailableReason: 'SLOT_UNAVAILABLE' }));
   await expect(checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(sitterId) }] }, 'directed-became-unavailable')).rejects.toMatchObject({ code: 'SLOT_UNAVAILABLE' });
   expect(await connection.collection('bookings').countDocuments()).toBe(before);
   expect((await checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'SYSTEM' }] }, 'system-without-selected-sitter')).state).toBe('DISPATCH_PENDING');
@@ -317,4 +324,26 @@ test('expired and uncertain provider requests never create another link or reviv
     .toMatchObject({ status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_EXPIRED' });
   expect((await checkout.read(owner, booking.id)).state).toBe('PAYMENT_EXPIRED');
   await expect(checkout.paymentLink(owner, booking.id, 'link-expired-001')).rejects.toMatchObject({ code: 'INVALID_STATE' });
+});
+
+
+test('checkout options offer recommendations only before the Customer has completed care', async () => {
+  expect((await checkout.options(owner)).recommendationAllowed).toBe(true);
+  await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(other.userId), state: 'COMPLETED' });
+  expect((await checkout.options(owner)).recommendationAllowed).toBe(true);
+  await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(owner.userId), state: 'COMPLETED' });
+  expect((await checkout.options(owner)).recommendationAllowed).toBe(false);
+});
+
+test('owned detail exposes saved pet names and assigned sitter name without contacts or private care notes', async () => {
+  const q = await quote('home-care', 1), saved = await checkout.confirm(owner, input(q), 'detail-readable-owned-order');
+  const sitterId = oid();
+  await connection.collection('users').insertOne({ _id: sitterId, displayName: 'Synthetic assigned sitter', roles: ['PET_SITTER'], state: 'ACTIVE', privateContact: 'Do not expose' });
+  await connection.collection('visits').updateMany({ bookingId: new mongoose.Types.ObjectId(saved.id) }, { $set: { state: 'ASSIGNED', sitterId } });
+  const detail = await checkout.read(owner, saved.id);
+  expect(detail.visits[0].petNames).toEqual(['Synthetic dog']);
+  expect(detail.careShifts[0].sitterName).toBe('Synthetic assigned sitter');
+  expect(JSON.stringify(detail)).not.toContain('Do not expose');
+  expect(JSON.stringify(detail)).not.toContain('privateAccessNotes');
+  await expect(checkout.read(other, saved.id)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
 });
