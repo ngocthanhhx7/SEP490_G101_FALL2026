@@ -47,20 +47,22 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
     const visits = booking.checkoutSnapshot?.customerVisits ?? await col('visits').find({ bookingId: booking._id }, { session }).sort({ sequence: 1 }).limit(60).toArray();
     const actual = await col('visits').find({ _id: { $in: booking.visitIds ?? [] }, customerScheduleConsent: { $exists: true } }, { session }).limit(60).toArray();
     const careShifts = await col('visits').find({ _id: { $in: booking.visitIds ?? [] }, state: { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] } },
-      { session, projection: { _id: 1, startAt: 1, endAt: 1, state: 1, version: 1, checkInAt: 1, checkOutAt: 1, 'snapshots.serviceName': 1 } }).sort({ startAt: 1 }).limit(200).toArray();
+      { session, projection: { _id: 1, startAt: 1, endAt: 1, state: 1, version: 1, checkInAt: 1, checkOutAt: 1, sitterId: 1, 'snapshots.serviceName': 1 } }).sort({ startAt: 1 }).limit(200).toArray();
     const proposals = await col('employeescheduleproposals').find({ bookingId: String(booking._id), customerId: String(booking.customerId) }, { session,
       projection: { _id: 1, state: 1, expiresAt: 1 } }).sort({ _id: -1 }).limit(20).toArray();
+    const sitterIds = [...new Set(careShifts.filter(row => row.sitterId && Types.ObjectId.isValid(String(row.sitterId))).map(row => String(row.sitterId)))];
+    const sitterUsers = sitterIds.length ? await col('users').find({ _id: { $in: sitterIds.map(oid) } }, { session, projection: { displayName: 1 } }).limit(200).toArray() : [];
     const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt <= now();
     return { id: String(booking._id), state: expired ? 'PAYMENT_EXPIRED' : booking.state, version: booking.version,
       paymentState: booking.paymentState, paymentMode: booking.paymentMode, totalVnd: booking.paymentSnapshot.amountVnd,
-      currency: 'VND', paymentDeadlineAt: booking.paymentDeadlineAt, quoteId: String(booking.quoteId),
+      currency: 'VND', createdAt: booking.createdAt ?? null, paymentDeadlineAt: booking.paymentDeadlineAt, quoteId: String(booking.quoteId),
       scheduleProposals: proposals.map(row => ({ id: String(row._id), state: row.state, expiresAt: row.expiresAt })),
       careShifts: careShifts.map(row => ({ id: String(row._id), state: row.state, version: row.version,
-        startAt: row.startAt, endAt: row.endAt, checkInAt: row.checkInAt ?? null, checkOutAt: row.checkOutAt ?? null, serviceName: row.snapshots?.serviceName })),
+        startAt: row.startAt, endAt: row.endAt, checkInAt: row.checkInAt ?? null, checkOutAt: row.checkOutAt ?? null, serviceName: row.snapshots?.serviceName, sitterName: sitterUsers.find(user => String(user._id) === String(row.sitterId))?.displayName ?? null })),
       visits: visits.map(row => ({ id: String(row._id), state: row.state,
         startAt: actual.find(visit => visit.customerVisitId === String(row._id))?.startAt ?? row.startAt,
         endAt: actual.find(visit => visit.customerVisitId === String(row._id))?.endAt ?? row.endAt,
-        serviceName: row.snapshots.serviceName, location: row.location, serviceAddress: row.snapshots.serviceAddress,
+        serviceName: row.snapshots.serviceName, petNames: (row.snapshots.pets ?? []).map(pet => pet.name).filter(value => typeof value === 'string' && value), location: row.location, serviceAddress: row.snapshots.serviceAddress,
         requestedSitterId: row.requestedSitterId && String(row.requestedSitterId) })) };
   }
   return {

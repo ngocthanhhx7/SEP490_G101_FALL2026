@@ -122,3 +122,5 @@ settlement/earnings routes. It returns a retired-domain error after existing HTT
 security middleware, and never registers or queries legacy compensation storage.
 
 `customer-care-history.service.js` reads only owned COMPLETED care visits to determine whether Customer recommendations are available. It does not count product orders, scheduled visits or another Customer’s history.
+
+Customer booking list reads a projected summary from the existing owner-scoped booking snapshot: service/pet names, saved schedule/count, created time and payment amount/state. It does not expose private access/care notes or calculate money. Detail adds snapshot pet names and assigned sitter display names through bounded identity lookups after ownership checks.

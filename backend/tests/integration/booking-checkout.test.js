@@ -334,3 +334,16 @@ test('checkout options offer recommendations only before the Customer has comple
   await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(owner.userId), state: 'COMPLETED' });
   expect((await checkout.options(owner)).recommendationAllowed).toBe(false);
 });
+
+test('owned detail exposes saved pet names and assigned sitter name without contacts or private care notes', async () => {
+  const q = await quote('home-care', 1), saved = await checkout.confirm(owner, input(q), 'detail-readable-owned-order');
+  const sitterId = oid();
+  await connection.collection('users').insertOne({ _id: sitterId, displayName: 'Synthetic assigned sitter', roles: ['PET_SITTER'], state: 'ACTIVE', privateContact: 'Do not expose' });
+  await connection.collection('visits').updateMany({ bookingId: new mongoose.Types.ObjectId(saved.id) }, { $set: { state: 'ASSIGNED', sitterId } });
+  const detail = await checkout.read(owner, saved.id);
+  expect(detail.visits[0].petNames).toEqual(['Synthetic dog']);
+  expect(detail.careShifts[0].sitterName).toBe('Synthetic assigned sitter');
+  expect(JSON.stringify(detail)).not.toContain('Do not expose');
+  expect(JSON.stringify(detail)).not.toContain('privateAccessNotes');
+  await expect(checkout.read(other, saved.id)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
+});
