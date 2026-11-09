@@ -23,6 +23,6 @@ Desktop dispatch1120px two columns, mobile single column; candidates88px minimum
 - https://ai.google.dev/gemini-api/docs/structured-output
 - https://ai.google.dev/gemini-api/terms
 
-Provider model support verified by official indexed model documentation; direct fetch of processing/schema/terms pages failed in tools. API protocol must be exercised with synthetic stubs and a real synthetic live acceptance once a key is supplied; no claim of live provider success in this release.
+Provider model support verified by official indexed model documentation; direct fetch of processing/schema/terms pages failed in tools. Subsequent direct HTTP Accept:text/markdown successfully read official model/GenerateContent/CountTokens/processing/structured/terms docs. Adapter uses documented responseJsonSchema and requires declared paid data tier before customer enable. API protocol must be exercised with synthetic stubs and a real synthetic live acceptance once a key is supplied; no claim of live provider success in this release.
 
 Native read-only VPS evidence:48 pets,max892B BSON,existing owner/state/_id index; representative owner list returned2 with2 keys/2 docs examined and no sort stage. This is a scoped plan, not a whole-workload benchmark. No index mutation. See [Gemini setup](../deployment/gemini-pet-record-import.md).

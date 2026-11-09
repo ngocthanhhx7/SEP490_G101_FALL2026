@@ -10,6 +10,8 @@ const generated = value => json({ candidates: [{ finishReason: 'STOP', content: 
 test('default disabled; explicit enable requires server key and restricts model path', () => {
   expect(petRecordImportConfig({})).toMatchObject({ enabled: false, model: 'gemini-3.1-flash-lite' });
   expect(() => petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true' })).toThrow();
+  expect(() => petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true', GEMINI_API_KEY: 'synthetic' })).toThrow('GEMINI_PET_RECORD_DATA_TIER');
+  expect(petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true', GEMINI_API_KEY: 'synthetic', GEMINI_PET_RECORD_DATA_TIER: 'paid' }).enabled).toBe(true);
   expect(() => petRecordImportConfig({ GEMINI_PET_RECORD_MODEL: '../secret' })).toThrow();
 });
 test('bounded PDF transcription counts tokens first, uses fixed Google host and returns only allowed draft fields', async () => {
@@ -19,7 +21,8 @@ test('bounded PDF transcription counts tokens first, uses fixed Google host and 
   expect(fetchImpl).toHaveBeenCalledTimes(2);
   expect(fetchImpl.mock.calls[0][0]).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:countTokens');
   const options = fetchImpl.mock.calls[1][1]; expect(options.redirect).toBe('error'); expect(options.headers['x-goog-api-key']).toBe(config.key);
-  expect(JSON.parse(options.body).generationConfig).toMatchObject({ maxOutputTokens: 6000, responseMimeType: 'application/json' });
+  expect(JSON.parse(options.body).generationConfig).toMatchObject({ maxOutputTokens: 6000, responseMimeType: 'application/json', responseJsonSchema: { type: 'object' } });
+  expect(JSON.parse(options.body).generationConfig).not.toHaveProperty('responseSchema');
 });
 test('disabled, consent, file signatures and oversized uploads fail before any provider request', async () => {
   const fetchImpl = jest.fn(), service = createPetRecordImport({ config, fetchImpl });

@@ -4,13 +4,14 @@ Chức năng tùy chọn, mặc định tắt. Model mặc định `gemini-3.1-f
 
 ## Cấu hình sau khi có key
 
-Tạo key trong Google AI Studio cho project được phép sử dụng. Không gửi key vào chat, Git, frontend hoặc ảnh chụp màn hình. Đọc điều khoản xử lý dữ liệu và chọn project/tier phù hợp trước khi dùng sổ khách hàng thật; thử trước bằng tài liệu tổng hợp. Không suy ra chính sách dữ liệu hoặc hạn mức của 3.1 Flash-Lite từ hàng model khác trong dashboard.
+Tạo key trong Google AI Studio cho project được phép sử dụng. Không gửi key vào chat, Git, frontend hoặc ảnh chụp màn hình. Đọc điều khoản xử lý dữ liệu và chọn project/tier phù hợp trước khi dùng sổ khách hàng thật; thử trước bằng tài liệu tổng hợp. Theo điều khoản Google, không gửi thông tin cá nhân/bảo mật vào Unpaid Services. Dùng sổ tổng hợp với Free tier; luồng khách thật chỉ bật bằng project paid và khai báo GEMINI_PET_RECORD_DATA_TIER=paid. Đây là khai báo của người vận hành, không phải kiểm tra billing tự động. Không suy ra chính sách dữ liệu hoặc hạn mức của 3.1 Flash-Lite từ hàng model khác trong dashboard.
 
 Theo [EC2 environment guide](ec2-environment-guide.md), mở file `/opt/pawworldcare/shared/.env` bằng quyền root, giữ nguyên các giá trị đang có và thêm/sửa đúng các biến sau:
 
 ```dotenv
 PET_RECORD_IMPORT_ENABLED=true
 GEMINI_API_KEY=REPLACE_WITH_YOUR_PRIVATE_KEY
+GEMINI_PET_RECORD_DATA_TIER=paid
 GEMINI_PET_RECORD_MODEL=gemini-3.1-flash-lite
 ```
 
@@ -35,3 +36,13 @@ Backend không lưu tệp, tên tệp hoặc phản hồi Gemini vào Mongo/R2/l
 Tắt nhanh bằng `PET_RECORD_IMPORT_ENABLED=false` và tái tạo container đúng quy trình. Nguồn rollback046f33b tương thích careProfile hiện có; không có migration hoặc index mới.
 
 Nguồn chính thức: [model](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite), [PDF](https://ai.google.dev/gemini-api/docs/document-processing), [structured output](https://ai.google.dev/gemini-api/docs/structured-output), [điều khoản](https://ai.google.dev/gemini-api/terms).
+
+## Hợp đồng và lựa chọn kiến trúc đã đối chiếu
+
+Tài liệu model3.1 chính thức xác nhận generate_content, PDF inline và response_json_schema. Adapter REST dùng POST /v1beta/models/{model}:countTokens và :generateContent; authentication x-goog-api-key, media contents.parts.inlineData{mimeType,data}, JSON generationConfig.responseMimeType + responseJsonSchema; đọc candidates[0].content.parts[].text và chỉ nhận finishReason STOP. Response200 vẫn phải qua kiểm tra schema/giới hạn/field allowlist/source excerpts. Schema của Interactions API không dùng thay cho generateContent.
+
+Chọn hai REST operation nhỏ bằng fetch có sẵn để không thêm SDK khi chưa cần streaming, tools hoặc multi-turn; adapter được inject fetch để test. Inline phù hợp upload nhỏ, dùng một lần và không cần Files API/lưu tệp rồi dọn; đổi lại phải encode base64 và gửi lại cho token preflight. countTokens thêm một RPC/latency nhưng chặn công việc lớn trước generate; timeout45giây và giới hạn local là quyết định sản phẩm, không phải quota do Google công bố. Không có background queue vì bản đầu là tác vụ ngắn, không lưu trạng thái, có nhập tay thay thế. Không retry ngầm để tránh lặp chi phí; khi khách chủ động thử lại thì đó là yêu cầu mới.
+
+Đã xác minh tài liệu, cấu trúc source và kiểm thử giả lập; chưa xác minh key, billing khai báo, quyền model, quota3.1 thực tế, mạng VPS tới Google, chất lượng OCR/chữ viết tay và hành vi timeout/quota live. Chỉ hoàn tất phần tích hợp hoạt động sau khi checklist live với sổ tổng hợp đã đạt. Code/deployment ở trạng thái disabled không đồng nghĩa nghiệm thu Gemini.
+
+Tham khảo thêm [GenerateContent REST](https://ai.google.dev/api/generate-content), [CountTokens](https://ai.google.dev/api/tokens). Tài liệu chính thức đã đọc qua HTTP Accept:text/markdown sau khi Exa/Web fetch không đọc được định dạng markdown.

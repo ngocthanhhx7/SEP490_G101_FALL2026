@@ -4,5 +4,6 @@ export function petRecordImportConfig(env = process.env) {
   const model = env.GEMINI_PET_RECORD_MODEL || 'gemini-3.1-flash-lite';
   if (!/^gemini-[a-z0-9.-]{1,80}$/.test(model)) throw new TypeError('Invalid GEMINI_PET_RECORD_MODEL');
   if (enabled && !env.GEMINI_API_KEY?.trim()) throw new TypeError('GEMINI_API_KEY required for pet record import');
+  if (enabled && env.GEMINI_PET_RECORD_DATA_TIER !== 'paid') throw new TypeError('GEMINI_PET_RECORD_DATA_TIER must be paid before customer document processing');
   return { enabled, model, key: env.GEMINI_API_KEY?.trim() };
 }
