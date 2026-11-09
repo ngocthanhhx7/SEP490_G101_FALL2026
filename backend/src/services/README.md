@@ -1,8 +1,5 @@
 # Domain services
 
-OTP challenge responses and Account Settings reuse `../utils/mask-contact.js`.
-The challenge mask is derived from the normalized request destination.
-
 `single-account-role.service.js` owns bounded existing-user inspection, the
 explicitly confirmed operator migration and validator-only recovery. It never
 selects between distinct operational roles or restores old whole-user/session
