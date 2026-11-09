@@ -42,3 +42,5 @@ never changes the document signature or payment state.
 `OperationsWorkspace.jsx` supplies accessible, horizontally scrollable tables, status badges and source-labelled summary cards for dispatch, public profile review, payroll and settlement workspaces. It contains presentation only; missing reports show an em dash. Shared styles live in `styles/operations-workspace.css`.
 
 `AiTrainingReadiness` performs an explicit read-only Admin source audit and distinguishes eligible samples, quantity gaps, exclusions and truncation from model training/activation. Transport stays in ai-model-api.
+
+Customer AvatarMenu distinguishes Đơn chăm sóc from Đơn mua sản phẩm and links the existing protected product-order history route.

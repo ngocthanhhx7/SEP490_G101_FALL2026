@@ -1,5 +1,12 @@
 # Domain services
 
+`single-account-role.service.js` owns bounded existing-user inspection, the
+explicitly confirmed operator migration and validator-only recovery. It never
+selects between distinct operational roles or restores old whole-user/session
+data. Roles/authEpoch/version and affected session revocation share one transaction;
+native DDL has a separate durable journal. Deployment asserts the native contract.
+Runtime role changes remain in user-admin and signed-application services.
+
 `empty-accrual-queue-retirement.service.js` inspects/retires/restores one exact
 empty legacy queue with profile, namespace, metadata, freeze, confirmation and
 journal guards. It never changes the old16-store manifest or core records.
@@ -113,3 +120,7 @@ Missing/null legacy owners are preserved, unknown types/conflicts block apply.
 `retired-compensation.service.js` is the EMPLOYEE compatibility facade for legacy
 settlement/earnings routes. It returns a retired-domain error after existing HTTP
 security middleware, and never registers or queries legacy compensation storage.
+
+`customer-care-history.service.js` reads only owned COMPLETED care visits to determine whether Customer recommendations are available. It does not count product orders, scheduled visits or another Customer’s history.
+
+Customer booking list reads a projected summary from the existing owner-scoped booking snapshot: service/pet names, saved schedule/count, created time and payment amount/state. It does not expose private access/care notes or calculate money. Detail adds snapshot pet names and assigned sitter display names through bounded identity lookups after ownership checks.

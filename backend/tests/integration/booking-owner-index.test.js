@@ -22,8 +22,8 @@ async function fixture() {
   await c.createIndex({ carePlanState: 1, createdAt: 1, _id: 1 });
   await c.insertMany(Array.from({ length: 4000 }, (_, i) => ({ _id: new mongoose.Types.ObjectId(),
     customerId: i % 10 === 0 ? owner : foreign, state: 'AWAITING_PAYMENT', paymentDeadlineAt: new Date(clock() - 1),
-    carePlanState: 'APPROVED', createdAt: new Date(clock()),
-    checkoutSnapshot: { customerVisits: [{ snapshots: { serviceName: 'Synthetic care', privateAccessNotes: 'Synthetic private field' } }] } })));
+    carePlanState: 'APPROVED', createdAt: new Date(clock()), paymentState: 'UNPAID', paymentSnapshot: { amountVnd: 120000 },
+    checkoutSnapshot: { customerVisits: [{ startAt: new Date(clock()+86400000), location: 'HOME', snapshots: { pets: [{ name: 'Milo', privateMedicalField: 'Do not return' }], serviceName: 'Synthetic care', privateAccessNotes: 'Synthetic private field' } }] } })));
   return c;
 }
 test('dry-run never creates storage and apply requires matching data and index metadata', async () => {
@@ -51,6 +51,8 @@ test('indexed pages preserve ownership, cursor context, expired-payment DTO and 
   expect(first.items).toHaveLength(20);
   expect(first.items.every(row => row.state === 'PAYMENT_EXPIRED')).toBe(true);
   expect(JSON.stringify(first)).not.toContain('privateAccessNotes');
+  expect(JSON.stringify(first)).not.toContain('privateMedicalField');
+  expect(first.items[0]).toMatchObject({ serviceName: 'Synthetic care', petNames: ['Milo'], visitCount: 1, totalVnd: 120000, firstVisitAt: new Date(clock()+86400000) });
   const second = await service.list(actor(owner), { limit: 20, cursor: first.nextCursor });
   await expect(service.list(actor(foreign), { limit: 20, cursor: first.nextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   await expect(service.list(actor(owner), { limit: 10, cursor: first.nextCursor })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });

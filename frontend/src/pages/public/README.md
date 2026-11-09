@@ -56,3 +56,5 @@ no old checkout fees, ratings or sales figures are copied.
 Service and product lists share `CatalogLayout`: collapsible filters on the left, results on the right, stacked on mobile. Service filters use published categories/species/locations and base-price sorting; product filters use the API-supported category/pet type and preserve URL pagination/search. Home benefits cover both care and shopping without nutrition or provider promises.
 
 application-status/ApplicantWorkspacePage owns the authenticated application workspace and pending editor; registration routes existing active applicants here. Receipt-code verification is optional collapsed guest fallback, not a second challenge for signed-in owners.
+
+Directed booking automatically opens the service-registered sitter directory, sorted by public Customer rating; newcomers remain visible at the end. Load-more retains prior selections. Sitters failing any visit’s eligibility are visible with disabled radios and a reason. Customers with completed care history use direct selection; recommendations remain available only before their first completed care visit, according to server-owned checkout options.

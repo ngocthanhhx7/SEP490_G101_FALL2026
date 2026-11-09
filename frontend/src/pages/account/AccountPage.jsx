@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
-import { hasRole } from '../../utils/role-access.js';
+import { hasRole, primaryRole } from '../../utils/role-access.js';
 
 const ROLE_LABELS = {
   CUSTOMER: 'Khách hàng', PET_SITTER: 'Pet sitter', STAFF: 'Nhân viên', ADMIN: 'Quản trị viên'
@@ -18,7 +18,7 @@ export function AccountPage() {
   const [logoutPending, setLogoutPending] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const user = session.user ?? {};
-  const roles = Array.isArray(user.roles) ? user.roles : [user.role].filter(Boolean);
+  const role = primaryRole(user);
 
   async function logout() {
     setLogoutPending(true);
@@ -50,7 +50,7 @@ export function AccountPage() {
       <AvatarEditor fallback={initials(user.displayName)} />
       <dl className="account-overview-fields">
         <div><dt>Họ và tên</dt><dd>{user.displayName ?? 'Chưa có thông tin'}</dd></div>
-        <div><dt>Vai trò</dt><dd>{roles.length ? roles.map(role => ROLE_LABELS[role] ?? role).join(', ') : 'Chưa có thông tin'}</dd></div>
+        <div><dt>Vai trò</dt><dd>{ROLE_LABELS[role] ?? 'Chưa có thông tin'}</dd></div>
         <div><dt>Mã tài khoản</dt><dd className="admin-numeric">{user.id ? user.id.slice(-8).toUpperCase() : 'Chưa có thông tin'}</dd></div>
       </dl>
       <Notice state="info" title="Thông tin được bảo vệ">

@@ -55,3 +55,7 @@ shared endpoint URLs or persist contract/assessment data in browser storage.
 Sitter application API includes private owned get/update methods. Update acknowledgements require a versioned result; UI retains the original payload/key on uncertain responses. Login uses the owned read for the applicant landing.
 
 pagination-response.js validates optional page/limit/total envelopes for shop order transports. Owner-scoped order reads resolve notification deep links. Cards and pages continue using the shared API client.
+
+`service-basket-api.js` validates directed directory eligibility, public rating/count and next-page acknowledgements; it does not compute suitability or rating. Existing availability requests retain their compatible minimal response contract.
+
+`customer-bookings-api.js` adapts and validates owner-scoped `/bookings` pages, including optional service/pet/schedule/amount summaries and compatible cursor envelopes. It never calculates payment amounts.

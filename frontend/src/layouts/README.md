@@ -12,9 +12,11 @@ Operational roles now use one compact workspace shell with a mobile drawer.
 Customer routes use PublicHeader/PublicFooter with grouped vertical account
 navigation and an inline expandable mobile menu. Customer-only styling lives in
 `customer-account-layout.css`; it does not alter operational role shells.
-The common account/notifications route selects the highest authorized shell.
+The common account/notifications route selects the shell for the account’s single role.
 
 Operational navigation items carry a `group` label in the route manifest. The shell
 renders visible group headings for work, personnel, finance, system and personal
 destinations as appropriate to each role. Customer keeps its separate account layout.
 The header omits the redundant workspace text; the sidebar retains the role label.
+
+Customer account navigation includes a separate product-order history destination with a shopping icon; the order page keeps account navigation on desktop and mobile.
