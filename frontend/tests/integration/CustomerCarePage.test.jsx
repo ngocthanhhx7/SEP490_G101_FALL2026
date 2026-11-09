@@ -64,8 +64,7 @@ test('mounted pet list links to the owned avatar workspace',async()=>{
   const pet={id:'b'.repeat(24),name:'Mây',species:'DOG',breedCode:'dog-test',weightKg:5,version:0};
   const api={load:jest.fn().mockResolvedValue({data:{...catalog,items:[pet]}})};
   render(<MemoryRouter><SessionProvider adapter={session}><CustomerCarePage api={api}/></SessionProvider></MemoryRouter>);
-  expect(await screen.findByRole('link',{name:/Xem hồ sơ/})).toHaveAttribute('href','/account/pets/'+pet.id);
-  expect(screen.getByRole('link',{name:/Ảnh và hồ sơ Mây/})).toHaveAttribute('href','/account/pets/'+pet.id);
+  expect(await screen.findByRole('link',{name:/Ảnh và hồ sơ Mây/})).toHaveAttribute('href','/account/pets/'+pet.id);
   expect(screen.queryByRole('form', { name: 'Hồ sơ thú cưng' })).not.toBeInTheDocument();
 });
 

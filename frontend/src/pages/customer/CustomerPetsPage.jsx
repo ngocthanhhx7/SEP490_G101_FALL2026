@@ -1,7 +1,7 @@
 import { PetRecordImport } from './PetRecordImport.jsx';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, ImagePlus, Pencil, Plus, Archive, PawPrint, ShieldCheck, Eye } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle2, ImagePlus, Pencil, Plus, Archive, PawPrint, ShieldCheck } from 'lucide-react';
 import { ProfileAvatar, AvatarEditor } from '../../components/common/ProfileAvatar.jsx';
 import { Button, Dialog, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
@@ -71,7 +71,7 @@ export function CustomerPetsPage({ api: suppliedApi }) {
       <dl className="pet-card-care">{[['vaccination','Tiêm phòng'],['health','Sức khỏe'],['feeding','Chế độ ăn']].map(([key,title]) => <div key={key}><dt>{title}</dt><dd title={petCareStatus(row.careProfile?.[key])}>{petCareStatus(row.careProfile?.[key])}</dd></div>)}</dl>
       <p className="pet-card-note"><ShieldCheck size={16} /><span>{row.traits?.length ? row.traits.map(code => catalog.traits.find(trait => trait.code === code)?.label ?? code).join(' · ') : 'Xem hồ sơ để bổ sung đặc điểm và lưu ý chăm sóc.'}</span></p>
       <p className={`pet-readiness ${row.careNeedsConfirmed ? 'is-ready' : ''}`}>{row.careNeedsConfirmed ? <CheckCircle2 size={15} /> : <ShieldCheck size={15} />}{row.careNeedsConfirmed ? 'Đã xác nhận nhu cầu chăm sóc' : 'Cần xác nhận nhu cầu chăm sóc'}</p>
-      <div className="pet-card-actions"><Button onClick={() => edit(row)} disabled={busy || uncertain || photoBusy}><Pencil size={15} />Sửa hồ sơ</Button><Link className="pet-view-link" to={`/account/pets/${row.id}`} aria-label={`Xem hồ sơ ${row.name}`}><Eye size={18} /><span className="pet-action-label">Xem hồ sơ</span></Link><Button variant="ghost" aria-label={`Xóa thú cưng ${row.name}`} onClick={() => {setArchive(row);setError('');}} disabled={busy || uncertain || photoBusy}><Archive size={17} /></Button></div></div>
+      <div className="pet-card-actions"><Button onClick={() => edit(row)} disabled={busy || uncertain || photoBusy}><Pencil size={15} />Sửa hồ sơ</Button><Button variant="ghost" aria-label={`Xóa thú cưng ${row.name}`} onClick={() => {setArchive(row);setError('');}} disabled={busy || uncertain || photoBusy}><Archive size={17} /></Button></div></div>
     </li>)}<li className="pet-add-card"><span className="pet-add-symbol"><Plus size={28} /></span><h2>Bạn vừa đón bé mới?</h2><p>Tạo hồ sơ để lưu ảnh, thói quen và những lưu ý chăm sóc của bé.</p><Button variant="secondary" onClick={() => edit()} disabled={busy || uncertain}>Thêm thú cưng mới</Button></li></ul><p className="pet-privacy-note"><ShieldCheck size={16} />Thông tin chưa biết không được hiểu là không có dị ứng, thuốc hoặc rủi ro.</p></>}
     {pet && <div className="pet-detail-grid"><div className="pet-detail-content"><section className="pet-detail-card"><h2>Thông tin của {pet.name}</h2><dl className="pet-facts">
       <div><dt>Loài</dt><dd>{speciesName(pet.species)}</dd></div><div><dt>Giống</dt><dd>{breed(pet)}</dd></div><div><dt>Cân nặng</dt><dd>{pet.weightKg} kg</dd></div>
