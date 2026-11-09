@@ -71,7 +71,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
     await notifications.payroll({ eventId: String(record._id), employeeId, type }, session);
   }
   async function currentContract(employeeId, session, at = now()) {
-    const contract = await models.EmploymentContract.findOne({ employeeId, effectiveAt: { $lte: at } }).sort({ version: -1 }).session(session ?? null).lean();
+    const contract = await models.EmploymentContract.findOne({ employeeId, supersededAt: null, effectiveAt: { $lte: at } }).sort({ version: -1 }).session(session ?? null).lean();
     if (!contract || (contract.endsAt && contract.endsAt <= at)) fail('CONTRACT_REQUIRED', 'Verified active contract required', 409);
     return contract;
   }
@@ -132,7 +132,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       role(actor, 'PET_SITTER'); const input = payrollPageInput(query, true);
       await assertPayrollStorage(connection);
       const contracts = await models.EmploymentContract.find({ employeeId: actor.userId }).sort({ version: -1 }).limit(20).lean();
-      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, effectiveAt: { $lte: now() } }).sort({ version: -1 }).lean();
+      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, supersededAt: null, effectiveAt: { $lte: now() } }).sort({ version: -1 }).lean();
       const active = effective && (!effective.endsAt || effective.endsAt > now()) ? effective : null;
       if (active && !contracts.some(c => String(c._id) === String(active._id))) contracts.push(active);
       const advances = await page(models.SalaryAdvance, { employeeId: actor.userId }, actor,
@@ -229,7 +229,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (sourceDraft && (await draftService.preview(actor, sourceDraft.input, session)).sourceHash !== sourceDraft.sourceHash) fail('PAYROLL_SOURCE_CHANGED', 'Sources changed; preview again', 409);
         const contract = await currentContract(input.employeeId, session, input.periodStart);
         if (contract.endsAt && contract.endsAt < input.periodEnd) fail('CONTRACT_REQUIRED', 'Split period at contract end', 409);
-        if (await models.EmploymentContract.exists({ employeeId: input.employeeId, effectiveAt: { $gt: input.periodStart, $lt: input.periodEnd } }).session(session))
+        if (await models.EmploymentContract.exists({ employeeId: input.employeeId, supersededAt: null, effectiveAt: { $gt: input.periodStart, $lt: input.periodEnd } }).session(session))
           fail('CONTRACT_REQUIRED', 'Split period at contract change', 409);
         const existing = await models.PayrollStatement.find({ employeeId: input.employeeId, monthKey, status: { $ne: 'VOIDED' } }).select('+assessment').session(session).lean();
         if (existing.some(s => s.periodStart < input.periodEnd && s.periodEnd > input.periodStart)) fail('PAYROLL_PERIOD_OVERLAP', 'Payroll period overlaps', 409);

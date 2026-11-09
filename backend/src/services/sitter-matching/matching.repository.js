@@ -178,7 +178,7 @@ export function createAiRepository(connection, clock = Date.now, { employeeSched
           { $match: { sitterId: { $in: ids.map(String) }, effectiveFrom: { $lte: slot.localDate } } },
           { $sort: { effectiveFrom: -1, version: -1 } }, { $group: { _id: '$sitterId', value: { $first: '$$ROOT' } } }
         ]);
-        const contracts = await payrollModels(connection).EmploymentContract.find({ employeeId: { $in: ids }, effectiveAt: { $lt: new Date(slot.end) } })
+        const contracts = await payrollModels(connection).EmploymentContract.find({ employeeId: { $in: ids }, supersededAt: null, effectiveAt: { $lt: new Date(slot.end) } })
           .sort({ effectiveAt: -1, version: -1 }).limit(2001).lean();
         if (contracts.length > 2000) fail('SCHEDULE_LIMIT', 'Contract history requires operational review', 409);
         const assigned = await connection.db.collection('visits').find({ sitterId: { $in: ids }, state: { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] },

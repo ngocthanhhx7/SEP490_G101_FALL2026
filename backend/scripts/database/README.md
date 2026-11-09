@@ -165,3 +165,5 @@ or full booking schema validity.
 snapshot reads at1k/10k/100k revisions and1/7/31days. It checks identical output,
 data command count, returned document BSON and warmed latency in isolated MongoDB.
 Short ranges may pay consistency overhead; timings are not production capacity.
+
+`repair-four-employee-onboarding.js` is restricted to the owner's four-employee confirmation of 09/11/2026. Default dry-run requires a new private `EMPLOYEE_ONBOARDING_MANIFEST` path. Explicit `--apply` additionally requires `CONFIRMED_EMPLOYEE_DATABASE`, `CONFIRMED_EMPLOYEE_ONBOARDING=OWNER_FOUR_EMPLOYEES_2026_11_09` and an existing active `EMPLOYEE_ONBOARDING_ADMIN_ID`. Freeze writers, compare the fresh plan digest/population and rehearse on an isolated restored backup. It preserves old contracts, audits corrected versions and never creates coordinates/reviews. After superseding a future contract, retain a backend with superseded-aware readers; do not revive older readers blindly. See [design and rollout](../../../doc/testing/dispatch-onboarding-2026-11-09.md).

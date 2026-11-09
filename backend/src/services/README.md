@@ -124,3 +124,7 @@ security middleware, and never registers or queries legacy compensation storage.
 `customer-care-history.service.js` reads only owned COMPLETED care visits to determine whether Customer recommendations are available. It does not count product orders, scheduled visits or another Customer’s history.
 
 Customer booking list reads a projected summary from the existing owner-scoped booking snapshot: service/pet names, saved schedule/count, created time and payment amount/state. It does not expose private access/care notes or calculate money. Detail adds snapshot pet names and assigned sitter display names through bounded identity lookups after ownership checks.
+
+`sitter-capability.service.js` owns Staff/Admin verification of existing employee capability with signed-contract checks, employee transaction guards, CAS and idempotent audited commands. It preserves employee-owned calendar/origin fields and adds no collection or index.
+
+`employee-onboarding-repair.service.js` is an operator-only, digest-guarded exact-four employee correction under the owner's 2026-11-09 attestation. It preserves superseded future contract rows, historical versions and existing leave/origins, and audits each correction in existing payroll/scheduling stores. It never runs on startup.

@@ -26,10 +26,10 @@ export function createPayrollDraftService({ connection, clock = Date.now }) {
       id(input.employeeId);
       const start = contractDate(input.periodStart), end = contractDate(input.periodEnd), due = contractDate(input.dueAt);
       if (end <= start || end > new Date(clock()) || due < end || end - start > 31 * DAY || input.periodStart.slice(0,7) !== new Date(end.getTime() - 1 + 7 * 3600000).toISOString().slice(0,7)) fail('VALIDATION_FAILED', 'Completed single-month period required');
-      const contract = await Contract.findOne({ employeeId: input.employeeId, effectiveAt: { $lte: start } }).sort({ version: -1 }).session(session ?? null).lean();
+      const contract = await Contract.findOne({ employeeId: input.employeeId, supersededAt: null, effectiveAt: { $lte: start } }).sort({ version: -1 }).session(session ?? null).lean();
       const selfRegistered = contract?.workScheduleMode === 'SELF_REGISTERED';
       if (selfRegistered && ![1200,2400].includes(contract.minimumWeeklyMinutes)) fail('CONTRACT_SCHEDULE_REQUIRED','Verified minimum weekly commitment required',409);
-      if (!(selfRegistered || contract?.schedule?.weekdays?.length) || contract.endsAt && contract.endsAt < end || await Contract.exists({ employeeId: input.employeeId, effectiveAt: { $gt: start, $lt: end } }).session(session ?? null)) fail('CONTRACT_SCHEDULE_REQUIRED', 'Signed contract schedule must cover period; split contract changes', 409);
+      if (!(selfRegistered || contract?.schedule?.weekdays?.length) || contract.endsAt && contract.endsAt < end || await Contract.exists({ employeeId: input.employeeId, supersededAt: null, effectiveAt: { $gt: start, $lt: end } }).session(session ?? null)) fail('CONTRACT_SCHEDULE_REQUIRED', 'Signed contract schedule must cover period; split contract changes', 409);
       // Legacy contracts stay readable but are never assigned an invented workweek.
       const month = input.periodStart.slice(0,7), monthStart = contractDate(month + '-01'), [year, monthNumber] = month.split('-').map(Number), next = new Date(Date.UTC(year, monthNumber, 1) - 7*3600000);
       const days = [];
