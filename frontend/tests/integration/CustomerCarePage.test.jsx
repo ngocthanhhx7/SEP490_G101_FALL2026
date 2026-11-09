@@ -1,6 +1,6 @@
 import { beforeAll } from '@jest/globals';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { CustomerCarePage } from '../../src/pages/customer/CustomerCarePage.jsx';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 
@@ -64,8 +64,7 @@ test('mounted pet list links to the owned avatar workspace',async()=>{
   const pet={id:'b'.repeat(24),name:'Mây',species:'DOG',breedCode:'dog-test',weightKg:5,version:0};
   const api={load:jest.fn().mockResolvedValue({data:{...catalog,items:[pet]}})};
   render(<MemoryRouter><SessionProvider adapter={session}><CustomerCarePage api={api}/></SessionProvider></MemoryRouter>);
-  expect(await screen.findByRole('link',{name:/Xem hồ sơ/})).toHaveAttribute('href','/account/pets/'+pet.id);
-  expect(screen.getByRole('link',{name:/Ảnh và hồ sơ Mây/})).toHaveAttribute('href','/account/pets/'+pet.id);
+  expect(await screen.findByRole('link',{name:/Ảnh và hồ sơ Mây/})).toHaveAttribute('href','/account/pets/'+pet.id);
   expect(screen.queryByRole('form', { name: 'Hồ sơ thú cưng' })).not.toBeInTheDocument();
 });
 
@@ -116,4 +115,35 @@ test('pet groups keep typed values and reveal the group containing an invalid fi
   expect(screen.getByLabelText('Tên thú cưng',{exact:false})).toHaveValue('Mây');
   fireEvent.invalid(note);
   await waitFor(()=>expect(note).toBeVisible());expect(note).toHaveValue('Ghi chú mẫu');
+});
+
+
+function setupOwnedProfile() {
+  const pet={id:'b'.repeat(24),name:'Mây',species:'DOG',breedCode:'dog-test',weightKg:5,version:3,careNeedsConfirmed:true,
+    careProfile:{feeding:{status:'KNOWN',value:'Ăn hạt mềm hai bữa; chủ nuôi đã cung cấp.'},allergies:{status:'UNKNOWN'},vaccination:{status:'NOT_PROVIDED'}}};
+  const api={load:jest.fn().mockResolvedValue({data:{...catalog,items:[pet]}}),save:jest.fn()};
+  render(<MemoryRouter initialEntries={['/account/pets/'+pet.id]}><SessionProvider adapter={session}><Routes><Route path="/account/pets/:petId" element={<CustomerCarePage api={api}/>}/></Routes></SessionProvider></MemoryRouter>);
+  return api;
+}
+
+test('owned profile preserves customer notes and unknown health; contextual edit opens the health group',async()=>{
+  const api=setupOwnedProfile();
+  expect(await screen.findByRole('heading',{name:'Mây',level:1})).toBeVisible();
+  expect(screen.getByText('Ăn hạt mềm hai bữa; chủ nuôi đã cung cấp.')).toBeVisible();
+  expect(screen.getAllByText('Chưa biết').length).toBeGreaterThan(0);
+  expect(screen.getAllByText('Chưa cung cấp').length).toBeGreaterThan(0);
+  expect(screen.queryByText('Khỏe mạnh')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Sửa sức khỏe và an toàn'}));
+  expect(screen.getByLabelText('Tình trạng thông tin: Dị ứng')).toBeVisible();
+  expect(screen.getByLabelText('Tình trạng thông tin: Dị ứng')).toHaveValue('UNKNOWN');
+  expect(screen.getByLabelText('Tên thú cưng',{exact:false})).not.toBeVisible();
+  expect(api.save).not.toHaveBeenCalled();
+});
+
+test('profile AI entry opens the existing consent and draft workflow without saving',async()=>{
+  const api=setupOwnedProfile();
+  fireEvent.click(await screen.findByRole('button',{name:'Đọc sổ bằng AI'}));
+  expect(screen.getByText('Điền nhanh từ ảnh hoặc PDF sổ thú cưng').closest('details')).toHaveAttribute('open');
+  expect(screen.getByLabelText('Tình trạng thông tin: Vaccine và ngày tiêm')).toBeVisible();
+  expect(api.save).not.toHaveBeenCalled();
 });
