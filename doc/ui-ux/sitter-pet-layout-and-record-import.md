@@ -1,6 +1,6 @@
 # Pet cards, grouped editing and Gemini record drafts
 
-Owner decisions (2026-11-09): use supplied photo-led pet card mockup, wider compact sitter selection, four editing groups; read client-entered health/vaccination/notes. Optional Gemini provider approved, specifically `gemini-3.1-flash-lite`; no API key yet, ship disabled and document setup. Owner explicitly extends the prior sitter-only AI boundary to document transcription for customer review, not diagnosis, eligibility, pricing or financial decisions.
+Owner decisions (2026-11-09): use supplied photo-led pet card mockup, wider compact sitter selection, four editing groups; read client-entered health/vaccination/notes. Optional Gemini provider approved, specifically `gemini-3.1-flash-lite`; initially no API key, then owner provided key/model in root backend/.env; preserve it and ship disabled pending VPS configuration/acceptance. Owner explicitly extends the prior sitter-only AI boundary to document transcription for customer review, not diagnosis, eligibility, pricing or financial decisions.
 
 ## Persistence and rollout plan (before implementation)
 
@@ -26,3 +26,5 @@ Desktop dispatch1120px two columns, mobile single column; candidates88px minimum
 Provider model support verified by official indexed model documentation; direct fetch of processing/schema/terms pages failed in tools. Subsequent direct HTTP Accept:text/markdown successfully read official model/GenerateContent/CountTokens/processing/structured/terms docs. Adapter uses documented responseJsonSchema and requires declared paid data tier before customer enable. API protocol must be exercised with synthetic stubs and a real synthetic live acceptance once a key is supplied; no claim of live provider success in this release.
 
 Native read-only VPS evidence:48 pets,max892B BSON,existing owner/state/_id index; representative owner list returned2 with2 keys/2 docs examined and no sort stage. This is a scoped plan, not a whole-workload benchmark. No index mutation. See [Gemini setup](../deployment/gemini-pet-record-import.md).
+
+Owner later supplied local GEMINI_MODEL=gemini-3.5-flash-lite and GEMINI_FALLBACK_MODEL=gemini-3.1-flash-lite. Metadata confirmed both; local provider acceptance with synthetic PNG/PDF passed date/source/UNKNOWN checks using3.5. Read config aliases without copying key into source/worktrees. No silent automatic model fallback. Source values include explicit KNOWN/UNKNOWN, customer can correct the status before applying, and unknown never becomes a known negative fact.

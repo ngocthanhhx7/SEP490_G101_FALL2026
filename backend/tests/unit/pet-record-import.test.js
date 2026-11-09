@@ -4,10 +4,11 @@ import { petRecordImportConfig } from '../../src/config/pet-record-import.js';
 import sharp from 'sharp';
 const config = { enabled: true, key: 'synthetic-key-not-real', model: 'gemini-3.1-flash-lite' };
 const input = { bytes: Buffer.from('%PDF-1.7\nsynthetic-test-only\n%%EOF'), contentType: 'application/pdf', consent: true };
-const result = { entries: [{ field: 'vaccination', value: 'Mũi tiêm ghi ngày 01/11/2026', sourceText: '01/11/2026', page: 1 }], warnings: ['Đối chiếu với sổ gốc'] };
+const result = { entries: [{ field: 'vaccination', status: 'KNOWN', value: 'Mũi tiêm ghi ngày 01/11/2026', sourceText: '01/11/2026', page: 1 }], warnings: ['Đối chiếu với sổ gốc'] };
 const json = value => new globalThis.Response(JSON.stringify(value), { headers: { 'Content-Type': 'application/json' } });
 const generated = value => json({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify(value) }] } }] });
 test('default disabled; explicit enable requires server key and restricts model path', () => {
+  expect(petRecordImportConfig({ GEMINI_MODEL: 'gemini-3.5-flash-lite' }).model).toBe('gemini-3.5-flash-lite');
   expect(petRecordImportConfig({})).toMatchObject({ enabled: false, model: 'gemini-3.1-flash-lite' });
   expect(() => petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true' })).toThrow();
   expect(() => petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true', GEMINI_API_KEY: 'synthetic' })).toThrow('GEMINI_PET_RECORD_DATA_TIER');
@@ -59,4 +60,10 @@ test.each([
 ])('rejects malformed or unsafe provider output', async value => {
   const fetchImpl = jest.fn().mockResolvedValueOnce(json({ totalTokens: 100 })).mockResolvedValueOnce(generated(value));
   await expect(createPetRecordImport({ config, fetchImpl }).extract(input)).rejects.toMatchObject({ code: 'INVALID_PET_RECORD_RESULT' });
+});
+
+test('explicit unknown remains a distinct status and never becomes a known empty or negative fact',async()=>{
+  const value={entries:[{field:'allergies',status:'UNKNOWN',value:'',sourceText:'Allergies: UNKNOWN',page:1}],warnings:[]};
+  const fetchImpl=jest.fn().mockResolvedValueOnce(json({totalTokens:100})).mockResolvedValueOnce(generated(value));
+  expect((await createPetRecordImport({config,fetchImpl}).extract(input)).entries[0]).toMatchObject({field:'allergies',status:'UNKNOWN',value:''});
 });

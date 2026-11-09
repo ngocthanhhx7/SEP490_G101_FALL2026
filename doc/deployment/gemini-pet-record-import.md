@@ -1,6 +1,6 @@
 # Đọc sổ thú cưng bằng Gemini
 
-Chức năng tùy chọn, mặc định tắt. Model mặc định `gemini-3.1-flash-lite`. Không dùng tài khoản đăng nhập Antigravity/Gemini web thay cho Gemini API key. Hạn mức phụ thuộc project/API tier thực tế; ảnh dashboard không chứng minh key đã hoạt động.
+Chức năng tùy chọn, mặc định tắt. Model theo thứ tự GEMINI_PET_RECORD_MODEL → GEMINI_MODEL → mặc định gemini-3.1-flash-lite. Cấu hình local của chủ dự án hiện chọn gemini-3.5-flash-lite, dự phòng3.1; cả hai đã GET metadata200, có generateContent/countTokens. GEMINI_FALLBACK_MODEL được giữ nguyên nhưng bản đầu không tự đổi model khi lỗi/quota để tránh lặp chi phí và thay hành vi âm thầm. Không dùng tài khoản đăng nhập Antigravity/Gemini web thay cho Gemini API key. Hạn mức phụ thuộc project/API tier thực tế; ảnh dashboard không chứng minh key đã hoạt động.
 
 ## Cấu hình sau khi có key
 
@@ -46,3 +46,8 @@ Chọn hai REST operation nhỏ bằng fetch có sẵn để không thêm SDK kh
 Đã xác minh tài liệu, cấu trúc source và kiểm thử giả lập; chưa xác minh key, billing khai báo, quyền model, quota3.1 thực tế, mạng VPS tới Google, chất lượng OCR/chữ viết tay và hành vi timeout/quota live. Chỉ hoàn tất phần tích hợp hoạt động sau khi checklist live với sổ tổng hợp đã đạt. Code/deployment ở trạng thái disabled không đồng nghĩa nghiệm thu Gemini.
 
 Tham khảo thêm [GenerateContent REST](https://ai.google.dev/api/generate-content), [CountTokens](https://ai.google.dev/api/tokens). Tài liệu chính thức đã đọc qua HTTP Accept:text/markdown sau khi Exa/Web fetch không đọc được định dạng markdown.
+
+
+## Bằng chứng thử provider local — 2026-11-09
+
+Key do chủ dự án cấu hình local được dùng trong bộ nhớ, không in/log/commit. GET metadata model3.5FlashLite và3.1FlashLite đều200, công bố generateContent/countTokens. Adapter thực tế đã gọi model `gemini-3.5-flash-lite` cho một ảnh PNG và một PDF một trang tổng hợp; cả hai qua countTokens/generate/JSON validation, kiểm tra ngày tiêm và đoạn nguồn, và không đổi UNKNOWN thành khẳng định không có dị ứng. Không gửi dữ liệu khách thật, không đổi .env và không bật feature production. Đây là nghiệm thu provider local có giới hạn; chưa chứng minh mạng VPS, billing/tier thực tế, chữ viết tay, mọi sổ hoặc khả năng chịu tải. Thử tổng hợp không phải nghiệm thu lâm sàng.
