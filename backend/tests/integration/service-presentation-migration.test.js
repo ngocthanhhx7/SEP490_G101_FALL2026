@@ -30,7 +30,7 @@ test('dry-run is read-only, additive copy is resumable and legacy rollback remai
   const dry = await migrateServicePresentations({ connection });
   expect(dry).toMatchObject({ state: 'DRY_RUN', source: 1, copy: 1, applied: 0, conflicts: 0, orphans: 0, invalid: 0 });
   expect((await Service.findById(service._id).lean()).presentation).toBeUndefined();
-  expect((await readServicePresentation(connection, service._id)).category).toBe('Synthetic');
+  expect(await readServicePresentation(connection, service._id)).toBeNull();
   await expect(migrateServicePresentations({ connection, apply: true, expectedDigest: '0'.repeat(64) })).rejects.toThrow();
   expect((await Service.findById(service._id).lean()).presentation).toBeUndefined();
   expect(await migrateServicePresentations({ connection, apply: true, expectedDigest: dry.digest })).toMatchObject({ applied: 1 });
@@ -54,14 +54,16 @@ test('conflicting embedded metadata, orphan and oversized arrays block the whole
   expect(await migrateServicePresentations({ connection })).toMatchObject({ invalid: 1 });
 });
 
-test('provisioning preserves existing copy and mirrors only allowed migration-owned missing fields', async () => {
+test('provisioning preserves the canonical copy and never writes the frozen legacy store', async () => {
   const { service, legacy } = await fixture();
   await Legacy.updateOne({ _id: legacy._id }, { $unset: { category: '' } });
+  const dry = await migrateServicePresentations({ connection });
+  await migrateServicePresentations({ connection, apply: true, expectedDigest: dry.digest });
   await connection.transaction(session => provisionServicePresentation({ connection, serviceId: service._id,
     details: { ...details(), category: 'Filled' }, session, fillOwnerId: legacy.provisioningRunId,
     fillMissing: ['category'] }));
   expect((await Service.findById(service._id).lean()).presentation.category).toBe('Filled');
-  expect((await Legacy.findById(legacy._id).lean()).category).toBe('Filled');
+  expect((await Legacy.findById(legacy._id).lean()).category).toBeUndefined();
   await connection.transaction(session => provisionServicePresentation({ connection, serviceId: service._id,
     details: { ...details(), category: 'Replacement forbidden' }, session }));
   expect((await readServicePresentation(connection, service._id)).category).toBe('Filled');

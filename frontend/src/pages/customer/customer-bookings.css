@@ -1,6 +1,24 @@
 .customer-bookings { width: min(1100px,100%); margin: auto; padding: 32px 20px; }
-.customer-bookings__list { list-style: none; padding: 0; display: grid; gap: 16px; }
-.customer-bookings__list li { border: 1px solid #e5d7ee; border-radius: 18px; padding: 20px; background: white; }
-.customer-bookings__list h2 { font-size: 20px; overflow-wrap: anywhere; }
-.customer-bookings__list span { display: inline-block; padding: 6px 12px; border-radius: 20px; background: #f0dbff; }
-.customer-bookings__pagination { display: flex; flex-wrap: wrap; gap: 12px; margin: 24px 0; }
+.customer-bookings__list { list-style: none; padding: 0; display: grid; gap: 18px; margin: 24px 0; }
+.customer-bookings__list > li { border: 1px solid #e5d7ee; border-radius: 18px; padding: 24px; background: white; }
+.customer-bookings__card-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.customer-bookings__card-heading h2 { margin: 6px 0 0; font-size: 20px; line-height: 1.45; overflow-wrap: anywhere; }
+.customer-bookings__reference { margin: 0; color: #71647e; font-size: 13px; overflow-wrap: anywhere; }
+.customer-bookings__total { white-space: nowrap; padding-top: 22px; font-size: 17px; }
+.customer-bookings__facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 20px 0 16px; }
+.customer-bookings__facts dt { display: flex; align-items: center; gap: 7px; color: #71647e; font-size: 13px; }
+.customer-bookings__facts dd { margin: 6px 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.customer-bookings__facts small { display: block; margin-top: 4px; font-weight: 400; font-size: 12px; color: #71647e; }
+.customer-bookings__hint { margin: 0 0 16px; font-size: 14px; line-height: 1.6; color: #655773; }
+.customer-bookings__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.customer-bookings__status, .customer-bookings__detail-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 9px 16px; border: 1px solid transparent; border-radius: 24px; font-size: 14px; line-height: 1.5; box-sizing: border-box; }
+.customer-bookings__status { color: #512c77; background: #f0e4fb; }
+.customer-bookings__status--completed, .customer-bookings__status--paid { color: #206345; background: #e7f6ee; }
+.customer-bookings__status--cancelled, .customer-bookings__status--payment_expired { color: #714650; background: #f5e9ec; }
+.customer-bookings__detail-button { color: #482969; background: #fff; border-color: #bfa8d4; text-decoration: none; font-weight: 700; }
+.customer-bookings__detail-button:hover { border-color: #634080; box-shadow: 0 0 0 1px #634080; }
+.customer-bookings__detail-button:focus-visible { outline: 3px solid #8b66ad; outline-offset: 3px; }
+.customer-booking-detail { min-width: 0; }
+.customer-booking-detail__back { display: inline-flex; margin-bottom: 18px; gap: 8px; align-items: center; }
+.customer-booking-detail .pwc-booking-confirmation { margin-top: 20px; }
+@media(max-width: 40rem) { .customer-bookings { padding: 20px 0; } .customer-bookings__list > li { padding: 18px 16px; } .customer-bookings__card-heading { display: block; } .customer-bookings__total { display: block; padding-top: 10px; } .customer-bookings__facts { grid-template-columns: minmax(0,1fr); gap: 14px; } .customer-bookings__actions { gap: 8px; } .customer-bookings__status, .customer-bookings__detail-button { padding: 9px 12px; font-size: 13px; } }

@@ -29,20 +29,20 @@ beforeEach(async () => {
 afterAll(async () => { await runtime?.stop(); await replica?.stop(); }, 30000);
 function change(who = admin, account = target, body = {}) {
   return request(runtime.server).post(`/api/v1/users/${account.user.id}/role-decisions`).set(who.headers)
-    .send({ roles: ['CUSTOMER', 'STAFF'], reason: 'Synthetic authorization decision', expectedVersion: 0, ...body });
+    .send({ roles: ['STAFF'], reason: 'Synthetic authorization decision', expectedVersion: 0, ...body });
 }
 test('role changes persist with audit and revoke all old sessions; a fresh session gets new permissions', async () => {
   const result = await change().expect(200);
-  expect(result.body.data).toEqual({ userId: target.user.id, roles: ['CUSTOMER', 'STAFF'], version: 1 });
+  expect(result.body.data).toEqual({ userId: target.user.id, roles: ['STAFF'], version: 1 });
   const stored = await User.findById(target.user.id).lean();
-  expect(stored).toMatchObject({ roles: ['CUSTOMER', 'STAFF'], authEpoch: 1, version: 1 });
+  expect(stored).toMatchObject({ roles: ['STAFF'], authEpoch: 1, version: 1 });
   await request(runtime.server).get('/api/v1/me').set(target.headers).expect(401);
   const audit = await Audit.findOne({ resourceId: target.user.id }).lean();
-  expect(audit).toMatchObject({ action: 'USER_ROLES_CHANGED', previousRoles: ['CUSTOMER'], roles: ['CUSTOMER', 'STAFF'], reason: 'Synthetic authorization decision' });
+  expect(audit).toMatchObject({ action: 'USER_ROLES_CHANGED', previousRoles: ['CUSTOMER'], roles: ['STAFF'], reason: 'Synthetic authorization decision' });
   expect(audit.actorId.toString()).toBe(admin.user.id);
   let fresh; await runtime.connection.transaction(async session => { fresh = await sessions.issueInTransaction(stored, session); });
   await request(runtime.server).get('/api/v1/me').set('Cookie', 'pwc_session=' + fresh.token).expect(200)
-    .expect(res => expect(res.body.data.user.roles).toEqual(['CUSTOMER', 'STAFF']));
+    .expect(res => expect(res.body.data.user.roles).toEqual(['STAFF']));
   await change(admin, target, { roles: ['ADMIN'], expectedVersion: 1 }).expect(200);
   await change(admin, target, { roles: ['CUSTOMER'], expectedVersion: 2 }).expect(200);
   expect((await User.findById(target.user.id)).roles).toEqual(['CUSTOMER']);
@@ -55,7 +55,7 @@ test('guest, non-Admin and missing CSRF cannot change roles', async () => {
   expect(await Audit.countDocuments()).toBe(0);
 });
 test('invalid, empty, duplicate, unchanged roles and short reason are rejected without writes', async () => {
-  for (const body of [{ roles: [] }, { roles: ['UNKNOWN'] }, { roles: ['STAFF', 'STAFF'] }, { roles: ['CUSTOMER'] }, { reason: 'x' }, { unexpected: true }, { expectedVersion: -1 }]) await change(admin, target, body).expect(422);
+  for (const body of [{ roles: [] }, { roles: ['UNKNOWN'] }, { roles: ['STAFF', 'STAFF'] }, { roles: ['CUSTOMER', 'STAFF'] }, { roles: ['CUSTOMER'] }, { reason: 'x' }, { unexpected: true }, { expectedVersion: -1 }]) await change(admin, target, body).expect(422);
   expect(await Audit.countDocuments()).toBe(0);
   expect((await User.findById(admin.user.id)).version).toBe(0);
 });
@@ -64,7 +64,9 @@ test('self changes are blocked and Pet Sitter access stays in application/status
   await change(admin, target, { roles: ['PET_SITTER'] }).expect(409).expect(res => expect(res.body.error.code).toBe('SITTER_ROLE_MANAGED'));
   await User.updateOne({ _id: target.user.id }, { $set: { roles: ['PET_SITTER'] } });
   await change(admin, target, { roles: ['CUSTOMER'] }).expect(409);
-  await change(admin, target, { roles: ['PET_SITTER', 'STAFF'] }).expect(200);
+  await change(admin, target, { roles: ['PET_SITTER', 'STAFF'] }).expect(422);
+  await change(admin, target, { roles: ['STAFF'] }).expect(409);
+  expect((await User.findById(target.user.id)).roles).toEqual(['PET_SITTER']);
 });
 test('stale version and concurrent commands do not overwrite each other', async () => {
   const results = await Promise.all([change(), change(admin, target, { roles: ['ADMIN'] })]);
@@ -92,4 +94,14 @@ test('audit failure rolls back roles, session revocation and actor version', asy
   expect((await User.findById(admin.user.id)).version).toBe(0);
   await request(runtime.server).get('/api/v1/me').set(target.headers).expect(200);
   expect(await Audit.countDocuments()).toBe(0);
+});
+
+test('a legacy multi-role record cannot authenticate or obtain a new session even if native validation was bypassed externally', async () => {
+  await runtime.connection.db.collection('users').updateOne({ _id: target.user._id },
+    { $set: { roles: ['CUSTOMER', 'ADMIN'] } }, { bypassDocumentValidation: true });
+  await request(runtime.server).get('/api/v1/me').set(target.headers).expect(401);
+  const malformed = await User.findById(target.user.id).lean();
+  await expect(runtime.connection.transaction(session => sessions.issueInTransaction(malformed, session)))
+    .rejects.toMatchObject({ code: 'FORBIDDEN' });
+  expect(await identityModels(runtime.connection).AuthSession.countDocuments({ userId: target.user._id, revokedAt: null })).toBe(0);
 });

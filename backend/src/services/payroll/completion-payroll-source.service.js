@@ -3,7 +3,10 @@ import { employeePayrollPolicy } from '../../constants/employee-payroll-policy.j
 import { AppError } from '../../utils/app-error.js';
 
 export async function recordEmployeeServiceCompletion({ connection, visits, session }) {
-  const { PayrollServiceCredit } = payrollModels(connection);
+  const { PayrollServiceCredit, PayrollMonthGuard } = payrollModels(connection);
+  for (const employeeId of [...new Set(visits.map(visit => String(visit.sitterId)))].sort()) {
+    await PayrollMonthGuard.findOneAndUpdate({ _id: `employee:${employeeId}` }, { $inc: { version: 1 } }, { session, upsert: true });
+  }
   for (const visit of visits) {
     const basis = visit.snapshots?.employeeServiceNetVnd;
     if (!Number.isSafeInteger(basis) || basis < 0 || !(visit.checkInAt instanceof Date) || !(visit.checkOutAt instanceof Date) ||

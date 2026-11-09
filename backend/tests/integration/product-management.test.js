@@ -50,7 +50,7 @@ const placePickup = async (code, quantity) => {
 
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
-  connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_product_management' }).asPromise();
+  connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_product_management', monitorCommands: true }).asPromise();
   models = productSalesModels(connection);
   const session = { authenticate: async (req) => {
     const actor = actors[req.get('x-test-actor')];
@@ -89,7 +89,13 @@ describe('durable product photos', () => {
     await admin.get(adminPath).expect(200).expect('Content-Type', /image\/webp/).expect('Cache-Control', 'private, no-store');
     await api('customer').get(adminPath).expect(403);
     await admin.patch(`${ADMIN_PRODUCTS}/${created.id}`).send({ version: 1, visible: true }).expect(200);
-    await api().get(saved.photos[0]).expect(200).expect('X-Content-Type-Options', 'nosniff');
+    const commands = [], client = connection.getClient(), listener = event => {
+      if (['products', 'productphotos'].includes(event.command[event.commandName])) commands.push(event.commandName);
+    };
+    client.on('commandStarted', listener);
+    try { await api().get(saved.photos[0]).expect(200).expect('X-Content-Type-Options', 'nosniff'); }
+    finally { client.off('commandStarted', listener); }
+    expect(commands).toEqual(['aggregate']);
     const replaced = (await upload(created.id, 2, await image('blue'), 0).expect(200)).body.data;
     expect(replaced.photos[0]).not.toBe(saved.photos[0]);
     await api().get(saved.photos[0]).expect(404);

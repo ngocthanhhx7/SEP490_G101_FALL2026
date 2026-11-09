@@ -1,13 +1,13 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
+import { isSingleRole } from '../utils/roles.js';
 import { identityModels } from '../models/identity.model.js';
 import { userModel as createUserModel } from '../models/user.model.js';
 
 const SESSION_COOKIE = 'pwc_session';
 const CUSTOMER_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const STAFF_SESSION_MS = 12 * 60 * 60 * 1000;
-const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
 
 function keyBuffer(value, name) {
   if (typeof value !== 'string' || Buffer.byteLength(value, 'utf8') < 32) {
@@ -47,7 +47,7 @@ export function createSessionService({ connection, User, models = identityModels
   if (typeof clock !== 'function' || typeof randomBytesImpl !== 'function') throw new TypeError('Invalid session service dependencies');
 
   function sessionDuration(roles) {
-    if (!Array.isArray(roles) || roles.length === 0 || roles.some(role => !ROLES.has(role))) {
+    if (!isSingleRole(roles)) {
       throw new AppError(403, 'FORBIDDEN', 'Account role is not permitted');
     }
     return roles.some(role => role === 'STAFF' || role === 'ADMIN') ? STAFF_SESSION_MS : CUSTOMER_SESSION_MS;
@@ -88,8 +88,7 @@ export function createSessionService({ connection, User, models = identityModels
     if (!session) return null;
     const user = await userStore.findById(session.userId).select('displayName roles state authEpoch synthetic').lean();
     if (!user || user.state !== 'ACTIVE' || user.synthetic === true
-      || user.authEpoch !== session.authEpochAtIssue || !Array.isArray(user.roles)
-      || user.roles.length === 0 || user.roles.some(role => !ROLES.has(role))) {
+      || user.authEpoch !== session.authEpochAtIssue || !isSingleRole(user.roles)) {
       await models.AuthSession.updateOne({ _id: session._id, revokedAt: null }, { $set: { revokedAt: new Date(now) } });
       return null;
     }
@@ -113,8 +112,7 @@ export function createSessionService({ connection, User, models = identityModels
 
     const user = await userStore.findById(auth.userId).select('displayName roles state authEpoch synthetic').lean();
     if (!user || user.state !== 'ACTIVE' || user.synthetic === true
-      || user.authEpoch !== session.authEpochAtIssue || !Array.isArray(user.roles)
-      || user.roles.length === 0 || user.roles.some(role => !ROLES.has(role))) return null;
+      || user.authEpoch !== session.authEpochAtIssue || !isSingleRole(user.roles)) return null;
     return Object.freeze({
       id: user._id.toString(),
       displayName: user.displayName,

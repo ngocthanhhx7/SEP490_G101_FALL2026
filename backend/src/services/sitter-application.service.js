@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { canonicalizeContact } from './contact-crypto.service.js';
 import { AppError } from '../utils/app-error.js';
+import { isSingleRole } from '../utils/roles.js';
 import { identityModels } from '../models/identity.model.js';
 import { createDomainNotifications } from './notifications/domain-notifications.service.js';
 
@@ -153,7 +154,7 @@ function maskContact(channel, value) {
 }
 
 function assertAdmin(actor) {
-  if (!actor?.userId || actor.state !== 'ACTIVE' || !Array.isArray(actor.roles) || !actor.roles.includes('ADMIN')) {
+  if (!actor?.userId || actor.state !== 'ACTIVE' || !isSingleRole(actor.roles) || actor.roles[0] !== 'ADMIN') {
     throw new AppError(actor?.userId ? 403 : 401, actor?.userId ? 'FORBIDDEN' : 'UNAUTHENTICATED', 'Action is not permitted');
   }
 }
@@ -479,7 +480,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
               lookupKey: current.contactLookupKey, state: 'VERIFIED' }).session(session);
             if (!verifiedContact) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Applicant contact is no longer verified');
             user = await User.findOneAndUpdate({ _id: current.ownerUserId, state: 'ACTIVE', roles: ['CUSTOMER'], synthetic: false },
-              { $addToSet: { roles: 'PET_SITTER' }, $inc: { authEpoch: 1, version: 1 } }, { returnDocument: 'after', session });
+              { $set: { roles: ['PET_SITTER'] }, $inc: { authEpoch: 1, version: 1 } }, { returnDocument: 'after', session });
             if (!user) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Applicant account is no longer eligible');
           } else {
             [user] = await User.create([{
@@ -641,11 +642,11 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
   }
 
   async function ownerContext(actor, session) {
-    if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['CUSTOMER','PET_SITTER'].includes(role)) || actor.roles.some(role=>['ADMIN','STAFF'].includes(role)) || !Types.ObjectId.isValid(actor.userId))
+    if (actor?.state !== 'ACTIVE' || !isSingleRole(actor.roles) || !['CUSTOMER','PET_SITTER'].includes(actor.roles[0]) || !Types.ObjectId.isValid(actor.userId))
       throw new AppError(403,'FORBIDDEN','Applicant account required');
     const user = await User.findOne({ _id:actor.userId,state:'ACTIVE',synthetic:false,...(actor.authEpoch !== undefined ? {authEpoch:actor.authEpoch} : {}) }).session(session ?? null).lean();
-    if (!user) throw new AppError(403,'FORBIDDEN','Current applicant account required');
-    if(session){const locked=await connection.collection('users').findOneAndUpdate({_id:user._id,state:'ACTIVE',synthetic:false,authEpoch:user.authEpoch},{$inc:{applicationGuard:1}},{session,returnDocument:'after'});if(!locked)throw new AppError(403,'FORBIDDEN','Current applicant account required');}
+    if (!user || !isSingleRole(user.roles) || !['CUSTOMER','PET_SITTER'].includes(user.roles[0])) throw new AppError(403,'FORBIDDEN','Current applicant account required');
+    if(session){const locked=await connection.collection('users').findOneAndUpdate({_id:user._id,state:'ACTIVE',synthetic:false,authEpoch:user.authEpoch,roles:user.roles},{$inc:{applicationGuard:1}},{session,returnDocument:'after'});if(!locked)throw new AppError(403,'FORBIDDEN','Current applicant account required');}
     const contacts = await identityModels(connection).Contact.find({userId:actor.userId,state:'VERIFIED'}).select('+lookupKey').session(session ?? null).lean();
     const filter = {$or:[{ownerUserId:actor.userId},{ownerUserId:null,contactLookupKey:{$in:contacts.map(row=>row.lookupKey)}}]};
     return {filter,contacts};

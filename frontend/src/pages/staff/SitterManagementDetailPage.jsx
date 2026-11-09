@@ -8,6 +8,7 @@ import { sitterLabel, managementDate, weekdayLabel } from '../../utils/sitter-ma
 import { ManagementState, SitterStatus } from './SitterManagementPage.jsx';
 import { EmployeeContractForm } from '../../components/payroll/EmployeeContractForm.jsx';
 import './sitter-management.css';
+import { SitterCapabilityForm } from './SitterCapabilityForm.jsx';
 
 function WorkHistory({ api, userId }) {
   const [days, setDays] = useState(30), [cursor, setCursor] = useState(''), [history, setHistory] = useState([]);
@@ -61,8 +62,10 @@ function ContractDialog({ data, api, onClose, onSaved }) {
 }
 
 function ProfileContent({ data, api, payrollApi, refresh }) {
+  const location = useLocation();
+  const initialTab = new globalThis.URLSearchParams(location.search).get('tab');
   const [contractOpen, setContractOpen] = useState(false);
-  const [tab, setTab] = useState('overview'), [decision, setDecision] = useState(null), [reason, setReason] = useState('');
+  const [tab, setTab] = useState(['capability', 'schedule'].includes(initialTab) ? initialTab : 'overview'), [decision, setDecision] = useState(null), [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false), [message, setMessage] = useState(null), operation = useRef(null);
   const areaName = code => data.areaCatalog?.find(a => a.code === code)?.label ?? code;
   const areas = values => values?.length ? values.map(areaName).join(', ') : 'Chưa đăng ký';
@@ -106,8 +109,8 @@ function ProfileContent({ data, api, payrollApi, refresh }) {
         <div><dt>Dịch vụ mong muốn</dt><dd>{data.application.requestedServices.map(sitterLabel).join(', ')}</dd></div>
         <div><dt>Khu vực mong muốn</dt><dd>{areas(data.application.workAreas)}</dd></div><div><dt>Ngày nộp hồ sơ</dt><dd>{managementDate(data.application.submittedAt)}</dd></div></dl> : <p>Chưa có hồ sơ ứng tuyển liên kết.</p>}</section>
     </div>}
-    {tab === 'capability' && <div className="sitter-profile-sections"><section><h2>Năng lực nhận việc</h2>{data.capabilities ? <dl className="sitter-profile-facts">
-      <div><dt>Trạng thái năng lực</dt><dd>{data.capabilities.active ? 'Đã bật' : 'Chưa bật'}</dd></div><div><dt>Dịch vụ</dt><dd>{data.capabilities.services.map(s => sitterLabel(s.code ?? s.id)).join(', ') || 'Chưa thiết lập'}</dd></div>
+    {tab === 'capability' && <div className="sitter-profile-sections"><section>{data.permissions.manageCapability && api.saveCapability && <SitterCapabilityForm data={data} api={api} onSaved={refresh} />}<h2>Năng lực nhận việc</h2>{data.capabilities ? <dl className="sitter-profile-facts">
+      <div><dt>Trạng thái năng lực</dt><dd>{data.capabilities.active ? 'Đã bật' : 'Chưa bật'}</dd></div><div><dt>Dịch vụ</dt><dd>{data.capabilities.services.map(s => s.name ?? sitterLabel(s.code ?? s.id)).join(', ') || 'Chưa thiết lập'}</dd></div>
       <div><dt>Loài</dt><dd>{data.capabilities.species.map(sitterLabel).join(', ')}</dd></div><div><dt>Số thú cưng tối đa / buổi</dt><dd>{data.capabilities.maxPets}</dd></div>
       <div><dt>Cân nặng tối đa / thú cưng</dt><dd>{data.capabilities.maxWeightKg} kg</dd></div><div><dt>Khu vực nhận việc</dt><dd>{areas(data.capabilities.areas)}</dd></div>
       <div><dt>Đặc điểm được hỗ trợ</dt><dd>{data.capabilities.allowedTraits.join(', ') || 'Chưa thiết lập'}</dd></div></dl> : <p>Chưa có năng lực nhận việc.</p>}</section>

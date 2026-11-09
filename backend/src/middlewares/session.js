@@ -1,4 +1,4 @@
-import { hasRole } from '../utils/roles.js';
+import { hasRole, isSingleRole } from '../utils/roles.js';
 export { hasRole } from '../utils/roles.js';
 import { AppError } from '../utils/app-error.js';
 
@@ -17,9 +17,7 @@ export function requireSession(sessionPort, { clock = Date.now } = {}) {
       !session ||
       session.state !== 'ACTIVE' ||
       session.synthetic === true ||
-      !Array.isArray(session.roles) ||
-      session.roles.length === 0 ||
-      session.roles.some((role) => !ROLES.has(role)) ||
+      !isSingleRole(session.roles) ||
       !Number.isFinite(session.expiresAt) ||
       session.expiresAt <= clock()
     ) {
@@ -29,7 +27,7 @@ export function requireSession(sessionPort, { clock = Date.now } = {}) {
       userId: session.userId,
       sessionId: session.sessionId,
       state: session.state,
-      roles: Object.freeze([...new Set(session.roles)]),
+      roles: Object.freeze([...session.roles]),
       expiresAt: session.expiresAt
     });
     next();

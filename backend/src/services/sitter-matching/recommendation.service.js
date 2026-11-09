@@ -37,6 +37,9 @@ export function createAiService({
     };
   }
   async function recommend(ownerId, body) {
+    if (typeof repository.hasCompletedCare !== 'function') fail('CARE_HISTORY_UNAVAILABLE', 'Care history unavailable', 503);
+    if (await repository.hasCompletedCare(ownerId))
+      fail('CUSTOMER_CARE_HISTORY_EXISTS', 'Choose a sitter directly after completing a care service', 409);
     exact(
       body,
       [

@@ -39,7 +39,6 @@ function show(roles, path, from) {
 
 test.each([
   [['ADMIN'], 'Admin'], [['STAFF'], 'Staff'], [['PET_SITTER'], 'Sitter'],
-  [['CUSTOMER', 'ADMIN'], 'Admin'], [['CUSTOMER', 'STAFF'], 'Staff'], [['CUSTOMER', 'PET_SITTER'], 'Sitter'],
 ])('operational session %j opening storefront returns to %s', async (roles, title) => {
   show(roles, '/');
   expect(await screen.findByRole('heading', { name: title })).toBeVisible();
@@ -73,4 +72,10 @@ test('expired or revoked session removes the private outlet', async () => {
   act(() => window.dispatchEvent(new window.Event(SESSION_INVALIDATED_EVENT)));
   expect(await screen.findByRole('heading', { name: /Chào mừng/ })).toBeVisible();
   expect(screen.queryByRole('heading', { name: 'Staff' })).not.toBeInTheDocument();
+});
+
+test.each(['ADMIN', 'STAFF', 'PET_SITTER'])('mixed Customer/%s session cannot open a private route', async role => {
+  show(['CUSTOMER', role], '/admin/dashboard');
+  expect(await screen.findByRole('heading', { name: 'Không thể kiểm tra phiên' })).toBeVisible();
+  expect(screen.queryByRole('heading', { name: 'Admin' })).not.toBeInTheDocument();
 });

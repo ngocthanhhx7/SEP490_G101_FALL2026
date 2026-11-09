@@ -33,3 +33,5 @@ retires older active versions atomically. Raw artifacts/evidence are excluded
 from ordinary model reads. The legacy model write endpoint cannot activate a
 self-declared model. HTTP composition stays in the existing AI routes/controller.
 See [offline tools](../../../scripts/ai/README.md) for export/train/import steps.
+
+Customer-facing recommendation requests reject Customers with an owned COMPLETED care visit. This does not change the operational invitation ranker or its authoritative eligibility gates. The owner’s products, uncompleted visits and other owners’ visits do not establish completed care history.

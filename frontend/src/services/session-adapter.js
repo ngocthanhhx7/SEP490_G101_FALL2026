@@ -1,6 +1,6 @@
 import { ApiError, createApiClient } from './api-client.js';
 
-const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
+import { isSingleRole } from '../utils/role-access.js';
 
 export function createApiSessionAdapter({ request, getCsrfToken = () => null } = {}) {
   if (request !== undefined && typeof request !== 'function') throw new TypeError('An API request function is required');
@@ -12,11 +12,10 @@ export function createApiSessionAdapter({ request, getCsrfToken = () => null } =
   function mapUser(response) {
     const user = response?.data?.user;
     if (typeof user?.id !== 'string' || !user.id || typeof user.displayName !== 'string'
-      || !Array.isArray(user.roles) || user.roles.length === 0
-      || user.roles.some(role => !ROLES.has(role))) {
+      || !isSingleRole(user.roles)) {
       throw new ApiError('INVALID_RESPONSE', response?.status ?? 0);
     }
-    return { id: user.id, displayName: user.displayName, roles: [...new Set(user.roles)] };
+    return { id: user.id, displayName: user.displayName, roles: [...user.roles] };
   }
   return Object.freeze({
     async resolve({ signal } = {}) {
