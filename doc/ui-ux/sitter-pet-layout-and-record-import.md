@@ -10,7 +10,7 @@ Target: transient extraction with at most 8 allowed care fields and source excer
 
 Compatibility: existing API and DTO persistence unchanged; additive /pet-record-import metadata and consented binary extraction endpoints are authenticated Customer+CSRF. Feature defaults off; no .env changes or external real-data upload in release acceptance. New capability needs configured key/model and explicit user consent to Google processing. Provider quota/timeouts fail safely to manual entry. Reference data from files is untrusted; no links/tools/instructions in a document are executed.
 
-No schema migration/backfill/index/unique/TTL/collection change or destructive cleanup. Dry-run: full UI/backend security and provider-stub regressions; inspect existing production index/query evidence read-only. Release: exact reviewed main, fresh backup/isolated restore; compare existing private photo hashes and env. Code rollback to 046f33b is compatible because existing care storage is unchanged. Live Gemini acceptance remains pending key and synthetic request, not inferred from mocks/builds.
+No schema migration/backfill/index/unique/TTL/collection change or destructive cleanup. Dry-run: full UI/backend security and provider-stub regressions; inspect existing production index/query evidence read-only. Release: exact reviewed main, fresh backup/isolated restore; compare existing private photo hashes and env. Code rollback to 046f33b is compatible because existing care storage is unchanged. VPS Gemini acceptance remains pending configured key/network trial; local synthetic provider results are recorded below and are not inferred from mocks/builds.
 
 ## Design
 

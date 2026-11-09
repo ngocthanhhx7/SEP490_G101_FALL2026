@@ -12,7 +12,7 @@ Theo [EC2 environment guide](ec2-environment-guide.md), mở file `/opt/pawworld
 PET_RECORD_IMPORT_ENABLED=true
 GEMINI_API_KEY=REPLACE_WITH_YOUR_PRIVATE_KEY
 GEMINI_PET_RECORD_DATA_TIER=paid
-GEMINI_PET_RECORD_MODEL=gemini-3.1-flash-lite
+GEMINI_PET_RECORD_MODEL=gemini-3.5-flash-lite
 ```
 
 Chỉ đây là mẫu; không dán placeholder vào production. Key chỉ ở backend. Sau thay đổi env phải tái tạo container theo quy trình release; restart container không nạp lại env-file. Nếu thiếu key khi bật, backend từ chối khởi động với tên biến thiếu, không in giá trị. Khi tắt, UI giữ nhập tay và giải thích tính năng chưa bật. Không thay `AI_ENABLED`: biến đó điều khiển gợi ý sitter, tách biệt với đọc sổ.
@@ -43,7 +43,7 @@ Tài liệu model3.1 chính thức xác nhận generate_content, PDF inline và 
 
 Chọn hai REST operation nhỏ bằng fetch có sẵn để không thêm SDK khi chưa cần streaming, tools hoặc multi-turn; adapter được inject fetch để test. Inline phù hợp upload nhỏ, dùng một lần và không cần Files API/lưu tệp rồi dọn; đổi lại phải encode base64 và gửi lại cho token preflight. countTokens thêm một RPC/latency nhưng chặn công việc lớn trước generate; timeout45giây và giới hạn local là quyết định sản phẩm, không phải quota do Google công bố. Không có background queue vì bản đầu là tác vụ ngắn, không lưu trạng thái, có nhập tay thay thế. Không retry ngầm để tránh lặp chi phí; khi khách chủ động thử lại thì đó là yêu cầu mới.
 
-Đã xác minh tài liệu, cấu trúc source và kiểm thử giả lập; chưa xác minh key, billing khai báo, quyền model, quota3.1 thực tế, mạng VPS tới Google, chất lượng OCR/chữ viết tay và hành vi timeout/quota live. Chỉ hoàn tất phần tích hợp hoạt động sau khi checklist live với sổ tổng hợp đã đạt. Code/deployment ở trạng thái disabled không đồng nghĩa nghiệm thu Gemini.
+Đã xác minh tài liệu, cấu trúc source, kiểm thử giả lập và key/model local bằng hai tài liệu tổng hợp như bằng chứng bên dưới. Chưa xác minh billing khai báo, quota chịu tải thực tế, mạng VPS tới Google, chữ viết tay và hành vi timeout/quota live. Chỉ hoàn tất phần tích hợp hoạt động sau khi checklist live với sổ tổng hợp đã đạt. Code/deployment ở trạng thái disabled không đồng nghĩa nghiệm thu Gemini.
 
 Tham khảo thêm [GenerateContent REST](https://ai.google.dev/api/generate-content), [CountTokens](https://ai.google.dev/api/tokens). Tài liệu chính thức đã đọc qua HTTP Accept:text/markdown sau khi Exa/Web fetch không đọc được định dạng markdown.
 
