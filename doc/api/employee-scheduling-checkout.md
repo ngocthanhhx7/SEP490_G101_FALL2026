@@ -60,9 +60,11 @@ Root `/api/v1/employee-scheduling`, opt-in `EMPLOYEE_SCHEDULING_ENABLED=true`.
 | GET/PUT `/availability` | PET_SITTER, own recurring windows and shared expectedVersion |
 | GET `/calendar` | PET_SITTER, own fromLocalDate/toLocalDate, maximum 31 days |
 | GET/PUT `/work-areas` | PET_SITTER, own operational area codes, shared expectedVersion |
-| GET `/offers`, `/assignments` | PET_SITTER, own bounded lists; optional cursor and limit |
+| GET `/offers`, `/assignments` | PET_SITTER, own bounded lists; optional cursor and limit. Assignments include `canWithdraw` for eligible visits. |
+| GET `/visits/:id/withdrawal-options` | PET_SITTER, own accepted visit before check-in. Returns server time, visit version, reason codes and `EARLY` or `LATE`. |
+| POST `/visits/:id/withdrawals` | PET_SITTER, CSRF and `Idempotency-Key`. Takes `expectedVersion`, `expectedMode`, `reasonCode` and optional `note` (up to 1,000 characters). |
 | POST `/offers/:id/acceptances`, `/declines` | PET_SITTER, expectedVersion, explicit response |
-| GET `/dispatch` | STAFF/ADMIN, next 50 eligible operational visits and pending invitation/review status |
+| GET `/dispatch` | STAFF/ADMIN, next 50 eligible operational visits and pending invitation/review status, plus up to 50 active `withdrawalRequests`. |
 | POST `/visits/:id/invitations` | STAFF/ADMIN, expectedVersion and optional sitterId |
 | GET `/visits/:id/candidates` | STAFF/ADMIN, startAt with timezone and optional areaCode; bounded eligible names/IDs or aggregate rejection counts; 6 requests per minute/account/instance |
 | POST `/visits/:id/schedule-proposals` | STAFF/ADMIN after escalation, expectedVersion, alternative startAt, optional sitterId and areaCode; directed employee cannot be replaced |
@@ -84,6 +86,14 @@ checks do not authorize overtime or replace attendance/payroll assessment.
 
 Checkout automatically finalizes the care plan in its transaction; Staff approval is
 not a prerequisite. The worker recovers compatible legacy orders at NEEDS_REVIEW.
+UC-82 evaluates the 12-hour boundary again when saving. Early withdrawal clears the
+assignment, sets `handoverRequired`, records `VisitWithdrawn` and returns the visit
+to automatic dispatch when the worker is enabled. The previous sitter is excluded.
+When they were customer-selected, dispatch considers the other eligible sitters
+while preserving the original preference. Late withdrawal keeps the current sitter
+and records `VisitWithdrawalRequested` for Staff. A changed mode or version returns
+409. An out-of-scope visit returns 404. An exact retry replays the committed result.
+
 Staff can send invitations only after a dispatch escalation. GET /dispatch exposes
 dispatchState SYSTEM_SEARCHING/AWAITING_RESPONSE/NEEDS_STAFF and pendingInvitationCount.
 

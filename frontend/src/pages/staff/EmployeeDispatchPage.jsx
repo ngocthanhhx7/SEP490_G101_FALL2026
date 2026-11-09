@@ -12,6 +12,7 @@ import { Button, Dialog } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
+import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import '../../styles/employee-scheduling.css';
 
 const time = (value) =>
@@ -113,6 +114,17 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             </p>
           </div>
         </header>
+        {!!queue.data?.withdrawalRequests?.length && <div className="withdrawal-requests">
+          <h3>Yêu cầu rút buổi</h3>
+          <OperationsTable label="Yêu cầu rút buổi" rows={queue.data.withdrawalRequests} columns={[
+            { key: 'visit', label: 'Buổi', render: row => <><strong>{row.serviceName ?? short(row.id)}</strong><small>{time(row.startAt)}</small></> },
+            { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? short(row.sitterId) },
+            { key: 'reason', label: 'Lý do', render: row => <>{VISIT_WITHDRAWAL_REASON_LABELS[row.reasonCode] ?? '—'}
+              {row.note && <small>{row.note}</small>}</> }
+          ]} />
+          <p className="ops-muted">Người chăm sóc vẫn được phân công cho đến khi nhân viên thay người hoặc huỷ buổi.</p>
+          {queue.data.withdrawalRequestsHaveMore && <p className="ops-muted">Đang hiển thị 50 yêu cầu theo giờ buổi sớm nhất.</p>}
+        </div>}
         <OperationsTable
           label="Ca cần điều phối"
           rows={rows}
