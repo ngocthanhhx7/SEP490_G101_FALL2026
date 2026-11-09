@@ -1,3 +1,4 @@
+import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
@@ -152,6 +153,7 @@ test('published customer ratings alone contribute; moderated queue can target th
 
 
 test('Staff/Admin capability command is session/CSRF protected and exposes readiness without private origins', async () => {
+  await provisionEmployeeScheduling(connection);
   const target = employee.user.id, url = root + '/' + target + '/capability';
   await col('employmentcontracts').updateMany({ employeeId: new mongoose.Types.ObjectId(target) }, { $unset: { endsAt: '' } });
   const serviceId = new mongoose.Types.ObjectId();
