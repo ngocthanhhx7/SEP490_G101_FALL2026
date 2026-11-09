@@ -148,6 +148,7 @@ const navigationByRole = {
     ['Chăm sóc của bạn', '/customer', 'Dịch vụ của tôi'],
     ['Đơn chăm sóc', '/account/bookings', 'Dịch vụ của tôi'],
     ['Thông báo', '/account/notifications', 'Dịch vụ của tôi'],
+    ['Đơn mua sản phẩm', '/customer/product-orders', 'Mua sắm'],
     ['Người chăm sóc', '/sitters', 'Khám phá'],
     ['Tìm sitter phù hợp', '/account/sitter-recommendations', 'Khám phá']
   ],
@@ -275,6 +276,7 @@ export function AppRoutes({
             element={<CustomerFeaturePage page="pet" />}
           />
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
+          <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
         </Route>
@@ -323,7 +325,6 @@ export function AppRoutes({
         <Route element={<RequireSession roles={['CUSTOMER']} />}>
           <Route path="customer/cart" element={<ShoppingCartPage />} />
           <Route path="customer/product-checkout" element={<ProductCheckoutPage />} />
-          <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
         </Route>
         <Route path="service-areas" element={<ServiceAreasPage />} />
         <Route path="sign-in" element={<SignInPage />} />
