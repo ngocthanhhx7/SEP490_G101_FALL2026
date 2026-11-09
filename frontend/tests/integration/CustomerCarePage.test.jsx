@@ -87,3 +87,18 @@ test('a malformed successful create acknowledgement keeps the original command t
   fireEvent.click(screen.getByRole('button',{name:'Kiểm tra lại cùng yêu cầu'}));await screen.findByRole('heading',{name:'Đã lưu thú cưng.'});
   expect(api.save.mock.calls[1]).toEqual(api.save.mock.calls[0]);
 });
+
+
+test('stale pet edits offer a confirmed reload instead of trapping the owner on the old version',async()=>{
+  const pet={id:'b'.repeat(24),name:'Mây',species:'DOG',breedCode:'dog-test',weightKg:5,version:0};
+  const api={load:jest.fn().mockResolvedValue({data:{...catalog,items:[pet]}}),save:jest.fn().mockRejectedValue({code:'VERSION_CONFLICT',status:409})};
+  render(<MemoryRouter><SessionProvider adapter={session}><CustomerCarePage api={api}/></SessionProvider></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button',{name:'Sửa hồ sơ'}));
+  fireEvent.change(screen.getByLabelText('Tên thú cưng',{exact:false}),{target:{value:'Mây mới'}});
+  fireEvent.submit(screen.getByRole('form',{name:'Hồ sơ thú cưng'}));
+  fireEvent.click(await screen.findByRole('button',{name:'Tải lại hồ sơ'}));
+  expect(api.load).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button',{name:'Tải lại và bỏ bản sửa'}));
+  await waitFor(()=>expect(api.load).toHaveBeenCalledTimes(2));
+  expect(screen.queryByRole('form',{name:'Hồ sơ thú cưng'})).not.toBeInTheDocument();
+});

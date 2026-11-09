@@ -20,12 +20,12 @@ export function CustomerPetsPage({ api: suppliedApi }) {
   const api = useMemo(() => suppliedApi ?? createCustomerCareApi(createApiClient({ getCsrfToken })), [getCsrfToken, suppliedApi]);
   const load = useCallback(({ signal }) => api.load('pets', { signal }), [api]), resource = useApiResource(load);
   const [editor, setEditor] = useState(null), [draft, setDraft] = useState(null), [archive, setArchive] = useState(null), [discard, setDiscard] = useState(false);
-  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false), [stale, setStale] = useState(false), [reloadAfterDiscard, setReloadAfterDiscard] = useState(false);
   const [busy, setBusy] = useState(false), [uncertain, setUncertain] = useState(false), [error, setError] = useState(''), [saved, setSaved] = useState(''), [created, setCreated] = useState(null);
   const attempt = useRef(null), locked = useRef(false), initial = useRef('');
   const catalog = resource.data, items = catalog?.items ?? [], pet = petId ? items.find(row => row.id === petId) : null;
   const breed = row => catalog?.breeds.find(b => b.code === row.breedCode)?.name ?? row.breedCode;
-  const close = () => { setEditor(null); setDraft(null); setDiscard(false); setError(''); };
+  const close = () => { setEditor(null); setDraft(null); setDiscard(false); setReloadAfterDiscard(false); setStale(false); setError(''); };
   function edit(row) {
     if (photoBusy || busy || uncertain) return;
     const next = newCustomerPet(row); initial.current = JSON.stringify(next); setDraft(next); setEditor({ id: row?.id, version: row?.version }); setError(''); setSaved('');
@@ -43,7 +43,7 @@ export function CustomerPetsPage({ api: suppliedApi }) {
       setCreated(operation.type === 'save' && !operation.id && result.data?.id ? result.data.id : null); resource.retry();
     } catch (failure) {
       if (['TIMEOUT', 'NETWORK_ERROR', 'ABORTED'].includes(failure.code) || (failure.status >= 200 && failure.status < 300) || [408, 425, 429].includes(failure.status) || failure.status >= 500) setUncertain(true);
-      else { setUncertain(false); attempt.current = null; setError(problem(failure)); }
+      else { setUncertain(false); attempt.current = null; setError(problem(failure)); setStale(failure.status === 409); }
     } finally { locked.current = false; setBusy(false); }
   }
   function start(operation) {
@@ -81,12 +81,12 @@ export function CustomerPetsPage({ api: suppliedApi }) {
       {editor && draft && catalog && <form onSubmit={save} onInvalidCapture={event => { const section = event.target.closest('details'); if (section) section.open = true; }} aria-label="Hồ sơ thú cưng">
         {!editor.id && <p className="pet-editor-intro">Lưu thông tin cơ bản trước. Bạn có thể thêm ảnh ở trang hồ sơ ngay sau đó.</p>}
         <CustomerPetForm draft={draft} change={setDraft} catalog={catalog} disabled={busy || uncertain || photoBusy} />
-        {error && <Notice state="error" title={error} />}
+        {error && <Notice state="error" title={error}>{stale && <Button variant="secondary" onClick={() => { setReloadAfterDiscard(true); setDiscard(true); }}>Tải lại hồ sơ</Button>}</Notice>}
         {uncertain && <Notice state="pending" title="Chưa xác định kết quả lưu"><Button disabled={busy} onClick={() => execute(attempt.current)}>Kiểm tra lại cùng yêu cầu</Button></Notice>}
         <div className="pet-editor-footer"><Button type="button" variant="secondary" onClick={requestClose} disabled={busy || uncertain || photoBusy}>Hủy</Button><Button type="submit" loading={busy} disabled={uncertain}>Lưu thú cưng</Button></div>
       </form>}
     </Dialog>
-    <Dialog open={discard} title="Bỏ thay đổi chưa lưu?" dismissible={!busy} onClose={() => setDiscard(false)}><p>Thông tin bạn vừa sửa sẽ chưa được lưu vào hồ sơ.</p><Button variant="secondary" onClick={() => setDiscard(false)}>Tiếp tục chỉnh sửa</Button><Button variant="danger" onClick={close}>Bỏ thay đổi</Button></Dialog>
+    <Dialog open={discard} title="Bỏ thay đổi chưa lưu?" dismissible={!busy} onClose={() => { setDiscard(false); setReloadAfterDiscard(false); }}><p>Thông tin bạn vừa sửa sẽ chưa được lưu vào hồ sơ.</p><Button variant="secondary" onClick={() => { setDiscard(false); setReloadAfterDiscard(false); }}>Tiếp tục chỉnh sửa</Button><Button variant="danger" onClick={() => { const reload = reloadAfterDiscard; close(); if (reload) resource.retry(); }}>{reloadAfterDiscard ? 'Tải lại và bỏ bản sửa' : 'Bỏ thay đổi'}</Button></Dialog>
     <Dialog open={Boolean(archive)} title={`Xóa hồ sơ ${archive?.name ?? 'thú cưng'}?`} intent="destructive" dismissible={!busy && !uncertain} onClose={() => setArchive(null)}>
       <p>Không thể xóa khi còn buổi chăm chưa kết thúc. Hồ sơ đã xóa không dùng cho lịch mới; lịch sử đã đặt được giữ nguyên.</p><Button variant="danger" disabled={busy || uncertain || photoBusy} onClick={() => start({ type: 'archive', id: archive.id, version: archive.version })}>Xác nhận xóa</Button>
       {error && <Notice state="error" title={error} />}{uncertain && <Button disabled={busy} onClick={() => execute(attempt.current)}>Kiểm tra lại cùng yêu cầu</Button>}
