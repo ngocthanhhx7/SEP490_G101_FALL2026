@@ -1,3 +1,4 @@
+import { petRecordImportRuntimeModule } from './routes/pet-record-import.routes.js';
 import { avatarRuntimeModule } from './routes/avatar.routes.js';
 import { pricingRuntimeModule } from './routes/pricing.routes.js';
 import { petCareRuntimeModule } from './routes/pet-care.routes.js';
@@ -91,6 +92,7 @@ export function createApp({
   app.locals.compensationProfile = compensationProfile;
   const customerProfile = customerProfileRuntimeModule(context);
   const avatars = avatarRuntimeModule(context);
+  const petRecordImport = petRecordImportRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
@@ -140,6 +142,7 @@ export function createApp({
     ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []),
     ...(avatars ? [avatars] : []),
+    ...(petRecordImport ? [petRecordImport] : []),
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),

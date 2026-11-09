@@ -22,6 +22,7 @@ test('collects breed, weight, explicit unknown health and care information; retr
   fireEvent.change(screen.getByLabelText('Tên thú cưng', { exact: false }), { target: { value: 'Synthetic companion' } });
   fireEvent.change(screen.getByLabelText('Giống', { exact: false }), { target: { value: 'dog-test' } });
   fireEvent.change(screen.getByLabelText('Cân nặng gần nhất (kg)', { exact: false }), { target: { value: '4.2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Sức khỏe', exact: true }));
   fireEvent.change(screen.getByLabelText('Tình trạng thông tin: Dị ứng'), { target: { value: 'UNKNOWN' } });
   fireEvent.submit(screen.getByRole('button', { name: 'Lưu thú cưng' }).closest('form'));
   await screen.findByText('Chưa xác định kết quả lưu');
@@ -64,7 +65,7 @@ test('mounted pet list links to the owned avatar workspace',async()=>{
   const api={load:jest.fn().mockResolvedValue({data:{...catalog,items:[pet]}})};
   render(<MemoryRouter><SessionProvider adapter={session}><CustomerCarePage api={api}/></SessionProvider></MemoryRouter>);
   expect(await screen.findByRole('link',{name:/Xem hồ sơ/})).toHaveAttribute('href','/account/pets/'+pet.id);
-  expect(screen.getByRole('link',{name:/Mây/})).toHaveAttribute('href','/account/pets/'+pet.id);
+  expect(screen.getByRole('link',{name:/Ảnh và hồ sơ Mây/})).toHaveAttribute('href','/account/pets/'+pet.id);
   expect(screen.queryByRole('form', { name: 'Hồ sơ thú cưng' })).not.toBeInTheDocument();
 });
 
@@ -101,4 +102,18 @@ test('stale pet edits offer a confirmed reload instead of trapping the owner on 
   fireEvent.click(screen.getByRole('button',{name:'Tải lại và bỏ bản sửa'}));
   await waitFor(()=>expect(api.load).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole('form',{name:'Hồ sơ thú cưng'})).not.toBeInTheDocument();
+});
+
+
+test('pet groups keep typed values and reveal the group containing an invalid field',async()=>{
+  setup();await waitFor(()=>expect(screen.getByRole('button',{name:'Thêm thú cưng'})).toBeEnabled());fireEvent.click(screen.getByRole('button',{name:'Thêm thú cưng'}));
+  fireEvent.change(screen.getByLabelText('Tên thú cưng',{exact:false}),{target:{value:'Mây'}});
+  fireEvent.click(screen.getByRole('button',{name:'Sức khỏe',exact:true}));
+  expect(screen.getByLabelText('Tên thú cưng',{exact:false})).not.toBeVisible();
+  fireEvent.change(screen.getByLabelText('Tình trạng thông tin: Dị ứng'),{target:{value:'KNOWN'}});
+  const note=screen.getByLabelText('Chi tiết dị ứng');fireEvent.change(note,{target:{value:'Ghi chú mẫu'}});
+  fireEvent.click(screen.getByRole('button',{name:'Cơ bản',exact:true}));
+  expect(screen.getByLabelText('Tên thú cưng',{exact:false})).toHaveValue('Mây');
+  fireEvent.invalid(note);
+  await waitFor(()=>expect(note).toBeVisible());expect(note).toHaveValue('Ghi chú mẫu');
 });
