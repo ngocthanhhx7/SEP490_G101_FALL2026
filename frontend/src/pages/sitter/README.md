@@ -35,3 +35,5 @@ moderation policy.
 `SitterComplaintsPage` and `sitter-complaint-api.js` are read-only. The server
 must scope every list/detail result to the Sitter's assigned visit and omit
 Staff private notes; no Sitter complaint creation or Staff command is exposed.
+
+`SitterDayOriginForm` lets an approved employee select a map pin and same-day outward/return availability for automatic dispatch. Shared transport stays in employee-scheduling-api; unknown outcomes retain the original operation payload/key.

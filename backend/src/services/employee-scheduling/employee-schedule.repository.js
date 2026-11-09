@@ -28,11 +28,11 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     return user;
   }
   async function contractAt(sitterId, start, end, session) {
-    const contract = await payroll.EmploymentContract.findOne({ employeeId: sitterId, effectiveAt: { $lte: start } })
+    const contract = await payroll.EmploymentContract.findOne({ employeeId: sitterId, supersededAt: null, effectiveAt: { $lte: start } })
       .sort({ effectiveAt: -1, version: -1 }).session(session ?? null).lean();
     if (!contract || contract.signedAt > new Date(clock()) || (contract.endsAt && contract.endsAt < end))
       fail('CONTRACT_REQUIRED', 'Signed contract must cover the requested work', 409);
-    if (await payroll.EmploymentContract.exists({ employeeId: sitterId, effectiveAt: { $gt: start, $lt: end } }).session(session ?? null))
+    if (await payroll.EmploymentContract.exists({ employeeId: sitterId, supersededAt: null, effectiveAt: { $gt: start, $lt: end } }).session(session ?? null))
       fail('CONTRACT_REQUIRED', 'Split work at a contract change', 409);
     return contract;
   }

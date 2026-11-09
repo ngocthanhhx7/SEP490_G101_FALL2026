@@ -123,3 +123,20 @@ test('selected sitter reaches invitation command and cannot replace customer dir
   fireEvent.click(rows[0]); fireEvent.click(screen.getByRole('button',{name:'Mời người đã chọn'}));
   await waitFor(() => expect(invite).toHaveBeenCalledWith('visit1', 4, expect.any(String), id));
 });
+
+
+test('Staff can verify actual newcomer capability without manufacturing ratings or origins', async () => {
+  const api = fixture(), data = (await api.get()).data;
+  data.permissions.manageCapability = true; data.capabilities = null;
+  data.serviceCatalog = [{ id: 'd'.repeat(24), code: 'nail-trimming', name: 'Cắt móng' }];
+  data.traitCatalog = [{ code: 'slow-introduction', label: 'Cần làm quen chậm' }];
+  api.get.mockResolvedValue({ data }); api.saveCapability = jest.fn().mockResolvedValue({ data: { userId: id, version: 1 } });
+  mount(api, true); await screen.findByText('Kinh nghiệm mẫu');
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  fireEvent.click(screen.getByLabelText('Cắt móng')); fireEvent.click(screen.getByLabelText('Chó'));
+  fireEvent.change(screen.getByLabelText(/Căn cứ xác minh \/ lý do/), { target: { value: 'Đã kiểm tra kỹ năng thực tế' } });
+  fireEvent.submit(screen.getByRole('button', { name: 'Lưu xác minh năng lực' }).closest('form'));
+  await waitFor(() => expect(api.saveCapability).toHaveBeenCalledWith(id, expect.objectContaining({ expectedVersion: 0, species: ['DOG'], serviceIds: ['d'.repeat(24)], reason: 'Đã kiểm tra kỹ năng thực tế' }), expect.any(String)));
+  expect(api.saveCapability.mock.calls[0][1]).not.toHaveProperty('starts');
+  expect(api.saveCapability.mock.calls[0][1]).not.toHaveProperty('rating');
+});

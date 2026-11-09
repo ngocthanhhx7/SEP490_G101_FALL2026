@@ -10,6 +10,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
+import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import '../../styles/employee-scheduling.css';
 
@@ -237,7 +238,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
         <Dialog
           open
           title="Chi tiết điều phối"
-          className="ops-dialog"
+          className="ops-dialog dispatch-detail-dialog"
           dismissible={!command.busy && !command.pending}
           onClose={() => setSelected(null)}
         >
@@ -249,7 +250,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             {active.customerName ?? 'Khách hàng'} ·{' '}
             {active.reviewCode ? reviewLabel(active.reviewCode) : 'Hệ thống đang điều phối'}
           </p>
-          <DispatchDiagnostics value={active.diagnostics} />
+          <details><summary>Kết quả tìm tự động gần nhất</summary><DispatchDiagnostics value={active.diagnostics} /><p>Danh sách chỉ định bên dưới được kiểm tra lại theo điều kiện mời thủ công cho lịch hiện tại.</p></details>
           {active.pendingInvitation ? (
             <p>
               {active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi ·{' '}
@@ -257,6 +258,8 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             </p>
           ) : active.reviewCode === 'SHIFT_START_REACHED' ? (
             <p>Cần khách xác nhận lịch mới trước khi tìm lại.</p>
+          ) : active.dispatchState === 'NEEDS_STAFF' && api.candidates ? (
+            <DispatchSitterPicker key={`${active.id}:${active.version}`} row={active} api={api} command={command} selectedSitter={selectedSitter} />
           ) : active.dispatchState === 'NEEDS_STAFF' ? (
             <Button
               disabled={
@@ -279,7 +282,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           ) : (
             <p>Hệ thống đang tìm người nhận ca</p>
           )}
-          {active.dispatchState === 'NEEDS_STAFF' && api.candidates && (
+          {active.dispatchState === 'NEEDS_STAFF' && !active.pendingInvitation && api.candidates && (
             <DispatchRecoveryPanel
               key={`${active.id}:${active.version}`}
               row={active}

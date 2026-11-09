@@ -4,6 +4,7 @@ const money = { type: Number, min: 0, validate: Number.isSafeInteger };
 export function payrollModels(connection) {
   const options = { strict: 'throw', bufferCommands: false, versionKey: false };
   const contracts = new Schema({
+    supersededAt: Date, supersededBy: oid, supersededReason: { type: String, maxlength: 1000 },
     workScheduleMode: { type: String, enum: ['SELF_REGISTERED'] }, minimumWeeklyMinutes: { type: Number, min: 1, max: 2880 },
     documentId: oid, employeeCode: String, schedule: Schema.Types.Mixed, paySchedule: String, monthlyAllowanceVnd: money,
     employeeId: { type: oid, required: true }, version: { type: Number, min: 1, required: true, validate: Number.isSafeInteger },

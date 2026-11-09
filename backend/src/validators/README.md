@@ -12,3 +12,5 @@ an owner-bound UTC effective-time cursor. It introduces no price-write policy.
 Employment contract validation returns all incorrect fields under error.fields,
 including dates, identities, regional wage and signing evidence; no private input
 values are reflected. Existing 422 codes and domain guards remain authoritative.
+
+`sitter-capability.validator.js` bounds verified skill DTOs; `sitter-origin.validator.js` checks an employee day pin and same-day future interval. Authorization, contracts and concurrency stay in services.

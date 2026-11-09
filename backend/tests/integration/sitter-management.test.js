@@ -149,3 +149,26 @@ test('published customer ratings alone contribute; moderated queue can target th
   expect(pending.body.data.items).toHaveLength(1); expect(pending.body.data.items[0].userId).toBe(employee.user.id);
   await request(app).get('/api/v1/sitter-public-profiles?userId[$ne]=').set(headers(staff)).expect(422);
 });
+
+
+test('Staff/Admin capability command is session/CSRF protected and exposes readiness without private origins', async () => {
+  const target = employee.user.id, url = root + '/' + target + '/capability';
+  await col('employmentcontracts').updateMany({ employeeId: new mongoose.Types.ObjectId(target) }, { $unset: { endsAt: '' } });
+  const serviceId = new mongoose.Types.ObjectId();
+  await col('services').insertOne({ _id: serviceId, code: 'synthetic-skill' });
+  const body = { expectedVersion: 0, serviceIds: [String(serviceId)], species: ['DOG'], allowedTraits: [], maxPets: 2, maxWeightKg: 12, active: true, reason: 'Synthetic skill assessed' };
+  await request(app).put(url).send(body).expect(401);
+  await request(app).put(url).set(headers(customer)).send(body).expect(403);
+  await request(app).put(url).set({ ...headers(staff), 'X-CSRF-Token': 'invalid' }).send(body).expect(403);
+  const send = (actor, payload, key) => request(app).put(url).set(headers(actor)).set('Idempotency-Key', key).send(payload);
+  const before = await col('aisitterprofiles').findOne({ userId: new mongoose.Types.ObjectId(target) });
+  await send(staff, body, 'staff-capability-command').expect(200);
+  await send(staff, body, 'staff-capability-command').expect(200);
+  await send(admin, body, 'admin-stale-command').expect(409);
+  await send(admin, { ...body, expectedVersion: 1, starts: [] }, 'no-override-origins').expect(422);
+  const after = await col('aisitterprofiles').findOne({ userId: new mongoose.Types.ObjectId(target) });
+  expect(after.starts).toEqual(before.starts); expect(after.version).toBe(1);
+  const detail = (await request(app).get(root + '/' + target).set(headers(staff)).expect(200)).body.data;
+  expect(detail.permissions.manageCapability).toBe(true); expect(detail.capabilities.version).toBe(1);
+  expect(JSON.stringify(detail)).not.toContain('private-location');
+});
