@@ -1,3 +1,4 @@
+import { createSessionService } from '../../src/services/session.service.js';
 import { afterAll, beforeAll, beforeEach, expect, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -69,4 +70,23 @@ test('concurrent initial writes have one winner and replay does not increment pr
   expect(responses.map(r=>r.status).sort()).toEqual([200,409]);
   expect((await userModel(connection).findById(ids.owner)).version).toBe(1);
   expect(await avatarModel(connection).countDocuments()).toBe(1);
+});
+
+
+test('real signed session cookies keep account and pet photos readable after avatar writes', async()=>{
+  const tokenSecret='s'.repeat(48),csrfSecret='c'.repeat(48);
+  const sessions=createSessionService({connection,tokenSecret,csrfSecret});
+  for(const model of Object.values(connection.models)){await model.createCollection();await model.createIndexes();}
+  const owner=await userModel(connection).findById(ids.owner);
+  const issued=await connection.transaction(session=>sessions.issueInTransaction(owner,session));
+  const config=loadConfig({NODE_ENV:'test',MONGO_URI:replica.getUri(),MONGO_DB:'pwc_avatar_test'});
+  const real=createApp({config,connection,lifecycle:{draining:false},moduleFactories:[()=>avatarModule({connection,requireAuthenticated:requireSession(sessions),csrf:requireCsrf(sessions)})]});
+  const auth={Host:'127.0.0.1',Origin:'http://127.0.0.1',Cookie:`pwc_session=${issued.token}`,'X-CSRF-Token':issued.csrfToken};
+  const jpeg=await sharp(png).jpeg().toBuffer();
+  for(const path of ['/avatars/me','/avatars/pets/'+ids.pet]){
+    await request(real).put('/api/v1'+path+'?version=0').set({...auth,'Idempotency-Key':'real-cookie-photo-'+(path.endsWith('/me')?'account':'pet'),'Content-Type':'image/jpeg'}).send(jpeg).expect(200);
+    const image=await request(real).get('/api/v1'+path+'/content').set({Cookie:auth.Cookie}).expect(200);
+    expect(image.headers['cache-control']).toBe('private, no-store');expect(await sharp(image.body).metadata()).toMatchObject({format:'jpeg',width:512,height:512});
+    await request(real).get('/api/v1'+path+'/content').expect(401);
+  }
 });
