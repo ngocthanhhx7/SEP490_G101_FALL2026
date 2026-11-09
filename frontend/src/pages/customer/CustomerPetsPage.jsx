@@ -1,15 +1,16 @@
 import { PetRecordImport } from './PetRecordImport.jsx';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, CheckCircle2, ImagePlus, Pencil, Plus, Archive, PawPrint, ShieldCheck } from 'lucide-react';
-import { ProfileAvatar, AvatarEditor } from '../../components/common/ProfileAvatar.jsx';
+import { ArrowLeft, ArrowRight, CheckCircle2, Pencil, Plus, Archive, PawPrint, ShieldCheck } from 'lucide-react';
+import { ProfileAvatar } from '../../components/common/ProfileAvatar.jsx';
 import { Button, Dialog, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
 import { createCustomerCareApi } from '../../services/customer-care-api.js';
-import { customerPetBody, newCustomerPet, PET_CARE_GROUPS, PET_CARE_LABELS, petCareStatus } from '../../utils/customer-pet-profile.js';
+import { customerPetBody, newCustomerPet, petCareStatus } from '../../utils/customer-pet-profile.js';
 import { CustomerPetForm } from './CustomerPetForm.jsx';
+import { PetProfileDetails } from './PetProfileDetails.jsx';
 import './customer-pets.css';
 const problem = error => ({ VERSION_CONFLICT: 'Hồ sơ đã thay đổi. Tải lại hồ sơ rồi kiểm tra trước khi lưu tiếp.',
   ACTIVE_BOOKING_CONFLICT: 'Thú cưng đang có buổi chăm sóc chưa kết thúc. Hãy hoàn tất hoặc hủy lịch trước khi xóa hồ sơ.',
@@ -28,9 +29,9 @@ export function CustomerPetsPage({ api: suppliedApi }) {
   const catalog = resource.data, items = catalog?.items ?? [], pet = petId ? items.find(row => row.id === petId) : null;
   const breed = row => catalog?.breeds.find(b => b.code === row.breedCode)?.name ?? row.breedCode;
   const close = () => { setEditor(null); setDraft(null); setDiscard(false); setReloadAfterDiscard(false); setStale(false); setError(''); };
-  function edit(row) {
+  function edit(row, group = 'basic', openImport = false) {
     if (photoBusy || busy || uncertain) return;
-    const next = newCustomerPet(row); initial.current = JSON.stringify(next); setDraft(next); setEditor({ id: row?.id, version: row?.version }); setError(''); setSaved('');
+    const next = newCustomerPet(row); initial.current = JSON.stringify(next); setDraft(next); setEditor({ id: row?.id, version: row?.version, group, openImport }); setError(''); setSaved('');
   }
   function requestClose() { if (busy || uncertain || importBusy) return; if (JSON.stringify(draft) !== initial.current) setDiscard(true); else close(); }
   async function execute(operation) {
@@ -56,10 +57,9 @@ export function CustomerPetsPage({ api: suppliedApi }) {
   function save(event) { event.preventDefault(); if (busy || uncertain || importBusy || photoBusy) return; start({ type: 'save', id: editor.id, body: customerPetBody(draft, editor.id ? editor.version : undefined) }); }
   return <section className="customer-pets" aria-labelledby="customer-pets-title">
     {petId && <Link className="pet-back" to="/account/pets"><ArrowLeft size={17} />Thú cưng của tôi</Link>}
-    <header className="pet-page-heading"><div><span className="pet-eyebrow">Đồng hành cùng bạn</span><h1 id="customer-pets-title">{petId ? pet?.name ?? 'Hồ sơ thú cưng' : 'Thú cưng của tôi'}</h1><p>{petId ? 'Ảnh, thói quen và lưu ý để mỗi buổi chăm sóc phù hợp hơn.' : 'Lưu những điều riêng của từng bé, để người chăm sóc hiểu và chuẩn bị tốt hơn.'}</p></div>
+    {!pet && <header className="pet-page-heading"><div><span className="pet-eyebrow">Đồng hành cùng bạn</span><h1 id="customer-pets-title">{petId ? pet?.name ?? 'Hồ sơ thú cưng' : 'Thú cưng của tôi'}</h1><p>{petId ? 'Ảnh, thói quen và lưu ý để mỗi buổi chăm sóc phù hợp hơn.' : 'Lưu những điều riêng của từng bé, để người chăm sóc hiểu và chuẩn bị tốt hơn.'}</p></div>
       {!petId && <Button onClick={() => edit()} disabled={!catalog || busy || uncertain}><Plus size={18} />Thêm thú cưng</Button>}
-      {pet && <Button onClick={() => edit(pet)} disabled={busy || uncertain || photoBusy}><Pencil size={17} />Chỉnh sửa hồ sơ</Button>}
-    </header>
+    </header>}
     {saved && <Notice state="success" title={saved}>{created && <Link to={`/account/pets/${created}`}>Thêm ảnh và xem hồ sơ vừa tạo <ArrowRight size={15} /></Link>}</Notice>}
     {resource.status === 'loading' && <div className="pet-loading" role="status">Đang tải hồ sơ thú cưng…</div>}
     {['error', 'forbidden', 'pending'].includes(resource.status) && <Notice state={resource.status} title="Chưa tải được thú cưng" action={<Button onClick={resource.retry}>Tải lại</Button>}>{problem({ code: resource.code })}</Notice>}
@@ -73,19 +73,13 @@ export function CustomerPetsPage({ api: suppliedApi }) {
       <p className={`pet-readiness ${row.careNeedsConfirmed ? 'is-ready' : ''}`}>{row.careNeedsConfirmed ? <CheckCircle2 size={15} /> : <ShieldCheck size={15} />}{row.careNeedsConfirmed ? 'Đã xác nhận nhu cầu chăm sóc' : 'Cần xác nhận nhu cầu chăm sóc'}</p>
       <div className="pet-card-actions"><Button onClick={() => edit(row)} disabled={busy || uncertain || photoBusy}><Pencil size={15} />Sửa hồ sơ</Button><Button variant="ghost" aria-label={`Xóa thú cưng ${row.name}`} onClick={() => {setArchive(row);setError('');}} disabled={busy || uncertain || photoBusy}><Archive size={17} /></Button></div></div>
     </li>)}<li className="pet-add-card"><span className="pet-add-symbol"><Plus size={28} /></span><h2>Bạn vừa đón bé mới?</h2><p>Tạo hồ sơ để lưu ảnh, thói quen và những lưu ý chăm sóc của bé.</p><Button variant="secondary" onClick={() => edit()} disabled={busy || uncertain}>Thêm thú cưng mới</Button></li></ul><p className="pet-privacy-note"><ShieldCheck size={16} />Thông tin chưa biết không được hiểu là không có dị ứng, thuốc hoặc rủi ro.</p></>}
-    {pet && <div className="pet-detail-grid"><div className="pet-detail-content"><section className="pet-detail-card"><h2>Thông tin của {pet.name}</h2><dl className="pet-facts">
-      <div><dt>Loài</dt><dd>{speciesName(pet.species)}</dd></div><div><dt>Giống</dt><dd>{breed(pet)}</dd></div><div><dt>Cân nặng</dt><dd>{pet.weightKg} kg</dd></div>
-      <div><dt>Tuổi ước tính</dt><dd>{pet.ageMonths !== undefined ? `${pet.ageMonths} tháng` : 'Chưa cung cấp'}</dd></div><div><dt>Giới tính</dt><dd>{{ MALE: 'Đực', FEMALE: 'Cái' }[pet.sex] ?? 'Chưa biết'}</dd></div>
-    </dl><h3>Đặc điểm cần lưu ý</h3><div className="pet-traits">{pet.traits?.length ? pet.traits.map(code => <span key={code}>{catalog.traits.find(trait => trait.code === code)?.label ?? code}</span>) : <p>Chưa ghi nhận đặc điểm cần lưu ý.</p>}</div></section>
-      {PET_CARE_GROUPS.map(group => <section className="pet-detail-card" key={group.title}><h2>{group.title}</h2><dl className="pet-care-summary">{group.fields.map(key => <div key={key}><dt>{PET_CARE_LABELS[key]}</dt><dd>{petCareStatus(pet.careProfile?.[key])}</dd></div>)}</dl></section>)}
-    </div><aside className="pet-detail-side"><section className="pet-detail-card"><ImagePlus size={23} /><AvatarEditor petId={pet.id} label={`Ảnh của ${pet.name}`} fallback={speciesName(pet.species)} onSaved={resource.retry} onBusyChange={setPhotoBusy} /></section>
-      <section className="pet-detail-card pet-profile-state"><ShieldCheck size={23} /><h2>Chuẩn bị cho buổi chăm sóc</h2><p>{pet.careNeedsConfirmed ? 'Bạn đã xác nhận nhu cầu chăm sóc. Hãy cập nhật nếu có điều gì thay đổi.' : 'Mở chỉnh sửa để kiểm tra và xác nhận nhu cầu chăm sóc trước khi đặt dịch vụ.'}</p><Button variant="secondary" onClick={() => edit(pet)}>Kiểm tra hồ sơ</Button></section>
-      <Button variant="ghost" className="pet-archive-link" onClick={() => { setArchive(pet); setError(''); }} disabled={busy || uncertain || photoBusy}><Archive size={16} />Xóa thú cưng</Button></aside></div>}
+    {pet && <PetProfileDetails key={pet.id} pet={pet} breed={breed(pet)} traits={catalog.traits} disabled={busy || uncertain || photoBusy}
+      onEdit={(group, openImport) => edit(pet, group, openImport)} onArchive={() => { setArchive(pet); setError(''); }} onPhotoSaved={resource.retry} onPhotoBusyChange={setPhotoBusy} />}
     <Dialog open={Boolean(editor)} title={editor?.id ? `Chỉnh sửa hồ sơ ${draft?.name || 'thú cưng'}` : 'Thêm thú cưng'} className="pet-editor-dialog" dismissible={!busy && !uncertain && !importBusy} onClose={requestClose}>
       {editor && draft && catalog && <form className="pet-editor-form" onSubmit={save} onInvalidCapture={event => { const section = event.target.closest('details'); if (section) section.open = true; }} aria-label="Hồ sơ thú cưng">
         <div className="pet-editor-scroll">{!editor.id && <p className="pet-editor-intro">Lưu thông tin cơ bản trước. Bạn có thể thêm ảnh ở trang hồ sơ ngay sau đó.</p>}
-        <PetRecordImport disabled={busy || uncertain || photoBusy} onBusyChange={setImportBusy} onApply={entries => setDraft(value => ({ ...value, careNeedsConfirmed: false, careProfile: { ...value.careProfile, ...entries } }))} />
-        <CustomerPetForm draft={draft} change={setDraft} catalog={catalog} disabled={busy || uncertain || photoBusy || importBusy} />
+        <PetRecordImport initiallyOpen={editor.openImport} disabled={busy || uncertain || photoBusy} onBusyChange={setImportBusy} onApply={entries => setDraft(value => ({ ...value, careNeedsConfirmed: false, careProfile: { ...value.careProfile, ...entries } }))} />
+        <CustomerPetForm initialGroup={editor.group} draft={draft} change={setDraft} catalog={catalog} disabled={busy || uncertain || photoBusy || importBusy} />
         {error && <Notice state="error" title={error}>{stale && <Button variant="secondary" onClick={() => { setReloadAfterDiscard(true); setDiscard(true); }}>Tải lại hồ sơ</Button>}</Notice>}
         {uncertain && <Notice state="pending" title="Chưa xác định kết quả lưu"><Button disabled={busy} onClick={() => execute(attempt.current)}>Kiểm tra lại cùng yêu cầu</Button></Notice>}
         </div><div className="pet-editor-footer"><Button type="button" variant="secondary" onClick={requestClose} disabled={busy || uncertain || photoBusy || importBusy}>Hủy</Button><Button type="submit" loading={busy} disabled={uncertain || importBusy}>Lưu thú cưng</Button></div>
