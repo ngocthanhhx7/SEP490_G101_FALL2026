@@ -152,3 +152,11 @@ Boarding stays continue to require whole-stay review. AI MATCH threshold and
 verified training-data requirements are unchanged.
 
 Customer AI recommendation requests return `CUSTOMER_CARE_HISTORY_EXISTS` after an owned care visit is COMPLETED. Product purchases and uncompleted visits do not count. The manual directory does not use AI thresholds; unavailable employees remain visible but cannot bypass checkout eligibility. See [selection policy](../architecture/directed-sitter-selection-2026-11-09.md).
+
+## Employee readiness and current-time manual preview
+
+- Staff/Admin `GET /api/v1/employee-scheduling/visits/:id/candidates?startAt=...&mode=MANUAL` checks the unchanged booked time/area using manual-invitation eligibility. Response adds bounded `blocked: [{sitterId, displayName, reason}]` and diagnostics; eligible `items` retain their existing shape. Names/reasons stay private to operations. No reservation or assignment is created. Omitting mode retains automatic origin-route checks, including alternative-time recovery.
+- Staff/Admin `PUT /api/v1/sitter-management/:userId/capability` accepts exactly expectedVersion, serviceIds, species, allowedTraits, maxPets, maxWeightKg, active and reason, plus Idempotency-Key and CSRF. Requires current active approved employment and a signed effective contract. Existing calendar/day origins are preserved; CAS/idempotent audit records the decision. Returns userId/version. Detail adds serviceCatalog, traitCatalog, capabilities.version and permissions.manageCapability.
+- Pet Sitter `GET /api/v1/employee-scheduling/day-origins` returns own version/capabilityReady/items. PUT accepts expectedVersion, localDate, coordinates [lng,lat], availableFrom and availableUntil with CSRF/Idempotency-Key. The interval must stay within the same Vietnam calendar day, end in the future and start within 31 days. Entries are bounded to 31 current/future dates. No foreign employee ID is accepted. The shared capability version prevents stale capability/origin overwrites.
+
+These commands create neither employment acceptance nor ratings/outcomes/payments. Real first-job regression coverage is synthetic; live employees still accept their own invitations.
