@@ -20,12 +20,19 @@ export function createCustomerBookingsService({ connection, cursorSecret, clock 
       filter._id = { $lt: new Types.ObjectId(last.id) };
     }
     const rows = await connection.db.collection('bookings').find(filter, { projection: {
-      _id: 1, state: 1, paymentDeadlineAt: 1, 'checkoutSnapshot.customerVisits.snapshots.serviceName': 1
+      _id: 1, state: 1, createdAt: 1, paymentState: 1, paymentDeadlineAt: 1, 'paymentSnapshot.amountVnd': 1,
+      'checkoutSnapshot.customerVisits.startAt': 1, 'checkoutSnapshot.customerVisits.location': 1,
+      'checkoutSnapshot.customerVisits.snapshots.pets.name': 1, 'checkoutSnapshot.customerVisits.snapshots.serviceName': 1
     } }).sort({ _id: -1 }).limit(limit + 1).toArray();
     const page = rows.slice(0, limit);
     if (page.some(row => typeof row.state !== 'string' || !row.state)) fail('INVALID_PROJECTION', 'Invalid booking state', 503);
     const asOf = new Date(clock());
     return { items: page.map(row => ({ id: String(row._id), state: row.state === 'AWAITING_PAYMENT' && row.paymentDeadlineAt <= asOf ? 'PAYMENT_EXPIRED' : row.state,
+      createdAt: row.createdAt ?? null, paymentState: row.paymentState ?? null,
+      totalVnd: Number.isSafeInteger(row.paymentSnapshot?.amountVnd) && row.paymentSnapshot.amountVnd >= 0 ? row.paymentSnapshot.amountVnd : null,
+      visitCount: row.checkoutSnapshot?.customerVisits?.length ?? null,
+      firstVisitAt: (row.checkoutSnapshot?.customerVisits ?? []).map(visit => visit.startAt).filter(value => value && Number.isFinite(new Date(value).getTime())).sort((a,b) => new Date(a) - new Date(b))[0] ?? null,
+      petNames: [...new Set((row.checkoutSnapshot?.customerVisits ?? []).flatMap(visit => visit.snapshots?.pets ?? []).map(pet => pet.name).filter(value => typeof value === 'string' && value))],
       serviceName: [...new Set((row.checkoutSnapshot?.customerVisits ?? []).map(visit => visit.snapshots?.serviceName).filter(Boolean))].join(', ') })),
       nextCursor: rows.length > limit ? cursor.encode({ id: String(page.at(-1)._id) }, context) : null };
   } };

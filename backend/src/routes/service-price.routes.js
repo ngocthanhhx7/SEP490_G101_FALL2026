@@ -52,6 +52,11 @@ export function servicePriceModule({
     ];
     const csrf = requireCsrf(sessionService);
     router.get(
+      '/admin/:serviceId/history',
+      ...staff,
+      createServicePriceController({ service }).getAdminHistory
+    );
+    router.get(
       '/admin/:serviceId',
       ...staff,
       createServicePriceController({ service }).getAdminByServiceId

@@ -6,12 +6,16 @@ Operational menu entries include explicit group labels, independent of Customer'
 account menu. Admin keeps the Admin navigation when opening authorized Staff
 dispatch/profile-review routes. This shell choice does not grant server permissions.
 
-Booking and Customer account routes require Customer without an operational role.
-Accounts retaining Customer membership after promotion enter their operational
-workspace. Login return paths are validated by utils/role-access.js. Operational
+Booking and Customer account routes require the single CUSTOMER role.
+Operational accounts enter their own workspace; malformed multi-role sessions
+fail closed. Login return paths are validated by utils/role-access.js. Operational
 sessions opening the public storefront return to their workspace; anonymous
 visitors retain public browsing and must sign in before booking.
 
 The shop catalog (`/products`, `/products/:productId`) is public inside the public layout. Cart, checkout and product orders (`/customer/cart`, `/customer/product-checkout`, `/customer/product-orders`) require a Customer. `ProductCartProvider` (in `contexts/`) loads the signed-in Customer's cart for the header badge; guests and operational roles never load it. `loginDestination` lets a Customer return to `/products/:id` after signing in.
 
 `/admin/counter-sale` nằm trong Admin guard, menu Bán tại quầy ngay sau Đơn hàng sản phẩm trong nhóm Bán hàng. Wrapper key theo account, ghép transport bằng CSRF session hiện có; không cấp quyền Staff/Customer qua shell.
+
+Customer navigation exposes product history under Mua sắm. `/customer/product-orders` stays Customer-protected and uses the account workspace, preserving checkout and notification deep links.
+
+`/account/bookings/:bookingId` is Customer-only, uses the account workspace and keeps the service-order navigation active. It loads the owner-checked checkout read API by route ID; the legacy checkout confirmation query remains compatible.

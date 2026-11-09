@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { Types } from 'mongoose';
 import sharp from 'sharp';
 import { productSalesModels } from '../../models/product.model.js';
 import { productPhotoModels } from '../../models/product-photo.model.js';
@@ -78,9 +79,13 @@ export function createProductPhotoService({ connection }) {
     async read({ actor, productId, digest, admin = false }) {
       if (admin) requireProductManager(actor);
       const id = parseObjectId(productId, 'productId'), hash = parsePhotoDigest(digest);
-      const product = await readProduct(id);
-      if ((!admin && !product.visible) || !product.photos.includes(pathFor(id, hash))) throw productSalesErrors.notFound();
-      const image = await ProductPhoto.findOne({ productId: id, digest: hash }).select('+content').lean();
+      const [row] = await Product.aggregate([
+        { $match: { _id: new Types.ObjectId(id), deletedAt: null, photos: pathFor(id, hash), ...(admin ? {} : { visible: true }) } },
+        { $lookup: { from: ProductPhoto.collection.name, localField: '_id', foreignField: 'productId',
+          pipeline: [{ $match: { digest: hash } }, { $project: { _id: 0, content: 1, byteLength: 1 } }, { $limit: 1 }], as: 'image' } },
+        { $project: { _id: 0, image: { $arrayElemAt: ['$image', 0] } } }
+      ]).option({ maxTimeMS: 5000 });
+      const image = row?.image;
       if (!image) throw productSalesErrors.notFound();
       const body = Buffer.isBuffer(image.content) ? image.content : Buffer.from(image.content.buffer);
       if (body.length !== image.byteLength) throw new AppError(503, 'PRODUCT_PHOTO_UNAVAILABLE', 'Image is unavailable');

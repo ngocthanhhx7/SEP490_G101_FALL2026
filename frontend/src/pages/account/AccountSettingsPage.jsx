@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
+import { primaryRole } from '../../utils/role-access.js';
 import { otpFeedback } from '../../utils/otp-feedback.js';
 import { normalizeRegistrationContact } from '../../services/customer-registration-api.js';
 import { createApiClient } from '../../services/api-client.js';
@@ -49,7 +50,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
   const defaultApi = useMemo(() => suppliedApi ? null : createAccountSettingsApi({ request }), [request, suppliedApi]);
   const api = suppliedApi ?? defaultApi;
   const user = session.user ?? {};
-  const roles = Array.isArray(user.roles) ? user.roles : [user.role].filter(Boolean);
+  const role = primaryRole(user);
   const canChangeContacts = Boolean(suppliedApi
     || (typeof session.getCsrfToken === 'function' && session.getCsrfToken()));
 
@@ -183,7 +184,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
         <Input label="Họ và tên" value={user.displayName ?? ''} readOnly />
         <div className="account-settings-roles" aria-label="Vai trò tài khoản">
           <span className="account-settings-label">Vai trò</span>
-          <p>{roles.length ? roles.map(role => ROLE_LABELS[role] ?? role).join(', ') : 'Chưa có thông tin'}</p>
+          <p>{ROLE_LABELS[role] ?? 'Chưa có thông tin'}</p>
         </div>
       </div>
       <p className="account-settings-caption">Tên khách hàng được sửa trong hồ sơ cá nhân. Cài đặt này không thay đổi tên hoặc vai trò.</p>

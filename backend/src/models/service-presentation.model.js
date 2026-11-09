@@ -1,4 +1,9 @@
 import { Schema } from 'mongoose';
+export function assertEmbeddedPresentationModels(connection) {
+  if (Object.values(connection.models).some(model => model.collection.name === 'servicepresentations')) {
+    throw new Error('Retired presentation store must not be registered by runtime or deployment');
+  }
+}
 export function servicePresentationFields() {
   return {
     category: { type: String, maxlength: 80 },

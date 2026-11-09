@@ -70,3 +70,13 @@ test('database uniqueness enforces the no-tie invariant for all four version typ
     expect(await Model.countDocuments()).toBe(3);
   }
 });
+
+test('bounded traversal preserves orphan 404 only when latest service/policy would be publicly eligible', async () => {
+  const orphanId = new mongoose.Types.ObjectId(), common = { changedBy: actor, reason: 'Synthetic orphan regression', recordedAt: at(0), serviceId: orphanId };
+  await models.Version.create({ ...common, version: 1, effectiveAt: at(1), name: 'Orphan', description: 'Fixture', scope: 'Fixture', species: ['DOG'], state: 'ACTIVE' });
+  await models.Policy.create({ ...common, version: 1, effectiveAt: at(1), state: 'PUBLISHED', title: 'Fixture policy', body: 'Fixture policy body' });
+  await expect(catalog.publicList({ at: at(2) })).rejects.toMatchObject({ status: 404, code: 'RESOURCE_NOT_FOUND' });
+  await models.Policy.create({ ...common, version: 2, effectiveAt: at(3), state: 'WITHDRAWN' });
+  await expect(catalog.publicList({ at: at(3) })).resolves.toMatchObject({ available: true });
+  await models.Version.deleteMany({ serviceId: orphanId }); await models.Policy.deleteMany({ serviceId: orphanId });
+});

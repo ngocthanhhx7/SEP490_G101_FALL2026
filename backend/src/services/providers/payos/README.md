@@ -6,4 +6,10 @@ This directory contains the server-only payOS HTTP adapter for P31. `payos.provi
 
 Configuration is opt-in through `PAYOS_ENABLED=true` with `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, and `PAYOS_CHECKSUM_KEY`. Missing/disabled configuration leaves the provider unavailable. P34 owns runtime wiring and `.env.example` updates.
 
+New raw webhook receipts carry `storageContractVersion=1` for the reviewed native
+receipt shape. The marker does not verify signatures or authorize payment; existing
+signature/intent/booking guards and reconciliation still decide. Unmarked history
+remains compatible, and marked reconciliation retains null/foreign/negative money
+evidence. No raw provider envelope is persisted or exposed by this marker.
+
 The request fields and API paths follow payOS's [API reference](https://payos.vn/docs/api/), official [Node SDK and sample index](https://payos.vn/docs/sample/), and [Node sample](https://github.com/payOSHQ/payos-demo-nodejs). Signature verification follows payOS's [signature guide](https://payos.vn/docs/tich-hop-webhook/kiem-tra-du-lieu-voi-signature/): HMAC-SHA256 over data keys sorted alphabetically, with null-like values normalized as documented. Unit tests use synthetic credentials and provider responses; no live payOS account or sandbox credentials are available for this worktree.

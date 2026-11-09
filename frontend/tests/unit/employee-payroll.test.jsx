@@ -16,6 +16,46 @@ const apiFixture = () => ({ own: jest.fn().mockResolvedValue({ contracts: [contr
   contract: jest.fn().mockResolvedValue({}), prepare: jest.fn().mockResolvedValue({}) });
 const fill = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
+test('Admin can void an approved unpaid salary only with reason and explicit no-payment attestation', async () => {
+  const api = apiFixture(); api.statementDecision = jest.fn().mockResolvedValue({});
+  api.statements.mockResolvedValue({ items: [{ id: 'approved-salary', employeeId, version: 1, status: 'APPROVED',
+    periodStart: '2026-10-01', periodEnd: '2026-11-01', dueAt: '2026-11-02', breakdown: {} }] });
+  render(<EmployeePayrollAdminPage api={api} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Xem phiếu / xử lý' }));
+  fireEvent.change(screen.getByLabelText('Quyết định'), { target: { value: 'VOID_UNPAID' } });
+  expect(screen.queryByLabelText('Mã giao dịch ngân hàng đã thực hiện')).toBeNull();
+  fill('Lý do hủy bảng chưa chi', 'Synthetic commission hold review');
+  const attestation = screen.getByRole('checkbox', { name: /xác nhận chưa thực hiện chi trả/ });
+  expect(attestation).toBeRequired();
+  fireEvent.click(attestation);
+  fireEvent.submit(screen.getByRole('button', { name: 'Hủy bảng chưa chi' }).closest('form'));
+  await waitFor(() => expect(api.statementDecision).toHaveBeenCalledWith('approved-salary', {
+    action: 'VOID_UNPAID', expectedVersion: 1, reason: 'Synthetic commission hold review', confirmNoPayment: true
+  }, expect.any(String)));
+});
+
+test('transport validates the voided salary response and rejects a misleading paid acknowledgement', async () => {
+  const request = jest.fn().mockResolvedValueOnce({ data: { id: 'salary', version: 2, status: 'VOIDED' } })
+    .mockResolvedValueOnce({ data: { id: 'salary', version: 2, status: 'PAID' } });
+  const api = createEmployeePayrollApi(request), body = { action: 'VOID_UNPAID', expectedVersion: 1,
+    reason: 'Synthetic review', confirmNoPayment: true };
+  expect((await api.statementDecision('salary', body, 'synthetic-void-key')).status).toBe('VOIDED');
+  await expect(api.statementDecision('salary', body, 'synthetic-void-key')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+});
+
+test('a commission hold explains how to prepare salary again without claiming payment succeeded', async () => {
+  const api = apiFixture(); api.statementDecision = jest.fn().mockRejectedValue({ code: 'PAYROLL_COMMISSION_HELD', status: 409 });
+  api.statements.mockResolvedValue({ items: [{ id: 'held-salary', employeeId, version: 1, status: 'APPROVED',
+    periodStart: '2026-10-01', periodEnd: '2026-11-01', dueAt: '2026-11-02', breakdown: {} }] });
+  render(<EmployeePayrollAdminPage api={api} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Xem phiếu / xử lý' }));
+  fill('Mã giao dịch ngân hàng đã thực hiện', 'synthetic-bank-reference');
+  fireEvent.submit(screen.getByRole('button', { name: 'Ghi nhận đã chi trả' }).closest('form'));
+  for (const message of await screen.findAllByText(/Hoa hồng của booking đang được tạm giữ/))
+    expect(message).toHaveTextContent('lương cơ bản và phụ cấp không bị khấu trừ');
+  expect(screen.queryByText('Đã lưu.')).toBeNull();
+});
+
 test('employee sees monthly gross and weekly cycle, and retries unknown advance acknowledgement with same key', async () => {
   const api = apiFixture(); api.submit.mockRejectedValueOnce({ code: 'TIMEOUT' });
   render(<EmployeePayrollPage api={api} />);

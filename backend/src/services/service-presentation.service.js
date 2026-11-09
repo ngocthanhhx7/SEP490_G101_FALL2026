@@ -10,24 +10,20 @@ export function presentationValue(row) {
 export async function readServicePresentation(connection, serviceId, session = null) {
   const id = new Types.ObjectId(String(serviceId));
   const service = await serviceModel(connection).findById(id).select('presentation').session(session).lean();
-  return service?.presentation ?? connection.db.collection('servicepresentations').findOne({ serviceId: id }, { session });
+  return service?.presentation ?? null;
 }
 
-// Provisioning changes keep legacy readers compatible while that collection
-// exists. A new database never creates the legacy collection or its indexes.
+// The parent is authoritative after the verified copy. Legacy restoration is
+// explicit operator work; runtime provisioning never mirrors/recreates it.
 export async function provisionServicePresentation({ connection, serviceId, details, session, fillMissing = [], fillOwnerId }) {
   const Service = serviceModel(connection);
   const service = await Service.findById(serviceId).select('presentation').session(session).lean();
   if (!service) throw new Error('Service presentation requires its parent');
-  const legacyCollection = connection.db.collection('servicepresentations');
-  const legacy = await legacyCollection.findOne({ serviceId }, { session });
-  const presentation = presentationValue(service.presentation ?? legacy ?? details);
+  const presentation = presentationValue(service.presentation ?? details);
   for (const field of String(presentation.provisioningRunId) === String(fillOwnerId) ? fillMissing : []) {
     if (presentation[field] === undefined || (Array.isArray(presentation[field]) && !presentation[field].length)) {
       if (details[field] !== undefined) presentation[field] = details[field];
     }
   }
   await Service.updateOne({ _id: serviceId }, { $set: { presentation } }, { session, runValidators: true });
-  const legacyExists = legacy || await connection.db.listCollections({ name: 'servicepresentations' }, { nameOnly: true }).hasNext();
-  if (legacyExists) await legacyCollection.updateOne({ serviceId }, { $set: presentation }, { session, upsert: true });
 }

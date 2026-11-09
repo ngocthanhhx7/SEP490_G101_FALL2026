@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
 import { userModel } from '../../models/user.model.js';
-import { contractInput, advanceInput, advanceDecisionInput, payrollAssessmentInput, payrollPageInput } from '../../validators/payroll.validator.js';
+import { contractInput, advanceInput, advanceDecisionInput, statementDecisionInput, payrollAssessmentInput, payrollPageInput } from '../../validators/payroll.validator.js';
 import { fail, id } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { calculateEmployeePayroll } from './payroll-calculation.service.js';
@@ -11,6 +11,7 @@ import { assertPayrollStorage } from './payroll-storage.service.js';
 import { createScopedCursor } from '../../utils/scoped-cursor.js';
 import { createPayrollAdjustmentService, publicPayrollAdjustment } from './payroll-adjustment.service.js';
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
+import { createCommissionSources } from './commission-source.service.js';
 
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const payrollMonth = at => new Date(at.getTime() + 7 * 3600000).toISOString().slice(0, 7);
@@ -18,12 +19,13 @@ const publicAdvance = row => ({ id: String(row._id), amountVnd: row.amountVnd, c
   settlementPeriod: row.settlementPeriod, status: row.status, version: row.version, reason: row.reason,
   decisionReason: row.decisionReason ?? null, requestedAt: row.requestedAt, paidAt: row.paidAt ?? null });
 const publicStatement = row => ({ reference: row.reference ?? null, employeeName: row.employeeName ?? null, employeeCode: row.employeeCode ?? null, id: String(row._id), employeeId: String(row.employeeId), periodStart: row.periodStart, periodEnd: row.periodEnd,
-  dueAt: row.dueAt, status: row.status, version: row.version, payCycle: row.payCycle, breakdown: row.breakdown, paidAt: row.paidAt ?? null, voidReason: row.voidReason ?? null });
+  dueAt: row.dueAt, status: row.status, version: row.version, payCycle: row.payCycle, breakdown: row.breakdown, heldCommissionCredits: row.heldCreditIds?.length ?? 0, paidAt: row.paidAt ?? null, voidReason: row.voidReason ?? null });
 
 export function createPayrollService({ connection, policy, clock = () => new Date(), cursorSecret }) {
   const models = payrollModels(connection), User = userModel(connection), { SitterStatus, SitterApplication } = sitterApplicationModels(connection);
   const uow = createUnitOfWork(connection), draftService = createPayrollDraftService({ connection, clock: () => now().getTime() });
   const notifications = createDomainNotifications({ connection, clock: () => new Date(clock()).getTime() });
+  const commissionSources = createCommissionSources({ connection });
   const now = () => new Date(clock());
   const codec = cursorSecret ? createScopedCursor({ secret: cursorSecret, namespace: 'employee-payroll-history-v1', clock: () => now().getTime() }) : null;
   async function page(model, match, actor, input, field, kind, project, select = '') {
@@ -69,7 +71,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
     await notifications.payroll({ eventId: String(record._id), employeeId, type }, session);
   }
   async function currentContract(employeeId, session, at = now()) {
-    const contract = await models.EmploymentContract.findOne({ employeeId, effectiveAt: { $lte: at } }).sort({ version: -1 }).session(session ?? null).lean();
+    const contract = await models.EmploymentContract.findOne({ employeeId, supersededAt: null, effectiveAt: { $lte: at } }).sort({ version: -1 }).session(session ?? null).lean();
     if (!contract || (contract.endsAt && contract.endsAt <= at)) fail('CONTRACT_REQUIRED', 'Verified active contract required', 409);
     return contract;
   }
@@ -130,7 +132,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       role(actor, 'PET_SITTER'); const input = payrollPageInput(query, true);
       await assertPayrollStorage(connection);
       const contracts = await models.EmploymentContract.find({ employeeId: actor.userId }).sort({ version: -1 }).limit(20).lean();
-      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, effectiveAt: { $lte: now() } }).sort({ version: -1 }).lean();
+      const effective = await models.EmploymentContract.findOne({ employeeId: actor.userId, supersededAt: null, effectiveAt: { $lte: now() } }).sort({ version: -1 }).lean();
       const active = effective && (!effective.endsAt || effective.endsAt > now()) ? effective : null;
       if (active && !contracts.some(c => String(c._id) === String(active._id))) contracts.push(active);
       const advances = await page(models.SalaryAdvance, { employeeId: actor.userId }, actor,
@@ -227,7 +229,7 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (sourceDraft && (await draftService.preview(actor, sourceDraft.input, session)).sourceHash !== sourceDraft.sourceHash) fail('PAYROLL_SOURCE_CHANGED', 'Sources changed; preview again', 409);
         const contract = await currentContract(input.employeeId, session, input.periodStart);
         if (contract.endsAt && contract.endsAt < input.periodEnd) fail('CONTRACT_REQUIRED', 'Split period at contract end', 409);
-        if (await models.EmploymentContract.exists({ employeeId: input.employeeId, effectiveAt: { $gt: input.periodStart, $lt: input.periodEnd } }).session(session))
+        if (await models.EmploymentContract.exists({ employeeId: input.employeeId, supersededAt: null, effectiveAt: { $gt: input.periodStart, $lt: input.periodEnd } }).session(session))
           fail('CONTRACT_REQUIRED', 'Split period at contract change', 409);
         const existing = await models.PayrollStatement.find({ employeeId: input.employeeId, monthKey, status: { $ne: 'VOIDED' } }).select('+assessment').session(session).lean();
         if (existing.some(s => s.periodStart < input.periodEnd && s.periodEnd > input.periodStart)) fail('PAYROLL_PERIOD_OVERLAP', 'Payroll period overlaps', 409);
@@ -238,11 +240,12 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
           fail('PAYROLL_RECONCILIATION_REQUIRED', 'Attendance would duplicate monthly base', 409);
         const credits = await models.PayrollServiceCredit.find({ employeeId: input.employeeId, completedAt: { $gte: input.periodStart, $lt: input.periodEnd } }).limit(1001).session(session).lean();
         if (credits.length > 1000) fail('PAYROLL_REVIEW_REQUIRED', 'Period too large', 409);
+        const commission = await commissionSources.payable(input.employeeId, input.periodEnd, session);
         const monthlyCredits = input.includeMonthlyBonus ? await models.PayrollServiceCredit.find({ employeeId: input.employeeId,
           completedAt: { $gte: new Date(monthKey + '-01T00:00:00+07:00'), $lt: monthEnd } }).limit(5001).session(session).lean() : credits;
         if (monthlyCredits.length > 5000) fail('PAYROLL_REVIEW_REQUIRED', 'Monthly credit set too large', 409);
         if (input.includeMonthlyBonus && (input.periodEnd < monthEnd || now() < monthEnd)) fail('VALIDATION_FAILED', 'Monthly bonus is assessed after month close');
-        const serviceNetVnd = credits.reduce((sum, c) => sum + c.serviceNetVnd, 0);
+        const serviceNetVnd = commission.payable.reduce((sum, c) => sum + c.serviceNetVnd, 0);
         const baseInput = { contract, scheduledMinutes: input.scheduledMonthMinutes, paidMinutes: input.paidPeriodMinutes, serviceNetVnd,
           overtimeVnd: input.overtimeVnd, employeeInsuranceVnd: input.employeeInsuranceVnd, incomeTaxVnd: input.incomeTaxVnd,
           otherLawfulDeductionsVnd: input.otherLawfulDeductionsVnd,
@@ -266,8 +269,8 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         const statementId = new models.PayrollStatement()._id, employee = await User.findById(input.employeeId).select('displayName').session(session).lean();
         const [statement] = await models.PayrollStatement.create([{ _id: statementId, reference: `PL-${monthKey}-${String(statementId).toUpperCase()}`, employeeName: employee?.displayName, employeeCode: contract.employeeCode, employeeId: input.employeeId, contractId: contract._id, periodStart: input.periodStart,
           periodEnd: input.periodEnd, dueAt: input.dueAt, monthKey, payCycle: contract.payCycle, status: 'PREPARED', version: 0,
-          breakdown, assessment: { ...input, ...(sourceDraft ? { sourceDraft } : {}) }, creditIds: credits.map(c => c._id), advanceIds: repayments.map(a => a.advanceId), preparedBy: actor.userId, preparedAt: now() }], { session });
-        for (const claim of [...credits.map(c => `credit:${c._id}`),
+          breakdown, assessment: { ...input, ...(sourceDraft ? { sourceDraft } : {}) }, creditIds: commission.payable.map(c => c._id), heldCreditIds: commission.held.map(c => c._id), advanceIds: repayments.map(a => a.advanceId), preparedBy: actor.userId, preparedAt: now() }], { session });
+        for (const claim of [...commission.payable.map(c => `credit:${c._id}`),
           ...(input.includeMonthlyBonus ? [`bonus:${input.employeeId}:${monthKey}`] : [])]) {
           if (await models.PayrollSourceClaim.exists({ _id: claim }).session(session)) fail('PAYROLL_SOURCE_ALREADY_USED', 'Payroll source already reserved', 409);
           await models.PayrollSourceClaim.create([{ _id: claim, statementId: statement._id }], { session });
@@ -277,22 +280,24 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
       });
     },
     async decideStatement(actor, statementId, body, key) {
-      role(actor, 'ADMIN'); id(statementId); const input = advanceDecisionInput(body);
-      if (!['APPROVE', 'REJECT', 'RECORD_PAYMENT'].includes(input.action)) fail('VALIDATION_FAILED', 'Invalid payroll statement decision');
+      role(actor, 'ADMIN'); id(statementId); const input = statementDecisionInput(body);
+      if (!['APPROVE', 'REJECT', 'RECORD_PAYMENT', 'VOID_UNPAID'].includes(input.action)) fail('VALIDATION_FAILED', 'Invalid payroll statement decision');
       return command(actor, 'STATEMENT_' + input.action, key, { statementId, ...input }, async session => {
         const row = await models.PayrollStatement.findById(statementId).session(session).lean();
         if (!row) fail('RESOURCE_NOT_FOUND', 'Statement unavailable', 404);
         await employeeGuard(String(row.employeeId), session);
         if (row.version !== input.expectedVersion) fail('VERSION_CONFLICT', 'Statement changed', 409);
-        const expected = input.action === 'RECORD_PAYMENT' ? 'APPROVED' : 'PREPARED';
+        const expected = ['RECORD_PAYMENT', 'VOID_UNPAID'].includes(input.action) ? 'APPROVED' : 'PREPARED';
         if (row.status !== expected) fail('INVALID_STATE', 'Statement state mismatch', 409);
+        if (['APPROVE', 'RECORD_PAYMENT'].includes(input.action) && row.breakdown.commissionVnd > 0)
+          await commissionSources.assertPayableCreditIds(row.creditIds, session);
         if (input.action === 'RECORD_PAYMENT') await claimTransfer(input.transferReference, { statementId: row._id }, session);
-        const fields = input.action === 'REJECT' ? { status: 'VOIDED', voidedBy: actor.userId, voidedAt: now(), voidReason: input.reason }
+        const fields = ['REJECT', 'VOID_UNPAID'].includes(input.action) ? { status: 'VOIDED', voidedBy: actor.userId, voidedAt: now(), voidReason: input.reason }
           : input.action === 'APPROVE' ? { status: 'APPROVED', approvedBy: actor.userId, approvedAt: now() }
           : { status: 'PAID', paidBy: actor.userId, paidAt: now(), transferReference: input.transferReference };
         const saved = await models.PayrollStatement.findOneAndUpdate({ _id: statementId, version: row.version }, { $set: fields, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
         if (!saved) fail('VERSION_CONFLICT', 'Statement changed', 409);
-        if (input.action === 'REJECT') await models.PayrollSourceClaim.deleteMany({ statementId: row._id }, { session });
+        if (['REJECT', 'VOID_UNPAID'].includes(input.action)) await models.PayrollSourceClaim.deleteMany({ statementId: row._id }, { session });
         await event(actor, row.employeeId, row._id, 'STATEMENT_' + input.action, input.reason, session); return publicStatement(saved);
       });
     },

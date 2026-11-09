@@ -167,3 +167,20 @@ describe('P17 service catalog module on isolated MongoDB', () => {
     })).toBe(1);
   });
 });
+
+test('catalog budget rejects oversized parent sets instead of truncating public or Admin results', async () => {
+  const previous = visible;
+  visible = true;
+  const Service = connection.model('Service');
+  const rows = Array.from({ length: 1001 }, (_, i) => ({ code: `budget-fixture-${i}`, createdBy: new mongoose.Types.ObjectId(actors.ADMIN), createdAt: new Date(0) }));
+  try {
+    await Service.insertMany(rows);
+    await request(app).get('/api/v1/services').expect(503)
+      .expect(({ body }) => expect(body.error.code).toBe('CATALOG_SOURCE_LIMIT'));
+    await request(app).get('/api/v1/services/admin').set(headers('ADMIN')).expect(503)
+      .expect(({ body }) => expect(body.error.code).toBe('CATALOG_SOURCE_LIMIT'));
+  } finally {
+    await Service.deleteMany({ code: /^budget-fixture-/ });
+    visible = previous;
+  }
+});

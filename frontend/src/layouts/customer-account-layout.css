@@ -38,3 +38,6 @@
   .pwc-customer-account__main { padding: 20px 16px 28px; min-height: 480px; }
   .pwc-customer-account__main h1 { font-size: 22px; }
 }
+
+/* Product history shares the account shell instead of adding storefront spacing. */
+.pwc-customer-account__main > .pwc-shop { max-width: none; margin: 0; padding: 0; }

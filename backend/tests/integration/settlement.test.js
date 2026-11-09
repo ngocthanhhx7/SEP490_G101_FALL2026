@@ -184,7 +184,7 @@ test('post-payout refund creates a separate review item without changing paid mo
   expect(await models.EarningLedgerEntry.countDocuments()).toBe(1);
 });
 
-test('default app mounts authenticated reads and CSRF-protected fail-closed money commands', async () => {
+test('explicit legacy app mounts authenticated reads and CSRF-protected fail-closed money commands', async () => {
   const f = await settlementRuntimeFixture(connection, replica.getUri(), 'PET_SITTER');
   await request(f.app).get('/api/v1/settlement-requests').expect(401);
   const response = await request(f.app).get('/api/v1/settlement-requests').set('Cookie', f.cookie).expect(200);

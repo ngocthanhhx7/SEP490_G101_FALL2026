@@ -6,6 +6,8 @@ import { identityModels } from '../../src/models/identity.model.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { platformDataModels } from '../../src/models/platform-data.model.js';
+import { referenceCatalogSource } from '../../src/models/reference-catalog-source.js';
+import { provisionReferenceCatalogStorage } from '../../src/services/reference-catalog-storage.service.js';
 import { serviceModel } from '../../src/models/service.model.js';
 import { localDay } from '../../src/services/sitter-matching/scheduling.service.js';
 import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
@@ -129,13 +131,14 @@ export async function seedDemo(connection, config, clock = Date.now, { groundedS
     lookupSecret: config.auth.contactLookupSecret,
     encryptionKey: config.auth.contactEncryptionKey
   });
+  if (referenceCatalogSource(connection) === 'target') await provisionReferenceCatalogStorage(connection.db);
   for (const Model of [
     User,
     ...Object.values(identity),
     ...Object.values(apps),
     ...Object.values(models)
   ])
-    await Model.createIndexes();
+    if (Model.collection.name !== 'reference_catalog') await Model.createIndexes();
   const now = new Date(clock());
   const date = localDay(clock() + 3 * 86400000);
   const at = (time) => new Date(`${date}T${time}:00+07:00`);
