@@ -28,6 +28,13 @@ function MatchingFeedback({ result }) {
     <p>Kiểm tra khu vực cụ thể của địa chỉ và thử lịch khác. Chọn “Để hệ thống sắp xếp” nếu cần PawWorld hỗ trợ; gợi ý trống chưa tạo đơn hoặc giữ chỗ.</p>
   </div>;
 }
+function unavailableText(code) {
+  return ({ OUTSIDE_WORKING_HOURS: 'Không có ca làm việc trong lịch đã chọn.', SLOT_UNAVAILABLE: 'Đã có lịch khác trong khung giờ này.',
+    WORK_AREA_MISMATCH: 'Không đăng ký khu vực của địa chỉ đã chọn.', PET_CAPABILITY_MISMATCH: 'Chưa đáp ứng hồ sơ thú cưng.',
+    CONTRACT_REQUIRED: 'Hợp đồng chưa bao phủ lịch đã chọn.', DAY_OFF: 'Nghỉ trong ngày đã chọn.',
+    TRAVEL_TIME_CONFLICT: 'Không đủ thời gian di chuyển.', ROUTING_UNAVAILABLE: 'Chưa xác minh được thời gian di chuyển.' })[code]
+    ?? 'Chưa đáp ứng tất cả buổi đã chọn. Hãy đổi lịch để kiểm tra lại.';
+}
 function errorText(error) {
   if (error.code === 'PRICING_REVIEW_REQUIRED' && typeof error.fieldErrors?.petTraits === 'string' && error.fieldErrors.petTraits.length <= 1000) return error.fieldErrors.petTraits;
   return ({ QUOTE_CHANGED: 'Hồ sơ, giá hoặc điều kiện đã thay đổi. Vui lòng lấy báo giá mới.',
@@ -37,6 +44,7 @@ function errorText(error) {
     RESOURCE_NOT_FOUND: 'Báo giá hoặc hồ sơ không còn khả dụng. Vui lòng tải lại.',
     SCHEDULING_UNAVAILABLE: 'Chưa thể kiểm tra nhân viên. Bạn có thể gửi đơn để nhân viên hỗ trợ sắp xếp.',
     CARE_INFORMATION_REQUIRED: 'Cần xác nhận thông tin chăm sóc trong hồ sơ thú cưng trước khi tìm sitter.',
+    CUSTOMER_CARE_HISTORY_EXISTS: 'Bạn đã hoàn tất dịch vụ chăm sóc. Vui lòng chọn sitter trực tiếp.',
     RANKING_POLICY_UNAVAILABLE: 'Gợi ý sitter đang chờ chính sách xếp hạng. Bạn vẫn có thể chọn chỉ định hoặc để nhân viên sắp xếp.',
     ROUTING_UNAVAILABLE: 'Chưa lấy được đường đi để gợi ý sitter. Vui lòng thử lại.',
     SITTER_NOT_ELIGIBLE: 'Sitter đã chọn không còn đáp ứng lịch này. Hãy kiểm tra lại.',
@@ -57,7 +65,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
   const load = useCallback(async ({ signal }) => {
     const [pets, addresses, options] = await Promise.all([api.pets({ signal }), api.addresses({ signal }), api.checkoutOptions({ signal })]);
     if ([pets, addresses, options].some(value => value.pending)) throw new ApiError('COMMAND_PENDING', 202);
-    if (!Array.isArray(pets.data) || !Array.isArray(addresses.data) || !options.data) throw new ApiError('INVALID_RESPONSE');
+    if (!Array.isArray(pets.data) || !Array.isArray(addresses.data) || typeof options.data?.recommendationAllowed !== 'boolean') throw new ApiError('INVALID_RESPONSE');
     return { data: { pets: pets.data, addresses: addresses.data, options: options.data } };
   }, [api]);
   const setup = useApiResource(load), [step, setStep] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState('');
@@ -70,6 +78,9 @@ export function BookingFlow({ service, api, matching, onBooked }) {
   const durationMinutes = unit === 'tiếng' ? Number(units) * 60 : unit === '30 phút' ? Number(units) * 30 : service.details?.durationMinutes || 60;
   const pets = setup.data?.pets.filter(pet => service.species.includes(pet.species)) ?? [];
   const addresses = setup.data?.addresses ?? [];
+  const recommendationAllowed = setup.data?.options.recommendationAllowed === true;
+  useEffect(() => { if (setup.status === 'success' && !recommendationAllowed) setMode(boarding ? 'SYSTEM' : 'DIRECT'); }, [setup.status, recommendationAllowed, boarding]);
+  useEffect(() => { if (step === 1 && mode === 'DIRECT' && quote && !boarding) void find('DIRECT'); }, [step, mode, quote]);
   const quoteAlive = quote && Date.parse(quote.expiresAt) > Date.now();
   useEffect(() => () => { generation.current++; }, []);
   function invalidate() { generation.current++; setQuote(null); setAvailable(null); setShortlists(null); setSelected(''); setConsent(false); setError(''); }
@@ -91,23 +102,30 @@ export function BookingFlow({ service, api, matching, onBooked }) {
     } catch (failure) { if (ticket === generation.current) setError(errorText(failure)); }
     finally { locked.current = false; setBusy(false); }
   }
-  async function find(kind) {
+  async function find(kind, page = 1) {
     if (locked.current) return;
     if (!quoteAlive) { setError('Báo giá đã hết hạn. Vui lòng quay lại lấy báo giá mới.'); return; }
     const ticket = ++generation.current; locked.current = true; setBusy(true); setError(''); setConsent(false);
     try {
       if (kind === 'AI') {
+        if (!recommendationAllowed) throw new ApiError('CUSTOMER_CARE_HISTORY_EXISTS', 409);
         setShortlists(null);
         const values = [];
         for (const visit of schedule()) values.push(await matching.recommend({ serviceId: service.id, petIds, addressId,
           startAt: visit.startAt, endAt: new Date(Date.parse(visit.startAt) + durationMinutes * 60000).toISOString(), limit: 5 }));
         if (ticket === generation.current) setShortlists(values);
       } else {
-        setAvailable(null); setSelected('');
+        if (page === 1) { setAvailable(null); setSelected(''); }
         const values = [];
-        for (const visit of schedule()) values.push(await api.availability({ quoteId: quote.quoteId, visit }));
-        if (ticket === generation.current) setAvailable({ sitters: values[0].sitters.filter(sitter => values.every(value => value.sitters.some(row => row.id === sitter.id))),
-          complete: values.every(value => value.complete) });
+        for (const visit of schedule()) values.push(await api.availability({ quoteId: quote.quoteId, visit, directory: true, page }));
+        if (ticket === generation.current) setAvailable(previous => ({ sitters: [
+          ...(page > 1 ? previous?.sitters ?? [] : []),
+          ...values[0].sitters.map(sitter => ({ ...sitter,
+            eligible: values.every(value => value.sitters.some(row => row.id === sitter.id && row.eligible === true)),
+            unavailableReason: values.flatMap(value => value.sitters).find(row => row.id === sitter.id && row.eligible !== true)?.unavailableReason ?? null
+          }))
+        ].filter((sitter, index, all) => all.findIndex(row => row.id === sitter.id) === index),
+          nextPage: values[0].nextPage, complete: values.every(value => value.complete) }));
       }
     } catch (failure) { if (ticket === generation.current) setError(errorText(failure)); }
     finally { locked.current = false; setBusy(false); }
@@ -117,7 +135,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
     if (!uncertain) {
       if (!quoteAlive) { setError('Báo giá đã hết hạn. Vui lòng lấy báo giá mới.'); return; }
       if (shortlists?.some(list => !list.candidates.length || Date.parse(list.expiresAt) <= Date.now())) { setError('Gợi ý không còn khả dụng. Hãy tìm lại hoặc chọn nhân viên hỗ trợ sắp xếp.'); return; }
-      if (mode === 'DIRECT' && !selected) { setError('Chọn một sitter đã kiểm tra phù hợp với tất cả buổi.'); return; }
+      if (mode === 'DIRECT' && !available?.sitters.some(sitter => sitter.id === selected && sitter.eligible)) { setError('Chọn một sitter đã kiểm tra phù hợp với tất cả buổi.'); return; }
       command.current = { key: 'checkout:'+globalThis.crypto.randomUUID(), body: { quoteId: quote.quoteId, acceptServicePolicies: consent,
         visits: schedule().map((visit, index) => ({ ...visit, bookingMode: mode,
           ...(mode === 'DIRECT' ? { requestedSitterId: selected } : {}),
@@ -154,16 +172,18 @@ export function BookingFlow({ service, api, matching, onBooked }) {
       <button className="pwc-button pwc-button-primary" disabled={busy || !pets.length || needsAddress && !addresses.length || !needsAddress && !setup.data.options.facilityAddress}>{busy ? 'Đang lấy báo giá…' : 'Tiếp tục'}<ArrowRight size={17} /></button>
     </form>}
     {step === 1 && <section><h2>Bạn muốn chọn pet sitter theo cách nào?</h2>
-      <div className="booking-modes">{[['SYSTEM', Users, 'Hệ thống đề xuất'], ['DIRECT', UserRound, 'Chỉ định pet sitter']].map(([value, Icon, label]) => <label key={value} className={mode === value ? 'is-selected' : ''}><input type="radio" name="booking-mode" value={value} checked={mode === value} disabled={busy} onChange={() => { generation.current++; setMode(value); setShortlists(null); setAvailable(null); setSelected(''); setError(''); }} /><Icon size={22} /><strong>{label}</strong></label>)}</div>
+      <div className="booking-modes">{[['SYSTEM', Users, recommendationAllowed ? 'Hệ thống đề xuất' : 'PawWorld sắp xếp'], ['DIRECT', UserRound, 'Chỉ định pet sitter']].map(([value, Icon, label]) => <label key={value} className={mode === value ? 'is-selected' : ''}><input type="radio" name="booking-mode" value={value} checked={mode === value} disabled={busy} onChange={() => { generation.current++; setMode(value); setShortlists(null); setAvailable(null); setSelected(''); setError(''); }} /><Icon size={22} /><strong>{label}</strong></label>)}</div>
+      {setup.data?.options.recommendationAllowed === false && <p>Chọn sitter bạn muốn từ danh sách đăng ký dịch vụ, xếp theo điểm đánh giá; hoặc để PawWorld điều phối ca chăm sóc.</p>}
       {mode === 'SYSTEM' ? <><p>PawWorld kiểm tra lịch và gửi lời mời cho nhân viên phù hợp. Ca được phân công sau khi sitter nhận lời.</p>
-        {canMatch && <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('AI')}><Sparkles size={17} />{busy ? 'Đang tìm…' : 'Xem gợi ý cho lịch này'}</button>}
+        {canMatch && recommendationAllowed && <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('AI')}><Sparkles size={17} />{busy ? 'Đang tìm…' : 'Xem gợi ý cho lịch này'}</button>}
         {!canMatch && <p>Hệ thống sắp xếp người chăm sóc theo lịch và phạm vi dịch vụ.</p>}
         {shortlists && <><ul className="booking-shortlist">{shortlists.map((list, index) => <li key={index}><h3>Buổi {index+1}</h3>{list.candidates.length ? <ol>{list.candidates.map(sitter => <li key={sitter.sitterId}><strong>{sitter.displayName}</strong> · {sitter.score}/100{<details><summary>Lý do phù hợp</summary><ul>{sitter.breakdown.map((line, i) => <li key={i}>{line.explanation}</li>)}</ul></details>}</li>)}</ol> : <MatchingFeedback result={list} />}<p>Gợi ý đến {new Date(list.expiresAt).toLocaleTimeString('vi-VN')}; không phải xác nhận giữ chỗ.</p></li>)}</ul>
           <button type="button" onClick={() => { setShortlists(null); setError(''); }}>Để hệ thống sắp xếp</button></>}
-      </> : <><p>Sitter cần đáp ứng lịch, khu vực và hồ sơ thú cưng của tất cả buổi. Lựa chọn sẽ được kiểm tra lại trước khi tạo đơn và gửi lời mời.</p>
-        {boarding ? <p>Lưu trú cần nhân viên chia ca chăm sóc trước khi chỉ định. <Link to="/contact">Liên hệ điều phối</Link></p> : <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('DIRECT')}><Users size={17} />{busy ? 'Đang kiểm tra…' : 'Tìm sitter phù hợp'}</button>}
-        {available && <><div className="booking-sitters">{available.sitters.map(sitter => <label key={sitter.id}><input type="radio" name="sitter" checked={selected === sitter.id} value={sitter.id} onChange={() => setSelected(sitter.id)} />{sitter.displayName}</label>)}</div>
-          {!available.sitters.length && <p role="status">{available.complete ? 'Chưa có sitter đáp ứng tất cả buổi đã chọn. Bạn có thể đổi lịch hoặc để hệ thống sắp xếp.' : 'Chưa tìm được sitter trong lần kiểm tra này. Hãy thử lại hoặc liên hệ điều phối.'}</p>}</>}
+      </> : <><p>Tất cả sitter có đăng ký dịch vụ được xếp theo điểm đánh giá cao đến thấp; sitter chưa có đánh giá ở cuối. Bạn chọn trực tiếp sitter mình muốn. Lịch, khu vực và hồ sơ thú cưng vẫn được kiểm tra trước khi tạo đơn và gửi lời mời.</p>
+        {boarding ? <p>Lưu trú cần nhân viên chia ca chăm sóc trước khi chỉ định. <Link to="/contact">Liên hệ điều phối</Link></p> : <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('DIRECT')}><Users size={17} />{busy ? 'Đang kiểm tra…' : 'Tải lại danh sách sitter'}</button>}
+        {available && <><div className="booking-sitters">{available.sitters.map(sitter => <label key={sitter.id}><input type="radio" name="sitter" checked={selected === sitter.id} value={sitter.id} disabled={!sitter.eligible || busy} onChange={() => setSelected(sitter.id)} /><span><strong>{sitter.displayName}</strong><span className="booking-sitter-rating">{sitter.reviewCount ? `${sitter.rating.toFixed(1)}/5 · ${sitter.reviewCount} đánh giá` : 'Chưa có đánh giá'}</span>{!sitter.eligible && <span className="booking-sitter-unavailable">{unavailableText(sitter.unavailableReason)}</span>}</span></label>)}</div>
+          {!available.sitters.length && <p role="status">{available.complete ? 'Chưa có sitter đăng ký dịch vụ này. Bạn có thể đổi lịch hoặc để hệ thống sắp xếp.' : 'Chưa tìm được sitter trong lần kiểm tra này. Hãy thử lại hoặc liên hệ điều phối.'}</p>}
+          {available.nextPage && <button type="button" disabled={busy} onClick={() => find('DIRECT', available.nextPage)}>Xem thêm sitter</button>}</>}
       </>}
       <div className="booking-actions"><button disabled={busy} onClick={() => { setStep(0); setError(''); }}><ArrowLeft size={17} />Quay lại</button><button className="pwc-button pwc-button-primary" disabled={busy || mode === 'DIRECT' && !selected || shortlists?.some(list => !list.candidates.length)} onClick={() => { setStep(2); setError(''); }}>Xem lại đơn<ArrowRight size={17} /></button></div>
     </section>}

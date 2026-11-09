@@ -10,6 +10,7 @@ import { userModel } from '../../src/models/user.model.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { createSessionService } from '../../src/services/session.service.js';
+import { createSitterApplicationService } from '../../src/services/sitter-application.service.js';
 import { sitterApplicationModule } from '../../src/routes/sitter-application.routes.js';
 
 const SECRETS = {
@@ -549,4 +550,23 @@ test('new applications require one front, one back and one portrait; duplicates 
   await submit(app(),body,'duplicate-slot-command').expect(422);
   await submit(app(),applicationBody({documents:[{documentId:'legacy',documentType:'IDENTITY',storageRef:IDENTITY_REF}]}),'legacy-new-command').expect(422);
   expect(await sitterApplicationModels(connection).SitterApplication.countDocuments()).toBe(0);
+});
+
+
+test('application ownership rechecks the persisted role after an in-flight account role change', async () => {
+  await login('CUSTOMER');
+  const applicationModels = sitterApplicationModels(connection);
+  const service = createSitterApplicationService({ connection, User,
+    Applicant: applicationModels.SitterApplication, Audit: applicationModels.SitterApplicationAudit,
+    DownloadQuota: applicationModels.SitterApplicationDownloadQuota, SitterStatus: applicationModels.SitterStatus,
+    contactCrypto, privateMedia: mediaPort, lookupSecret: SECRETS.CONTACT_LOOKUP_SECRET,
+    cursorSecret: SECRETS.SESSION_TOKEN_SECRET, employmentDocuments: { activate: async () => {} }, clock: () => clockNow });
+  // Represents a request authenticated before the administrator changed the role.
+  const actor = { userId: CUSTOMER_ID, state: 'ACTIVE', roles: ['CUSTOMER'] };
+  await expect(service.getMine({ actor })).resolves.toEqual({ application: null });
+  await User.updateOne({ _id: CUSTOMER_ID }, { $set: { roles: ['STAFF'] }, $inc: { authEpoch: 1, version: 1 } });
+  await expect(service.getMine({ actor })).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+  await expect(service.updateMine({ actor, body: {} })).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
+  await User.updateOne({ _id: CUSTOMER_ID }, { $set: { roles: ['PET_SITTER'] } });
+  await expect(service.getMine({ actor: { ...actor, roles: ['PET_SITTER'] } })).resolves.toEqual({ application: null });
 });

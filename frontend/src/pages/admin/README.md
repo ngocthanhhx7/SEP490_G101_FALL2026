@@ -18,6 +18,10 @@ require reload. Image bytes live in MongoDB and hidden photos use the Admin read
 and detail panel. It confirms before submission, reconciles uncertain responses
 through reload and refreshes list/detail after acknowledgement. Admins cannot
 change their own roles. Pet Sitter access stays in application/status review.
+The dialog now selects one radio role, replacing membership rather than adding
+checkbox roles. Pet Sitter accounts show a read-only role and link to application
+management. Mixed/invalid legacy data requires reload; it never selects a role
+by privilege priority. User rows and account details show a single role label.
 
 `ServiceWorkspacePage` is the composed `/admin/services` route: searchable,
 filtered, sorted and paginated catalog table with current effective prices.

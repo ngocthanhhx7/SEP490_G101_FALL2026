@@ -172,7 +172,7 @@ test('registration → private upload → application → scoped OTP status → 
   clockNow += 61000; // Respect the real resend cooldown before the new login.
   const challenge = await owner.agent.post('/api/v1/otp-challenges').set(base).send({ channel: 'EMAIL', contact: owner.email, purpose: 'LOGIN' }).expect(202);
   await owner.agent.post('/api/v1/sessions').set(base).send({ channel: 'EMAIL', contact: owner.email, purpose: 'LOGIN', challengeId: challenge.body.data.challengeId, code: sent.at(-1).code }).expect(200)
-    .expect(res => { expect(res.body.data.user.id).toBe(owner.id); expect(res.body.data.user.roles).toEqual(['CUSTOMER', 'PET_SITTER']); });
+    .expect(res => { expect(res.body.data.user.id).toBe(owner.id); expect(res.body.data.user.roles).toEqual(['PET_SITTER']); });
 });
 
 test('guest/CSRF/contact/foreign-file/underage/tampered-file checks prevent submission', async () => {

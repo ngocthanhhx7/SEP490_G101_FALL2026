@@ -1,3 +1,4 @@
+import { hasCompletedCustomerCare } from '../customer-care-history.service.js';
 import { matchingModels } from '../../models/sitter-matching.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
@@ -26,6 +27,7 @@ export function createAiRepository(connection, clock = Date.now, { employeeSched
   return {
     models,
     connection,
+    hasCompletedCare: ownerId => hasCompletedCustomerCare(connection.db, ownerId),
     context: createPetCareContext(connection, clock).context,
     async candidates(context, slot) {
       const registered = employeeSchedulingEnabled ? await employeeSchedulingModels(connection).EmployeeAvailability.find({

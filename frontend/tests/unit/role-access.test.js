@@ -5,9 +5,9 @@ test.each([
   [['PET_SITTER'], '/sitter', false],
   [['STAFF'], '/staff', false],
   [['ADMIN'], '/admin/dashboard', false],
-  [['CUSTOMER', 'PET_SITTER'], '/sitter', false],
-  [['CUSTOMER', 'STAFF'], '/staff', false],
-  [['CUSTOMER', 'ADMIN', 'STAFF'], '/admin/dashboard', false],
+  [['CUSTOMER', 'PET_SITTER'], '/sign-in', false],
+  [['CUSTOMER', 'STAFF'], '/sign-in', false],
+  [['CUSTOMER', 'ADMIN', 'STAFF'], '/sign-in', false],
 ])('role matrix %j chooses %s and purchase=%s', (roles, landing, customer) => {
   const user = { roles };
   expect(roleLanding(user)).toBe(landing);
@@ -22,7 +22,7 @@ test('returns to a permitted private route and preserves its query', () => {
   expect(loginDestination({ roles: ['CUSTOMER'] }, '/booking/service-1?visits=2')).toBe('/booking/service-1?visits=2');
   expect(loginDestination({ roles: ['ADMIN'] }, '/staff/dispatch')).toBe('/staff/dispatch');
   expect(loginDestination({ roles: ['STAFF'] }, '/admin/users')).toBe('/staff');
-  expect(loginDestination({ roles: ['CUSTOMER', 'PET_SITTER'] }, '/booking/service-1')).toBe('/sitter');
+  expect(loginDestination({ roles: ['CUSTOMER', 'PET_SITTER'] }, '/booking/service-1')).toBe('/sign-in');
   expect(loginDestination({ roles: ['CUSTOMER'] }, '/sitter/payroll')).toBe('/');
 });
 

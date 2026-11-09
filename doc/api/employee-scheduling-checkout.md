@@ -37,7 +37,8 @@ Root `/api/v1/checkout`, CUSTOMER only, opt-in `BOOKING_CHECKOUT_ENABLED=true`.
 
 | Method/path | Input and result |
 | --- | --- |
-| GET `/options` | Published eligible employee options and configured facility address |
+| GET `/options` | Published employee options, configured facility address and `recommendationAllowed` (no owned COMPLETED care visit) |
+| POST `/availability` | Owned current `quoteId`, one `visit`; optional `directory: true, page` returns all service-registered employees ordered by published Customer rating, 20 per page, with `eligible`, safe `unavailableReason`, `rating`, `reviewCount`, `nextPage` and `complete` |
 | POST `/bookings` | Owned `quoteId`, `acceptServicePolicies=true`, `visits` with `itemIndex`, `startAt`, `location`, optional owned `addressId` and `requestedSitterId` |
 | GET `/bookings/:id` | Owning customer's persisted booking, customer visit presentation and pending schedule proposals |
 | POST `/bookings/:id/payment-link` | Server-owned amount/order reference; provider URL or explicit provider/reconciliation error |
@@ -149,3 +150,5 @@ An overdue shift returns `SHIFT_START_REACHED` for invitation commands. Staff
 must use customer-confirmed recovery, rather than retrying a time in the past.
 Boarding stays continue to require whole-stay review. AI MATCH threshold and
 verified training-data requirements are unchanged.
+
+Customer AI recommendation requests return `CUSTOMER_CARE_HISTORY_EXISTS` after an owned care visit is COMPLETED. Product purchases and uncompleted visits do not count. The manual directory does not use AI thresholds; unavailable employees remain visible but cannot bypass checkout eligibility. See [selection policy](../architecture/directed-sitter-selection-2026-11-09.md).
