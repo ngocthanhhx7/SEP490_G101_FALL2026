@@ -70,3 +70,20 @@ test('directory retains authorization and works without a forced hint if the ind
   try { expect(await service.employees(admin)).toEqual(await previousDirectory()); }
   finally { await Contract.createIndexes(); }
 });
+
+
+test('payroll preview ignores replaced past/future contract versions without forcing a false mid-month split', async () => {
+  const employeeId = new mongoose.Types.ObjectId(), supersededAt = new Date('2026-11-09T00:00:00Z');
+  const base = { employeeId, version: 1, employmentType: 'FULL_TIME', salaryBasis: 'GROSS', monthlyBaseVnd: 10000000, payCycle: 'MONTHLY',
+    weeklyMinutes: 2400, signedAt: new Date('2026-10-01T00:00:00Z'), effectiveAt: new Date('2026-10-01T00:00:00Z'),
+    schedule: { weekdays: [1,2,3,4,5], dailyMinutes: 480 } };
+  await Contract.collection.insertMany([base, { ...base, version: 2, effectiveAt: new Date('2026-10-15T00:00:00Z'), supersededAt },
+    { ...base, version: 3, effectiveAt: new Date('2026-11-14T00:00:00Z'), supersededAt }]);
+  const reader = createPayrollDraftService({ connection, clock: () => Date.parse('2026-12-02T00:00:00Z') });
+  const draft = await reader.preview(admin, { employeeId: String(employeeId), periodStart: '2026-11-01', periodEnd: '2026-12-01', dueAt: '2026-12-02',
+    unpaidMinutes: 0, attendanceReference: 'Synthetic verified attendance', attendanceConfirmed: true,
+    overtimeVnd: 0, employeeInsuranceVnd: 0, incomeTaxVnd: 0, otherLawfulDeductionsVnd: 0,
+    statutoryReference: 'Synthetic approved assessment', statutoryConfirmed: true, deductionConsentReference: 'Synthetic consent' });
+  expect(draft.contract.version).toBe(1);
+  expect(await Contract.countDocuments()).toBe(3);
+});
