@@ -3,8 +3,9 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { createPetRecordImportApi } from '../../services/pet-record-import-api.js';
 import { PET_CARE_LABELS } from '../../utils/customer-pet-profile.js';
 import { Button } from '../../components/ui/index.js';
-export function PetRecordImport({ onApply, onBusyChange, disabled, api: suppliedApi }) {
+export function PetRecordImport({ onApply, onBusyChange, disabled, api: suppliedApi, initiallyOpen = false }) {
   const session = useSession(), api = useMemo(() => suppliedApi ?? createPetRecordImportApi({ getCsrfToken: session.getCsrfToken }), [suppliedApi, session.getCsrfToken]);
+  const [expanded, setExpanded] = useState(initiallyOpen);
   const [enabled, setEnabled] = useState(false), [file, setFile] = useState(null), [consent, setConsent] = useState(false), [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null), [selected, setSelected] = useState([]), [confirmed, setConfirmed] = useState(false), [message, setMessage] = useState('');
   const abort = useRef(null), active = useRef(true), lock = useRef(false);
@@ -18,7 +19,7 @@ export function PetRecordImport({ onApply, onBusyChange, disabled, api: supplied
     catch (error) { if (active.current) setMessage(error.code === 'PET_RECORD_QUOTA_EXCEEDED' ? 'Gemini đã đạt hạn mức hoặc bạn vừa gửi nhiều yêu cầu. Chờ rồi thử lại; bạn vẫn có thể nhập tay.' : error.code === 'PET_RECORD_TOO_COMPLEX' ? 'Sổ quá dài hoặc phức tạp. Chọn vài trang cần đọc rồi thử lại.' : error.code === 'INVALID_PET_RECORD' ? 'Chọn ảnh JPG/PNG hoặc PDF hợp lệ, tối đa 5 MB.' : 'Chưa đọc được sổ. Kiểm tra kết nối và tệp, hoặc nhập thông tin bằng tay.'); }
     finally { lock.current = false; if (active.current) setBusy(false); }
   }
-  return <details className="pet-record-import"><summary>Điền nhanh từ ảnh hoặc PDF sổ thú cưng</summary>
+  return <details className="pet-record-import" open={expanded} onToggle={event => setExpanded(event.currentTarget.open)}><summary>Điền nhanh từ ảnh hoặc PDF sổ thú cưng</summary>
     <p>Gemini đọc nội dung thành bản nháp. Hãy đối chiếu đúng thú cưng, ngày tiêm, dị ứng và hướng dẫn dùng thuốc; kết quả không phải chẩn đoán hay xác minh y tế.</p>
     {!enabled ? <p>Chức năng đọc sổ AI chưa được bật. Bạn có thể nhập đầy đủ thông tin trong các nhóm bên dưới.</p> : <>
       <label className="pet-record-file">Chọn sổ JPG, PNG hoặc PDF (tối đa 5 MB)<input type="file" accept="image/jpeg,image/png,application/pdf" disabled={busy || disabled} onChange={event => { setFile(event.target.files?.[0] ?? null); setResult(null); setConsent(false); setConfirmed(false); setMessage(''); }} /></label>

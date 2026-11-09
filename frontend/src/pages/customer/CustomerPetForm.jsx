@@ -2,8 +2,8 @@ import { useRef, useState } from 'react';
 import { Input, Select } from '../../components/ui/index.js';
 import { PET_CARE_GROUPS, PET_CARE_LABELS } from '../../utils/customer-pet-profile.js';
 
-export function CustomerPetForm({ draft, change, catalog, disabled }) {
-  const [group, setGroup] = useState('basic'), [invalidMessage, setInvalidMessage] = useState('');
+export function CustomerPetForm({ draft, change, catalog, disabled, initialGroup = 'basic' }) {
+  const [group, setGroup] = useState(initialGroup), [invalidMessage, setInvalidMessage] = useState('');
   const invalidPending = useRef(false);
   const field = (name, value) => { setInvalidMessage(''); change({ ...draft, [name]: value, careNeedsConfirmed: false }); };
   const traits = catalog.traits?.filter(row => row.species.includes(draft.species)) ?? [];
