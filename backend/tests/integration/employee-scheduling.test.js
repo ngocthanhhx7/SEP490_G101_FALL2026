@@ -33,7 +33,7 @@ const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
 const staff = actor('STAFF'), customer = actor('CUSTOMER');
 const windows = Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '08:00', endLocalTime: '18:00' }));
-let replica, connection, module, app, payroll, reviewApp, payrollService, reviewNow = clock();
+let replica, connection, module, app, payroll, reviewApp, payrollService, sessionService, reviewNow = clock();
 const serviceId = oid();
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
@@ -41,7 +41,7 @@ beforeAll(async () => {
   await provisionFinanceSources(connection); await provisionEmployeeScheduling(connection); payroll = payrollModels(connection);
   for (const model of Object.values(payroll)) { await model.createCollection(); await model.createIndexes(); }
   for (const value of [staff, customer]) await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(value.userId), ...value });
-  const sessionService = { authenticate: async req => {
+  sessionService = { authenticate: async req => {
     const user = req.get('x-test-actor'); if (!user) return null;
     const record = await connection.collection('users').findOne({ _id: new mongoose.Types.ObjectId(user) });
     return record ? { ...record, userId: user, expiresAt: clock() + 60000 } : null;
@@ -58,6 +58,22 @@ beforeAll(async () => {
   for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
+
+test.each([undefined, 'false', 'true'])('dispatch reports travel capability for VISIT_TRAVEL_ENABLED=%s', async flag => {
+  const runtime = employeeSchedulingRuntimeModule({
+    connection, config: { auth: { enabled: true } }, clock, sessionService,
+    env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: flag }
+  });
+  const server = express();
+  server.use(requestId);
+  server.use(runtime.mount, runtime.router);
+  server.use(errorHandler(() => {}));
+
+  const result = await request(server).get(`${runtime.mount}/dispatch`).set('x-test-actor', staff.userId).expect(200);
+  expect(result.body.data).toMatchObject({ visitTravelEnabled: flag === 'true', items: expect.any(Array) });
+  await request(server).get(`${runtime.mount}/travel-visits`).set('x-test-actor', staff.userId)
+    .expect(flag === 'true' ? 200 : 404);
+});
 
 test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });
