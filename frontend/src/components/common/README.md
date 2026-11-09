@@ -44,3 +44,5 @@ never changes the document signature or payment state.
 `AiTrainingReadiness` performs an explicit read-only Admin source audit and distinguishes eligible samples, quantity gaps, exclusions and truncation from model training/activation. Transport stays in ai-model-api.
 
 Customer AvatarMenu distinguishes Đơn chăm sóc from Đơn mua sản phẩm and links the existing protected product-order history route.
+
+`ProfileAvatar` reads protected JPEG content through avatar-api, revokes private blob URLs on cleanup/identity change and ignores stale responses. `AvatarEditor` uses the active SessionContext CSRF provider, local normalized preview and explicit save/remove confirmation. Unknown writes retain the original payload/key; resource-scoped change events refresh the affected photo.

@@ -59,3 +59,5 @@ pagination-response.js validates optional page/limit/total envelopes for shop or
 `service-basket-api.js` validates directed directory eligibility, public rating/count and next-page acknowledgements; it does not compute suitability or rating. Existing availability requests retain their compatible minimal response contract.
 
 `customer-bookings-api.js` adapts and validates owner-scoped `/bookings` pages, including optional service/pet/schedule/amount summaries and compatible cursor envelopes. It never calculates payment amounts.
+
+`avatar-image.js` performs local JPG/PNG decode and centered512px preview normalization; the existing server validation remains authoritative. `avatar-api.js` owns same-origin cookie-protected binary content transport and strict private path/MIME/size checks. It does not store a public media URL or move private images to R2.
