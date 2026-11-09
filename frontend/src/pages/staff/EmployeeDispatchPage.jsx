@@ -242,7 +242,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           dismissible={!command.busy && !command.pending}
           onClose={() => setSelected(null)}
         >
-          <h3>{active.serviceName}</h3>
+          <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceName}</h3>
           <p>
             {time(active.startAt)} – {time(active.endAt)} · {area(active.areaCode)}
           </p>
@@ -251,7 +251,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             {active.reviewCode ? reviewLabel(active.reviewCode) : 'Hệ thống đang điều phối'}
           </p>
           <details><summary>Kết quả tìm tự động gần nhất</summary><DispatchDiagnostics value={active.diagnostics} /><p>Danh sách chỉ định bên dưới được kiểm tra lại theo điều kiện mời thủ công cho lịch hiện tại.</p></details>
-          {active.pendingInvitation ? (
+          </aside><div className="dispatch-detail-work">{active.pendingInvitation ? (
             <p>
               {active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi ·{' '}
               {time(active.pendingInvitation.deadline)}
@@ -299,6 +299,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
               Kiểm tra lại yêu cầu
             </Button>
           )}
+          </div></div>
         </Dialog>
       )}
       {api.travelVisits && <StaffTravelMonitor api={api} />}

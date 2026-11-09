@@ -41,3 +41,8 @@
 .booking-sitter-rating, .booking-sitter-unavailable { display: block; font-size: .875rem; margin-top: .25rem; }
 .booking-sitter-unavailable { color: #655b70; }
 .booking-sitters label:has(input:disabled) { opacity: .75; cursor: default; }
+
+.booking-flow .booking-sitters { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; }
+.booking-flow .booking-sitters > label { display:flex; flex-direction:row; align-items:center; gap:14px; max-width:none; width:100%; min-height:96px; padding:18px; box-sizing:border-box; }
+.booking-flow .booking-sitters input[type='radio'] { width:20px; height:20px; min-height:20px; min-width:20px; padding:0; margin:0; flex:0 0 20px; accent-color:#503178; }
+.booking-sitters > label > span { min-width:0; }.booking-sitters strong { overflow-wrap:anywhere; }.booking-sitter-rating,.booking-sitter-unavailable { line-height:1.5; }
