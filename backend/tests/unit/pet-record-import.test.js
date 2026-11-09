@@ -11,8 +11,7 @@ test('default disabled; explicit enable requires server key and restricts model 
   expect(petRecordImportConfig({ GEMINI_MODEL: 'gemini-3.5-flash-lite' }).model).toBe('gemini-3.5-flash-lite');
   expect(petRecordImportConfig({})).toMatchObject({ enabled: false, model: 'gemini-3.1-flash-lite' });
   expect(() => petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true' })).toThrow();
-  expect(() => petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true', GEMINI_API_KEY: 'synthetic' })).toThrow('GEMINI_PET_RECORD_DATA_TIER');
-  expect(petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true', GEMINI_API_KEY: 'synthetic', GEMINI_PET_RECORD_DATA_TIER: 'paid' }).enabled).toBe(true);
+  expect(petRecordImportConfig({ PET_RECORD_IMPORT_ENABLED: 'true', GEMINI_API_KEY: 'synthetic' }).enabled).toBe(true);
   expect(() => petRecordImportConfig({ GEMINI_PET_RECORD_MODEL: '../secret' })).toThrow();
 });
 test('bounded PDF transcription counts tokens first, uses fixed Google host and returns only allowed draft fields', async () => {

@@ -22,7 +22,7 @@ export function PetRecordImport({ onApply, onBusyChange, disabled, api: supplied
     <p>Gemini đọc nội dung thành bản nháp. Hãy đối chiếu đúng thú cưng, ngày tiêm, dị ứng và hướng dẫn dùng thuốc; kết quả không phải chẩn đoán hay xác minh y tế.</p>
     {!enabled ? <p>Chức năng đọc sổ AI chưa được bật. Bạn có thể nhập đầy đủ thông tin trong các nhóm bên dưới.</p> : <>
       <label className="pet-record-file">Chọn sổ JPG, PNG hoặc PDF (tối đa 5 MB)<input type="file" accept="image/jpeg,image/png,application/pdf" disabled={busy || disabled} onChange={event => { setFile(event.target.files?.[0] ?? null); setResult(null); setConsent(false); setConfirmed(false); setMessage(''); }} /></label>
-      <label className="pet-record-check"><input type="checkbox" checked={consent} disabled={busy || disabled} onChange={event => setConsent(event.target.checked)} />Tôi đồng ý gửi nội dung tệp đã chọn tới Google Gemini để trích xuất. Tôi đã kiểm tra và loại bỏ thông tin riêng tư không cần thiết.</label>
+      <label className="pet-record-check"><input type="checkbox" checked={consent} disabled={busy || disabled} onChange={event => setConsent(event.target.checked)} />Tôi đồng ý gửi nội dung tệp đã chọn tới Google Gemini để trích xuất. Tệp đã loại bỏ thông tin cá nhân, nhạy cảm và bảo mật; tôi không gửi bản sổ gốc còn những thông tin này.</label>
       <Button variant="secondary" disabled={!file || !consent || busy || disabled} onClick={extract}>{busy ? 'Đang đọc sổ…' : 'Đọc sổ bằng Gemini'}</Button>
     </>}
     {message && <p role="status">{message}</p>}

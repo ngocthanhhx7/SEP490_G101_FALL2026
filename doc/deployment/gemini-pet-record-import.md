@@ -4,14 +4,13 @@ Chức năng tùy chọn, mặc định tắt. Model theo thứ tự GEMINI_PET_
 
 ## Cấu hình sau khi có key
 
-Tạo key trong Google AI Studio cho project được phép sử dụng. Không gửi key vào chat, Git, frontend hoặc ảnh chụp màn hình. Đọc điều khoản xử lý dữ liệu và chọn project/tier phù hợp trước khi dùng sổ khách hàng thật; thử trước bằng tài liệu tổng hợp. Theo điều khoản Google, không gửi thông tin cá nhân/bảo mật vào Unpaid Services. Dùng sổ tổng hợp với Free tier; luồng khách thật chỉ bật bằng project paid và khai báo GEMINI_PET_RECORD_DATA_TIER=paid. Đây là khai báo của người vận hành, không phải kiểm tra billing tự động. Không suy ra chính sách dữ liệu hoặc hạn mức của 3.1 Flash-Lite từ hàng model khác trong dashboard.
+Tạo key trong Google AI Studio cho project được phép sử dụng. Không gửi key vào chat, Git, frontend hoặc ảnh chụp màn hình. Đọc điều khoản xử lý dữ liệu và chọn project/tier phù hợp trước khi dùng sổ khách hàng thật; thử trước bằng tài liệu tổng hợp. Theo điều khoản Google, không gửi thông tin cá nhân/bảo mật vào Unpaid Services. Theo quyết định của chủ dự án, dùng Free tier chỉ cho tài liệu đã loại thông tin cá nhân, nhạy cảm và bảo mật; khách phải xác nhận điều này trước khi gửi. Ứng dụng không tự kiểm định khả năng ẩn danh. Không có cờ DATA_TIER: biến tự thêm đã được bỏ, giá trị paid viết vào .env không bật billing và không ảnh hưởng luồng xử lý. Không suy ra chính sách dữ liệu hoặc hạn mức của 3.1 Flash-Lite từ hàng model khác trong dashboard.
 
 Theo [EC2 environment guide](ec2-environment-guide.md), mở file `/opt/pawworldcare/shared/.env` bằng quyền root, giữ nguyên các giá trị đang có và thêm/sửa đúng các biến sau:
 
 ```dotenv
 PET_RECORD_IMPORT_ENABLED=true
 GEMINI_API_KEY=REPLACE_WITH_YOUR_PRIVATE_KEY
-GEMINI_PET_RECORD_DATA_TIER=paid
 GEMINI_PET_RECORD_MODEL=gemini-3.5-flash-lite
 ```
 
