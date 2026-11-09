@@ -23,3 +23,16 @@
   .employee-scheduling h1 { font-size: 23px; }
   .employee-scheduling__rows > li { align-items: flex-start; flex-direction: column; }
 }
+
+.dispatch-detail-dialog { width: min(960px, calc(100vw - 32px)); max-width: 960px; }
+.dispatch-picker { margin-block: 20px; padding-block: 18px; border-block: 1px solid #e7dff0; }
+.dispatch-candidate-list, .dispatch-blocked-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.dispatch-candidate, .dispatch-blocked-list > div { padding: 16px; border: 1px solid #ded5eb; border-radius: 12px; background: #fff; }
+.dispatch-candidate { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.dispatch-candidate:has(input:checked) { border-color: #7654a4; background: #f6f0fc; }
+.dispatch-candidate small { display: block; margin-top: 6px; }
+.dispatch-picker-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.dispatch-blocked-list p { margin-block: 8px; }
+.sitter-capability-editor fieldset { display: grid; gap: 10px; margin-block: 12px; }
+
+.dispatch-picker input[type='radio'] { width: auto; flex: 0 0 auto; }

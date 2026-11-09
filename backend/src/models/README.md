@@ -103,3 +103,5 @@ SitterApplication.applicantParticularsCiphertext optionally retains submitted DO
 SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submission fingerprint separately from versioned owner-edit replay. No collection name changes.
 
 `avatar.model.js` stores bounded JPEG blobs/version/tombstones in `profileavatars`; User/Pet collection names and projections remain unchanged. Sitter application document types add IDENTITY_FRONT/IDENTITY_BACK/PORTRAIT while preserving legacy IDENTITY.
+
+EmploymentContract adds optional supersededAt/supersededBy/supersededReason metadata for an explicitly corrected erroneous future version. Current-contract selection excludes superseded rows; historical contract IDs/versions remain intact. No index or native validator is changed.

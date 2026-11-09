@@ -72,3 +72,5 @@ feature snapshot is copied from the offer to the visit only on acceptance.
 revision baseline/transitions in one read-only snapshot session, using at most four
 data commands (three for a single day). It groups same-day revisions by their
 latest version with existing indexes; no guard or scheduling writes move here.
+
+Current-time MANUAL previews use the same eligibility as explicit manual invitations, expose bounded Staff-only per-person blocking reasons and sort by weekly workload. Automatic/alternative-time previews still require daily-origin route evidence. `sitter-origin.service.js` owns employee-only day-origin declarations with shared capability CAS, employee guards and audited idempotency. See [onboarding design](../../../../doc/testing/dispatch-onboarding-2026-11-09.md).

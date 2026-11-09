@@ -2,9 +2,11 @@ import { metadata } from '../utils/app-error.js';
 import { id } from '../validators/pet-care.validator.js';
 import { availabilityInput, workAreasInput, decisionInput, proposalConfirmationInput } from '../validators/employee-scheduling.validator.js';
 
-export function createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals }) {
+export function createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, origins }) {
   const send = (req, res, data) => res.json({ data, meta: metadata(req) });
   return {
+    origins: async (req, res) => send(req, res, await origins.get(req.auth)),
+    saveOrigin: async (req, res) => send(req, res, await origins.save(req.auth, req.body, req.get('idempotency-key'))),
     availability: async (req, res) => send(req, res, await repository.availability.getMine({ actor: req.auth })),
     calendar: async (req, res) => send(req, res, await repository.availability.listMyCalendar({ actor: req.auth,
       fromLocalDate: req.query.fromLocalDate, toLocalDate: req.query.toLocalDate })),
