@@ -46,7 +46,7 @@ export function PetProfileDetails({ pet, breed, traits, disabled, onEdit, onArch
     <div className="pet-profile-bottom"><Button variant="ghost" className="pet-profile-archive" disabled={disabled} onClick={onArchive}><Archive size={17} />Xóa hồ sơ thú cưng</Button></div>
 
     <Dialog open={photoOpen} title={`Ảnh của ${pet.name}`} className="pet-profile-photo-dialog" dismissible={!disabled} onClose={() => { if (!disabled) setPhotoOpen(false); }}>
-      {photoOpen && <AvatarEditor petId={pet.id} label={`Ảnh của ${pet.name}`} fallback={species} onSaved={onPhotoSaved} onBusyChange={onPhotoBusyChange} />}
+      <div onCancel={event => event.stopPropagation()}>{photoOpen && <AvatarEditor petId={pet.id} label={`Ảnh của ${pet.name}`} fallback={species} onSaved={onPhotoSaved} onBusyChange={onPhotoBusyChange} />}</div>
     </Dialog>
   </div>;
 }
