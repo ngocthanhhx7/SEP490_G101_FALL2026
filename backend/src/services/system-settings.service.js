@@ -50,7 +50,7 @@ export function createSystemSettingsService({ connection, SettingVersion, clock 
 
   async function currentAt(at = new Date(clock())) {
     const record = await SettingVersion.findOne({ key: SETTING_KEY, effectiveAt: { $lte: at } })
-      .sort({ effectiveAt: -1, version: -1 }).lean();
+      .sort({ effectiveAt: -1 }).lean();
     return record ? view(record) : {
       key: SETTING_KEY, version: 0, enabled: false, effectiveAt: null, changedBy: null, reason: null, recordedAt: null
     };

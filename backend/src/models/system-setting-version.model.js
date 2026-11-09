@@ -15,6 +15,5 @@ export function systemSettingVersionModel(connection) {
   immutableCatalogVersion(schema);
   schema.index({ key: 1, version: 1 }, { unique: true });
   schema.index({ key: 1, effectiveAt: 1 }, { unique: true });
-  schema.index({ key: 1, effectiveAt: -1, version: -1 });
   return connection.models.SystemSettingVersion ?? connection.model('SystemSettingVersion', schema);
 }

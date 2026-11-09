@@ -20,6 +20,5 @@ export function servicePriceVersionModel(connection) {
   immutableCatalogVersion(schema);
   schema.index({ serviceId: 1, version: 1 }, { unique: true });
   schema.index({ serviceId: 1, effectiveAt: 1 }, { unique: true });
-  schema.index({ serviceId: 1, effectiveAt: -1, version: -1 });
   return connection.models.ServicePriceVersion ?? connection.model('ServicePriceVersion', schema);
 }

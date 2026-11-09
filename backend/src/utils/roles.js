@@ -1,7 +1,12 @@
-const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
+import { ACCOUNT_ROLES } from '../constants/account-roles.js';
+const ROLES = new Set(ACCOUNT_ROLES);
+
+export function isSingleRole(roles) {
+  return Array.isArray(roles) && roles.length === 1 && ROLES.has(roles[0]);
+}
 
 export function hasRole(actorRoles, requiredRole) {
-  if (!Array.isArray(actorRoles) || actorRoles.some(role => !ROLES.has(role)) || !ROLES.has(requiredRole)) return false;
+  if (!isSingleRole(actorRoles) || !ROLES.has(requiredRole)) return false;
   if (requiredRole === 'CUSTOMER' && actorRoles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role))) return false;
   return (
     actorRoles.includes(requiredRole) ||

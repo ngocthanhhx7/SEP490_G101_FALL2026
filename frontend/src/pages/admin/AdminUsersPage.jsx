@@ -86,11 +86,9 @@ function StatePill({ state }) {
 function RoleList({ roles = [] }) {
   return (
     <div className="admin-role-list">
-      {roles.map((role) => (
-        <span className="admin-role-tag" key={role}>
-          {ROLE_LABELS[role] ?? role}
-        </span>
-      ))}
+      <span className="admin-role-tag">
+        {roles.length === 1 && ROLE_LABELS[roles[0]] ? ROLE_LABELS[roles[0]] : 'Cần kiểm tra vai trò'}
+      </span>
     </div>
   );
 }

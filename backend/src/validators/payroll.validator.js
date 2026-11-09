@@ -59,6 +59,14 @@ export function advanceDecisionInput(value) {
     ...(value.action === 'RECORD_PAYMENT' ? { transferReference: text(value.transferReference, 160) } : {}) };
 }
 
+export function statementDecisionInput(value) {
+  if (value?.action !== 'VOID_UNPAID') return advanceDecisionInput(value);
+  exact(value, ['expectedVersion', 'action', 'reason', 'confirmNoPayment'], ['expectedVersion', 'action', 'reason', 'confirmNoPayment']);
+  number(value.expectedVersion, 0, 1000000, true);
+  if (value.confirmNoPayment !== true) fail('VALIDATION_FAILED', 'Confirm the approved statement has not been paid');
+  return { ...value, reason: text(value.reason) };
+}
+
 export function payrollAssessmentInput(value) {
   const keys = ['employeeId', 'periodStart', 'periodEnd', 'dueAt', 'scheduledMonthMinutes', 'paidPeriodMinutes',
     'kpiTargetMinutes', 'seriousViolationConfirmed', 'overtimeVnd', 'employeeInsuranceVnd', 'incomeTaxVnd',

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Notice, Select } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import './sitter-availability.css';
+import { SitterDayOriginForm } from './SitterDayOriginForm.jsx';
 
 const DAYS = [
   { value: 1, label: 'Thứ Hai' }, { value: 2, label: 'Thứ Ba' }, { value: 3, label: 'Thứ Tư' },
@@ -246,6 +247,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
       </form>
     </section>
 
+    {api?.getOrigins && <SitterDayOriginForm api={api} />}
     <section className="sitter-availability__safety" aria-labelledby="sitter-hours-safety-heading">
       <h2 id="sitter-hours-safety-heading">Thay đổi an toàn</h2>
       <p>Lịch rảnh chỉ giúp tìm ứng viên; thao tác lưu không tạo booking hoặc offer. Buổi đã xác nhận không bị xóa. Nếu lịch mới ảnh hưởng buổi đã nhận, Staff cần xử lý theo chính sách.</p>

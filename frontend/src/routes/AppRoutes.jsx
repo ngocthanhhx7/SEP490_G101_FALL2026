@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
+import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
 import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
@@ -33,24 +34,18 @@ import { RoleDashboardLayout } from '../layouts/RoleDashboardLayout.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { ApplicantWorkspacePage } from '../pages/public/application-status/ApplicantWorkspacePage.jsx';
 import { applicationStatusApi } from '../services/application-status-api.js';
-import WeeklySettlementPage from '../pages/sitter/WeeklySettlementPage.jsx';
-import { createSettlementApi } from '../services/settlement-api.js';
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.jsx';
-import { AdminPayrollPage } from '../pages/admin/AdminPayrollPage.jsx';
 import { CustomerDashboardPage } from '../pages/customer/CustomerDashboardPage.jsx';
 import { SitterListPage } from '../pages/customer/SitterListPage.jsx';
 import { SitterManagementPage } from '../pages/staff/SitterManagementPage.jsx';
 import { SitterManagementDetailPage } from '../pages/staff/SitterManagementDetailPage.jsx';
 import { createSitterManagementApi } from '../services/sitter-management-api.js';
 import { SitterDashboardPage } from '../pages/sitter/SitterDashboardPage.jsx';
-import { SitterEarningsPage } from '../pages/sitter/SitterEarningsPage.jsx';
 import { SitterProfilePage } from '../pages/sitter/SitterProfilePage.jsx';
 import { StaffDashboardPage } from '../pages/staff/StaffDashboardPage.jsx';
 import { SitterPublicProfilePage } from '../pages/sitter/SitterPublicProfilePage.jsx';
 import { SitterProfileReviewsPage } from '../pages/staff/SitterProfileReviewsPage.jsx';
 import { createSitterPublicProfileApi } from '../services/sitter-public-profile-api.js';
-import AdminSettlementsPage from '../pages/admin/AdminSettlementsPage.jsx';
-import { createAdminSettlementApi } from '../services/admin-settlement-api.js';
 import { createPrivateImageApi } from '../services/private-image-api.js';
 import { createEmployeePayrollApi } from '../services/employee-payroll-api.js';
 import { AiModelsPage } from '../pages/admin/AiModelsPage.jsx';
@@ -120,14 +115,6 @@ function EmployeeScheduleRoute({ view }) {
   return <SitterAvailabilityPage key={user?.id} api={api} />;
 }
 
-function AdminSettlementRoute() {
-  const { getCsrfToken, user } = useSession();
-  const api = useMemo(() => createAdminSettlementApi(createApiClient({ getCsrfToken }), {
-    privateImages: createPrivateImageApi({ getCsrfToken })
-  }), [getCsrfToken]);
-  return <AdminSettlementsPage key={user?.id} api={api} />;
-}
-
 function EmployeePayrollRoute({ admin = false }) {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createEmployeePayrollApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
@@ -135,11 +122,6 @@ function EmployeePayrollRoute({ admin = false }) {
   return admin ? <EmployeePayrollAdminPage key={user?.id} api={api} employeeApi={employeeApi} /> : <EmployeePayrollPage key={user?.id} api={api} />;
 }
 
-function SitterSettlementRoute() {
-  const { getCsrfToken, user } = useSession();
-  const api = useMemo(() => createSettlementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
-  return <WeeklySettlementPage key={user?.id} api={api} />;
-}
 
 function PublicProfileRoute({ review = false }) {
   const [params] = useSearchParams();
@@ -161,7 +143,6 @@ const navigationByRole = {
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
     ['Nhập hàng', '/admin/goods-receipts', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
-    ['Duyệt tất toán', '/admin/settlements', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
     ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
     ['Điều phối AI', '/admin/ai-models', 'Hệ thống'],
@@ -177,6 +158,7 @@ const navigationByRole = {
     ['Chăm sóc của bạn', '/customer', 'Dịch vụ của tôi'],
     ['Đơn chăm sóc', '/account/bookings', 'Dịch vụ của tôi'],
     ['Thông báo', '/account/notifications', 'Dịch vụ của tôi'],
+    ['Đơn mua sản phẩm', '/customer/product-orders', 'Mua sắm'],
     ['Người chăm sóc', '/sitters', 'Khám phá'],
     ['Tìm sitter phù hợp', '/account/sitter-recommendations', 'Khám phá']
   ],
@@ -214,7 +196,7 @@ function Workspace({ role }) {
         label,
         to,
         group,
-        end: true
+        end: to !== '/account/bookings'
       }))}
     />
   );
@@ -252,10 +234,10 @@ export function AppRoutes({
         <Route element={<Workspace role="ADMIN" />}>
           <Route path="admin/users" element={<AdminUsersPage embedded />} />
           <Route path="admin/dashboard" element={<AdminDashboardPage />} />
-          <Route path="admin/settlement-history" element={<AdminPayrollPage />} />
+          <Route path="admin/settlement-history" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/sitters" element={<SitterManagementRoute />} />
           <Route path="admin/sitters/:userId" element={<SitterManagementRoute detail />} />
-          <Route path="admin/settlements" element={<AdminSettlementRoute />} />
+          <Route path="admin/settlements" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
           <Route path="admin/ai-models" element={<AiModelsPage />} />
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
@@ -305,6 +287,8 @@ export function AppRoutes({
             element={<CustomerFeaturePage page="pet" />}
           />
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
+          <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
+          <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
         </Route>
@@ -315,12 +299,12 @@ export function AppRoutes({
           <Route path="sitter/profile" element={<SitterProfilePage />} />
           <Route path="sitter/public-profile" element={<PublicProfileRoute />} />
           <Route path="sitter/earnings" element={<Navigate replace to="/sitter/payroll" />} />
-          <Route path="sitter/partner-earnings" element={<SitterEarningsPage />} />
+          <Route path="sitter/partner-earnings" element={<Navigate replace to="/sitter/payroll" />} />
           <Route
             path="sitter/availability"
             element={<EmployeeScheduleRoute />}
           />
-          <Route path="sitter/settlements" element={<SitterSettlementRoute />} />
+          <Route path="sitter/settlements" element={<Navigate replace to="/sitter/payroll" />} />
           <Route path="sitter/payroll" element={<EmployeePayrollRoute />} />
           <Route path="sitter/work-areas" element={<EmployeeScheduleRoute view="areas" />} />
           <Route path="sitter/invitations" element={<EmployeeScheduleRoute view="invitations" />} />
@@ -353,7 +337,6 @@ export function AppRoutes({
         <Route element={<RequireSession roles={['CUSTOMER']} />}>
           <Route path="customer/cart" element={<ShoppingCartPage />} />
           <Route path="customer/product-checkout" element={<ProductCheckoutPage />} />
-          <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
         </Route>
         <Route path="service-areas" element={<ServiceAreasPage />} />
         <Route path="sign-in" element={<SignInPage />} />

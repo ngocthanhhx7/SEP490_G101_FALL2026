@@ -1,5 +1,5 @@
 import { AppError } from '../utils/app-error.js';
-import { hasRole } from '../utils/roles.js';
+import { hasRole, isSingleRole } from '../utils/roles.js';
 
 const ACTIONS = new Set(['CREATE', 'READ', 'UPDATE', 'DELETE', 'DECIDE']);
 const ID = /^[0-9a-f]{24}$/i;
@@ -47,11 +47,7 @@ export function createAuthorizationService({
     if (
       !actor ||
       actor.state !== 'ACTIVE' ||
-      !Array.isArray(actor.roles) ||
-      actor.roles.length === 0 ||
-      actor.roles.some(
-        (item) => !['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'].includes(item)
-      )
+      !isSingleRole(actor.roles)
     ) {
       reason = 'INVALID_ACTOR';
     } else if (

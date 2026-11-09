@@ -159,8 +159,10 @@ async function latest(Model, serviceId, session) {
 }
 
 async function effective(Model, serviceId, at) {
+  // Unique (serviceId,effectiveAt) makes a version tie impossible and lets the
+  // existing unique index serve this point lookup without a blocking sort.
   return Model.findOne({ serviceId, effectiveAt: { $lte: at } })
-    .sort({ effectiveAt: -1, version: -1 })
+    .sort({ effectiveAt: -1 })
     .lean();
 }
 
@@ -197,7 +199,6 @@ export function createServiceCatalogService({
   Service,
   ServiceVersion,
   PolicyVersion,
-  Presentation,
   priceProvider,
   catalogSettings,
   clock = Date.now
@@ -372,13 +373,14 @@ export function createServiceCatalogService({
   }
 
   async function listAdmin({ includePolicyText = false } = {}) {
-    const services = await Service.find({}).select('code').sort({ code: 1 }).lean();
+    const services = await Service.find({}).select('code').sort({ code: 1 }).limit(1001).lean();
+    if (services.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
     const ids = services.map((service) => service._id);
     const at = new Date(clock());
     const grouped = (Model, filter, sort) =>
       Model.aggregate([
         { $match: { serviceId: { $in: ids }, ...filter } },
-        { $sort: sort },
+        { $sort: { serviceId: -1, ...sort } },
         { $group: { _id: '$serviceId', current: { $first: '$$ROOT' } } },
         { $replaceRoot: { newRoot: '$current' } }
       ]).option({ maxTimeMS: 2000 });
@@ -387,7 +389,7 @@ export function createServiceCatalogService({
       grouped(
         PolicyVersion,
         { effectiveAt: { $lte: at } },
-        { effectiveAt: -1, version: -1 }
+        { effectiveAt: -1 }
       ),
       grouped(PolicyVersion, {}, { version: -1 })
     ]);
@@ -442,14 +444,25 @@ export function createServiceCatalogService({
   async function publicList({ at = new Date(clock()) } = {}) {
     if (!(await catalogSettings.isEnabledAt(at)))
       return { available: false, services: [] };
+    const serviceDetails = await Service.find({}).select('code presentation').limit(1001).lean();
+    if (serviceDetails.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
+    const parentIds = serviceDetails.map(service => service._id);
     // Select the effective state before filtering ACTIVE so retirement cannot
     // resurrect an older active service; return one row per service, not history.
-    const versions = await ServiceVersion.aggregate([
-      { $match: { effectiveAt: { $lte: at } } },
-      { $sort: { effectiveAt: -1, version: -1 } },
+    const latest = ids => [
+      { $match: { serviceId: ids, effectiveAt: { $lte: at } } },
+      { $sort: { serviceId: -1, effectiveAt: -1 } },
       { $group: { _id: '$serviceId', current: { $first: '$$ROOT' } } },
       { $replaceRoot: { newRoot: '$current' } }
-    ]);
+    ];
+    const versions = await ServiceVersion.aggregate([
+      ...latest({ $in: parentIds }),
+      // Do not conceal orphan errors while optimizing valid parent traversal.
+      // This disjoint index-range branch keeps the former ACTIVE/PUBLISHED
+      // missing-parent 404 and does not scan each parent's historical rows.
+      { $unionWith: { coll: ServiceVersion.collection.name, pipeline: [...latest({ $nin: parentIds }), { $limit: 1001 }] } }
+    ]).option({ maxTimeMS: 5000 });
+    if (versions.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
     const current = new Map();
     for (const version of versions)
       if (!current.has(version.serviceId.toString()))
@@ -457,20 +470,18 @@ export function createServiceCatalogService({
     const serviceIds = [...current.values()].map(
       (version) => version.serviceId
     );
-    const serviceDetails = await Service.find({ _id: { $in: serviceIds } })
-      .select('code presentation')
-      .lean();
+    const knownParents = new Set(parentIds.map(String)), unknownParents = serviceIds.filter(id => !knownParents.has(String(id)));
+    if (unknownParents.length) {
+      // A parent may have been created after the initial read; preserve the
+      // existing non-snapshot read contract before classifying it as missing.
+      serviceDetails.push(...await Service.find({ _id: { $in: unknownParents } }).select('code presentation').limit(1001).lean());
+      if (serviceDetails.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
+    }
     const codes = new Map(
       serviceDetails.map((service) => [service._id.toString(), service.code])
     );
-    const legacyIds = serviceDetails.filter(service => !service.presentation).map(service => service._id);
-    const presentations = legacyIds.length
-      ? Presentation
-        ? await Presentation.find({ serviceId: { $in: legacyIds } }).lean()
-        : await connection.db.collection('servicepresentations').find({ serviceId: { $in: legacyIds } }).toArray()
-      : [];
-    presentations.push(...serviceDetails.filter(service => service.presentation)
-      .map(service => ({ ...service.presentation, serviceId: service._id })));
+    const presentations = serviceDetails.filter(service => service.presentation)
+      .map(service => ({ ...service.presentation, serviceId: service._id }));
     const detailMap = new Map(
       presentations.map((item) => [
         item.serviceId.toString(),
@@ -487,7 +498,7 @@ export function createServiceCatalogService({
     // not resurrect an older published version. Fetch once for the whole list.
     const policyRows = await PolicyVersion.aggregate([
       { $match: { serviceId: { $in: serviceIds }, effectiveAt: { $lte: at } } },
-      { $sort: { effectiveAt: -1, version: -1 } },
+      { $sort: { serviceId: -1, effectiveAt: -1 } },
       { $group: { _id: '$serviceId', current: { $first: '$$ROOT' } } }
     ]).option({ maxTimeMS: 5000 });
     const policies = new Map(policyRows.map(row => [String(row._id), row.current]));

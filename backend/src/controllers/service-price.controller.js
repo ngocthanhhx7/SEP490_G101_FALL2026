@@ -5,6 +5,8 @@ function respond(res, req, status, data) {
 
 export function createServicePriceController({ service } = {}) {
   return {
+    getAdminHistory: async (req, res) =>
+      respond(res, req, 200, await service.listHistory(req.params.serviceId, req.query)),
     getByServiceIdActive: async (req, res) =>
       respond(
         res,

@@ -256,5 +256,5 @@ test('provides an owner avatar picker with image limits', async () => {
   renderPetPage(api);
   await screen.findByRole('heading', { name: 'Mây' });
   expect(screen.getByLabelText('Chọn hoặc thay ảnh')).toHaveAttribute('accept','image/jpeg,image/png');
-  expect(screen.getByText(/JPG\/PNG · tối đa 5 MB, 4 megapixel/)).toBeInTheDocument();
+  expect(screen.getByText(/Chọn ảnh JPG hoặc PNG, tối đa 10 MB/)).toBeInTheDocument();
 });

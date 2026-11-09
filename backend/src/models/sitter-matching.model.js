@@ -1,8 +1,10 @@
 import { oid, integer, sub, geo, registerModels, Schema } from './model-definitions.js';
+import { concurrencyGuardField } from './concurrency-guard.field.js';
 export function matchingModels(connection) {
   return registerModels(connection, {
     SitterMatchingProfile: {
       fields: {
+        schedulingGuardVersion: concurrencyGuardField(),
         changedBy: { type: oid },
         userId: { type: oid, required: true },
         serviceIds: { type: [oid], required: true },

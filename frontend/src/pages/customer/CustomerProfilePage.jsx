@@ -36,9 +36,9 @@ export function CustomerProfilePage({ apiRequest }) {
   const profileAdapter = useMemo(() => createCustomerProfileAdapter(api), [api]);
   const loadProfile = useCallback(({ signal }) => profileAdapter.load({ signal }), [profileAdapter]);
   const profile = useApiResource(loadProfile);
-  const [draft, setDraft] = useState({ value: '', version: null });
-  const displayName = profile.status === 'success' && draft.version === profile.data.version
-    ? draft.value : (profile.data?.displayName ?? '');
+  const [draft, setDraft] = useState(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const displayName = draft?.value ?? profile.data?.displayName ?? '';
   const [savePending, setSavePending] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [savePendingNotice, setSavePendingNotice] = useState(false);
@@ -60,6 +60,7 @@ export function CustomerProfilePage({ apiRequest }) {
         profile.retry();
       } else {
         setSaved(true);
+        setDraft(null);
         profile.retry();
         session.updateDisplayName(result.data);
       }
@@ -100,7 +101,7 @@ export function CustomerProfilePage({ apiRequest }) {
         <div className="customer-profile-card-heading">
           <h2 id="profile-details-title">Thông tin cá nhân</h2>
         </div>
-        <AvatarEditor fallback={profile.data.displayName?.[0] ?? 'PW'} onSaved={profile.retry} />
+        <AvatarEditor fallback={profile.data.displayName?.[0] ?? 'PW'} onSaved={profile.retry} onBusyChange={setAvatarBusy} />
         <form className="customer-profile-form" onSubmit={submit}>
           <Input label="Họ và tên" value={displayName} onChange={event => {
             setDraft({ value: event.target.value, version: profile.data.version });
@@ -108,7 +109,7 @@ export function CustomerProfilePage({ apiRequest }) {
             setSaved(false);
           }} autoComplete="name" maxLength={100} required />
           <Button type="submit" loading={savePending} loadingLabel="Đang lưu…"
-            disabled={displayName.trim() === profile.data.displayName || !displayName.trim() || displayName.length > 100}>
+            disabled={avatarBusy || displayName.trim() === profile.data.displayName || !displayName.trim() || displayName.length > 100}>
             Lưu thay đổi
           </Button>
         </form>

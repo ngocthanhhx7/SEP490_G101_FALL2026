@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { readFile, stat } from 'node:fs/promises';
 import { loadConfig } from '../src/config/environment.js';
 import { connectDatabase } from '../src/config/database.js';
+import { referenceCatalogCliSource } from '../src/models/reference-catalog-source.js';
 import { seedDemo, DEMO_DATABASE, GROUNDED_DEMO_DATABASE, validateGroundedSnapshot } from './demo-ai/fixtures.js';
 import { createDemoApp } from './demo-ai/server.js';
 
@@ -70,7 +71,7 @@ if (
     ])
       await promisify(execFile)(
         process.execPath,
-        ['scripts/seeds/' + seed, '--apply'],
+        ['scripts/seeds/' + seed, '--apply', '--reference-catalog=' + referenceCatalogCliSource()],
         {
           cwd: root,
           env: demoEnv,
@@ -78,7 +79,7 @@ if (
         }
       );
     const config = loadConfig(demoEnv);
-    connection = await connectDatabase(config);
+    connection = await connectDatabase(config, { referenceCatalog: referenceCatalogCliSource() });
     const manifest = await seedDemo(connection, config, Date.now, { groundedSnapshot });
     const origin = `http://127.0.0.1:${port}`;
     app = createDemoApp({ config, connection, manifest, origin, groundedSnapshot });
