@@ -7,7 +7,7 @@ import { BrandLogo } from '../components/ui/BrandLogo.jsx';
 import { Notice } from '../components/ui/Notice.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { hasRole } from '../utils/role-access.js';
-import { LayoutDashboard, Users, CalendarDays, Bell, Settings, UserRound, BriefcaseBusiness, MapPin, Wallet, ClipboardList, PawPrint, Menu, Building2, FileCheck } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarDays, Bell, Settings, UserRound, BriefcaseBusiness, MapPin, Wallet, ClipboardList, PawPrint, Menu, Building2, FileCheck, ShoppingBag } from 'lucide-react';
 import { NotificationBell } from '../components/common/NotificationBell.jsx';
 import { PublicHeader } from '../components/public/PublicHeader.jsx';
 import { PublicFooter } from '../components/public/PublicFooter.jsx';
@@ -19,7 +19,7 @@ import './customer-account-layout.css';
 function NavigationIcon({ to }) {
   const Icon = /notification/.test(to) ? Bell : /settings/.test(to) ? Settings : /users|sitters/.test(to) ? Users
     : /payroll|settlement/.test(to) ? Wallet : /services/.test(to) ? BriefcaseBusiness : /applications|profiles/.test(to) ? FileCheck
-    : /dispatch|invitations/.test(to) ? ClipboardList : /availability|bookings/.test(to) ? CalendarDays
+    : /product-orders/.test(to) ? ShoppingBag : /dispatch|invitations/.test(to) ? ClipboardList : /availability|bookings/.test(to) ? CalendarDays
     : /areas|addresses/.test(to) ? MapPin : /pets/.test(to) ? PawPrint : /account|profile/.test(to) ? UserRound : LayoutDashboard;
   return <Icon size={18} aria-hidden="true" />;
 }

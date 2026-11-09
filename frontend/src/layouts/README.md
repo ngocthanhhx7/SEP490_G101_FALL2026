@@ -18,3 +18,5 @@ Operational navigation items carry a `group` label in the route manifest. The sh
 renders visible group headings for work, personnel, finance, system and personal
 destinations as appropriate to each role. Customer keeps its separate account layout.
 The header omits the redundant workspace text; the sidebar retains the role label.
+
+Customer account navigation includes a separate product-order history destination with a shopping icon; the order page keeps account navigation on desktop and mobile.

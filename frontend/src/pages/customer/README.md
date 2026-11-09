@@ -51,3 +51,5 @@ through the assigned employee care endpoints; legacy visits fail unavailable.
 See [checks and remaining gates](../../../../doc/testing/care-matching-outcomes-2026-10-30.md).
 
 `ShoppingCartPage`, `ProductCheckoutPage` and `MyProductOrdersPage` complete the product purchase flow at `/customer/cart`, `/customer/product-checkout` and `/customer/product-orders`. Checkout supports delivery (paid on delivery) and pickup (paid at the shop) only; the delivery fee preview comes from the cart response and the placed order shows the backend's amounts. The checkout keeps one idempotency key per unchanged order, so an uncertain retry cannot create a second order. Online payment, tier discounts and defect reports are not part of this release.
+
+Product-order history is reachable from the Customer account sidebar (Mua sắm) and avatar menu. It uses the account workspace at the existing `/customer/product-orders` URL; list/detail reads remain owner-scoped.

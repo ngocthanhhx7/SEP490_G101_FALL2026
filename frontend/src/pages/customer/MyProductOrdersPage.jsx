@@ -45,7 +45,7 @@ export function MyProductOrdersPage() {
   const selected = orders.find((order) => order.id === selectedId) ?? (selectedId === requested ? requestedOrder.data : null) ?? (!requested ? orders[0] : null);
 
   return <section className="pwc-shop" aria-labelledby="orders-title">
-    <h1 id="orders-title">Đơn hàng của tôi</h1>
+    <h1 id="orders-title">Đơn mua sản phẩm</h1>
     <p className="pwc-shop-lead">Các đơn mua sản phẩm của bạn. Chọn một đơn để xem chi tiết.</p>
     {placed && <p className="pwc-shop-alert pwc-shop-alert--ok" role="status">{productMessage('MSG59', { code: placed })}</p>}
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải đơn hàng…" />}

@@ -37,7 +37,7 @@ test('signed-in header reuses the hover/pinned account menu and hides guest acti
   expect(screen.queryByRole('link', { name: 'Đăng nhập', exact: true })).not.toBeInTheDocument();
   fireEvent.pointerEnter(trigger.closest('.pwc-avatar-menu'), { pointerType: 'mouse' });
   expect(trigger).toHaveAttribute('aria-expanded', 'true');
-  for (const [name, href] of [['Trung tâm tài khoản', '/account/profile'], ['Hồ sơ', '/account/profile'], ['Quản lý địa chỉ', '/account/addresses'], ['Quản lý hồ sơ các thú cưng', '/account/pets'], ['Đơn hàng', '/account/bookings'], ['Thông báo', '/account/notifications']]) {
+  for (const [name, href] of [['Trung tâm tài khoản', '/account/profile'], ['Hồ sơ', '/account/profile'], ['Quản lý địa chỉ', '/account/addresses'], ['Quản lý hồ sơ các thú cưng', '/account/pets'], ['Đơn chăm sóc', '/account/bookings'], ['Đơn mua sản phẩm', '/customer/product-orders'], ['Thông báo', '/account/notifications']]) {
     expect(screen.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
   }
   expect(trigger.querySelector('svg')).toBeInTheDocument();
