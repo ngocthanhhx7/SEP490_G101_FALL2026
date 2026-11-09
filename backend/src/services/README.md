@@ -1,5 +1,12 @@
 # Domain services
 
+`single-account-role.service.js` owns bounded existing-user inspection, the
+explicitly confirmed operator migration and validator-only recovery. It never
+selects between distinct operational roles or restores old whole-user/session
+data. Roles/authEpoch/version and affected session revocation share one transaction;
+native DDL has a separate durable journal. Deployment asserts the native contract.
+Runtime role changes remain in user-admin and signed-application services.
+
 `empty-accrual-queue-retirement.service.js` inspects/retires/restores one exact
 empty legacy queue with profile, namespace, metadata, freeze, confirmation and
 journal guards. It never changes the old16-store manifest or core records.

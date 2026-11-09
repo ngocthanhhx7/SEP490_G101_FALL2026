@@ -4,6 +4,7 @@ import { schedulingSourceIndexes } from './employee-scheduling/scheduling-storag
 import { referenceCatalogCollectionOptions, referenceCatalogIndexes } from '../models/reference-catalog.storage.js';
 import { CATALOG_VERSION_AUDITS, catalogProvenanceValidator } from '../models/catalog-change-provenance.model.js';
 import { rawOperationalCollections, rawOperationalCollectionOptions } from '../models/raw-operational.storage.js';
+import { singleAccountRoleOptions } from '../models/user-role.storage.js';
 
 const MAX_TIME_MS = 5000;
 const collationFields = ['locale', 'caseLevel', 'caseFirst', 'strength', 'numericOrdering',
@@ -70,6 +71,7 @@ export function buildStorageContractManifest({ connection, env = {}, catalogProv
     entry.options = { ...referenceCatalogCollectionOptions, collation: { locale: 'simple' } };
     entry.exactIndexes = true;
   }
+  if (stores.has('users')) Object.assign(store('users').options, singleAccountRoleOptions);
   if (catalogProvenance !== 'unasserted') {
     for (const definition of CATALOG_VERSION_AUDITS) {
       if (!stores.has(definition.target)) continue;

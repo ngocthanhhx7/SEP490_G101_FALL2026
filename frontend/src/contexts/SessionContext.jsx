@@ -3,13 +3,13 @@ import { pendingSessionAdapter } from '../services/session-adapter.js';
 import { SESSION_INVALIDATED_EVENT } from '../services/api-client.js';
 
 const SessionContext = createContext(null);
-const ROLES = ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'];
+import { isSingleRole } from '../utils/role-access.js';
 
 function validateSession(result) {
   if (!['guest', 'authenticated', 'pending'].includes(result?.status)) throw new Error('Invalid session result');
   if (result.status === 'authenticated') {
     const roles = Array.isArray(result.user?.roles) ? result.user.roles : [result.user?.role];
-    if (!roles.length || roles.some(role => !ROLES.includes(role))) throw new Error('Invalid session role');
+    if (!isSingleRole(roles)) throw new Error('Invalid session role');
   }
   return result;
 }

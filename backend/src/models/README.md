@@ -1,5 +1,11 @@
 # Persistence models
 
+User keeps the existing `roles` array field with exactly one supported role.
+`user-role.storage.js` declares the same narrow native users validator; new
+collections receive it through schema.collectionOptions. Existing validators are
+not replaced at startup. Historical audit role snapshots remain unchanged.
+See the [single-role migration/rollback plan](../../../doc/architecture/single-account-role-2026-11-09.md).
+
 `raw-operational.storage.js` declares narrow native counter contracts for six raw
 stores and versioned current payment/tax receipt shapes. Missing/null historical
 counters and unmarked history remain compatible; refunds has no asserted native
