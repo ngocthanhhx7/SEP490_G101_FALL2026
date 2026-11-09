@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
+import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
 import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
@@ -185,7 +186,7 @@ function Workspace({ role }) {
         label,
         to,
         group,
-        end: true
+        end: to !== '/account/bookings'
       }))}
     />
   );
@@ -275,6 +276,7 @@ export function AppRoutes({
             element={<CustomerFeaturePage page="pet" />}
           />
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
+          <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
         </Route>

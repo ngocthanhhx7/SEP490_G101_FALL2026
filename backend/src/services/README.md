@@ -113,3 +113,5 @@ Missing/null legacy owners are preserved, unknown types/conflicts block apply.
 `retired-compensation.service.js` is the EMPLOYEE compatibility facade for legacy
 settlement/earnings routes. It returns a retired-domain error after existing HTTP
 security middleware, and never registers or queries legacy compensation storage.
+
+Customer booking list reads a projected summary from the existing owner-scoped booking snapshot: service/pet names, saved schedule/count, created time and payment amount/state. It does not expose private access/care notes or calculate money. Detail adds snapshot pet names and assigned sitter display names through bounded identity lookups after ownership checks.
