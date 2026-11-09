@@ -110,7 +110,7 @@ function ProfileContent({ data, api, payrollApi, refresh }) {
         <div><dt>Khu vực mong muốn</dt><dd>{areas(data.application.workAreas)}</dd></div><div><dt>Ngày nộp hồ sơ</dt><dd>{managementDate(data.application.submittedAt)}</dd></div></dl> : <p>Chưa có hồ sơ ứng tuyển liên kết.</p>}</section>
     </div>}
     {tab === 'capability' && <div className="sitter-profile-sections"><section>{data.permissions.manageCapability && api.saveCapability && <SitterCapabilityForm data={data} api={api} onSaved={refresh} />}<h2>Năng lực nhận việc</h2>{data.capabilities ? <dl className="sitter-profile-facts">
-      <div><dt>Trạng thái năng lực</dt><dd>{data.capabilities.active ? 'Đã bật' : 'Chưa bật'}</dd></div><div><dt>Dịch vụ</dt><dd>{data.capabilities.services.map(s => sitterLabel(s.code ?? s.id)).join(', ') || 'Chưa thiết lập'}</dd></div>
+      <div><dt>Trạng thái năng lực</dt><dd>{data.capabilities.active ? 'Đã bật' : 'Chưa bật'}</dd></div><div><dt>Dịch vụ</dt><dd>{data.capabilities.services.map(s => s.name ?? sitterLabel(s.code ?? s.id)).join(', ') || 'Chưa thiết lập'}</dd></div>
       <div><dt>Loài</dt><dd>{data.capabilities.species.map(sitterLabel).join(', ')}</dd></div><div><dt>Số thú cưng tối đa / buổi</dt><dd>{data.capabilities.maxPets}</dd></div>
       <div><dt>Cân nặng tối đa / thú cưng</dt><dd>{data.capabilities.maxWeightKg} kg</dd></div><div><dt>Khu vực nhận việc</dt><dd>{areas(data.capabilities.areas)}</dd></div>
       <div><dt>Đặc điểm được hỗ trợ</dt><dd>{data.capabilities.allowedTraits.join(', ') || 'Chưa thiết lập'}</dd></div></dl> : <p>Chưa có năng lực nhận việc.</p>}</section>

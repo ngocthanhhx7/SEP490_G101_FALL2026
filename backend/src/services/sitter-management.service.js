@@ -151,7 +151,7 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
       serviceCatalog: services.map(s => ({ id: id(s._id), code: s.code, name: s.versions?.[0]?.name ?? s.code })),
       capabilities: capability ? { version: capability.version ?? 0, active: capability.active, species: capability.species,
         areas: user.areas, maxPets: capability.maxPets, maxWeightKg: capability.maxWeightKg,
-        allowedTraits: capability.allowedTraits ?? [], services: serviceIds.map(value => ({ id: id(value), code: services.find(s => id(s._id) === id(value))?.code ?? null })) } : null,
+        allowedTraits: capability.allowedTraits ?? [], services: serviceIds.map(value => { const service = services.find(s => id(s._id) === id(value)); return { id: id(value), code: service?.code ?? null, name: service?.versions?.[0]?.name ?? service?.code ?? null }; }) } : null,
       contracts: user.contracts.map(c => ({ employmentType: c.employmentType, weeklyMinutes: c.weeklyMinutes,
         effectiveAt: iso(c.effectiveAt), endsAt: iso(c.endsAt), version: c.version })),
       availability: availability ? { state: availability.state, version: availability.version, zone: availability.zone,
