@@ -1,3 +1,4 @@
+import { hasCompletedCustomerCare } from '../customer-care-history.service.js';
 import { randomInt } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
 import { Types } from 'mongoose';
@@ -72,7 +73,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         { $lookup: { from: 'sitterstatuses', localField: 'userId', foreignField: 'userId', as: 'status' } }, { $unwind: '$status' },
         { $match: { 'status.status': 'ACTIVE' } }, { $project: { _id: 0, id: { $toString: '$userId' }, displayName: '$user.displayName' } }
       ]).toArray();
-      return { facilityAddress: facilityAddress ?? null, sitters, paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
+      return { recommendationAllowed: !await hasCompletedCustomerCare(connection.db, actor.userId), facilityAddress: facilityAddress ?? null, sitters, paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
     },
     async confirm(actor, body, key) {
       customer(actor); const input = bookingCheckoutInput(body);

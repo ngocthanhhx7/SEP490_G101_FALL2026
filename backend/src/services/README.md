@@ -120,3 +120,5 @@ Missing/null legacy owners are preserved, unknown types/conflicts block apply.
 `retired-compensation.service.js` is the EMPLOYEE compatibility facade for legacy
 settlement/earnings routes. It returns a retired-domain error after existing HTTP
 security middleware, and never registers or queries legacy compensation storage.
+
+`customer-care-history.service.js` reads only owned COMPLETED care visits to determine whether Customer recommendations are available. It does not count product orders, scheduled visits or another Customer’s history.
