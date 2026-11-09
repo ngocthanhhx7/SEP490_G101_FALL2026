@@ -19,3 +19,5 @@ The legacy availability shape remains available without directory mode. Old chec
 ## Validation
 
 Native tests cover global score order, multiple pages beyond 20 employees, unknown scores, unpublished/reverse-direction exclusion, service/status filtering and owner completed-care history. Checkout tests verify owned quotes, visible unavailable employees and failure after occupancy changes. UI tests cover automatic directory opening, disabled employees, rating display, load-more retaining a choice and suppression of recommendations for returning Customers. Run lint, architecture, affected tests and frontend build; final CI repeats full suites.
+
+Integration regression: returning Customers retain explicit PawWorld-arranged dispatch without AI advice; boarding defaults to that option because staff must split care shifts before a directed employee can be selected. Ordinary services still default to direct choice. This preserves the approved boarding fulfillment policy and does not enable Customer AI recommendations after completed care.

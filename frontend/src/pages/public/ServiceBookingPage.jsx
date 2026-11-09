@@ -79,7 +79,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
   const pets = setup.data?.pets.filter(pet => service.species.includes(pet.species)) ?? [];
   const addresses = setup.data?.addresses ?? [];
   const recommendationAllowed = setup.data?.options.recommendationAllowed === true;
-  useEffect(() => { if (setup.status === 'success' && !recommendationAllowed) setMode('DIRECT'); }, [setup.status, recommendationAllowed]);
+  useEffect(() => { if (setup.status === 'success' && !recommendationAllowed) setMode(boarding ? 'SYSTEM' : 'DIRECT'); }, [setup.status, recommendationAllowed, boarding]);
   useEffect(() => { if (step === 1 && mode === 'DIRECT' && quote && !boarding) void find('DIRECT'); }, [step, mode, quote]);
   const quoteAlive = quote && Date.parse(quote.expiresAt) > Date.now();
   useEffect(() => () => { generation.current++; }, []);
@@ -172,8 +172,8 @@ export function BookingFlow({ service, api, matching, onBooked }) {
       <button className="pwc-button pwc-button-primary" disabled={busy || !pets.length || needsAddress && !addresses.length || !needsAddress && !setup.data.options.facilityAddress}>{busy ? 'Đang lấy báo giá…' : 'Tiếp tục'}<ArrowRight size={17} /></button>
     </form>}
     {step === 1 && <section><h2>Bạn muốn chọn pet sitter theo cách nào?</h2>
-      <div className="booking-modes">{(recommendationAllowed ? [['SYSTEM', Users, 'Hệ thống đề xuất'], ['DIRECT', UserRound, 'Chỉ định pet sitter']] : [['DIRECT', UserRound, 'Chỉ định pet sitter']]).map(([value, Icon, label]) => <label key={value} className={mode === value ? 'is-selected' : ''}><input type="radio" name="booking-mode" value={value} checked={mode === value} disabled={busy} onChange={() => { generation.current++; setMode(value); setShortlists(null); setAvailable(null); setSelected(''); setError(''); }} /><Icon size={22} /><strong>{label}</strong></label>)}</div>
-      {setup.data?.options.recommendationAllowed === false && <p>Bạn đã hoàn tất dịch vụ chăm sóc. Hãy chọn sitter bạn muốn trong danh sách đăng ký dịch vụ, theo điểm đánh giá từ cao xuống thấp.</p>}
+      <div className="booking-modes">{[['SYSTEM', Users, recommendationAllowed ? 'Hệ thống đề xuất' : 'PawWorld sắp xếp'], ['DIRECT', UserRound, 'Chỉ định pet sitter']].map(([value, Icon, label]) => <label key={value} className={mode === value ? 'is-selected' : ''}><input type="radio" name="booking-mode" value={value} checked={mode === value} disabled={busy} onChange={() => { generation.current++; setMode(value); setShortlists(null); setAvailable(null); setSelected(''); setError(''); }} /><Icon size={22} /><strong>{label}</strong></label>)}</div>
+      {setup.data?.options.recommendationAllowed === false && <p>Chọn sitter bạn muốn từ danh sách đăng ký dịch vụ, xếp theo điểm đánh giá; hoặc để PawWorld điều phối ca chăm sóc.</p>}
       {mode === 'SYSTEM' ? <><p>PawWorld kiểm tra lịch và gửi lời mời cho nhân viên phù hợp. Ca được phân công sau khi sitter nhận lời.</p>
         {canMatch && recommendationAllowed && <button type="button" className="pwc-button pwc-button-secondary" disabled={busy} onClick={() => find('AI')}><Sparkles size={17} />{busy ? 'Đang tìm…' : 'Xem gợi ý cho lịch này'}</button>}
         {!canMatch && <p>Hệ thống sắp xếp người chăm sóc theo lịch và phạm vi dịch vụ.</p>}

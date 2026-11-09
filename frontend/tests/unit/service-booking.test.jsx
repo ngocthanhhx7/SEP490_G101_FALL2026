@@ -12,8 +12,8 @@ function fixture() {
     availability: jest.fn(async () => ({ sitters: [{ id: 'sitter', displayName: 'Sitter phù hợp', eligible: true, rating: null, reviewCount: 0 }], complete: true, nextPage: null })),
     confirm: jest.fn(async () => ({ id: 'booking' })) };
 }
-async function chooseSchedule(api, matching = {}, onBooked = jest.fn()) {
-  render(<MemoryRouter><BookingFlow service={service} api={api} matching={matching} onBooked={onBooked} /></MemoryRouter>);
+async function chooseSchedule(api, matching = {}, onBooked = jest.fn(), selectedService = service) {
+  render(<MemoryRouter><BookingFlow service={selectedService} api={api} matching={matching} onBooked={onBooked} /></MemoryRouter>);
   fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
   fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
   fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
@@ -164,4 +164,18 @@ test('direct selection requires eligibility for every visit while still showing 
   expect(screen.getByText('Nghỉ trong ngày đã chọn.')).toBeVisible();
   expect(screen.getByText('Xem lại đơn')).toBeDisabled();
   expect(api.confirm).not.toHaveBeenCalled();
+});
+
+
+test('returning Customer can book boarding through staff-arranged shifts without requesting AI advice', async () => {
+  const api = fixture(), matching = { recommend: jest.fn() };
+  api.checkoutOptions.mockResolvedValue({ data: { recommendationAllowed: false } });
+  await chooseSchedule(api, matching, jest.fn(), { ...service, price: { unitLabel: 'ngày' } });
+  expect(screen.getByLabelText('PawWorld sắp xếp')).toBeChecked();
+  expect(screen.queryByText('Xem gợi ý cho lịch này')).not.toBeInTheDocument();
+  await reviewAndConfirm(); await waitFor(() => expect(api.confirm).toHaveBeenCalled());
+  expect(api.confirm.mock.calls[0][0].visits[0]).toMatchObject({ bookingMode: 'SYSTEM' });
+  expect(api.confirm.mock.calls[0][0].visits[0]).not.toHaveProperty('matchId');
+  expect(matching.recommend).not.toHaveBeenCalled();
+  expect(api.availability).not.toHaveBeenCalled();
 });
