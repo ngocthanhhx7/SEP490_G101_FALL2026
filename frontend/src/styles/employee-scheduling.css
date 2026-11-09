@@ -49,7 +49,7 @@
 .dispatch-detail-dialog .dispatch-candidate-list { display:grid; grid-template-columns:minmax(0,1fr); padding:0; margin:20px 0; border:0; min-width:0; }
 .dispatch-candidate-list legend { font-weight:700; margin-bottom:12px; }
 .dispatch-detail-dialog .dispatch-candidate { display:flex; flex-direction:row; align-items:center; gap:14px; width:100%; max-width:none; min-height:88px; padding:16px; margin:0; box-sizing:border-box; }
-.dispatch-detail-dialog .dispatch-candidate input[type='radio'] { width:20px; height:20px; min-height:20px; min-width:20px; padding:0; margin:0; flex:0 0 20px; accent-color:#503178; }
+.pwc-dialog.dispatch-detail-dialog .dispatch-candidate input[type='radio'] { width:20px; height:20px; min-height:20px; min-width:20px; padding:0; margin:0; flex:0 0 20px; accent-color:#503178; }
 .dispatch-candidate > span { min-width:0; flex:1; }.dispatch-selected-label { margin-left:10px; font-size:.8rem; font-weight:700; color:#503178; }.dispatch-candidate small { color:#63576d; line-height:1.5; }
 .dispatch-blocked-section summary { min-height:44px; cursor:pointer; font-weight:700; }.dispatch-blocked-list { grid-template-columns:minmax(0,1fr); }.dispatch-picker-actions { padding-top:18px; border-top:1px solid #e7dff0; }.dispatch-picker-actions > button { flex:1 1 200px; }
 @media(max-width:760px) { .pwc-dialog.dispatch-detail-dialog { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); }.dispatch-detail-layout { grid-template-columns:minmax(0,1fr); gap:20px; }.dispatch-detail-dialog > .pwc-dialog-header,.dispatch-detail-dialog > .pwc-dialog-content { padding:16px; } }
