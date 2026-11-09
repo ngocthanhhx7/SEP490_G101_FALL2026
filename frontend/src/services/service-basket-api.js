@@ -17,7 +17,8 @@ export function createServiceBasketApi(options) {
       if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
       const value = response.data;
       if (!value || !Array.isArray(value.sitters) || typeof value.complete !== 'boolean' ||
-        value.sitters.some(row => !row || typeof row.id !== 'string' || typeof row.displayName !== 'string')) throw new ApiError('INVALID_RESPONSE');
+        value.sitters.some(row => !row || typeof row.id !== 'string' || typeof row.displayName !== 'string' || (body.directory === true && (typeof row.eligible !== 'boolean' || !Number.isSafeInteger(row.reviewCount) || row.reviewCount < 0 || (row.reviewCount === 0 ? row.rating !== null : !Number.isFinite(row.rating) || row.rating < 1 || row.rating > 5))))) throw new ApiError('INVALID_RESPONSE');
+      if (body.directory === true && value.nextPage !== null && (!Number.isSafeInteger(value.nextPage) || value.nextPage !== (body.page ?? 1) + 1)) throw new ApiError('INVALID_RESPONSE');
       return value;
     },
     async addresses({ signal } = {}) { return request('/pet-care/addresses', { signal }); },

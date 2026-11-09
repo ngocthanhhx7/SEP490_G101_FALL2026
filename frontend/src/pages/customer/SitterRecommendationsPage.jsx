@@ -10,7 +10,7 @@ import { RecommendationCheckout } from './RecommendationCheckout.jsx';
 import './sitter-recommendations.css';
 
 function message(error) {
-  return ({ ROUTING_UNAVAILABLE: 'Chưa lấy được đường đi. Hãy thử lại sau.',
+  return ({ CUSTOMER_CARE_HISTORY_EXISTS: 'Bạn đã hoàn tất dịch vụ chăm sóc. Mở dịch vụ muốn đặt để chọn trực tiếp sitter theo điểm đánh giá.', ROUTING_UNAVAILABLE: 'Chưa lấy được đường đi. Hãy thử lại sau.',
     RANKING_POLICY_UNAVAILABLE: 'Dịch vụ gợi ý đang chờ cấu hình xếp hạng.',
     CARE_INFORMATION_REQUIRED: 'Cần xác nhận thông tin chăm sóc của thú cưng.',
     RESOURCE_NOT_FOUND: 'Thông tin đã thay đổi hoặc không còn thuộc tài khoản này. Hãy tải lại.',

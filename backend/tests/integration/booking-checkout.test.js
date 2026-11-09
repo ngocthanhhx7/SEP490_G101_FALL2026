@@ -191,12 +191,16 @@ test('directed availability uses authoritative eligibility and checkout rejects 
   const q = await quote('home-care', 1), body = input(q), visit = body.visits[0];
   const result = await availability.search(owner, { quoteId: q.quoteId, visit });
   expect(result.sitters).toContainEqual({ id: String(sitterId), displayName: 'Synthetic available sitter' });
+  const directory = await availability.search(owner, { quoteId: q.quoteId, visit, directory: true, page: 1 });
+  expect(directory.sitters).toContainEqual(expect.objectContaining({ id: String(sitterId), eligible: true, rating: null, reviewCount: 0 }));
   await expect(availability.search(other, { quoteId: q.quoteId, visit })).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
   const before = await connection.collection('bookings').countDocuments();
   await connection.collection('visits').insertOne({ _id: oid(), sitterId, state: 'ASSIGNED', startAt: new Date(visit.startAt),
     endAt: new Date(Date.parse(visit.startAt)+3600000), location: 'HOME', addressId: address._id, snapshots: { point: address.point } });
   const unavailable = await availability.search(owner, { quoteId: q.quoteId, visit });
   expect(unavailable.sitters.map(row => row.id)).not.toContain(String(sitterId));
+  const full = await availability.search(owner, { quoteId: q.quoteId, visit, directory: true });
+  expect(full.sitters).toContainEqual(expect.objectContaining({ id: String(sitterId), eligible: false, unavailableReason: 'SLOT_UNAVAILABLE' }));
   await expect(checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(sitterId) }] }, 'directed-became-unavailable')).rejects.toMatchObject({ code: 'SLOT_UNAVAILABLE' });
   expect(await connection.collection('bookings').countDocuments()).toBe(before);
   expect((await checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'SYSTEM' }] }, 'system-without-selected-sitter')).state).toBe('DISPATCH_PENDING');
@@ -317,4 +321,13 @@ test('expired and uncertain provider requests never create another link or reviv
     .toMatchObject({ status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_EXPIRED' });
   expect((await checkout.read(owner, booking.id)).state).toBe('PAYMENT_EXPIRED');
   await expect(checkout.paymentLink(owner, booking.id, 'link-expired-001')).rejects.toMatchObject({ code: 'INVALID_STATE' });
+});
+
+
+test('checkout options offer recommendations only before the Customer has completed care', async () => {
+  expect((await checkout.options(owner)).recommendationAllowed).toBe(true);
+  await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(other.userId), state: 'COMPLETED' });
+  expect((await checkout.options(owner)).recommendationAllowed).toBe(true);
+  await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(owner.userId), state: 'COMPLETED' });
+  expect((await checkout.options(owner)).recommendationAllowed).toBe(false);
 });
