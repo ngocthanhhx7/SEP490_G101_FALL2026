@@ -4,52 +4,91 @@ import { Link } from 'react-router-dom';
 import { Button, Notice, Select } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterApplicationAdminApi } from '../../services/sitter-application-api.js';
+import { formatPhone } from '../../utils/product-format.js';
 import './sitter-applications.css';
 
 const STATES = [['', 'Tất cả hồ sơ'], ['PENDING', 'Chờ xem xét'], ['UNDER_REVIEW', 'Đang thẩm định'],
   ['INTERVIEW', 'Phỏng vấn'], ['APPROVED', 'Đã duyệt'], ['REJECTED', 'Đã từ chối']];
+const TABS = [['ALL', 'Tất cả'], ['PENDING', 'Chờ duyệt'], ['UNDER_REVIEW', 'Đang thẩm định'],
+  ['INTERVIEW', 'Phỏng vấn'], ['APPROVED', 'Đã duyệt'], ['REJECTED', 'Từ chối']];
 const EMPLOYMENT = { FULL_TIME: 'Toàn thời gian', PART_TIME: 'Bán thời gian' };
-function StateLabel({ state }) {
-  return <span className={`sitter-app-state sitter-app-state--${state.toLowerCase()}`}>{STATES.find(([value]) => value === state)?.[1] ?? state}</span>;
+const DATE_FORMAT = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh'
+});
+const TIME_FORMAT = new Intl.DateTimeFormat('vi-VN', {
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Ho_Chi_Minh'
+});
+const SEARCH_LABEL = 'Tìm theo tên, số điện thoại hoặc mã';
+const EMPTY_MESSAGE = 'Không có đơn ứng tuyển phù hợp.';
+
+function StateLabel({ state, label }) {
+  return <span className={`sitter-app-state sitter-app-state--${state.toLowerCase()}`}>{label ?? STATES.find(([value]) => value === state)?.[1] ?? state}</span>;
 }
-function dateText(value) {
-  return value ? new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(value)) : '—';
+
+function phoneText(value) {
+  if (!value) return '—';
+  return formatPhone(value.replace(/^\+84(?=\d{9}$)/u, '0'));
 }
+
+function SortButton({ sortOrder, onClick, className }) {
+  return <button type="button" className={className} onClick={onClick}>
+    Ngày gửi <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+  </button>;
+}
+
 export function SitterApplicationsPage({ api = sitterApplicationAdminApi }) {
   const [stateFilter, setStateFilter] = useState('PENDING');
   const [search, setSearch] = useState('');
   const [employmentType, setEmploymentType] = useState('');
+  const [serviceArea, setServiceArea] = useState('');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [cursor, setCursor] = useState('');
   const [history, setHistory] = useState([]);
-  const load = useCallback(({ signal }) => api.list({ signal, state: stateFilter, search, employmentType, cursor }), [api, stateFilter, search, employmentType, cursor]);
+  const [overview, setOverview] = useState({});
+  const load = useCallback(async ({ signal }) => {
+    const result = await api.list({ signal, state: stateFilter, search, employmentType, serviceArea, sortOrder, cursor });
+    if (!signal.aborted && result.data) {
+      setOverview({ summary: result.data.summary, serviceAreas: result.data.serviceAreas });
+    }
+    return result;
+  }, [api, stateFilter, search, employmentType, serviceArea, sortOrder, cursor]);
   const resource = useApiResource(load);
   const data = resource.data;
-  function filter(setter, value) { setter(value); setCursor(''); setHistory([]); }
-  function reset() { setStateFilter(''); setSearch(''); setEmploymentType(''); setCursor(''); setHistory([]); }
+  const { summary, serviceAreas = [] } = resource.status === 'loading' ? overview : data ?? {};
+
+  function firstPage() { setCursor(''); setHistory([]); }
+  function filter(setter, value) { setter(value); firstPage(); }
+  function reset() { setStateFilter('ALL'); setSearch(''); setEmploymentType(''); setServiceArea(''); firstPage(); }
+  function toggleSort() { setSortOrder(previous => previous === 'asc' ? 'desc' : 'asc'); firstPage(); }
   function nextPage() { setHistory(previous => [...previous, cursor]); setCursor(data.nextCursor); }
   function previousPage() { setCursor(history.at(-1)); setHistory(previous => previous.slice(0, -1)); }
-  return <main className="sitter-app-admin" aria-labelledby="sitter-app-admin-title">
+
+  return <main className="sitter-app-admin sitter-app-list" aria-labelledby="sitter-app-admin-title">
     <header className="sitter-app-admin__header">
-      <div><p className="sitter-app-admin__eyebrow">Paw World Care · Tuyển dụng</p>
-        <h1 id="sitter-app-admin-title">Hồ sơ ứng tuyển Sitter</h1>
-        <p>Theo dõi ứng viên từ tiếp nhận, thẩm định và phỏng vấn đến quyết định tuyển dụng.</p></div>
+      <div>
+        <h1 id="sitter-app-admin-title">Đơn ứng tuyển</h1>
+        <p>Đơn gửi từ form ứng tuyển người chăm sóc. Mở một đơn để duyệt hoặc từ chối.</p>
+      </div>
       <Button variant="secondary" onClick={resource.retry}>Làm mới danh sách</Button>
     </header>
     <section className="sitter-app-overview" aria-label="Tổng quan toàn bộ hồ sơ">
-      {STATES.map(([value, label]) => <button type="button" key={value} aria-pressed={stateFilter === value}
+      {TABS.map(([value, label]) => <button type="button" key={value} aria-pressed={stateFilter === value}
         onClick={() => filter(setStateFilter, value)}>
-        <span>{label}</span><strong>{value ? data?.summary?.byState?.[value] ?? '—' : data?.summary?.total ?? '—'}</strong>
+        <span>{label}</span>{' '}<strong>{(value === 'ALL' ? summary?.total : summary?.byState?.[value]) ?? '—'}</strong>
       </button>)}
     </section>
     <section className="sitter-app-admin__filters" aria-label="Bộ lọc hồ sơ">
-      <label className="sitter-app-admin__search" htmlFor="sitter-app-search"><span>Tìm theo tên</span>
-        <input id="sitter-app-search" type="search" maxLength="100" placeholder="Nhập tên ứng viên…" value={search}
-          onChange={event => filter(setSearch, event.target.value)} /></label>
-      <Select label="Trạng thái" value={stateFilter} onChange={event => filter(setStateFilter, event.target.value)}>
-        {STATES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+      <label className="sitter-app-admin__search" htmlFor="sitter-app-search"><span className="pwc-visually-hidden">{SEARCH_LABEL}</span>
+        <input id="sitter-app-search" type="search" maxLength={50} placeholder={SEARCH_LABEL} value={search}
+          onChange={event => filter(setSearch, event.target.value)} />
+      </label>
+      <Select label="Khu vực phục vụ" value={serviceArea} onChange={event => filter(setServiceArea, event.target.value)}>
+        <option value="">Tất cả khu vực phục vụ</option>
+        {serviceAreas.map(area => <option key={area.id} value={area.id}>{area.name}</option>)}
       </Select>
       <Select label="Hình thức làm việc" value={employmentType} onChange={event => filter(setEmploymentType, event.target.value)}>
-        <option value="">Tất cả hình thức</option>{Object.entries(EMPLOYMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        <option value="">Tất cả hình thức</option>
+        {Object.entries(EMPLOYMENT).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </Select>
       <Button variant="ghost" onClick={reset}>Xóa bộ lọc</Button>
     </section>
@@ -59,31 +98,48 @@ export function SitterApplicationsPage({ api = sitterApplicationAdminApi }) {
     {resource.status === 'error' && <Notice state="error" title="Tải danh sách thất bại">Chưa thể tải hồ sơ. Kiểm tra phiên đăng nhập rồi thử lại.
       <Button variant="secondary" onClick={resource.retry}>Thử lại</Button></Notice>}
     {resource.status === 'success' && <section className="sitter-app-directory" aria-label="Danh sách hồ sơ ứng tuyển">
-      <div className="sitter-app-directory__heading"><h2>Danh sách ứng viên</h2>
-        <p>{Number.isSafeInteger(data.totalMatching) ? `${data.totalMatching} hồ sơ phù hợp` : `${data.applications.length} hồ sơ trên trang`} · Mới nhất trước</p></div>
-      {!data.applications.length ? <Notice state="empty" title="Chưa có hồ sơ">Không tìm thấy hồ sơ phù hợp bộ lọc.</Notice>
-        : <table className="sitter-app-table"><caption className="pwc-visually-hidden">Hồ sơ ứng tuyển, liên hệ được che và trạng thái xét duyệt</caption>
-          <thead><tr><th scope="col">Ứng viên</th><th scope="col">Công việc mong muốn</th><th scope="col">Trạng thái</th><th scope="col">Thời gian</th><th scope="col">Thao tác</th></tr></thead>
+      <div className="sitter-app-directory__heading">
+        <p>{Number.isSafeInteger(data.totalMatching) ? `${data.totalMatching} hồ sơ phù hợp` : `${data.applications.length} hồ sơ trên trang`}</p>
+        <SortButton sortOrder={sortOrder} onClick={toggleSort} className="sitter-app-sort sitter-app-sort--mobile" />
+      </div>
+      {!data.applications.length ? <Notice state="empty" title={EMPTY_MESSAGE} />
+        : <table className="sitter-app-table">
+          <caption className="pwc-visually-hidden">Danh sách đơn ứng tuyển người chăm sóc</caption>
+          <thead><tr>
+            <th scope="col">Mã</th>
+            <th scope="col">Họ tên</th>
+            <th scope="col">Số điện thoại</th>
+            <th scope="col">Khu vực phục vụ</th>
+            <th scope="col" aria-sort={sortOrder === 'asc' ? 'ascending' : 'descending'}>
+              <SortButton sortOrder={sortOrder} onClick={toggleSort} className="sitter-app-sort" />
+            </th>
+            <th scope="col">Trạng thái</th>
+            <th scope="col">Xem</th>
+          </tr></thead>
           <tbody>{data.applications.map(application => <tr key={application.id}>
-            <td data-label="Ứng viên"><Link className="sitter-app-name" to={`/admin/sitter-applications/${application.id}`}>{application.displayName}</Link>
-              <small>{application.contact.maskedValue} · {application.contact.channel === 'EMAIL' ? 'Email' : 'Điện thoại'}</small>
-              <small>{application.ageEligible === true ? 'Đủ điều kiện tuổi' : 'Tuổi chưa xác nhận'}</small></td>
-            <td data-label="Công việc"><strong>{EMPLOYMENT[application.employmentType] ?? 'Chưa cung cấp hình thức'}</strong>
-              <small>{application.requestedServices?.join(' · ') || 'Chưa có dịch vụ'}</small>
-              <small>Khu vực: {application.workAreas.join(' · ')}</small></td>
-            <td data-label="Trạng thái"><StateLabel state={application.state} /></td>
-            <td data-label="Thời gian"><small>Nộp: <time dateTime={application.createdAt}>{dateText(application.createdAt)}</time></small>
-              <small>Cập nhật: <time dateTime={application.updatedAt}>{dateText(application.updatedAt)}</time></small></td>
-            <td data-label="Thao tác"><Link className="sitter-app-open" to={`/admin/sitter-applications/${application.id}`} aria-label={`Xem hồ sơ ${application.displayName}`}>Xem hồ sơ →</Link></td>
+            <td data-label="Mã">{application.applicationCode ?? '—'}</td>
+            <td data-label="Họ tên"><strong>{application.displayName}</strong></td>
+            <td data-label="Số điện thoại">{phoneText(application.phoneNumber)}</td>
+            <td data-label="Khu vực phục vụ">{application.workAreas.join(', ') || '—'}</td>
+            <td data-label="Ngày gửi"><time dateTime={application.createdAt}>
+              {DATE_FORMAT.format(new Date(application.createdAt))} {TIME_FORMAT.format(new Date(application.createdAt))}
+            </time></td>
+            <td data-label="Trạng thái">
+              <StateLabel state={application.state} label={TABS.find(([value]) => value === application.state)?.[1]} />
+              {application.state === 'REJECTED' && application.reapplyAt && <small>
+                Nộp lại từ <time dateTime={application.reapplyAt}>{DATE_FORMAT.format(new Date(application.reapplyAt))}</time>
+              </small>}
+            </td>
+            <td data-label="Xem"><Link className="sitter-app-open" to={`/admin/sitter-applications/${application.id}`}
+              aria-label={`Xem hồ sơ ${application.displayName}`}>Xem</Link></td>
           </tr>)}</tbody>
         </table>}
-      <CursorPagination page={history.length + 1} label="hồ sơ" hasNext onFirst={() => { setCursor(''); setHistory([]); }}
- onPrevious={previousPage} onNext={nextPage}
- previousDisabled={!history.length} nextDisabled={!data.nextCursor}
- previousLabel={"Trang trước"} nextLabel={"Trang sau"} />
-      <p className="sitter-app-private-note">Liên hệ được che trong danh sách. Chỉ mở giấy tờ riêng tư khi cần thẩm định; mọi lượt xem đều được ghi nhận.</p>
+      <CursorPagination page={history.length + 1} label="hồ sơ" hasNext={Boolean(data.nextCursor)}
+        onFirst={firstPage} onPrevious={previousPage} onNext={nextPage}
+        previousDisabled={!history.length} nextDisabled={!data.nextCursor}
+        previousLabel="Trang trước" nextLabel="Trang sau" />
     </section>}
-    {resource.status === 'empty' && <Notice state="empty" title="Chưa có hồ sơ">Không tìm thấy hồ sơ phù hợp bộ lọc.</Notice>}
+    {resource.status === 'empty' && <Notice state="empty" title={EMPTY_MESSAGE} />}
   </main>;
 }
 export { StateLabel };

@@ -202,7 +202,7 @@ describe('P16 public sitter application submission', () => {
 });
 
 describe('P16 Admin application review and private documents', () => {
-  test('denies Customer and unauthenticated reads; Admin receives no raw identity number', async () => {
+  test('GBR-02 denies Customer and unauthenticated reads; Admin receives no raw identity number', async () => {
     const events = [];
     const application = app({ logger: event => events.push(event) });
     const submitted = await submit(application, applicationBody()).expect(201);
@@ -512,6 +512,80 @@ test('Admin overview counts all applications while filters and cursor pagination
   await request(application).get('/api/v1/applications?employmentType=INVALID').set('Cookie', admin.cookie).expect(422);
   await request(application).get('/api/v1/applications?employmentType=PART_TIME&limit=1&cursor=' + encodeURIComponent(first.nextCursor))
     .set('Cookie', admin.cookie).expect(422);
+});
+
+test('UC-17 keeps legacy API defaults and pages by submission date and ID in both directions', async () => {
+  const application = app();
+  const admin = await login();
+  const Applicant = sitterApplicationModels(connection).SitterApplication;
+  const ids = [];
+  for (let index = 0; index < 22; index++) {
+    const submitted = await submit(application, applicationBody({
+      contactValue: `candidate${index}@example.test`,
+      identityNumber: String(100000000000 + index)
+    }), `application-list-${index}`).expect(201);
+    ids.push(submitted.body.data.id);
+  }
+  // Make the order deterministic even when the page boundary has the same submitted timestamp.
+  await Applicant.collection.updateMany({}, { $set: { createdAt: new Date('2026-10-14T00:00:00Z') } });
+  ids.sort();
+  await Applicant.findByIdAndUpdate(ids[0], { state: 'REJECTED' });
+  const read = query => request(application).get('/api/v1/applications').query(query).set('Cookie', admin.cookie);
+  const legacy = (await read({}).expect(200)).body.data;
+  expect(legacy.totalMatching).toBe(22);
+  expect(legacy.applications[0].id).toBe(ids.at(-1));
+  for (const sortOrder of ['asc', 'desc']) {
+    const ordered = sortOrder === 'asc' ? ids.slice(1) : ids.slice(1).reverse();
+    const first = (await read({ state: 'PENDING', sortOrder }).expect(200)).body.data;
+    expect(first.applications.map(row => row.id)).toEqual(ordered.slice(0, 20));
+    const second = (await read({ state: 'PENDING', sortOrder, cursor: first.nextCursor }).expect(200)).body.data;
+    expect(second.applications.map(row => row.id)).toEqual(ordered.slice(20));
+    expect(second.nextCursor).toBeNull();
+    await read({ state: 'PENDING', sortOrder: sortOrder === 'asc' ? 'desc' : 'asc', cursor: first.nextCursor }).expect(422);
+  }
+});
+
+test('UC-17 searches literal name, original code and phone; area and state compose without changing tab totals', async () => {
+  const application = app();
+  const admin = await login();
+  const phone = (await submit(application, applicationBody({
+    displayName: 'Nguyễn [A]', contactChannel: 'PHONE', contactValue: '+84912001234',
+    workAreas: ['Cầu Giấy', 'Đống Đa']
+  })).expect(201)).body.data;
+  const email = (await submit(application, applicationBody({
+    displayName: 'Nguyễn B', contactValue: 'another@example.test', identityNumber: '012345678902',
+    workAreas: ['DISTRICT_CAU_GIAY']
+  }), 'second-application').expect(201)).body.data;
+  const deadline = '2026-11-13T03:00:00.000Z';
+  await sitterApplicationModels(connection).SitterApplication.findByIdAndUpdate(email.id, {
+    state: 'REJECTED', reapplyAt: new Date(deadline)
+  });
+  const read = query => request(application).get('/api/v1/applications').query(query).set('Cookie', admin.cookie);
+  const all = (await read({}).expect(200)).body.data;
+  expect(all.serviceAreas).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: 'DISTRICT_CAU_GIAY', name: 'Khu vực Cầu Giấy' })
+  ]));
+  for (const search of ['[a]', phone.applicationCode.slice(3, 18), '0912 001 234', '+84912001234', '1234']) {
+    const response = await read({ search }).expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body.data.summary).toEqual(all.summary);
+    expect(response.body.data.totalMatching).toBe(1);
+    expect(response.body.data.applications).toEqual([expect.objectContaining({
+      id: phone.id, phoneNumber: '+84912001234', applicationCode: phone.applicationCode
+    })]);
+  }
+  const area = (await read({ serviceArea: 'DISTRICT_CAU_GIAY' }).expect(200)).body.data;
+  expect(area.applications.map(row => row.id)).toEqual(expect.arrayContaining([phone.id, email.id]));
+  const combined = (await read({ state: 'REJECTED', search: 'Nguyễn', serviceArea: 'DISTRICT_CAU_GIAY' }).expect(200)).body.data;
+  // GBR-25 uses the persisted deadline. Email-only applications have no submitted phone.
+  expect(combined.applications).toEqual([expect.objectContaining({ id: email.id, reapplyAt: deadline, phoneNumber: null })]);
+  const empty = (await read({ state: 'REJECTED', search: 'Nguyễn', serviceArea: 'DISTRICT_DONG_DA' }).expect(200)).body.data;
+  expect(empty.applications).toEqual([]);
+  expect(empty.totalMatching).toBe(0);
+  expect(empty.summary).toEqual(all.summary);
+  await read({ search: 'a'.repeat(51) }).expect(422);
+  await read({ serviceArea: 'unknown' }).expect(422);
+  await read({ sortOrder: 'newest' }).expect(422);
 });
 
 test('private document provider errors return a controlled JSON error instead of redirecting to XML', async () => {

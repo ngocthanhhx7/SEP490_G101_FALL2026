@@ -1,6 +1,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { canonicalizeContact } from './contact-crypto.service.js';
+import { normalizeVietnamPhone } from './sms-template.service.js';
+import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
 import { AppError } from '../utils/app-error.js';
 import { isSingleRole } from '../utils/roles.js';
 import { identityModels } from '../models/identity.model.js';
@@ -153,6 +155,38 @@ function maskContact(channel, value) {
   return `${value.startsWith('+') ? '+' : ''}••••••${digits.slice(-4)}`;
 }
 
+const LIST_SERVICE_AREAS = DEMO_WORK_AREAS.filter(area => area.level !== 'CITY')
+  .map(area => ({ id: area.code, name: area.label }));
+const LIST_FIELDS = 'displayName contactChannel ageEligible employmentType requestedServices workAreas state reapplyAt createdAt updatedAt version +contactCiphertext +submissionKeyDigest';
+
+function receiptCode(secret, submissionKeyDigest) {
+  return createHmac('sha256', secret).update(`application-receipt\0${submissionKeyDigest}`).digest('base64url');
+}
+
+function areaFilter(area) {
+  const names = [area.id, area.name, area.name.replace(/^Khu vực /u, '')];
+  return { workAreas: { $in: names.map(name => new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')) } };
+}
+
+function phoneSearchTerm(search) {
+  const compact = search.replace(/[\s().-]/g, '');
+  return /^\+?\d+$/u.test(compact) ? normalizeVietnamPhone(search) ?? compact : null;
+}
+
+function phoneMatches(phone, term) {
+  const local = phone.startsWith('+84') ? `0${phone.slice(3)}` : phone;
+  return phone.includes(term) || local.includes(term);
+}
+
+function isAfterCursor(row, position, direction) {
+  if (!position) return true;
+  const byDate = row.createdAt - position.createdAt;
+  const id = row._id.toString();
+  const cursorId = position.id.toString();
+  const comparison = byDate || (id > cursorId ? 1 : id < cursorId ? -1 : 0);
+  return comparison * direction > 0;
+}
+
 function assertAdmin(actor) {
   if (!actor?.userId || actor.state !== 'ACTIVE' || !isSingleRole(actor.roles) || actor.roles[0] !== 'ADMIN') {
     throw new AppError(actor?.userId ? 403 : 401, actor?.userId ? 'FORBIDDEN' : 'UNAUTHENTICATED', 'Action is not permitted');
@@ -212,8 +246,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     if (!ageEligible) throw new AppError(422, 'AGE_REQUIREMENT_NOT_MET', 'Applicant must be at least 18 years old');
     const key = validateIdempotencyKey(idempotencyKey);
     const submissionKeyDigest = hash(lookupSecret, `application-submit\0${contact.lookupKey}\0${key}`);
-    const applicationCode = createHmac('sha256', lookupSecret)
-      .update(`application-receipt\0${submissionKeyDigest}`).digest('base64url');
+    const applicationCode = receiptCode(lookupSecret, submissionKeyDigest);
     const trackingCodeDigest = hash(lookupSecret, `application-tracking\0${applicationCode}`);
     const normalizedPayload = {
       displayName, contactChannel, contactLookupKey: contact.lookupKey, identityLookupKey,
@@ -323,46 +356,85 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
 
   async function list({ query, actor }) {
     assertAdmin(actor);
-    const allowed = new Set(['state', 'limit', 'cursor', 'search', 'employmentType']);
+    const allowed = new Set(['state', 'limit', 'cursor', 'search', 'employmentType', 'sortOrder', 'serviceArea']);
     if (!query || typeof query !== 'object' || Array.isArray(query) || Object.keys(query).some(key => !allowed.has(key))) invalid();
-    const state = query.state ?? '';
+    const state = query.state === 'ALL' ? '' : query.state ?? '';
     const search = query.search ?? '';
     const limitText = query.limit ?? '20';
     const cursorValue = query.cursor ?? '';
     const employmentType = query.employmentType ?? '';
+    const sortOrder = query.sortOrder ?? 'desc';
+    const serviceArea = query.serviceArea ?? '';
     if (employmentType && !['FULL_TIME', 'PART_TIME'].includes(employmentType)) invalid('Employment filter is invalid');
     if (state && !ALLOWED_STATES.has(state)) invalid('state is invalid');
-    if (typeof search !== 'string' || search.trim().length > 100
+    const area = LIST_SERVICE_AREAS.find(option => option.id === serviceArea);
+    if (typeof search !== 'string' || search.length > 50
       || typeof limitText !== 'string' || !/^[1-9]\d{0,2}$/.test(limitText)
-      || typeof cursorValue !== 'string') invalid('Application filters are invalid');
+      || typeof cursorValue !== 'string'
+      || !['asc', 'desc'].includes(sortOrder) || (serviceArea !== '' && !area)) invalid('Application filters are invalid');
     const limit = Number(limitText);
     if (limit > PAGE_LIMIT) invalid(`Page size cannot exceed ${PAGE_LIMIT}`);
-    const fingerprint = createHash('sha256').update(JSON.stringify({ state, employmentType, search: search.trim().toLocaleLowerCase('vi'), limit })).digest('base64url');
-    const conditions = [];
-    if (state) conditions.push({ state });
-    if (employmentType) conditions.push({ employmentType });
-    if (search.trim()) conditions.push({ displayName: new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') });
-    const matchingFilter = conditions.length ? { $and: [...conditions] } : {};
-    if (cursorValue) {
-      const position = cursors.decode(cursorValue, fingerprint);
-      conditions.push({ $or: [{ createdAt: { $lt: position.createdAt } }, { createdAt: position.createdAt, _id: { $lt: position.id } }] });
+    const term = search.trim().normalize('NFC').toLocaleLowerCase('vi');
+    const direction = sortOrder === 'asc' ? 1 : -1;
+    const sort = { createdAt: direction, _id: direction };
+    const fingerprint = createHash('sha256').update(JSON.stringify({
+      state, employmentType, search: term, limit, sortOrder, serviceArea
+    })).digest('base64url');
+    const position = cursorValue ? cursors.decode(cursorValue, fingerprint) : null;
+    const matchingFilter = {
+      ...(state && { state }),
+      ...(employmentType && { employmentType }),
+      ...(area && areaFilter(area))
+    };
+
+    let rows;
+    let totalMatching;
+    if (term) {
+      const phoneTerm = phoneSearchTerm(term);
+      rows = [];
+      totalMatching = 0;
+      const candidates = Applicant.find(matchingFilter).select(LIST_FIELDS).sort(sort).lean().cursor({ batchSize: 100 });
+      for await (const row of candidates) {
+        const code = row.submissionKeyDigest ? receiptCode(lookupSecret, row.submissionKeyDigest) : null;
+        const matches = row.displayName.normalize('NFC').toLocaleLowerCase('vi').includes(term)
+          || code?.toLowerCase().includes(term)
+          || (phoneTerm && row.contactChannel === 'PHONE' && phoneMatches(contactCrypto.decrypt(row.contactCiphertext), phoneTerm));
+        if (!matches) continue;
+        totalMatching++;
+        if (rows.length <= limit && isAfterCursor(row, position, direction)) rows.push(row);
+      }
+    } else {
+      const operator = direction === 1 ? '$gt' : '$lt';
+      const pageFilter = position ? { ...matchingFilter, $or: [
+        { createdAt: { [operator]: position.createdAt } },
+        { createdAt: position.createdAt, _id: { [operator]: position.id } }
+      ] } : matchingFilter;
+      [rows, totalMatching] = await Promise.all([
+        Applicant.find(pageFilter).select(LIST_FIELDS).sort(sort).limit(limit + 1).lean(),
+        Applicant.countDocuments(matchingFilter)
+      ]);
     }
-    const filter = conditions.length ? { $and: conditions } : {};
-    const rows = await Applicant.find(filter).select('displayName contactChannel contactCiphertext ageEligible employmentType requestedServices workAreas state createdAt updatedAt version')
-      .select('+contactCiphertext').sort({ createdAt: -1, _id: -1 }).limit(limit + 1).lean();
+
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
-    const items = page.map(row => ({
-      id: row._id.toString(), displayName: row.displayName,
-      contact: { channel: row.contactChannel, maskedValue: maskContact(row.contactChannel, contactCrypto.decrypt(row.contactCiphertext)) },
-      ageEligible: row.ageEligible, employmentType: row.employmentType ?? null, requestedServices: [...row.requestedServices], workAreas: [...row.workAreas],
-      state: row.state, version: row.version, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString()
-    }));
+    const items = page.map(row => {
+      const contactValue = contactCrypto.decrypt(row.contactCiphertext);
+      return {
+        id: row._id.toString(), displayName: row.displayName,
+        applicationCode: row.submissionKeyDigest ? receiptCode(lookupSecret, row.submissionKeyDigest) : null,
+        phoneNumber: row.contactChannel === 'PHONE' ? contactValue : null,
+        contact: { channel: row.contactChannel, maskedValue: maskContact(row.contactChannel, contactValue) },
+        ageEligible: row.ageEligible, employmentType: row.employmentType ?? null,
+        requestedServices: [...row.requestedServices], workAreas: [...row.workAreas],
+        state: row.state, reapplyAt: row.reapplyAt?.toISOString() ?? null, version: row.version,
+        createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString()
+      };
+    });
     const counts = await Applicant.aggregate([{ $group: { _id: '$state', count: { $sum: 1 } } }]);
     const byState = Object.fromEntries([...ALLOWED_STATES].map(state => [state, 0]));
     for (const row of counts) if (Object.hasOwn(byState, row._id)) byState[row._id] = row.count;
     return { applications: items, summary: { total: Object.values(byState).reduce((sum, value) => sum + value, 0), byState },
-      totalMatching: await Applicant.countDocuments(matchingFilter), nextCursor: hasMore && page.length
+      serviceAreas: LIST_SERVICE_AREAS, totalMatching, nextCursor: hasMore && page.length
       ? cursors.encode(page.at(-1).createdAt, page.at(-1)._id, fingerprint) : null };
   }
 
