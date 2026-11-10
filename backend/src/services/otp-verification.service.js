@@ -72,10 +72,12 @@ export function createOtpService({ connection, User, models = identityModels(con
       ? createHmac('sha256', hmacKey).update(`application-status\0${applicationId}\0${identity.contactLookup}`).digest('hex')
       : identity.contactLookup;
     if (purpose === 'CONTACT_CHANGE') {
-      const linkedElsewhere = await models.Contact.exists({
-        channel, lookupKey: contactLookup, state: 'VERIFIED', userId: { $ne: new Types.ObjectId(actor.userId) }
-      });
-      if (linkedElsewhere) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be started');
+      // Checked before any challenge is reserved, so a blocked value sends no code and is not counted against the hourly code limit.
+      const linked = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' }).select('userId').lean();
+      if (linked?.userId?.toString() === actor.userId) {
+        throw new AppError(409, 'CONTACT_UNCHANGED', 'The contact is already linked to this account');
+      }
+      if (linked) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be started');
     }
     const now = clock();
     const challengeId = createId();
