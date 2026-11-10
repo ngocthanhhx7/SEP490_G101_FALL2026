@@ -23,6 +23,14 @@ export function EmployeeInvitationsPage({ api }) {
   const assignmentsLoad = useCallback(({ signal }) => api.assignments({ signal, cursor: assignmentCursor }), [api, assignmentCursor]);
   const resource = useApiResource(load), assignments = useApiResource(assignmentsLoad);
   const command = useSchedulingCommand(() => { resource.retry(); assignments.retry(); });
+  async function acceptOffer(row, key) {
+    try {
+      return await api.respond(row.id, 'acceptances', row.version, key);
+    } catch (error) {
+      if (error.code === 'VISIT_ALREADY_ASSIGNED') resource.retry();
+      throw error;
+    }
+  }
   function withdrawalSaved(result) {
     setWithdrawalResult(result.mode === 'EARLY' ? VISIT_WITHDRAWAL_MESSAGES.MSG57(result.startAt) : VISIT_WITHDRAWAL_MESSAGES.MSG56);
     setWithdrawalVisit(null);
@@ -40,7 +48,7 @@ export function EmployeeInvitationsPage({ api }) {
       <div><h2>{row.serviceName}</h2><p>{time(row.startAt)} – {time(row.endAt)}</p><p>{row.areaCode} · {row.pets.map(pet => pet.name).join(', ')}</p>
         <p>{row.state === 'PENDING' && !row.canRespond ? 'Hết hạn' : states[row.state]} · Hạn phản hồi: {time(row.deadline)}</p></div>
       {row.canRespond && <div className="employee-scheduling__actions">
-        <Button disabled={command.busy || command.pending} onClick={() => command.execute(key => api.respond(row.id, 'acceptances', row.version, key))}><Check size={18} />Nhận việc</Button>
+        <Button disabled={command.busy || command.pending} onClick={() => command.execute(key => acceptOffer(row, key))}><Check size={18} />Nhận việc</Button>
         <Button variant="secondary" disabled={command.busy || command.pending} onClick={() => command.execute(key => api.respond(row.id, 'declines', row.version, key))}><X size={18} />Từ chối</Button>
       </div>}
     </li>)}</ul>

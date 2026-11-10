@@ -104,10 +104,15 @@ await dispatch. Moving a single boarding shift is rejected: whole-stay changes n
 
 `EMPLOYEE_DISPATCH_AGENT_ENABLED=true` starts the runtime worker. It resumes from persisted
 visits/offers after restart; pending/declined/expired offers are not repeatedly sent to the same
-candidate automatically. System bookings target five concurrent eligible invitees,
-replenishing declines where possible. Fewer are permitted only for a smaller eligible
-pool within the bounded search (100 employees, four concurrent checks). Directed bookings
-retain their single customer-selected sitter. Automatic selection requires declared
+candidate automatically. The requested sitter is offered first if eligible. If they
+are unavailable, decline or let the offer expire, dispatch considers other eligible
+sitters. Each group contains one sitter or all remaining sitters tied on the leading
+raw score. Dispatch waits until the current group has no live offer before continuing.
+The bounded search still checks up to 100 employees with four concurrent checks.
+Automatic and explicit Staff invitations have a two-hour deadline, or 30 minutes
+when the visit starts within 24 hours, capped by the visit start. Existing offers
+and offers from customer-confirmed reschedules keep their persisted deadlines.
+Automatic selection requires declared
 daily origins and route feasibility, including return before the origin's availableUntil.
 MATCH advice keeps its original score >=60 rule; operational route ordering can invite
 eligible newcomers without fabricating scores or verified history. It is not a trained

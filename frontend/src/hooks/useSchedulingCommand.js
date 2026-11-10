@@ -25,6 +25,7 @@ const errors = {
   TRAVEL_TIME_CONFLICT: 'Chưa đủ thời gian di chuyển và bàn giao giữa các ca.',
   DAY_OFF: 'Nhân viên đã có ngày nghỉ được xác nhận.',
   PAYMENT_REQUIRED: 'Cần xác minh đủ thanh toán trước khi gửi hoặc nhận lời mời.',
+  VISIT_ALREADY_ASSIGNED: 'Buổi đã có người nhận.',
   VISIT_UNAVAILABLE: 'Ca chưa sẵn sàng nhận việc. Kiểm tra thanh toán và kế hoạch chăm sóc.',
   WITHDRAWAL_MODE_CHANGED: 'Thời gian còn lại đã thay đổi. Kiểm tra hộp thoại mới rồi xác nhận lại.',
   WITHDRAWAL_ALREADY_REQUESTED: 'Buổi này đã có yêu cầu rút đang chờ nhân viên.',
