@@ -2,6 +2,10 @@
 
 This directory contains the recipient-scoped notification domain port. `notification.service.js` validates safe projections, read receipts, idempotent event publication and opt-in web-push subscriptions. It does not own Mongo schemas, provider credentials, or application route registration; P01/P34 supply those integration ports.
 
+`markAllRead` marks every unread notification of the signed-in recipient that
+was created up to the server clock at request time; later notifications stay
+unread and a repeated call marks nothing.
+
 `mongo-notification.repository.js` supplies durable list/read/event storage,
 signed scope/filter-bound pagination and snapshot-consistent unread counts.
 Runtime composes the authenticated router; missing list storage is unavailable.

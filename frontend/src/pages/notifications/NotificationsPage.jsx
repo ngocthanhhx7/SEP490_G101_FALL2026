@@ -72,6 +72,7 @@ export function NotificationsPage({ api }) {
   const [cursor, setCursor] = useState(null);
   const [rows, setRows] = useState([]);
   const [busyId, setBusyId] = useState(null);
+  const [markingAll, setMarkingAll] = useState(false);
   const [readStatus, setReadStatus] = useState(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [unreadCount, setUnreadCount] = useState(null);
@@ -137,6 +138,24 @@ export function NotificationsPage({ api }) {
     },
     [api, busyId]
   );
+  const readAll = useCallback(async () => {
+    if (typeof api?.markAllRead !== 'function' || busyId || markingAll) return;
+    setMarkingAll(true);
+    setReadStatus(null);
+    try {
+      await api.markAllRead('notification-read-all');
+      // The server decides what is still unread (notifications created after its cutoff stay unread).
+      retry();
+      window.dispatchEvent(new window.Event('pwc:notifications-changed'));
+    } catch {
+      setReadStatus('error');
+    } finally {
+      setMarkingAll(false);
+    }
+  }, [api, busyId, markingAll, retry]);
+  const hasUnread = unreadCount === null
+    ? rows.some((item) => !item.readAt)
+    : unreadCount > 0;
   const nextCursor =
     resource.meta?.nextCursor ?? resource.data?.nextCursor ?? null;
   return (
@@ -145,9 +164,16 @@ export function NotificationsPage({ api }) {
         <div>
           <h1 id="notifications-title"><Bell size={23} aria-hidden="true" /> Thông báo</h1>
         </div>
-        <Button variant="secondary" onClick={retry}>
-          <RefreshCw size={16} aria-hidden="true" /> Tải lại
-        </Button>
+        <div className="notifications-page__actions">
+          {hasUnread && typeof api?.markAllRead === 'function' && (
+            <Button variant="ghost" onClick={readAll} disabled={Boolean(busyId) || markingAll} loading={markingAll}>
+              <Check size={16} aria-hidden="true" /> Đánh dấu đã đọc tất cả
+            </Button>
+          )}
+          <Button variant="secondary" onClick={retry}>
+            <RefreshCw size={16} aria-hidden="true" /> Tải lại
+          </Button>
+        </div>
       </header>
       <div className="workspace-tabs" role="group" aria-label="Lọc thông báo">{[[false, 'Tất cả'], [true, 'Chưa đọc']].map(([value, label]) =>
         <button key={label} type="button" aria-pressed={unreadOnly === value} onClick={() => { setCursor(null); setRows([]); setUnreadOnly(value); }}>{label}</button>)}
@@ -205,7 +231,7 @@ export function NotificationsPage({ api }) {
                 key={item.id}
                 item={item}
                 onRead={read}
-                busy={Boolean(busyId)}
+                busy={Boolean(busyId) || markingAll}
               />
             ))}
           </ul>

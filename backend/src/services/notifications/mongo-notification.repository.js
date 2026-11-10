@@ -32,6 +32,13 @@ export function createMongoNotificationRepository({ connection, cursorSecret, cl
       const previous = await Notification.findOne(filter).lean();
       return previous ? { status: 'ALREADY_READ', readAt: previous.readAt.toISOString() } : { status: 'NOT_FOUND' };
     },
+    async markAllRead({ recipientId, roles, cutoff, readAt }) {
+      const result = await Notification.updateMany(
+        { ...scope({ recipientId, roles }), readAt: null, createdAt: { $lte: new Date(cutoff) } },
+        { $set: { readAt: new Date(readAt) } }
+      );
+      return { status: 'READ', markedCount: result.modifiedCount, readAt: new Date(readAt).toISOString() };
+    },
     async createEvent(body) {
       const { occurredAt, ...content } = body;
       delete content.idempotencyKey;

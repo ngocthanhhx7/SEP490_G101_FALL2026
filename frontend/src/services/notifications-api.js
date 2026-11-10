@@ -10,6 +10,9 @@
     markRead(notificationId, idempotencyKey) {
       return request(`/notifications/${id(notificationId)}/read-receipts`, { method: 'POST', idempotencyKey });
     },
+    markAllRead(idempotencyKey) {
+      return request('/notifications/read-all', { method: 'POST', idempotencyKey });
+    },
     updatePreferences(preferences, idempotencyKey) {
       return request('/notifications/preferences', { method: 'PATCH', body: { preferences }, idempotencyKey });
     },

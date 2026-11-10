@@ -30,6 +30,18 @@ export function createNotificationController({ service } = {}) {
           idempotencyKey: req.get('idempotency-key')
         })
       ),
+    createReadAll: async (req, res) => {
+      if (req.body !== undefined) body(req, []);
+      return response(
+        res,
+        req,
+        200,
+        await service.markAllRead({
+          actor: req.auth,
+          idempotencyKey: req.get('idempotency-key')
+        })
+      );
+    },
     updatePreferences: async (req, res) =>
       response(
         res,

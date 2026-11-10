@@ -162,6 +162,20 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
     return Object.freeze({ status: result.status === 'ALREADY_READ' ? 'ALREADY_READ' : 'READ', notificationId: id, readAt: result.readAt ?? new Date(clock()).toISOString() });
   }
 
+  async function markAllRead({ actor, idempotencyKey } = {}) {
+    const scope = actorScope(actor);
+    if (typeof repository.markAllRead !== 'function') throw new AppError(503, 'NOTIFICATION_UNAVAILABLE', 'Notifications are temporarily unavailable');
+    const key = operationKey(idempotencyKey, `notification-read-all:${scope.recipientId}`);
+    const readAt = instant(clock(), 'clock').toISOString();
+    // The server clock at request time is the cutoff: notifications created later stay unread.
+    const result = await repository.markAllRead({ ...scope, cutoff: readAt, readAt, idempotencyKey: key });
+    if (!result || result.status === 'FORBIDDEN') throw new AppError(403, 'FORBIDDEN', 'Action is not permitted');
+    if (result.status !== 'READ' || !Number.isSafeInteger(result.markedCount) || result.markedCount < 0) {
+      throw new AppError(503, 'NOTIFICATION_UNAVAILABLE', 'Notifications are temporarily unavailable');
+    }
+    return Object.freeze({ status: 'READ', markedCount: result.markedCount, readAt });
+  }
+
   async function publish({ eventId, eventType, title, message, deepLink, metadata, recipients, channel = 'IN_APP', idempotencyKey } = {}) {
     const normalizedEventId = requiredId(eventId ?? idempotencyKey, 'eventId');
     const normalized = {
@@ -219,7 +233,7 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
     return Object.freeze({ status: result?.status === 'ALREADY_EXISTS' ? 'ALREADY_EXISTS' : 'SUBSCRIBED' });
   }
 
-  return Object.freeze({ list, markRead, publish, updatePreferences, registerPushSubscription });
+  return Object.freeze({ list, markRead, markAllRead, publish, updatePreferences, registerPushSubscription });
 }
 
 export { actorScope, normalizeNotification, safeDeepLink };
