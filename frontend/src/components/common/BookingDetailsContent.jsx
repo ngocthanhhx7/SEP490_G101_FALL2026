@@ -8,6 +8,15 @@ const timeFormat = new Intl.DateTimeFormat('vi-VN', { ...zone, hour: '2-digit', 
 const format = (formatter, value) => value && Number.isFinite(Date.parse(value)) ? formatter.format(new Date(value)) : '—';
 const date = value => format(dateFormat, value);
 const time = value => format(timeFormat, value);
+
+function visitDay(value) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return '—';
+  const parts = visitDateFormat.formatToParts(timestamp);
+  const day = parts.find(part => part.type === 'day').value;
+  const month = parts.find(part => part.type === 'month').value;
+  return `${day}/${month}`;
+}
 const unique = values => [...new Set(values.filter(Boolean))];
 const summary = values => unique(values).join(' · ') || '—';
 const amount = value => Number.isSafeInteger(value) ? bookingMoney(value) : '—';
@@ -78,7 +87,7 @@ export function BookingDetailsContent({ booking }) {
             <thead><tr>{['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
             <tbody>{visits.map(visit => <tr key={visit.id}>
               <td><time dateTime={visit.startAt ?? undefined} title={date(visit.startAt)}>
-                {format(visitDateFormat, visit.startAt)}
+                {visitDay(visit.startAt)}
               </time></td>
               <td>{time(visit.startAt)} – {time(visit.endAt)}{visit.endAt && date(visit.startAt) !== date(visit.endAt) && ` (${date(visit.endAt)})`}</td>
               <td>{visit.sitterName ?? '—'}</td>

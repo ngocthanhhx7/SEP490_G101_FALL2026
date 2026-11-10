@@ -15,10 +15,10 @@ function show(role, { status = 200, paymentMode = 'PREPAY' } = {}) {
         paymentState: paymentMode === 'PREPAY' ? 'PAID' : 'UNPAID',
         details: {
           consentAt: '2026-11-10T03:12:00Z',
-          terms: [{ serviceName: 'Dắt chó đi dạo', startAt: '2026-11-11T00:00:00Z', endAt: '2026-11-11T00:30:00Z',
+          terms: [{ serviceName: 'Dắt chó đi dạo', startAt: '2026-11-02T17:00:00Z', endAt: '2026-11-02T17:30:00Z',
             petNames: ['Milo'], serviceAddress: 'Địa chỉ lúc đặt', areaName: 'Khu vực Thanh Xuân', requestedSitterName: 'Lê Văn Minh',
             careRequirements: ['Milo hay kéo dây'] }],
-          visits: [{ id: 'first', startAt: '2026-11-11T00:00:00Z', endAt: '2026-11-11T00:30:00Z', sitterName: 'Lê Văn Minh', state: 'COMPLETED' },
+          visits: [{ id: 'first', startAt: '2026-11-02T17:00:00Z', endAt: '2026-11-02T17:30:00Z', sitterName: 'Lê Văn Minh', state: 'COMPLETED' },
             { id: 'next', startAt: '2026-11-12T00:00:00Z', endAt: '2026-11-12T00:30:00Z', state: 'SCHEDULED' }],
           price: { visitCount: 2, visitPricesVnd: [90000], discountVnd: 9000, totalVnd: 171000 }
         } } } };
@@ -34,7 +34,10 @@ test.each(['STAFF', 'ADMIN'])('UC-27 / GBR-02 / GBR-20: %s sees read-only detail
   expect(screen.getByRole('heading', { name: 'Thông tin lịch đặt' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Giá và thanh toán' })).toBeVisible();
   expect(screen.getByRole('heading', { name: /Các buổi chăm sóc/ })).toBeVisible();
-  expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(3);
+  const table = within(screen.getByRole('table'));
+  expect(table.getAllByRole('row')).toHaveLength(3);
+  expect(table.getByRole('cell', { name: '03/11' })).toBeVisible();
+  expect(table.getByRole('cell', { name: '12/11' })).toBeVisible();
   expect(screen.getByText('Báo cáo')).toBeVisible();
   expect(screen.getByText(/Đã thanh toán trước/)).toBeVisible();
   expect(screen.queryByText(/48 giờ|Hoá đơn/)).toBeNull();
