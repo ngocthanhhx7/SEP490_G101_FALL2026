@@ -28,3 +28,5 @@ runtime registration.
 legacy P21 import remains available for existing dispatch consumers.
 
 Directed availability accepts optional `directory: true, page` to read every active, publicly approved sitter registered for the quoted service in pages of 20, ordered by published Customer rating descending then stable userId. Unknown ratings sort last. Each row carries authoritative preview eligibility/reason; unsuitable schedules remain visible but cannot be selected. No AI threshold filters this directory. Quote ownership, current pet/address checks and transactional checkout guard remain mandatory.
+
+`booking-details.service.js` builds the read-only booking terms, visit progress and saved price projection for Customer and Staff/Admin. The checkout read keeps its existing owner check. The Staff/Admin read includes only the customer display name.
