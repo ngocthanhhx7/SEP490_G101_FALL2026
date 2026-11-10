@@ -9,6 +9,14 @@ const row = value => value && ID.test(value.id) && text(value.displayName) && ty
   && text(value.status) && text(value.accountState) && text(value.employmentType) && text(value.profileState)
   && Array.isArray(value.areas) && value.areas.every(text);
 
+const nullableCount = value => value === null || count(value);
+const staffRow = value => row(value) && value.accountState === 'ACTIVE' && value.status === 'ACTIVE' && text(value.code)
+  && (value.rating === null || (Number.isFinite(value.rating) && value.rating >= 1 && value.rating <= 5))
+  && nullableCount(value.withdrawals) && nullableCount(value.lateCheckIns) && value.shift === null && value.approvedLeave === null
+  && Array.isArray(value.workingWindows) && value.workingWindows.every(window => window
+    && Number.isInteger(window.weekday) && window.weekday >= 1 && window.weekday <= 7
+    && /^\d{2}:\d{2}$/u.test(window.startLocalTime) && /^\d{2}:\d{2}$/u.test(window.endLocalTime));
+
 export function createSitterManagementApi(request = createApiClient()) {
   function path(query = {}) {
     const params = new globalThis.URLSearchParams();
@@ -23,8 +31,10 @@ export function createSitterManagementApi(request = createApiClient()) {
   const target = value => { if (!ID.test(value)) throw new ApiError('INVALID_API_PATH'); return '/sitter-management/' + value; };
   return {
     list: (query, { signal } = {}) => read('/sitter-management' + path(query), data => Array.isArray(data.items)
-      && data.items.length <= 50 && data.items.every(row) && count(data.total) && cursor(data.nextCursor)
-      && Array.isArray(data.areas) && data.areas.every(a => text(a.code) && text(a.label)), signal),
+      && data.items.length <= 50 && data.items.every(query?.view === 'staffList' ? staffRow : row) && count(data.total) && cursor(data.nextCursor)
+      && Array.isArray(data.areas) && data.areas.every(a => text(a.code) && text(a.label))
+      && (query?.view !== 'staffList' || (typeof data.withdrawalsAvailable === 'boolean'
+        && ['all', 'partTime', 'fullTime'].every(key => count(data.tabCounts?.[key])))), signal),
     reports: (query, { signal } = {}) => read('/sitter-management/reports' + path(query), data => data.counts
       && ['total', 'demo', 'real', 'active', 'suspended', 'missingContract'].every(key => count(data.counts[key]))
       && Array.isArray(data.work) && data.work.every(w => text(w.state) && count(w.count))

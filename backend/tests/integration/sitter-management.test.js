@@ -1,11 +1,12 @@
 import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
-import { beforeAll, afterAll, test, expect } from '@jest/globals';
+import { beforeAll, afterAll, describe, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { createSessionService } from '../../src/services/session.service.js';
+import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { userModel } from '../../src/models/user.model.js';
 
 let replica, connection, app, admin, staff, customer, employee;
@@ -173,4 +174,110 @@ test('Staff/Admin capability command is session/CSRF protected and exposes readi
   const detail = (await request(app).get(root + '/' + target).set(headers(staff)).expect(200)).body.data;
   expect(detail.permissions.manageCapability).toBe(true); expect(detail.capabilities.version).toBe(1);
   expect(JSON.stringify(detail)).not.toContain('private-location');
+});
+
+describe('UC-74 Staff sitter list', () => {
+  const oid = () => new mongoose.Types.ObjectId();
+  const ids = Array.from({ length: 24 }, oid);
+  const phone = '+84912001234';
+  let fixtureTime;
+  beforeAll(async () => {
+    fixtureTime = new Date();
+    const timeAgo = days => new Date(+fixtureTime - days * 86400000);
+    await col('users').insertMany(ids.map((id, index) => ({
+      _id: id, displayName: index === 0 ? 'Nguyễn [An]' : index === 1 ? 'Trần Bình' : 'Ứ'.repeat(98) + String(index).padStart(2, '0'),
+      roles: ['PET_SITTER'], state: index === 23 ? 'LOCKED' : 'ACTIVE'
+    })));
+    await col('sitterstatuses').insertMany(ids.map((userId, index) => ({
+      userId, status: index === 22 ? 'SUSPENDED' : 'ACTIVE'
+    })));
+    await col('employmentcontracts').insertMany(ids.filter((_id, index) => index !== 2).map(employeeId => ({
+      employeeId, employmentType: employeeId.equals(ids[1]) ? 'FULL_TIME' : 'PART_TIME',
+      ...(employeeId.equals(ids[0]) ? { employeeCode: 'NV-TEST-001' } : {}),
+      signedAt: timeAgo(32), effectiveAt: timeAgo(31), version: 1
+    })));
+    await col('employeeavailabilities').insertOne({
+      _id: String(ids[0]), areas: ['DISTRICT_CAU_GIAY', 'DISTRICT_DONG_DA'], dayOffDates: ['2099-01-01']
+    });
+    await col('employeeavailabilityrevisions').insertMany([
+      { sitterId: String(ids[0]), effectiveFrom: '2000-01-01', version: 1,
+        workingWindows: [{ weekday: 1, startLocalTime: '08:00', endLocalTime: '12:00', privateMarker: 'omit-me' }] },
+      { sitterId: String(ids[0]), effectiveFrom: '2099-01-01', version: 2,
+        workingWindows: [{ weekday: 2, startLocalTime: '09:00', endLocalTime: '14:00' }] }
+    ]);
+    const crypto = createContactCrypto({ lookupSecret: 'd'.repeat(48), encryptionKey: 'e'.repeat(32) });
+    await col('contacts').insertMany([
+      { userId: ids[0], channel: 'PHONE', state: 'VERIFIED', lookupKey: crypto.lookup('PHONE', phone).lookupKey,
+        canonicalCiphertext: crypto.encrypt(phone) },
+      { userId: ids[1], channel: 'PHONE', state: 'REPLACED', canonicalCiphertext: crypto.encrypt(phone) }
+    ]);
+    await col('reviews').insertMany([
+      { sitterId: String(ids[0]), direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', rating: 4 },
+      { sitterId: ids[0], direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', rating: 5 },
+      { sitterId: String(ids[0]), direction: 'CUSTOMER_TO_SITTER', state: 'PENDING', rating: 1 },
+      { sitterId: String(ids[1]), direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED', rating: 5 }
+    ]);
+    const visit = (days, minutes, state = 'COMPLETED') => {
+      const startAt = timeAgo(days);
+      return { sitterId: ids[0], startAt, state,
+        ...(minutes === null ? {} : { checkInAt: new Date(+startAt + minutes * 60000) }) };
+    };
+    await col('visits').insertMany([visit(3, 5), visit(4, 6), visit(5, 9), visit(31, 9), visit(2, null),
+      visit(3, 12, 'SUPERSEDED'), visit(-3, 8)]);
+  });
+
+  const read = (query, actor) => {
+    const result = request(app).get(root).query({ view: 'staffList', ...query });
+    return actor ? result.set(headers(actor)) : result;
+  };
+
+  test('GBR-03 protects the Staff view and preserves active contract totals when search and area are applied', async () => {
+    await read({}).expect(401);
+    await read({}, customer).expect(403);
+    await read({}, employee).expect(403);
+    const result = (await read({}, admin).expect(200)).body.data;
+    expect(result.tabCounts).toEqual({ all: 23, partTime: 21, fullTime: 1 });
+    expect(result.total).toBe(23);
+    expect(result.withdrawalsAvailable).toBe(false);
+    expect(result.items.every(item => item.status === 'ACTIVE' && item.accountState === 'ACTIVE')).toBe(true);
+    const fullTime = (await read({ employmentType: 'FULL_TIME' }, staff).expect(200)).body.data;
+    expect(fullTime.items.map(item => item.id)).toEqual([String(ids[1])]);
+    const allPartTime = (await read({ employmentType: 'PART_TIME' }, staff).expect(200)).body.data;
+    expect(allPartTime.total).toBe(21);
+    const missing = (await read({ search: String(ids[2]).slice(-6) }, staff).expect(200)).body.data;
+    expect(missing.items[0]).toMatchObject({ id: String(ids[2]), employmentType: 'MISSING' });
+    for (const search of ['[an]', 'test-001', '0912 001 234', phone, '1234']) {
+      const response = await read({ search, employmentType: 'PART_TIME', area: 'DISTRICT_CAU_GIAY' }, staff).expect(200);
+      expect(response.headers['cache-control']).toContain('no-store');
+      expect(response.body.data.tabCounts).toEqual(result.tabCounts);
+      expect(response.body.data.items).toEqual([expect.objectContaining({ id: String(ids[0]), code: 'NV-TEST-001' })]);
+      expect(JSON.stringify(response.body)).not.toMatch(/84912001234|canonicalCiphertext|omit-me/);
+    }
+    const none = (await read({ search: 'không có người này' }, staff).expect(200)).body.data;
+    expect(none.items).toEqual([]);
+    expect(none.tabCounts).toEqual(result.tabCounts);
+  });
+
+  test('GBR-29 and GBR-48 count authoritative data, keep missing sources unknown, and paginate both available sorts', async () => {
+    const results = {};
+    for (const sort of ['rating', 'lateCheckIns']) {
+      const first = (await read({ sort }, staff).expect(200)).body.data;
+      expect(first.items).toHaveLength(20);
+      const second = (await read({ sort, cursor: first.nextCursor }, staff).expect(200)).body.data;
+      const items = [...first.items, ...second.items];
+      expect(new Set(items.map(item => item.id)).size).toBe(23);
+      expect(second.asOf).toBe(first.asOf);
+      expect(second.nextCursor).toBeNull();
+      expect(items[0].id).toBe(String(sort === 'rating' ? ids[1] : ids[0]));
+      results[sort] = items;
+      await read({ sort: sort === 'rating' ? 'lateCheckIns' : 'rating', cursor: first.nextCursor }, staff).expect(422);
+    }
+    const rating = results.rating;
+    expect(rating[1]).toMatchObject({ id: String(ids[0]), rating: 4.5, lateCheckIns: 2, withdrawals: null,
+      approvedLeave: null, shift: null, workingWindows: [{ weekday: 1, startLocalTime: '08:00', endLocalTime: '12:00' }] });
+    expect(rating.at(-1).rating).toBeNull();
+    expect(rating[0]).toMatchObject({ lateCheckIns: 0, workingWindows: [], shift: null });
+    await read({ sort: 'withdrawals' }, staff).expect(422);
+    await request(app).get(root).query({ sort: 'rating' }).set(headers(staff)).expect(422);
+  });
 });
