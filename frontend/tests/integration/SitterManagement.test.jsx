@@ -198,3 +198,24 @@ test('UC-74 shows real hours, unavailable sources, late-count thresholds and MSG
   expect(await screen.findByText('Không có người chăm sóc phù hợp.')).toBeVisible();
   expect(screen.getByLabelText('Trang sau')).toBeDisabled();
 });
+
+test.each([['Staff', mountStaff, false], ['Admin', mount, true]])(
+  'UC-74 %s report keeps period controls and shows summary cards only in Admin',
+  async (_role, renderList, showMetrics) => {
+    const api = fixture();
+    if (!showMetrics) api.list.mockResolvedValue({ data: { ...staffData, items: [staffRow] } });
+    renderList(api);
+    const report = within(screen.getByRole('region', { name: 'Báo cáo người chăm sóc' }));
+    await report.findByText(/^Cập nhật /);
+    for (const label of ['Người chăm sóc', 'Đang hoạt động', 'Tạm ngưng', 'Thiếu hợp đồng hiệu lực']) {
+      if (showMetrics) expect(report.getByText(label, { exact: true })).toBeVisible();
+      else expect(report.queryByText(label, { exact: true })).not.toBeInTheDocument();
+    }
+    fireEvent.click(report.getByText('Báo cáo công việc và phân bố khu vực'));
+    expect(report.getByRole('button', { name: '30 ngày' })).toHaveAttribute('aria-pressed', 'true');
+    for (const days of [7, 90]) {
+      fireEvent.click(report.getByRole('button', { name: days + ' ngày' }));
+      await waitFor(() => expect(api.reports).toHaveBeenLastCalledWith(expect.objectContaining({ days }), expect.anything()));
+    }
+  }
+);

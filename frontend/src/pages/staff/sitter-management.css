@@ -61,6 +61,7 @@
   background: var(--pwc-surface); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); overflow: hidden;
 }
 .staff-sitter-directory .workspace-empty { margin: 0; padding: 1rem; }
+.staff-sitter-directory .pwc-pagination { padding: .65rem .6rem; }
 .staff-sitter-list .staff-sitter-table { min-width: 0; }
 .staff-sitter-table th, .staff-sitter-table td { padding: .65rem .6rem; overflow-wrap: anywhere; }
 .staff-sitter-table th:first-child { width: 17%; }

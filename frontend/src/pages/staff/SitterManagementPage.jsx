@@ -47,7 +47,7 @@ function AdminSitterManagementPage({ api }) {
       <div className="sitter-filter-actions"><Button type="submit"><Search size={16} />Lọc</Button>
         <button type="button" className="workspace-icon-button" aria-label="Xóa bộ lọc" title="Xóa bộ lọc" onClick={() => { setDraft(initial); apply(initial); }}><RotateCcw size={17} /></button></div>
     </form>
-    <SitterReport resource={reports} areaName={areaName} days={days} setDays={setDays} />
+    <SitterReport resource={reports} areaName={areaName} days={days} setDays={setDays} showMetrics />
     <section aria-label="Danh sách người chăm sóc"><ManagementState resource={list} title="danh sách" />
       {list.status === 'success' && <><div className="sitter-table-caption"><h2>Người chăm sóc <span>{data.total}</span></h2></div>
         <div className="workspace-table-wrap" tabIndex={0} aria-label="Bảng người chăm sóc"><table className="workspace-table sitter-table"><thead><tr>
@@ -69,18 +69,18 @@ function AdminSitterManagementPage({ api }) {
   </div>;
 }
 
-function SitterReport({ resource: reports, areaName, days, setDays }) {
+function SitterReport({ resource: reports, areaName, days, setDays, showMetrics = false }) {
   const [expanded, setExpanded] = useState(false);
   const report = reports.data;
-  const metrics = report ? [
+  const metrics = showMetrics && report ? [
     ['Người chăm sóc', report.counts.total, Users], ['Đang hoạt động', report.counts.active, UserCheck],
     ['Tạm ngưng', report.counts.suspended, PauseCircle], ['Thiếu hợp đồng hiệu lực', report.counts.missingContract, FileWarning]
   ] : [];
   return <section aria-label="Báo cáo người chăm sóc" className="sitter-report">
       <ManagementState resource={reports} title="báo cáo" />
       {reports.status === 'success' && <>
-        <dl className="workspace-metrics">{metrics.map(([label, value, Icon], i) => <div key={label}>
-          <span className={'workspace-metric-icon workspace-metric-icon--' + i}><Icon size={21} /></span><div><dt>{label}</dt><dd>{value.toLocaleString('vi-VN')}</dd></div></div>)}</dl>
+        {showMetrics && <dl className="workspace-metrics">{metrics.map(([label, value, Icon], i) => <div key={label}>
+          <span className={'workspace-metric-icon workspace-metric-icon--' + i}><Icon size={21} /></span><div><dt>{label}</dt><dd>{value.toLocaleString('vi-VN')}</dd></div></div>)}</dl>}
         <details className="sitter-report-details" open={expanded} onToggle={event => setExpanded(event.currentTarget.open)}><summary>Báo cáo công việc và phân bố khu vực</summary>
           <div className="workspace-analytics-toolbar"><span>{report.from} đến {report.to}</span>
             <div className="workspace-period" role="group" aria-label="Kỳ báo cáo">{[7, 30, 90].map(d => <button type="button" key={d} aria-pressed={days === d} onClick={() => setDays(d)}>{d} ngày</button>)}</div></div>
