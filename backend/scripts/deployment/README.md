@@ -36,6 +36,9 @@ gates; keep all other `.env` values and persistent database volumes intact.
 
 `ensure-indexes.js` registers runtime models, creates their collections/indexes,
 and provisions raw finance/scheduling storage when their feature flags are enabled.
+When `CUSTOMER_TIER_JOB_ENABLED=true`, it also provisions JOB-05 storage and
+inserts the initial policy only if no policy exists. Enable the worker only when
+the booking, payment and product-order read sources are available.
 It verifies the required payroll, finance and scheduling indexes before reporting
 `INDEXES_READY`. Run it with the release image and the target environment after
 backup and before activation (the activation script already does this). This is

@@ -130,3 +130,7 @@ Customer booking list reads a projected summary from the existing owner-scoped b
 `employee-onboarding-repair.service.js` is an operator-only, digest-guarded exact-four employee correction under the owner's 2026-11-09 attestation. It preserves superseded future contract rows, historical versions and existing leave/origins, and audits each correction in existing payroll/scheduling stores. It never runs on startup.
 
 Pet-record import is transient transcription with bounded input/token/output and an allowlist of care fields; it has no database or financial writes.
+
+`customer-tier.service.js` evaluates JOB-05 and exposes the internal tier read.
+`mongo-customer-tier.repository.js` reads spend snapshots and fences tier writes.
+The storage provisioner creates the tier collections and initial versioned policy.
