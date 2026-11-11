@@ -106,3 +106,24 @@ test('completion ordinal persists before payment; delayed receipt cannot recalcu
   await store('payments').insertOne(receipt);
   expect((await service.accrue(input(0))).ordinal).toBe(1);
 });
+
+
+test('GBR-26 legacy earning source reads whole booking complaints and preserves incident, refund and old complaint behavior', async () => {
+  const references = async () => createUnitOfWork(connection).run(async session =>
+    (await sources.readBooking({ ...input(0), session })).holdReferences);
+  const recordId = 'synthetic-booking-complaint';
+  await store('cases').insertOne({ _id: recordId, bookingId: booking._id, visitId: null, kind: 'COMPLAINT',
+    complaintSchemaVersion: 2, state: 'OPEN', objectionCount: 0, billState: 'ON_HOLD' });
+  expect(await references()).toEqual(['case:' + recordId]);
+  await store('cases').updateOne({ _id: recordId }, { $set: { state: 'RESOLVED', appealUntil: new Date(Date.now() + 3600000) } });
+  expect(await references()).toEqual(['case:' + recordId]);
+  await store('cases').updateOne({ _id: recordId }, { $set: { appealUntil: new Date(Date.now() - 3600000) } });
+  expect(await references()).toEqual([]);
+  for (const kind of ['INCIDENT', 'COMPLAINT']) {
+    const existing = await store('cases').insertOne({ kind, visitId: visits[0]._id, state: 'RESOLVED', appealUntil: new Date(0) });
+    expect(await references()).toEqual(['case:' + existing.insertedId]);
+    await store('cases').deleteOne({ _id: existing.insertedId });
+  }
+  const refund = await store('refunds').insertOne({ bookingId: booking._id, state: 'APPROVED' });
+  expect(await references()).toEqual(['refund:' + refund.insertedId]);
+});
