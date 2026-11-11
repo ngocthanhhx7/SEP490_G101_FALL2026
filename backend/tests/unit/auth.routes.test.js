@@ -8,6 +8,16 @@ import { AppError } from '../../src/utils/app-error.js';
 
 const auth = { userId: 'customer-1', sessionId: 'session-1', state: 'ACTIVE', roles: ['CUSTOMER'], expiresAt: Date.now() + 60000 };
 
+test('unregistered login challenge returns actionable 409 without challenge or session cookie', async () => {
+  const { server, otpService } = appFixture();
+  otpService.begin.mockRejectedValue(new AppError(409, 'REGISTRATION_REQUIRED', 'Register an account before signing in'));
+  const response = await request(server).post('/api/v1/otp-challenges')
+    .send({ channel: 'EMAIL', contact: 'new@example.test', purpose: 'LOGIN' }).expect(409);
+  expect(response.body.error.code).toBe('REGISTRATION_REQUIRED');
+  expect(response.body.data).toBeUndefined();
+  expect(response.headers['set-cookie']).toBeUndefined();
+});
+
 function appFixture({ authenticated = false } = {}) {
   const otpService = {
     begin: jest.fn(async () => ({ status: 'PENDING', challengeId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', expiresInSeconds: 300, resendAfterSeconds: 60 })),
