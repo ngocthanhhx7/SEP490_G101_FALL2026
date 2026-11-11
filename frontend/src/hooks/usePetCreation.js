@@ -7,7 +7,7 @@ const uncertain = error => !error.status || [408, 425, 429].includes(error.statu
 // acknowledgement/key independently so a photo retry can never create another pet.
 export function usePetCreation({ api, photoApi, onSaved }) {
   const [state, setState] = useState('idle'), [message, setMessage] = useState(''), [created, setCreated] = useState(null);
-  const createAttempt = useRef(null), photoAttempt = useRef(null), pet = useRef(null), lock = useRef(false);
+  const createAttempt = useRef(null), photoAttempt = useRef(null), pet = useRef(null), lock = useRef(false), unconfirmed = useRef(false);
   async function save(draft, file) {
     if (lock.current) return;
     lock.current = true; setState('saving'); setMessage('');
@@ -18,7 +18,7 @@ export function usePetCreation({ api, photoApi, onSaved }) {
         if (!createAttempt.current) createAttempt.current = { body: customerPetBody(draft), key: globalThis.crypto.randomUUID() };
         const result = await api.save('pets', undefined, createAttempt.current.body, createAttempt.current.key);
         if (result.pending || !/^[a-f0-9]{24}$/i.test(result.data?.id ?? '') || result.data?.version !== 0) throw Object.assign(new Error('Uncertain creation'), { status: 202 });
-        pet.current = result.data; setCreated(result.data);
+        pet.current = result.data; setCreated(result.data); unconfirmed.current = false;
       }
       phase = 'photo';
       if (file) {
@@ -36,7 +36,10 @@ export function usePetCreation({ api, photoApi, onSaved }) {
       }
       setState('done'); onSaved(pet.current, Boolean(file));
     } catch (error) {
-      const pending = uncertain(error);
+      // A later auth/validation denial cannot establish whether an earlier
+      // timed-out command committed. Keep its key/body until an acknowledgement.
+      const pending = uncertain(error) || unconfirmed.current;
+      if (pending) unconfirmed.current = true;
       setState(pending ? 'pending' : 'error');
       if (phase === 'pet') {
         if (!pending) createAttempt.current = null;
