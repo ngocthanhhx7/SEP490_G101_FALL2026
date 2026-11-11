@@ -1,5 +1,7 @@
 .pwc-dialog.pet-onboarding-dialog { --pwc-dialog-width:920px; width:min(920px,calc(100vw - 40px)); max-width:none; max-height:calc(100dvh - 40px); padding:0; border:0; border-radius:28px; color:#49316d; background:#faf7ff; box-sizing:border-box; }
 .pet-onboarding-dialog::backdrop { background:rgb(41 22 65 / 55%); backdrop-filter:blur(4px); }
+.pwc-dialog.pet-onboarding-dialog { scrollbar-width:none; }
+.pet-onboarding-dialog::-webkit-scrollbar { display:none; }
 .pet-onboarding-dialog>.pwc-dialog-header { position:sticky; top:0; z-index:2; padding:14px 24px; margin:0; background:rgb(250 247 255 / 97%); border-bottom:1px solid #e9e1f5; }
 .pet-onboarding-dialog>.pwc-dialog-header h2 { font-size:1rem; }
 .pet-onboarding-dialog>.pwc-dialog-content { padding:0; margin:0; }
