@@ -15,20 +15,31 @@ const setup = (kind = 'pets', failure) => {
   return api;
 };
 
+function fillWizardToHealth() {
+  fireEvent.change(screen.getByLabelText('Tên thú cưng', { exact: false }), { target: { value: 'Synthetic companion' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Để ảnh sau, tiếp tục' }));
+  fireEvent.change(screen.getByLabelText('Giống', { exact: false }), { target: { value: 'dog-test' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+  fireEvent.change(screen.getByLabelText('Cân nặng gần nhất (kg)', { exact: false }), { target: { value: '4.2' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+}
+
 test('collects breed, weight, explicit unknown health and care information; retries with the same command', async () => {
   const api = setup('pets', { code: 'NETWORK_ERROR' });
   await waitFor(() => expect(screen.getByRole('button', { name: 'Thêm thú cưng' })).toBeEnabled());
   fireEvent.click(await screen.findByRole('button', { name: 'Thêm thú cưng' }));
-  fireEvent.change(screen.getByLabelText('Tên thú cưng', { exact: false }), { target: { value: 'Synthetic companion' } });
-  fireEvent.change(screen.getByLabelText('Giống', { exact: false }), { target: { value: 'dog-test' } });
-  fireEvent.change(screen.getByLabelText('Cân nặng gần nhất (kg)', { exact: false }), { target: { value: '4.2' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Sức khỏe', exact: true }));
+  fillWizardToHealth();
+  fireEvent.click(screen.getByRole('button', { name: /Mình sẽ tự điền/ }));
   fireEvent.change(screen.getByLabelText('Tình trạng thông tin: Dị ứng'), { target: { value: 'UNKNOWN' } });
-  fireEvent.submit(screen.getByRole('button', { name: 'Lưu thú cưng' }).closest('form'));
-  await screen.findByText('Chưa xác định kết quả lưu');
-  expect(screen.getByRole('button', { name: 'Lưu thú cưng' })).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại cùng yêu cầu' }));
-  await screen.findByRole('heading', { name: 'Đã lưu thú cưng.' });
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp theo' }));
+  fireEvent.submit(screen.getByRole('form', { name: 'Hồ sơ thú cưng từng bước' }));
+  await screen.findByText(/Chưa nhận được xác nhận tạo hồ sơ/);
+  expect(screen.queryByRole('button', { name: 'Lưu hồ sơ của bé' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Thử lại cùng yêu cầu' }));
+  await screen.findByRole('heading', { name: /Đã lưu thú cưng/ });
   expect(api.save).toHaveBeenCalledTimes(2);
   expect(api.save.mock.calls[0]).toEqual(api.save.mock.calls[1]);
   expect(api.save.mock.calls[0][2]).toMatchObject({ weightKg: 4.2, breedCode: 'dog-test', careNeedsConfirmed: false, careProfile: { allergies: { status: 'UNKNOWN' } } });
@@ -72,19 +83,17 @@ test('mounted pet list links to the owned avatar workspace',async()=>{
 test('editing uses a focused dialog and refuses to discard a changed draft silently', async()=>{
   const api=setup(); await waitFor(()=>expect(screen.getByRole('button',{name:'Thêm thú cưng'})).toBeEnabled()); fireEvent.click(screen.getByRole('button',{name:'Thêm thú cưng'}));
   fireEvent.change(screen.getByLabelText('Tên thú cưng',{exact:false}),{target:{value:'Mây mới'}});
-  fireEvent.click(screen.getByRole('button',{name:'Hủy'})); expect(screen.getByRole('dialog',{name:'Bỏ thay đổi chưa lưu?'})).toBeVisible();
-  fireEvent.click(screen.getByRole('button',{name:'Tiếp tục chỉnh sửa'})); expect(screen.getByLabelText('Tên thú cưng',{exact:false})).toHaveValue('Mây mới'); expect(api.save).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button',{name:'Đóng',exact:true})); expect(screen.getByRole('dialog',{name:'Để bé chờ một chút nhé?'})).toBeVisible();
+  fireEvent.click(screen.getByRole('button',{name:'Tiếp tục cùng bé'})); expect(screen.getByLabelText('Tên thú cưng',{exact:false})).toHaveValue('Mây mới'); expect(api.save).not.toHaveBeenCalled();
 });
 
 
 test('a malformed successful create acknowledgement keeps the original command to avoid duplicate pets',async()=>{
   const api=setup('pets',{code:'INVALID_RESPONSE',status:200});await waitFor(()=>expect(screen.getByRole('button',{name:'Thêm thú cưng'})).toBeEnabled());
   fireEvent.click(screen.getByRole('button',{name:'Thêm thú cưng'}));
-  fireEvent.change(screen.getByLabelText('Tên thú cưng',{exact:false}),{target:{value:'Synthetic companion'}});
-  fireEvent.change(screen.getByLabelText('Giống',{exact:false}),{target:{value:'dog-test'}});
-  fireEvent.change(screen.getByLabelText('Cân nặng gần nhất (kg)',{exact:false}),{target:{value:'4.2'}});
-  fireEvent.submit(screen.getByRole('form',{name:'Hồ sơ thú cưng'}));await screen.findByText('Chưa xác định kết quả lưu');
-  fireEvent.click(screen.getByRole('button',{name:'Kiểm tra lại cùng yêu cầu'}));await screen.findByRole('heading',{name:'Đã lưu thú cưng.'});
+  fillWizardToHealth();fireEvent.click(screen.getByRole('button',{name:/Bổ sung sau nhé/}));fireEvent.click(screen.getByRole('button',{name:'Tiếp theo'}));
+  fireEvent.submit(screen.getByRole('form',{name:'Hồ sơ thú cưng từng bước'}));await screen.findByText(/Chưa nhận được xác nhận tạo hồ sơ/);
+  fireEvent.click(screen.getByRole('button',{name:'Thử lại cùng yêu cầu'}));await screen.findByRole('heading',{name:/Đã lưu thú cưng/});
   expect(api.save.mock.calls[1]).toEqual(api.save.mock.calls[0]);
 });
 
@@ -104,17 +113,13 @@ test('stale pet edits offer a confirmed reload instead of trapping the owner on 
 });
 
 
-test('pet groups keep typed values and reveal the group containing an invalid field',async()=>{
+test('wizard keeps typed values when going back and validates one phase at a time',async()=>{
   setup();await waitFor(()=>expect(screen.getByRole('button',{name:'Thêm thú cưng'})).toBeEnabled());fireEvent.click(screen.getByRole('button',{name:'Thêm thú cưng'}));
   fireEvent.change(screen.getByLabelText('Tên thú cưng',{exact:false}),{target:{value:'Mây'}});
-  fireEvent.click(screen.getByRole('button',{name:'Sức khỏe',exact:true}));
-  expect(screen.getByLabelText('Tên thú cưng',{exact:false})).not.toBeVisible();
-  fireEvent.change(screen.getByLabelText('Tình trạng thông tin: Dị ứng'),{target:{value:'KNOWN'}});
-  const note=screen.getByLabelText('Chi tiết dị ứng');fireEvent.change(note,{target:{value:'Ghi chú mẫu'}});
-  fireEvent.click(screen.getByRole('button',{name:'Cơ bản',exact:true}));
+  fireEvent.click(screen.getByRole('button',{name:'Tiếp theo'}));
+  expect(screen.getByLabelText('Ảnh thú cưng')).toBeVisible();
+  fireEvent.click(screen.getByRole('button',{name:'Quay lại'}));
   expect(screen.getByLabelText('Tên thú cưng',{exact:false})).toHaveValue('Mây');
-  fireEvent.invalid(note);
-  await waitFor(()=>expect(note).toBeVisible());expect(note).toHaveValue('Ghi chú mẫu');
 });
 
 
@@ -146,4 +151,13 @@ test('profile AI entry opens the existing consent and draft workflow without sav
   expect(screen.getByText('Điền nhanh từ ảnh hoặc PDF sổ thú cưng').closest('details')).toHaveAttribute('open');
   expect(screen.getByLabelText('Tình trạng thông tin: Vaccine và ngày tiêm')).toBeVisible();
   expect(api.save).not.toHaveBeenCalled();
+});
+
+test('existing profile edit still preserves hidden-group text and reveals an invalid care field',async()=>{
+  setupOwnedProfile();fireEvent.click(await screen.findByRole('button',{name:'Sửa sức khỏe và an toàn'}));
+  fireEvent.change(screen.getByLabelText('Tình trạng thông tin: Dị ứng'),{target:{value:'KNOWN'}});
+  const note=screen.getByLabelText('Chi tiết dị ứng');fireEvent.change(note,{target:{value:'Ghi chú mẫu'}});
+  fireEvent.click(screen.getByRole('button',{name:'Cơ bản',exact:true}));
+  expect(note).not.toBeVisible();fireEvent.invalid(note);
+  await waitFor(()=>expect(note).toBeVisible());expect(note).toHaveValue('Ghi chú mẫu');
 });

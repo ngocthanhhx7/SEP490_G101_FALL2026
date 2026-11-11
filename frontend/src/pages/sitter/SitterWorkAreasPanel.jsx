@@ -3,13 +3,15 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { Button, Notice } from '../../components/ui/index.js';
 import './sitter-work-areas.css';
 
-export const MAX_SITTER_WORK_AREA_CODES = 20;
+export const MAX_SITTER_WORK_AREA_CODES = 100;
 
 const LEVELS = Object.freeze([
-  { code: 'CITY', label: 'Thành phố' },
+  { code: 'PROVINCE', label: 'Tỉnh, thành phố' },
+  { code: 'COMMUNE', label: 'Xã, phường, đặc khu' },
+  { code: 'CITY', label: 'Phạm vi vận hành cũ' },
   { code: 'DISTRICT', label: 'Khu vực phục vụ' },
 ]);
-const SAFE_CODE = /^(CITY|DISTRICT)_[A-Z0-9][A-Z0-9_-]{0,55}$/;
+const SAFE_CODE = /^(CITY|DISTRICT|PROVINCE|COMMUNE)_[A-Z0-9][A-Z0-9_-]{0,55}$/;
 const HAS_LETTER = /[\p{L}]/u;
 
 function preparePanelData(data) {
@@ -25,7 +27,7 @@ function preparePanelData(data) {
       || !code.startsWith(`${option.level}_`) || !label || label.length > 100
       || !HAS_LETTER.test(label) || /[\u0000-\u001f\u007f,;@/\\]/u.test(label) || seen.has(code)) return null;
     seen.add(code);
-    options.push({ code, label, level: option.level });
+    options.push({ code, label, level: option.level, parentCode: option.parentCode, enabled: option.enabled !== false });
   }
 
   const selected = new Set();
@@ -35,7 +37,7 @@ function preparePanelData(data) {
     selected.add(code);
   }
   const selectedCodes = [...selected].sort();
-  if (selectedCodes.length > MAX_SITTER_WORK_AREA_CODES) return null;
+  if (selectedCodes.length > 4000) return null;
   return { options, selectedCodes, expectedVersion: data.expectedVersion };
 }
 
@@ -57,6 +59,9 @@ export function SitterWorkAreasPanel({ api }) {
     return api.load({ signal });
   }, [api]);
   const resource = useApiResource(load);
+  const [page, setPage] = useState(0);
+  const [search, setSearch] = useState('');
+  const [province, setProvince] = useState('');
   const [draftCodes, setDraftCodes] = useState(null);
   const [savedCodes, setSavedCodes] = useState(null);
   const [expectedVersion, setExpectedVersion] = useState(0);
@@ -205,6 +210,8 @@ export function SitterWorkAreasPanel({ api }) {
     const currentCodes = draftCodes ?? panelData.selectedCodes;
     const baselineCodes = savedCodes ?? panelData.selectedCodes;
     const selected = new Set(currentCodes);
+    const filteredOptions = panelData.options.filter(area => area.level !== 'PROVINCE' && (!province || area.parentCode === province) && area.label.toLocaleLowerCase('vi').includes(search.toLocaleLowerCase('vi')));
+    const pageOptions = filteredOptions.slice(page * 100, (page + 1) * 100);
     const atLimit = currentCodes.length >= MAX_SITTER_WORK_AREA_CODES;
     const dirty = currentCodes.length !== baselineCodes.length
       || currentCodes.some((code, index) => code !== baselineCodes[index]);
@@ -214,26 +221,31 @@ export function SitterWorkAreasPanel({ api }) {
       </p>
       <form onSubmit={saveSelection}>
         <fieldset className="sitter-work-areas__fieldset" disabled={saving || reconcileRequired}>
-          <legend>Chọn khu vực hành chính</legend>
+          <legend>Chọn khu vực đã mở phục vụ</legend>
+          <label>Tỉnh, thành phố<select value={province} onChange={event => { setProvince(event.target.value); setPage(0); }}><option value="">Tất cả</option>{panelData.options.filter(row => row.level === 'PROVINCE').map(row => <option key={row.code} value={row.code}>{row.label}</option>)}</select></label>
+          <label>Tìm khu vực<input type="search" value={search} onChange={event => { setSearch(event.target.value); setPage(0); }} placeholder="Nhập tên xã, phường hoặc khu vực" /></label>
           <p id="sitter-work-areas-limit" className="sitter-work-areas__hint">
-            Có thể chọn tối đa {MAX_SITTER_WORK_AREA_CODES} mã thành phố hoặc quận, huyện.
+            Chọn tối đa {MAX_SITTER_WORK_AREA_CODES} khu vực. Khu vực đã tạm dừng được giữ để đối chiếu; bạn có thể bỏ chọn. Tỉnh/thành phố dùng để lọc danh sách.
           </p>
           {LEVELS.map(level => {
-            const options = panelData.options.filter(area => area.level === level.code);
+            if (level.code === 'PROVINCE') return null;
+            const options = pageOptions.filter(area => area.level === level.code);
             if (!options.length) return null;
             return <section className="sitter-work-areas__group" key={level.code} aria-labelledby={`work-area-${level.code}`}>
               <h2 id={`work-area-${level.code}`}>{level.label}</h2>
               <div className="sitter-work-areas__options">
                 {options.map(area => <label className="sitter-work-areas__option" key={area.code}>
                   <input type="checkbox" name="areaCodes" value={area.code}
-                    checked={selected.has(area.code)} disabled={!selected.has(area.code) && atLimit}
+                    checked={selected.has(area.code)} disabled={!selected.has(area.code) && (atLimit || !area.enabled)}
                     aria-describedby="sitter-work-areas-limit"
                     onChange={event => toggleCode(area.code, event.target.checked)} />
-                  <span>{area.label}</span>
+                  <span>{area.label}{!area.enabled && <small> · Đã tạm dừng phục vụ</small>}</span>
                 </label>)}
               </div>
             </section>;
           })}
+          {!filteredOptions.length && <p>Không có khu vực đã mở phù hợp với bộ lọc.</p>}
+          <div className="sitter-work-areas__actions"><Button variant="secondary" disabled={!page} onClick={() => setPage(value => value - 1)}>Trang trước</Button><span>Trang {page + 1} · {filteredOptions.length} khu vực</span><Button variant="secondary" disabled={(page + 1) * 100 >= filteredOptions.length} onClick={() => setPage(value => value + 1)}>Trang sau</Button></div>
         </fieldset>
 
         {currentCodes.length === 0 && <p className="sitter-work-areas__empty-selection">Bạn chưa chọn khu vực phục vụ. Lưu danh sách trống sẽ bỏ các khu vực khỏi tìm kiếm yêu cầu mới.</p>}

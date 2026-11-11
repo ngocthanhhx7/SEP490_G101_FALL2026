@@ -65,6 +65,12 @@ export function createOtpService({ connection, User, models = identityModels(con
     }
     const identity = lookup(channel, contact);
     const canonicalValue = identity.canonicalValue;
+    if (purpose === 'LOGIN') {
+      const registered = await models.Contact.exists({
+        channel, lookupKey: identity.contactLookup, state: 'VERIFIED'
+      });
+      if (!registered) throw new AppError(409, 'REGISTRATION_REQUIRED', 'Register an account before signing in');
+    }
     if (purpose === 'APPLICATION_STATUS' && !Types.ObjectId.isValid(applicationId)) {
       throw new AppError(422, 'VALIDATION_FAILED', 'Application scope is required');
     }
