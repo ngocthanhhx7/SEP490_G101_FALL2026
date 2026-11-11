@@ -1,5 +1,10 @@
 # Domain services
 
+`otp-verification.service.js` checks the canonical verified contact before
+creating a LOGIN challenge. Unknown/replaced contacts return
+`409 REGISTRATION_REQUIRED` without OTP persistence or delivery. Verification
+still rechecks authoritative contact/account state before issuing a session.
+
 `single-account-role.service.js` owns bounded existing-user inspection, the
 explicitly confirmed operator migration and validator-only recovery. It never
 selects between distinct operational roles or restores old whole-user/session
