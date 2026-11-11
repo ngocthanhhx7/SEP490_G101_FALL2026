@@ -186,6 +186,23 @@ test('complaint opened after accrual moves both earnings to HELD and releases th
   expect(await models.EarningLedgerEntry.countDocuments({ fromBucket: 'HELD', toBucket: 'AVAILABLE' })).toBe(2);
 });
 
+test('GBR-26 automatic finality clears the complaint hold view while legacy ledger locks still require release', async () => {
+  await payAndAssign(); await finish(0); await finish(1); await assessAndAccrue();
+  const { complaintId } = await openComplaint();
+  expect(await models.Earning.countDocuments({ state: 'HELD' })).toBe(2);
+  await complaints.resolve({ actor: admin, complaintId, expectedVersion: 0,
+    idempotencyKey: 'automatic-final-result', handlingNotes: 'Synthetic notes', customerResult: 'Synthetic result' });
+
+  const cutoff = new Date(+at + 72 * 3600000);
+  at = cutoff;
+  expect(await complaints.readBookingComplaintHold({ bookingId: String(booking._id) })).toMatchObject({
+    billState: null, hasUnfinalizedComplaints: false, latestFinalAt: cutoff.toISOString()
+  });
+  expect(await service.drain()).toEqual([]);
+  expect(await models.Earning.countDocuments({ state: 'HELD' })).toBe(2);
+  expect(await models.EarningLedgerEntry.countDocuments({ fromBucket: 'HELD', toBucket: 'AVAILABLE' })).toBe(0);
+});
+
 test('employee completion writes one immutable credit per visit and never creates partner earnings', async () => {
   service = createBookingFinanceSourceService({ connection, clock: () => at });
   webhook = createPayosPaymentWebhookService({ provider: { verifyWebhook: async body => body.data },
@@ -366,12 +383,18 @@ test.each([
   const sent = await csrf(staffApi.post(path + '/resolution'), 'propose-refund').send({ ...base, proposal });
   expect(sent.status).toBe(200);
   expect(sent.body.data).toMatchObject({ state: 'OPEN', messageCode: 'MSG147' });
-  expect((await adminApi.get('/api/v1/complaints/refund-proposals')).body.data.items).toHaveLength(1);
+  const proposals = await adminApi.get('/api/v1/complaints/refund-proposals').expect(200);
+  expect(proposals.body.data.items).toHaveLength(1);
+  expect((await adminApi.get(path + '/refund-proposal').expect(200)).body.data.proposal).toMatchObject({
+    amountVnd: proposal.amountVnd, reason: proposal.reason, evidenceRefs: [{ mediaId }]
+  });
   const waiting = await customerApi.get(path);
   expect(waiting.body.data).toMatchObject({ state: 'OPEN', customerResult: null, approvedAmountVnd: null });
   expect(waiting.text).not.toContain('Synthetic private');
   expect(waiting.text).not.toContain(mediaId);
-  expect((await staffApi.get(path + '/evidence/' + customerImage + '/content')).headers['cache-control']).toBe('private, no-store');
+  const evidence = await staffApi.get(path + '/evidence/' + customerImage + '/content').expect(200);
+  expect(evidence.headers['cache-control']).toBe('private, no-store');
+  expect(evidence.body).toEqual(Buffer.from('synthetic-blob'));
   expect((await customerApi.get(path + '/evidence/' + mediaId + '/content')).status).toBe(404);
   expect((await complaintApp(complaints, actors[0]).get(path + '/evidence/' + customerImage + '/content')).status).toBe(403);
 
@@ -402,6 +425,7 @@ test.each([
     ['ComplaintRefundDecided', staff.userId], ['ComplaintRefundDecided', customer.userId]
   ]));
   expect(notifications).toHaveLength(4);
+  expect(notifications.every(notification => notification.deepLink === null)).toBe(true);
 
   if (outcome === 'APPROVE') {
     const disputed = await csrf(customerApi.post(path + '/objections'), 'reject-result')
@@ -420,7 +444,9 @@ test.each([0, 15000])('UC-52 all-cancelled booking requires a positive issued bi
   await col('visits').updateMany({ bookingId: booking._id }, { $set: { state: 'CANCELLED', cancelledAt: at } });
   complaints = complaintServiceWithFixture(complaintBillingFixture({ basis: 'ISSUED', billTotalVnd }));
   const bookingId = String(booking._id);
-  const eligibility = await complaints.eligibility({ actor: customer, bookingId });
+  const path = '/api/v1/complaints/eligibility/bookings/' + bookingId;
+  const { body: { data: eligibility } } = await complaintApp(complaints, customer).get(path).expect(200);
+  await complaintApp(complaints, { ...customer, userId: String(oid()) }).get(path).expect(404);
   expect(eligibility.wholeBooking).toMatchObject({ eligible: billTotalVnd > 0, aboveVisitTable: billTotalVnd > 0 });
   expect(eligibility.visits.every(visit => !visit.canSubmit)).toBe(true);
   const result = complaints.submit({ actor: customer, scope: 'BOOKING', bookingId,
