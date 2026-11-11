@@ -5,7 +5,6 @@ import { createEmployeeScheduleRepository } from '../services/employee-schedulin
 import { createEmployeeDispatchService } from '../services/employee-scheduling/employee-dispatch.service.js';
 import { createBookingCarePlanService } from '../services/booking-proposals/booking-care-plan.service.js';
 import { createEmployeeScheduleProposalService } from '../services/employee-scheduling/schedule-proposal.service.js';
-import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
@@ -16,7 +15,7 @@ import { createAssignedCareService } from '../services/care/assigned-care.servic
 import { createAssignedCareController } from '../controllers/assigned-care.controller.js';
 import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
 
-export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas = DEMO_WORK_AREAS }) {
+export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== 'true' || !config.auth?.enabled || !connection?.db) return null;
   if (env.VISIT_TRAVEL_ENABLED !== undefined && !['true', 'false'].includes(env.VISIT_TRAVEL_ENABLED)) throw new TypeError('Invalid VISIT_TRAVEL_ENABLED');
