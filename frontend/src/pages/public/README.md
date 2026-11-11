@@ -1,5 +1,10 @@
 # Public pages
 
+`SignInPage` opens the shared native `Dialog` when login returns
+`REGISTRATION_REQUIRED`, before asking for OTP. The popup links to `/register`
+and can close to edit the contact. Verification/resend use the same popup if
+the verified contact was replaced after the first send.
+
 `ServiceBookingPage.jsx` owns the selected-service flow at `/booking/:serviceId`:
 owned pets, confirmed address and per-visit schedule, system dispatch or explicit
 employee selection, then a deterministic quote/consent/checkout confirmation.

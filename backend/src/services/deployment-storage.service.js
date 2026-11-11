@@ -1,3 +1,4 @@
+import { provisionServiceAreaStorage } from './service-area-provisioning.service.js';
 import { provisionFinanceSources, assertFinanceSourceStorage } from './settlements/source-provisioning.js';
 import { provisionEmployeeScheduling, assertEmployeeSchedulingStorage } from './employee-scheduling/scheduling-storage.service.js';
 import { assertPayrollStorage } from './payroll/payroll-storage.service.js';
@@ -19,7 +20,7 @@ export async function provisionDeploymentStorage({ connection, env = {} }) {
     if (env[key] !== undefined && !['true', 'false'].includes(env[key])) throw new TypeError(`Invalid ${key}`);
   }
   if (env.FINANCE_SOURCES_ENABLED === 'true') await provisionFinanceSources(connection, { legacyTasks: storageProfile(env) === 'LEGACY_PARTNER' });
-  if (env.EMPLOYEE_SCHEDULING_ENABLED === 'true') await provisionEmployeeScheduling(connection);
+  if (env.EMPLOYEE_SCHEDULING_ENABLED === 'true') { await provisionEmployeeScheduling(connection); await provisionServiceAreaStorage(connection); }
   for (const model of Object.values(connection.models)) {
     if (model.collection.name === 'reference_catalog') continue;
     await model.createCollection();

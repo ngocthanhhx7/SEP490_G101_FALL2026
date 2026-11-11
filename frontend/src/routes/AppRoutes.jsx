@@ -1,3 +1,5 @@
+import { ServiceAreasPage as AdminServiceAreasPage } from '../pages/admin/ServiceAreasPage.jsx';
+import { createServiceAreaManagementApi } from '../services/service-area-management-api.js';
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
@@ -68,6 +70,12 @@ import { createProductManagementApi } from '../services/product-management-api.j
 import { SupplierManagementPage } from '../pages/admin/SupplierManagementPage.jsx';
 import { createSupplierManagementApi } from '../services/supplier-management-api.js';
 
+function ServiceAreasRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createServiceAreaManagementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return <AdminServiceAreasPage key={user?.id} api={api} />;
+}
+
 function ProductManagementRoute() {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createProductManagementApi({ getCsrfToken }), [getCsrfToken]);
@@ -135,6 +143,7 @@ const navigationByRole = {
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
+    ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
     ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
     ['Điều phối AI', '/admin/ai-models', 'Hệ thống'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
@@ -234,6 +243,7 @@ export function AppRoutes({
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
+          <Route path="admin/service-areas" element={<ServiceAreasRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
             path="admin/service-prices"
