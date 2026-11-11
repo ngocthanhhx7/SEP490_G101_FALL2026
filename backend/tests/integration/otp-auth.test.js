@@ -344,9 +344,9 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const { sessionService } = fixture();
     const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
     expect(issued.expiresAt).toBe(clockNow + 30 * 24 * 60 * 60 * 1000);
-    await models.Contact.deleteOne({ userId: user._id });
     const { otpService } = fixture();
     const challenge = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
+    await models.Contact.deleteOne({ userId: user._id });
     await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
       .resolves.toMatchObject({ authenticated: false });
     expect(await models.AuthSession.countDocuments({})).toBe(1);
@@ -354,6 +354,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
   });
 
   test('does not expose OTPs in logs or leave a usable challenge after provider failure', async () => {
+    await createActiveUser();
     const logger = jest.fn();
     const { otpService } = fixture({ deliveryResult: { status: 'FAILED', code: 'PROVIDER_ERROR' }, logger });
     const challenge = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
@@ -405,13 +406,37 @@ test('CSRF resume migrates legacy sessions once and rejects expiry and mismatche
   } finally { update.mockRestore(); }
 });
 
-test('unknown contact receives registration guidance only after proving the OTP and cannot replay it', async () => {
+test('a contact replaced after sending still requires registration after OTP and cannot replay it', async () => {
+ await createActiveUser({contact:'unregistered@example.test'});
  const {otpService}=fixture();
  const input={channel:'EMAIL',contact:'unregistered@example.test',purpose:'LOGIN'};
  const challenge=await otpService.begin(input);
+ await models.Contact.updateMany({},{$set:{state:'REPLACED'}});
  expect(challenge).not.toHaveProperty('reason');
  await expect(otpService.verify({...input,...challenge,code:'999999'})).rejects.toMatchObject({code:'OTP_INCORRECT'});
  await expect(otpService.verify({...input,...challenge,code:'004201'})).resolves.toMatchObject({authenticated:false,reason:'REGISTRATION_REQUIRED'});
  expect(await models.AuthSession.countDocuments({})).toBe(0);
  await expect(otpService.verify({...input,...challenge,code:'004201'})).rejects.toMatchObject({code:'OTP_ALREADY_USED'});
+});
+
+test.each([['EMAIL', 'new@example.test'], ['PHONE', '+84988888888']])('%s unregistered login never sends or persists an OTP', async (channel, contact) => {
+  const { otpService, contactDelivery } = fixture();
+  await expect(otpService.begin({ channel, contact, purpose: 'LOGIN' }))
+    .rejects.toMatchObject({ status: 409, code: 'REGISTRATION_REQUIRED' });
+  expect(contactDelivery.send).not.toHaveBeenCalled();
+  expect(await models.OtpChallenge.countDocuments({})).toBe(0);
+  expect(await models.OtpThrottle.countDocuments({})).toBe(0);
+  expect(await models.AuthSession.countDocuments({})).toBe(0);
+});
+
+test('a replaced contact cannot start login while its current replacement can', async () => {
+  await createActiveUser();
+  await models.Contact.updateMany({}, { $set: { state: 'REPLACED' } });
+  const { otpService, contactDelivery } = fixture();
+  await expect(otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' }))
+    .rejects.toMatchObject({ code: 'REGISTRATION_REQUIRED' });
+  expect(contactDelivery.send).not.toHaveBeenCalled();
+  await createActiveUser({ contact: 'current@example.test' });
+  await expect(otpService.begin({ channel: 'EMAIL', contact: ' CURRENT@EXAMPLE.TEST ', purpose: 'LOGIN' }))
+    .resolves.toMatchObject({ status: 'PENDING' });
 });

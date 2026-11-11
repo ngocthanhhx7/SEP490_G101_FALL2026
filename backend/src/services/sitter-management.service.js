@@ -3,7 +3,7 @@ import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
 import { hasRole } from '../utils/roles.js';
 import { createScopedCursor } from '../utils/scoped-cursor.js';
-import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
+import { createServiceAreaCatalog } from './service-area-catalog.service.js';
 import { normalizeVietnamPhone } from './sms-template.service.js';
 import { normalizeWorkingWindows } from './sitter-availability.service.js';
 import { sitterManagementQuery } from '../validators/sitter-management.validator.js';
@@ -206,7 +206,7 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       const hours = await staffWorkingHours(page, asOf, session);
       return {
         items: page.map(item => ({ ...item, workingWindows: hours.get(item.id) ?? [], shift: null, approvedLeave: null })),
-        total: items.length, asOf: asOf.toISOString(), areas: DEMO_WORK_AREAS, withdrawalsAvailable: withdrawals !== null,
+        total: items.length, asOf: asOf.toISOString(), areas: await createServiceAreaCatalog(connection).list(), withdrawalsAvailable: withdrawals !== null,
         tabCounts: {
           all: population.length,
           partTime: population.filter(user => user.employmentType === 'PART_TIME').length,
@@ -231,7 +231,7 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       } }], session);
       const page = result.page.slice(0, query.limit);
       return { items: page.map(row), total: result.count[0]?.value ?? 0, asOf: now.toISOString(),
-        areas: DEMO_WORK_AREAS, nextCursor: result.page.length > query.limit ? cursors.encode({ id: id(page.at(-1)._id) }, scope) : null };
+        areas: await createServiceAreaCatalog(connection).list(), nextCursor: result.page.length > query.limit ? cursors.encode({ id: id(page.at(-1)._id) }, scope) : null };
     });
   }
   async function reports({ actor, query: input }) {
@@ -292,7 +292,7 @@ export function createSitterManagementService({ connection, cursorSecret, contac
         action: { $in: ['SITTER_SUSPENDED', 'SITTER_REINSTATED', 'APPLICATION_DECIDED'] } } },
       { $sort: { occurredAt: -1, _id: -1 } }, { $limit: 20 }, { $project: fields(['action', 'occurredAt', 'resultVersion']) }], session) : [];
       return { ...row(user), rating: { available: ratingSource, count: ratingSource ? ratings[0]?.count ?? 0 : null,
-        average: ratings[0]?.average ?? null }, areaCatalog: DEMO_WORK_AREAS, asOf: now.toISOString(), profile: user.profiles[0] ? {
+        average: ratings[0]?.average ?? null }, areaCatalog: await createServiceAreaCatalog(connection).list(), asOf: now.toISOString(), profile: user.profiles[0] ? {
         bio: user.profiles[0].bio, areas: user.profiles[0].areas, state: user.profiles[0].state, updatedAt: iso(user.profiles[0].updatedAt)
       } : null, application: application ? { ...(admin ? { id: id(application._id) } : {}), experience: application.experience,
         ageEligible: application.ageEligible, employmentType: application.employmentType ?? null,
