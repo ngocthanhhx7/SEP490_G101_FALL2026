@@ -82,7 +82,8 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
 
   const saleStaffDashboardRouter = Router();
   const saleStaffDashboard = createSaleStaffDashboardController(createSaleStaffDashboardService({ connection }));
-  saleStaffDashboardRouter.get('/', noStore, requireSession(session, { clock }), requireRoles('SALE_STAFF'), saleStaffDashboard);
+  saleStaffDashboardRouter.get('/', noStore, requireSession(session, { clock }),
+    requireRoles(...PRODUCT_PERMISSIONS.VIEW_SALE_STAFF_DASHBOARD), saleStaffDashboard);
 
   // Product Management: who may use it comes from PRODUCT_PERMISSIONS.MANAGE_PRODUCTS.
   const productManagement = createProductManagementController(createProductManagementService({ connection }));

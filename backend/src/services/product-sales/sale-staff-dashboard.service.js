@@ -1,3 +1,4 @@
+import { PRODUCT_PERMISSIONS } from '../../constants/product-permissions.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { AppError } from '../../utils/app-error.js';
 import { hasRole } from '../../utils/roles.js';
@@ -10,7 +11,9 @@ export function createSaleStaffDashboardService({ connection }) {
   return Object.freeze({
     async read(actor) {
       if (actor?.state !== 'ACTIVE') throw productSalesErrors.unauthenticated();
-      if (!hasRole(actor.roles, 'SALE_STAFF')) throw productSalesErrors.forbidden();
+      if (!PRODUCT_PERMISSIONS.VIEW_SALE_STAFF_DASHBOARD.some((role) => hasRole(actor.roles, role))) {
+        throw productSalesErrors.forbidden();
+      }
 
       try {
         const { PREPARE, AWAITING_PICKUP, RETURNING } = await readProductOrderTabCounts(ProductOrder);
