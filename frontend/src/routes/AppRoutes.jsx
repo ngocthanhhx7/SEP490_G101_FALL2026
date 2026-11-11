@@ -64,6 +64,7 @@ import { ShoppingCartPage } from '../pages/customer/ShoppingCartPage.jsx';
 import { ProductCheckoutPage } from '../pages/customer/ProductCheckoutPage.jsx';
 import { MyProductOrdersPage } from '../pages/customer/MyProductOrdersPage.jsx';
 import { ProductOrderManagementPage } from '../pages/admin/ProductOrderManagementPage.jsx';
+import { SaleStaffDashboardPage } from '../pages/dashboards/SaleStaffDashboardPage.jsx';
 import { createProductOrderManagementApi } from '../services/product-order-management-api.js';
 import { ProductManagementPage } from '../pages/admin/ProductManagementPage.jsx';
 import { createProductManagementApi } from '../services/product-management-api.js';
@@ -175,6 +176,7 @@ const navigationByRole = {
     ['Thông báo', '/account/notifications', 'Cá nhân']
   ],
   SALE_STAFF: [
+    ['Tổng quan', '/sale-staff/dashboard', 'Bán hàng'],
     ['Đơn hàng', '/admin/product-orders', 'Bán hàng']
   ],
   STAFF: [
@@ -265,6 +267,11 @@ export function AppRoutes({
           />
           <Route path="admin/applications" element={<Navigate replace to="/admin/sitter-applications" />} />
           <Route path="admin/applications/:applicationId" element={<SitterApplicationReviewPage />} />
+        </Route>
+      </Route>
+      <Route element={<RequireSession roles={['SALE_STAFF']} />}>
+        <Route element={<Workspace role="SALE_STAFF" />}>
+          <Route path="sale-staff/dashboard" element={<SaleStaffDashboardPage />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['ADMIN', 'SALE_STAFF']} />}>

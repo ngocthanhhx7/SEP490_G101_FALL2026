@@ -132,3 +132,7 @@ Customer booking list reads a projected summary from the existing owner-scoped b
 Pet-record import is transient transcription with bounded input/token/output and an allowlist of care fields; it has no database or financial writes.
 
 `service-area-*` services own sourced home-care coverage, Admin activation and insert-only operator provisioning. They keep legal-unit identities separate from legacy operational zones; see [coverage contract](../../../doc/api/home-care-coverage.md).
+
+The product-sales dashboard and Order Management share the status aggregation
+in `product-sales/product-order-tab-counts.js`. The Sale Staff dashboard service
+returns only its three order counts and maps source query failures to 503.

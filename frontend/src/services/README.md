@@ -63,3 +63,6 @@ pagination-response.js validates optional page/limit/total envelopes for shop or
 `avatar-image.js` performs local JPG/PNG decode and centered512px preview normalization; the existing server validation remains authoritative. `avatar-api.js` owns same-origin cookie-protected binary content transport and strict private path/MIME/size checks. It does not store a public media URL or move private images to R2.
 
 pet-record-import-api.js handles consented same-origin JPEG/PNG/PDF transport; API keys remain server-side.
+
+`sale-staff-dashboard-api.js` reads and validates the three UC-94 order counts
+from `/dashboards/sale-staff` through the shared API client.

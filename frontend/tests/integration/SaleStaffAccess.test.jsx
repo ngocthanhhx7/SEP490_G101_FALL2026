@@ -13,7 +13,12 @@ beforeEach(() => {
   window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
 });
 beforeEach(() => {
-  globalThis.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ data: { unreadCount: 0, items: [] } }) }));
+  globalThis.fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => ({
+    data: url === '/api/v1/dashboards/sale-staff'
+      ? { counts: { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 } }
+      : { unreadCount: 0, items: [] },
+    meta: { schemaVersion: 1 }
+  }) }));
 });
 afterEach(() => { globalThis.fetch = originalFetch; });
 
@@ -29,10 +34,10 @@ function open(path, role, state) {
 
 test.each(['/sign-in', '/register', '/sitter/apply', '/products'])('GBR-01 Sale Staff opens the sales workspace from %s', async path => {
   open(path, 'SALE_STAFF', { from: '/admin/users' });
-  expect(await screen.findByRole('heading', { name: 'Quản lý đơn hàng' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeVisible();
   const sidebar = screen.getByRole('complementary');
   expect(within(sidebar).getByText('Bán hàng')).toBeVisible();
-  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Đơn hàng']);
+  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Đơn hàng']);
 });
 
 test('Permission Matrix Admin keeps the existing order menu', async () => {
@@ -44,7 +49,7 @@ test('Permission Matrix Admin keeps the existing order menu', async () => {
 test.each(['/admin/users', '/admin/products', '/staff/dispatch', '/sitter/payroll', '/account/bookings'])('Permission Matrix Sale Staff is denied at %s', async path => {
   open(path, 'SALE_STAFF');
   expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Về khu vực của tôi' })).toHaveAttribute('href', '/admin/product-orders');
+  expect(screen.getByRole('link', { name: 'Về khu vực của tôi' })).toHaveAttribute('href', '/sale-staff/dashboard');
 });
 
 test('Sale Staff label appears in Account Settings and the avatar menu', async () => {
