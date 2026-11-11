@@ -20,7 +20,10 @@ const actors = {
   a: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
   b: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
   c: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
-  admin: { userId: String(oid()), roles: ['ADMIN'], state: 'ACTIVE' }
+  admin: { userId: String(oid()), roles: ['ADMIN'], state: 'ACTIVE' },
+  sitter: { userId: String(oid()), roles: ['PET_SITTER'], state: 'ACTIVE' },
+  staff: { userId: String(oid()), roles: ['STAFF'], state: 'ACTIVE' },
+  saleStaff: { userId: String(oid()), roles: ['SALE_STAFF'], state: 'ACTIVE' }
 };
 const MANAGE = '/api/v1/admin/product-orders';
 // Synthetic keys and numbers only: customer phones are stored encrypted under the same keys as sign-in.
@@ -528,4 +531,39 @@ describe('stock safety', () => {
     expect(await models.ProductOrder.findById(order.id).lean()).toMatchObject({ status: 'PLACED' });
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 15, quantityHeld: 0 });
   });
+});
+
+test.each([
+  [undefined, 401, 401, 401, 401],
+  ['a', 403, 403, 200, 403],
+  ['sitter', 403, 403, 403, 403],
+  ['staff', 403, 403, 403, 403],
+  ['admin', 200, 200, 403, 200],
+  ['saleStaff', 200, 403, 403, 403]
+])('Permission Matrix for product sales as %s', async (who, manage, administer, cart, cancel) => {
+  await api(who).get('/api/v1/products').expect(200);
+  await api(who).get('/api/v1/product-cart').expect(cart);
+  await api(who).get(MANAGE).expect(manage);
+  await api(who).get('/api/v1/admin/products').expect(administer);
+  await api(who).get('/api/v1/admin/suppliers').expect(administer);
+  const order = await placePickup('a', 'SP-0012', 1);
+  await api(who).post(`${MANAGE}/${order.id}/cancel`).send({}).expect(cancel);
+});
+
+test('Permission Matrix Sale Staff handles pickup, delivery and returns', async () => {
+  const sale = api('saleStaff');
+  const step = (order, action, body = {}) => sale.post(`${MANAGE}/${order.id}/${action}`).send(body).expect(200);
+  const pickup = await placePickup('a', 'SP-0012', 1);
+  await sale.get(`${MANAGE}/${pickup.id}`).expect(200);
+  await step(pickup, 'mark-ready');
+  await step(pickup, 'record-payment');
+  await step(pickup, 'hand-to-customer');
+  const delivery = await placeDelivery('a', 'SP-0012', 1);
+  await step(delivery, 'hand-to-carrier', { trackingCode: 'TEST-DELIVERY' });
+  await step(delivery, 'mark-delivered');
+  const returned = await placeDelivery('a', 'SP-0012', 1);
+  await step(returned, 'hand-to-carrier', { trackingCode: 'TEST-RETURN' });
+  await step(returned, 'mark-returning', { carrierReason: 'Synthetic carrier reason' });
+  await step(returned, 'confirm-returned', await confirmBody([['SP-0012', 1]]));
+  await sale.post('/api/v1/product-orders').send({}).expect(403);
 });

@@ -3,6 +3,8 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import { connectDatabase } from '../../src/config/database.js';
 import { identityModels } from '../../src/models/identity.model.js';
 import { userModel } from '../../src/models/user.model.js';
+import { userAdminAuditModel } from '../../src/models/user-admin-audit.model.js';
+import { createUserAdminService } from '../../src/services/user-admin.service.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { createOtpService } from '../../src/services/otp-verification.service.js';
 import { createSessionService, lockUserAndRevokeSessions } from '../../src/services/session.service.js';
@@ -414,4 +416,34 @@ test('unknown contact receives registration guidance only after proving the OTP 
  await expect(otpService.verify({...input,...challenge,code:'004201'})).resolves.toMatchObject({authenticated:false,reason:'REGISTRATION_REQUIRED'});
  expect(await models.AuthSession.countDocuments({})).toBe(0);
  await expect(otpService.verify({...input,...challenge,code:'004201'})).rejects.toMatchObject({code:'OTP_ALREADY_USED'});
+});
+
+test('GBR-08 Sale Staff OTP issues a 12-hour session and honors account lock and unlock', async () => {
+  const contact = 'person@example.test';
+  const { user } = await createActiveUser({ role: 'SALE_STAFF', contact });
+  const { otpService, sessionService } = fixture();
+  const login = async () => {
+    const input = { channel: 'EMAIL', contact, purpose: 'LOGIN' };
+    const challenge = await otpService.begin(input);
+    return otpService.verify({ ...input, ...challenge, code: '004201', rememberDevice: true });
+  };
+  const result = await login();
+  expect(result.session.expiresAt).toBe(clockNow + 12 * 60 * 60 * 1000);
+  const req = { headers: { cookie: sessionService.cookieName + '=' + result.session.token } };
+  await expect(sessionService.authenticate(req)).resolves.toMatchObject({ roles: ['SALE_STAFF'] });
+  const { user: admin } = await createActiveUser({ role: 'ADMIN', contact: 'admin@example.test' });
+  const Audit = userAdminAuditModel(connection);
+  const userAdmin = createUserAdminService({ connection, User, Contact: models.Contact, Audit,
+    sessionService, contactCrypto, cursorSecret: `${key}-cursor`, clock: () => clockNow });
+  const decide = (action, expectedVersion) => userAdmin.decide({ userId: user.id,
+    actor: { userId: admin.id, state: 'ACTIVE', roles: ['ADMIN'] },
+    body: { action, reason: 'Synthetic account decision', expectedVersion } });
+  await decide('LOCK', 0);
+  await expect(sessionService.authenticate(req)).resolves.toBeNull();
+  clockNow += 60000;
+  await expect(login()).rejects.toMatchObject({ code: 'ACCOUNT_LOCKED', status: 403 });
+  await decide('UNLOCK', 1);
+  expect(await Audit.countDocuments({ resourceId: user._id })).toBe(2);
+  clockNow += 60000;
+  await expect(login()).resolves.toMatchObject({ authenticated: true });
 });

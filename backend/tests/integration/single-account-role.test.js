@@ -201,3 +201,30 @@ test('new User collections receive the same strict role contract, without runtim
   await userModel(connection).createCollection();
   await expect(assertSingleAccountRoleStorage(connection.db)).rejects.toThrow('SINGLE_ACCOUNT_ROLE_NOT_READY');
 });
+
+test('D-270 upgrades the exact four-role validator and restores it only after Sale Staff is removed', async () => {
+  const users = connection.db.collection('users');
+  const previous = { validator: { $jsonSchema: { bsonType: 'object', required: ['roles'], properties: {
+    roles: { bsonType: 'array', minItems: 1, maxItems: 1, items: { enum: ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'] } }
+  } } }, validationLevel: 'strict', validationAction: 'error' };
+  await users.updateOne({ _id: ids[1] }, { $set: { roles: ['PET_SITTER'] } });
+  await users.updateOne({ _id: ids[2] }, { $set: { roles: ['STAFF'] } });
+  await connection.db.command({ collMod: 'users', ...previous });
+  const before = await inspectSingleAccountRoles(connection.db);
+  let journal;
+  await expect(migrateSingleAccountRoles(await input({ checkpoint: async value => { journal = JSON.parse(JSON.stringify(value)); } })))
+    .resolves.toMatchObject({ changedUsers: 0, revokedSessions: 0, indexesChanged: false });
+  await assertSingleAccountRoleStorage(connection.db);
+  expect((await inspectSingleAccountRoles(connection.db)).dataHash).toBe(before.dataHash);
+  const sale = await users.insertOne({ roles: ['SALE_STAFF'] });
+  for (const roles of [['SALE_STAFF', 'STAFF'], ['UNSUPPORTED']]) {
+    await expect(users.insertOne({ roles })).rejects.toMatchObject({ code: 121 });
+  }
+  await expect(restoreSingleAccountRoleValidator({ db: connection.db, journal, ...await input() }))
+    .rejects.toThrow('ROLE_ROLLBACK_INCOMPATIBLE_USERS');
+  await assertSingleAccountRoleStorage(connection.db);
+  await users.updateOne({ _id: sale.insertedId }, { $set: { roles: ['STAFF'] } });
+  await restoreSingleAccountRoleValidator({ db: connection.db, journal, ...await input() });
+  expect((await connection.db.listCollections({ name: 'users' }).next()).options).toEqual(previous);
+  await expect(users.insertOne({ roles: ['SALE_STAFF'] })).rejects.toMatchObject({ code: 121 });
+});

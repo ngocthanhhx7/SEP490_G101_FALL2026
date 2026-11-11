@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import mongoose from 'mongoose';
 import { ACCOUNT_ROLES } from '../constants/account-roles.js';
-import { singleAccountRoleOptions } from '../models/user-role.storage.js';
+import { previousSingleAccountRoleOptions, singleAccountRoleOptions } from '../models/user-role.storage.js';
 
 export const SINGLE_ACCOUNT_ROLE_CONTRACT = 'SINGLE_ACCOUNT_ROLE_V1';
 const budget = { maxTimeMS: 5000, timeoutMS: 5000 }, CAP = 10000, BYTES = 16 * 1024 * 1024;
@@ -47,11 +47,14 @@ export async function inspectSingleAccountRoles(db) {
   if (!info || info.type !== 'collection') throw new Error('ROLE_USERS_UNAVAILABLE');
   const rows = await users(db), options = normalized(info.options), data = createHash('sha256');
   const indexes = (await db.collection('users').listIndexes(budget).toArray()).sort((a, b) => a.name.localeCompare(b.name));
+  const upgrading = same(options, previousSingleAccountRoleOptions);
   const targets = [], blocked = [], totals = Object.fromEntries(ACCOUNT_ROLES.map(role => [role, 0]));
   for (const row of rows) {
     data.update(mongoose.mongo.BSON.serialize(row));
     const afterRoles = classify(row.roles), id = row._id.toString();
-    if (!afterRoles) { blocked.push({ id, code: 'AMBIGUOUS_OR_INVALID_ROLES' }); continue; }
+    if (!afterRoles || (upgrading && (!same(row.roles, afterRoles) || afterRoles[0] === 'SALE_STAFF'))) {
+      blocked.push({ id, code: 'AMBIGUOUS_OR_INVALID_ROLES' }); continue;
+    }
     totals[afterRoles[0]]++;
     if (same(row.roles, afterRoles)) continue;
     if (row._id?._bsontype !== 'ObjectId' || !safeCounter(row.version) || !safeCounter(row.authEpoch)) {
@@ -61,7 +64,8 @@ export async function inspectSingleAccountRoles(db) {
       dataHash: bsonHash(row), protectedHash: protectedHash(row) });
   }
   const sessions = await db.listCollections({ name: 'authsessions' }, budget).next();
-  const foreignValidator = Object.keys(options.validator).length > 0 && !same(options.validator, singleAccountRoleOptions.validator);
+  const foreignValidator = Object.keys(options.validator).length > 0 && !upgrading
+    && !same(options.validator, singleAccountRoleOptions.validator);
   const manifest = { contract: SINGLE_ACCOUNT_ROLE_CONTRACT, database: db.databaseName, documents: rows.length,
     dataHash: data.digest('hex'), indexes, options, sessionCollectionExists: !!sessions, targets, blocked, totals, foreignValidator };
   return { ...manifest, digest: hash(manifest), readyForApply: !blocked.length && !foreignValidator };
@@ -129,9 +133,14 @@ export async function restoreSingleAccountRoleValidator({ db, journal, ...input 
   const manifest = { ...journal.before }, digest = manifest.digest;
   delete manifest.digest; delete manifest.readyForApply;
   if (hash(manifest) !== digest || !same(manifest.options, normalized(manifest.options)) || (Object.keys(manifest.options?.validator ?? {}).length > 0
+    && !same(manifest.options, previousSingleAccountRoleOptions)
     && !same(manifest.options, singleAccountRoleOptions))) throw new Error('ROLE_ROLLBACK_MANIFEST_INVALID');
   const current = await inspectSingleAccountRoles(db);
   if (current.digest !== input.digest || current.foreignValidator) throw new Error('ROLE_ROLLBACK_SOURCE_CHANGED');
+  if (!same(manifest.options, singleAccountRoleOptions)
+    && await db.collection('users').findOne({ roles: 'SALE_STAFF' }, { ...budget, projection: { _id: 1 } })) {
+    throw new Error('ROLE_ROLLBACK_INCOMPATIBLE_USERS');
+  }
   const progress = { contract: SINGLE_ACCOUNT_ROLE_CONTRACT, database: db.databaseName, state: 'RESTORING_VALIDATOR', inProgress: 'users' };
   await input.checkpoint(progress);
   await db.command({ collMod: 'users', ...manifest.options }, { timeoutMS: 5000 });

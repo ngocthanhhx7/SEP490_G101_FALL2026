@@ -34,3 +34,15 @@ test('malformed roles fail closed and legacy single role works', () => {
 });
 
 test('owned applicant status is a valid customer return route',()=>{expect(loginDestination({roles:['CUSTOMER']},'/sitter/application-status')).toBe('/sitter/application-status');});
+
+test('GBR-01 Sale Staff has a sales landing and no inherited workspace permissions', () => {
+  const user = { roles: ['SALE_STAFF'] };
+  expect(roleLanding(user)).toBe('/admin/product-orders');
+  expect(hasRole(user, 'SALE_STAFF')).toBe(true);
+  for (const role of ['ADMIN', 'STAFF', 'CUSTOMER', 'PET_SITTER']) expect(hasRole(user, role)).toBe(false);
+  expect(loginDestination(user, '/admin/product-orders?tab=ALL')).toBe('/admin/product-orders?tab=ALL');
+  expect(loginDestination(user, '/admin/users')).toBe('/admin/product-orders');
+  expect(loginDestination(user, '/sitter/application-status')).toBe('/admin/product-orders');
+  expect(loginDestination(user, '/products/0123456789abcdef01234567')).toBe('/admin/product-orders');
+  expect(primaryRole({ roles: ['SALE_STAFF', 'STAFF'] })).toBeUndefined();
+});

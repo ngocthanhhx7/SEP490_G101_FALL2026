@@ -17,3 +17,6 @@ The shop catalog (`/products`, `/products/:productId`) is public inside the publ
 Customer navigation exposes product history under Mua sắm. `/customer/product-orders` stays Customer-protected and uses the account workspace, preserving checkout and notification deep links.
 
 `/account/bookings/:bookingId` is Customer-only, uses the account workspace and keeps the service-order navigation active. It loads the owner-checked checkout read API by route ID; the legacy checkout confirmation query remains compatible.
+
+Admin and Sale Staff share the order management route at `/admin/product-orders`.
+Sale Staff uses its own menu and lands on this route after sign-in.

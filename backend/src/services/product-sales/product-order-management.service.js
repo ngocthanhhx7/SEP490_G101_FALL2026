@@ -8,7 +8,7 @@ import {
 import { parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { toOrderView } from './product-order.service.js';
-import { productSalesErrors, requireOrderHandler } from './product-sales-errors.js';
+import { productSalesErrors, requireOnlineOrderCanceller, requireOrderHandler } from './product-sales-errors.js';
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NAME_MATCH_LIMIT = 100;
@@ -232,6 +232,7 @@ export function createProductOrderManagementService({ connection, phones, clock 
     // Orders that have not left the shop: release the hold only; real stock is unchanged.
     cancel(actor, orderId, body) {
       parseNoBody(body);
+      requireOnlineOrderCanceller(actor);
       return transition(actor, orderId, {
         allowed: (order) => ['PLACED', 'READY'].includes(order.status),
         changes: () => ({ status: 'CANCELLED' }),

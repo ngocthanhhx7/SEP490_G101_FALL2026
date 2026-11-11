@@ -165,6 +165,9 @@ const navigationByRole = {
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']
   ],
+  SALE_STAFF: [
+    ['Đơn hàng', '/admin/product-orders', 'Bán hàng']
+  ],
   STAFF: [
     ['Tổng quan', '/staff', 'Công việc'],
     ['Điều phối ca', '/staff/dispatch', 'Công việc'],
@@ -231,7 +234,6 @@ export function AppRoutes({
           <Route path="admin/settlements" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
           <Route path="admin/ai-models" element={<AiModelsPage />} />
-          <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
@@ -253,6 +255,11 @@ export function AppRoutes({
           />
           <Route path="admin/applications" element={<Navigate replace to="/admin/sitter-applications" />} />
           <Route path="admin/applications/:applicationId" element={<SitterApplicationReviewPage />} />
+        </Route>
+      </Route>
+      <Route element={<RequireSession roles={['ADMIN', 'SALE_STAFF']} />}>
+        <Route element={<AccountWorkspace />}>
+          <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
         </Route>
       </Route>
       <Route element={<RequireSession />}>

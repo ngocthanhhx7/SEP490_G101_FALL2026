@@ -6,7 +6,7 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { hasRole, primaryRole } from '../../utils/role-access.js';
 
 const ROLE_LABELS = {
-  CUSTOMER: 'Khách hàng', PET_SITTER: 'Pet sitter', STAFF: 'Nhân viên', ADMIN: 'Quản trị viên'
+  CUSTOMER: 'Khách hàng', PET_SITTER: 'Pet sitter', STAFF: 'Nhân viên', SALE_STAFF: 'Nhân viên bán hàng', ADMIN: 'Quản trị viên'
 };
 
 function initials(name = '') {

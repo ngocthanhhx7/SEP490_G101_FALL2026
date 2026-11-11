@@ -50,7 +50,7 @@ export function createSessionService({ connection, User, models = identityModels
     if (!isSingleRole(roles)) {
       throw new AppError(403, 'FORBIDDEN', 'Account role is not permitted');
     }
-    return roles.some(role => role === 'STAFF' || role === 'ADMIN') ? STAFF_SESSION_MS : CUSTOMER_SESSION_MS;
+    return roles.some(role => role === 'STAFF' || role === 'SALE_STAFF' || role === 'ADMIN') ? STAFF_SESSION_MS : CUSTOMER_SESSION_MS;
   }
 
   async function issueInTransaction(user, mongoSession, { rememberDevice } = {}) {

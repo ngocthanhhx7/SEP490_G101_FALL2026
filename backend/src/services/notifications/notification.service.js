@@ -1,7 +1,8 @@
 ﻿import { createHash } from 'node:crypto';
 import { AppError } from '../../utils/app-error.js';
+import { ACCOUNT_ROLES } from '../../constants/account-roles.js';
 
-const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
+const ROLES = new Set(ACCOUNT_ROLES);
 const CHANNELS = new Set(['IN_APP', 'EMAIL', 'SMS', 'PUSH']);
 const SENSITIVE_KEY = /(password|token|secret|otp|code|medical|health|diagnos|document|identity|national|access|address|phone|email|credential|private)/i;
 const SAFE_META_KEY = /^[a-z][a-zA-Z0-9_]{0,31}$/;

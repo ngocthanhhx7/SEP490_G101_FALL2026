@@ -8,6 +8,7 @@ const ROLE_LABELS = Object.freeze({
   CUSTOMER: { role: 'Khách hàng', account: 'Hồ sơ khách hàng', notifications: 'Thông báo' },
   PET_SITTER: { role: 'Người chăm sóc', account: 'Hồ sơ người chăm sóc', notifications: 'Thông báo lịch chăm sóc' },
   STAFF: { role: 'Nhân viên', account: 'Tài khoản nhân viên', notifications: 'Thông báo công việc' },
+  SALE_STAFF: { role: 'Nhân viên bán hàng', account: 'Tài khoản nhân viên', notifications: 'Thông báo công việc' },
   ADMIN: { role: 'Quản trị viên', account: 'Tài khoản quản trị', notifications: 'Thông báo hệ thống' },
 });
 

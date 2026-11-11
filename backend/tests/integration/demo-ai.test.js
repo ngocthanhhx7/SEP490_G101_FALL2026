@@ -261,3 +261,11 @@ test('demo rejects cross-site/foreign Host, serves static UI and does not delive
     .set('Host', '127.0.0.1:3011')
     .expect(404);
 });
+
+test('optional Sale Staff fixture is a separate single-role account', async () => {
+  const withSaleStaff = await seedDemo(connection, config, Date.now, { includeSaleStaff: true });
+  const account = withSaleStaff.accounts.find(account => account.key === 'sale-staff');
+  expect(account).toMatchObject({ role: 'SALE_STAFF', email: 'sale-staff@pwc-demo.example' });
+  expect(withSaleStaff.accounts).toHaveLength(17);
+  expect(await userModel(connection).findById(account.id).lean()).toMatchObject({ roles: ['SALE_STAFF'] });
+});

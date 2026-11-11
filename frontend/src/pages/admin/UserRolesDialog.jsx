@@ -4,7 +4,7 @@ import { Button, Dialog, Input, Notice } from '../../components/ui/index.js';
 import { changeUserRoles } from '../../services/user-admin-api.js';
 import { isSingleRole } from '../../utils/role-access.js';
 
-const OPTIONS = [['CUSTOMER', 'Khách hàng'], ['PET_SITTER', 'Pet sitter'], ['STAFF', 'Nhân viên'], ['ADMIN', 'Quản trị viên']];
+const OPTIONS = [['CUSTOMER', 'Khách hàng'], ['PET_SITTER', 'Pet sitter'], ['STAFF', 'Nhân viên'], ['SALE_STAFF', 'Nhân viên bán hàng'], ['ADMIN', 'Quản trị viên']];
 export function UserRolesDialog({ user, request, onClose, onChanged, onReload }) {
   const validCurrentRole = isSingleRole(user.roles);
   const sitterManaged = validCurrentRole && user.roles[0] === 'PET_SITTER';

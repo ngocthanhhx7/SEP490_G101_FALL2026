@@ -1,11 +1,12 @@
 import { Schema } from 'mongoose';
+import { ACCOUNT_ROLES } from '../constants/account-roles.js';
 
 export function userAdminAuditModel(connection) {
   const schema = new Schema({
     actorId: { type: Schema.Types.ObjectId, required: true },
     action: { type: String, enum: ['USER_LOCKED', 'USER_UNLOCKED', 'USER_ROLES_CHANGED'], required: true },
-    previousRoles: { type: [String], enum: ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'], default: undefined },
-    roles: { type: [String], enum: ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'], default: undefined },
+    previousRoles: { type: [String], enum: [...ACCOUNT_ROLES], default: undefined },
+    roles: { type: [String], enum: [...ACCOUNT_ROLES], default: undefined },
     resourceType: { type: String, enum: ['user'], required: true },
     resourceId: { type: Schema.Types.ObjectId, required: true },
     reason: { type: String, required: true, minlength: 3, maxlength: 1000 },
