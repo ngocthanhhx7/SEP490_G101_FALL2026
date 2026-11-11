@@ -191,7 +191,9 @@ export function createSitterWorkAreasService({
       }
       const options = await loadCatalog();
       const normalizedCodes = normalizeSelection(areas, options);
-      const existing = await getSitterAvailability(sitterId);
+      let existing;
+      try { existing = await getSitterAvailability(sitterId); }
+      catch { throw new AppError(503, 'AVAILABILITY_UNAVAILABLE', 'Availability is unavailable'); }
       if (normalizedCodes.some(code => options.find(row => row.code === code)?.enabled === false && !existing?.areas?.includes(code))) throw failValidation('Area is closed for registration');
       let updated;
       try {

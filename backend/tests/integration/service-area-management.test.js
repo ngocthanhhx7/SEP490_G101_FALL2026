@@ -103,3 +103,10 @@ test('closure and new work serialize on the shared policy gate', async () => {
   expect(await pending).toMatchObject({ code: 'WORK_AREA_CLOSED' });
   expect(await connection.db.collection('synthetic_new_work').countDocuments()).toBe(0);
 });
+
+test('a missing control in an initialized registry fails closed instead of reopening legacy coverage', async () => {
+  const { ServiceArea } = serviceAreaModels(connection); await ServiceArea.deleteOne({ _id: 'coverage-policy' });
+  const catalog = createServiceAreaCatalog(connection);
+  await expect(catalog.list()).rejects.toMatchObject({ status: 503, code: 'WORK_AREA_CATALOG_UNAVAILABLE' });
+  await expect(catalog.assertOpen('DISTRICT_HAI_BA_TRUNG')).rejects.toMatchObject({ status: 503 });
+});
