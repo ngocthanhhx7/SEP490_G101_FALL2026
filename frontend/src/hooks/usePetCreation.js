@@ -38,7 +38,9 @@ export function usePetCreation({ api, photoApi, onSaved }) {
     } catch (error) {
       // A later auth/validation denial cannot establish whether an earlier
       // timed-out command committed. Keep its key/body until an acknowledgement.
-      const pending = uncertain(error) || unconfirmed.current;
+      // Metadata reads cannot upload a photo. If that read fails, the already
+      // saved pet may finish without a photo; only an attempted write is uncertain.
+      const pending = Boolean(phase === 'pet' || photoAttempt.current) && (uncertain(error) || unconfirmed.current);
       if (pending) unconfirmed.current = true;
       setState(pending ? 'pending' : 'error');
       if (phase === 'pet') {
