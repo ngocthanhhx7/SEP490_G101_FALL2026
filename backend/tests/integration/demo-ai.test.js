@@ -246,7 +246,7 @@ test('demo rejects cross-site/foreign Host, serves static UI and does not delive
     .get('/demo/inbox/not-a-fixture')
     .set('Host', '127.0.0.1:3011')
     .expect(404);
-  await request(app)
+  const unregistered = await request(app)
     .post('/api/v1/otp-challenges')
     .set('Host', '127.0.0.1:3011')
     .set('Origin', origin)
@@ -255,7 +255,8 @@ test('demo rejects cross-site/foreign Host, serves static UI and does not delive
       contact: 'not-a-fixture@example.com',
       purpose: 'LOGIN'
     })
-    .expect(202);
+    .expect(409);
+  expect(unregistered.body.error.code).toBe('REGISTRATION_REQUIRED');
   await request(app)
     .get('/demo/inbox/not-a-fixture')
     .set('Host', '127.0.0.1:3011')
