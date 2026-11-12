@@ -3,7 +3,7 @@ import { AppError } from '../utils/app-error.js';
 const invalid = () => { throw new AppError(422, 'VALIDATION_FAILED', 'Invalid sitter management filters'); };
 export function sitterManagementQuery(query = {}, kind = 'list') {
   const allowed = kind === 'detail' ? ['days'] : kind === 'activity' ? ['days', 'cursor', 'limit']
-    : ['search', 'status', 'area', 'employmentType', 'source', 'profileState', 'days', ...(kind === 'list' ? ['cursor', 'limit'] : [])];
+    : ['search', 'status', 'area', 'employmentType', 'source', 'profileState', 'days', ...(kind === 'list' ? ['cursor', 'limit', 'view', 'sort'] : [])];
   if (!query || typeof query !== 'object' || Array.isArray(query) || Object.keys(query).some(key => !allowed.includes(key))) invalid();
   const result = { days: 30, limit: 20, search: '', status: '', area: '', employmentType: '', source: 'ALL', profileState: '' };
   for (const [key, value] of Object.entries(query)) {
@@ -15,5 +15,11 @@ export function sitterManagementQuery(query = {}, kind = 'list') {
     source: ['ALL', 'REAL', 'DEMO'], employmentType: ['', 'FULL_TIME', 'PART_TIME', 'MISSING'],
     profileState: ['', 'APPROVED', 'SUBMITTED', 'REJECTED', 'MISSING'] })) if (!values.includes(result[key])) invalid();
   if (result.area && !/^[A-Z][A-Z0-9_]{0,79}$/.test(result.area)) invalid();
+  if (result.view === 'staffList') {
+    if ((result.status && result.status !== 'ACTIVE')
+      || (result.sort && !['rating', 'withdrawals', 'lateCheckIns'].includes(result.sort))) invalid();
+    result.status = 'ACTIVE';
+    result.sort ||= 'rating';
+  } else if (result.view || result.sort) invalid();
   return { ...result, days: Number(result.days), limit: Number(result.limit) };
 }

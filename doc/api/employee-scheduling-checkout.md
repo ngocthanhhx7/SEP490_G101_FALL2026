@@ -60,9 +60,11 @@ Root `/api/v1/employee-scheduling`, opt-in `EMPLOYEE_SCHEDULING_ENABLED=true`.
 | GET/PUT `/availability` | PET_SITTER, own recurring windows and shared expectedVersion |
 | GET `/calendar` | PET_SITTER, own fromLocalDate/toLocalDate, maximum 31 days |
 | GET/PUT `/work-areas` | PET_SITTER, own operational area codes, shared expectedVersion |
-| GET `/offers`, `/assignments` | PET_SITTER, own bounded lists; optional cursor and limit |
+| GET `/offers`, `/assignments` | PET_SITTER, own bounded lists; optional cursor and limit. Assignments include `canWithdraw` for eligible visits. |
+| GET `/visits/:id/withdrawal-options` | PET_SITTER, own accepted visit before check-in. Returns server time, visit version, reason codes and `EARLY` or `LATE`. |
+| POST `/visits/:id/withdrawals` | PET_SITTER, CSRF and `Idempotency-Key`. Takes `expectedVersion`, `expectedMode`, `reasonCode` and optional `note` (up to 1,000 characters). |
 | POST `/offers/:id/acceptances`, `/declines` | PET_SITTER, expectedVersion, explicit response |
-| GET `/dispatch` | STAFF/ADMIN, next 50 eligible operational visits and pending invitation/review status |
+| GET `/dispatch` | STAFF/ADMIN, next 50 eligible operational visits and pending invitation/review status, plus up to 50 active `withdrawalRequests`. |
 | POST `/visits/:id/invitations` | STAFF/ADMIN, expectedVersion and optional sitterId |
 | GET `/visits/:id/candidates` | STAFF/ADMIN, startAt with timezone and optional areaCode; bounded eligible names/IDs or aggregate rejection counts; 6 requests per minute/account/instance |
 | POST `/visits/:id/schedule-proposals` | STAFF/ADMIN after escalation, expectedVersion, alternative startAt, optional sitterId and areaCode; directed employee cannot be replaced |
@@ -84,6 +86,15 @@ checks do not authorize overtime or replace attendance/payroll assessment.
 
 Checkout automatically finalizes the care plan in its transaction; Staff approval is
 not a prerequisite. The worker recovers compatible legacy orders at NEEDS_REVIEW.
+UC-82 evaluates the 12-hour boundary again when saving. Early withdrawal clears the
+assignment, sets `handoverRequired`, records `VisitWithdrawn` and returns the visit
+to automatic dispatch when the worker is enabled. The previous sitter is excluded.
+When they were customer-selected, dispatch escalates without inviting another sitter.
+Staff can propose a replacement, and only explicit confirmation by the owning customer
+repins the operational nominee and creates one pending invitation. Late withdrawal keeps the current sitter
+and records `VisitWithdrawalRequested` for Staff. A changed mode or version returns
+409. An out-of-scope visit returns 404. An exact retry replays the committed result.
+
 Staff can send invitations only after a dispatch escalation. GET /dispatch exposes
 dispatchState SYSTEM_SEARCHING/AWAITING_RESPONSE/NEEDS_STAFF and pendingInvitationCount.
 
@@ -94,10 +105,16 @@ await dispatch. Moving a single boarding shift is rejected: whole-stay changes n
 
 `EMPLOYEE_DISPATCH_AGENT_ENABLED=true` starts the runtime worker. It resumes from persisted
 visits/offers after restart; pending/declined/expired offers are not repeatedly sent to the same
-candidate automatically. System bookings target five concurrent eligible invitees,
-replenishing declines where possible. Fewer are permitted only for a smaller eligible
-pool within the bounded search (100 employees, four concurrent checks). Directed bookings
-retain their single customer-selected sitter. Automatic selection requires declared
+candidate automatically. Directed bookings retain the requested sitter; unavailability,
+decline or expiry escalates to Staff for a customer-confirmed replacement proposal.
+System-selected bookings consider successive eligible groups. Each group contains
+one sitter or all remaining sitters tied on the leading
+raw score. Dispatch waits until the current group has no live offer before continuing.
+The bounded search still checks up to 100 employees with four concurrent checks.
+Automatic and explicit Staff invitations have a two-hour deadline, or 30 minutes
+when the visit starts within 24 hours, capped by the visit start. Existing offers
+and offers from customer-confirmed reschedules keep their persisted deadlines.
+Automatic selection requires declared
 daily origins and route feasibility, including return before the origin's availableUntil.
 MATCH advice keeps its original score >=60 rule; operational route ordering can invite
 eligible newcomers without fabricating scores or verified history. It is not a trained
@@ -160,3 +177,11 @@ Customer AI recommendation requests return `CUSTOMER_CARE_HISTORY_EXISTS` after 
 - Pet Sitter `GET /api/v1/employee-scheduling/day-origins` returns own version/capabilityReady/items. PUT accepts expectedVersion, localDate, coordinates [lng,lat], availableFrom and availableUntil with CSRF/Idempotency-Key. The interval must stay within the same Vietnam calendar day, end in the future and start within 31 days. Entries are bounded to 31 current/future dates. No foreign employee ID is accepted. The shared capability version prevents stale capability/origin overwrites.
 
 These commands create neither employment acceptance nor ratings/outcomes/payments. Real first-job regression coverage is synthetic; live employees still accept their own invitations.
+
+### Customer consent for replacing a directed sitter
+
+After escalation, `GET /visits/:id/candidates?startAt=...&mode=REPLACEMENT` previews alternatives using the existing bounded eligibility scan. Keeping the current time/area uses manual eligibility; another time retains origin-route checks. This read never creates an offer. `MANUAL` and omitted mode retain their original nominee constraint.
+
+Staff sends the existing schedule proposal with the replacement `sitterId` (the booked time may be kept). The additive optional `previousSitterId` records the original nominee; owner-scoped reads return allowlisted previous/replacement display names. Old proposals without that field retain their original same-sitter confirmation contract. No new collection, index, TTL or backfill is required.
+
+Customer confirmation checks ownership, expiry, proposal/visit versions, previous nominee, payment and authoritative eligibility. It atomically repins the visit and creates an offer. Staff invitation and automatic dispatch cannot bypass this consent for withdrawal, decline, expiry or ineligibility. The replacement must still accept, and existing handover/occupancy checks remain. Original checkout and price snapshots stay unchanged.

@@ -132,6 +132,26 @@ describe('Product Details', () => {
     expect(screen.getByRole('button', { name: 'Thêm vào giỏ hàng' })).toBeDisabled();
   });
 
+  test('D-249 shows the first photo large with a thumbnail row, and a thumbnail changes the large photo', async () => {
+    const photos = ['/assets/products/a.webp', '/assets/products/b.webp', '/assets/products/c.webp'];
+    show(fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ photos }) }) }), '/products/p1');
+    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    const large = () => screen.getByAltText('Thức ăn hạt cho chó trưởng thành, túi 2 kg');
+    expect(large()).toHaveAttribute('src', photos[0]);
+    expect(screen.getByRole('button', { name: 'Xem ảnh 1 của 3' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Xem ảnh 2 của 3' }));
+    expect(large()).toHaveAttribute('src', photos[1]);
+    expect(screen.getByRole('button', { name: 'Xem ảnh 2 của 3' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Xem ảnh 1 của 3' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('D-249 a product with one photo shows it without a thumbnail row', async () => {
+    show(fakeApi({ getProduct: jest.fn().mockResolvedValue({ data: product({ photos: ['/assets/products/a.webp'] }) }) }), '/products/p1');
+    await screen.findByRole('heading', { name: /Thức ăn hạt cho chó/ });
+    expect(screen.getByAltText('Thức ăn hạt cho chó trưởng thành, túi 2 kg')).toHaveAttribute('src', '/assets/products/a.webp');
+    expect(screen.queryByRole('list', { name: 'Ảnh sản phẩm' })).toBeNull();
+  });
+
   test('adds the chosen quantity and confirms with the cart link', async () => {
     const api = fakeApi({ addToCart: jest.fn().mockResolvedValue(cartOf([line({ quantity: 2 })])) });
     show(api, '/products/p1');

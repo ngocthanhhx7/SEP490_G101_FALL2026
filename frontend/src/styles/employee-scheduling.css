@@ -53,3 +53,30 @@
 .dispatch-candidate > span { min-width:0; flex:1; }.dispatch-selected-label { margin-left:10px; font-size:.8rem; font-weight:700; color:#503178; }.dispatch-candidate small { color:#63576d; line-height:1.5; }
 .dispatch-blocked-section summary { min-height:44px; cursor:pointer; font-weight:700; }.dispatch-blocked-list { grid-template-columns:minmax(0,1fr); }.dispatch-picker-actions { padding-top:18px; border-top:1px solid #e7dff0; }.dispatch-picker-actions > button { flex:1 1 200px; }
 @media(max-width:760px) { .pwc-dialog.dispatch-detail-dialog { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); }.dispatch-detail-layout { grid-template-columns:minmax(0,1fr); gap:20px; }.dispatch-detail-dialog > .pwc-dialog-header,.dispatch-detail-dialog > .pwc-dialog-content { padding:16px; } }
+
+.visit-withdrawal-dialog { --pwc-dialog-width: 35rem; }
+.visit-withdrawal-dialog form { display: grid; gap: var(--pwc-space-4); }
+.visit-withdrawal-dialog form label { display: block; max-width: none; font-weight: 700; }
+.visit-withdrawal-dialog select,
+.visit-withdrawal-dialog textarea {
+  display: block; width: 100%; margin-top: var(--pwc-space-2); padding: var(--pwc-space-3);
+  box-sizing: border-box; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface); color: var(--pwc-ink); font: inherit; font-weight: 400;
+}
+.visit-withdrawal-dialog textarea { resize: vertical; }
+.visit-withdrawal-dialog__time,
+.visit-withdrawal-dialog__notice { display: flex; gap: var(--pwc-space-2); align-items: flex-start; }
+.visit-withdrawal-dialog__time svg,
+.visit-withdrawal-dialog__notice svg { flex: 0 0 auto; margin-top: 0.15rem; }
+.visit-withdrawal-dialog__notice {
+  padding: var(--pwc-space-3); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-warning-surface); color: var(--pwc-warning);
+}
+.visit-withdrawal-dialog__notice--late { background: var(--pwc-error-surface); color: var(--pwc-error); }
+.employee-scheduling__withdrawal-result {
+  padding: var(--pwc-space-3); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-success-surface); color: var(--pwc-success);
+}
+.withdrawal-requests { margin-bottom: var(--pwc-space-4); }
+.withdrawal-requests .ops-table { min-width: 0; }
+.withdrawal-requests td { overflow-wrap: anywhere; }

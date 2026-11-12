@@ -1,0 +1,189 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="MEDIA-02 Avatar tombstone versus product-photo replacement" id="media-02">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1821" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Owner / authorized Admin" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1541" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Media HTTP boundaries" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1541" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": AvatarService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1541" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": ProductPhotoService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1541" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": ProfileAvatar / Product / ProductPhoto" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1541" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Bounded image decoder" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1541" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="545" />
+        </mxCell>
+        <mxCell id="caption-1" value="alt [user/pet avatar] — owner scope and bounded image normalization" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Avatar change/remove with expectedVersion + idempotencyKey;&#10;owner/pet scope" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Validate JPEG/PNG &lt;=5MiB/4Mpx; fingerprint&#10;resource/version/key/remove/type/original bytes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Read ProfileAvatar fingerprint/version; exact last&#10;fingerprint -&gt; replay; stale version -&gt; 409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="855" y="336" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="336" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: For change: bounded decode, rotate/crop 512px, flatten and&#10;JPEG &lt;=512KiB" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="394" />
+            <mxPoint as="targetPoint" x="480" y="416" />
+            <Array as="points">
+              <mxPoint x="520" y="394" />
+              <mxPoint x="520" y="416" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-5" value="5: Transaction: reread fingerprint/version, lock authoritative&#10;owner scope; version+1, present=!remove, fingerprint" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="474" />
+            <mxPoint as="targetPoint" x="855" y="474" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="474" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Change stores normalized body; remove UNSETS body and&#10;retains tombstone/version/fingerprint, not historical image&#10;bytes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="532" />
+            <mxPoint as="targetPoint" x="855" y="532" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="532" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Return {version,present,replayed}; transaction&#10;conflict/invalid image -&gt; 409/422" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="603" />
+            <mxPoint as="targetPoint" x="105" y="603" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-8" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="676" width="1110" height="597" />
+        </mxCell>
+        <mxCell id="caption-8" value="alt [product photo] — distinct service and version contract" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="683" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Admin upload/replace/remove product photo using current&#10;Product.detailsVersion and optional photo index" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="796" />
+            <mxPoint as="targetPoint" x="295" y="796" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="796" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: requireProductManager; validate productId/version/index;&#10;read undeleted product and reject stale/limit/missing&#10;position" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="854" />
+            <mxPoint as="targetPoint" x="670" y="854" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="854" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: For upload: one processing operation per connection, bounded&#10;JPEG/PNG/WebP decode; rotate/resize &lt;=1600px WebP; hash&#10;normalized bytes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="925" />
+            <mxPoint as="targetPoint" x="670" y="947" />
+            <Array as="points">
+              <mxPoint x="710" y="925" />
+              <mxPoint x="710" y="947" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-11" value="11: UnitOfWork reread product and detailsVersion; validate max&#10;5/position; remove path OR upsert ProductPhoto by&#10;productId+digest" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1018" />
+            <mxPoint as="targetPoint" x="855" y="1018" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1018" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: CAS Product photos[] and increment Product.detailsVersion&#10;(not ProductPhoto.version)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1089" />
+            <mxPoint as="targetPoint" x="855" y="1089" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1089" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Compute retained uploaded digests; delete ProductPhoto blobs&#10;for this product whose digest is NOT retained; static assets&#10;untouched" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1147" />
+            <mxPoint as="targetPoint" x="855" y="1147" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1147" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: Return admin product. No product tombstone/history or&#10;command replay store is promised; stale acknowledgement&#10;requires reloading current product" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1218" />
+            <mxPoint as="targetPoint" x="105" y="1218" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-15" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1304" width="1110" height="246" />
+        </mxCell>
+        <mxCell id="caption-15" value="Reads and failure boundaries" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1311" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: Read avatar only within owner scope; read product photo only&#10;if active product and digest still referenced (or authorized&#10;admin read)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1424" />
+            <mxPoint as="targetPoint" x="295" y="1424" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-15" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1424" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: Removed/unreferenced content -&gt; 404; byte length mismatch -&gt;&#10;controlled unavailable; unauthorized/invalid/stale -&gt;&#10;401/403/422/409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1495" />
+            <mxPoint as="targetPoint" x="105" y="1495" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="Source: avatar.service.js and product-photo.service.js. Avatar retains only current fingerprint/version/present and removes body on delete; it is not an archive of all versions. Product photos use Product.detailsVersion and retained digests; unreferenced product blobs are deleted transactionally. Neither branch proves historical media bytes survive removal." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1621" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
