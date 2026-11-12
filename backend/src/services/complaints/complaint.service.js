@@ -1,1153 +1,421 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { hasRole } from '../../utils/roles.js';
+import { hasRole, isSingleRole } from '../../utils/roles.js';
 import { AppError } from '../../utils/app-error.js';
+import {
+  complaintId, commandKey, invalid, MEDIA_ID, normalizeDecision, normalizeList,
+  normalizeObjection, normalizeRefundDecision, normalizeResolution, normalizeReview, normalizeSubmission, submissionTarget, version
+} from '../../validators/complaint.validator.js';
+import {
+  APPEAL_WINDOW_MS, COMPLAINT_SCHEMA_VERSION, COMPLAINT_WINDOW_MS, complaintFinalAt, complaintState,
+  instant, visitCompletion
+} from './complaint-lifecycle.js';
+import { bookingSummary, complaintCode, safeComplaint, visitSummary } from './complaint-projection.js';
+import { legacyCommandFingerprint, legacySubmitFingerprint } from './complaint-legacy-replay.js';
 
-export const COMPLAINT_STATES = Object.freeze([
-  'OPEN',
-  'UNDER_REVIEW',
-  'RESOLVED',
-  'CLOSED'
-]);
-export const COMPLAINT_OPEN_STATES = Object.freeze(['OPEN', 'UNDER_REVIEW']);
-export const COMPLAINT_CATEGORIES = Object.freeze([
-  'SERVICE_QUALITY',
-  'PET_SAFETY',
-  'SITTER_CONDUCT',
-  'ACCESS',
-  'BILLING',
-  'OTHER'
-]);
-const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
-const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,128}$/;
-const MAX_TEXT = 4000;
-const MAX_NOTES = 8000;
-const MAX_EVIDENCE = 20;
-const COMPLAINT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const fail = (status, code, message, details) => { throw new AppError(status, code, message, details); };
+const notFound = () => fail(404, 'RESOURCE_NOT_FOUND', 'Complaint resource not found');
+const unavailable = () => fail(503, 'BILLING_SOURCE_UNAVAILABLE', 'An authoritative booking bill source is unavailable');
+const conflict = (code = 'INVALID_STATE', details) => fail(409, code, 'The complaint action is not available', details);
+const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+const isHomeCare = visit => ['HOME', 'OUTDOOR'].includes(visit.location ?? 'HOME') && visit.snapshots?.boarding !== true;
+const money = value => Number.isSafeInteger(value) && value >= 0;
 
-const fail = (status, code, message, details = {}) => {
-  throw new AppError(status, code, message, details);
-};
-const invalid = (field, message = 'Complaint request is invalid') =>
-  fail(
-    422,
-    'VALIDATION_FAILED',
-    message,
-    field ? { fieldErrors: { [field]: message } } : {}
-  );
-
-function nowValue(clock) {
-  const value = clock();
-  const date = value instanceof Date ? value : new Date(value);
-  if (!Number.isFinite(date.getTime()))
-    throw new TypeError('clock must return a valid date');
-  return date.getTime();
-}
-
-function active(actor, clock) {
-  if (
-    !actor ||
-    actor.state !== 'ACTIVE' ||
-    actor.synthetic === true ||
-    typeof actor.userId !== 'string' ||
-    !ID.test(actor.userId) ||
-    !Array.isArray(actor.roles) ||
-    actor.roles.length === 0 ||
-    actor.roles.some(
-      (role) => !['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'].includes(role)
-    ) ||
-    !Number.isFinite(actor.expiresAt) ||
-    actor.expiresAt <= nowValue(clock)
-  ) {
+function authenticate(actor, asOf) {
+  if (!actor || actor.state !== 'ACTIVE' || actor.synthetic || typeof actor.userId !== 'string'
+    || !Number.isFinite(actor.expiresAt) || actor.expiresAt <= +asOf) {
     fail(401, 'UNAUTHENTICATED', 'Authentication required');
   }
 }
 
-function id(value, field = 'id') {
-  if (typeof value !== 'string' || !ID.test(value))
-    invalid(field, `${field} is invalid`);
-  return value;
+function authorizeRole(actor, role) {
+  if (!hasRole(actor.roles, role)) fail(403, 'FORBIDDEN', 'Complaint action is forbidden');
 }
 
-function version(value) {
-  if (value === undefined || value === null) return null;
-  if (!Number.isSafeInteger(value) || value < 0)
-    invalid('expectedVersion', 'A nonnegative version is required');
-  return value;
+function authorizeRead(actor, record, booking, visit) {
+  if (hasRole(actor.roles, 'STAFF')) return;
+  if (hasRole(actor.roles, 'CUSTOMER') && booking.customerId === actor.userId) return;
+  if (hasRole(actor.roles, 'PET_SITTER') && visit?.sitterId === actor.userId
+    && (!record.sitterId || record.sitterId === actor.userId)) return;
+  notFound();
 }
 
-function key(value) {
-  if (typeof value !== 'string' || !IDEMPOTENCY_KEY.test(value))
-    invalid('idempotencyKey', 'An idempotency key is required');
-  return value;
+function enforceEligibility(eligibility) {
+  const { eligible, reason, messageCode } = eligibility;
+  if (eligible) return;
+  if (reason === 'BILLING_SOURCE_UNAVAILABLE') unavailable();
+  if (reason === 'COMPLAINT_UNAVAILABLE') fail(503, reason, 'Complaint eligibility is unavailable');
+  conflict(reason, messageCode ? { messageCode } : undefined);
 }
 
-function text(value, field, max = MAX_TEXT, optional = false) {
-  if (value === undefined && optional) return null;
-  if (
-    typeof value !== 'string' ||
-    value.length > max ||
-    /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(value)
-  )
-    invalid(field, `${field} is invalid`);
-  const result = value.trim();
-  if (!result && !optional) invalid(field, `${field} cannot be empty`);
-  return result || null;
+function deadline(at, asOf, open, ineligible) {
+  if (ineligible) return { eligible: false, reason: ineligible, deadlineAt: null };
+  if (!at) return { eligible: false, reason: 'COMPLAINT_UNAVAILABLE', deadlineAt: null };
+  const deadlineAt = new Date(+at + COMPLAINT_WINDOW_MS).toISOString();
+  if (asOf < at) return { eligible: false, reason: 'VISIT_NOT_COMPLETE', deadlineAt };
+  if (+asOf > Date.parse(deadlineAt)) {
+    return { eligible: false, reason: 'COMPLAINT_WINDOW_EXPIRED', messageCode: 'MSG41', deadlineAt };
+  }
+  if (open) return { eligible: false, reason: 'COMPLAINT_ALREADY_OPEN', messageCode: 'MSG42', deadlineAt };
+  return { eligible: true, reason: null, deadlineAt };
 }
 
-function enumValue(value, values, field, fallback = null) {
-  const result =
-    value === undefined || value === null || value === '' ? fallback : value;
-  if (result === null && fallback === null) return null;
-  if (!values.includes(result)) invalid(field, `${field} is invalid`);
-  return result;
+function isOpen(records, visitId, asOf) {
+  return records.some(record => (record.visitId ?? null) === visitId && !complaintFinalAt(record, asOf));
 }
 
-function normalizeEvidence(value) {
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > MAX_EVIDENCE)
-    invalid('evidenceRefs', 'At most 20 evidence references are allowed');
-  return value.map((item, index) => {
-    if (typeof item === 'string')
-      return { mediaId: id(item, `evidenceRefs.${index}`) };
-    if (!item || typeof item !== 'object' || Array.isArray(item))
-      invalid(`evidenceRefs.${index}`);
+function visitEligibility(visit, records, asOf) {
+  const completion = visitCompletion(visit);
+  return deadline(completion?.at, asOf, isOpen(records, visit.id, asOf),
+    isHomeCare(visit) && completion?.done ? null : 'VISIT_NOT_ELIGIBLE');
+}
+
+function checkCap(basis, amountVnd) {
+  if (amountVnd > basis.remainingVnd) {
+    fail(422, 'REFUND_CAP_EXCEEDED', 'Amount exceeds the remaining booking bill', {
+      messageCode: 'MSG44', remainingVnd: basis.remainingVnd
+    });
+  }
+}
+
+export function createComplaintService({ repository, billing, readImage, clock = Date.now }) {
+  if (!repository || typeof repository.run !== 'function') throw new TypeError('Complaint repository is required');
+
+  function now() {
+    const asOf = new Date(clock());
+    if (!Number.isFinite(+asOf)) throw new TypeError('Invalid complaint clock');
+    return asOf;
+  }
+
+  async function run(work, session) {
+    try { return await repository.run(work, session); }
+    catch (error) {
+      if (error instanceof AppError) throw error;
+      throw new AppError(503, 'COMPLAINT_UNAVAILABLE', 'Complaint storage is unavailable');
+    }
+  }
+
+  async function readBasis(tx, bookingId, replacingVnd = 0) {
+    const basis = await billing?.read?.({ bookingId, session: tx.session });
+    if (!basis || !['ISSUED', 'EXPECTED'].includes(basis.basis) || !money(basis.basisAmountVnd)
+      || !money(basis.approvedTotalVnd) || basis.approvedTotalVnd < replacingVnd || typeof basis.paidInFull !== 'boolean'
+      || (basis.paidInFull && basis.basis !== 'ISSUED')) unavailable();
     return {
-      mediaId: id(item.mediaId ?? item.id, `evidenceRefs.${index}.mediaId`),
-      kind: text(item.kind ?? 'COMPLAINT', `evidenceRefs.${index}.kind`, 60),
-      caption: text(item.caption, `evidenceRefs.${index}.caption`, 500, true)
+      ...basis, remainingVnd: Math.max(0, basis.basisAmountVnd - (basis.approvedTotalVnd - replacingVnd))
     };
-  });
-}
-
-function normalizeSubmission(input = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input))
-    invalid('complaint');
-  return {
-    category: enumValue(
-      input.category,
-      COMPLAINT_CATEGORIES,
-      'category',
-      'OTHER'
-    ),
-    summary: text(input.summary ?? input.subject, 'summary', 500),
-    description: text(
-      input.description ?? input.details ?? input.message,
-      'description'
-    ),
-    evidenceRefs: normalizeEvidence(input.evidenceRefs ?? input.photoRefs),
-    requestedOutcome: text(
-      input.requestedOutcome,
-      'requestedOutcome',
-      2000,
-      true
-    )
-  };
-}
-
-function normalizeStaffResolution(input = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input))
-    invalid('resolution');
-  if (
-    input.financialHold !== undefined &&
-    typeof input.financialHold !== 'boolean'
-  )
-    invalid('financialHold', 'financialHold must be true or false');
-  return {
-    summary: text(input.summary ?? input.resolution, 'summary'),
-    actionsTaken: text(input.actionsTaken, 'actionsTaken', MAX_TEXT, true),
-    followUp: text(input.followUp, 'followUp', 2000, true),
-    staffNotes: text(input.staffNotes, 'staffNotes', MAX_NOTES, true),
-    financialHold: input.financialHold
-  };
-}
-
-function normalizeObjection(input = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input))
-    invalid('objection');
-  return {
-    reason: text(input.reason ?? input.message, 'reason', MAX_TEXT),
-    evidenceRefs: normalizeEvidence(input.evidenceRefs)
-  };
-}
-
-function normalizeDecision(input = {}) {
-  if (!input || typeof input !== 'object' || Array.isArray(input))
-    invalid('decision');
-  if (
-    input.financialHold !== undefined &&
-    typeof input.financialHold !== 'boolean'
-  )
-    invalid('financialHold', 'financialHold must be true or false');
-  return {
-    summary: text(input.summary ?? input.decision, 'summary'),
-    actionsTaken: text(input.actionsTaken, 'actionsTaken', MAX_TEXT, true),
-    financialHold: input.financialHold,
-    financialDecision:
-      input.financialDecision === undefined
-        ? null
-        : text(input.financialDecision, 'financialDecision', 2000)
-  };
-}
-
-function idOf(value) {
-  if (value === undefined || value === null) return null;
-  if (typeof value === 'string') return value;
-  if (typeof value.toHexString === 'function') return value.toHexString();
-  return value.id ?? value._id?.toString?.() ?? value._id ?? null;
-}
-
-function visitIdOf(value) {
-  return idOf(value?.visitId ?? value?.visit?.id ?? value?.visit?._id);
-}
-function customerIdOf(value) {
-  return idOf(
-    value?.customerId ?? value?.booking?.customerId ?? value?.visit?.customerId
-  );
-}
-function sitterIdOf(value) {
-  return idOf(
-    value?.sitterId ?? value?.assignment?.sitterId ?? value?.visit?.sitterId
-  );
-}
-function payloadHash(value) {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex');
-}
-
-function completionTime(visit) {
-  const value = visit?.completedAt ?? visit?.closedAt ?? visit?.staffClosedAt;
-  const time =
-    value instanceof Date ? value.getTime() : Date.parse(value || '');
-  if (!Number.isFinite(time))
-    fail(503, 'COMPLAINT_UNAVAILABLE', 'Visit completion time is unavailable');
-  return time;
-}
-
-function eligibleVisit(visit) {
-  return (
-    visit &&
-    ['COMPLETED', 'STAFF_CLOSED'].includes(visit.state) &&
-    Boolean(sitterIdOf(visit))
-  );
-}
-
-function safeEvidence(value) {
-  if (!value || typeof value !== 'object') return null;
-  const mediaId = idOf(value.mediaId ?? value.id);
-  if (!mediaId || !ID.test(mediaId)) return null;
-  return {
-    mediaId,
-    kind: typeof value.kind === 'string' ? value.kind : 'COMPLAINT',
-    caption:
-      typeof value.caption === 'string' ? value.caption.slice(0, 500) : null,
-    recordedAt: value.recordedAt ?? value.createdAt ?? null
-  };
-}
-
-function safeComplaint(record, actor) {
-  if (!record || typeof record !== 'object') return null;
-  const state = COMPLAINT_STATES.includes(record.state) ? record.state : null;
-  const result = {
-    id: idOf(record.id ?? record._id),
-    kind: 'COMPLAINT',
-    visitId: visitIdOf(record),
-    state,
-    version: Number.isSafeInteger(record.version) ? record.version : 0,
-    category: COMPLAINT_CATEGORIES.includes(record.category)
-      ? record.category
-      : 'OTHER',
-    summary: typeof record.summary === 'string' ? record.summary : '',
-    description:
-      typeof record.description === 'string' ? record.description : '',
-    requestedOutcome:
-      typeof record.requestedOutcome === 'string'
-        ? record.requestedOutcome
-        : null,
-    evidenceRefs: Array.isArray(record.evidenceRefs)
-      ? record.evidenceRefs.map(safeEvidence).filter(Boolean)
-      : [],
-    createdAt: record.createdAt ?? record.openedAt ?? null,
-    updatedAt: record.updatedAt ?? null,
-    response: record.resolution
-      ? {
-          summary:
-            typeof record.resolution.summary === 'string'
-              ? record.resolution.summary
-              : '',
-          actionsTaken:
-            typeof record.resolution.actionsTaken === 'string'
-              ? record.resolution.actionsTaken
-              : null,
-          followUp:
-            typeof record.resolution.followUp === 'string'
-              ? record.resolution.followUp
-              : null,
-          recordedAt: record.resolution.recordedAt ?? null
-        }
-      : null,
-    objection: {
-      allowed: state === 'RESOLVED' && (record.objectionCount ?? 0) < 1,
-      count: Number.isSafeInteger(record.objectionCount)
-        ? record.objectionCount
-        : 0,
-      latestReason:
-        record.latestObjection &&
-        typeof record.latestObjection.reason === 'string'
-          ? record.latestObjection.reason
-          : null
-    },
-    context: {
-      bookingId: idOf(record.bookingId ?? record.booking?.id),
-      serviceName:
-        typeof record.serviceName === 'string' ? record.serviceName : null
-    },
-    settlement: record.financialHold
-      ? { state: 'ON_HOLD' }
-      : { state: 'NOT_HELD' }
-  };
-  if (!result.id || !result.visitId || !result.state) return null;
-  if (hasRole(actor?.roles, 'STAFF')) {
-    result.staffNotes =
-      typeof record.privateStaffNotes === 'string'
-        ? record.privateStaffNotes
-        : typeof record.staffNotes === 'string'
-          ? record.staffNotes
-          : null;
-    result.involvedActorRefs = Array.isArray(record.involvedActorRefs)
-      ? record.involvedActorRefs.map(idOf).filter(Boolean)
-      : [];
-    result.financialHold = record.financialHold
-      ? {
-          state: record.financialHold.state || 'ON_HOLD',
-          reference: idOf(record.financialHold.reference)
-        }
-      : null;
-  } else if (hasRole(actor?.roles, 'PET_SITTER')) {
-    delete result.objection;
-    delete result.settlement;
   }
-  return result;
-}
 
-async function callFirst(tx, methods, ...args) {
-  const method = methods.find((name) => typeof tx?.[name] === 'function');
-  return method ? tx[method](...args) : undefined;
-}
-
-async function callRequired(tx, methods, args, message) {
-  const method = methods.find((name) => typeof tx?.[name] === 'function');
-  if (!method) fail(503, 'FINANCIAL_HOLD_UNAVAILABLE', message);
-  return tx[method](...args);
-}
-
-async function existingOperation(tx, identity, hash) {
-  const previous =
-    typeof tx.getIdempotencyResult === 'function'
-      ? await tx.getIdempotencyResult(identity)
-      : typeof tx.findOperation === 'function'
-        ? await tx.findOperation(identity)
-        : null;
-  if (!previous) return null;
-  const oldHash = previous.payloadHash ?? previous.fingerprint;
-  if (oldHash && oldHash !== hash)
-    fail(
-      409,
-      'IDEMPOTENCY_CONFLICT',
-      'This idempotency key was used for a different request'
-    );
-  return previous.result ?? previous;
-}
-
-async function saveOperation(tx, identity, hash, result) {
-  if (typeof tx.saveIdempotencyResult === 'function')
-    await tx.saveIdempotencyResult({ identity, payloadHash: hash, result });
-  else if (typeof tx.recordOperation === 'function')
-    await tx.recordOperation({
-      ...identity,
-      idempotencyKey: identity.key,
-      fingerprint: hash,
-      result
-    });
-}
-
-function transitionAllowed(current, target) {
-  return (
-    (current === 'OPEN' && target === 'UNDER_REVIEW') ||
-    (current === 'UNDER_REVIEW' && target === 'RESOLVED') ||
-    (current === 'RESOLVED' && target === 'UNDER_REVIEW') ||
-    (current === 'UNDER_REVIEW' && target === 'CLOSED') ||
-    (current === 'RESOLVED' && target === 'CLOSED')
-  );
-}
-
-export function createComplaintService({
-  repository,
-  clock = () => new Date()
-} = {}) {
-  if (
-    !repository ||
-    (!repository.runForVisitActor &&
-      !repository.runForCase &&
-      !repository.runTransaction)
-  ) {
-    throw new TypeError('Complaint transaction repository port is required');
-  }
-  if (typeof clock !== 'function')
-    throw new TypeError('clock must be a function');
-
-  async function transaction(actor, resourceId, work, kind = 'visit') {
-    active(actor, clock);
-    id(resourceId, kind === 'case' ? 'complaintId' : 'visitId');
+  async function bookingEligibility(tx, booking, visits, records, asOf) {
+    if (!visits.length || visits.some(visit => !isHomeCare(visit))) {
+      return deadline(null, asOf, false, 'BOOKING_NOT_ELIGIBLE');
+    }
+    const completions = visits.map(visitCompletion);
+    if (completions.some(value => !value)) return deadline(null, asOf, false, 'BOOKING_NOT_ENDED');
+    const endedAt = completions.every(value => value.at) ? new Date(Math.max(...completions.map(value => +value.at))) : null;
+    const eligibility = deadline(endedAt, asOf, isOpen(records, null, asOf));
+    if (!eligibility.eligible || completions.some(value => value.done)) return eligibility;
     try {
-      if (kind === 'case' && typeof repository.runForCase === 'function')
-        return await repository.runForCase(actor, resourceId, work);
-      if (kind === 'visit' && typeof repository.runForVisitActor === 'function')
-        return await repository.runForVisitActor(actor, resourceId, work);
-      return await repository.runTransaction({ actor, resourceId }, work);
+      const basis = await readBasis(tx, booking.id);
+      if (basis.basis !== 'ISSUED' || !money(basis.billTotalVnd)) unavailable();
+      if (basis.billTotalVnd > 0) return eligibility;
+      return { ...eligibility, eligible: false, reason: 'BOOKING_NOT_ELIGIBLE' };
     } catch (error) {
-      if (error instanceof AppError) throw error;
-      throw new AppError(
-        503,
-        'COMPLAINT_UNAVAILABLE',
-        'Complaint operation is temporarily unavailable'
-      );
+      if (error.code !== 'BILLING_SOURCE_UNAVAILABLE') throw error;
+      return { ...eligibility, eligible: false, reason: error.code };
     }
   }
 
-  async function getVisit(tx, visitId) {
-    const visit = await callFirst(tx, ['getVisit', 'findVisit'], visitId);
-    if (!visit || (visitIdOf(visit) && visitIdOf(visit) !== visitId))
-      fail(404, 'RESOURCE_NOT_FOUND', 'Visit not found');
-    return visit;
+  async function loadBooking(tx, bookingId) {
+    const booking = await tx.getBooking(bookingId);
+    if (!booking) notFound();
+    return booking;
   }
 
-  function authorizeCustomer(actor, visit) {
-    if (
-      !hasRole(actor.roles, 'CUSTOMER') ||
-      customerIdOf(visit) !== actor.userId
-    )
-      fail(404, 'RESOURCE_NOT_FOUND', 'Visit not found');
+  async function loadCase(tx, actor, complaintIdValue) {
+    const record = await tx.getComplaint(complaintIdValue);
+    if (!record) notFound();
+    const visit = record.visitId ? await tx.getVisit(record.visitId) : null;
+    if (record.visitId && (!visit || visit.bookingId !== record.bookingId)) notFound();
+    const booking = await loadBooking(tx, record.bookingId);
+    authorizeRead(actor, record, booking, visit);
+    return { record, booking, visit };
   }
 
-  function authorizeRead(actor, record, visit) {
-    if (hasRole(actor.roles, 'STAFF')) return;
-    if (
-      hasRole(actor.roles, 'CUSTOMER') &&
-      customerIdOf(visit) === actor.userId
-    )
-      return;
-    if (
-      hasRole(actor.roles, 'PET_SITTER') &&
-      sitterIdOf(visit) === actor.userId &&
-      (!sitterIdOf(record) || sitterIdOf(record) === actor.userId)
-    )
-      return;
-    fail(404, 'RESOURCE_NOT_FOUND', 'Complaint not found');
+  function asResult(record, actor, asOf, messageCode) {
+    const complaint = safeComplaint(record, actor, asOf);
+    return { complaint, case: complaint, complaintId: complaint.id, visitId: complaint.visitId,
+      state: complaint.state, version: complaint.version, ...(messageCode ? { messageCode } : {}) };
   }
 
-  async function submit({
-    actor,
-    visitId,
-    expectedVersion: suppliedVersion,
-    idempotencyKey: suppliedKey,
-    ...input
-  } = {}) {
-    active(actor, clock);
-    if (!hasRole(actor.roles, 'CUSTOMER'))
-      fail(403, 'FORBIDDEN', 'Customer access is required');
-    const normalized = normalizeSubmission(input);
-    const expected = version(suppliedVersion);
-    const supplied = key(suppliedKey);
-    const hash = payloadHash({
-      visitId,
-      expectedVersion: expected,
-      complaint: normalized
-    });
-    return transaction(actor, visitId, async (tx) => {
-      const visit = await getVisit(tx, visitId);
-      authorizeCustomer(actor, visit);
-      const identity = {
-        actorRef: actor.userId,
-        resourceRef: visitId,
-        operation: 'COMPLAINT_SUBMIT',
-        key: supplied
-      };
-      const previous = await existingOperation(tx, identity, hash);
-      if (previous) return previous;
-      if (!eligibleVisit(visit))
-        fail(
-          409,
-          'VISIT_NOT_ELIGIBLE',
-          'A complaint requires an assigned completed visit'
-        );
-      if (expected !== null && visit.version !== expected)
-        fail(
-          409,
-          'VERSION_CONFLICT',
-          'Visit changed; reload before submitting'
-        );
-      const completedAt = completionTime(visit);
-      const now = nowValue(clock);
-      if (now < completedAt)
-        fail(
-          409,
-          'VISIT_NOT_COMPLETE',
-          'A complaint can be submitted after the visit is complete'
-        );
-      if (now > completedAt + COMPLAINT_WINDOW_MS)
-        fail(
-          409,
-          'COMPLAINT_WINDOW_EXPIRED',
-          'The 7-day complaint window has expired'
-        );
-      const existing = await callFirst(
-        tx,
-        ['findOpenComplaint', 'getOpenComplaint', 'findComplaint'],
-        {
-          visitId,
-          customerId: actor.userId,
-          states: COMPLAINT_OPEN_STATES
-        }
-      );
-      if (existing && COMPLAINT_OPEN_STATES.includes(existing.state))
-        fail(
-          409,
-          'COMPLAINT_ALREADY_OPEN',
-          'This visit already has an open complaint'
-        );
-      const openedAt = new Date(now).toISOString();
-      const saved = await callFirst(
-        tx,
-        ['createComplaint', 'createCase', 'saveComplaint'],
-        {
-          id: randomUUID(),
-          kind: 'COMPLAINT',
-          visitId,
-          customerId: actor.userId,
-          sitterId: sitterIdOf(visit),
-          bookingId: idOf(visit.bookingId ?? visit.booking?.id),
-          serviceName: visit.serviceName ?? visit.serviceSnapshot?.name ?? null,
-          involvedActorRefs: [actor.userId, sitterIdOf(visit)].filter(Boolean),
-          ...normalized,
-          state: 'OPEN',
-          version: 0,
-          objectionCount: 0,
-          createdAt: openedAt,
-          openedAt,
-          actorId: actor.userId,
-          idempotencyKey: supplied
-        }
-      );
-      if (!saved)
-        fail(
-          503,
-          'COMPLAINT_UNAVAILABLE',
-          'Complaint was not acknowledged by the server'
-        );
-      const complaint = safeComplaint(
-        {
-          ...saved,
-          ...normalized,
-          id: saved.id ?? saved._id,
-          kind: 'COMPLAINT',
-          visitId,
-          customerId: actor.userId,
-          sitterId: sitterIdOf(visit),
-          state: saved.state ?? 'OPEN',
-          createdAt: saved.createdAt ?? openedAt
-        },
-        actor
-      );
-      if (!complaint)
-        fail(503, 'COMPLAINT_UNAVAILABLE', 'Complaint response is invalid');
-      const result = {
-        complaint,
-        case: complaint,
-        complaintId: complaint.id,
-        visitId,
-        state: complaint.state,
-        version: complaint.version
-      };
-      await callFirst(tx, ['appendAuditAndOutbox'], {
-        type: 'ComplaintOpened',
-        actorId: actor.userId,
-        complaintId: complaint.id,
-        visitId,
-        at: openedAt
+  function replay(prior, fingerprint) {
+    if (prior && prior.payloadHash !== fingerprint) conflict('IDEMPOTENCY_CONFLICT');
+    return prior?.result;
+  }
+
+  async function commitEvent(tx, { identity, fingerprint, record, actor, asOf, event, messageCode }) {
+    const result = asResult(record, actor, asOf, messageCode);
+    await tx.recordEvent({ event, record, actorId: actor.userId, at: asOf });
+    await tx.saveIdempotencyResult({ identity, payloadHash: fingerprint, result });
+    return result;
+  }
+
+  async function submit({ actor, expectedVersion, idempotencyKey, ...input }) {
+    authenticate(actor, now());
+    authorizeRole(actor, 'CUSTOMER');
+    const target = submissionTarget(input);
+    const expected = version(expectedVersion, true);
+    const key = commandKey(idempotencyKey);
+    const operation = target.scope === 'BOOKING' ? 'COMPLAINT_SUBMIT_BOOKING' : 'COMPLAINT_SUBMIT';
+    const identity = { actorRef: actor.userId, resourceRef: target.visitId ?? target.bookingId, operation, key };
+    const legacyFingerprint = legacySubmitFingerprint(input, expected);
+    return run(async tx => {
+      const asOf = now();
+      const visit = target.visitId ? await tx.getVisit(target.visitId) : null;
+      if (target.visitId && !visit) notFound();
+      const booking = await loadBooking(tx, target.bookingId ?? visit?.bookingId);
+      if (booking.customerId !== actor.userId || (visit && visit.bookingId !== booking.id)) notFound();
+      const previous = await tx.getIdempotencyResult(identity);
+      if (previous && previous.payloadHash === legacyFingerprint) return previous.result;
+      const payload = { ...target, ...normalizeSubmission(input) };
+      const fingerprint = legacyFingerprint ?? hash({ payload, expected });
+      const prior = replay(previous, fingerprint);
+      if (prior) return prior;
+      if (expected !== null && (visit ?? booking).version !== expected) conflict('VERSION_CONFLICT');
+      const records = await tx.bookingComplaints(booking.id);
+      const eligibility = visit ? visitEligibility(visit, records, asOf)
+        : await bookingEligibility(tx, booking, await tx.getVisits(booking), records, asOf);
+      enforceEligibility(eligibility);
+      await tx.assertEvidence(payload.evidenceRefs, actor.userId);
+      const id = randomUUID();
+      await tx.changeHold(booking, id, actor.userId);
+      const record = await tx.createComplaint({
+        id, kind: 'COMPLAINT', complaintSchemaVersion: COMPLAINT_SCHEMA_VERSION, code: complaintCode(id),
+        ...payload, bookingId: booking.id, customerId: actor.userId, sitterId: visit?.sitterId ?? null,
+        state: 'OPEN', billState: 'ON_HOLD', version: 0, objectionCount: 0,
+        createdAt: asOf, updatedAt: asOf, openedAt: asOf
       });
-      await saveOperation(tx, identity, hash, result);
-      return result;
+      return commitEvent(tx, { identity, fingerprint, record, actor, asOf, event: 'ComplaintOpened', messageCode: 'MSG128' });
     });
   }
 
-  async function loadCase(tx, complaintId, actor) {
-    const record = await callFirst(
-      tx,
-      ['getComplaint', 'getCase', 'findComplaint', 'findCase'],
-      complaintId
-    );
-    if (
-      !record ||
-      (idOf(record.id ?? record._id) &&
-        idOf(record.id ?? record._id) !== complaintId) ||
-      (record.kind && record.kind !== 'COMPLAINT')
-    )
-      fail(404, 'RESOURCE_NOT_FOUND', 'Complaint not found');
-    const visitId = visitIdOf(record);
-    if (!visitId)
-      fail(503, 'COMPLAINT_UNAVAILABLE', 'Complaint visit is unavailable');
-    const visit = await getVisit(tx, visitId);
-    authorizeRead(actor, record, visit);
-    return { record, visit };
+  async function eligibility({ actor, bookingId }) {
+    authenticate(actor, now());
+    authorizeRole(actor, 'CUSTOMER');
+    return run(async tx => {
+      const asOf = now();
+      const booking = await loadBooking(tx, complaintId(bookingId, 'bookingId'));
+      if (booking.customerId !== actor.userId) notFound();
+      const visits = await tx.getVisits(booking);
+      const records = await tx.bookingComplaints(booking.id);
+      const whole = await bookingEligibility(tx, booking, visits, records, asOf);
+      return {
+        booking: bookingSummary(booking, visits), wholeBooking: { ...whole, aboveVisitTable: whole.eligible
+          && visits.every(visit => !visitCompletion(visit)?.done) },
+        visits: visits.map(visit => {
+          const entry = visitEligibility(visit, records, asOf);
+          return { ...visitSummary(visit), eligibility: entry, canSubmit: entry.eligible
+            || (entry.reason === 'COMPLAINT_ALREADY_OPEN' && whole.eligible) };
+        })
+      };
+    });
   }
 
-  async function get({ actor, complaintId, caseId } = {}) {
-    const idValue = id(complaintId ?? caseId, 'complaintId');
-    return transaction(
-      actor,
-      idValue,
-      async (tx) => {
-        const { record } = await loadCase(tx, idValue, actor);
-        const result = safeComplaint({ ...record, kind: 'COMPLAINT' }, actor);
-        if (!result)
-          fail(503, 'COMPLAINT_UNAVAILABLE', 'Complaint response is invalid');
-        return result;
-      },
-      'case'
-    );
+  async function get({ actor, complaintId: id, proposalOnly = false }) {
+    authenticate(actor, now());
+    if (proposalOnly) authorizeRole(actor, 'ADMIN');
+    return run(async tx => {
+      const { record, booking, visit } = await loadCase(tx, actor, complaintId(id));
+      if (proposalOnly && !record.proposal) notFound();
+      const details = { ...record, bookingSummary: bookingSummary(booking, visit ? [visit] : await tx.getVisits(booking)),
+        visitSummary: visitSummary(visit) };
+      const options = {};
+      if (hasRole(actor.roles, 'STAFF')) {
+        details.customerName = await tx.getCustomerName(booking.customerId);
+        options.customerPhone = await tx.getPhone(booking.customerId);
+        try {
+          const basis = await readBasis(tx, booking.id, record.moneyDecision?.amountVnd ?? 0);
+          options.billing = { status: 'AVAILABLE', basis: basis.basis, basisAmountVnd: basis.basisAmountVnd,
+            approvedTotalVnd: basis.approvedTotalVnd, remainingVnd: basis.remainingVnd, paidInFull: basis.paidInFull };
+        } catch (error) {
+          if (error.code !== 'BILLING_SOURCE_UNAVAILABLE') throw error;
+          options.billing = { status: 'UNAVAILABLE', code: error.code };
+        }
+      }
+      return safeComplaint(details, actor, now(), options);
+    });
   }
 
-  async function list({ actor, query = {} } = {}) {
-    active(actor, clock);
-    if (!query || typeof query !== 'object' || Array.isArray(query)) invalid();
-    const allowed = new Set([
-      'visitId',
-      'state',
-      'category',
-      'limit',
-      'cursor'
-    ]);
-    if (Object.keys(query).some((field) => !allowed.has(field))) invalid();
-    const filter = {
-      visitId: query.visitId ? id(query.visitId, 'visitId') : null,
-      state: query.state
-        ? enumValue(query.state, COMPLAINT_STATES, 'state')
-        : null,
-      category: query.category
-        ? enumValue(query.category, COMPLAINT_CATEGORIES, 'category')
-        : null
-    };
-    const limit = query.limit === undefined ? 20 : Number(query.limit);
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
-      invalid('limit');
-    if (
-      query.cursor !== undefined &&
-      (typeof query.cursor !== 'string' ||
-        !/^[A-Za-z0-9_-]{1,512}$/.test(query.cursor))
-    )
-      invalid('cursor');
-    let result;
+  async function list({ actor, query = {}, proposals = false }) {
+    authenticate(actor, now());
+    if (proposals) authorizeRole(actor, 'ADMIN');
+    if (!isSingleRole(actor.roles)) fail(403, 'FORBIDDEN', 'Complaint action is forbidden');
+    const sitter = hasRole(actor.roles, 'PET_SITTER');
+    const options = normalizeList(query, { sitter, proposals });
+    const asOf = now();
     try {
-      result = await (typeof repository.listComplaints === 'function'
-        ? repository.listComplaints({
-            actor,
-            filter,
-            limit,
-            cursor: query.cursor ?? null,
-            projection: 'CASE_SAFE_V1'
-          })
-        : typeof repository.listCases === 'function'
-          ? repository.listCases({
-              actor,
-              kind: 'COMPLAINT',
-              filter,
-              limit,
-              cursor: query.cursor ?? null,
-              projection: 'CASE_SAFE_V1'
-            })
-          : null);
+      const result = await repository.listComplaints({ actor, asOf, ...options });
+      return { ...result, items: result.items.map(row => safeComplaint(row, actor, asOf)) };
     } catch (error) {
       if (error instanceof AppError) throw error;
-      throw new AppError(
-        503,
-        'COMPLAINT_UNAVAILABLE',
-        'Complaint list is temporarily unavailable'
-      );
+      throw new AppError(503, 'COMPLAINT_UNAVAILABLE', 'Complaint list is unavailable');
     }
-    active(actor, clock);
-    if (!result)
-      fail(
-        503,
-        'COMPLAINT_UNAVAILABLE',
-        'Complaint list is temporarily unavailable'
-      );
-    const rows = Array.isArray(result) ? result : result.items;
-    if (!Array.isArray(rows) || rows.length > limit)
-      fail(503, 'COMPLAINT_UNAVAILABLE', 'Complaint list response is invalid');
-    const items = rows.map((row) => {
-      const allowed =
-        hasRole(actor.roles, 'STAFF') ||
-        (hasRole(actor.roles, 'CUSTOMER') &&
-          customerIdOf(row) === actor.userId) ||
-        (hasRole(actor.roles, 'PET_SITTER') &&
-          sitterIdOf(row) === actor.userId);
-      if (!allowed)
-        fail(
-          503,
-          'COMPLAINT_UNAVAILABLE',
-          'Complaint list returned an out-of-scope record'
-        );
-      const item = safeComplaint({ ...row, kind: 'COMPLAINT' }, actor);
-      if (
-        !item ||
-        (filter.state && item.state !== filter.state) ||
-        (filter.category && item.category !== filter.category) ||
-        (filter.visitId && item.visitId !== filter.visitId)
-      )
-        fail(
-          503,
-          'COMPLAINT_UNAVAILABLE',
-          'Complaint list response is invalid'
-        );
-      return item;
-    });
-    return { items, nextCursor: result.nextCursor ?? null };
   }
 
-  async function command({
-    actor,
-    complaintId,
-    expectedVersion: suppliedVersion,
-    idempotencyKey: suppliedKey,
-    operation,
-    work
-  } = {}) {
-    active(actor, clock);
-    const idValue = id(complaintId, 'complaintId');
-    const expected = version(suppliedVersion);
-    const supplied = key(suppliedKey);
-    const hash = payloadHash({
-      complaintId: idValue,
-      expectedVersion: expected,
-      operation,
-      input: work.input
+  async function mutate(command, role, operation, normalize, transition) {
+    const { actor, complaintId: id, expectedVersion, idempotencyKey, ...input } = command;
+    authenticate(actor, now());
+    authorizeRole(actor, role);
+    const caseId = complaintId(id);
+    const expected = version(expectedVersion, true);
+    const identity = { actorRef: actor.userId, resourceRef: caseId, operation, key: commandKey(idempotencyKey) };
+    return run(async tx => {
+      const asOf = now();
+      const { record, booking } = await loadCase(tx, actor, caseId);
+      const previous = await tx.getIdempotencyResult(identity);
+      if (previous && previous.payloadHash === legacyCommandFingerprint(input, caseId, expected, operation)) return previous.result;
+      const payload = normalize(input);
+      const fingerprint = hash({ payload, expected });
+      const prior = replay(previous, fingerprint);
+      if (prior) return prior;
+      if (expected === null || (record.version ?? 0) !== expected) conflict('VERSION_CONFLICT');
+      const guardedBooking = await tx.guardBooking(booking);
+      const { changes, event, messageCode } = await transition({ tx, record, booking: guardedBooking, actor, payload, asOf });
+      const saved = await tx.updateComplaint({
+        complaintId: caseId, expectedVersion: expected,
+        changes: { state: complaintState(record), objectionCount: record.objectionCount ?? 0, ...changes,
+          complaintSchemaVersion: COMPLAINT_SCHEMA_VERSION,
+          updatedAt: asOf, billState: changes.finalAt ? null : 'ON_HOLD' }
+      });
+      return commitEvent(tx, { identity, fingerprint, record: saved, actor, asOf, event, messageCode });
     });
-    return transaction(
-      actor,
-      idValue,
-      async (tx) => {
-        const { record, visit } = await loadCase(tx, idValue, actor);
-        const identity = {
-          actorRef: actor.userId,
-          resourceRef: idValue,
-          operation,
-          key: supplied
-        };
-        const previous = await existingOperation(tx, identity, hash);
-        if (previous) return previous;
-        const currentVersion = Number.isSafeInteger(record.version)
-          ? record.version
-          : 0;
-        if (expected === null || currentVersion !== expected)
-          fail(
-            409,
-            'VERSION_CONFLICT',
-            'Complaint changed; reload before continuing'
-          );
-        const resultRecord = await work.run({
-          tx,
-          record,
-          visit,
-          actor,
-          now: new Date(nowValue(clock)).toISOString(),
-          expected,
-          supplied
-        });
-        if (!resultRecord)
-          fail(
-            503,
-            'COMPLAINT_UNAVAILABLE',
-            'Complaint update was not acknowledged by the server'
-          );
-        const complaint = safeComplaint(
-          {
-            ...record,
-            ...resultRecord,
-            kind: 'COMPLAINT',
-            id: idValue,
-            visitId: visitIdOf(record)
-          },
-          actor
-        );
-        if (!complaint)
-          fail(503, 'COMPLAINT_UNAVAILABLE', 'Complaint response is invalid');
-        const result = {
-          complaint,
-          case: complaint,
-          complaintId: idValue,
-          state: complaint.state,
-          version: complaint.version
-        };
-        await callFirst(tx, ['appendAuditAndOutbox'], {
-          type: operation,
-          actorId: actor.userId,
-          complaintId: idValue,
-          visitId: visitIdOf(record),
-          at: resultRecord.updatedAt
-        });
-        await saveOperation(tx, identity, hash, result);
-        return result;
-      },
-      'case'
-    );
   }
 
-  async function review({
-    actor,
-    complaintId,
-    expectedVersion: suppliedVersion,
-    idempotencyKey: suppliedKey,
-    ...input
-  } = {}) {
-    if (!hasRole(actor?.roles, 'STAFF'))
-      fail(403, 'FORBIDDEN', 'Staff access is required');
-    const resolution = normalizeStaffResolution(input);
-    return command({
-      actor,
-      complaintId,
-      expectedVersion: suppliedVersion,
-      idempotencyKey: suppliedKey,
-      operation: 'ComplaintUnderReview',
-      work: {
-        input: resolution,
-        run: async ({
-          tx,
-          record,
-          now,
-          actor: current,
-          expected,
-          supplied
-        }) => {
-          if (!transitionAllowed(record.state, 'UNDER_REVIEW'))
-            fail(
-              409,
-              'INVALID_STATE',
-              'Only an open complaint can enter review'
-            );
-          const saved = await callFirst(
-            tx,
-            ['reviewComplaint', 'updateComplaint', 'updateCase'],
-            {
-              complaintId,
-              complaint: record,
-              resolution: {
-                ...resolution,
-                state: 'UNDER_REVIEW',
-                version: expected + 1,
-                updatedAt: now,
-                actorId: current.userId
-              },
-              expectedVersion: expected,
-              actorId: current.userId,
-              idempotencyKey: supplied
-            }
-          );
-          if (!saved || saved.version !== expected + 1)
-            fail(
-              503,
-              'COMPLAINT_UNAVAILABLE',
-              'Review update was not acknowledged'
-            );
-          return {
-            ...saved,
-            state: saved.state ?? 'UNDER_REVIEW',
-            version: saved.version,
-            resolution: saved.resolution ?? resolution,
-            updatedAt: saved.updatedAt ?? now
-          };
-        }
+  function requireOpen(record) {
+    if (complaintState(record) !== 'OPEN' || record.proposal?.status === 'PENDING') conflict();
+  }
+
+  function publish(customerResult, asOf) {
+    return { state: 'RESOLVED', customerResult, resultDeliveredAt: asOf,
+      appealUntil: new Date(+asOf + APPEAL_WINDOW_MS), finalAt: null };
+  }
+
+  function review(command) {
+    return mutate(command, 'STAFF', 'ComplaintUnderReview', normalizeReview, ({ record, payload }) => {
+      requireOpen(record);
+      return { changes: { handlingNotes: payload.handlingNotes, state: 'OPEN' }, event: 'ComplaintReviewed' };
+    });
+  }
+
+  function resolve(command) {
+    return mutate(command, 'STAFF', 'ComplaintResolved', normalizeResolution, async ({ tx, record, booking, actor, payload, asOf }) => {
+      requireOpen(record);
+      const { handlingNotes, customerResult, proposal } = payload;
+      if (!proposal) {
+        return { changes: { ...publish(customerResult, asOf), handlingNotes }, event: 'ComplaintResolved', messageCode: 'MSG131' };
       }
+      await tx.assertEvidence(proposal.evidenceRefs, actor.userId);
+      const basis = await readBasis(tx, booking.id);
+      checkCap(basis, proposal.amountVnd);
+      if (typeof billing.applyAdjustment !== 'function') unavailable();
+      return { changes: { handlingNotes, proposal: { ...proposal, status: 'PENDING', customerResult,
+        createdAt: asOf, createdBy: actor.userId } }, event: 'ComplaintRefundProposed', messageCode: 'MSG147' };
     });
   }
 
-  async function resolve({
-    actor,
-    complaintId,
-    expectedVersion: suppliedVersion,
-    idempotencyKey: suppliedKey,
-    ...input
-  } = {}) {
-    if (!hasRole(actor?.roles, 'STAFF'))
-      fail(403, 'FORBIDDEN', 'Staff access is required');
-    const resolution = normalizeStaffResolution(input);
-    return command({
-      actor,
-      complaintId,
-      expectedVersion: suppliedVersion,
-      idempotencyKey: suppliedKey,
-      operation: 'ComplaintResolved',
-      work: {
-        input: resolution,
-        run: async ({
-          tx,
-          record,
-          now,
-          actor: current,
-          expected,
-          supplied
-        }) => {
-          if (!transitionAllowed(record.state, 'RESOLVED'))
-            fail(
-              409,
-              'INVALID_STATE',
-              'Only a complaint under review can be resolved'
-            );
-          const saved = await callFirst(
-            tx,
-            ['resolveComplaint', 'updateComplaint', 'updateCase'],
-            {
-              complaintId,
-              complaint: record,
-              resolution: {
-                ...resolution,
-                state: 'RESOLVED',
-                version: expected + 1,
-                updatedAt: now,
-                recordedAt: now,
-                actorId: current.userId
-              },
-              expectedVersion: expected,
-              actorId: current.userId,
-              idempotencyKey: supplied
-            }
-          );
-          if (!saved || saved.version !== expected + 1)
-            fail(
-              503,
-              'COMPLAINT_UNAVAILABLE',
-              'Resolution was not acknowledged'
-            );
-          if (resolution.financialHold === true)
-            await callRequired(
-              tx,
-              ['holdSettlement', 'placeFinancialHold'],
-              [
-                {
-                  complaintId,
-                  visitId: visitIdOf(record),
-                  actorId: current.userId,
-                  reason: resolution.summary
-                }
-              ],
-              'Financial hold port is not configured; complaint resolution cannot complete'
-            );
-          return {
-            ...saved,
-            state: saved.state ?? 'RESOLVED',
-            version: saved.version,
-            resolution: saved.resolution ?? resolution,
-            updatedAt: saved.updatedAt ?? now,
-            financialHold:
-              saved.financialHold ??
-              (resolution.financialHold === true
-                ? { state: 'ON_HOLD' }
-                : record.financialHold)
-          };
-        }
+  async function applyMoney(tx, booking, record, asOf, actor, amountVnd, priorAmountVnd) {
+    const basis = await readBasis(tx, booking.id, priorAmountVnd);
+    checkCap(basis, amountVnd);
+    if (typeof billing.applyAdjustment !== 'function') unavailable();
+    const disposition = basis.paidInFull ? 'ACCOUNTING_REFUND' : 'BILL_CREDIT';
+    const ref = 'complaint:' + record.id + ':v' + (record.version + 1);
+    const applied = await billing.applyAdjustment({ session: tx.session, bookingId: booking.id, complaintId: record.id,
+      basis, amountVnd, priorAmountVnd, disposition, ref, actorId: actor.userId, at: asOf });
+    if (applied?.applied !== true) unavailable();
+    return { amountVnd, disposition, ref, decidedBy: actor.userId, decidedAt: asOf };
+  }
+
+  function decideRefund(command) {
+    return mutate(command, 'ADMIN', 'COMPLAINT_REFUND_DECIDE', normalizeRefundDecision,
+      async ({ tx, record, booking, actor, payload, asOf }) => {
+        const { proposal } = record;
+        if (complaintState(record) !== 'OPEN' || proposal?.status !== 'PENDING') conflict();
+        const { outcome, reason } = payload;
+        if (outcome === 'REDUCE' && payload.amountVnd >= proposal.amountVnd) invalid('amountVnd', 'Enter an amount lower than proposed');
+        const amountVnd = outcome === 'APPROVE' ? proposal.amountVnd : payload.amountVnd;
+        const payment = outcome === 'REJECT' ? { amountVnd: null, decidedAt: asOf, decidedBy: actor.userId }
+          : await applyMoney(tx, booking, record, asOf, actor, amountVnd, 0);
+        const status = { APPROVE: 'APPROVED', REDUCE: 'REDUCED', REJECT: 'REJECTED' }[outcome];
+        return { changes: { ...publish(proposal.customerResult, asOf), proposal: { ...proposal, status },
+          moneyDecision: { ...payment, outcome, reason } }, event: 'ComplaintRefundDecided' };
+      });
+  }
+
+  function object(command) {
+    return mutate(command, 'CUSTOMER', 'ComplaintObjected', normalizeObjection, ({ record, payload, asOf }) => {
+      if (record.objectionCount) conflict('OBJECTION_ALREADY_USED');
+      if (complaintState(record) !== 'RESOLVED') conflict();
+      const cutoff = instant(record.appealUntil);
+      if (!cutoff || cutoff <= asOf || complaintFinalAt(record, asOf)) conflict('OBJECTION_WINDOW_EXPIRED');
+      return { changes: { state: 'ESCALATED', objectionCount: 1, objection: { reason: payload.reason, at: asOf },
+        appealUntil: null, finalAt: null }, event: 'ComplaintObjected', messageCode: 'MSG129' };
+    });
+  }
+
+  function decide(command) {
+    return mutate(command, 'ADMIN', 'ComplaintClosed', normalizeDecision, async ({ tx, record, booking, actor, payload, asOf }) => {
+      if (complaintState(record) !== 'ESCALATED') conflict();
+      const priorAmountVnd = record.moneyDecision?.amountVnd ?? 0;
+      const changed = payload.amountVnd !== null && payload.amountVnd !== priorAmountVnd;
+      const moneyDecision = changed
+        ? { ...await applyMoney(tx, booking, record, asOf, actor, payload.amountVnd, priorAmountVnd), outcome: 'FINAL_ADJUSTMENT' }
+        : record.moneyDecision ?? null;
+      await tx.changeHold(booking, record.id, actor.userId, true);
+      return { changes: { state: 'RESOLVED', customerResult: payload.customerResult,
+        moneyDecision, finalAt: asOf, resultDeliveredAt: asOf, appealUntil: null,
+        finalDecision: { actorId: actor.userId, decidedAt: asOf,
+          ...(changed && record.moneyDecision ? { previousMoneyDecision: record.moneyDecision } : {}) }
+      }, event: 'ComplaintDecided' };
+    });
+  }
+
+  async function evidence({ actor, complaintId: id, mediaId }) {
+    authenticate(actor, now());
+    if (!hasRole(actor.roles, 'STAFF') && !hasRole(actor.roles, 'CUSTOMER')) {
+      fail(403, 'FORBIDDEN', 'Complaint evidence is forbidden');
+    }
+    if (!MEDIA_ID.test(mediaId ?? '')) notFound();
+    const ownerId = await run(async tx => {
+      const { record, booking } = await loadCase(tx, actor, complaintId(id));
+      if (record.evidenceRefs?.some(ref => ref.mediaId === mediaId)) return booking.customerId;
+      if (hasRole(actor.roles, 'STAFF') && record.proposal?.evidenceRefs?.some(ref => ref.mediaId === mediaId)) {
+        return record.proposal.createdBy;
       }
+      notFound();
     });
+    if (!readImage) fail(503, 'PROVIDER_UNAVAILABLE', 'Private media is unavailable');
+    return readImage({ actor: { userId: ownerId }, id: mediaId });
   }
 
-  async function object({
-    actor,
-    complaintId,
-    expectedVersion: suppliedVersion,
-    idempotencyKey: suppliedKey,
-    ...input
-  } = {}) {
-    active(actor, clock);
-    if (!hasRole(actor.roles, 'CUSTOMER'))
-      fail(403, 'FORBIDDEN', 'Customer access is required');
-    const objection = normalizeObjection(input);
-    return command({
-      actor,
-      complaintId,
-      expectedVersion: suppliedVersion,
-      idempotencyKey: suppliedKey,
-      operation: 'ComplaintObjected',
-      work: {
-        input: objection,
-        run: async ({
-          tx,
-          record,
-          visit,
-          now,
-          actor: current,
-          expected,
-          supplied
-        }) => {
-          authorizeCustomer(current, visit);
-          if ((record.objectionCount ?? 0) >= 1)
-            fail(
-              409,
-              'OBJECTION_ALREADY_USED',
-              'Only one disagreement is allowed'
-            );
-          if (!transitionAllowed(record.state, 'UNDER_REVIEW'))
-            fail(
-              409,
-              'INVALID_STATE',
-              'Only a resolved complaint can be disputed'
-            );
-          const saved = await callFirst(
-            tx,
-            [
-              'objectComplaint',
-              'recordComplaintObjection',
-              'updateComplaint',
-              'updateCase'
-            ],
-            {
-              complaintId,
-              complaint: record,
-              objection: {
-                ...objection,
-                state: 'UNDER_REVIEW',
-                objectionCount: 1,
-                updatedAt: now,
-                actorId: current.userId
-              },
-              expectedVersion: expected,
-              actorId: current.userId,
-              idempotencyKey: supplied
-            }
-          );
-          if (!saved || saved.version !== expected + 1)
-            fail(
-              503,
-              'COMPLAINT_UNAVAILABLE',
-              'Disagreement was not acknowledged'
-            );
-          return {
-            ...saved,
-            state: saved.state ?? 'UNDER_REVIEW',
-            version: saved.version,
-            objectionCount: 1,
-            latestObjection: saved.latestObjection ?? objection,
-            updatedAt: saved.updatedAt ?? now
-          };
-        }
-      }
-    });
+  async function readBookingComplaintHold({ bookingId, asOf = now(), session }) {
+    const checkedAt = instant(asOf);
+    if (!checkedAt) throw new TypeError('asOf must be a valid instant');
+    return run(async tx => {
+      const id = complaintId(bookingId, 'bookingId');
+      await loadBooking(tx, id);
+      const records = await tx.bookingComplaints(id);
+      const finalTimes = records.map(record => complaintFinalAt(record, checkedAt));
+      const hasUnfinalizedComplaints = finalTimes.some(at => !at);
+      const completed = finalTimes.filter(Boolean);
+      return {
+        bookingId: id, hasUnfinalizedComplaints, billState: hasUnfinalizedComplaints ? 'ON_HOLD' : null,
+        latestFinalAt: completed.length ? new Date(Math.max(...completed.map(Number))).toISOString() : null,
+        approvedAmounts: records.filter(record => record.moneyDecision?.ref).map(record => ({
+          complaintId: record.id, amountVnd: record.moneyDecision.amountVnd, ref: record.moneyDecision.ref
+        }))
+      };
+    }, session);
   }
 
-  async function decide({
-    actor,
-    complaintId,
-    expectedVersion: suppliedVersion,
-    idempotencyKey: suppliedKey,
-    ...input
-  } = {}) {
-    active(actor, clock);
-    if (!hasRole(actor.roles, 'ADMIN'))
-      fail(403, 'FORBIDDEN', 'Admin access is required');
-    const decision = normalizeDecision(input);
-    return command({
-      actor,
-      complaintId,
-      expectedVersion: suppliedVersion,
-      idempotencyKey: suppliedKey,
-      operation: 'ComplaintClosed',
-      work: {
-        input: decision,
-        run: async ({
-          tx,
-          record,
-          now,
-          actor: current,
-          expected,
-          supplied
-        }) => {
-          if (!transitionAllowed(record.state, 'CLOSED'))
-            fail(
-              409,
-              'INVALID_STATE',
-              'Complaint is not ready for a final decision'
-            );
-          const saved = await callFirst(
-            tx,
-            [
-              'decideComplaint',
-              'closeComplaint',
-              'updateComplaint',
-              'updateCase'
-            ],
-            {
-              complaintId,
-              complaint: record,
-              decision: {
-                ...decision,
-                state: 'CLOSED',
-                version: expected + 1,
-                updatedAt: now,
-                recordedAt: now,
-                actorId: current.userId
-              },
-              expectedVersion: expected,
-              actorId: current.userId,
-              idempotencyKey: supplied
-            }
-          );
-          if (!saved || saved.version !== expected + 1)
-            fail(
-              503,
-              'COMPLAINT_UNAVAILABLE',
-              'Final decision was not acknowledged'
-            );
-          if (decision.financialHold === false)
-            await callRequired(
-              tx,
-              ['releaseSettlementHold', 'releaseFinancialHold'],
-              [
-                {
-                  complaintId,
-                  visitId: visitIdOf(record),
-                  actorId: current.userId,
-                  reason: decision.summary
-                }
-              ],
-              'Financial hold release port is not configured; final decision cannot complete'
-            );
-          return {
-            ...saved,
-            state: 'CLOSED',
-            version: saved.version,
-            resolution: saved.resolution ?? decision,
-            financialHold:
-              saved.financialHold ??
-              (decision.financialHold === false ? null : record.financialHold),
-            updatedAt: saved.updatedAt ?? now
-          };
-        }
-      }
-    });
-  }
-
-  return Object.freeze({
-    submit,
-    create: submit,
-    createComplaint: submit,
-    submitComplaint: submit,
-    list,
-    get,
-    detail: get,
-    review,
-    resolve,
-    object,
-    disagree: object,
-    decide,
-    finalize: decide
-  });
+  return { submit, eligibility, get, list, review, resolve, decideRefund, object, decide, evidence, readBookingComplaintHold };
 }
 
-export { normalizeSubmission, safeComplaint, COMPLAINT_WINDOW_MS };
 export const createComplaintManagementService = createComplaintService;
