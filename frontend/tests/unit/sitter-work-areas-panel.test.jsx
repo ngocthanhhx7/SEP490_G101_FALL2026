@@ -148,7 +148,9 @@ test('enforces the selection limit in the panel', async () => {
     save: jest.fn(),
   };
   renderPanel(api);
-  const last = await screen.findByLabelText('Thành phố 21');
+  await screen.findByLabelText('Thành phố 1');
+  fireEvent.click(screen.getByRole('button',{name:'Trang sau'}));
+  const last = await screen.findByLabelText(`Thành phố ${MAX_SITTER_WORK_AREA_CODES + 1}`);
   expect(last).toBeDisabled();
   expect(screen.getByText(`Đã chọn ${MAX_SITTER_WORK_AREA_CODES}/${MAX_SITTER_WORK_AREA_CODES} khu vực.`)).toBeVisible();
 });
@@ -163,4 +165,17 @@ test('explains contract eligibility while retaining the selected areas for corre
   expect(screen.getByLabelText('Thành phố Hồ Chí Minh')).toBeChecked();
   expect(screen.getByLabelText('Quận 1')).toBeChecked();
   expect(screen.queryByText('Đã lưu khu vực')).not.toBeInTheDocument();
+});
+
+
+test('loads all 22 legacy registrations and keeps a closed commune visible for removal',async()=>{
+  const options=Array.from({length:22},(_,i)=>({code:`DISTRICT_LEGACY_${i}`,label:`Khu vực cũ ${i}`,level:'DISTRICT'}));
+  options.push({code:'PROVINCE_01',label:'Hà Nội',level:'PROVINCE',enabled:false});
+  options.push({code:'COMMUNE_00004',label:'Phường Ba Đình',level:'COMMUNE',parentCode:'PROVINCE_01',enabled:false});
+  const api={load:async()=>({data:{options,selectedCodes:[...options.slice(0,22).map(row=>row.code),'COMMUNE_00004'],expectedVersion:5}}),save:jest.fn()};
+  renderPanel(api);
+  expect(await screen.findByText('Đã chọn 23/100 khu vực.')).toBeVisible();
+  const commune=screen.getByRole('checkbox',{name:/Phường Ba Đình/});expect(commune).toBeChecked();
+  fireEvent.click(commune);expect(commune).toBeDisabled();expect(commune).not.toBeChecked();
+  expect(screen.queryByText('Không tải được khu vực phục vụ')).not.toBeInTheDocument();
 });

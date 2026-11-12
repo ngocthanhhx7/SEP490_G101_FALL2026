@@ -82,3 +82,84 @@ describe('NotificationsPage', () => {
     );
   });
 });
+
+describe('NotificationsPage mark all as read (UC-88)', () => {
+  const second = { ...item, id: 'notice-2', title: 'Đơn hàng mới', createdAt: '2026-10-16T00:00:00.000Z' };
+  const read = (row) => ({ ...row, readAt: '2026-10-17T00:00:00.000Z' });
+  const page = (items, unreadCount) => ({ data: { items, unreadCount, nextCursor: null }, meta: {} });
+  const link = () => screen.queryByRole('button', { name: 'Đánh dấu đã đọc tất cả' });
+
+  test('UC-88 calls the API once, reloads from the server and clears the unread state', async () => {
+    const list = jest
+      .fn()
+      .mockResolvedValueOnce(page([second, item], 2))
+      .mockResolvedValue(page([read(second), read(item)], 0));
+    const markAllRead = jest.fn(async () => ({ data: { status: 'READ', markedCount: 2 } }));
+    const listener = jest.fn();
+    window.addEventListener('pwc:notifications-changed', listener);
+    render(<NotificationsPage api={{ list, markRead: jest.fn(), markAllRead }} />);
+    expect(await screen.findByText('2 chưa đọc')).toBeInTheDocument();
+    expect(screen.getAllByText('Mới')).toHaveLength(2);
+    fireEvent.click(link());
+    await waitFor(() => expect(screen.getByText('0 chưa đọc')).toBeInTheDocument());
+    expect(markAllRead).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalled();
+    window.removeEventListener('pwc:notifications-changed', listener);
+    expect(screen.queryByText('Mới')).not.toBeInTheDocument();
+    expect(link()).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Chưa đọc' }));
+    expect(await screen.findByText('Chưa có thông báo')).toBeInTheDocument();
+  });
+
+  test('UC-88 shows the unread count the server returns when a notification arrived after the cutoff', async () => {
+    const late = { ...second, id: 'notice-late', title: 'Đến sau mốc' };
+    const list = jest
+      .fn()
+      .mockResolvedValueOnce(page([second, item], 2))
+      .mockResolvedValue(page([late, read(second), read(item)], 1));
+    render(<NotificationsPage api={{ list, markRead: jest.fn(), markAllRead: jest.fn(async () => ({ data: { markedCount: 2 } })) }} />);
+    expect(await screen.findByText('2 chưa đọc')).toBeInTheDocument();
+    fireEvent.click(link());
+    expect(await screen.findByText('Đến sau mốc')).toBeInTheDocument();
+    expect(screen.getByText('1 chưa đọc')).toBeInTheDocument();
+    expect(screen.getAllByText('Mới')).toHaveLength(1);
+    expect(link()).toBeInTheDocument();
+  });
+
+  test('UC-88 hides the link when nothing is unread', async () => {
+    const markAllRead = jest.fn();
+    render(<NotificationsPage api={{ list: async () => page([read(item)], 0), markRead: jest.fn(), markAllRead }} />);
+    expect(await screen.findByText('Lịch sắp tới')).toBeInTheDocument();
+    expect(link()).not.toBeInTheDocument();
+  });
+
+  test('UC-88 keeps the unread count and shows an error when the API fails', async () => {
+    const list = jest.fn(async () => page([item], 1));
+    render(<NotificationsPage api={{ list, markRead: jest.fn(), markAllRead: jest.fn(() => Promise.reject(new Error('Synthetic unavailable'))) }} />);
+    expect(await screen.findByText('1 chưa đọc')).toBeInTheDocument();
+    fireEvent.click(link());
+    expect(await screen.findByText('Chưa đánh dấu được thông báo')).toBeInTheDocument();
+    expect(screen.getByText('1 chưa đọc')).toBeInTheDocument();
+    expect(screen.getByText('Mới')).toBeInTheDocument();
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(link()).toBeEnabled();
+  });
+
+  test('uncertain retries keep their operation key and a confirmed new gesture gets a new key', async () => {
+    const markAllRead = jest.fn().mockRejectedValueOnce(new Error('Lost response'))
+      .mockResolvedValue({ data: { markedCount: 1 } });
+    const list = jest.fn(async () => page([item], 1));
+    render(<NotificationsPage api={{ list, markRead: jest.fn(), markAllRead }} />);
+    await screen.findByText('1 chưa đọc');
+    fireEvent.click(link());
+    await screen.findByText('Chưa đánh dấu được thông báo');
+    const firstKey = markAllRead.mock.calls[0][0];
+    fireEvent.click(link());
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(link()).toBeEnabled());
+    expect(markAllRead.mock.calls[1][0]).toBe(firstKey);
+    fireEvent.click(link());
+    await waitFor(() => expect(markAllRead).toHaveBeenCalledTimes(3));
+    expect(markAllRead.mock.calls[2][0]).not.toBe(firstKey);
+  });
+});
