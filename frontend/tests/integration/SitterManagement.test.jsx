@@ -199,6 +199,31 @@ test('UC-74 shows real hours, unavailable sources, late-count thresholds and MSG
   expect(screen.getByLabelText('Trang sau')).toBeDisabled();
 });
 
+test('UC-74 enables withdrawal sorting and highlights only counts of two or more', async () => {
+  const api = fixture();
+  const items = [0, 1, 2].map((withdrawals, index) => ({
+    ...staffRow, id: String(index + 1).repeat(24), displayName: 'Người chăm sóc ' + index,
+    code: 'NV-RUT-' + index, withdrawals, lateCheckIns: null
+  }));
+  api.list.mockResolvedValue({ data: { ...staffData, items, withdrawalsAvailable: true } });
+  mountStaff(api);
+  const option = await screen.findByRole('option', { name: 'Sắp xếp: rút buổi' });
+  await waitFor(() => expect(option).toBeEnabled());
+  fireEvent.change(screen.getByLabelText('Sắp xếp'), { target: { value: 'withdrawals' } });
+  await waitFor(() => expect(api.list).toHaveBeenLastCalledWith(
+    expect.objectContaining({ view: 'staffList', sort: 'withdrawals', cursor: '' }), expect.anything()
+  ));
+  for (const count of [0, 1, 2]) {
+    const row = await screen.findByRole('row', { name: new RegExp('NV-RUT-' + count) });
+    const metric = within(row).getByText(String(count), { exact: true });
+    expect(metric).toBeVisible();
+    expect(metric.classList.contains('staff-sitter-count--alert')).toBe(count === 2);
+  }
+  expect(screen.getByText(
+    'Rút buổi: số buổi người đó rút hoặc xin rút trong 30 ngày gần nhất, mỗi buổi tính một lần. Đến muộn: số buổi check-in trễ hơn 5 phút trong 30 ngày gần nhất. Số từ 2 trở lên được tô đỏ. Ca của người toàn thời gian do Admin nhập trong lịch ca.'
+  )).toBeVisible();
+});
+
 test.each([['Staff', mountStaff, false], ['Admin', mount, true]])(
   'UC-74 %s report keeps period controls and shows summary cards only in Admin',
   async (_role, renderList, showMetrics) => {

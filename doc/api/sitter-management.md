@@ -50,8 +50,8 @@ page sends `status=ACTIVE`, `limit=20` and the chosen `sort`. Calls without
 
 - `sort=rating|lateCheckIns|withdrawals`, default `rating`. Values sort
   descending, unknown values last, followed by name and ID for ties.
-  `withdrawals` is reserved for the follow-up and returns
-  `422 VALIDATION_FAILED` while its source is unavailable.
+  Sorting by `withdrawals` returns `422 VALIDATION_FAILED` when the
+  `employeescheduleevents` collection is absent.
 - `search` matches a literal substring of the name, displayed employee code
   or verified phone. Vietnamese local and international mobile formats are
   equivalent. Phones and their ciphertext stay on the server.
@@ -66,10 +66,14 @@ page sends `status=ACTIVE`, `limit=20` and the chosen `sort`. Calls without
   effective part-time revision. `rating` is the mean of published customer
   ratings. `lateCheckIns` counts actual check-ins more than five minutes after
   the scheduled start, from `asOf - 30 days` through `asOf`.
-- `withdrawalsAvailable: false` and `withdrawals: null` indicate the missing
-  UC-82 source. `approvedLeave: null` and `shift: null` indicate the missing
-  approved-leave and Admin shift sources. These nulls do not represent zero
-  or an empty schedule. The separate reports endpoint retains its own period.
+- `withdrawals` counts distinct visits per sitter with a `VisitWithdrawn` or
+  `VisitWithdrawalRequested` scheduling event from `asOf - 30 days` through
+  `asOf`, inclusive, based on the event's `at`. With the collection present,
+  `withdrawalsAvailable` is true and sitters without matching events have a
+  count of zero. An absent collection returns `withdrawalsAvailable: false`
+  and `withdrawals: null`.
+- `approvedLeave: null` and `shift: null` indicate the missing approved-leave
+  and Admin shift sources. The separate reports endpoint retains its own period.
 
 ## Commands And Navigation
 
