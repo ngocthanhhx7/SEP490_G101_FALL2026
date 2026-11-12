@@ -2,7 +2,7 @@ import { metadata } from '../utils/app-error.js';
 import { id } from '../validators/pet-care.validator.js';
 import { availabilityInput, workAreasInput, decisionInput, proposalConfirmationInput, withdrawalInput } from '../validators/employee-scheduling.validator.js';
 
-export function createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, origins }) {
+export function createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, origins, visitTravelEnabled }) {
   const send = (req, res, data) => res.json({ data, meta: metadata(req) });
   return {
     origins: async (req, res) => send(req, res, await origins.get(req.auth)),
@@ -22,7 +22,7 @@ export function createEmployeeSchedulingController({ repository, dispatch, careP
     withdrawalOptions: async (req, res) => send(req, res, await dispatch.withdrawals.options(req.auth, id(req.params.id))),
     withdraw: async (req, res) => send(req, res, await dispatch.withdrawals.submit(req.auth, id(req.params.id),
       withdrawalInput(req.body), req.get('idempotency-key'))),
-    queue: async (req, res) => send(req, res, await dispatch.queue(req.auth)),
+    queue: async (req, res) => send(req, res, { ...await dispatch.queue(req.auth), visitTravelEnabled }),
     candidates: async (req, res) => send(req, res, await dispatch.previewCandidates(req.auth, req.params.id, req.query)),
     invite: async (req, res) => send(req, res, await dispatch.invite(req.auth, req.params.id, req.body, req.get('idempotency-key'))),
     plans: async (req, res) => send(req, res, await carePlans.list(req.auth)),

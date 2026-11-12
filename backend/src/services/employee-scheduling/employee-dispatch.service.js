@@ -10,8 +10,8 @@ import { createSchedulingNotifications } from '../notifications/scheduling-notif
 
 const oid = value => new Types.ObjectId(value);
 const offerView = row => row && ({ ...row, id: String(row._id), visitId: String(row.visitId), sitterId: row.sitterId });
-const directedSitter = visit => visit.requestedSitterId && String(visit.requestedSitterId) !== String(visit.withdrawalDispatch?.sitterId)
-  ? String(visit.requestedSitterId) : null;
+// The customer's nominee remains binding until a customer-confirmed proposal repins it.
+const directedSitter = visit => visit.requestedSitterId ? String(visit.requestedSitterId) : null;
 
 export function createEmployeeDispatchService({ repository, clock = Date.now, ranker, carePlans, autoDispatchWithdrawals = false }) {
   const { models, col, uow, employeeGuard, eligible } = repository;
@@ -112,10 +112,10 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       });
     })
   } });
-  async function candidates(visit, { manual = false, explain = false } = {}) {
+  async function candidates(visit, { manual = false, explain = false, alternatives = false } = {}) {
     const directed = directedSitter(visit);
     const withdrawn = visit.withdrawalDispatch?.sitterId;
-    const sitterFilter = directed ? { _id: directed } : withdrawn ? { _id: { $ne: String(withdrawn) } } : {};
+    const sitterFilter = directed && !alternatives ? { _id: directed } : withdrawn ? { _id: { $ne: String(withdrawn) } } : {};
     const rows = await models.EmployeeAvailability.find({ areas: { $in: await repository.areaKeys(visit.areaCode) }, ...sitterFilter })
       .sort({ _id: 1 }).limit(101).lean();
     if (rows.length > 100) fail('DISPATCH_SEARCH_LIMIT', 'Employee population requires a wider reviewed dispatch search', 409);
@@ -183,16 +183,18 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     async previewCandidates(actor, visitId, input) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       id(visitId); exact(input, ['startAt', 'areaCode', 'mode'], ['startAt']);
-      if (input.mode !== undefined && input.mode !== 'MANUAL') fail('VALIDATION_FAILED', 'Invalid preview mode');
+      if (input.mode !== undefined && !['MANUAL', 'REPLACEMENT'].includes(input.mode)) fail('VALIDATION_FAILED', 'Invalid preview mode');
       const visit = await readyVisit(visitId), startAt = new Date(instant(input.startAt));
       const areaCode = input.areaCode ?? visit.areaCode;
       if (!(await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas))).some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
         fail('VALIDATION_FAILED', 'Choose the current area or a more precise home area');
-      const manual = input.mode === 'MANUAL';
+      const replacement = input.mode === 'REPLACEMENT';
+      if (replacement && !visit.dispatchReview) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'Replacement previews require staff escalation', 409);
+      const manual = input.mode === 'MANUAL' || replacement && startAt.getTime() === visit.startAt.getTime() && areaCode === visit.areaCode;
       if (manual && (startAt.getTime() !== visit.startAt.getTime() || areaCode !== visit.areaCode)) fail('VALIDATION_FAILED', 'Manual preview must retain booked time and area');
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
       try {
-        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual });
+        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual, alternatives: replacement });
         const users = await col('users').find({ _id: { $in: [...ids, ...blocked.map(row => row.sitterId)].map(oid) } }, { projection: { displayName: 1 } }).limit(101).toArray();
         return { items: ids.map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
           ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: users.find(user => String(user._id) === row.sitterId)?.displayName })) } : {}),
@@ -224,6 +226,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         if (visit.startAt <= new Date(clock())) fail('SHIFT_START_REACHED', 'Customer must confirm a future schedule before invitations', 409);
         const pending = await models.EmployeeVisitOffer.find({ visitId: visit._id, state: 'PENDING', deadline: { $gt: new Date(clock()) } }).session(session).lean();
         const directed = directedSitter(visit);
+        if (directed && String(visit.withdrawalDispatch?.sitterId) === directed)
+          fail('DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'Customer must confirm a replacement employee', 409);
         if (input.sitterId && input.sitterId === String(visit.withdrawalDispatch?.sitterId))
           fail('SITTER_WITHDREW', 'Employee withdrew from this visit', 409);
         const target = directed || input.sitterId ? 1 : 5;
@@ -322,8 +326,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         { $match: { state: 'PENDING', deadline: { $gt: new Date(clock()) }, $expr: { $eq: ['$visitId', '$$visitId'] } } },
         { $limit: 5 }, { $project: { _id: 0, sitterId: 1, deadline: 1 } }
       ], as: 'pendingOffers' } },
-      ...(actionable ? [{ $match: { $expr: { $lt: [{ $size: '$pendingOffers' }, { $cond: [{ $and: ['$requestedSitterId',
-        { $ne: ['$requestedSitterId', { $ifNull: ['$withdrawalDispatch.sitterId', null] }] }] }, 1, 5] }] }, $or: [
+      ...(actionable ? [{ $match: { $expr: { $lt: [{ $size: '$pendingOffers' }, { $cond: ['$requestedSitterId', 1, 5] }] }, $or: [
         { 'dispatchReview.retryAt': { $exists: false } }, { 'dispatchReview.retryAt': { $lte: new Date(clock()) } }
       ] } }] : []),
       { $set: { pendingOffer: { $arrayElemAt: ['$pendingOffers', 0] } } },
