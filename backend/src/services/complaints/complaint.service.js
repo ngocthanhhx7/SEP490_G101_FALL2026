@@ -212,7 +212,8 @@ export function createComplaintService({ repository, billing, readImage, clock =
           && visits.every(visit => !visitCompletion(visit)?.done) },
         visits: visits.map(visit => {
           const entry = visitEligibility(visit, records, asOf);
-          return { ...visitSummary(visit), eligibility: entry, canSubmit: entry.eligible
+          return { ...visitSummary(visit), ...(visit.customerVisitId ? { customerVisitId: String(visit.customerVisitId) } : {}),
+            eligibility: entry, canSubmit: entry.eligible
             || (entry.reason === 'COMPLAINT_ALREADY_OPEN' && whole.eligible) };
         })
       };

@@ -21,4 +21,12 @@
 .customer-booking-detail { min-width: 0; }
 .customer-booking-detail__back { display: inline-flex; margin-bottom: 18px; gap: 8px; align-items: center; }
 .customer-booking-detail .pwc-booking-confirmation { margin-top: 20px; }
+.customer-booking-detail__payment { margin-top: 20px; }
+.customer-booking-detail__payment p { margin: .5rem 0 0; }
+/* The account page provides the Overdue status in place of checkout's generic fallback. */
+.customer-booking-detail__confirmation--overdue > .pwc-booking-confirmation > .pwc-booking-current-status,
+.customer-booking-detail__confirmation--overdue > .pwc-booking-confirmation > .pwc-booking-current-status + p { display: none; }
 @media(max-width: 40rem) { .customer-bookings { padding: 20px 0; } .customer-bookings__list > li { padding: 18px 16px; } .customer-bookings__card-heading { display: block; } .customer-bookings__total { display: block; padding-top: 10px; } .customer-bookings__facts { grid-template-columns: minmax(0,1fr); gap: 14px; } .customer-bookings__actions { gap: 8px; } .customer-bookings__status, .customer-bookings__detail-button { padding: 9px 12px; font-size: 13px; } }
+
+.booking-complaint-visit { display: flex; flex-wrap: wrap; gap: .25rem .65rem; align-items: center; margin-block: .4rem; }
+.booking-complaint-visit__status { font-size: var(--pwc-text-small); color: var(--pwc-ink-muted); }

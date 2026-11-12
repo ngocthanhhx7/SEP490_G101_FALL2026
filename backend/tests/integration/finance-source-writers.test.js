@@ -240,6 +240,13 @@ test('employee completion refuses legacy price basis and rolls back the final ch
 
 test('UC-52 whole booking and visit have independent holds, scoped by owner', async () => {
   await payAndAssign(); await finish(0); await finish(1);
+  const customerVisitId = String(oid());
+  await col('visits').updateOne({ _id: visits[0]._id }, { $set: { customerVisitId } });
+  const eligibility = await complaints.eligibility({ actor: customer, bookingId: String(booking._id) });
+  expect(eligibility.visits).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: String(visits[0]._id), customerVisitId }),
+    expect.objectContaining({ id: String(visits[1]._id) })
+  ]));
   const input = { actor: customer, scope: 'BOOKING', bookingId: String(booking._id),
     description: 'Synthetic booking complaint', idempotencyKey: 'booking-complaint' };
   const opened = await complaints.submit(input);
@@ -425,7 +432,10 @@ test.each([
     ['ComplaintRefundDecided', staff.userId], ['ComplaintRefundDecided', customer.userId]
   ]));
   expect(notifications).toHaveLength(4);
-  expect(notifications.every(notification => notification.deepLink === null)).toBe(true);
+  const customerLink = '/account/bookings/' + booking._id + '/complaints/new?complaint=' + opened.complaintId;
+  expect(notifications.find(notification => notification.recipientId === customer.userId)?.deepLink).toBe(customerLink);
+  expect(notifications.filter(notification => notification.recipientId !== customer.userId)
+    .every(notification => notification.deepLink === null)).toBe(true);
 
   if (outcome === 'APPROVE') {
     const disputed = await csrf(customerApi.post(path + '/objections'), 'reject-result')
@@ -436,6 +446,8 @@ test.each([
     expect(final.body.data).toMatchObject({ state: 'RESOLVED', complaint: {
       finalAt: at.toISOString(), approvedAmountVnd: 10000
     } });
+    expect(await col('notifications').findOne({ eventType: 'ComplaintDecided', recipientId: customer.userId }))
+      .toMatchObject({ deepLink: customerLink });
     expect(await col('syntheticcomplaintadjustments').countDocuments({ deltaVnd: -14000 })).toBe(1);
   }
 });
