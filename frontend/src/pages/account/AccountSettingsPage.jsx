@@ -108,6 +108,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
       const challenge = await api.requestContactOtp({ channel, contact: value });
       const startedAt = Date.now();
       setFlow({ channel, contact: value, challengeId: challenge.challengeId,
+        maskedContact: challenge.maskedContact,
         expiresAt: startedAt + challenge.expiresInSeconds * 1000,
         resendAt: startedAt + challenge.resendAfterSeconds * 1000 });
       setCode('');
@@ -238,6 +239,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
 
       {flow && <form className="account-settings-form" onSubmit={submitCode}>
         <h3>Xác minh {flow.channel === 'EMAIL' ? 'email' : 'số điện thoại'}</h3>
+        {flow.maskedContact && <p>Mã được gửi đến <strong>{flow.maskedContact}</strong>.</p>}
         <p>Mã có hiệu lực thêm {secondsToExpire} giây. Có thể yêu cầu mã khác sau {secondsToResend} giây.</p>
         <Input label="Mã OTP gồm 6 chữ số" type="text" inputMode="numeric" autoComplete="one-time-code"
           pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}

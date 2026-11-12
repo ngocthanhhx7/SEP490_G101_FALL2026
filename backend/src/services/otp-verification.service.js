@@ -1,6 +1,7 @@
 import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
+import { maskContact } from '../utils/mask-contact.js';
 import { identityModels } from '../models/identity.model.js';
 import { userModel as createUserModel } from '../models/user.model.js';
 import { createContactChangeAuditService } from './contact-change-audit.service.js';
@@ -65,6 +66,12 @@ export function createOtpService({ connection, User, models = identityModels(con
     }
     const identity = lookup(channel, contact);
     const canonicalValue = identity.canonicalValue;
+    if (purpose === 'LOGIN') {
+      const registered = await models.Contact.exists({
+        channel, lookupKey: identity.contactLookup, state: 'VERIFIED'
+      });
+      if (!registered) throw new AppError(409, 'REGISTRATION_REQUIRED', 'Register an account before signing in');
+    }
     if (purpose === 'APPLICATION_STATUS' && !Types.ObjectId.isValid(applicationId)) {
       throw new AppError(422, 'VALIDATION_FAILED', 'Application scope is required');
     }
@@ -139,7 +146,10 @@ export function createOtpService({ connection, User, models = identityModels(con
         throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Contact verification could not be started');
       }
     }
-    return Object.freeze({ status: 'PENDING', challengeId, expiresInSeconds: 300, resendAfterSeconds: 60 });
+    return Object.freeze({
+      status: 'PENDING', challengeId, expiresInSeconds: 300, resendAfterSeconds: 60,
+      maskedContact: maskContact(channel, canonicalValue)
+    });
   }
 
   async function verify({ challengeId, channel, contact, purpose, code, displayName, policyVersions, actor, applicationId, rememberDevice = false } = {}) {

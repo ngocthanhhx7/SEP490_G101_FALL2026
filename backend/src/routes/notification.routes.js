@@ -29,6 +29,13 @@ export function createNotificationRouter({
     csrf,
     createNotificationController({ service }).createByNotificationIdReadReceipts
   );
+  if (typeof service.markAllRead === 'function') {
+    router.post(
+      '/read-all',
+      csrf,
+      createNotificationController({ service }).createReadAll
+    );
+  }
   if (typeof service.updatePreferences === 'function') {
     router.patch(
       '/preferences',

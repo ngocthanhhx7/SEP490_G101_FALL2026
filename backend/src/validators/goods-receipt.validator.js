@@ -46,7 +46,7 @@ export function parseReceiptProductQuery(query = {}) {
 // An id as 24 hex characters; the supplier and each product use it.
 function parseId(raw) {
   if (raw === undefined || raw === null || raw === '') return { error: 'REQUIRED' };
-  return typeof raw === 'string' && OBJECT_ID.test(raw) ? { value: raw } : { error: 'INVALID' };
+  return typeof raw === 'string' && OBJECT_ID.test(raw) ? { value: raw.toLowerCase() } : { error: 'INVALID' };
 }
 
 // The quantity received: a whole number from 1 (MSG113). One above the limit is TOO_LARGE, which the input prevents.
