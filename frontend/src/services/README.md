@@ -3,6 +3,12 @@
 `stock-list-api.js` validates the read-only stock list/history contracts and forwards
 search, paging, cursors and cancellation through the shared API client. It preserves
 backend counts/status and never derives a stock threshold.
+History validation distinguishes receipt fields from adjustment reason/recorder fields.
+
+`stock-adjustment-api.js` validates product stock, immutable adjustment and paging
+DTOs, forwards cancellation and sends only product/type/quantity/reason with CSRF
+and the caller's stable `Idempotency-Key`. `api-client.js` preserves optional safe
+nonnegative integer `available` in errors so MSG123 can show the backend's value.
 
 `api-client.js` preserves HTTP status, a validated correlation UUID and positive
 retry interval even for HTML gateway errors. Pages use the pure

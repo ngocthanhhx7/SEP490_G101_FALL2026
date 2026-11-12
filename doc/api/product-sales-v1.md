@@ -235,12 +235,12 @@ The API returns codes and English text; the frontend shows the Vietnamese wordin
 Both endpoints are read-only, enabled with the product-sales runtime, and require
 `PRODUCT_PERMISSIONS.VIEW_STOCK`. Guest: `401 UNAUTHENTICATED`; Customer, Staff and
 Pet Sitter: `403 FORBIDDEN`; Admin: 200. Responses use `Cache-Control: private, no-store`.
-No new role, setting, environment variable, collection or stock write is introduced.
+These reads introduce no new role, setting, environment variable or stock write.
 
 | Endpoint | Query and result |
 | --- | --- |
 | `GET /api/v1/admin/stock-levels` | `tab=ALL\|LOW_STOCK` (default ALL), optional `search` (part of name/code, case-insensitive literal, NFC/whitespace normalized, max 100 characters), `page` (default 1), `limit` (default 20, max 50). Result `{items,page,limit,total,counts:{ALL,LOW_STOCK}}`, sorted by code then `_id` ascending. |
-| `GET /api/v1/admin/stock-levels/:productId/history` | Optional `limit` (default 20, max 50) and signed `cursor`. Result `{product,items,nextCursor}`; null cursor means no more entries. Sort: `createdAt DESC, _id DESC`. |
+| `GET /api/v1/admin/stock-levels/:productId/history` | Optional `limit` (default 20, max 50) and signed `cursor`. Result `{product,items,nextCursor}`; null cursor means no more entries. Sort: `createdAt DESC, _id DESC, kind DESC`. |
 
 Each stock product is `{id,code,name,stockOnHand,quantityHeld,available,status}`.
 Hidden products remain included. Deleted products are excluded from list, counts
@@ -250,16 +250,21 @@ With the common backend threshold `{T}`, status is `OUT_OF_STOCK` at zero,
 includes zero. The temporary policy lives only in `STOCK_LOW_THRESHOLD`; the team
 has yet to confirm its value. Global tab counts ignore search, selected tab and page.
 
-History entries are `{id,kind:'GOODS_RECEIPT',referenceCode,occurredAt,receivedOn,
+Receipt history entries remain `{id,kind:'GOODS_RECEIPT',referenceCode,occurredAt,receivedOn,
 supplierName,quantityChange}`. `quantityChange` is the selected line's accepted
 quantity, including zero. `receivedOn` is the displayed receiving day;
 `occurredAt` is the receipt creation timestamp used for ordering. The response
-does not expose other receipt lines, recorder details, idempotency keys or fingerprints.
-Orders are not history events. Stock adjustments are deferred; extending history
-requires adding the new kind and merging its events under the same ordering/cursor contract.
+does not expose other receipt lines, receipt recorder details, idempotency keys or fingerprints.
+Adjustment entries are `{id,kind:'STOCK_ADJUSTMENT',referenceCode,occurredAt,reason,
+recorderName,quantityChange}`. The delta is negative for decrease and positive for
+increase. The UI shows the lowercase reason, recorder snapshot and Vietnamese day
+of `occurredAt`; it does not invent receipt fields. Orders are not history events.
+Each source reads at most `limit+1` matching records before bounded merging.
 
 Cursors use the existing session token secret and shared signed-cursor utility
-(15-minute expiry), bound to actor and product. A missing/deleted product returns
+(15-minute expiry), bound to actor and product. Positions include kind to break ties
+across collections; legacy positions without kind mean `GOODS_RECEIPT`.
+A missing/deleted product returns
 `404 RESOURCE_NOT_FOUND`; malformed IDs, unsupported query keys, invalid bounds,
 tampered/expired/wrong-context cursors return `422 VALIDATION_FAILED`.
 Empty search results use existing frontend MSG97; other failures use the shared
@@ -267,6 +272,56 @@ generic retry wording. Admin enters through Cửa hàng → Tồn kho at `/admin
 
 Receipt history currently has no product/creation compound index; a later measured
 performance change can add it separately without changing the Goods Receipt schema here.
+
+## Stock Adjustment (Admin, UC-95)
+
+Enabled with product sales. All endpoints require `PRODUCT_PERMISSIONS.ADJUST_STOCK`
+(Admin only, never Sale Staff): guest 401; Customer, Staff and Pet Sitter 403.
+Responses are private/no-store. POST additionally requires session CSRF and an
+`Idempotency-Key` using the existing 8–128 character command-key rules.
+
+| Endpoint | Input and result |
+| --- | --- |
+| `GET /api/v1/admin/stock-adjustments/products` | Optional literal case-insensitive name/code `search` (NFC/whitespace normalized, max 100), `page` (1), `limit` (20, max 50). `{items:[{id,code,name,visible}],page,limit,total}`, code/id ascending. Includes hidden products, excludes deleted products. |
+| `GET /api/v1/admin/stock-adjustments/products/:productId` | `{id,code,name,visible,stockOnHand,quantityHeld,available}`. Available is calculated by the backend. Missing/deleted: 404 RESOURCE_NOT_FOUND. |
+| `GET /api/v1/admin/stock-adjustments` | `page`/`limit` as above. `{items,page,limit,total}`, createdAt/id descending; includes snapshots of products deleted later. |
+| `POST /api/v1/admin/stock-adjustments` | Only `{productId,type,quantity,reason}`; 201 with the saved adjustment, including replay. |
+
+Type is `INCREASE` or `DECREASE`; quantity is an integer from 1 to the technical
+limit 100000 (the same bound as receipt quantities). Reason is required and one of
+`DAMAGED`, `LOST`, `INTERNAL_USE`, `RECEIPT_CORRECTION`; every reason works with
+either type. Unknown fields and malformed values return 422 VALIDATION_FAILED
+with `fields`. There is no business ceiling for increases; the resulting stock
+must remain a safe integer. Technical overflow uses `fields.quantity: TOO_LARGE`.
+
+An adjustment is `{id,code,productId,productCode,productName,type,quantity,
+quantityChange,reason,recorderId,recorderName,recordedAt}`. Product/recorder names
+are snapshots. The private key/fingerprint are never returned. `DC-0001` grows past
+four digits, backed by the separate `STOCK_ADJUSTMENT` ProductCounter key.
+
+GBR-50: one transaction rechecks the active Admin and nondeleted product, conditionally
+changes `stockOnHand`, increments stock `version`, allocates the code and inserts
+the immutable record/replay key. It never changes `quantityHeld`, `detailsVersion`
+or orders. A decrease requires `stockOnHand - quantityHeld >= quantity` in the update,
+so concurrent decreases or an order hold cannot overdraw availability. Failure rolls
+back stock and counter. Missing/deleted product at save is 422 PRODUCT_NOT_FOUND
+with productIds, matching receipt saves. Excess decrease is
+409 STOCK_ADJUSTMENT_EXCEEDS_AVAILABLE with a safe integer `available` for MSG123:
+“Số giảm không được lớn hơn số có thể bán ({n}).”
+
+Same actor/key/content returns the original record without applying stock twice,
+even if the product was deleted later. Changed content with that key is
+409 IDEMPOTENCY_CONFLICT. Unique-key races are retried within a bounded limit;
+an unresolved code race returns 409 STOCK_ADJUSTMENT_CODE_CONFLICT and the same
+command may be retried. No failed command consumes a number. There are no PATCH,
+PUT or DELETE routes for adjustments.
+
+The Admin screen at `/admin/stock-adjustments` starts with Decrease selected and
+blank quantity/reason (placeholder “Chọn lý do”). Required quantity uses MSG113;
+required reason uses existing MSG01, with errors at their fields and no request.
+Success shows MSG124 “Phiếu điều chỉnh {code} đã được lưu.”, retains product/type,
+clears quantity/reason and refreshes stock and page one. Unchanged content keeps
+its command key after a lost response; inputs are locked while saving.
 
 ## Demo data
 

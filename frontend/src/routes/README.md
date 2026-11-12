@@ -2,6 +2,8 @@
 
 Admin's Cửa hàng group exposes Tồn kho after Nhập hàng. `/admin/stock` composes a
 per-account page with the read-only stock transport under the existing Admin guard.
+Điều chỉnh tồn kho follows Tồn kho and composes `/admin/stock-adjustments` with
+an account-scoped adjustment API using the existing CSRF source and Admin guard.
 
 Route manifests and role/session guards belong here. `PublicPolicyRoutes.jsx` exports the public policy route fragment; pages export presentation components. `AppRoutes.jsx` keys the private layout by account ID so a same-role account switch resets child state. Do not move HTTP transport or domain calculations into route components.
 

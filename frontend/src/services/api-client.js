@@ -9,6 +9,7 @@ export class ApiError extends Error {
     this.fields = details.fields;
     // Per-line reasons from a 422 on a list of lines, by line number from 0: { 0: { quantityReceived: 'INVALID' } }.
     this.lineFields = details.lineFields;
+    this.available = Number.isSafeInteger(details.available) && details.available >= 0 ? details.available : undefined;
     this.decisionIds = details.decisionIds;
     this.retryAfterSeconds = Number.isSafeInteger(details.retryAfterSeconds) && details.retryAfterSeconds > 0 ? details.retryAfterSeconds : undefined;
     this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
@@ -74,6 +75,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       if (!response.ok) {
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
           fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
+          available: envelope?.error?.available,
           retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
           correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         });

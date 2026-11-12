@@ -3,6 +3,10 @@
 `stock-format.js` formats integer stock quantities and signed history deltas, including
 +0. It performs no availability or status calculation. Receipt days reuse `formatDay`.
 
+`stock-adjustment-validation.js` checks required form values and calculates only the
+local stock preview; backend transactions remain authoritative. `stock-adjustment-format.js`
+formats Unicode minus deltas and lowercase reason labels without changing receipt +0.
+
 `role-access.js` accepts exactly one account role (including the legacy scalar
 adapter shape). Mixed/duplicate roles fail closed; they are not normalized by
 privilege priority. ADMIN retains the existing STAFF-operation permission rule.

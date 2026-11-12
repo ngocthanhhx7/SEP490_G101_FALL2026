@@ -11,6 +11,7 @@ import {
 } from '../constants/product-fields.js';
 import { SUPPLIER_STATUSES, SUPPLIER_LIMITS } from '../constants/supplier-fields.js';
 import { GOODS_RECEIPT_LIMITS } from '../constants/goods-receipt-fields.js';
+import { STOCK_ADJUSTMENT_TYPES, STOCK_ADJUSTMENT_REASONS, STOCK_ADJUSTMENT_LIMITS } from '../constants/stock-adjustment-fields.js';
 
 const cartLine = sub({
   productId: { type: oid, required: true },
@@ -43,7 +44,7 @@ const deliveryAddress = sub({
   areaCode: { type: String, required: true, maxlength: 80 }
 });
 
-// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters, suppliers, goodsreceipts (default Mongoose names).
+// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters, suppliers, goodsreceipts, stockadjustments (default Mongoose names).
 export function productSalesModels(connection) {
   return registerModels(connection, {
     Product: {
@@ -178,6 +179,29 @@ export function productSalesModels(connection) {
         [{ number: -1 }, { unique: true }],
         [{ recorderId: 1, idempotencyKey: 1 }, { unique: true }],
         [{ 'lines.productId': 1, createdAt: -1, _id: -1 }, {}]
+      ]
+    },
+    StockAdjustment: {
+      fields: {
+        code: { type: String, required: true, maxlength: 20 },
+        number: { ...integer(1), required: true },
+        productId: { type: oid, required: true },
+        productCode: { type: String, required: true, maxlength: 20 },
+        productName: { type: String, required: true, maxlength: 200 },
+        type: { type: String, enum: STOCK_ADJUSTMENT_TYPES, required: true },
+        quantity: { ...integer(1, STOCK_ADJUSTMENT_LIMITS.quantityMax), required: true },
+        reason: { type: String, enum: STOCK_ADJUSTMENT_REASONS, required: true },
+        recorderId: { type: oid, required: true },
+        recorderName: { type: String, required: true, maxlength: 100 },
+        idempotencyKey: { type: String, required: true, maxlength: 128 },
+        requestFingerprint: { type: String, required: true, maxlength: 128 }
+      },
+      indexes: [
+        [{ code: 1 }, { unique: true }],
+        [{ number: 1 }, { unique: true }],
+        [{ recorderId: 1, idempotencyKey: 1 }, { unique: true }],
+        [{ createdAt: -1, _id: -1 }, {}],
+        [{ productId: 1, createdAt: -1, _id: -1 }, {}]
       ]
     },
     ProductCounter: {

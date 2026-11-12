@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Button, Notice } from '../ui/index.js';
 import { STOCK_FAILURE_TEXT, STOCK_HISTORY_KINDS, STOCK_HISTORY_LIMIT } from '../../constants/stock-list.js';
 import { formatStockQuantity, formatStockDelta } from '../../utils/stock-format.js';
-import { formatDay } from '../../utils/product-format.js';
+import { formatDay, formatOrderDate } from '../../utils/product-format.js';
+import { formatAdjustmentDelta, adjustmentReasonText } from '../../utils/stock-adjustment-format.js';
 
 // Keyed by product in the page. Aborting each request also guards APIs that resolve after cancellation.
 export function StockHistoryPanel({ product, api }) {
@@ -31,9 +32,13 @@ export function StockHistoryPanel({ product, api }) {
       <div><dt>Có thể bán</dt><dd>{formatStockQuantity(current.available)}</dd></div>
     </dl>
     {result?.items.length > 0 && <ol className="pwc-stock-events">{result.items.map(item => <li key={`${item.kind}:${item.id}`}>
-      <div className="pwc-stock-event-heading"><strong>{item.referenceCode}</strong><strong className="pwc-stock-delta">{formatStockDelta(item.quantityChange)}</strong></div>
-      <p>{STOCK_HISTORY_KINDS[item.kind]}</p><p><time dateTime={item.receivedOn}>{formatDay(item.receivedOn)}</time></p>
-      <p>{item.supplierName}</p>
+      <div className="pwc-stock-event-heading"><strong>{item.referenceCode}</strong>
+        <strong className={`pwc-stock-delta${item.kind === 'STOCK_ADJUSTMENT' && item.quantityChange < 0 ? ' is-negative' : ''}`}>
+          {item.kind === 'STOCK_ADJUSTMENT' ? formatAdjustmentDelta(item.quantityChange) : formatStockDelta(item.quantityChange)}</strong></div>
+      {item.kind === 'GOODS_RECEIPT' ? <><p>{STOCK_HISTORY_KINDS[item.kind]}</p>
+        <p><time dateTime={item.receivedOn}>{formatDay(item.receivedOn)}</time></p><p>{item.supplierName}</p></>
+        : <><p>Điều chỉnh: {adjustmentReasonText(item.reason)}</p>
+          <p><time dateTime={item.occurredAt}>{formatOrderDate(item.occurredAt)}</time></p><p>{item.recorderName}</p></>}
     </li>)}</ol>}
     {loading && <Notice state="loading" title="Đang tải lịch sử…" />}
     {failed && <Notice state="error" title={STOCK_FAILURE_TEXT}
