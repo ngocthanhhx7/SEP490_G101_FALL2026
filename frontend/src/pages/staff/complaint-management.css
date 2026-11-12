@@ -1,0 +1,165 @@
+.complaint-management {
+  --complaint-border: #e5d7ee;
+  max-width: 74rem;
+  margin-inline: auto;
+  color: var(--pwc-ink);
+}
+.complaint-management p { margin: 0; overflow-wrap: anywhere; }
+.complaint-management .complaint-management__header h1 {
+  margin: 0 0 .55rem;
+  font: 400 var(--pwc-text-heading)/1.2 var(--pwc-font-display);
+}
+.complaint-management__header { margin-block-end: 1.25rem; }
+.complaint-management > .pwc-notice { margin-block-end: 1rem; }
+.complaint-management__tabs, .complaint-management__filters, .complaint-management__links, .complaint-management__paging {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .55rem;
+}
+.complaint-management__tabs, .complaint-management__filters { margin-block-end: 1rem; }
+.complaint-management__tabs button {
+  padding: .55rem .95rem;
+  border: 1px solid var(--complaint-border);
+  border-radius: 2rem;
+  min-height: var(--pwc-target);
+  color: inherit;
+  background: var(--pwc-surface);
+  font: 800 var(--pwc-text-small)/1.3 var(--pwc-font-body);
+  cursor: pointer;
+}
+.complaint-management__tabs button[aria-selected="true"] {
+  border-color: var(--pwc-lavender);
+  background: var(--pwc-lavender-soft);
+}
+.complaint-management__filters input { flex: 1 1 15rem; }
+.complaint-management__filters { max-width: 44rem; }
+.complaint-management__filters :is(input, select),
+.complaint-management__form :is(input:not([type="file"]), textarea) {
+  min-width: 0;
+  min-height: var(--pwc-target);
+  border: 1px solid var(--complaint-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface);
+  color: inherit;
+  padding: .65rem .85rem;
+  font: inherit;
+}
+.complaint-management__columns {
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.15fr);
+  align-items: start;
+  gap: clamp(1rem, 2.2vw, 1.5rem);
+}
+.complaint-management__list, .complaint-management__detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--complaint-border);
+  border-radius: 1.45rem;
+  background: var(--pwc-surface);
+}
+.complaint-management__list { overflow: hidden; }
+.complaint-management__list ul { margin: 0; padding: 0; list-style: none; }
+.complaint-management__list li + li, .complaint-management__paging { border-top: 1px solid var(--complaint-border); }
+.complaint-management__list li button {
+  display: grid;
+  gap: .45rem;
+  width: 100%;
+  text-align: start;
+  border: 0;
+  border-inline-start: .22rem solid transparent;
+  padding: .95rem 1rem;
+  background: var(--pwc-surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.complaint-management__list li button[aria-current="true"] {
+  border-inline-start-color: var(--pwc-focus);
+  background: var(--pwc-lavender-soft);
+}
+.complaint-management__list li button:focus-visible { outline-offset: -.2rem; }
+.complaint-management__row-title, .complaint-management__detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .45rem .65rem;
+}
+.complaint-management__row-title { justify-content: space-between; }
+.complaint-management__status {
+  background: #e7effd;
+  color: #1d4e90;
+  border-radius: 1rem;
+  padding: .24rem .55rem;
+  font: 800 .82rem/1.25 var(--pwc-font-body);
+}
+.complaint-management__status--old { color: #8e2342; background: #fbe6ee; }
+.complaint-management__status--escalated { color: #5d3484; background: #f0e4fa; }
+.complaint-management__status--resolved { color: #185d40; background: #e3f4eb; }
+.complaint-management__list > .pwc-notice, .complaint-management__empty, .complaint-management__paging { padding: 1rem; }
+.complaint-management__detail { display: grid; gap: 1rem; padding: clamp(1rem, 2.2vw, 1.75rem); }
+.complaint-management__detail :is(h2, h3) { margin: 0; }
+.complaint-management__detail-header h2 { font: 900 1.35rem/1.2 var(--pwc-font-body); }
+.complaint-management__facts { margin: 0; display: grid; gap: .8rem; }
+.complaint-management__facts div { display: grid; grid-template-columns: minmax(6.5rem, 1fr) minmax(0, 2.7fr); gap: .35rem 1rem; }
+.complaint-management__facts dd { margin: 0; }
+.complaint-management__facts dt { font-weight: 800; }
+.complaint-management__statement {
+  display: grid;
+  gap: .3rem;
+  border-radius: .85rem;
+  padding: .75rem .9rem;
+  background: var(--pwc-lavender-soft);
+}
+.complaint-management__statement h3 { font-size: .95rem; }
+.complaint-management__links { align-items: baseline; }
+.complaint-management__links a, .complaint-management__text-button { font-weight: 800; }
+.complaint-management__text-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--pwc-focus);
+  font-family: inherit;
+  cursor: pointer;
+}
+.complaint-management__evidence ul { display: flex; flex-wrap: wrap; gap: .65rem; list-style: none; padding: 0; }
+.complaint-management__evidence img { max-width: min(14rem, 100%); max-height: 12rem; object-fit: contain; border-radius: .6rem; }
+.complaint-management__form, .complaint-management__form > div { display: grid; gap: .5rem; }
+.complaint-management__form { gap: 1rem; }
+.complaint-management__form label { font-weight: 800; }
+.complaint-management__form textarea { display: block; margin-top: .3rem; width: 100%; resize: vertical; }
+.complaint-management__form input[inputmode="numeric"] { width: min(100%, 16rem); }
+.complaint-management__form :is(input, textarea):disabled { background: var(--pwc-lavender-soft); }
+.complaint-management__form [aria-invalid="true"] { border-color: var(--pwc-error); }
+.complaint-management__form > .pwc-button { justify-self: start; min-width: 10rem; border-radius: 2rem; }
+.complaint-management__muted { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.complaint-management__error { color: var(--pwc-error); font-size: var(--pwc-text-small); font-weight: 800; }
+.complaint-management__add-file {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  justify-self: start;
+  min-height: var(--pwc-target);
+  padding-inline: .3rem;
+  border-radius: var(--pwc-radius-control);
+  color: var(--pwc-focus);
+}
+.complaint-management__add-file input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.complaint-management__add-file input:disabled { cursor: default; }
+.complaint-management__add-file:has(input:disabled) { color: var(--pwc-disabled-ink); }
+.complaint-management__add-file:focus-within { outline: 3px solid var(--pwc-focus); outline-offset: 2px; }
+.complaint-management__file-list { margin: 0; padding-inline-start: 1.15rem; }
+.complaint-management p.complaint-management__bill-note {
+  padding: .75rem .85rem;
+  border-radius: .75rem;
+  background: var(--pwc-warning-surface);
+  color: var(--pwc-warning);
+  font-size: var(--pwc-text-small);
+}
+@media (max-width: 54rem) {
+  .complaint-management__columns { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 30rem) {
+  .complaint-management__facts div { grid-template-columns: minmax(0, 1fr); }
+}
