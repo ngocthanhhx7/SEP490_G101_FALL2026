@@ -115,6 +115,7 @@ export function loadConfig(env = process.env) {
   try { routingBounds = parseRoutingBounds(env.AI_ROUTING_BOUNDS); }
   catch { invalid.push('AI_ROUTING_BOUNDS'); }
   const result = {
+    customerTierJobEnabled: env.CUSTOMER_TIER_JOB_ENABLED === 'true',
     ai: Object.freeze({ enabled: aiEnabled === 'true', routingUrl, routingBounds }),
     nodeEnv,
     host,
@@ -134,6 +135,9 @@ export function loadConfig(env = process.env) {
     rateLimitMax: integer('RATE_LIMIT_MAX', 100, 1, 10000),
     trustProxyHops: integer('TRUST_PROXY_HOPS', 0, 0, 1)
   };
+  if (env.CUSTOMER_TIER_JOB_ENABLED !== undefined && !['true', 'false'].includes(env.CUSTOMER_TIER_JOB_ENABLED)) {
+    invalid.push('CUSTOMER_TIER_JOB_ENABLED');
+  }
   if (nodeEnv !== 'test' && result.port === 0) invalid.push('PORT');
   if (invalid.length) throw new ConfigurationError(invalid);
   return Object.freeze(result);

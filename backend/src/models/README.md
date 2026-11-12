@@ -113,4 +113,6 @@ SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submissi
 
 EmploymentContract adds optional supersededAt/supersededBy/supersededReason metadata for an explicitly corrected erroneous future version. Current-contract selection excludes superseded rows; historical contract IDs/versions remain intact. No index or native validator is changed.
 
+`customer-tier.model.js` identifies the customer tier, policy, run and staged
+result collections. The tier document uses the customer account ID as its key.
 Goods receipt stock history uses the additive multikey compound index `lines.productId, createdAt descending, _id descending`; it preserves immutable receipts and the existing unique code/number/recorder-operation indexes. Provision explicitly with the reviewed release; runtime reads do not create it.

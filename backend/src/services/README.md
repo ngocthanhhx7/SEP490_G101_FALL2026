@@ -158,3 +158,7 @@ Customer booking list reads a projected summary from the existing owner-scoped b
 Pet-record import is transient transcription with bounded input/token/output and an allowlist of care fields; it has no database or financial writes.
 
 `service-area-*` services own sourced home-care coverage, Admin activation and insert-only operator provisioning. They keep legal-unit identities separate from legacy operational zones; see [coverage contract](../../../doc/api/home-care-coverage.md).
+
+`customer-tier.service.js` evaluates JOB-05 and exposes the internal tier read.
+`mongo-customer-tier.repository.js` reads spend snapshots and fences tier writes.
+The storage provisioner creates the tier collections and an unapproved DRAFT sample policy. Read/run and resumed writes require an explicitly approved policy with approval metadata and the same version. The worker remains disabled until owner policy approval and spend-source acceptance; no sample discount is applied automatically.
