@@ -1,5 +1,8 @@
 # Input validators
 
+`stock-list.validator.js` checks stock tab/search/page filters and bounded history
+cursor queries. Decoded history positions are validated before entering model queries.
+
 Pure DTO checks and primitive validation live here. No HTTP response handling, database reads or service imports. Domain services decide eligibility, pricing and scheduling; validators reject malformed input including impossible calendar dates.
 
 `service-price-history.validator.js` validates only limit (20 default/50 max) and

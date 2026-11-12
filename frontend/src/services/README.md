@@ -1,5 +1,9 @@
 # API services
 
+`stock-list-api.js` validates the read-only stock list/history contracts and forwards
+search, paging, cursors and cancellation through the shared API client. It preserves
+backend counts/status and never derives a stock threshold.
+
 `api-client.js` preserves HTTP status, a validated correlation UUID and positive
 retry interval even for HTML gateway errors. Pages use the pure
 `utils/api-error-feedback.js` fallback after their domain-specific messages;

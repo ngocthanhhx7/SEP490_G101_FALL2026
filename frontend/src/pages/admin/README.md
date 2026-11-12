@@ -1,5 +1,13 @@
 # Admin pages
 
+`StockListPage.jsx` composes the read-only `/admin/stock` screen with server tabs,
+bounded search, shared pagination and a selected product's receipt history.
+`stock-list.css` scopes its layout, stacking history below the list on small screens.
+It renders server availability/status and uses the current shared shop theme.
+Stock status chips use existing semantic success tokens for Còn hàng, shop warning
+tokens for Sắp hết hàng, and the shared muted gray style for Hết hàng. These rules
+are local to Stock List; shared theme definitions remain unchanged.
+
 Service price history uses bounded cursor pages with first/previous/next/reload.
 Service changes and acknowledged saves reset to the first page; stale history
 cannot supply a write version. A version conflict refreshes without retrying POST.

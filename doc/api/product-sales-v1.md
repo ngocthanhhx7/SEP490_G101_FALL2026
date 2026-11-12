@@ -89,7 +89,7 @@ It never removes order/supplier references or image blobs. This user-approved
 extension supersedes the original hide-only scope; see
 [verification and rules](../testing/product-management-lifecycle-2026-11-05.md).
 
-`page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). Supplier Management uses it, and Stock List is meant to. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
+`page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). Supplier Management and Stock List use it. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
 
 ### Product photos
 
@@ -229,6 +229,44 @@ Replaying the same `Idempotency-Key` with the same body returns the original ord
 | `VALIDATION_FAILED`, `UNAUTHENTICATED`, `FORBIDDEN`, `RESOURCE_NOT_FOUND` | 422/401/403/404 | common |
 
 The API returns codes and English text; the frontend shows the Vietnamese wording. Success messages (MSG59, MSG99, MSG106) and empty-state messages (MSG97, MSG102) are frontend-only.
+
+## Stock List (Admin, UC-71)
+
+Both endpoints are read-only, enabled with the product-sales runtime, and require
+`PRODUCT_PERMISSIONS.VIEW_STOCK`. Guest: `401 UNAUTHENTICATED`; Customer, Staff and
+Pet Sitter: `403 FORBIDDEN`; Admin: 200. Responses use `Cache-Control: private, no-store`.
+No new role, setting, environment variable, collection or stock write is introduced.
+
+| Endpoint | Query and result |
+| --- | --- |
+| `GET /api/v1/admin/stock-levels` | `tab=ALL\|LOW_STOCK` (default ALL), optional `search` (part of name/code, case-insensitive literal, NFC/whitespace normalized, max 100 characters), `page` (default 1), `limit` (default 20, max 50). Result `{items,page,limit,total,counts:{ALL,LOW_STOCK}}`, sorted by code then `_id` ascending. |
+| `GET /api/v1/admin/stock-levels/:productId/history` | Optional `limit` (default 20, max 50) and signed `cursor`. Result `{product,items,nextCursor}`; null cursor means no more entries. Sort: `createdAt DESC, _id DESC`. |
+
+Each stock product is `{id,code,name,stockOnHand,quantityHeld,available,status}`.
+Hidden products remain included. Deleted products are excluded from list, counts
+and history. `available` is computed as on-hand minus held, never persisted.
+With the common backend threshold `{T}`, status is `OUT_OF_STOCK` at zero,
+`LOW_STOCK` from one through `{T}`, and `IN_STOCK` from `{T}+1`. The low-stock tab
+includes zero. The temporary policy lives only in `STOCK_LOW_THRESHOLD`; the team
+has yet to confirm its value. Global tab counts ignore search, selected tab and page.
+
+History entries are `{id,kind:'GOODS_RECEIPT',referenceCode,occurredAt,receivedOn,
+supplierName,quantityChange}`. `quantityChange` is the selected line's accepted
+quantity, including zero. `receivedOn` is the displayed receiving day;
+`occurredAt` is the receipt creation timestamp used for ordering. The response
+does not expose other receipt lines, recorder details, idempotency keys or fingerprints.
+Orders are not history events. Stock adjustments are deferred; extending history
+requires adding the new kind and merging its events under the same ordering/cursor contract.
+
+Cursors use the existing session token secret and shared signed-cursor utility
+(15-minute expiry), bound to actor and product. A missing/deleted product returns
+`404 RESOURCE_NOT_FOUND`; malformed IDs, unsupported query keys, invalid bounds,
+tampered/expired/wrong-context cursors return `422 VALIDATION_FAILED`.
+Empty search results use existing frontend MSG97; other failures use the shared
+generic retry wording. Admin enters through Cửa hàng → Tồn kho at `/admin/stock`.
+
+Receipt history currently has no product/creation compound index; a later measured
+performance change can add it separately without changing the Goods Receipt schema here.
 
 ## Demo data
 

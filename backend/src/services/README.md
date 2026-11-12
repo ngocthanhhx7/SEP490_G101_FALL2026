@@ -1,5 +1,13 @@
 # Domain services
 
+`product-sales/stock-list.service.js` provides read-only Admin stock levels and scoped
+receipt history for `PRODUCT_PERMISSIONS.VIEW_STOCK`. It includes hidden products,
+excludes deleted ones, and computes availability/status without stock or order writes.
+Global tab counts ignore search/page filters. Receipt history projects only the selected
+product's accepted quantity (including zero), ordered by `createdAt`/`_id` descending;
+`receivedOn` is the displayed day. Signed cursors use the existing session secret and
+are bound to actor/product. See the [API contract](../../../doc/api/product-sales-v1.md).
+
 Goods Receipt product search and saving exclude deleted products (`deletedAt`
 must be null or absent), while hidden products remain eligible (AC-31, D-262).
 The save transaction rechecks eligibility and returns the existing
