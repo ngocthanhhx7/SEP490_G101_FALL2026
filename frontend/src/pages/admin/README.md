@@ -70,8 +70,8 @@ uses recorded audit timestamps, never inferred completion of missing stages.
 Email queue state is visible separately from the application state.
 
 `ProductOrderManagementPage` is the `/admin/product-orders` screen for Admin and Sale Staff to process shop orders:
-tabs with counts (to prepare, awaiting pickup, in transit, returning, all), search by
-order code, customer name or the customer's whole phone number (the phone is also shown in the order detail), and the next step for the selected order (tracking code and
+tabs with counts (to prepare, awaiting pickup, in transit, returning, all), selectable through the `tab` query parameter,
+search by order code, customer name or the customer's whole phone number (the phone is also shown in the order detail), and the next step for the selected order (tracking code and
 hand to carrier, mark ready, record payment, hand to customer, mark delivered, mark being returned with the carrier's reason, confirm a returned order with the reason and the resellable quantity of each line). The phone shows as `0912 345 678`. The backend decides what
 is allowed and moves the stock; the page shows its answer and reloads after a conflict.
 

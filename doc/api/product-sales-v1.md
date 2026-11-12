@@ -53,6 +53,20 @@ Phone numbers are stored encrypted with a keyed lookup hash (the same contact ke
 
 Not built: the COD refusal limit (the refusal records it will count already exist), the expiry job, placing an advance-payment order (`PREPAID` exists in the vocabulary only) and refunds themselves.
 
+## Sale Staff Dashboard (UC-94)
+
+`GET /api/v1/dashboards/sale-staff` is available to `SALE_STAFF` under
+`PRODUCT_SALES_ENABLED=true` and `AUTH_ENABLED=true`. Guest requests receive
+401 and other signed-in roles receive 403. The route returns
+`Cache-Control: private, no-store`.
+
+The `data` object is `{ counts: { PREPARE, AWAITING_PICKUP, RETURNING } }`.
+The counts use the same status aggregation as the Order Management list and
+are independent of search and pagination. Before the first order, all three
+counts are zero even if MongoDB has yet to create the order collection.
+An order count query failure returns `503 SALES_DASHBOARD_SOURCE_UNAVAILABLE`.
+Disabling product sales yields `404 RESOURCE_NOT_FOUND`.
+
 ## Product Management (Admin)
 
 Who may manage products is `MANAGE_PRODUCTS` in `backend/src/constants/product-permissions.js` (today Admin only). Mounted at `/api/v1/admin/products`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer, a Sitter or anonymous caller gets 403 or 401. Writes need the session CSRF token and take no `Idempotency-Key`: an edit matches the `version` the Admin saw, so a second save of the same screen is `409 VERSION_CONFLICT` instead of applying twice. There is no delete: a product is only shown or hidden.

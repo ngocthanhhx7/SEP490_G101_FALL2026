@@ -1,18 +1,20 @@
-import { beforeAll, afterAll, beforeEach, describe, test, expect } from '@jest/globals';
+import { beforeAll, afterAll, beforeEach, describe, test, expect, jest } from '@jest/globals';
 import { createServer } from 'node:http';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
 import express from 'express';
 import request from 'supertest';
+import { dashboardReadRuntimeModule } from '../../src/routes/dashboard-runtime.routes.js';
 import { productSalesRuntimeModules } from '../../src/routes/product-sales.routes.js';
 import { provisionProductCatalog } from '../../src/services/product-sales/product-catalog-provisioning.service.js';
 import { productSalesModels } from '../../src/models/product.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createProductOrderManagementService } from '../../src/services/product-sales/product-order-management.service.js';
+import { readProductOrderTabCounts } from '../../src/services/product-sales/product-order-tab-counts.js';
 import { identityModels } from '../../src/models/identity.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
-import { requestId, errorHandler } from '../../src/middlewares/http.js';
+import { requestId, notFound, errorHandler } from '../../src/middlewares/http.js';
 import { registerModules } from '../../src/routes/module-registry.js';
 
 const oid = () => new mongoose.Types.ObjectId();
@@ -79,6 +81,23 @@ const returning = async (order, carrierReason = 'Customer not at home') => {
 const returnLines = async (entries) => Promise.all(entries.map(async ([code, resellableQuantity]) => ({ productId: await idOf(code), resellableQuantity })));
 const confirmBody = async (entries, extra = {}) => ({ reason: 'CUSTOMER_REFUSED', lines: await returnLines(entries), ...extra });
 
+function salesApp({ connection, enabled = true, includeCommonDashboard = false, commonFirst = false }) {
+  const sessionService = { authenticate: async (req) => {
+    const actor = actors[req.get('x-test-actor')];
+    return actor ? { ...actor, expiresAt: Date.now() + 60000 } : null;
+  }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
+  const config = { auth: { enabled: true, ...CONTACT_KEYS } };
+  const env = { PRODUCT_SALES_ENABLED: String(enabled) };
+  const options = { config, connection, env, sessionService };
+  const sales = productSalesRuntimeModules(options);
+  const common = includeCommonDashboard ? [dashboardReadRuntimeModule(options)] : [];
+  const app = express();
+  app.use(express.json(), requestId);
+  registerModules(app, commonFirst ? [...common, ...sales] : [...sales, ...common]);
+  app.use(notFound, errorHandler(() => {}));
+  return app;
+}
+
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_product_order_management' }).asPromise();
@@ -103,13 +122,7 @@ beforeAll(async () => {
     lookupKey: crypto.lookup('PHONE', phone).lookupKey, state, verifiedAt: new Date() });
   await identityModels(connection).Contact.create([contact(actors.a.userId, PHONE_A, 'VERIFIED'),
     contact(actors.a.userId, OLD_PHONE_A, 'REPLACED'), contact(actors.b.userId, PHONE_B, 'VERIFIED')]);
-  const session = { authenticate: async (req) => {
-    const actor = actors[req.get('x-test-actor')];
-    return actor ? { ...actor, expiresAt: Date.now() + 60000 } : null;
-  }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
-  const modules = productSalesRuntimeModules({ config: { auth: { enabled: true, ...CONTACT_KEYS } }, connection, sessionService: session,
-    env: { PRODUCT_SALES_ENABLED: 'true' } });
-  const app = express(); app.use(express.json(), requestId); registerModules(app, modules); app.use(errorHandler(() => {}));
+  const app = salesApp({ connection });
   server = createServer(app); await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 }, 600000);
@@ -120,6 +133,111 @@ afterAll(async () => {
 beforeEach(async () => {
   for (const model of Object.values(models)) await model.deleteMany({});
   await provisionProductCatalog({ connection });
+});
+
+
+test('queue counts exclude counter orders and scan pending statuses instead of closed history', async () => {
+  const statuses = ['PLACED', 'READY', 'HANDED_TO_CARRIER', 'BEING_RETURNED'];
+  const row = (status, index, channel) => ({ _id: oid(), code: `SYNTHETIC-${index}`, customerId: new mongoose.Types.ObjectId(actors.a.userId),
+    idempotencyKey: `synthetic-count-${index}`, status, createdAt: new Date(), ...(channel ? { channel } : {}) });
+  await models.ProductOrder.collection.insertMany([
+    ...Array.from({ length: 1000 }, (_, index) => row('DELIVERED', index)),
+    ...statuses.map((status, index) => row(status, index + 1000, index % 2 ? 'ONLINE' : undefined)),
+    ...statuses.map((status, index) => row(status, index + 2000, 'COUNTER'))
+  ]);
+  const capture = jest.spyOn(models.ProductOrder, 'aggregate');
+  let pipeline;
+  try {
+    expect(await readProductOrderTabCounts(models.ProductOrder)).toEqual({ PREPARE: 1, AWAITING_PICKUP: 1, IN_TRANSIT: 1, RETURNING: 1 });
+    pipeline = capture.mock.calls[0][0];
+  } finally { capture.mockRestore(); }
+  const before = await models.ProductOrder.collection.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]).explain('executionStats');
+  const after = await models.ProductOrder.collection.aggregate(pipeline).explain('executionStats');
+  const stats = plan => plan.executionStats ?? plan.stages.find(stage => stage.$cursor).$cursor.executionStats;
+  expect(stats(before).totalDocsExamined).toBeGreaterThanOrEqual(1000);
+  expect(stats(after).totalDocsExamined).toBeLessThanOrEqual(8);
+});
+
+describe('UC-94 Sale Staff dashboard', () => {
+  const DASHBOARD = '/api/v1/dashboards/sale-staff';
+  const NO_ORDERS = { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 };
+
+  test('returns only counts matching Order Management across statuses', async () => {
+    await placeDelivery('a', 'SP-0012', 1);
+    await placePickup('a', 'SP-0020', 1);
+    const pickup = await placePickup('b', 'SP-0020', 1);
+    await act(pickup, 'mark-ready').expect(200);
+    await returning(await placeShipped('a', [['SP-0012', 1]]));
+    await placeShipped('a', [['SP-0012', 1]]);
+
+    const list = await api('saleStaff').get(MANAGE + '?tab=RETURNING&limit=1').expect(200);
+    const { PREPARE, AWAITING_PICKUP, RETURNING } = list.body.data.counts;
+    const dashboard = await api('saleStaff').get(DASHBOARD).expect(200)
+      .expect('Cache-Control', 'private, no-store');
+    expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING } });
+    expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1 });
+  });
+
+  test.each([[null, 401], ['a', 403], ['sitter', 403], ['staff', 403], ['admin', 403]])(
+    'restricts dashboard access for %s to HTTP %s', async (actor, status) => {
+      await api(actor).get(DASHBOARD).expect(status);
+    }
+  );
+
+  test('returns zero with an empty provisioned collection', async () => {
+    const collections = await connection.db.listCollections({ name: models.ProductOrder.collection.name }).toArray();
+    expect(collections).toHaveLength(1);
+    const list = await api('saleStaff').get(MANAGE).expect(200);
+    expect(list.body.data.counts).toEqual({ ...NO_ORDERS, IN_TRANSIT: 0 });
+    expect((await api('saleStaff').get(DASHBOARD).expect(200)).body.data).toEqual({ counts: NO_ORDERS });
+  });
+
+  test('returns the same zeros as Order Management before an order collection is created', async () => {
+    const fresh = await mongoose.createConnection(replica.getUri(), {
+      dbName: 'synthetic_uc94_unprovisioned', autoCreate: false, autoIndex: false, bufferCommands: false
+    }).asPromise();
+    try {
+      const app = salesApp({ connection: fresh });
+      const filter = { name: productSalesModels(fresh).ProductOrder.collection.name };
+      expect(await fresh.db.listCollections(filter).toArray()).toEqual([]);
+      const list = await request(app).get(MANAGE).set('x-test-actor', 'saleStaff').expect(200);
+      expect(list.body.data.counts).toEqual({ ...NO_ORDERS, IN_TRANSIT: 0 });
+      const dashboard = await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(200);
+      expect(dashboard.body.data).toEqual({ counts: NO_ORDERS });
+      expect(await fresh.db.listCollections(filter).toArray()).toEqual([]);
+    } finally {
+      await fresh.close();
+    }
+  });
+
+  test('returns a service error when the order count query fails', async () => {
+    const aggregate = jest.spyOn(models.ProductOrder, 'aggregate').mockImplementationOnce(() => {
+      throw new Error('Synthetic query failure');
+    });
+    try {
+      const response = await api('saleStaff').get(DASHBOARD).expect(503);
+      expect(response.body.error.code).toBe('SALES_DASHBOARD_SOURCE_UNAVAILABLE');
+      expect(response.body).not.toHaveProperty('data');
+      expect(JSON.stringify(response.body)).not.toContain('Synthetic query failure');
+    } finally {
+      aggregate.mockRestore();
+    }
+  });
+
+  test.each([false, true])('coexists with the common dashboard router (common first: %s)', async (commonFirst) => {
+    const app = salesApp({ connection, includeCommonDashboard: true, commonFirst });
+    expect((await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(200)).body.data)
+      .toEqual({ counts: NO_ORDERS });
+    await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'saleStaff').expect(403);
+    await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'staff').expect(202);
+  });
+
+  test('returns HTTP 404 when product sales is disabled even with the common dashboard router', async () => {
+    const app = salesApp({ connection, enabled: false, includeCommonDashboard: true });
+    const response = await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(404);
+    expect(response.body.error.code).toBe('RESOURCE_NOT_FOUND');
+    await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'staff').expect(202);
+  });
 });
 
 describe('composition', () => {

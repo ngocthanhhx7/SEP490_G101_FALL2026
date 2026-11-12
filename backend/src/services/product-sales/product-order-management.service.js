@@ -9,6 +9,7 @@ import {
 import { parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { toOrderView } from './product-order.service.js';
+import { readProductOrderTabCounts } from './product-order-tab-counts.js';
 import { productSalesErrors, requireOnlineOrderCanceller, requireOrderHandler } from './product-sales-errors.js';
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -125,15 +126,12 @@ export function createProductOrderManagementService({ connection, phones, clock 
           { customerId: { $in: [...named.map((user) => user._id), ...owners] } }];
       }
       const direction = OLDEST_FIRST_TABS.has(tab) ? 1 : -1;
-      const [docs, grouped, total] = await Promise.all([
+      const [docs, counts, total] = await Promise.all([
         ProductOrder.find(filter).sort({ createdAt: direction, _id: direction }).skip((page - 1) * limit).limit(limit).lean(),
-        ProductOrder.aggregate([{ $match: { channel: { $ne: COUNTER_CHANNEL } } }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
+        readProductOrderTabCounts(ProductOrder),
         ProductOrder.countDocuments(filter)
       ]);
       const customers = await customerDetails([...new Set(docs.map((doc) => String(doc.customerId)))]);
-      const byStatus = new Map(grouped.map((row) => [row._id, row.count]));
-      const counts = Object.fromEntries(Object.entries(PRODUCT_ORDER_TAB_STATUSES).map(([key, statuses]) =>
-        [key, statuses.reduce((sum, status) => sum + (byStatus.get(status) ?? 0), 0)]));
       return { items: docs.map((doc) => toAdminOrderView(doc, customers.get(String(doc.customerId)))), counts, page, limit, total };
     },
     async read(actor, orderId) {

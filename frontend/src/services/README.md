@@ -77,4 +77,7 @@ pagination-response.js validates optional page/limit/total envelopes for shop or
 
 pet-record-import-api.js handles consented same-origin JPEG/PNG/PDF transport; API keys remain server-side.
 
+`sale-staff-dashboard-api.js` reads and validates the three UC-94 order counts
+from `/dashboards/sale-staff` through the shared API client.
+
 `booking-details-api.js` reads Staff/Admin booking details. Customer detail retains the service basket checkout transport.

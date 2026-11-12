@@ -8,6 +8,7 @@ import { createProductCatalogController } from '../controllers/product-catalog.c
 import { createProductCartController } from '../controllers/product-cart.controller.js';
 import { createProductOrderController } from '../controllers/product-order.controller.js';
 import { createProductOrderManagementController } from '../controllers/product-order-management.controller.js';
+import { createSaleStaffDashboardController } from '../controllers/sale-staff-dashboard.controller.js';
 import { createProductManagementController } from '../controllers/product-management.controller.js';
 import { createSupplierManagementController } from '../controllers/supplier-management.controller.js';
 import { createGoodsReceiptController } from '../controllers/goods-receipt.controller.js';
@@ -19,6 +20,7 @@ import { createProductCatalogService } from '../services/product-sales/product-c
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
+import { createSaleStaffDashboardService } from '../services/product-sales/sale-staff-dashboard.service.js';
 import { createProductManagementService } from '../services/product-sales/product-management.service.js';
 import { createSupplierManagementService } from '../services/product-sales/supplier-management.service.js';
 import { createGoodsReceiptService } from '../services/product-sales/goods-receipt.service.js';
@@ -86,6 +88,11 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   managementRouter.post('/:orderId/hand-to-customer', csrf, management.handToCustomer);
   managementRouter.post('/:orderId/record-payment', csrf, management.recordPayment);
   managementRouter.post('/:orderId/cancel', requireRoles(...PRODUCT_PERMISSIONS.CANCEL_ONLINE_ORDERS), csrf, management.cancel);
+
+  const saleStaffDashboardRouter = Router();
+  const saleStaffDashboard = createSaleStaffDashboardController(createSaleStaffDashboardService({ connection }));
+  saleStaffDashboardRouter.get('/', noStore, requireSession(session, { clock }),
+    requireRoles(...PRODUCT_PERMISSIONS.VIEW_SALE_STAFF_DASHBOARD), saleStaffDashboard);
 
   // Product Management: who may use it comes from PRODUCT_PERMISSIONS.MANAGE_PRODUCTS.
   const productManagement = createProductManagementController(createProductManagementService({ connection }));
@@ -162,6 +169,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
     { name: 'product-orders', mount: '/api/v1/product-orders', router: orderRouter },
     { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter },
+    { name: 'sale-staff-dashboard', mount: '/api/v1/dashboards/sale-staff', router: saleStaffDashboardRouter },
     { name: 'admin-products', mount: '/api/v1/admin/products', router: productManagementRouter },
     { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter },
     { name: 'admin-counter-orders', mount: '/api/v1/admin/counter-orders', router: counterRouter },

@@ -161,6 +161,10 @@ Pet-record import is transient transcription with bounded input/token/output and
 
 `service-area-*` services own sourced home-care coverage, Admin activation and insert-only operator provisioning. They keep legal-unit identities separate from legacy operational zones; see [coverage contract](../../../doc/api/home-care-coverage.md).
 
+The product-sales dashboard and Order Management share the status aggregation
+in `product-sales/product-order-tab-counts.js`. The Sale Staff dashboard service
+returns only its three order counts and maps source query failures to 503.
+
 `customer-tier.service.js` evaluates JOB-05 and exposes the internal tier read.
 `mongo-customer-tier.repository.js` reads spend snapshots and fences tier writes.
 The storage provisioner creates the tier collections and an unapproved DRAFT sample policy. Read/run and resumed writes require an explicitly approved policy with approval metadata and the same version. The worker remains disabled until owner policy approval and spend-source acceptance; no sample discount is applied automatically.

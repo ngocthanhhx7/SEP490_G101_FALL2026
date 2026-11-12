@@ -3,6 +3,7 @@ export const PRODUCT_PERMISSIONS = Object.freeze({
   // Prepare, hand to the carrier, delivery status, returns, hand over at the shop, view all orders.
   HANDLE_ORDERS: Object.freeze(['ADMIN', 'SALE_STAFF']),
   CANCEL_ONLINE_ORDERS: Object.freeze(['ADMIN']),
+  VIEW_SALE_STAFF_DASHBOARD: Object.freeze(['SALE_STAFF']),
   // Create and edit products, show or hide them on the public Products page. Never Sale Staff.
   MANAGE_PRODUCTS: Object.freeze(['ADMIN']),
   // Add, edit, stop and resume working with suppliers. Admin only.

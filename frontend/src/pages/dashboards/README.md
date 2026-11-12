@@ -18,3 +18,7 @@ change. Suggested paths: `/customer/dashboard`, `/sitter/dashboard`, `/staff/das
 `/admin/dashboard`, `/sitter/earnings`, `/sitter/profile`, `/customer/sitters`, `/admin/payroll`.
 The sitter list does not claim availability or auto-create a booking. Payroll is Admin
 only and all financial commands remain in P41. Visuals are PROVISIONAL without Figma.
+
+`SaleStaffDashboardPage` is the Sale Staff overview (UC-94). Its three order
+counts link to matching Order Management tabs. It reads on entry, shows actual
+zero counts, and provides a retry when the read fails.
