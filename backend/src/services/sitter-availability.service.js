@@ -160,7 +160,7 @@ function payloadFingerprint(payload) {
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
-export function createSitterAvailabilityService({ availabilityRepository, assignmentRepository,
+export function createSitterAvailabilityService({ availabilityRepository, assignmentRepository, getRegistrationContract,
   withEligibilityGuard, clock = () => new Date() }) {
   const repositoryMethods = ['findBySitterId', 'listCalendar', 'findCommand', 'createIfAbsent', 'replaceIfVersion', 'saveCommand'];
   if (!availabilityRepository || repositoryMethods.some(method => typeof availabilityRepository[method] !== 'function')
@@ -172,7 +172,11 @@ export function createSitterAvailabilityService({ availabilityRepository, assign
   async function getMine({ actor }) {
     const sitterId = requireSitter(actor);
     const record = await availabilityRepository.findBySitterId({ sitterId });
-    return publicOwnerProjection(record);
+    const registrationContract = getRegistrationContract ? await getRegistrationContract(sitterId) : null;
+    const projection = publicOwnerProjection(record);
+    if (!projection && registrationContract?.state !== 'UPCOMING') return null;
+    return { ...(projection ?? { zone: SITTER_TIME_ZONE, workingWindows: [], areas: [], dayOffDates: [], state: 'ACTIVE', expectedVersion: 0, effectiveFrom: null }),
+      ...(getRegistrationContract ? { registrationContract } : {}) };
   }
 
   async function listMyCalendar({ actor, fromLocalDate, toLocalDate }) {

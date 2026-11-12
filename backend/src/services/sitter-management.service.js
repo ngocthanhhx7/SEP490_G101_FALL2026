@@ -71,6 +71,10 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       lookup('employmentcontracts', '$_id', 'employeeId', 'contracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version', 'employeeCode'],
         [{ $match: { supersededAt: null, effectiveAt: { $lte: now } } }, { $sort: { effectiveAt: -1, version: -1 } }, { $limit: 1 },
           { $match: { signedAt: { $lte: now }, $or: [{ endsAt: { $exists: false } }, { endsAt: null }, { endsAt: { $gt: now } }] } }]),
+      lookup('employmentcontracts', '$_id', 'employeeId', 'upcomingContracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version', 'employeeCode'],
+        [{ $match: { supersededAt: null, effectiveAt: { $gt: now }, signedAt: { $lte: now }, verifiedBy: { $exists: true, $ne: null },
+          $expr: { $or: [{ $eq: [{ $ifNull: ['$endsAt', null] }, null] }, { $gt: ['$endsAt', '$effectiveAt'] }] } } },
+        { $sort: { effectiveAt: 1, version: -1 } }, { $limit: 1 }]),
       { $set: { status: { $ifNull: [{ $first: '$statuses.status' }, 'MISSING'] },
         profileState: { $ifNull: [{ $first: '$profiles.state' }, 'MISSING'] },
         areas: { $ifNull: [{ $first: '$schedules.areas' }, []] },
@@ -98,7 +102,11 @@ export function createSitterManagementService({ connection, cursorSecret, contac
   function row(user) {
     return { id: id(user._id), displayName: user.displayName, accountState: user.state, demo: isDemo(user),
       status: user.status, profileState: user.profileState, areas: user.areas, employmentType: user.employmentType,
-      capabilityActive: user.capabilities[0]?.active === true, createdAt: iso(user.createdAt), updatedAt: iso(user.updatedAt) };
+      capabilityActive: user.capabilities[0]?.active === true, createdAt: iso(user.createdAt), updatedAt: iso(user.updatedAt),
+      upcomingContract: !user.contracts.length && user.upcomingContracts[0] ? {
+        employmentType: user.upcomingContracts[0].employmentType, effectiveAt: iso(user.upcomingContracts[0].effectiveAt),
+        endsAt: iso(user.upcomingContracts[0].endsAt), weeklyMinutes: user.upcomingContracts[0].weeklyMinutes,
+        version: user.upcomingContracts[0].version } : null };
   }
   function context(actor, query, kind, target = '') {
     const filters = { ...query }; delete filters.cursor;
@@ -328,7 +336,7 @@ export function createSitterManagementService({ connection, cursorSecret, contac
         dayOffDates: availability.dayOffDates ?? [] } : null,
       audit: audit.map(a => ({ id: id(a._id), action: a.action, at: iso(a.occurredAt), version: a.resultVersion })),
       ...(admin ? { contractVersion: latestContract?.version ?? 0 } : {}),
-      permissions: { manageCapability: user.state === 'ACTIVE' && user.status === 'ACTIVE' && Boolean(user.contracts.length), manageContract: admin && user.state === 'ACTIVE' && Boolean(application),
+      permissions: { manageCapability: user.state === 'ACTIVE' && user.status === 'ACTIVE' && Boolean(user.contracts.length || user.upcomingContracts.length), manageContract: admin && user.state === 'ACTIVE' && Boolean(application),
         manageStatus: admin && Boolean(application && status), reviewApplication: admin && Boolean(application) } };
     });
   }

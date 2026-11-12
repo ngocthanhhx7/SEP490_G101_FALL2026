@@ -80,7 +80,9 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
   useEffect(() => {
     if (!resource.data || typeof resource.data !== 'object') return;
     setWindows((resource.data.workingWindows ?? []).map((window, index) => ({ ...window, rowId: `saved-${index}` })));
-    setEffectiveFrom(resource.data.effectiveFrom && resource.data.effectiveFrom > today ? resource.data.effectiveFrom : today);
+    const contractStart = resource.data.registrationContract?.state === 'UPCOMING'
+      ? localDateInSitterZone(new Date(resource.data.registrationContract.effectiveAt)) : today;
+    setEffectiveFrom([resource.data.effectiveFrom ?? today, contractStart, today].sort().at(-1));
   }, [resource.data, today]);
 
   const currentVersion = Number.isSafeInteger(resource.data?.expectedVersion) ? resource.data.expectedVersion : 0;
@@ -160,6 +162,9 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
     <header className="sitter-availability__header">
       <p className="sitter-availability__eyebrow">Khu vực Sitter</p>
       <h1>Lịch làm việc</h1>
+      {resource.data?.registrationContract?.state === 'UPCOMING' && <Notice state="pending" title="Hợp đồng đã ký, sắp có hiệu lực">
+        Đăng ký lịch áp dụng từ {localDateInSitterZone(new Date(resource.data.registrationContract.effectiveAt))}. Ca chăm sóc vẫn phải nằm trong thời hạn hợp đồng và năng lực đã được xác minh.
+      </Notice>}
         <p>Bạn tự đăng ký lịch cụ thể sau khi ký hợp đồng và được duyệt. Hợp đồng mới ghi thời gian tối thiểu: full time 40 giờ/tuần, part time 20 giờ/tuần. Lịch có thể nhận việc không phải bảng công hoặc căn cứ tự động trừ lương.</p>
       <p>Chọn giờ có thể nhận việc theo ngày trong tuần. Giờ được nhập và đọc theo <strong>Asia/Saigon</strong>.</p>
     </header>

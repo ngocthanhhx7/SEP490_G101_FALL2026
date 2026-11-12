@@ -39,6 +39,20 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       fail('CONTRACT_REQUIRED', 'Split work at a contract change', 409);
     return contract;
   }
+  async function registrationContract(sitterId, session, required = true) {
+    const now = new Date(clock());
+    const signed = { employeeId: sitterId, supersededAt: null, signedAt: { $lte: now },
+      verifiedBy: { $exists: true, $ne: null }, $or: [{ endsAt: null }, { endsAt: { $gt: now } }] };
+    let contract = await payroll.EmploymentContract.findOne({ employeeId: sitterId, supersededAt: null, effectiveAt: { $lte: now } })
+      .sort({ effectiveAt: -1, version: -1 }).maxTimeMS(5000).session(session ?? null).lean();
+    if (contract && (!contract.verifiedBy || !contract.signedAt || contract.signedAt > now || contract.endsAt && contract.endsAt <= now)) contract = null;
+    contract ??= await payroll.EmploymentContract.findOne({ ...signed, effectiveAt: { $gt: now },
+      $expr: { $or: [{ $eq: [{ $ifNull: ['$endsAt', null] }, null] }, { $gt: ['$endsAt', '$effectiveAt'] }] } })
+      .sort({ effectiveAt: 1, version: -1 }).maxTimeMS(5000).session(session ?? null).lean();
+    if (!contract && required) fail('CONTRACT_REQUIRED', 'A verified signed current or upcoming contract is required', 409);
+    return contract ? { employmentType: contract.employmentType, effectiveAt: contract.effectiveAt.toISOString(),
+      endsAt: contract.endsAt?.toISOString() ?? null, state: contract.effectiveAt > now ? 'UPCOMING' : 'ACTIVE' } : null;
+  }
   async function runGuard({ sitterId, authEpoch }, work) {
     await assertEmployeeSchedulingStorage(connection);
     for (let attempt = 0; ; attempt++) {
@@ -84,17 +98,19 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     }
   };
   const availability = createSitterAvailabilityService({ availabilityRepository, clock: () => new Date(clock()), withEligibilityGuard: runGuard,
+    getRegistrationContract: sitterId => registrationContract(sitterId, null, false),
     assignmentRepository: { async findConflicts({ sitterId, workingWindows, effectiveFrom, transaction }) {
       const rows = await assignments(sitterId, new Date(`${effectiveFrom}T00:00:00+07:00`), transaction);
       const items = rows.filter(row => !windowsCover(workingWindows, row.startAt, row.endAt));
       return { items: items.slice(0, 50), hasMore: items.length > 50 };
     } } });
   const areas = createSitterWorkAreasService({ listCoverageAreas: () => getCoverageAreas({ all: true }), getSitterAvailability: find,
+    getRegistrationContract: sitterId => registrationContract(sitterId, null, false),
     replaceSitterAreas: input => runGuard(input, async session => {
       const { sitterId, expectedVersion, idempotencyKey, areas } = input, key = commandId(sitterId, idempotencyKey, 'areas'), fingerprint = digest({ areas, expectedVersion });
       const previous = await models.EmployeeScheduleCommand.findById(key).session(session).lean();
       if (previous) { if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'Operation key already used', 409); return previous.result; }
-      await contractAt(sitterId, new Date(clock()), new Date(clock()), session); await ensure(sitterId, session);
+      await registrationContract(sitterId, session); await ensure(sitterId, session);
       const current = await find(sitterId, session);
       if (current.version !== expectedVersion) fail('VERSION_CONFLICT', 'Schedule changed; reload', 409);
       const rows = await assignments(sitterId, new Date(clock()), session);
@@ -194,6 +210,6 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     return { eligible: true, arrivalTravelMinutes, adjacentTravelMinutes: verifiedLegs ? adjacentTravelMinutes : null,
       routingSource: routingProvider?.source ?? 'OSRM_STATIC_ROAD_ETA', weeklyWorkMinutes: occupiedMinutes(rows, week, until) };
   }
-  return { models, payroll, uow, col, availability, areas, employeeGuard, eligible, runGuard, find, contractAt,
+  return { models, payroll, uow, col, availability, areas, employeeGuard, eligible, runGuard, find, contractAt, registrationContract,
     coverageAreas, getCoverageAreas, areaKeys: async code => { if (catalog) await catalog.assertOpen(code); return workAreaKeys(code, await getCoverageAreas()); } };
 }

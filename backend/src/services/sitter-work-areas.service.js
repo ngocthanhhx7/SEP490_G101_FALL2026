@@ -133,6 +133,7 @@ function persistedSelection(record, catalog) {
 export function createSitterWorkAreasService({
   listCoverageAreas,
   getSitterAvailability,
+  getRegistrationContract,
   replaceSitterAreas
 }) {
   if (
@@ -176,7 +177,8 @@ export function createSitterWorkAreasService({
       );
       const selected = new Set(selectedCodes);
       const parents = new Set(options.filter(row => row.enabled !== false || selected.has(row.code)).map(row => row.parentCode));
-      return Object.freeze({ options: options.filter(row => row.enabled !== false || selected.has(row.code) || parents.has(row.code)), selectedCodes, expectedVersion });
+      return Object.freeze({ options: options.filter(row => row.enabled !== false || selected.has(row.code) || parents.has(row.code)), selectedCodes, expectedVersion,
+        ...(getRegistrationContract ? { registrationContract: await getRegistrationContract(sitterId) } : {}) });
     },
 
     async replaceMine({ actor, areas, expectedVersion, idempotencyKey }) {
@@ -234,7 +236,8 @@ export function createSitterWorkAreasService({
         );
       }
       const selected = new Set(persisted.selectedCodes), parents = new Set(options.filter(row => row.enabled !== false || selected.has(row.code)).map(row => row.parentCode));
-      return Object.freeze({ options: options.filter(row => row.enabled !== false || selected.has(row.code) || parents.has(row.code)), ...persisted });
+      return Object.freeze({ options: options.filter(row => row.enabled !== false || selected.has(row.code) || parents.has(row.code)), ...persisted,
+        ...(getRegistrationContract ? { registrationContract: await getRegistrationContract(sitterId) } : {}) });
     }
   });
 }

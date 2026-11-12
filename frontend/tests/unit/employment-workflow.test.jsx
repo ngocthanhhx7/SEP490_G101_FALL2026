@@ -152,3 +152,11 @@ test('API gender error focuses the field without losing data; signed historical 
  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
  expect(screen.getAllByText(/Giới tính: Name/).length).toBeGreaterThan(0);
 });
+
+test('adjusted effective date is visible without rewriting signed printable terms', async () => {
+  const doc = {id:'b'.repeat(24), terms:{...terms,effectiveOn:'2026-11-13'},reference:'HDLD-SYNTHETIC',revision:1,termsHash:'c'.repeat(64),state:'ACTIVATED'};
+  const api = {get:jest.fn().mockResolvedValue({current:doc,history:[],recordedContract:{version:2,effectiveOn:'2026-11-12'}})};
+  render(<EmploymentContractEditor application={{...application,state:'APPROVED'}} api={api}/>);
+  expect(await screen.findByText(/Ngày hiệu lực đã điều chỉnh trên hệ thống: 2026-11-12/)).toBeVisible();
+  expect(screen.getAllByText(/2026-11-13/).length).toBeGreaterThan(0);
+});

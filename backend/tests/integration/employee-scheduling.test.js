@@ -1007,3 +1007,17 @@ test.each([
   expect(result.invitations.map(offer => offer.sitterId)).toEqual([workers[manual ? 1 : 0].userId]);
   expect(new Date(result.invitations[0].deadline).getTime()).toBe(clock() + minutes * 60000);
 });
+
+test('signed upcoming contract permits onboarding preparation but does not authorize work before its start', async () => {
+ const sitter=await employee({configure:false});const effectiveAt=new Date('2026-10-31T00:00:00+07:00');
+ await payroll.EmploymentContract.updateOne({employeeId:sitter.userId},{$set:{effectiveAt}});
+ const own=await module.repository.areas.getMine({actor:sitter});expect(own.registrationContract).toMatchObject({state:'UPCOMING',effectiveAt:effectiveAt.toISOString()});
+ const saved=await module.repository.areas.replaceMine({actor:sitter,areas:['DISTRICT_HAI_BA_TRUNG'],expectedVersion:0,idempotencyKey:'future-contract-area'});expect(saved.expectedVersion).toBe(1);
+ const availability=await module.repository.availability.getMine({actor:sitter});expect(availability.registrationContract.state).toBe('UPCOMING');
+ await expect(module.repository.availability.updateMine({actor:sitter,command:{zone:'Asia/Ho_Chi_Minh',effectiveFrom:'2026-10-30',workingWindows:windows,expectedVersion:1,idempotencyKey:'before-contract-shifts'}})).rejects.toMatchObject({code:'CONTRACT_REQUIRED'});
+ await module.repository.availability.updateMine({actor:sitter,command:{zone:'Asia/Ho_Chi_Minh',effectiveFrom:'2026-10-31',workingWindows:windows,expectedVersion:1,idempotencyKey:'future-contract-shifts'}});
+ await expect(module.repository.contractAt(sitter.userId,new Date(clock()),new Date(clock()))).rejects.toMatchObject({code:'CONTRACT_REQUIRED'});
+ expect((await module.repository.contractAt(sitter.userId,effectiveAt,effectiveAt)).employmentType).toBe('PART_TIME');
+ await connection.collection('employmentcontracts').updateOne({employeeId:new mongoose.Types.ObjectId(sitter.userId)},{$unset:{verifiedBy:''}});
+ await expect(module.repository.areas.replaceMine({actor:sitter,areas:[],expectedVersion:2,idempotencyKey:'unverified-contract-areas'})).rejects.toMatchObject({code:'CONTRACT_REQUIRED'});
+});
