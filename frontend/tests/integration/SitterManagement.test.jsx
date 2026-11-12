@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeAll } from '@jest/globals';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { SitterManagementPage } from '../../src/pages/staff/SitterManagementPage.jsx';
@@ -140,3 +140,82 @@ test('Staff can verify actual newcomer capability without manufacturing ratings 
   expect(api.saveCapability.mock.calls[0][1]).not.toHaveProperty('starts');
   expect(api.saveCapability.mock.calls[0][1]).not.toHaveProperty('rating');
 });
+
+function mountStaff(api) {
+  render(<MemoryRouter initialEntries={['/staff/sitters']}><Routes>
+    <Route path="/staff/sitters" element={<SitterManagementPage api={api} />} />
+  </Routes></MemoryRouter>);
+}
+
+const staffRow = { ...sitter, code: 'NV-TEST-001', workingWindows: [{ weekday: 1, startLocalTime: '08:00', endLocalTime: '12:00' }],
+  shift: null, approvedLeave: null, withdrawals: null, rating: 4.5, lateCheckIns: 2 };
+const staffData = { asOf, total: 24, areas: [area], tabCounts: { all: 24, partTime: 16, fullTime: 8 },
+  withdrawalsAvailable: false, nextCursor: null };
+
+test('UC-74 Staff tabs and filters combine in the list request and clear the cursor', async () => {
+  const api = fixture();
+  api.list.mockResolvedValue({ data: { ...staffData, items: [staffRow], nextCursor: 'next' } });
+  mountStaff(api);
+  expect(await screen.findByRole('button', { name: 'Tất cả (24)' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('button', { name: 'Toàn thời gian (8)' })).toBeVisible();
+  expect(api.list).toHaveBeenCalledWith(expect.objectContaining({ view: 'staffList', status: 'ACTIVE', sort: 'rating', limit: 20 }), expect.anything());
+  fireEvent.click(screen.getByLabelText('Trang sau'));
+  await waitFor(() => expect(api.list).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'next' }), expect.anything()));
+  fireEvent.click(await screen.findByRole('button', { name: 'Bán thời gian (16)' }));
+  const search = screen.getByPlaceholderText('Tìm theo tên, mã hoặc số điện thoại');
+  fireEvent.change(search, { target: { value: '0912' } });
+  fireEvent.change(screen.getByLabelText('Khu vực phục vụ'), { target: { value: area.code } });
+  fireEvent.change(screen.getByLabelText('Sắp xếp'), { target: { value: 'lateCheckIns' } });
+  await waitFor(() => expect(api.list).toHaveBeenLastCalledWith(expect.objectContaining({
+    cursor: '', employmentType: 'PART_TIME', search: '0912', area: area.code, sort: 'lateCheckIns'
+  }), expect.anything()));
+  expect(await screen.findByRole('button', { name: 'Bán thời gian (16)' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('option', { name: 'Sắp xếp: rút buổi' })).toBeDisabled();
+});
+
+test('UC-74 shows real hours, unavailable sources, late-count thresholds and MSG132', async () => {
+  const api = fixture();
+  const another = { ...staffRow, id: 'c'.repeat(24), displayName: 'Trần Bình', code: 'NV-TEST-002', employmentType: 'FULL_TIME',
+    rating: null, lateCheckIns: 1, workingWindows: [] };
+  const missing = { ...staffRow, id: 'd'.repeat(24), displayName: 'Phạm C', code: 'DDDDDD', workingWindows: [], lateCheckIns: 0 };
+  api.list.mockImplementation(async ({ search }) => ({ data: { ...staffData,
+    items: search ? [] : [staffRow, another, missing], total: search ? 0 : 3 } }));
+  mountStaff(api);
+  const row = await screen.findByRole('row', { name: /NV-TEST-001/ });
+  expect(within(row).getByText(/08:00–12:00/)).toBeVisible();
+  expect(within(row).getAllByText('Chưa có dữ liệu')).toHaveLength(2);
+  expect(within(row).getByText('★ 4,5')).toBeVisible();
+  expect(within(row).getByText('2')).toHaveClass('staff-sitter-count--alert');
+  expect(within(row).getByRole('link', { name: /Xem/ })).toHaveAttribute('href', '/staff/sitters/' + id);
+  const fullTime = screen.getByRole('row', { name: /NV-TEST-002/ });
+  expect(within(fullTime).getByText('Chưa có lịch ca')).toBeVisible();
+  expect(within(fullTime).getByText('Chưa có')).toBeVisible();
+  expect(within(fullTime).getByText('1')).not.toHaveClass('staff-sitter-count--alert');
+  const noHours = screen.getByRole('row', { name: /DDDDDD/ });
+  expect(within(noHours).getByText('Chưa đặt giờ làm')).toBeVisible();
+  expect(within(noHours).getByText('0')).not.toHaveClass('staff-sitter-count--alert');
+  fireEvent.change(screen.getByPlaceholderText('Tìm theo tên, mã hoặc số điện thoại'), { target: { value: 'ZZZ' } });
+  expect(await screen.findByText('Không có người chăm sóc phù hợp.')).toBeVisible();
+  expect(screen.getByLabelText('Trang sau')).toBeDisabled();
+});
+
+test.each([['Staff', mountStaff, false], ['Admin', mount, true]])(
+  'UC-74 %s report keeps period controls and shows summary cards only in Admin',
+  async (_role, renderList, showMetrics) => {
+    const api = fixture();
+    if (!showMetrics) api.list.mockResolvedValue({ data: { ...staffData, items: [staffRow] } });
+    renderList(api);
+    const report = within(screen.getByRole('region', { name: 'Báo cáo người chăm sóc' }));
+    await report.findByText(/^Cập nhật /);
+    for (const label of ['Người chăm sóc', 'Đang hoạt động', 'Tạm ngưng', 'Thiếu hợp đồng hiệu lực']) {
+      if (showMetrics) expect(report.getByText(label, { exact: true })).toBeVisible();
+      else expect(report.queryByText(label, { exact: true })).not.toBeInTheDocument();
+    }
+    fireEvent.click(report.getByText('Báo cáo công việc và phân bố khu vực'));
+    expect(report.getByRole('button', { name: '30 ngày' })).toHaveAttribute('aria-pressed', 'true');
+    for (const days of [7, 90]) {
+      fireEvent.click(report.getByRole('button', { name: days + ' ngày' }));
+      await waitFor(() => expect(api.reports).toHaveBeenLastCalledWith(expect.objectContaining({ days }), expect.anything()));
+    }
+  }
+);

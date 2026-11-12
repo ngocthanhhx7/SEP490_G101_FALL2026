@@ -11,6 +11,16 @@ test('preserves only validated stock error details, including zero availability'
   expect(invalid.available).toBeUndefined(); expect(invalid.productId).toBeUndefined();
 });
 
+test('preserves a safe current available quantity on stock adjustment conflicts', async () => {
+  for (const available of [0, 3]) {
+    const fetchImpl = async () => response(409, { error: { code: 'STOCK_ADJUSTMENT_EXCEEDS_AVAILABLE', available }, meta: { schemaVersion: 1 } });
+    await expect(createApiClient({ fetchImpl })('/admin/stock-adjustments')).rejects.toMatchObject({ available });
+  }
+  for (const available of [undefined, -1, '3', 1.2]) {
+    expect(new ApiError('CONFLICT',409,{ available }).available).toBeUndefined();
+  }
+});
+
 test('retains correlation ID and retry interval without exposing backend message', async () => {
   const correlationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   const fetchImpl = async () => response(429, { error: { code: 'OTP_RATE_LIMITED', retryAfterSeconds: 60, message: 'private' }, meta: { correlationId } });

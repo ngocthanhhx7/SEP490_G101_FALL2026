@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSitterCapabilityService } from '../services/sitter-capability.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { createSitterManagementService } from '../services/sitter-management.service.js';
@@ -6,7 +7,12 @@ import { createSitterManagementController } from '../controllers/sitter-manageme
 
 export function sitterManagementModule({ connection, sessionService, config, clock }) {
   const router = Router();
-  const controller = createSitterManagementController(createSitterManagementService({ connection, clock, cursorSecret: config.auth.tokenSecret }), createSitterCapabilityService({ connection, clock }));
+  const contactCrypto = createContactCrypto({
+    lookupSecret: config.auth.contactLookupSecret,
+    encryptionKey: config.auth.contactEncryptionKey
+  });
+  const service = createSitterManagementService({ connection, clock, contactCrypto, cursorSecret: config.auth.tokenSecret });
+  const controller = createSitterManagementController(service, createSitterCapabilityService({ connection, clock }));
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); res.vary('Cookie'); next(); });
   router.use(requireSession(sessionService), requireRoles('STAFF'));
   router.get('/', controller.list);

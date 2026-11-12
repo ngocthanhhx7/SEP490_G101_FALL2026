@@ -12,6 +12,8 @@ import { createProductManagementController } from '../controllers/product-manage
 import { createSupplierManagementController } from '../controllers/supplier-management.controller.js';
 import { createGoodsReceiptController } from '../controllers/goods-receipt.controller.js';
 import { createStockListController } from '../controllers/stock-list.controller.js';
+import { createStockAdjustmentController } from '../controllers/stock-adjustment.controller.js';
+import { createStockAdjustmentService } from '../services/product-sales/stock-adjustment.service.js';
 import { createStockListService } from '../services/product-sales/stock-list.service.js';
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
@@ -148,6 +150,14 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   stockRouter.get('/', stock.list);
   stockRouter.get('/:productId/history', stock.history);
 
+  const adjustments = createStockAdjustmentController(createStockAdjustmentService({ connection, clock }));
+  const adjustmentRouter = Router();
+  adjustmentRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.ADJUST_STOCK));
+  adjustmentRouter.get('/products', adjustments.searchProducts);
+  adjustmentRouter.get('/products/:productId', adjustments.readProduct);
+  adjustmentRouter.get('/', adjustments.list);
+  adjustmentRouter.post('/', csrf, adjustments.create);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
@@ -157,6 +167,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter },
     { name: 'admin-counter-orders', mount: '/api/v1/admin/counter-orders', router: counterRouter },
     { name: 'admin-goods-receipts', mount: '/api/v1/admin/goods-receipts', router: receiptRouter },
-    { name: 'admin-stock-levels', mount: '/api/v1/admin/stock-levels', router: stockRouter }
+    { name: 'admin-stock-levels', mount: '/api/v1/admin/stock-levels', router: stockRouter },
+    { name: 'admin-stock-adjustments', mount: '/api/v1/admin/stock-adjustments', router: adjustmentRouter }
   ];
 }

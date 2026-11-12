@@ -29,6 +29,8 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG120: 'Vui lòng ghi lý do hàng bị từ chối.',
   MSG121: 'Phiếu nhập {code} đã được lưu.',
   MSG122: 'Phiếu nhập {code}: từ chối {n} {product}. Lý do: {reason}.',
+  MSG123: 'Số giảm không được lớn hơn số có thể bán ({n}).',
+  MSG124: 'Phiếu điều chỉnh {code} đã được lưu.',
   MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
 });
 

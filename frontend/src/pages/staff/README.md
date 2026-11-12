@@ -5,8 +5,9 @@ Staff review/resolution commands with expected versions. It never exposes
 Customer-private media as a public URL and leaves final closure to the Admin
 decision endpoint. P34 owns route registration and the live session/API wiring.
 
-`SitterManagementPage.jsx` presents the operational table and source-labelled
-reports for Staff/Admin. `SitterManagementDetailPage.jsx` presents application
+`SitterManagementPage.jsx` presents the UC-74 Staff directory and the existing
+Admin operational list. Staff list metrics use a rolling 30-day window, with
+the report period controlled separately. `SitterManagementDetailPage.jsx` presents application
 summary, public profile, capabilities, current contract terms, registered schedule,
 paged work history and Admin management history. Shared transport and DTO validation
 live in `services/sitter-management-api.js`; pure labels live in
