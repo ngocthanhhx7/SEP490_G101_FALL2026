@@ -1,5 +1,12 @@
 # Admin pages
 
+`StockAdjustmentPage.jsx` renders `/admin/stock-adjustments`: one product selected
+through the shared ProductSearch, authoritative stock outputs, decrease/increase,
+blank required quantity/reason, local preview and immutable paged records. Saves
+keep a stable command key until content changes; success retains product/type and
+clears quantity/reason. `stock-adjustment.css` scopes the two-column/mobile layout
+and uses existing theme tokens. API calls remain in the injected service.
+
 `StockListPage.jsx` composes the read-only `/admin/stock` screen with server tabs,
 bounded search, shared pagination and a selected product's receipt history.
 `stock-list.css` scopes its layout, stacking history below the list on small screens.
@@ -89,4 +96,5 @@ Payroll and settlement workspaces use full-width tables, server-derived reports 
 
 AI Models includes a separate bounded source-readiness audit. It does not train from public research/demo data or automatically promote a model.
 
+`CounterSalePage.jsx` ghép Tra sản phẩm, Đơn tại quầy và Đơn chưa xong; URL `?order=<id>` mở lại đơn trên máy khác. `counter-sale.css` dùng token sẵn có, không đổi theme. Sau tạo khoá dòng/khách; unpaid có thu tiền/huỷ, paid có hoàn tất, terminal có tạo đơn mới. UI chỉ hiện totals/audit tiền backend trả.
 `ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.

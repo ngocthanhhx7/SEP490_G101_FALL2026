@@ -7,7 +7,9 @@ export const PRODUCT_PERMISSIONS = Object.freeze({
   MANAGE_PRODUCTS: Object.freeze(['ADMIN']),
   // Add, edit, stop and resume working with suppliers. Admin only.
   MANAGE_SUPPLIERS: Object.freeze(['ADMIN']),
-  // Sales staff can record receipts and view stock without managing catalog or suppliers.
+  // Sales staff can sell and receive stock, without catalog or adjustment administration.
+  SELL_AT_COUNTER: Object.freeze(['ADMIN', 'SALE_STAFF']),
   RECORD_GOODS_RECEIPTS: Object.freeze(['ADMIN', 'SALE_STAFF']),
-  VIEW_STOCK: Object.freeze(['ADMIN', 'SALE_STAFF'])
+  VIEW_STOCK: Object.freeze(['ADMIN', 'SALE_STAFF']),
+  ADJUST_STOCK: Object.freeze(['ADMIN'])
 });

@@ -1,14 +1,24 @@
 # Backend — Paw World Care
 
+Counter Sale (UC-68) dùng `/api/v1/admin/counter-orders`, chỉ Admin với session/CSRF hiện có. Hằng/giới hạn ở `src/constants/counter-sale-fields.js`, input ở `src/validators/counter-sale.validator.js`; route chỉ ghép controller và services. Xem [hợp đồng API](../doc/api/product-sales-v1.md#counter-sale-uc-68). Test gồm `tests/integration/counter-sale.test.js` và `tests/unit/counter-sale-validator.test.js`. Không cần biến môi trường hoặc provider mới.
 Stock List (UC-71) adds read-only Admin stock/history endpoints composed in
 `src/routes/product-sales.routes.js`. `src/constants/product-permissions.js` owns
 `VIEW_STOCK`; `src/constants/stock-list-fields.js` owns tab keys and the temporary
 common threshold. Domain queries stay in `src/services/product-sales/stock-list.service.js`;
-no stock writes, settings or adjustment endpoints are introduced.
+stock writes belong to the separate adjustment service below.
 `tests/integration/stock-list.test.js` covers AC-32/AC-34, threshold boundaries,
 hidden/deleted products, actual order holds, search/paging, receipt projection/day/order,
 scoped cursors and unchanged persistence after reads. `tests/unit/stock-list-validators.test.js`
 checks filters, bounds and decoded cursor positions. Run them through `npm test`.
+
+Stock Adjustment (UC-95) uses `ADJUST_STOCK` (Admin only), the immutable
+`StockAdjustment` model and `/api/v1/admin/stock-adjustments`. Its service commits
+the stock update, DC counter and command replay record together without changing
+holds or orders. `stock-history.service.js` merges receipt and adjustment history.
+`stock-adjustment-fields.js` owns types, reasons and technical bounds;
+`tests/integration/stock-adjustment.test.js` and
+`tests/unit/stock-adjustment-validators.test.js` cover AC-33/AC-34, concurrency,
+rollback, replay, hidden/deleted products, required fields and merged cursors.
 
 Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1/Express5.3.0/Mongoose9.11.2 theo [ADR P01](../doc/architecture/p01-runtime-adr-v1.md); dependency dùng phiên bản exact trong manifest/lockfile. User chọn MongoDB Atlas cho runtime, Mongo8.0 replica-set family; isolated tests dùng mongod thật8.0.34. P34 đăng ký auth/OTP khi `AUTH_ENABLED=true`; P07 cung cấp Customer registration UI và runtime REGISTER handler. Booking/payment/care và provider credentials thật vẫn chưa hoàn tất.
 

@@ -53,6 +53,26 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         approved ? 'Hồ sơ ứng tuyển đã được duyệt' : 'Đã có kết quả hồ sơ ứng tuyển',
         approved ? 'Hồ sơ của bạn đã được duyệt. Đăng nhập lại để cập nhật quyền người chăm sóc.' : 'Hồ sơ của bạn đã có kết quả. Vui lòng xem trạng thái hồ sơ.', session);
     },
+    async complaint({ eventId, event, record }, session) {
+      const code = record.code ?? 'khiếu nại';
+      const events = {
+        ComplaintOpened: [['STAFF'], 'Có khiếu nại mới', code + ' đang chờ xử lý.'],
+        ComplaintRefundProposed: [['ADMIN'], 'Có khoản đề xuất cần duyệt', code + ' đang chờ quyết định về khoản đề xuất.'],
+        ComplaintObjected: [['ADMIN'], 'Khiếu nại chuyển quản trị', 'Khách đã gửi ý kiến về kết quả của ' + code + '.'],
+        ComplaintRefundDecided: [['STAFF'], 'Đã có quyết định về khoản đề xuất', 'Quản trị viên đã quyết định khoản đề xuất của ' + code + '.']
+      };
+      const notification = events[event];
+      if (notification) {
+        const [roles, title, message] = notification;
+        await write(eventId, event, await operators(roles, null, session), title, message, session);
+      }
+      if (['ComplaintResolved', 'ComplaintRefundDecided', 'ComplaintDecided'].includes(event)) {
+        const final = event === 'ComplaintDecided';
+        await write(eventId, event, [{ id: record.customerId, role: 'CUSTOMER', to: null }],
+          final ? 'Kết quả cuối của khiếu nại' : 'Khiếu nại đã có kết quả',
+          code + (final ? ' đã có kết quả cuối.' : ' đã có kết quả xử lý.'), session);
+      }
+    },
     // R3 MSG122: one notice for the Admins for each receipt line that rejected goods. The event id is stable, so saving
     // the same receipt line again never writes a second notice. The link opens the receipt on the Goods Receipt page.
     async goodsReceiptRejected({ code, productId, productName, quantity, reason }, session) {

@@ -10,7 +10,9 @@ import {
   PRODUCT_REFUSAL_REASONS
 } from '../constants/product-fields.js';
 import { SUPPLIER_STATUSES, SUPPLIER_LIMITS } from '../constants/supplier-fields.js';
+import { COUNTER_CHANNEL, COUNTER_RECEIVE_METHOD, COUNTER_PAYMENT_METHOD, COUNTER_ORDER_STATUSES } from '../constants/counter-sale-fields.js';
 import { GOODS_RECEIPT_LIMITS } from '../constants/goods-receipt-fields.js';
+import { STOCK_ADJUSTMENT_TYPES, STOCK_ADJUSTMENT_REASONS, STOCK_ADJUSTMENT_LIMITS } from '../constants/stock-adjustment-fields.js';
 
 const cartLine = sub({
   productId: { type: oid, required: true },
@@ -42,8 +44,13 @@ const deliveryAddress = sub({
   location: { type: String, required: true, maxlength: 500 },
   areaCode: { type: String, required: true, maxlength: 80 }
 });
+const cashPayment = sub({
+  amount: { ...integer(), required: true },
+  receivedAt: { type: Date, required: true },
+  receivedBy: { type: oid, required: true }
+});
 
-// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters, suppliers, goodsreceipts (default Mongoose names).
+// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters, suppliers, goodsreceipts, stockadjustments (default Mongoose names).
 export function productSalesModels(connection) {
   return registerModels(connection, {
     Product: {
@@ -108,17 +115,25 @@ export function productSalesModels(connection) {
     ProductOrder: {
       fields: {
         code: { type: String, required: true, maxlength: 20 },
-        customerId: { type: oid, required: true },
+        channel: { type: String, enum: ['ONLINE', COUNTER_CHANNEL], default: 'ONLINE' },
+        customerId: { type: oid, required() { return this.channel !== COUNTER_CHANNEL; } },
+        counterCreatedBy: { type: oid, required() { return this.channel === COUNTER_CHANNEL; } },
+        counterCreatedByName: { type: String, maxlength: 100 },
+        counterCustomerName: { type: String, maxlength: 100 },
+        cashPayment: { type: cashPayment },
+        completedAt: { type: Date },
+        cancelledAt: { type: Date },
+        tierDiscount: { ...integer(), default: 0 },
         lines: { type: [orderLine], required: true },
-        receiveMethod: { type: String, enum: PRODUCT_RECEIVE_METHODS, required: true },
+        receiveMethod: { type: String, enum: [...PRODUCT_RECEIVE_METHODS, COUNTER_RECEIVE_METHOD], required: true },
         deliveryAddress: { type: deliveryAddress },
         subtotal: { ...integer(), required: true },
         shippingFee: { ...integer(), required: true },
         total: { ...integer(), required: true },
-        paymentMethod: { type: String, enum: PRODUCT_PAYMENT_METHODS, required: true },
+        paymentMethod: { type: String, enum: [...PRODUCT_PAYMENT_METHODS, COUNTER_PAYMENT_METHOD], required: true },
         paid: { type: Boolean, default: false },
         trackingCode: { type: String, maxlength: 64 },
-        status: { type: String, enum: PRODUCT_ORDER_STATUSES, default: 'PLACED' },
+        status: { type: String, enum: [...new Set([...PRODUCT_ORDER_STATUSES, ...COUNTER_ORDER_STATUSES])], default: 'PLACED' },
         deliveredAt: { type: Date },
         // Entered when the order goes back (the carrier's own words), then the shop's reason when it confirms the return.
         carrierReturnReason: { type: String, maxlength: PRODUCT_RETURN_LIMITS.carrierReasonMax },
@@ -136,7 +151,9 @@ export function productSalesModels(connection) {
         [{ customerId: 1, createdAt: -1 }, {}],
         [{ 'lines.productId': 1 }, {}],
         [{ customerId: 1, idempotencyKey: 1 }, { unique: true }],
-        [{ status: 1, createdAt: -1 }, {}]
+        [{ status: 1, createdAt: -1 }, {}],
+        [{ counterCreatedBy: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { channel: COUNTER_CHANNEL } }],
+        [{ channel: 1, status: 1, createdAt: 1, _id: 1 }, {}]
       ]
     },
     // One record per refused order (the order id is unique, so a refusal is never counted twice).
@@ -178,6 +195,29 @@ export function productSalesModels(connection) {
         [{ number: -1 }, { unique: true }],
         [{ recorderId: 1, idempotencyKey: 1 }, { unique: true }],
         [{ 'lines.productId': 1, createdAt: -1, _id: -1 }, {}]
+      ]
+    },
+    StockAdjustment: {
+      fields: {
+        code: { type: String, required: true, maxlength: 20 },
+        number: { ...integer(1), required: true },
+        productId: { type: oid, required: true },
+        productCode: { type: String, required: true, maxlength: 20 },
+        productName: { type: String, required: true, maxlength: 200 },
+        type: { type: String, enum: STOCK_ADJUSTMENT_TYPES, required: true },
+        quantity: { ...integer(1, STOCK_ADJUSTMENT_LIMITS.quantityMax), required: true },
+        reason: { type: String, enum: STOCK_ADJUSTMENT_REASONS, required: true },
+        recorderId: { type: oid, required: true },
+        recorderName: { type: String, required: true, maxlength: 100 },
+        idempotencyKey: { type: String, required: true, maxlength: 128 },
+        requestFingerprint: { type: String, required: true, maxlength: 128 }
+      },
+      indexes: [
+        [{ code: 1 }, { unique: true }],
+        [{ number: 1 }, { unique: true }],
+        [{ recorderId: 1, idempotencyKey: 1 }, { unique: true }],
+        [{ createdAt: -1, _id: -1 }, {}],
+        [{ productId: 1, createdAt: -1, _id: -1 }, {}]
       ]
     },
     ProductCounter: {

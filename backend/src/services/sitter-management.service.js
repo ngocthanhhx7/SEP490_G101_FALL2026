@@ -4,6 +4,8 @@ import { AppError } from '../utils/app-error.js';
 import { hasRole } from '../utils/roles.js';
 import { createScopedCursor } from '../utils/scoped-cursor.js';
 import { createServiceAreaCatalog } from './service-area-catalog.service.js';
+import { normalizeVietnamPhone } from './sms-template.service.js';
+import { normalizeWorkingWindows } from './sitter-availability.service.js';
 import { sitterManagementQuery } from '../validators/sitter-management.validator.js';
 
 const iso = value => value ? new Date(value).toISOString() : null;
@@ -16,8 +18,40 @@ const oid = value => {
 const dayKey = value => new Date(+new Date(value) + 7 * 3600000).toISOString().slice(0, 10);
 const isDemo = user => Boolean(user.fixtureKey);
 
-export function createSitterManagementService({ connection, cursorSecret, clock = Date.now }) {
+const STAFF_BATCH_SIZE = 100;
+const METRIC_WINDOW_MS = 30 * 86400000;
+const LATE_THRESHOLD_MS = 5 * 60000;
+const sitterNames = new Intl.Collator('vi', { sensitivity: 'base' });
+
+function readWithdrawalCounts() {
+  // Until UC-82 events are connected, the count is unknown for every sitter.
+  return null;
+}
+
+function phoneSearch(term) {
+  const compact = term.replace(/[\s().-]/g, '');
+  return /^\+?\d+$/u.test(compact) ? normalizeVietnamPhone(term) ?? compact : null;
+}
+
+function codeFor(user) {
+  return user.contracts[0]?.employeeCode || id(user._id).slice(-6).toUpperCase();
+}
+
+function normalizedSearch(value) {
+  return value.normalize('NFC').toLocaleLowerCase('vi');
+}
+
+function compareStaffPosition(left, right) {
+  const leftValue = left.value ?? -Infinity;
+  const rightValue = right.value ?? -Infinity;
+  if (leftValue !== rightValue) return rightValue - leftValue;
+  return sitterNames.compare(left.name, right.name) || left.id.localeCompare(right.id);
+}
+
+export function createSitterManagementService({ connection, cursorSecret, contactCrypto, clock = Date.now }) {
   const cursors = createScopedCursor({ secret: cursorSecret, namespace: 'sitter-management-v1' });
+  const staffCursors = createScopedCursor({ secret: cursorSecret, namespace: 'staff-sitter-list-v1',
+    clock, maxTokenLength: 2048 });
   function authorize(actor) {
     if (!actor?.userId || actor.state !== 'ACTIVE' || !Number.isFinite(actor.expiresAt) || actor.expiresAt <= clock()) {
       throw new AppError(401, 'UNAUTHENTICATED', 'Session required');
@@ -34,7 +68,7 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
       lookup('sitterpublicprofiles', '$_id', 'userId', 'profiles', ['bio', 'areas', 'state', 'version', 'updatedAt']),
       lookup('aisitterprofiles', '$_id', 'userId', 'capabilities', ['active', 'serviceIds', 'species', 'areaCodes', 'maxPets', 'maxWeightKg', 'allowedTraits', 'version']),
       lookup('employeeavailabilities', { $toString: '$_id' }, '_id', 'schedules', ['areas']),
-      lookup('employmentcontracts', '$_id', 'employeeId', 'contracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version'],
+      lookup('employmentcontracts', '$_id', 'employeeId', 'contracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version', 'employeeCode'],
         [{ $match: { supersededAt: null, effectiveAt: { $lte: now } } }, { $sort: { effectiveAt: -1, version: -1 } }, { $limit: 1 },
           { $match: { signedAt: { $lte: now }, $or: [{ endsAt: { $exists: false } }, { endsAt: null }, { endsAt: { $gt: now } }] } }]),
       { $set: { status: { $ifNull: [{ $first: '$statuses.status' }, 'MISSING'] },
@@ -45,6 +79,7 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
   }
   function pipeline(query, now) {
     const match = { roles: 'PET_SITTER', synthetic: { $ne: true } };
+    if (query.view === 'staffList') match.state = 'ACTIVE';
     if (query.search) match.displayName = { $regex: query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
     if (query.source === 'DEMO') match.fixtureKey = { $type: 'string', $ne: '' };
     if (query.source === 'REAL') match.$or = [{ fixtureKey: { $exists: false } }, { fixtureKey: null }, { fixtureKey: '' }];
@@ -69,9 +104,141 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
     const filters = { ...query }; delete filters.cursor;
     return { actor: actor.userId, kind, target, filters };
   }
+  async function matchingStaff(rows, search, session) {
+    if (!search) return rows;
+    const term = normalizedSearch(search), phoneTerm = phoneSearch(term);
+    const matching = [];
+    for (let offset = 0; offset < rows.length; offset += STAFF_BATCH_SIZE) {
+      const batch = rows.slice(offset, offset + STAFF_BATCH_SIZE);
+      const phoneCandidates = new Map();
+      for (const user of batch) {
+        if (normalizedSearch(user.displayName).includes(term) || normalizedSearch(codeFor(user)).includes(term)) matching.push(user);
+        else if (phoneTerm) phoneCandidates.set(id(user._id), user);
+      }
+      if (!phoneCandidates.size) continue;
+      const contacts = await aggregate('contacts', [{ $match: {
+        userId: { $in: [...phoneCandidates.values()].map(user => user._id) }, channel: 'PHONE', state: 'VERIFIED'
+      } }, { $project: fields(['userId', 'canonicalCiphertext']) }], session);
+      for (const contact of contacts) {
+        const user = phoneCandidates.get(id(contact.userId));
+        if (!user) continue;
+        let phone;
+        try { phone = contactCrypto.decrypt(contact.canonicalCiphertext); } catch { continue; }
+        const local = phone.replace(/^\+84(?=\d{9}$)/u, '0');
+        if (phone.includes(phoneTerm) || local.includes(phoneTerm)) {
+          matching.push(user);
+          phoneCandidates.delete(id(user._id));
+        }
+      }
+    }
+    return matching;
+  }
+
+  async function staffMetrics(rows, sources, from, asOf, session) {
+    const ratings = new Map(), late = new Map();
+    for (let offset = 0; offset < rows.length; offset += STAFF_BATCH_SIZE) {
+      const ids = rows.slice(offset, offset + STAFF_BATCH_SIZE).flatMap(user => [user._id, id(user._id)]);
+      if (sources.has('reviews')) {
+        const published = await aggregate('reviews', [{ $match: {
+          sitterId: { $in: ids }, direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED'
+        } }, { $group: { _id: { $toString: '$sitterId' }, average: { $avg: '$rating' },
+          invalid: { $sum: { $cond: [{ $in: ['$rating', [1, 2, 3, 4, 5]] }, 0, 1] } }
+        } }], session);
+        for (const record of published) {
+          if (record.invalid) throw new AppError(503, 'INVALID_PROJECTION', 'Invalid published rating');
+          ratings.set(record._id, record.average);
+        }
+      }
+      if (sources.has('visits')) {
+        const checkedIn = await aggregate('visits', [{ $match: {
+          sitterId: { $in: ids }, state: { $ne: 'SUPERSEDED' }, startAt: { $type: 'date' },
+          checkInAt: { $type: 'date', $gte: from, $lte: asOf }
+        } }, { $group: { _id: { $toString: '$sitterId' }, count: { $sum: {
+          $cond: [{ $gt: [{ $subtract: ['$checkInAt', '$startAt'] }, LATE_THRESHOLD_MS] }, 1, 0]
+        } } } }], session);
+        for (const record of checkedIn) late.set(record._id, record.count);
+      }
+    }
+    return { ratings, late };
+  }
+
+  async function staffWorkingHours(page, asOf, session) {
+    const sitterIds = page.filter(item => item.employmentType === 'PART_TIME').map(item => item.id);
+    if (!sitterIds.length) return new Map();
+    const revisions = await aggregate('employeeavailabilityrevisions', [
+      { $match: { sitterId: { $in: sitterIds }, effectiveFrom: { $lte: dayKey(asOf) } } },
+      { $sort: { effectiveFrom: -1, version: -1 } },
+      { $group: { _id: '$sitterId', windows: { $first: '$workingWindows' } } }
+    ], session);
+    return new Map(revisions.map(record => [record._id, normalizeWorkingWindows(record.windows ?? [])]));
+  }
+
+  async function staffList(actor, query, now) {
+    const scope = context(actor, query, 'staff-list');
+    const position = query.cursor ? staffCursors.decode(query.cursor, scope) : null;
+    const asOf = position ? new Date(position.asOf) : now;
+    const from = new Date(+asOf - METRIC_WINDOW_MS);
+    const registered = await connection.db.listCollections({ name: { $in: ['reviews', 'visits'] } }, { nameOnly: true }).toArray();
+    const sources = new Set(registered.map(collection => collection.name));
+    return snapshot(async session => {
+      const withdrawals = readWithdrawalCounts();
+      if (query.sort === 'withdrawals' && !withdrawals)
+        throw new AppError(422, 'VALIDATION_FAILED', 'Withdrawal sorting is unavailable');
+      const tabCounts = { all: 0, partTime: 0, fullTime: 0 };
+      const key = item => ({ value: item[query.sort], name: item.displayName, id: item.id });
+      const best = [];
+      let total = 0, batch = [];
+      const started = Date.now();
+      async function consume() {
+        if (Date.now() - started > 8000)
+          throw new AppError(503, 'SITTER_LIST_TIMEOUT', 'The complete directory ranking could not finish; retry later');
+        const filtered = batch.filter(user => (!query.employmentType || user.employmentType === query.employmentType)
+          && (!query.area || user.areas.includes(query.area))
+          && (!query.profileState || user.profileState === query.profileState)
+          && (query.source === 'ALL' || isDemo(user) === (query.source === 'DEMO')));
+        const matching = await matchingStaff(filtered, query.search, session);
+        const { ratings, late } = await staffMetrics(matching, sources, from, asOf, session);
+        total += matching.length;
+        for (const user of matching) {
+          const item = { ...row(user), code: codeFor(user), rating: ratings.get(id(user._id)) ?? null,
+            lateCheckIns: sources.has('visits') ? late.get(id(user._id)) ?? 0 : null,
+            withdrawals: withdrawals ? withdrawals.get(id(user._id)) ?? 0 : null };
+          if (!position || compareStaffPosition(key(item), position) > 0) best.push(item);
+        }
+        best.sort((a, b) => compareStaffPosition(key(a), key(b)));
+        best.splice(query.limit + 1);
+        batch = [];
+      }
+      const population = connection.db.collection('users').aggregate(pipeline({
+        view: 'staffList', status: 'ACTIVE', source: 'ALL'
+      }, asOf), { session, maxTimeMS: 5000, batchSize: STAFF_BATCH_SIZE });
+      try {
+        for await (const user of population) {
+          tabCounts.all++;
+          if (user.employmentType === 'PART_TIME') tabCounts.partTime++;
+          if (user.employmentType === 'FULL_TIME') tabCounts.fullTime++;
+          batch.push(user);
+          if (batch.length === STAFF_BATCH_SIZE) await consume();
+        }
+        if (batch.length) await consume();
+      } finally { await population.close(); }
+      const page = best.slice(0, query.limit);
+      const hours = await staffWorkingHours(page, asOf, session);
+      return {
+        items: page.map(item => ({ ...item, workingWindows: hours.get(item.id) ?? [], shift: null, approvedLeave: null })),
+        total, asOf: asOf.toISOString(), areas: await createServiceAreaCatalog(connection).list({ session }), withdrawalsAvailable: withdrawals !== null,
+        tabCounts,
+        nextCursor: best.length > page.length
+          ? staffCursors.encode({ ...key(page.at(-1)), asOf: asOf.toISOString() }, scope) : null
+      };
+    });
+  }
+
   async function list({ actor, query: input }) {
     authorize(actor);
-    const query = sitterManagementQuery(input), now = new Date(clock()), scope = context(actor, query, 'list');
+    const query = sitterManagementQuery(input), now = new Date(clock());
+    if (query.view === 'staffList') return staffList(actor, query, now);
+    const scope = context(actor, query, 'list');
     return snapshot(async session => {
       const base = pipeline(query, now), pageMatch = [];
       if (query.cursor) pageMatch.push({ $match: { _id: { $gt: oid(cursors.decode(query.cursor, scope).id) } } });

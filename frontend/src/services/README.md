@@ -3,6 +3,12 @@
 `stock-list-api.js` validates the read-only stock list/history contracts and forwards
 search, paging, cursors and cancellation through the shared API client. It preserves
 backend counts/status and never derives a stock threshold.
+History validation distinguishes receipt fields from adjustment reason/recorder fields.
+
+`stock-adjustment-api.js` validates product stock, immutable adjustment and paging
+DTOs, forwards cancellation and sends only product/type/quantity/reason with CSRF
+and the caller's stable `Idempotency-Key`. `api-client.js` preserves optional safe
+nonnegative integer `available` in errors so MSG123 can show the backend's value.
 
 `api-client.js` preserves HTTP status, a validated correlation UUID and positive
 retry interval even for HTML gateway errors. Pages use the pure
@@ -60,6 +66,8 @@ shared endpoint URLs or persist contract/assessment data in browser storage.
 Sitter application API includes private owned get/update methods. Update acknowledgements require a versioned result; UI retains the original payload/key on uncertain responses. Login uses the owned read for the applicant landing.
 
 pagination-response.js validates optional page/limit/total envelopes for shop order transports. Owner-scoped order reads resolve notification deep links. Cards and pages continue using the shared API client.
+
+`counter-sale-api.js` dùng shared client cho `/admin/counter-orders`, kiểm DTO quầy riêng để không nới enum online. Lookup gửi POST body, chỉ nhận id/tên, không đưa contact lên URL. Create gửi key cùng lines/customerId, không gửi tiền/status. Shared ApiError giữ available nguyên không âm và productId ObjectId hợp lệ để MSG58 dùng số authoritative, kể cả 0.
 
 `service-basket-api.js` validates directed directory eligibility, public rating/count and next-page acknowledgements; it does not compute suitability or rating. Existing availability requests retain their compatible minimal response contract.
 

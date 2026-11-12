@@ -1,9 +1,10 @@
 # Product shop components
 
-`StockHistoryPanel` reads receipt history for the selected stock product, displays
-`receivedOn` and accepted quantity including +0, and appends signed-cursor pages.
+`StockHistoryPanel` reads mixed history for the selected stock product, displays
+receipt `receivedOn` and accepted quantity including +0, and appends signed-cursor pages.
 Unmounting or changing requests aborts them and ignores late responses. No order
-events or fabricated adjustments appear; additional history kinds require an API extension.
+events appear. Adjustment entries show the lowercase reason, recorder snapshot,
+Vietnamese creation day and signed quantity; negative deltas use the existing error token.
 
 `ProductImageManager` previews and confirms Admin gallery uploads/replacements/
 removals. It revokes preview URLs, blocks writes during dirty text edits, requires
@@ -33,3 +34,5 @@ selected. `QuantityStepper` enforces the API's 99-per-line ceiling in addition t
 available stock. `ProductPhoto` falls back to the brand mark for broken images.
 
 `ProductCard` adapts Figma 2:3052: database image/name/description/price, dashed footer and explicit cart button. Guest clicks preserve the product on login; confirmed writes update the shared cart, unknown replies require checking/reloading. Styling stays in product-shop.css without competing legacy card overrides.
+
+`CounterProductTable.jsx` tra/paging/thêm sản phẩm hiện, khoá Hết hàng. `CounterOrderPanel.jsx` hiển thị khách, dòng, totals server và bước tiền mặt, dùng QuantityStepper hiện có. `CounterOpenOrders.jsx` mở lại hàng đợi oldest-first từ backend, có paging. Component nhận API/callback, không tính tiền/tồn hoặc quyết định chuyển trạng thái.

@@ -2,6 +2,12 @@
 
 `stock-list.validator.js` checks stock tab/search/page filters and bounded history
 cursor queries. Decoded history positions are validated before entering model queries.
+History kind is optional for legacy receipt cursors and restricted to known sources.
+
+`stock-adjustment.validator.js` checks product ID, adjustment type, positive integer
+quantity within the technical bound and one of four required reasons. Unknown body
+keys are refused. It also parses paged records and bounded product search; stock
+eligibility and available quantities remain service decisions.
 
 Pure DTO checks and primitive validation live here. No HTTP response handling, database reads or service imports. Domain services decide eligibility, pricing and scheduling; validators reject malformed input including impossible calendar dates.
 
@@ -17,5 +23,7 @@ an owner-bound UTC effective-time cursor. It introduces no price-write policy.
 Employment contract validation returns all incorrect fields under error.fields,
 including dates, identities, regional wage and signing evidence; no private input
 values are reflected. Existing 422 codes and domain guards remain authoritative.
+
+`counter-sale.validator.js` chặn field lạ, sản phẩm lặp, quantity ngoài 1–99, quá 30 dòng, search quá 100, contact quá 254 ký tự. Preview cho phép draft rỗng; create cần ít nhất một dòng. Chuẩn hoá/tra liên hệ và kiểm Customer còn hoạt động thuộc service.
 
 `sitter-capability.validator.js` bounds verified skill DTOs; `sitter-origin.validator.js` checks an employee day pin and same-day future interval. Authorization, contracts and concurrency stay in services.

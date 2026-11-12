@@ -1,12 +1,20 @@
 # Domain services
 
 `product-sales/stock-list.service.js` provides read-only Admin stock levels and scoped
-receipt history for `PRODUCT_PERMISSIONS.VIEW_STOCK`. It includes hidden products,
+history for `PRODUCT_PERMISSIONS.VIEW_STOCK`. It includes hidden products,
 excludes deleted ones, and computes availability/status without stock or order writes.
-Global tab counts ignore search/page filters. Receipt history projects only the selected
-product's accepted quantity (including zero), ordered by `createdAt`/`_id` descending;
-`receivedOn` is the displayed day. Signed cursors use the existing session secret and
-are bound to actor/product. See the [API contract](../../../doc/api/product-sales-v1.md).
+Global tab counts ignore search/page filters. `product-sales/stock-history.service.js`
+merges bounded receipt/adjustment queries by `createdAt`/`_id`/`kind` descending.
+Receipts retain accepted quantity (including zero) and displayed `receivedOn`;
+adjustments expose signed quantity, reason and recorder. Signed cursors use the
+existing session secret, bind actor/product and accept legacy receipt positions.
+See the [API contract](../../../doc/api/product-sales-v1.md).
+
+`product-sales/stock-adjustment.service.js` owns Admin-only product search/detail,
+paged immutable records and stock adjustment transactions. Conditional stock updates
+serialize with order holds, leave holds/orders/detailsVersion unchanged and increment
+stock version. DC allocation, snapshots and actor-scoped replay commit together.
+Duplicate key races have bounded retries; rejected commands roll back all writes.
 
 Goods Receipt product search and saving exclude deleted products (`deletedAt`
 must be null or absent), while hidden products remain eligible (AC-31, D-262).
@@ -115,6 +123,8 @@ it never inserts fixtures, removes indexes or runs during server startup.
 
 `product-sales/` owns the Customer shop: public catalog, cart and order placement. The order service reserves stock with a conditional update inside a transaction and replays idempotent retries; it reads `CustomerAddress` only to copy the delivery address after an area check. `product-order-pricing.js` is the deterministic integer-VND total (flat demo delivery fee; no discount or tax). `product-order-management.service.js` is the Admin side: each status change and its stock effect (release the hold and reduce real stock when goods leave, release only the hold on cancel, add back only the resellable quantity when a return is confirmed) run in one transaction guarded by the order status and version; a confirmed return by a refusing customer writes its `ProductCustomerRefusal` record in that same transaction. Who may handle orders comes from `constants/product-permissions.js`, not from a role name in the service. `customer-phone-directory.service.js` reads verified customer phones through the sign-in contact keys so the Admin list can search by whole phone number and show it; route composition injects it. `product-management.service.js` is the Admin side for products: list (search, filters, paging), read, create and edit. A new code is allocated in the same transaction as the insert, so a failed save leaves no gap, and an edit only applies when the `detailsVersion` the Admin saw is still current. `pagination.service.js` is the shared `find` + `countDocuments` page for Admin lists; it takes the parsed `page` and `limit` from `validators/pagination.validator.js`. `supplier-management.service.js` is the Admin side for suppliers: list by tab in Vietnamese letter order (collation `vi`, so Đ comes after D) with the size of every tab, read with its products, add, edit, stop and resume. A name that is already used (stopped suppliers included) is refused through the unique name key, so two Admins cannot save the same name; every change matches the version the Admin saw. The product list of a supplier is a record only; a goods receipt is not limited by it. `goods-receipt.service.js` records a goods receipt: the receipt, the stock added for what was taken into the shop, the code and one MSG122 notice per rejecting line (through `notifications/domain-notifications.service.js`) are one transaction, with the active supplier checked and touched in it. The save needs an `Idempotency-Key`: the same key with the same content returns the receipt already saved (looked up inside the transaction, so parallel requests with one key save one receipt), other content is `409 IDEMPOTENCY_CONFLICT`. Reading the active suppliers and searching products belong to the same permission, so they live here and not in the supplier or product services. See [product sales API](../../../doc/api/product-sales-v1.md).
 
+`product-sales/counter-catalog.service.js` tra sản phẩm, preview tiền bằng pricing hiện có và tìm Customer qua liên hệ VERIFIED. `counter-sale.service.js` tạo/khôi phục đơn quầy, giữ hàng và xử lý tiền mặt/hoàn tất/huỷ trong transaction; không dùng giỏ Customer hoặc phát notification online. `product-order-code.service.js` cấp chung mã DH cho online/quầy ngoài transaction. Directory liên hệ giữ reader điện thoại cũ và thêm lookup email theo hash, không trả liên hệ trong DTO quầy. Online readers/commands lọc kênh quầy, kể cả số đếm; legacy thiếu channel vẫn là online.
+
 `ai-training/` owns the read-only verified source export; `sitter-matching/` owns
 advisory operational ranking and the Admin model registry. Offline training stays
 in `backend/scripts/ai/`, outside application startup.
@@ -150,3 +160,7 @@ Customer booking list reads a projected summary from the existing owner-scoped b
 Pet-record import is transient transcription with bounded input/token/output and an allowlist of care fields; it has no database or financial writes.
 
 `service-area-*` services own sourced home-care coverage, Admin activation and insert-only operator provisioning. They keep legal-unit identities separate from legacy operational zones; see [coverage contract](../../../doc/api/home-care-coverage.md).
+
+`customer-tier.service.js` evaluates JOB-05 and exposes the internal tier read.
+`mongo-customer-tier.repository.js` reads spend snapshots and fences tier writes.
+The storage provisioner creates the tier collections and an unapproved DRAFT sample policy. Read/run and resumed writes require an explicitly approved policy with approval metadata and the same version. The worker remains disabled until owner policy approval and spend-source acceptance; no sample discount is applied automatically.

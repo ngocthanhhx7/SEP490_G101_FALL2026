@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Types } from 'mongoose';
 import { allocateBookingReceipt } from './booking-allocation.js';
+import { holdQueries } from '../complaints/complaint-lifecycle.js';
 
 const oid = value => typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value) ? new Types.ObjectId(value) : null;
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -64,9 +65,11 @@ export function createMongoEarningSources({ connection }) {
     const receipt = receipts[0], assessment = assessments[0];
     if (!(receipt.verifiedAt instanceof Date) || !receipt.intentId || !receipt.provider || !receipt.providerEventId
       || !assessment.confirmedBy || !(assessment.confirmedAt instanceof Date) || !assessment.evidenceReference) return null;
-    const holds = await collection('cases').find({ visitId: { $in: booking.visitIds },
-      $or: [{ state: { $in: ['OPEN', 'UNDER_REVIEW', 'RESOLVED'] } }, { financialHold: true }] }, { session })
-      .project({ _id: 1 }).limit(101).toArray();
+    const { legacy, current } = holdQueries(new Date());
+    const holds = await collection('cases').find({ $or: [
+      { visitId: { $in: booking.visitIds }, ...legacy },
+      { bookingId: booking._id, ...current }
+    ] }, { session }).project({ _id: 1 }).limit(101).toArray();
     const refunds = await collection('refunds').find({ bookingId: booking._id,
       state: { $in: ['PROPOSED', 'APPROVED', 'TRANSFER_PENDING', 'FAILED'] } }, { session }).project({ _id: 1 }).limit(101).toArray();
     if (holds.length > 100 || refunds.length > 100) return null;

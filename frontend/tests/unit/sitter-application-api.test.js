@@ -84,3 +84,16 @@ test('application document transport uses the authenticated API and rejects an X
   fetchImpl.mockResolvedValueOnce({ ok: true, status: 200, headers: { get: () => 'application/xml' }, blob: async () => new globalThis.Blob(['AccessDenied']) });
   await expect(api.readDocument({ applicationId: 'a'.repeat(24), documentId: 'b'.repeat(64) })).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });
+
+test('UC-17 sends the chosen state, sort direction and area with the existing filters', async () => {
+  const request = jest.fn().mockResolvedValue({});
+  const api = createSitterApplicationAdminApi({ request });
+  await api.list({ state: 'ALL', search: '+84912', sortOrder: 'asc', serviceArea: 'DISTRICT_CAU_GIAY',
+    employmentType: 'PART_TIME', cursor: 'signed-cursor' });
+  const url = new URL(request.mock.calls[0][0], 'https://example.test');
+  expect(url.pathname).toBe('/applications');
+  expect(Object.fromEntries(url.searchParams)).toEqual({
+    state: 'ALL', search: '+84912', sortOrder: 'asc', serviceArea: 'DISTRICT_CAU_GIAY',
+    employmentType: 'PART_TIME', cursor: 'signed-cursor'
+  });
+});
