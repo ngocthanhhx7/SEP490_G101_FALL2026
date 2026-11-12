@@ -1,0 +1,26 @@
+/* Goods Receipt (Admin). Uses the .pwc-shop colour variables, so the page keeps the .pwc-shop wrapper. */
+.pwc-gr-head { display: grid; gap: .5rem; }
+@media (min-width: 48rem) { .pwc-gr-head { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; } }
+.pwc-gr-head input[readonly] { background: #eceeed; color: var(--shop-ink, inherit); }
+.pwc-gr-empty { margin: 1rem 0; }
+.pwc-gr-lines td { vertical-align: top; }
+.pwc-gr-lines td:first-child { white-space: normal; min-width: 11rem; }
+.pwc-gr-lines em { color: var(--shop-muted); font-style: normal; }
+.pwc-gr-qty { min-width: 4.5rem; text-align: center; }
+.pwc-gr-rejected { display: inline-block; min-width: 2.5rem; padding: .6rem .5rem; text-align: center; border-radius: .75rem; background: #eceeed; font-weight: 800; }
+.pwc-gr-rejected.is-rejecting { color: var(--shop-danger); background: #fdecea; }
+.pwc-gr-notice { margin: 1rem 0; background: #fff6dc; color: #6b5200; }
+.pwc-gr-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.pwc-gr-footer .pwc-shop-primary-button { width: auto; margin: 0; }
+.pwc-gr-totals { display: grid; gap: .2rem; margin: .75rem 0; font-weight: 800; }
+.pwc-gr-ok { color: var(--shop-green); }
+.pwc-gr-bad { color: var(--shop-danger); }
+.pwc-gr-facts { display: grid; gap: .5rem; margin: .5rem 0 1rem; }
+.pwc-gr-facts div { display: grid; gap: .1rem; }
+.pwc-gr-facts dt { font-weight: 800; }
+.pwc-gr-facts dd { margin: 0; }
+@media (min-width: 48rem) { .pwc-gr-facts { grid-template-columns: 2fr 1fr 1fr; } }
+.pwc-gr-recent { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.pwc-gr-recent button { display: grid; gap: .15rem; width: 100%; min-height: 2.75rem; text-align: left; border: 1px solid var(--shop-border); border-radius: .75rem; background: #fff; font: inherit; padding: .6rem .9rem; cursor: pointer; overflow-wrap: anywhere; }
+.pwc-gr-recent button span { color: var(--shop-muted); font-size: .9rem; }
+.pwc-gr-recent button[aria-current='true'] { border-color: var(--shop-green); background: var(--shop-green-soft); }
