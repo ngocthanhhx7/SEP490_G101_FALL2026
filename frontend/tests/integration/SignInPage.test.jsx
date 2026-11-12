@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeAll } from '@jest/globals';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { SignInPage } from '../../src/pages/public/SignInPage.jsx';
+
+beforeAll(() => {
+  window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
 
 function renderPage(adapter) {
   return render(<MemoryRouter initialEntries={['/sign-in']}>
@@ -154,11 +160,40 @@ test('a verified OTP without an account directs the user to registration and can
   fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
   fireEvent.change(await screen.findByLabelText('Mã OTP 6 chữ số'), { target: { value: '123456' } });
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
-  expect(await screen.findByText(/Liên hệ này chưa được đăng ký/)).toBeVisible();
+  expect(await screen.findByRole('dialog', { name: 'Bạn chưa đăng ký tài khoản' })).toBeVisible();
   expect(screen.queryByLabelText('Mã OTP 6 chữ số')).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('link', { name: 'Đăng ký tài khoản' }));
   expect(await screen.findByText('Registration')).toBeVisible();
   expect(adapter.login).toHaveBeenCalledTimes(1);
+});
+
+test.each([['Email', 'new@example.test'], ['SMS', '+84988888888']])('unregistered %s opens a popup before OTP and can dismiss to edit contact', async (channel, contact) => {
+  const adapter = { resolve: async () => ({ status: 'guest' }),
+    requestLoginOtp: jest.fn().mockRejectedValue({ code: 'REGISTRATION_REQUIRED', status: 409 }), login: jest.fn() };
+  renderPage(adapter);
+  if (channel === 'SMS') fireEvent.click(screen.getByRole('radio', { name: 'SMS' }));
+  fireEvent.change(screen.getByRole('textbox', { name: channel === 'SMS' ? 'Số điện thoại' : 'Email' }), { target: { value: contact } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
+  expect(await screen.findByRole('dialog', { name: 'Bạn chưa đăng ký tài khoản' })).toHaveTextContent('Vui lòng đăng ký trước khi đăng nhập.');
+  expect(screen.queryByLabelText('Mã OTP 6 chữ số')).not.toBeInTheDocument();
+  expect(adapter.login).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Dùng liên hệ khác' }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Gửi mã OTP' })).toBeEnabled();
+});
+
+test('registration popup links to registration and resend handles a removed contact', async () => {
+  renderPage({ resolve: async () => ({ status: 'guest' }),
+    requestLoginOtp: jest.fn().mockResolvedValueOnce({ challengeId: 'old', resendAfterSeconds: 0 })
+      .mockRejectedValueOnce({ code: 'REGISTRATION_REQUIRED', status: 409 }) });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'new@example.test' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
+  await screen.findByLabelText('Mã OTP 6 chữ số');
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi lại mã' }));
+  expect(await screen.findByRole('dialog')).toBeVisible();
+  expect(screen.queryByLabelText('Mã OTP 6 chữ số')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('link', { name: 'Đăng ký tài khoản' }));
+  expect(await screen.findByText('Registration')).toBeVisible();
 });
 
 test.each([
