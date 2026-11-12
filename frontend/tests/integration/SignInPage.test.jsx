@@ -17,6 +17,25 @@ function renderPage(adapter) {
   </MemoryRouter>);
 }
 
+test.each([
+  ['Email', 'person@example.test', 'p*****@example.test'],
+  ['SMS', '0912345678', '+•••••••5678'],
+  ['SMS', '+84912345678', '+•••••••5678']
+])('shows only the masked %s destination during login OTP (%s)', async (channel, contact, maskedContact) => {
+  const { container } = renderPage({
+    resolve: async () => ({ status: 'guest' }),
+    requestLoginOtp: async () => ({ challengeId: 'challenge', resendAfterSeconds: 60, maskedContact })
+  });
+  fireEvent.click(screen.getByRole('radio', { name: channel }));
+  fireEvent.change(screen.getByRole('textbox', { name: channel === 'SMS' ? 'Số điện thoại' : 'Email' }),
+    { target: { value: contact } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
+
+  expect(await screen.findByRole('status')).toHaveTextContent(maskedContact);
+  expect(container.innerHTML).not.toContain(contact);
+  expect(screen.queryByDisplayValue(contact)).not.toBeInTheDocument();
+});
+
 test.each([[403, 'ACCOUNT_LOCKED', 'Tài khoản đã bị khóa'], [505, 'HTTP_ERROR', 'phiên bản HTTP'], [500, 'HTTP_ERROR', 'Máy chủ gặp lỗi xử lý']])('shows distinct %s login feedback', async (status, code, message) => {
   const adapter = { resolve: async () => ({ status: 'guest' }), requestLoginOtp: jest.fn().mockRejectedValue({ status, code, message: 'private upstream detail' }) };
   renderPage(adapter);
@@ -29,7 +48,7 @@ test.each([[403, 'ACCOUNT_LOCKED', 'Tài khoản đã bị khóa'], [505, 'HTTP_
 test('requests a login OTP and verifies it before navigating the customer home', async () => {
   const adapter = {
     resolve: jest.fn(async () => ({ status: 'guest' })),
-    requestLoginOtp: jest.fn(async () => ({ challengeId: 'challenge-1', resendAfterSeconds: 60 })),
+    requestLoginOtp: jest.fn(async () => ({ challengeId: 'challenge-1', resendAfterSeconds: 60, maskedContact: 'p*****@example.test' })),
     login: jest.fn(async () => ({ status: 'authenticated', user: { id: '1', displayName: 'Customer', roles: ['CUSTOMER'] } }))
   };
   renderPage(adapter);

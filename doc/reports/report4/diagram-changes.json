@@ -1,0 +1,1409 @@
+[
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-3",
+    "before": "services\n(Axios API)",
+    "after": "services\n(Fetch API)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-4",
+    "before": "contexts\n(Auth / Socket)",
+    "after": "contexts\n(Session / Policy)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-5",
+    "before": "pages\n(cust, sitter, admin)",
+    "after": "pages\n(customer, sitter, staff, admin)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-14",
+    "before": "Middlewares\n(JWT Auth, Session, Rate Limit, Helmet)",
+    "after": "Middlewares\n(Session, CSRF, Rate Limit, Helmet)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-15",
+    "before": "Socket.io Server\n(Real-time Gateway / Events)",
+    "after": "Notification Service\n(Persisted Events / REST)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-19",
+    "before": "Jobs / Background Workers\n(Dispatch Queue, Reminders)",
+    "after": "Jobs / Background Workers\n(Dispatch, Accrual, Application Mail)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-43",
+    "before": "Scoring &amp; Ranking Results (JSON)",
+    "after": "Ranked candidates + reasons",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-21",
+    "before": "AI Service Tier — Python 3.11 / FastAPI",
+    "after": "AI Recommendation Subsystem — Node.js\n(Logical view inside the Express process)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-22",
+    "before": "FastAPI REST Engine\n(Uvicorn / endpoints: /dispatch-scores)",
+    "after": "Recommendation / Routing Ports\n(Node.js; Vietmap / OSRM road ETA)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-23",
+    "before": "Dispatch Scoring Model\n(XGBoost / dispatch_model.pkl)\n[Rating, Distance, AcceptRate, CancelRate]",
+    "after": "Optional Approved Additive Model\n(Versioned JSON weights in MongoDB)\n[Fit, Travel, Quality, Reliability, Workload]",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-24",
+    "before": "Heuristic Scoring Fallback\n(Deterministic Rule-based)",
+    "after": "Explainable Rule Scoring\n(Default when no approved valid model)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-26",
+    "before": "Cloudinary\n(Pet &amp; Avatar Media CDN)",
+    "after": "Private Media Adapters\n(R2; MongoDB avatar/product images)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "SeXF13q-2pEzvCMONnxY-1",
+    "before": "Androi SMS Gateway",
+    "after": "eSMS Gateway\n(OTP delivery)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-30",
+    "before": "NoSQL Document Database\n• Mongoose ODM Schemas\n• Collections: Users, Sitters,\n  Bookings, Reviews, Payments",
+    "after": "NoSQL documents / Mongoose + repositories\n• MongoDB 8.0 replica set\n• Immutable snapshots / version guards\n• Users, Bookings, Visits, Payments, Reviews",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-32",
+    "before": "WSS / WebSocket\n(Booking alerts, Chat, Realtime dispatch)",
+    "after": "HTTPS / REST JSON\n(Notifications and dispatch refresh)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-36",
+    "before": "emits events",
+    "after": "persists domain events",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-44",
+    "before": "predict_proba / score",
+    "after": "validate artifact / score",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/software-architecture.drawio",
+    "cell": "RkjnUG0ywrs8DVc_ftDp-42",
+    "before": "POST /dispatch-scores\n(Candidate Features JSON)",
+    "after": "Advisory call\n(candidate features)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/package-diagram.drawio",
+    "cell": "opkg_ai",
+    "before": "sitter_matching & pricing\n(AI Recommendation & Pricing)",
+    "after": "sitter_matching / pricing\n(Advisory / Deterministic Services)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/package-diagram.drawio",
+    "cell": "opkg_ext",
+    "before": "external_services\n(Cloudinary, SMTP, PayOS)",
+    "after": "external_services\n(R2 / Mongo media, SMTP, eSMS, payOS)",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/package-diagram.drawio",
+    "cell": "oe_front_back",
+    "before": "«use»\nHTTP REST & WebSocket",
+    "after": "«use»\nHTTPS REST JSON",
+    "geometryChanged": false
+  },
+  {
+    "file": "architecture/package-diagram.drawio",
+    "cell": "oe_back_ai",
+    "before": "«use»\nPOST /dispatch-scores",
+    "after": "«use»\nIn-process advisory call",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-ai-matching.drawio",
+    "cell": "m_base_repo",
+    "before": "BaseRepository",
+    "after": "PersistencePort",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-booking-payos.drawio",
+    "cell": "c2_webhook_dto_fields",
+    "before": "+ orderCode: number\n+ amount: number\n+ code: string\n+ signature: string",
+    "after": "+ orderCode: number\n+ amountVnd: integer\n+ code: string\n+ signature: string",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-booking-payos.drawio",
+    "cell": "c2_prop_service_methods",
+    "before": "+ createDirectedProposal(): Proposal\n+ confirmProposal(): Proposal\n+ calculateProposalTotal(): number",
+    "after": "+ createDirectedProposal(): Proposal\n+ confirmProposal(): Proposal\n+ confirmVersionedSchedule(): Proposal",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-booking-payos.drawio",
+    "cell": "c2_bill_service_methods",
+    "before": "+ createPaymentLink(): PayLink\n+ processWebhook(data): Tx\n+ refundTransaction(txId): Refund",
+    "after": "+ createPaymentLink(): PayLink\n+ processWebhook(data): Tx\n+ reconcileVerifiedReceipt(): Result",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-booking-payos.drawio",
+    "cell": "c2_base_repo",
+    "before": "BaseRepository",
+    "after": "PersistencePort",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-booking-payos.drawio",
+    "cell": "c2_entity_prop_fields",
+    "before": "+ proposalId: string\n+ customerId: string\n+ sitterId: string\n+ totalAmount: number\n+ state: ProposalState",
+    "after": "+ proposalId: string\n+ customerId: string\n+ sitterId: string\n+ amountVnd: integer\n+ state: ProposalState",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-booking-payos.drawio",
+    "cell": "c2_entity_tx_fields",
+    "before": "+ transactionId: string\n+ orderCode: number\n+ amount: number\n+ status: PaymentStatus\n+ paidAt: Date",
+    "after": "+ transactionId: string\n+ orderCode: number\n+ amountVnd: integer\n+ status: PaymentStatus\n+ paidAt: Date",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-pricing.drawio",
+    "cell": "p_base_repo",
+    "before": "BaseRepository",
+    "after": "PersistencePort",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-sitter-onboarding.drawio",
+    "cell": "c3_app_dto_fields",
+    "before": "+ fullName: string\n+ phone: string\n+ email: string\n+ idCardNumber: string\n+ documentUrls: string[]",
+    "after": "+ fullName: string\n+ phone: string\n+ verifiedContact: encrypted reference\n+ applicantParticulars: encrypted data\n+ privateDocuments: OwnedDocumentRef[]",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-sitter-onboarding.drawio",
+    "cell": "c3_app_service_methods",
+    "before": "+ submitApplication(): App\n+ reviewApplication(): App\n+ generateSecureDocUrl(): string\n+ createSitterUser(): User",
+    "after": "+ submitApplication(): App\n+ reviewApplication(): App\n+ generateSecureDocUrl(): string\n+ activateSignedEmployee(): User",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-sitter-onboarding.drawio",
+    "cell": "c3_cloudinary",
+    "before": "CloudinaryProvider",
+    "after": "PrivateApplicantDocumentService",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-sitter-onboarding.drawio",
+    "cell": "c3_base_repo",
+    "before": "BaseRepository",
+    "after": "PersistencePort",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-sitter-onboarding.drawio",
+    "cell": "c3_user_repo_methods",
+    "before": "+ createUser(data): User\n+ assignRole(userId, role): User",
+    "after": "+ promoteOwnedAccount(data): User\n+ assignRole(userId, role): User",
+    "geometryChanged": false
+  },
+  {
+    "file": "class/class-sitter-onboarding.drawio",
+    "cell": "c3_entity_user_fields",
+    "before": "+ userId: string\n+ email: string\n+ role: Role\n+ isActive: boolean",
+    "after": "+ userId: string\n+ verifiedContact: encrypted reference\n+ role: Role\n+ isActive: boolean",
+    "geometryChanged": false
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "ll_client",
+    "before": "Client (Browser)",
+    "after": "Client (Browser)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "ll_ctrl",
+    "before": ": SitterRecommendationsController",
+    "after": ": SitterRecommendationsController",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "ll_serv",
+    "before": ": RecommendationService",
+    "after": ": RecommendationService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "ll_sched",
+    "before": ": SchedulingService",
+    "after": ": SchedulingService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "ll_score",
+    "before": ": ScoringService",
+    "after": ": ScoringService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "ll_routing",
+    "before": ": RoutingService",
+    "after": ": RoutingService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "ll_repo",
+    "before": ": MatchingRepository",
+    "after": ": MatchingRepository",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_ctrl",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_serv",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_sched1",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_repo1",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_repo2",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_repo3",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_routing",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_sched2",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_score",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "act_repo4",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_1",
+    "before": "1: POST /api/v1/ai/recommendations (RecommendationRequestDTO)",
+    "after": "1: POST /api/v1/ai/recommendations (RecommendationRequestDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_2",
+    "before": "2: validateSessionAndCsrf()",
+    "after": "2: validateSessionAndCsrf()",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_3",
+    "before": "3: recommend(userId, reqDTO)",
+    "after": "3: recommend(userId, reqDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_4",
+    "before": "4: validateSlot(slot, now)",
+    "after": "4: validateSlot(slot, now)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_5",
+    "before": "5: validSlot (sameDay, >=24h, <=6h)",
+    "after": "5: validSlot (sameDay, >=24h, <=6h)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_6",
+    "before": "6: context(userId, body)",
+    "after": "6: context(userId, body)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_7",
+    "before": "7: ContextData (service, pets, confirmedAddress)",
+    "after": "7: ContextData (service, pets, confirmedAddress)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_8",
+    "before": "8: ranking()",
+    "after": "8: ranking()",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_9",
+    "before": "9: { approvedPolicy, approvedModel }",
+    "after": "9: { approvedPolicy, approvedModel }",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_10",
+    "before": "10: candidates(context, slot)",
+    "after": "10: candidates(context, slot)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_11",
+    "before": "11: CandidateData (eligibleProfiles, blocks, statsSnapshot)",
+    "after": "11: CandidateData (eligibleProfiles, blocks, statsSnapshot)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_12",
+    "before": "12: cachedMatrix(origin, blocks, home, endPoint)",
+    "after": "12: cachedMatrix(origin, blocks, home, endPoint)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_13",
+    "before": "13: matrixLookupFn (road ETA in minutes)",
+    "after": "13: matrixLookupFn (road ETA in minutes)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_14",
+    "before": "14: planInsertion(profile, blocks, slot, address, matrix)",
+    "after": "14: planInsertion(profile, blocks, slot, address, matrix)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_15",
+    "before": "15: InsertionPlan (feasible, handover 15m, buffer, busyMinutes)",
+    "after": "15: InsertionPlan (feasible, handover 15m, buffer, busyMinutes)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_16",
+    "before": "16: scoreSitter(stats, history, extraTravel, busy, weights)",
+    "after": "16: scoreSitter(stats, history, extraTravel, busy, weights)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_17",
+    "before": "17: SitterScore (rawScore, breakdown, confidence)",
+    "after": "17: SitterScore (rawScore, breakdown, confidence)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_18",
+    "before": "18: save(kind=\"MATCH\", snapshot, ttl=5m)",
+    "after": "18: save(kind=\"MATCH\", snapshot, ttl=5m)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_19",
+    "before": "19: matchId",
+    "after": "19: matchId",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_20",
+    "before": "20: RecommendationResultDTO",
+    "after": "20: RecommendationResultDTO",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-ai-recommendation.drawio",
+    "cell": "m_21",
+    "before": "21: 201 Created (RecommendationResultDTO)",
+    "after": "21: 201 Created (RecommendationResultDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "ll_client",
+    "before": "Client (Customer)",
+    "after": "Client (Customer)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "ll_ctrl",
+    "before": ": DirectedProposalController",
+    "after": ": BookingCheckoutController",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "ll_serv",
+    "before": ": DirectedProposalService",
+    "after": ": BookingCheckoutService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "ll_bill",
+    "before": ": BillingService",
+    "after": ": PaymentLinkOrchestration\n(checkout service role)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "ll_payos",
+    "before": ": PayosProvider (PayOS API)",
+    "after": ": PayosProvider (PayOS API)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "ll_repo",
+    "before": ": BookingProposalRepository",
+    "after": ": MongoCheckoutRepository",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "act_ctrl",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "act_serv",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "act_repo",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "act_bill",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "act_payos",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_1",
+    "before": "1: POST /api/v1/proposals (CreateProposalDTO)",
+    "after": "1: POST /api/v1/checkout/bookings (owned quote + selections)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_2",
+    "before": "2: validatePayload(dto)",
+    "after": "2: validatePayload(dto)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_3",
+    "before": "3: createDirectedProposal(dto)",
+    "after": "3: confirm(actor, body, idempotencyKey)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_4",
+    "before": "4: calculateProposalTotal(service, slots)",
+    "after": "4: validate owned QUOTE / immutable server price snapshot",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_5",
+    "before": "5: saveProposal(BookingProposal)",
+    "after": "5: transaction: booking + visits + prepay intent + command/event",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_6",
+    "before": "6: savedProposal (PENDING_PAYMENT)",
+    "after": "6: saved booking (AWAITING_PAYMENT for PREPAY)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_7",
+    "before": "7: createPaymentLink(proposalId, totalAmount)",
+    "after": "7: check intent deadline / link replay or uncertain creation",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_8",
+    "before": "8: createPaymentLink(payload)",
+    "after": "8: createPaymentLink(payload)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_9",
+    "before": "9: hmacSha256(checksumKey)",
+    "after": "9: hmacSha256(checksumKey)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_10",
+    "before": "10: POST /v2/payment-requests",
+    "after": "10: POST /v2/payment-requests",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_11",
+    "before": "11: { checkoutUrl, qrCode, orderCode }",
+    "after": "11: { checkoutUrl, qrCode, orderCode }",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_12",
+    "before": "12: paymentLinkDTO",
+    "after": "12: paymentLinkDTO",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_13",
+    "before": "13: { proposal, paymentLink }",
+    "after": "13: { booking }; no guaranteed sitter before acceptance",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-booking-payment.drawio",
+    "cell": "m_14",
+    "before": "14: 201 Created (Proposal + Checkout URL)",
+    "after": "14: 200 payment link — payment still UNPAID",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "ll_payos",
+    "before": "PayOS Payment Gateway",
+    "after": "PayOS Payment Gateway",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "ll_ctrl",
+    "before": ": PaymentWebhookController",
+    "after": ": PaymentWebhookController",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "ll_bill",
+    "before": ": BillingService",
+    "after": ": PayosPaymentWebhookService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "ll_prov",
+    "before": ": PayosProvider",
+    "after": ": PayosProvider",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "ll_repo",
+    "before": ": PaymentTransactionRepository",
+    "after": ": MongoPaymentWebhookRepository",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "ll_smtp",
+    "before": ": SmtpEmailService",
+    "after": ": DomainNotifications",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "act_ctrl",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "act_bill",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "act_prov",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "act_repo",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "act_smtp",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_1",
+    "before": "1: POST /api/v1/payments/payos-webhook (PayosWebhookDTO)",
+    "after": "1: POST /api/v1/payments/payos/webhook (PayosWebhookDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_2",
+    "before": "2: processWebhook(webhookPayload)",
+    "after": "2: processWebhook(webhookPayload)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_3",
+    "before": "3: verifyWebhookSignature(data, sig)",
+    "after": "3: verifyWebhookSignature(data, sig)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_4",
+    "before": "4: signatureValid = true",
+    "after": "4: signatureValid = true",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_5",
+    "before": "5: extractOrderData()",
+    "after": "5: match pending intent, amountVnd, currency, deadline and version",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_6",
+    "before": "6: recordTransaction(orderCode, PAID)",
+    "after": "6: transaction: unique event/reference + receipt + guarded intent/booking",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_7",
+    "before": "7: PaymentTransaction record",
+    "after": "7: APPLIED / DUPLICATE / RECONCILIATION_REQUIRED",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_8",
+    "before": "8: sendPaymentReceipt(email, invoice)",
+    "after": "8: persist recipient-scoped payment notification in transaction",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_9",
+    "before": "9: emailSent = true",
+    "after": "9: notification persisted; delivery is a separate concern",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_10",
+    "before": "10: { success: true }",
+    "after": "10: { status }; late/unknown/mismatch never revives expired booking",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-payos-webhook.drawio",
+    "cell": "m_11",
+    "before": "11: 200 OK (Webhook Handled)",
+    "after": "11: 200 OK (Webhook Handled)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "ll_client",
+    "before": "Client (Browser)",
+    "after": "Client (Browser)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "ll_ctrl",
+    "before": ": PricingController",
+    "after": ": PricingController",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "ll_serv",
+    "before": ": PricingService",
+    "after": ": PricingService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "ll_pricing",
+    "before": ": PricingCalculation",
+    "after": ": PricingCalculation",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "ll_repo",
+    "before": ": PricingRepository",
+    "after": ": PricingRepository",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "ll_base",
+    "before": ": BaseRepository",
+    "after": ": MongooseModels",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_ctrl",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_serv",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_repo1",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_base1",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_base2",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_pricing",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_repo2",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "act_base3",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_1",
+    "before": "1: POST /api/v1/pricing/quotes (QuoteRequestDTO)",
+    "after": "1: POST /api/v1/pricing/quotes (QuoteRequestDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_2",
+    "before": "2: validateSessionAndCsrf()",
+    "after": "2: validateSessionAndCsrf()",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_3",
+    "before": "3: quote(userId, quoteRequestDTO)",
+    "after": "3: quote(userId, quoteRequestDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_4",
+    "before": "4: validatePricingSelection(dto)",
+    "after": "4: validatePricingSelection(dto)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_5",
+    "before": "5: context(userId, input)",
+    "after": "5: context(userId, input)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_6",
+    "before": "6: findServicePrice(serviceId)",
+    "after": "6: findServicePrice(serviceId)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_7",
+    "before": "7: servicePriceRecord",
+    "after": "7: servicePriceRecord",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_8",
+    "before": "8: findApprovedPolicy(serviceId)",
+    "after": "8: findApprovedPolicy(serviceId)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_9",
+    "before": "9: pricingPolicyDoc",
+    "after": "9: pricingPolicyDoc",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_10",
+    "before": "10: ContextData (price, policy, pets)",
+    "after": "10: ContextData (price, policy, pets)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_11",
+    "before": "11: verifyTraitPriceRules(policy, pets)",
+    "after": "11: verifyTraitPriceRules(policy, pets)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_12",
+    "before": "12: calculateQuote(price, policy, pets, duration, visits)",
+    "after": "12: calculateQuote(price, policy, pets, duration, visits)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_13",
+    "before": "13: QuoteBreakdown (subtotal, tierFee, totalVnd)",
+    "after": "13: QuoteBreakdown (subtotal, tierFee, totalVnd)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_14",
+    "before": "14: save(kind=\"QUOTE\", snapshot, ttl=10m)",
+    "after": "14: save(kind=\"QUOTE\", snapshot, ttl=10m)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_15",
+    "before": "15: insertDecision(DecisionSnapshot)",
+    "after": "15: insertDecision(DecisionSnapshot)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_16",
+    "before": "16: decisionDoc (quoteId)",
+    "after": "16: decisionDoc (quoteId)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_17",
+    "before": "17: quoteId",
+    "after": "17: quoteId",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_18",
+    "before": "18: QuoteResultDTO",
+    "after": "18: QuoteResultDTO",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-pricing-quote.drawio",
+    "cell": "m_19",
+    "before": "19: 201 Created (QuoteResultDTO)",
+    "after": "19: 201 Created (QuoteResultDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "ll_client",
+    "before": "Client (Sitter Candidate)",
+    "after": "Client (Sitter Candidate)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "ll_ctrl",
+    "before": ": SitterApplicationController",
+    "after": ": SitterApplicationController",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "ll_serv",
+    "before": ": SitterApplicationService",
+    "after": ": SitterApplicationService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "ll_cloud",
+    "before": ": CloudinaryProvider",
+    "after": ": PrivateApplicantDocumentService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "ll_repo",
+    "before": ": SitterApplicationRepository",
+    "after": ": SitterApplicationRepository",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "ll_smtp",
+    "before": ": SmtpEmailService",
+    "after": ": ApplicationMailOutbox",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "act_ctrl",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "act_serv",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "act_cloud",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "act_repo",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "act_smtp",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_1",
+    "before": "1: POST /api/v1/sitter-applications (SitterApplicationDTO)",
+    "after": "1: POST /api/v1/sitter-applications (SitterApplicationDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_2",
+    "before": "2: submitApplication(dto)",
+    "after": "2: submitApplication(dto)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_3",
+    "before": "3: checkReapplyDelay(contactHash)",
+    "after": "3: checkReapplyDelay(contactHash)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_4",
+    "before": "4: uploadDocument(idCardBuffer, folder)",
+    "after": "4: uploadDocument(idCardBuffer, folder)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_5",
+    "before": "5: secureCloudinaryUrl: string",
+    "after": "5: secureCloudinaryUrl: string",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_6",
+    "before": "6: saveApplication(SitterApplication)",
+    "after": "6: saveApplication(SitterApplication)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_7",
+    "before": "7: savedApp (status: PENDING)",
+    "after": "7: savedApp (status: PENDING)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_8",
+    "before": "8: sendApplicationSubmitted(email)",
+    "after": "8: sendApplicationSubmitted(email)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_9",
+    "before": "9: emailSent = true",
+    "after": "9: worker delivery state (not inbox acceptance)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_10",
+    "before": "10: applicationResultDTO",
+    "after": "10: applicationResultDTO",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-application.drawio",
+    "cell": "m_11",
+    "before": "11: 201 Created (Application Submitted)",
+    "after": "11: 201 Created (Application Submitted)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "ll_staff",
+    "before": "Client (Staff / Admin)",
+    "after": "Client (Admin)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "ll_ctrl",
+    "before": ": SitterApplicationController",
+    "after": ": SitterApplicationController",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "ll_serv",
+    "before": ": SitterApplicationService",
+    "after": ": SitterApplicationService",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "ll_app_repo",
+    "before": ": SitterApplicationRepository",
+    "after": ": SitterApplicationRepository",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "ll_user_repo",
+    "before": ": UserRepository",
+    "after": ": EmployeeContractAndAccountRepository",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "ll_smtp",
+    "before": ": SmtpEmailService",
+    "after": ": ApplicationMailOutbox",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "act_ctrl",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "act_serv",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "act_app1",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "act_app2",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "act_user",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "act_smtp",
+    "before": "",
+    "after": "",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_1",
+    "before": "1: PUT /api/v1/sitter-applications/:id/review (ReviewDTO)",
+    "after": "1: POST /sitter-applications/:id/decisions (version + decision)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_2",
+    "before": "2: reviewApplication(id, reviewDTO)",
+    "after": "2: reviewApplication(id, reviewDTO)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_3",
+    "before": "3: findById(applicationId)",
+    "after": "3: findById(applicationId)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_4",
+    "before": "4: appRecord: SitterApplication",
+    "after": "4: appRecord: SitterApplication",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_5",
+    "before": "5: updateStatus(id, APPROVED, reviewerId)",
+    "after": "5: require valid SIGNED contract; guard application state/version",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_6",
+    "before": "6: updatedApp: SitterApplication",
+    "after": "6: signed document verified; no fabricated contract",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_7",
+    "before": "7: createUserFromApplication(appRecord)",
+    "after": "7: activate contract + promote verified owned account transactionally",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_8",
+    "before": "8: newUser: User (role: SITTER)",
+    "after": "8: User with PET_SITTER role; preserve CUSTOMER membership",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_9",
+    "before": "9: generateTempPassword()",
+    "after": "9: persist application audit + durable mail command",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_10",
+    "before": "10: sendApplicationApproved(email, credentials)",
+    "after": "10: enqueue approved-status notice (no password)",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_11",
+    "before": "11: emailSent = true",
+    "after": "11: mail intent recorded; worker retries independently",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_12",
+    "before": "12: reviewResultDTO",
+    "after": "12: reviewResultDTO",
+    "geometryChanged": true
+  },
+  {
+    "file": "sequence/sd-sitter-review.drawio",
+    "cell": "m_13",
+    "before": "13: 200 OK (Review Approved & Account Created)",
+    "after": "13: 200 application decision; no password account",
+    "geometryChanged": true
+  }
+]

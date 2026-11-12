@@ -8,6 +8,51 @@ import { DirectedBookingProposalPage } from '../../src/pages/customer/DirectedBo
 import { StaffTravelMonitor } from '../../src/pages/staff/StaffTravelMonitor.jsx';
 
 afterEach(cleanup);
+test.each([false, undefined])('dispatch omits travel requests when travel capability is %s', async visitTravelEnabled => {
+  const request = jest.fn().mockResolvedValue({ data: { items: [], visitTravelEnabled } });
+  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+  await waitFor(() => expect(screen.queryByText('Đang tải ca…')).not.toBeInTheDocument());
+
+  expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+  expect(screen.queryByRole('heading', { name: 'Ca đang đến điểm chăm sóc' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Chưa tải được các ca di chuyển.')).not.toBeInTheDocument();
+  expect(request.mock.calls.map(([path]) => path)).toEqual(['/employee-scheduling/dispatch']);
+});
+
+test('dispatch loads travel rows when travel capability is enabled', async () => {
+  const request = jest.fn()
+    .mockResolvedValueOnce({ data: { items: [], visitTravelEnabled: true } })
+    .mockResolvedValueOnce({ data: { items: [{ id: 'visit', serviceName: 'Synthetic travel row',
+      startAt: '2026-11-03T02:00:00Z', endAt: '2026-11-03T03:00:00Z' }] } })
+    .mockResolvedValue({ data: { items: [], visitTravelEnabled: true } });
+  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+
+  expect(await screen.findByText('Synthetic travel row')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Ca đang đến điểm chăm sóc' })).toBeVisible();
+  expect(request.mock.calls.map(([path]) => path)).toEqual([
+    '/employee-scheduling/dispatch', '/employee-scheduling/travel-visits'
+  ]);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Tải lại lịch điều phối' }));
+  await waitFor(() => expect(screen.queryByText('Đang tải ca…')).not.toBeInTheDocument());
+  expect(screen.getByText('Synthetic travel row')).toBeVisible();
+  expect(request.mock.calls.map(([path]) => path)).toEqual([
+    '/employee-scheduling/dispatch', '/employee-scheduling/travel-visits', '/employee-scheduling/dispatch'
+  ]);
+});
+
+test.each([['HTTP 500', { status: 500 }], ['network', new Error('Offline')]])(
+  'dispatch shows the travel error for an enabled feature with a %s failure', async (_label, error) => {
+    const request = jest.fn()
+      .mockResolvedValueOnce({ data: { items: [], visitTravelEnabled: true } })
+      .mockRejectedValueOnce(error);
+    render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+
+    expect(await screen.findByText('Chưa tải được các ca di chuyển.')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+  }
+);
+
 test('Staff travel monitor pages assigned visits without exposing employee mutation controls', async () => {
   const api = { travelVisits: jest.fn().mockResolvedValueOnce({ data: { items: [{ id: 'visit', sitterId: 'employee',
     serviceName: 'Synthetic live care', areaCode: 'HANOI', startAt: new Date(Date.now() + 60000).toISOString(), endAt: new Date(Date.now() + 3600000).toISOString() }], nextCursor: 'next' } })
@@ -102,7 +147,7 @@ test('overdue system visit proposes precise area and future time without invitin
   expect(await screen.findByText('Ca quá hạn')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Thử tìm lại' })).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', {name:'Đổi lịch với khách'}));
-  fireEvent.click(screen.getByText('Đề xuất lịch khác'));
+  fireEvent.click(screen.getByText('Đề xuất lịch hoặc người thay thế'));
   fireEvent.change(screen.getByLabelText(/Bắt đầu đề xuất/), { target: { value: '2026-11-10T09:00' } });
   fireEvent.change(screen.getByLabelText('Khu vực tại địa chỉ đã đặt'), { target: { value: 'DISTRICT_HAI_BA_TRUNG' } });
   fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra người phù hợp' }));
@@ -121,4 +166,24 @@ test('overdue system visit proposes precise area and future time without invitin
 beforeAll(() => {
   window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
+
+test('GBR-13 tells a sitter that a concurrent acceptance took the visit and refreshes their offers', async () => {
+  const api = fixture();
+  api.respond.mockRejectedValueOnce({ status: 409, code: 'VISIT_ALREADY_ASSIGNED' });
+  render(<EmployeeInvitationsPage api={api} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Nhận việc' }));
+  expect(await screen.findByText('Buổi đã có người nhận.')).toBeInTheDocument();
+  await waitFor(() => expect(api.offers.mock.calls.length).toBeGreaterThan(1));
+});
+test('customer sees the previous and replacement sitter before choosing to confirm', async () => {
+  const proposal = { id: 'replacement', version: 0, state: 'PENDING_CUSTOMER_CONFIRMATION', sitterId: 'new',
+    previousSitterId: 'old', previousSitter: { displayName: 'Người ban đầu' }, sitter: { displayName: 'Người thay thế' },
+    slots: [{ startAt: '2026-11-23T02:00:00Z', endAt: '2026-11-23T03:00:00Z' }] };
+  const api = { confirmProposal: jest.fn() };
+  render(<MemoryRouter><DirectedBookingProposalPage api={api} proposal={proposal} /></MemoryRouter>);
+  expect(await screen.findByText('Đề xuất đổi người chăm sóc')).toBeInTheDocument();
+  expect(screen.getByText(/Người đã chọn: Người ban đầu/)).toHaveTextContent('Người thay thế: Người thay thế');
+  expect(api.confirmProposal).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: 'Xác nhận lịch và gửi offer' })).toBeDisabled();
 });

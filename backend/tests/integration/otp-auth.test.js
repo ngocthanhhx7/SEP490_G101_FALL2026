@@ -1,11 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
+import express from 'express';
+import request from 'supertest';
 import { connectDatabase } from '../../src/config/database.js';
 import { identityModels } from '../../src/models/identity.model.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { createOtpService } from '../../src/services/otp-verification.service.js';
 import { createSessionService, lockUserAndRevokeSessions } from '../../src/services/session.service.js';
+import { createAccountSettingsService } from '../../src/services/account-settings.service.js';
+import { authModule } from '../../src/routes/auth.routes.js';
+import { errorHandler, requestId } from '../../src/middlewares/http.js';
 
 const key = 'synthetic-auth-test-secret-at-least-32-bytes';
 let replica, connection, User, models, contactCrypto, clockNow;
@@ -47,6 +52,39 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P06 OTP policy using an isolated MongoDB replica set', () => {
+  test.each([
+    ['EMAIL', 'Person@example.test', 'p*****@example.test'],
+    ['PHONE', '+84912345678', '+•••••••5678']
+  ])('%s login challenge masks the registered destination and resend response (%s)', async (channel, contact, maskedContact) => {
+    const { otpService, sessionService } = fixture();
+    const passThrough = (_req, _res, next) => next();
+    const runtime = authModule({
+      otpService, sessionService,
+      accountSettingsService: createAccountSettingsService({ models, contactCrypto }),
+      requireAuthenticated: passThrough, requireCsrf: passThrough
+    });
+    const app = express();
+    app.use(express.json(), requestId);
+    app.use(runtime.mount, runtime.router);
+    app.use(errorHandler(() => {}));
+    const begin = async () => {
+      const response = await request(app).post('/api/v1/otp-challenges')
+        .send({ channel, contact, purpose: 'LOGIN' }).expect(202);
+      expect(response.body.data).toEqual({
+        challengeId: expect.stringMatching(/^[a-f0-9-]{36}$/i),
+        expiresInSeconds: 300, resendAfterSeconds: 60, maskedContact
+      });
+      expect(JSON.stringify(response.body)).not.toContain(contact);
+      return response.body.data;
+    };
+
+    await createActiveUser({ channel, contact });
+    const first = await begin();
+    clockNow += 61000;
+    const resent = await begin();
+    expect(resent).toEqual({ ...first, challengeId: expect.any(String) });
+  });
+
   test.each(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'])('locked %s gets a distinct denial only after valid OTP, without issuing a session', async role => {
     const { user } = await createActiveUser({ role });
     await User.updateOne({ _id: user._id }, { $set: { state: 'LOCKED' } });
@@ -153,12 +191,12 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const { otpService, sessionService } = fixture();
     const issued = await connection.transaction(session => sessionService.issueInTransaction(user, session));
     const owner = { userId: user._id.toString(), sessionId: issued.sessionId };
-    const challenge = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'CONTACT_CHANGE', actor: owner });
-    await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201', actor: owner }))
+    const challenge = await otpService.begin({ channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', actor: owner });
+    await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'LOGIN', code: '004201', actor: owner }))
       .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
-    await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'CONTACT_CHANGE', code: '004201', actor: { ...owner, sessionId: 'session-b' } }))
+    await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor: { ...owner, sessionId: 'session-b' } }))
       .rejects.toMatchObject({ code: 'OTP_INVALID_OR_EXPIRED' });
-    await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'CONTACT_CHANGE', code: '004201', actor: owner }))
+    await expect(otpService.verify({ ...challenge, channel: 'PHONE', contact: '+84987654321', purpose: 'CONTACT_CHANGE', code: '004201', actor: owner }))
       .resolves.toMatchObject({ status: 'VERIFIED', authenticated: false });
 
     clockNow += 60000;
@@ -249,6 +287,63 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     expect(await User.countDocuments({})).toBe(2);
     expect(await connection.collection('account_contact_audit_events').countDocuments({})).toBe(0);
     expect(await models.OtpChallenge.countDocuments({ challengeId: challenge.challengeId, usedAt: { $ne: null } })).toBe(1);
+  });
+
+  describe('UC-04 contact change checks the new value before any code is sent (MSG04, MSG05, GBR-05, GBR-06)', () => {
+    async function signedIn(options) {
+      const created = await createActiveUser(options);
+      const { sessionService, ...rest } = fixture();
+      const issued = await connection.transaction(session => sessionService.issueInTransaction(created.user, session));
+      return { ...created, ...rest, sessionService, actor: { userId: created.user._id.toString(), sessionId: issued.sessionId } };
+    }
+    const nothingSent = async ({ contactDelivery }) => {
+      expect(contactDelivery.send).not.toHaveBeenCalled();
+      expect(await models.OtpChallenge.countDocuments({})).toBe(0);
+      expect(await models.OtpThrottle.countDocuments({})).toBe(0);
+    };
+
+    test.each([
+      ['EMAIL', 'Person@Example.Test', 'person@example.test'],
+      ['EMAIL', '  person@example.test  ', 'person@example.test'],
+      ['PHONE', '+84912345678', '+84912345678']
+    ])('%s %j equal to the current contact is refused with CONTACT_UNCHANGED and sends no code', async (channel, typed, current) => {
+      const ctx = await signedIn({ channel, contact: current });
+      await expect(ctx.otpService.begin({ channel, contact: typed, purpose: 'CONTACT_CHANGE', actor: ctx.actor }))
+        .rejects.toMatchObject({ status: 409, code: 'CONTACT_UNCHANGED' });
+      await nothingSent(ctx);
+    });
+
+    test.each([['EMAIL', 'taken@example.test'], ['PHONE', '+84987654321']])('%s of another account is refused with CONTACT_UNAVAILABLE and sends no code', async (channel, contact) => {
+      await createActiveUser({ channel, contact });
+      const ctx = await signedIn({ channel: 'EMAIL', contact: 'mine@example.test' });
+      await expect(ctx.otpService.begin({ channel, contact, purpose: 'CONTACT_CHANGE', actor: ctx.actor }))
+        .rejects.toMatchObject({ status: 409, code: 'CONTACT_UNAVAILABLE' });
+      await nothingSent(ctx);
+    });
+
+    test('a blocked value does not count toward the hourly code limit, so a valid value is still sent afterwards', async () => {
+      const ctx = await signedIn({ channel: 'EMAIL', contact: 'person@example.test' });
+      for (let i = 0; i < 6; i += 1) {
+        await expect(ctx.otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'CONTACT_CHANGE', actor: ctx.actor }))
+          .rejects.toMatchObject({ code: 'CONTACT_UNCHANGED' });
+      }
+      await expect(ctx.otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' })).resolves.toMatchObject({ status: 'PENDING' });
+      const challenge = await ctx.otpService.begin({ channel: 'EMAIL', contact: 'new@example.test', purpose: 'CONTACT_CHANGE', actor: ctx.actor });
+      expect(challenge.status).toBe('PENDING');
+    });
+
+    test('a valid new email still gets a code and replaces the old one only after the code is confirmed', async () => {
+      const ctx = await signedIn({ channel: 'EMAIL', contact: 'person@example.test' });
+      const challenge = await ctx.otpService.begin({ channel: 'EMAIL', contact: 'New@Example.Test', purpose: 'CONTACT_CHANGE', actor: ctx.actor });
+      expect(ctx.sent).toHaveLength(1);
+      expect(ctx.sent[0]).toMatchObject({ channel: 'EMAIL', to: 'new@example.test', purpose: 'CONTACT_CHANGE' });
+      expect(await models.Contact.countDocuments({ userId: ctx.user._id, state: 'VERIFIED' })).toBe(1);
+      await ctx.otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'new@example.test', purpose: 'CONTACT_CHANGE', code: '004201', actor: ctx.actor });
+      const current = await models.Contact.find({ userId: ctx.user._id, state: 'VERIFIED' }).select('+lookupKey').lean();
+      expect(current).toHaveLength(1);
+      expect(current[0].lookupKey).toBe(contactCrypto.lookup('EMAIL', 'new@example.test').lookupKey);
+      expect(await models.Contact.countDocuments({ userId: ctx.user._id, state: 'REPLACED' })).toBe(1);
+    });
   });
 
   test('expired contact verification leaves the current login method unchanged', async () => {

@@ -19,14 +19,17 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== 'true' || !config.auth?.enabled || !connection?.db) return null;
   if (env.VISIT_TRAVEL_ENABLED !== undefined && !['true', 'false'].includes(env.VISIT_TRAVEL_ENABLED)) throw new TypeError('Invalid VISIT_TRAVEL_ENABLED');
+  const visitTravelEnabled = env.VISIT_TRAVEL_ENABLED === 'true';
   const routingProvider = createConfiguredRoutingProvider({ env, config, clock });
   const repository = createEmployeeScheduleRepository({ connection, clock, coverageAreas, routingProvider });
   const carePlans = createBookingCarePlanService({ connection, clock });
   const dispatch = createEmployeeDispatchService({ repository, clock, carePlans,
+    autoDispatchWithdrawals: env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true',
     ranker: config.ai?.enabled ? createOperationalRanker({ connection, routingProvider, clock }) : undefined });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const proposals = createEmployeeScheduleProposalService({ repository, dispatch, clock });
-  const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, origins: createSitterOriginService({ repository, clock }) }), router = Router();
+  const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, visitTravelEnabled,
+    origins: createSitterOriginService({ repository, clock }) }), router = Router();
   const csrf = requireCsrf(session), sitter = requireRoles('PET_SITTER'), staff = requireRoles('STAFF', 'ADMIN');
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); res.vary('Cookie'); next(); }, requireSession(session, { clock }));
   router.get('/availability', sitter, c.availability);
@@ -38,6 +41,8 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.put('/work-areas', sitter, csrf, c.saveAreas);
   router.get('/offers', sitter, c.offers);
   router.get('/assignments', sitter, c.assignments);
+  router.get('/visits/:id/withdrawal-options', sitter, c.withdrawalOptions);
+  router.post('/visits/:id/withdrawals', sitter, csrf, c.withdraw);
   const care = createAssignedCareController(createAssignedCareService({ repository, clock }));
   router.get('/visits/:id/care', sitter, care.get);
   router.post('/visits/:id/care/acknowledgements', sitter, csrf, care.acknowledge);
@@ -53,7 +58,7 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/care-plans', staff, c.plans);
   router.post('/care-plans/:id/preview', staff, csrf, c.previewPlan);
   router.post('/care-plans/:id/finalization', staff, csrf, c.finalizePlan);
-  if (env.VISIT_TRAVEL_ENABLED === 'true') {
+  if (visitTravelEnabled) {
     const t = createVisitTravelController({ service: createVisitTravelService({ repository, routingProvider, clock }) });
     const reads = rateLimit({ windowMs: 60000, limit: 120, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false });
     const writes = rateLimit({ windowMs: 60000, limit: 20, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false });

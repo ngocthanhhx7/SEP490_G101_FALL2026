@@ -181,38 +181,54 @@ export function createSitterManagementService({ connection, cursorSecret, contac
     const registered = await connection.db.listCollections({ name: { $in: ['reviews', 'visits'] } }, { nameOnly: true }).toArray();
     const sources = new Set(registered.map(collection => collection.name));
     return snapshot(async session => {
-      const population = await aggregate('users', pipeline({
-        view: 'staffList', status: 'ACTIVE', source: 'ALL'
-      }, asOf), session);
-      const filtered = population.filter(user => (!query.employmentType || user.employmentType === query.employmentType)
-        && (!query.area || user.areas.includes(query.area))
-        && (!query.profileState || user.profileState === query.profileState)
-        && (query.source === 'ALL' || isDemo(user) === (query.source === 'DEMO')));
-      const matching = await matchingStaff(filtered, query.search, session);
-      const withdrawals = await readWithdrawalCounts({ rows: matching, from, asOf, session });
-      if (query.sort === 'withdrawals' && !withdrawals) {
+      const withdrawals = readWithdrawalCounts();
+      if (query.sort === 'withdrawals' && !withdrawals)
         throw new AppError(422, 'VALIDATION_FAILED', 'Withdrawal sorting is unavailable');
-      }
-      const { ratings, late } = await staffMetrics(matching, sources, from, asOf, session);
-      const items = matching.map(user => ({
-        ...row(user), code: codeFor(user), rating: ratings.get(id(user._id)) ?? null,
-        lateCheckIns: sources.has('visits') ? late.get(id(user._id)) ?? 0 : null,
-        withdrawals: withdrawals ? withdrawals.get(id(user._id)) ?? 0 : null
-      }));
+      const tabCounts = { all: 0, partTime: 0, fullTime: 0 };
       const key = item => ({ value: item[query.sort], name: item.displayName, id: item.id });
-      items.sort((a, b) => compareStaffPosition(key(a), key(b)));
-      const remaining = position ? items.filter(item => compareStaffPosition(key(item), position) > 0) : items;
-      const page = remaining.slice(0, query.limit);
+      const best = [];
+      let total = 0, batch = [];
+      const started = Date.now();
+      async function consume() {
+        if (Date.now() - started > 8000)
+          throw new AppError(503, 'SITTER_LIST_TIMEOUT', 'The complete directory ranking could not finish; retry later');
+        const filtered = batch.filter(user => (!query.employmentType || user.employmentType === query.employmentType)
+          && (!query.area || user.areas.includes(query.area))
+          && (!query.profileState || user.profileState === query.profileState)
+          && (query.source === 'ALL' || isDemo(user) === (query.source === 'DEMO')));
+        const matching = await matchingStaff(filtered, query.search, session);
+        const { ratings, late } = await staffMetrics(matching, sources, from, asOf, session);
+        total += matching.length;
+        for (const user of matching) {
+          const item = { ...row(user), code: codeFor(user), rating: ratings.get(id(user._id)) ?? null,
+            lateCheckIns: sources.has('visits') ? late.get(id(user._id)) ?? 0 : null,
+            withdrawals: withdrawals ? withdrawals.get(id(user._id)) ?? 0 : null };
+          if (!position || compareStaffPosition(key(item), position) > 0) best.push(item);
+        }
+        best.sort((a, b) => compareStaffPosition(key(a), key(b)));
+        best.splice(query.limit + 1);
+        batch = [];
+      }
+      const population = connection.db.collection('users').aggregate(pipeline({
+        view: 'staffList', status: 'ACTIVE', source: 'ALL'
+      }, asOf), { session, maxTimeMS: 5000, batchSize: STAFF_BATCH_SIZE });
+      try {
+        for await (const user of population) {
+          tabCounts.all++;
+          if (user.employmentType === 'PART_TIME') tabCounts.partTime++;
+          if (user.employmentType === 'FULL_TIME') tabCounts.fullTime++;
+          batch.push(user);
+          if (batch.length === STAFF_BATCH_SIZE) await consume();
+        }
+        if (batch.length) await consume();
+      } finally { await population.close(); }
+      const page = best.slice(0, query.limit);
       const hours = await staffWorkingHours(page, asOf, session);
       return {
         items: page.map(item => ({ ...item, workingWindows: hours.get(item.id) ?? [], shift: null, approvedLeave: null })),
-        total: items.length, asOf: asOf.toISOString(), areas: await createServiceAreaCatalog(connection).list(), withdrawalsAvailable: withdrawals !== null,
-        tabCounts: {
-          all: population.length,
-          partTime: population.filter(user => user.employmentType === 'PART_TIME').length,
-          fullTime: population.filter(user => user.employmentType === 'FULL_TIME').length
-        },
-        nextCursor: remaining.length > page.length
+        total, asOf: asOf.toISOString(), areas: await createServiceAreaCatalog(connection).list({ session }), withdrawalsAvailable: withdrawals !== null,
+        tabCounts,
+        nextCursor: best.length > page.length
           ? staffCursors.encode({ ...key(page.at(-1)), asOf: asOf.toISOString() }, scope) : null
       };
     });

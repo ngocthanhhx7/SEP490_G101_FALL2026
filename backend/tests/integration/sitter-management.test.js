@@ -281,3 +281,21 @@ describe('UC-74 Staff sitter list', () => {
     await request(app).get(root).query({ sort: 'rating' }).set(headers(staff)).expect(422);
   });
 });
+
+test('Staff leaderboard keeps exact global ordering and totals when winners appear after two cursor batches', async () => {
+  const ids = Array.from({ length: 251 }, () => new mongoose.Types.ObjectId());
+  await col('users').insertMany(ids.map((id, index) => ({ _id: id, displayName: `BOUND ${String(index).padStart(3, '0')}`,
+    roles: ['PET_SITTER'], state: 'ACTIVE', synthetic: false })));
+  await col('sitterstatuses').insertMany(ids.map(userId => ({ userId, status: 'ACTIVE' })));
+  await col('reviews').insertMany(ids.map((userId, index) => ({ sitterId: String(userId), direction: 'CUSTOMER_TO_SITTER',
+    state: 'PUBLISHED', rating: index >= 248 ? 5 : 1 })));
+  const read = cursor => request(app).get(root).query({ view: 'staffList', search: 'BOUND', limit: '2', ...(cursor ? { cursor } : {}) }).set(headers(staff));
+  const first = (await read().expect(200)).body.data;
+  expect(first.total).toBe(251);
+  expect(first.items.map(row => row.id)).toEqual(ids.slice(248, 250).map(String));
+  const next = (await read(first.nextCursor).expect(200)).body.data;
+  expect(next.total).toBe(251);
+  expect(next.tabCounts).toEqual(first.tabCounts);
+  expect(next.items.map(row => row.id)).toEqual([String(ids[250]), String(ids[0])]);
+  expect(next.asOf).toBe(first.asOf);
+});

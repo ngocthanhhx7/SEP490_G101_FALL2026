@@ -2,7 +2,7 @@
 
 System bookings may carry a MATCH candidate order into dispatch. Only employees
 passing current authoritative eligibility are ordered by that advice; directed
-bookings retain the chosen employee and no ranker can replace that choice.
+bookings retain the chosen employee. If that employee withdraws early, declines, expires or becomes ineligible, Staff may propose a replacement, but no alternative invitation is sent until the owning customer explicitly confirms. Previewing alternatives does not grant invitation permission.
 
 Assigned care routes compose `care/assigned-care.service.js` separately from the
 bounded invitation and assignment DTOs. Offers never include full care profiles,
@@ -15,23 +15,32 @@ employee guards protect work already assigned. `schedule-policy.service.js` owns
 window coverage, overnight handling, operational area ancestry and occupied contract minutes.
 
 `employee-dispatch.service.js` uses the existing invitation domain service. Its restart-safe
-worker sends persisted invitations in groups targeting five eligible employees, requires acceptance before assignment, preserves the
-customer-selected employee and rechecks payment, contract, approved capabilities, leave,
+worker offers one eligible employee at a time or the entire group tied on the
+highest remaining raw ranking score. It waits for all responses in the current
+group before sending another. It requires acceptance and rechecks payment,
+contract, approved capabilities, leave,
 registered area/time, overlaps, ordinary work hours and travel evidence. Candidate scanning
 is bounded to 100 registered employees with four concurrent checks and bounded provider requests.
 Automatic invitations require a declared daily origin, outward/return route evidence,
 and enough travel time. Approved MATCH advice is retained; otherwise route ETA and
 workload order eligible employees, including newcomers without invented ratings.
-Fewer than five invitations are sent only when the evaluated eligible pool is smaller;
-declines trigger replenishment. The first acceptance atomically revokes other offers.
+Without ranking scores, the existing deterministic order supplies one employee at
+a time. Automatic and explicitly addressed Staff offers use two hours, or 30 minutes
+when the visit starts in at most 24 hours, capped by the visit start. The first
+acceptance atomically revokes other offers.
 Only exhausted/unavailable invitations escalate to Staff/Admin, once per review episode.
 Staff cannot initiate invitations before escalation. Checkout creates its own care plan;
 the worker also finalizes compatible legacy orders still awaiting the former manual step.
+
+`visit-withdrawal.service.js` applies the server-side 12-hour boundary. Early withdrawal
+returns the visit to dispatch and sets the existing handover guard. Late withdrawal
+preserves the assignment and appears in the Staff queue. The service records one event
+per committed command. Handover confirmation is tracked separately.
 Advisory ranking cannot change eligibility, prices or assignment state.
 
 `schedule-proposal.service.js` uses the existing customer confirmation domain service.
 Staff proposals do not change operational times until the owning customer confirms. This
-atomic command retains employee/price/duration, rechecks eligibility and creates an invitation.
+atomic command retains price/duration, compares the previous nominee and visit version, and rechecks eligibility before creating one invitation for the customer-confirmed employee. Optional previousSitterId records the proposed replacement boundary without changing historical checkout snapshots.
 A boarding shift cannot be moved alone; changing the whole stay requires review/requote.
 
 `scheduling-storage.service.js` provisions additive collections/indexes through the guarded

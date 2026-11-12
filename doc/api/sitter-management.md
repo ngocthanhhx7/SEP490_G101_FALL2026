@@ -88,3 +88,7 @@ neither the directory nor an AI score reserves or assigns a slot.
 
 AI threshold60 remains unchanged. No verified outcome, rating, employment claim,
 payment or assignment is fabricated by this module.
+
+### Staff directory query bounds
+
+Global metric ordering scans the snapshot through a Mongo cursor in batches of 100 and retains only the best `limit + 1` candidates after each batch. Contact and metric reads remain scoped to each batch. Exact filtered totals/tab counts and signed metric cursor semantics are preserved; the implementation does not enrich only the first page and misrepresent the global order. Queries have a 5-second server deadline; a scan exceeding the 8-second processing budget fails explicitly (`503 SITTER_LIST_TIMEOUT`) instead of returning a partial leaderboard. No new store, index, plaintext phone tokens or materialized metrics cache is introduced.
