@@ -211,7 +211,7 @@ function StaffSitterList({ api }) {
           previousDisabled={!history.length} nextDisabled={!data.nextCursor}
           previousLabel="Trang trước" nextLabel="Trang sau" summary={data.total + ' người chăm sóc · 20 mỗi trang'} />
       </div>}
-      <p className="staff-sitter-note">Rút buổi và Đến muộn: số lần trong 30 ngày gần nhất. Số từ 2 trở lên được tô đỏ. Ca của người toàn thời gian do Admin nhập trong lịch ca.</p>
+      <p className="staff-sitter-note">Rút buổi: số buổi người đó rút hoặc xin rút trong 30 ngày gần nhất, mỗi buổi tính một lần. Đến muộn: số buổi check-in trễ hơn 5 phút trong 30 ngày gần nhất. Số từ 2 trở lên được tô đỏ. Ca của người toàn thời gian do Admin nhập trong lịch ca.</p>
     </section>
     <SitterReport resource={reports} areaName={areaName} days={days} setDays={setDays} />
   </main>;

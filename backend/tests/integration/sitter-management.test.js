@@ -183,6 +183,7 @@ describe('UC-74 Staff sitter list', () => {
   let fixtureTime;
   beforeAll(async () => {
     fixtureTime = new Date();
+    await connection.db.createCollection('employeescheduleevents');
     const timeAgo = days => new Date(+fixtureTime - days * 86400000);
     await col('users').insertMany(ids.map((id, index) => ({
       _id: id, displayName: index === 0 ? 'Nguyễn [An]' : index === 1 ? 'Trần Bình' : 'Ứ'.repeat(98) + String(index).padStart(2, '0'),
@@ -238,7 +239,7 @@ describe('UC-74 Staff sitter list', () => {
     const result = (await read({}, admin).expect(200)).body.data;
     expect(result.tabCounts).toEqual({ all: 23, partTime: 21, fullTime: 1 });
     expect(result.total).toBe(23);
-    expect(result.withdrawalsAvailable).toBe(false);
+    expect(result.withdrawalsAvailable).toBe(true);
     expect(result.items.every(item => item.status === 'ACTIVE' && item.accountState === 'ACTIVE')).toBe(true);
     const fullTime = (await read({ employmentType: 'FULL_TIME' }, staff).expect(200)).body.data;
     expect(fullTime.items.map(item => item.id)).toEqual([String(ids[1])]);
@@ -258,7 +259,7 @@ describe('UC-74 Staff sitter list', () => {
     expect(none.tabCounts).toEqual(result.tabCounts);
   });
 
-  test('GBR-29 and GBR-48 count authoritative data, keep missing sources unknown, and paginate both available sorts', async () => {
+  test('GBR-29 and GBR-48 count authoritative data and paginate by rating and late check-ins', async () => {
     const results = {};
     for (const sort of ['rating', 'lateCheckIns']) {
       const first = (await read({ sort }, staff).expect(200)).body.data;
@@ -273,12 +274,83 @@ describe('UC-74 Staff sitter list', () => {
       await read({ sort: sort === 'rating' ? 'lateCheckIns' : 'rating', cursor: first.nextCursor }, staff).expect(422);
     }
     const rating = results.rating;
-    expect(rating[1]).toMatchObject({ id: String(ids[0]), rating: 4.5, lateCheckIns: 2, withdrawals: null,
+    expect(rating[1]).toMatchObject({ id: String(ids[0]), rating: 4.5, lateCheckIns: 2, withdrawals: 0,
       approvedLeave: null, shift: null, workingWindows: [{ weekday: 1, startLocalTime: '08:00', endLocalTime: '12:00' }] });
     expect(rating.at(-1).rating).toBeNull();
     expect(rating[0]).toMatchObject({ lateCheckIns: 0, workingWindows: [], shift: null });
-    await read({ sort: 'withdrawals' }, staff).expect(422);
     await request(app).get(root).query({ sort: 'rating' }).set(headers(staff)).expect(422);
+  });
+
+  test('UC-74 leaves withdrawals unknown and rejects withdrawal sorting when the event collection is absent', async () => {
+    await col('employeescheduleevents').drop();
+    try {
+      const { data } = (await read({}, staff).expect(200)).body;
+      expect(data.withdrawalsAvailable).toBe(false);
+      expect(data.items[0].withdrawals).toBeNull();
+      const response = await read({ sort: 'withdrawals' }, staff).expect(422);
+      expect(response.body.error.code).toBe('VALIDATION_FAILED');
+    } finally {
+      await provisionEmployeeScheduling(connection);
+    }
+  });
+
+  test('UC-74 counts distinct UC-82 visits per sitter and ranks by count, Vietnamese name and ID', async () => {
+    const sharedVisit = String(oid());
+    const event = (type, sitter, visitId = String(oid())) => ({
+      _id: oid(), type, sitterId: String(sitter), visitId, at: fixtureTime
+    });
+    const events = [
+      event('VisitWithdrawn', ids[0]),
+      event('VisitWithdrawn', ids[1], sharedVisit),
+      event('VisitWithdrawalRequested', ids[1], sharedVisit),
+      event('VisitWithdrawn', ids[1], sharedVisit),
+      event('VisitWithdrawn', ids[1]),
+      event('VisitWithdrawalRequested', ids[2], sharedVisit),
+      event('VisitWithdrawalRequested', ids[3]),
+      event('OfferCreated', ids[0]),
+      event('VisitWithdrawn', oid())
+    ];
+    const tiedUser = await col('users').findOne({ _id: ids[3] });
+    const sameName = (await col('users').findOne({ _id: ids[2] })).displayName;
+    await col('users').updateOne({ _id: ids[3] }, { $set: { displayName: sameName } });
+    try {
+      await col('employeescheduleevents').insertMany(events);
+      const first = (await read({ sort: 'withdrawals', limit: '3' }, staff).expect(200)).body.data;
+      const second = (await read({ sort: 'withdrawals', limit: '3', cursor: first.nextCursor }, staff).expect(200)).body.data;
+      const [firstTie, secondTie] = [String(ids[2]), String(ids[3])].sort();
+      expect(first.withdrawalsAvailable).toBe(true);
+      expect(first.items.map(item => [item.id, item.withdrawals])).toEqual([
+        [String(ids[1]), 2], [String(ids[0]), 1], [firstTie, 1]
+      ]);
+      expect(second.items[0]).toMatchObject({ id: secondTie, withdrawals: 1 });
+      expect(second.items.slice(1).map(item => item.withdrawals)).toEqual([0, 0]);
+      expect(second.asOf).toBe(first.asOf);
+    } finally {
+      await col('employeescheduleevents').deleteMany({ _id: { $in: events.map(event => event._id) } });
+      await col('users').updateOne({ _id: ids[3] }, { $set: { displayName: tiedUser.displayName } });
+    }
+  });
+
+  test.each([
+    ['at asOf minus 30 days', -30 * 86400000, 1],
+    ['1 ms before asOf minus 30 days', -30 * 86400000 - 1, 0],
+    ['at asOf', 0, 1],
+    ['1 ms after asOf', 1, 0]
+  ])('UC-74 applies the cursor window to a withdrawal %s', async (_label, offset, count) => {
+    const query = { sort: 'rating', limit: '1' };
+    const first = (await read(query, staff).expect(200)).body.data;
+    const eventId = oid();
+    await col('employeescheduleevents').insertOne({
+      _id: eventId, type: 'VisitWithdrawn', sitterId: String(ids[0]), visitId: String(oid()),
+      at: new Date(Date.parse(first.asOf) + offset)
+    });
+    try {
+      const second = (await read({ ...query, cursor: first.nextCursor }, staff).expect(200)).body.data;
+      expect(second.asOf).toBe(first.asOf);
+      expect(second.items[0]).toMatchObject({ id: String(ids[0]), withdrawals: count });
+    } finally {
+      await col('employeescheduleevents').deleteOne({ _id: eventId });
+    }
   });
 });
 
