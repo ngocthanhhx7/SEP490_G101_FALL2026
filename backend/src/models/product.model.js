@@ -10,6 +10,7 @@ import {
   PRODUCT_REFUSAL_REASONS
 } from '../constants/product-fields.js';
 import { SUPPLIER_STATUSES, SUPPLIER_LIMITS } from '../constants/supplier-fields.js';
+import { GOODS_RECEIPT_LIMITS } from '../constants/goods-receipt-fields.js';
 
 const cartLine = sub({
   productId: { type: oid, required: true },
@@ -25,6 +26,16 @@ const orderLine = sub({
   // Set when a returned order is confirmed: how many of this line go back on sale (0 to quantity).
   resellableQuantity: { ...integer(0, 99) }
 });
+// One product of a goods receipt. The code and name are copied when the receipt is saved, like an order line.
+const receiptLine = sub({
+  productId: { type: oid, required: true },
+  productCode: { type: String, required: true, maxlength: 20 },
+  productName: { type: String, required: true, maxlength: 200 },
+  quantityReceived: { ...integer(1, GOODS_RECEIPT_LIMITS.quantityMax), required: true },
+  quantityAccepted: { ...integer(0, GOODS_RECEIPT_LIMITS.quantityMax), required: true },
+  quantityRejected: { ...integer(0, GOODS_RECEIPT_LIMITS.quantityMax), required: true },
+  rejectReason: { type: String, default: '', maxlength: GOODS_RECEIPT_LIMITS.rejectReasonMax }
+});
 const deliveryAddress = sub({
   addressId: { type: oid, required: true },
   label: { type: String, required: true, maxlength: 100 },
@@ -32,7 +43,7 @@ const deliveryAddress = sub({
   areaCode: { type: String, required: true, maxlength: 80 }
 });
 
-// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters, suppliers (default Mongoose names).
+// Collections: products, productcarts, productorders, productcustomerrefusals, productcounters, suppliers, goodsreceipts (default Mongoose names).
 export function productSalesModels(connection) {
   return registerModels(connection, {
     Product: {
@@ -76,6 +87,9 @@ export function productSalesModels(connection) {
         // The products this supplier supplies, for the record. A goods receipt is not limited to them.
         productIds: { type: [oid], default: [], validate: (ids) => ids.length <= SUPPLIER_LIMITS.productsMax },
         status: { type: String, enum: SUPPLIER_STATUSES, default: 'ACTIVE' },
+        // Set when a goods receipt is saved for this supplier. It makes that save conflict with stopping the supplier at
+        // the same moment, and leaves `version` alone so an Admin editing the supplier is not turned away.
+        lastReceiptAt: { type: Date },
         version: { ...integer(), default: 0 }
       },
       indexes: [
@@ -137,6 +151,32 @@ export function productSalesModels(connection) {
       indexes: [
         [{ orderId: 1 }, { unique: true }],
         [{ customerId: 1 }, {}]
+      ]
+    },
+    // A goods receipt (R3 UC-70). Never edited or deleted. `number` is the numeric part of `code` (PN-0012 is 12),
+    // kept so the next code is never behind the highest one in use.
+    GoodsReceipt: {
+      fields: {
+        code: { type: String, required: true, maxlength: 20 },
+        number: { ...integer(1), required: true },
+        supplierId: { type: oid, required: true },
+        supplierName: { type: String, required: true, maxlength: SUPPLIER_LIMITS.nameMax },
+        // The day of receiving in Vietnam, as YYYY-MM-DD; set by the system when the receipt is saved.
+        receivedOn: { type: String, required: true, match: /^\d{4}-\d{2}-\d{2}$/u },
+        recorderId: { type: oid, required: true },
+        recorderName: { type: String, required: true, maxlength: 100 },
+        lines: { type: [receiptLine], required: true },
+        totalReceived: { ...integer(), required: true },
+        totalAccepted: { ...integer(), required: true },
+        totalRejected: { ...integer(), required: true },
+        // D-218, as for orders: the key of the save and a fingerprint of what was sent, so a repeat returns this receipt.
+        idempotencyKey: { type: String, required: true, maxlength: 128 },
+        requestFingerprint: { type: String, required: true, maxlength: 128 }
+      },
+      indexes: [
+        [{ code: 1 }, { unique: true }],
+        [{ number: -1 }, { unique: true }],
+        [{ recorderId: 1, idempotencyKey: 1 }, { unique: true }]
       ]
     },
     ProductCounter: {

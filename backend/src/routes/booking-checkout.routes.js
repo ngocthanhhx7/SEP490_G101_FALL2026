@@ -8,7 +8,6 @@ import { point } from '../validators/pet-care.validator.js';
 import { createCheckoutAvailabilityService } from '../services/booking-proposals/checkout-availability.service.js';
 import { createEmployeeScheduleRepository } from '../services/employee-scheduling/employee-schedule.repository.js';
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
-import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
 import { rateLimit } from 'express-rate-limit';
 
 export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, provider }) {
@@ -28,7 +27,7 @@ export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clo
     point(facilityCoordinates);
   }
   const availability = createCheckoutAvailabilityService({ connection, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, facilityCoordinates,
-    repository: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' ? createEmployeeScheduleRepository({ connection, clock, coverageAreas: DEMO_WORK_AREAS,
+    repository: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' ? createEmployeeScheduleRepository({ connection, clock,
       routingProvider: createConfiguredRoutingProvider({ env, config, clock }) }) : null });
   const service = createBookingCheckoutService({ connection, clock, selectionGuard: availability.guard, provider: provider ?? (payos ? createPayosProvider(payos) : null),
     webOrigin, facilityAddress: env.BOOKING_FACILITY_ADDRESS, facilityCoordinates });

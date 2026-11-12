@@ -19,7 +19,7 @@ export function DispatchRecoveryPanel({ row, workAreas = [], api, command, selec
     event.preventDefault(); const current = ++generation.current;
     setLoading(true); setResult(null); setError(''); setSitterId('');
     try {
-      const response = await api.candidates(row.id, { startAt: `${startAt}:00+07:00`, areaCode });
+      const response = await api.candidates(row.id, { startAt: `${startAt}:00+07:00`, areaCode, ...(row.requestedSitterId ? { mode: 'REPLACEMENT' } : {}) });
       if (generation.current !== current) return;
       setResult(response.data);
       const preferred = row.requestedSitterId || selectedSitter;
@@ -28,8 +28,8 @@ export function DispatchRecoveryPanel({ row, workAreas = [], api, command, selec
     finally { if (generation.current === current) setLoading(false); }
   }
   if (row.boarding) return <p>Ca lưu trú cần xem lại toàn bộ kỳ lưu trú trước khi đổi lịch.</p>;
-  return <details><summary>Đề xuất lịch khác</summary>
-    <p>Lịch hiện tại được giữ đến khi khách xác nhận. Người chăm sóc vẫn cần nhận lời mời.</p>
+  return <details><summary>Đề xuất lịch hoặc người thay thế</summary>
+    <p>Lịch và người được chỉ định chỉ thay đổi sau khi khách xác nhận. Có thể giữ giờ đã đặt để đề xuất người thay thế; người đó vẫn cần nhận lời mời.</p>
     <form onSubmit={find}>
       <Input label="Bắt đầu đề xuất" type="datetime-local" required value={startAt} disabled={disabled}
         onChange={event => change(() => setStartAt(event.target.value))} />

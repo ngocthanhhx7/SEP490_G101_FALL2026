@@ -1,15 +1,19 @@
 import { employeeSchedulingModels } from '../../models/employee-scheduling.model.js';
 import { AppError } from '../../utils/app-error.js';
 
+export const schedulingSourceIndexes = [
+  ['visits', { sitterId: 1, state: 1, startAt: 1, endAt: 1 }],
+  ['visits', { state: 1, startAt: 1, _id: 1 }],
+  ['visits', { startAt: 1, _id: 1 }],
+  ['bookings', { carePlanState: 1, createdAt: 1, _id: 1 }]
+];
+
 export async function provisionEmployeeScheduling(connection) {
   for (const model of Object.values(employeeSchedulingModels(connection))) {
     await model.createCollection();
     await model.createIndexes();
   }
-  await connection.db.collection('visits').createIndex({ sitterId: 1, state: 1, startAt: 1, endAt: 1 });
-  await connection.db.collection('visits').createIndex({ state: 1, startAt: 1, _id: 1 });
-  await connection.db.collection('visits').createIndex({ startAt: 1, _id: 1 });
-  await connection.db.collection('bookings').createIndex({ carePlanState: 1, createdAt: 1, _id: 1 });
+  for (const [name, keys] of schedulingSourceIndexes) await connection.db.collection(name).createIndex(keys);
 }
 export async function assertEmployeeSchedulingStorage(connection) {
   const names = new Set((await connection.db.listCollections({}, { nameOnly: true }).toArray()).map(row => row.name));

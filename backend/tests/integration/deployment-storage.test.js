@@ -7,6 +7,7 @@ import { provisionDeploymentStorage } from '../../src/services/deployment-storag
 import { assertPayrollStorage } from '../../src/services/payroll/payroll-storage.service.js';
 import { assertFinanceSourceStorage } from '../../src/services/settlements/source-provisioning.js';
 import { assertEmployeeSchedulingStorage } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
+import { inspectBookingReadStorage, provisionBookingReadStorage } from '../../src/services/booking-read-storage.service.js';
 
 jest.setTimeout(120000);
 let replica;
@@ -42,6 +43,8 @@ test('provisions enabled production storage repeatedly and preserves existing re
   const { connection } = context;
   const existing = { _id: new mongoose.Types.ObjectId(), state: 'SYNTHETIC_EXISTING_BOOKING', amountVnd: 123456 };
   await connection.collection('bookings').insertOne(existing);
+  const preflight = await inspectBookingReadStorage(connection);
+  await provisionBookingReadStorage({ connection, apply: true, expectedDigest: preflight.digest });
   expect((await provisionDeploymentStorage(context)).state).toBe('INDEXES_READY');
   await assertPayrollStorage(connection);
   await assertFinanceSourceStorage(connection);

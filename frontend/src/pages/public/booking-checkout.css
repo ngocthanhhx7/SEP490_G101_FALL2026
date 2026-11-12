@@ -13,3 +13,6 @@
 .pwc-visit-rating { display: grid; justify-items: start; gap: 12px; padding: 16px 0; border-top: 1px solid #d4dcd8; }
 .pwc-visit-rating label { display: grid; gap: 6px; }
 .pwc-visit-rating select { min-height: 42px; min-width: 120px; padding: 8px; background: white; color: #202b28; font: inherit; border: 1px solid #849a90; border-radius: 4px; }
+
+.pwc-booking-reference { font-size: 13px; color: #71647e; overflow-wrap: anywhere; }
+.pwc-booking-current-status { display: inline-block; padding: 8px 14px; border-radius: 22px; color: #512c77; background: #f0e4fb; }

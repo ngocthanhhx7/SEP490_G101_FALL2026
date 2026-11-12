@@ -1,5 +1,7 @@
 import { Types } from 'mongoose';
+import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
 import { AppError } from '../utils/app-error.js';
+import { parsePriceHistoryQuery } from '../validators/service-price-history.validator.js';
 
 function invalid(message = 'Price configuration is invalid') {
   throw new AppError(422, 'VALIDATION_FAILED', message);
@@ -45,14 +47,14 @@ function priceView(price) {
   };
 }
 
-export function createServicePriceService({ connection, PriceVersion, Audit, serviceExists, clock = Date.now }) {
-  if (!connection?.transaction || !PriceVersion || !Audit || typeof serviceExists !== 'function'
+export function createServicePriceService({ connection, PriceVersion, serviceExists, clock = Date.now }) {
+  if (!connection?.transaction || !PriceVersion || typeof serviceExists !== 'function'
     || typeof clock !== 'function') throw new TypeError('Service price dependencies are required');
 
   async function list(serviceId) {
     const id = serviceObjectId(serviceId);
     if (!await serviceExists(id.toString())) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Service not found');
-    const prices = await PriceVersion.find({ serviceId: id }).sort({ effectiveAt: -1, version: -1 }).lean();
+    const prices = await PriceVersion.find({ serviceId: id }).sort({ effectiveAt: -1 }).lean();
     return prices.map(priceView);
   }
 
@@ -66,7 +68,7 @@ export function createServicePriceService({ connection, PriceVersion, Audit, ser
     const id = serviceObjectId(serviceId);
     if (!await serviceExists(id.toString())) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Service not found');
     const price = await PriceVersion.findOne({ serviceId: id, effectiveAt: { $lte: at } })
-      .sort({ effectiveAt: -1, version: -1 }).lean();
+      .sort({ effectiveAt: -1 }).lean();
     return price ? priceView(price) : null;
   }
 
@@ -86,15 +88,10 @@ export function createServicePriceService({ connection, PriceVersion, Audit, ser
         }
         const now = new Date(clock());
         const [price] = await PriceVersion.create([{
+          changeAudit: createCatalogChange('SERVICE_PRICE_VERSIONED', ['amountVnd', 'currency', 'unitLabel']),
           serviceId: id, version: input.expectedVersion + 1, amountVnd: input.amountVnd,
           currency: 'VND', unitLabel: input.unitLabel, effectiveAt: input.effectiveAt,
           changedBy: new Types.ObjectId(actor.userId), reason: input.reason, recordedAt: now
-        }], { session });
-        await Audit.create([{
-          actorId: new Types.ObjectId(actor.userId), action: 'SERVICE_PRICE_VERSIONED',
-          resourceType: 'service-price', resourceId: id, version: price.version,
-          changedFields: ['amountVnd', 'currency', 'unitLabel'], reason: input.reason,
-          effectiveAt: input.effectiveAt, occurredAt: now
         }], { session });
         return priceView(price.toObject());
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
@@ -102,9 +99,30 @@ export function createServicePriceService({ connection, PriceVersion, Audit, ser
   }
 
   async function getActivePrices(serviceIds, at = new Date(clock())) {
+    if (serviceIds.length > 1000) throw new AppError(503, 'CATALOG_SOURCE_LIMIT', 'Catalog exceeds the bounded read budget');
     const rows = await PriceVersion.aggregate([{ $match: { serviceId: { $in: serviceIds.map(serviceObjectId) }, effectiveAt: { $lte: at } } },
-      { $sort: { effectiveAt: -1, version: -1 } }, { $group: { _id: '$serviceId', price: { $first: '$$ROOT' } } }]).option({ maxTimeMS: 5000 });
+      { $sort: { serviceId: -1, effectiveAt: -1 } }, { $group: { _id: '$serviceId', price: { $first: '$$ROOT' } } }]).option({ maxTimeMS: 5000 });
     return new Map(rows.map(row => [String(row._id), priceView(row.price)]));
   }
-  return Object.freeze({ list, latestVersion, getActivePrice, getActivePrices, createVersion });
+  async function listHistory(serviceId, query) {
+    const id = serviceObjectId(serviceId);
+    if (!await serviceExists(id.toString())) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Service not found');
+    const { limit, before } = parsePriceHistoryQuery(query, id.toString());
+    let rows, latest;
+    try { [rows, latest] = await Promise.all([
+      PriceVersion.find({ serviceId: id, ...(before ? { effectiveAt: { $lt: before } } : {}) })
+        .sort({ effectiveAt: -1 }).limit(limit + 1)
+        .select('serviceId version amountVnd currency unitLabel effectiveAt').maxTimeMS(5000).lean(),
+      PriceVersion.findOne({ serviceId: id }).sort({ version: -1 }).select('version').maxTimeMS(5000).lean()
+    ]); } catch (error) {
+      if (error?.code === 50 || error?.codeName === 'MaxTimeMSExpired') {
+        throw new AppError(503, 'PRICE_HISTORY_UNAVAILABLE', 'Price history is temporarily unavailable');
+      }
+      throw error;
+    }
+    const prices = rows.slice(0, limit).map(priceView);
+    return { prices, latestVersion: latest?.version ?? 0,
+      nextCursor: rows.length > limit ? id.toString() + '~' + prices.at(-1).effectiveAt : null };
+  }
+  return Object.freeze({ list, latestVersion, getActivePrice, getActivePrices, createVersion, listHistory });
 }

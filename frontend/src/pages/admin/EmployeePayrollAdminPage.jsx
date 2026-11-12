@@ -44,7 +44,8 @@ function DecisionForm({ row, kind, state, api }) {
     const form = event.currentTarget,
       data = new window.FormData(form);
     const body = { expectedVersion: row.version, action: data.get('action') };
-    if (body.action === 'REJECT') body.reason = data.get('reason');
+    if (['REJECT', 'VOID_UNPAID'].includes(body.action)) body.reason = data.get('reason');
+    if (body.action === 'VOID_UNPAID') body.confirmNoPayment = data.get('confirmNoPayment') === 'on';
     if (body.action === 'RECORD_PAYMENT') body.transferReference = data.get('transferReference');
     await state.command(`${kind}:${row.id}`, body, (key) =>
       api[kind === 'advance' ? 'advanceDecision' : 'statementDecision'](row.id, body, key),
@@ -56,14 +57,21 @@ function DecisionForm({ row, kind, state, api }) {
     <form className="payroll-form" onSubmit={decide}>
       {row.status === 'APPROVED' ? (
         <>
-          <input type="hidden" name="action" value="RECORD_PAYMENT" />
-          <PayrollField
+          {kind === 'statement' ? <label className="payroll-field"><span>Quyết định</span>
+            <select name="action" value={action === 'VOID_UNPAID' ? action : 'RECORD_PAYMENT'} onChange={event => setAction(event.target.value)}>
+              <option value="RECORD_PAYMENT">Ghi nhận đã chi trả</option>
+              <option value="VOID_UNPAID">Hủy bảng đã duyệt nhưng chưa chi</option>
+            </select></label> : <input type="hidden" name="action" value="RECORD_PAYMENT" />}
+          {kind === 'statement' && action === 'VOID_UNPAID' ? <>
+            <PayrollField label="Lý do hủy bảng chưa chi" name="reason" maxLength={1000} />
+            <label><input type="checkbox" name="confirmNoPayment" required /> Tôi đã đối chiếu và xác nhận chưa thực hiện chi trả bảng này.</label>
+          </> : <PayrollField
             label="Mã giao dịch ngân hàng đã thực hiện"
             name="transferReference"
             maxLength={160}
-          />
+          />}
           <button disabled={state.busy} type="submit">
-            Ghi nhận đã chi trả
+            {kind === 'statement' && action === 'VOID_UNPAID' ? 'Hủy bảng chưa chi' : 'Ghi nhận đã chi trả'}
           </button>
         </>
       ) : (

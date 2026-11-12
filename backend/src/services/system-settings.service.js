@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
 import { AppError } from '../utils/app-error.js';
 
 const SETTING_KEY = 'SERVICE_CATALOG_VISIBLE';
@@ -42,14 +43,14 @@ function duplicateConflict(error) {
   throw error;
 }
 
-export function createSystemSettingsService({ connection, SettingVersion, Audit, clock = Date.now }) {
-  if (!connection?.transaction || !SettingVersion || !Audit || typeof clock !== 'function') {
+export function createSystemSettingsService({ connection, SettingVersion, clock = Date.now }) {
+  if (!connection?.transaction || !SettingVersion || typeof clock !== 'function') {
     throw new TypeError('System settings dependencies are required');
   }
 
   async function currentAt(at = new Date(clock())) {
     const record = await SettingVersion.findOne({ key: SETTING_KEY, effectiveAt: { $lte: at } })
-      .sort({ effectiveAt: -1, version: -1 }).lean();
+      .sort({ effectiveAt: -1 }).lean();
     return record ? view(record) : {
       key: SETTING_KEY, version: 0, enabled: false, effectiveAt: null, changedBy: null, reason: null, recordedAt: null
     };
@@ -91,14 +92,10 @@ export function createSystemSettingsService({ connection, SettingVersion, Audit,
         }
         const now = new Date(clock());
         const [record] = await SettingVersion.create([{
+          changeAudit: createCatalogChange('SERVICE_CATALOG_VISIBILITY_CHANGED', ['enabled']),
           key: SETTING_KEY, version: input.expectedVersion + 1, enabled: input.enabled,
           effectiveAt: input.effectiveAt, changedBy: new Types.ObjectId(actor.userId),
           reason: input.reason, recordedAt: now
-        }], { session });
-        await Audit.create([{
-          actorId: new Types.ObjectId(actor.userId), action: 'SERVICE_CATALOG_VISIBILITY_CHANGED',
-          resourceType: 'system-setting', resourceId: record._id, version: record.version,
-          changedFields: ['enabled'], reason: input.reason, effectiveAt: input.effectiveAt, occurredAt: now
         }], { session });
         return view(record.toObject());
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });

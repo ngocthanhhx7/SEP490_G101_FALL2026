@@ -23,3 +23,60 @@
   .employee-scheduling h1 { font-size: 23px; }
   .employee-scheduling__rows > li { align-items: flex-start; flex-direction: column; }
 }
+
+.dispatch-detail-dialog { width: min(960px, calc(100vw - 32px)); max-width: 960px; }
+.dispatch-picker { margin-block: 20px; padding-block: 18px; border-block: 1px solid #e7dff0; }
+.dispatch-candidate-list, .dispatch-blocked-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.dispatch-candidate, .dispatch-blocked-list > div { padding: 16px; border: 1px solid #ded5eb; border-radius: 12px; background: #fff; }
+.dispatch-candidate { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; }
+.dispatch-candidate:has(input:checked) { border-color: #7654a4; background: #f6f0fc; }
+.dispatch-candidate small { display: block; margin-top: 6px; }
+.dispatch-picker-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+.dispatch-blocked-list p { margin-block: 8px; }
+.sitter-capability-editor fieldset { display: grid; gap: 10px; margin-block: 12px; }
+
+.dispatch-picker input[type='radio'] { width: auto; flex: 0 0 auto; }
+
+/* Scoped sizing wins over generic dialog, label and input defaults. */
+.pwc-dialog.dispatch-detail-dialog { --pwc-dialog-width:1120px; width:min(1120px,calc(100vw - 40px)); max-width:1120px; box-sizing:border-box; padding:0; overflow:hidden; }
+.pwc-dialog.dispatch-detail-dialog[open] { display:flex; flex-direction:column; }
+.dispatch-detail-dialog > .pwc-dialog-header { flex:0 0 auto; align-items:center; padding:20px 28px; border-bottom:1px solid #e7dff0; }
+.dispatch-detail-dialog > .pwc-dialog-content { margin:0; padding:24px 28px; overflow-y:auto; min-height:0; }
+.dispatch-detail-layout { display:grid; grid-template-columns:minmax(240px,.8fr) minmax(0,1.7fr); gap:28px; align-items:start; }
+.dispatch-visit-summary { padding:20px; border:1px solid #e7dff0; border-radius:14px; background:#faf8fd; min-width:0; }
+.dispatch-visit-summary p { line-height:1.65; }.dispatch-visit-summary details { padding-top:16px; border-top:1px solid #e7dff0; }.dispatch-detail-work { min-width:0; }
+.dispatch-detail-work .dispatch-picker { margin:0; padding:0; border:0; }
+.dispatch-detail-dialog .dispatch-candidate-list { display:grid; grid-template-columns:minmax(0,1fr); padding:0; margin:20px 0; border:0; min-width:0; }
+.dispatch-candidate-list legend { font-weight:700; margin-bottom:12px; }
+.dispatch-detail-dialog .dispatch-candidate { display:flex; flex-direction:row; align-items:center; gap:14px; width:100%; max-width:none; min-height:88px; padding:16px; margin:0; box-sizing:border-box; }
+.pwc-dialog.dispatch-detail-dialog .dispatch-candidate input[type='radio'] { width:20px; height:20px; min-height:20px; min-width:20px; padding:0; margin:0; flex:0 0 20px; accent-color:#503178; }
+.dispatch-candidate > span { min-width:0; flex:1; }.dispatch-selected-label { margin-left:10px; font-size:.8rem; font-weight:700; color:#503178; }.dispatch-candidate small { color:#63576d; line-height:1.5; }
+.dispatch-blocked-section summary { min-height:44px; cursor:pointer; font-weight:700; }.dispatch-blocked-list { grid-template-columns:minmax(0,1fr); }.dispatch-picker-actions { padding-top:18px; border-top:1px solid #e7dff0; }.dispatch-picker-actions > button { flex:1 1 200px; }
+@media(max-width:760px) { .pwc-dialog.dispatch-detail-dialog { width:calc(100vw - 16px); max-height:calc(100dvh - 16px); }.dispatch-detail-layout { grid-template-columns:minmax(0,1fr); gap:20px; }.dispatch-detail-dialog > .pwc-dialog-header,.dispatch-detail-dialog > .pwc-dialog-content { padding:16px; } }
+
+.visit-withdrawal-dialog { --pwc-dialog-width: 35rem; }
+.visit-withdrawal-dialog form { display: grid; gap: var(--pwc-space-4); }
+.visit-withdrawal-dialog form label { display: block; max-width: none; font-weight: 700; }
+.visit-withdrawal-dialog select,
+.visit-withdrawal-dialog textarea {
+  display: block; width: 100%; margin-top: var(--pwc-space-2); padding: var(--pwc-space-3);
+  box-sizing: border-box; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface); color: var(--pwc-ink); font: inherit; font-weight: 400;
+}
+.visit-withdrawal-dialog textarea { resize: vertical; }
+.visit-withdrawal-dialog__time,
+.visit-withdrawal-dialog__notice { display: flex; gap: var(--pwc-space-2); align-items: flex-start; }
+.visit-withdrawal-dialog__time svg,
+.visit-withdrawal-dialog__notice svg { flex: 0 0 auto; margin-top: 0.15rem; }
+.visit-withdrawal-dialog__notice {
+  padding: var(--pwc-space-3); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-warning-surface); color: var(--pwc-warning);
+}
+.visit-withdrawal-dialog__notice--late { background: var(--pwc-error-surface); color: var(--pwc-error); }
+.employee-scheduling__withdrawal-result {
+  padding: var(--pwc-space-3); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-success-surface); color: var(--pwc-success);
+}
+.withdrawal-requests { margin-bottom: var(--pwc-space-4); }
+.withdrawal-requests .ops-table { min-width: 0; }
+.withdrawal-requests td { overflow-wrap: anywhere; }

@@ -14,8 +14,8 @@ function renderPage(apiRequest, role = 'ADMIN') {
 test('Admin writes an integer VND price with explicit unit and effective time', async () => {
   const apiRequest = jest.fn(async (path, options = {}) => {
     if (path === '/services/admin') return { data: [service], status: 200 };
-    if (path === '/service-prices/admin/' + service.id && !options.method) {
-      return { data: { prices: [], latestVersion: 0 }, status: 200 };
+    if (path === '/service-prices/admin/' + service.id + '/history?limit=20' && !options.method) {
+      return { data: { prices: [], latestVersion: 0, nextCursor: null }, status: 200 };
     }
     if (path === '/service-prices/admin/' + service.id && options.method === 'POST') {
       return { data: { version: 1, amountVnd: 95000 }, status: 201 };

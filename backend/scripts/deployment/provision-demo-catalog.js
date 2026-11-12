@@ -1,5 +1,6 @@
 import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
+import { referenceCatalogCliSource } from '../../src/models/reference-catalog-source.js';
 import { provisionDemoCatalog } from '../../src/services/demo-catalog-provisioning.service.js';
 import { demoCatalogKey, demoServiceCatalog } from '../../src/constants/demo-service-catalog.js';
 
@@ -12,7 +13,7 @@ try {
     if (process.env.CONFIRMED_CATALOG_KEY !== demoCatalogKey || process.env.CONFIRMED_CATALOG_DATABASE !== config.database) {
       throw new Error('Explicit catalog and target database confirmation required');
     }
-    connection = await connectDatabase(config);
+  connection = await connectDatabase(config, { referenceCatalog: referenceCatalogCliSource() });
     console.log(JSON.stringify(await provisionDemoCatalog({ connection })));
   }
 } catch {

@@ -1,3 +1,5 @@
+import { serviceAreaRuntimeModule } from './routes/service-area.routes.js';
+import { petRecordImportRuntimeModule } from './routes/pet-record-import.routes.js';
 import { avatarRuntimeModule } from './routes/avatar.routes.js';
 import { pricingRuntimeModule } from './routes/pricing.routes.js';
 import { petCareRuntimeModule } from './routes/pet-care.routes.js';
@@ -34,6 +36,9 @@ import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.ro
 import { mapsRuntimeModule } from './routes/maps.routes.js';
 import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
 import { customerReadRuntime } from './routes/customer-read-runtime.js';
+import { storageProfile, assertProfileModels } from './config/storage-profile.js';
+import { selectReferenceCatalogSource, assertReferenceCatalogModels } from './models/reference-catalog-source.js';
+import { assertEmbeddedPresentationModels } from './models/service-presentation.model.js';
 
 
 export function createApp({
@@ -44,9 +49,11 @@ export function createApp({
   moduleFactories = [],
   logger = () => {},
   env = process.env,
-  clock = Date.now
+  clock = Date.now,
+  referenceCatalog
 }) {
   const app = express();
+  if (connection?.models) selectReferenceCatalogSource(connection, referenceCatalog);
   const basePorts = createPorts();
   const providerPortOverrides = createProviderPortOverrides({
     env,
@@ -71,6 +78,7 @@ export function createApp({
     })
   );
   app.use(express.json({ limit: '64kb', strict: true }));
+  const compensationProfile = storageProfile(env);
   const context = { config, connection, lifecycle, ports, clock, env };
   const ai = aiRuntimeModule(context);
   const pricing = pricingRuntimeModule(context);
@@ -82,8 +90,10 @@ export function createApp({
   const financeSources = financeSourceRuntime(context);
   if (auth && financeSources) auth.router.use(financeSources.router);
   app.locals.financeSources = financeSources?.service ?? null;
+  app.locals.compensationProfile = compensationProfile;
   const customerProfile = customerProfileRuntimeModule(context);
   const avatars = avatarRuntimeModule(context);
+  const petRecordImport = petRecordImportRuntimeModule(context);
   const applicationStatus = applicationStatusModule(context);
   const userAdmin = config.auth?.enabled ? userAdminModule(context) : null;
   const privateImages = privateImageRuntimeModule(context);
@@ -95,6 +105,7 @@ export function createApp({
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
+  const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
   if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_DISPATCH_AGENT_ENABLED)) throw new TypeError('Invalid EMPLOYEE_DISPATCH_AGENT_ENABLED');
@@ -130,9 +141,11 @@ export function createApp({
     healthModule(context),
     publicPolicyModule(context),
     publicServiceAreasModule(context),
+    ...(serviceAreas ? [serviceAreas] : []),
     ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []),
     ...(avatars ? [avatars] : []),
+    ...(petRecordImport ? [petRecordImport] : []),
     ...(applicationStatus ? [applicationStatus] : []),
     ...(userAdmin ? [userAdmin] : []),
     ...(privateImages ? [privateImages] : []),
@@ -154,6 +167,9 @@ export function createApp({
     ...(ai ? [ai] : []),
     ...suppliedModules.filter(module => !auth || module.name !== 'dashboard-read')
   ]);
+  if (connection?.models) assertProfileModels(connection, compensationProfile);
+  if (connection?.models) assertReferenceCatalogModels(connection);
+  if (connection?.models) assertEmbeddedPresentationModels(connection);
   app.use(notFound, errorHandler(logger));
   return app;
 }

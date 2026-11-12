@@ -10,7 +10,9 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
+import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
+import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import '../../styles/employee-scheduling.css';
 
 const time = (value) =>
@@ -42,7 +44,14 @@ const reviewLabel = (code) =>
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
 export function EmployeeDispatchPage({ api, selectedSitter }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
-  const load = useCallback(({ signal }) => api.queue({ signal }), [api]);
+  const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
+  const load = useCallback(async ({ signal }) => {
+    const result = await api.queue({ signal });
+    if (!signal.aborted && !result.pending) {
+      setVisitTravelEnabled(result.data?.visitTravelEnabled === true);
+    }
+    return result;
+  }, [api]);
   const queue = useApiResource(load);
   const [selected, setSelected] = useState(null);
   const [proposal, setProposal] = useState(null);
@@ -112,6 +121,17 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             </p>
           </div>
         </header>
+        {!!queue.data?.withdrawalRequests?.length && <div className="withdrawal-requests">
+          <h3>Yêu cầu rút buổi</h3>
+          <OperationsTable label="Yêu cầu rút buổi" rows={queue.data.withdrawalRequests} columns={[
+            { key: 'visit', label: 'Buổi', render: row => <><strong>{row.serviceName ?? short(row.id)}</strong><small>{time(row.startAt)}</small></> },
+            { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? short(row.sitterId) },
+            { key: 'reason', label: 'Lý do', render: row => <>{VISIT_WITHDRAWAL_REASON_LABELS[row.reasonCode] ?? '—'}
+              {row.note && <small>{row.note}</small>}</> }
+          ]} />
+          <p className="ops-muted">Người chăm sóc vẫn được phân công cho đến khi nhân viên thay người hoặc huỷ buổi.</p>
+          {queue.data.withdrawalRequestsHaveMore && <p className="ops-muted">Đang hiển thị 50 yêu cầu theo giờ buổi sớm nhất.</p>}
+        </div>}
         <OperationsTable
           label="Ca cần điều phối"
           rows={rows}
@@ -237,11 +257,11 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
         <Dialog
           open
           title="Chi tiết điều phối"
-          className="ops-dialog"
+          className="ops-dialog dispatch-detail-dialog"
           dismissible={!command.busy && !command.pending}
           onClose={() => setSelected(null)}
         >
-          <h3>{active.serviceName}</h3>
+          <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceName}</h3>
           <p>
             {time(active.startAt)} – {time(active.endAt)} · {area(active.areaCode)}
           </p>
@@ -249,14 +269,16 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             {active.customerName ?? 'Khách hàng'} ·{' '}
             {active.reviewCode ? reviewLabel(active.reviewCode) : 'Hệ thống đang điều phối'}
           </p>
-          <DispatchDiagnostics value={active.diagnostics} />
-          {active.pendingInvitation ? (
+          <details><summary>Kết quả tìm tự động gần nhất</summary><DispatchDiagnostics value={active.diagnostics} /><p>Danh sách chỉ định bên dưới được kiểm tra lại theo điều kiện mời thủ công cho lịch hiện tại.</p></details>
+          </aside><div className="dispatch-detail-work">{active.pendingInvitation ? (
             <p>
               {active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi ·{' '}
               {time(active.pendingInvitation.deadline)}
             </p>
           ) : active.reviewCode === 'SHIFT_START_REACHED' ? (
             <p>Cần khách xác nhận lịch mới trước khi tìm lại.</p>
+          ) : active.dispatchState === 'NEEDS_STAFF' && api.candidates ? (
+            <DispatchSitterPicker key={`${active.id}:${active.version}`} row={active} api={api} command={command} selectedSitter={selectedSitter} onProposed={setProposal} />
           ) : active.dispatchState === 'NEEDS_STAFF' ? (
             <Button
               disabled={
@@ -279,7 +301,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           ) : (
             <p>Hệ thống đang tìm người nhận ca</p>
           )}
-          {active.dispatchState === 'NEEDS_STAFF' && api.candidates && (
+          {active.dispatchState === 'NEEDS_STAFF' && !active.pendingInvitation && api.candidates && (
             <DispatchRecoveryPanel
               key={`${active.id}:${active.version}`}
               row={active}
@@ -296,9 +318,10 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
               Kiểm tra lại yêu cầu
             </Button>
           )}
+          </div></div>
         </Dialog>
       )}
-      {api.travelVisits && <StaffTravelMonitor api={api} />}
+      {visitTravelEnabled && api.travelVisits && <StaffTravelMonitor api={api} />}
     </section>
   );
 }

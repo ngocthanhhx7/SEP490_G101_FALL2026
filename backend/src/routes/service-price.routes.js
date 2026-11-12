@@ -7,7 +7,6 @@ import {
   requireSession
 } from '../middlewares/session.js';
 import { servicePriceVersionModel } from '../models/service-price-version.model.js';
-import { servicePriceAuditModel } from '../models/service-price-audit.model.js';
 import { createSessionService } from '../services/session.service.js';
 import { createServicePriceService } from '../services/service-price.service.js';
 
@@ -24,7 +23,6 @@ export function servicePriceModule({
   const service = createServicePriceService({
     connection,
     PriceVersion: servicePriceVersionModel(connection),
-    Audit: servicePriceAuditModel(connection),
     serviceExists,
     clock
   });
@@ -53,6 +51,11 @@ export function servicePriceModule({
       requireRoles('ADMIN')
     ];
     const csrf = requireCsrf(sessionService);
+    router.get(
+      '/admin/:serviceId/history',
+      ...staff,
+      createServicePriceController({ service }).getAdminHistory
+    );
     router.get(
       '/admin/:serviceId',
       ...staff,

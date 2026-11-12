@@ -130,7 +130,7 @@ test('missing request is a deliberate 404 and read policy remains visible', asyn
   await expect(service.list({ actor, cursor: 'malformed' })).rejects.toMatchObject({ status: 422 });
 });
 
-test('default app mounts Admin payroll with real session and blocks unresolved writes', async () => {
+test('explicit legacy app mounts Admin payroll with real session and blocks unresolved writes', async () => {
   const f = await settlementRuntimeFixture(connection, replica.getUri(), 'ADMIN');
   await request(f.app).get('/api/v1/admin/settlements').expect(401);
   const response = await request(f.app).get('/api/v1/admin/settlements').set('Cookie', f.cookie).expect(200);

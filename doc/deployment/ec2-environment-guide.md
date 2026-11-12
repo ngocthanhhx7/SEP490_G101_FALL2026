@@ -130,3 +130,12 @@ Giữ nguyên `R2_*` đang có. Bật `SITTER_DOCUMENTS_ENABLED=true` và đặt
 Trên local, chỉnh backend/.env và khởi động lại backend. Trên EC2, chỉnh /opt/pawworldcare/shared/.env rồi tạo lại container bằng activate-release.py của SHA main đã review; docker restart không nạp lại env. Không bật public URL cho bucket và không đổi các khóa OTP/session/contact.
 
 Trước khi chuyển bucket ở một môi trường đã có hồ sơ, phải sao chép và kiểm tra các object applicant-documents/ được tham chiếu trước khi đổi cấu hình; không tự xóa bucket cũ. Prefix không thay thế quyền truy cập: các endpoint, kiểm tra owner/Admin, signed URL, collection và quota vẫn riêng.
+
+## Compensation storage profile
+
+`COMPENSATION_PROFILE` defaults to `EMPLOYEE`. Startup disables autoCreate/autoIndex
+and checks registered collection plus unique/TTL index metadata; explicit deployment
+provisioning owns creation. `LEGACY_PARTNER` is a compatibility profile requiring
+its legacy stores and unresolved-policy gates; it must not be used to bypass employee
+commission holds. Switching profile needs its own checked release/data plan. The
+employee rollout uses the default and does not overwrite the existing `.env`.

@@ -31,7 +31,9 @@ export function usePayrollWorkspace(load) {
       if (mounted.current) { setMessage('Đã lưu.'); await refresh(); }
       return true;
     } catch (error) {
-      if (mounted.current) setMessage(`Chưa xác nhận được thao tác (${error.code || 'NETWORK_ERROR'}).`);
+      if (mounted.current) setMessage(error.code === 'PAYROLL_COMMISSION_HELD'
+        ? 'Hoa hồng của booking đang được tạm giữ. Nếu chưa chi trả, hãy hủy bảng chưa chi và lập lại bảng lương; lương cơ bản và phụ cấp không bị khấu trừ. Hoặc chờ Admin kết luận khiếu nại/hoàn tiền.'
+        : `Chưa xác nhận được thao tác (${error.code || 'NETWORK_ERROR'}).`);
       return false;
     } finally { locked.current = false; if (mounted.current) setBusy(false); }
   };

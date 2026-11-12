@@ -26,3 +26,5 @@ runtime registration.
 
 `directed-booking-proposal.service.js` re-exports the P42 service while the
 legacy P21 import remains available for existing dispatch consumers.
+
+Directed availability accepts optional `directory: true, page` to read every active, publicly approved sitter registered for the quoted service in pages of 20, ordered by published Customer rating descending then stable userId. Unknown ratings sort last. Each row carries authoritative preview eligibility/reason; unsuitable schedules remain visible but cannot be selected. No AI threshold filters this directory. Quote ownership, current pet/address checks and transactional checkout guard remain mandatory.

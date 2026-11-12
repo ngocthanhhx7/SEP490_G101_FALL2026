@@ -2,7 +2,7 @@
 
 System bookings may carry a MATCH candidate order into dispatch. Only employees
 passing current authoritative eligibility are ordered by that advice; directed
-bookings retain the chosen employee and no ranker can replace that choice.
+bookings retain the chosen employee. If that employee withdraws early, declines, expires or becomes ineligible, Staff may propose a replacement, but no alternative invitation is sent until the owning customer explicitly confirms. Previewing alternatives does not grant invitation permission.
 
 Assigned care routes compose `care/assigned-care.service.js` separately from the
 bounded invitation and assignment DTOs. Offers never include full care profiles,
@@ -27,11 +27,16 @@ declines trigger replenishment. The first acceptance atomically revokes other of
 Only exhausted/unavailable invitations escalate to Staff/Admin, once per review episode.
 Staff cannot initiate invitations before escalation. Checkout creates its own care plan;
 the worker also finalizes compatible legacy orders still awaiting the former manual step.
+
+`visit-withdrawal.service.js` applies the server-side 12-hour boundary. Early withdrawal
+returns the visit to dispatch and sets the existing handover guard. Late withdrawal
+preserves the assignment and appears in the Staff queue. The service records one event
+per committed command. Handover confirmation is tracked separately.
 Advisory ranking cannot change eligibility, prices or assignment state.
 
 `schedule-proposal.service.js` uses the existing customer confirmation domain service.
 Staff proposals do not change operational times until the owning customer confirms. This
-atomic command retains employee/price/duration, rechecks eligibility and creates an invitation.
+atomic command retains price/duration, compares the previous nominee and visit version, and rechecks eligibility before creating one invitation for the customer-confirmed employee. Optional previousSitterId records the proposed replacement boundary without changing historical checkout snapshots.
 A boarding shift cannot be moved alone; changing the whole stay requires review/requote.
 
 `scheduling-storage.service.js` provisions additive collections/indexes through the guarded
@@ -67,3 +72,10 @@ invalid or timed-out advice preserves deterministic ordering. A private selected
 feature snapshot is copied from the offer to the visit only on acceptance.
 
 `dispatch-workspace.service.js` supplies a read-only Vietnam-day projection: all-day counts and at most 50 chronologically sorted visits with allowlisted display names. ASSIGNED visits more than 15 minutes late without check-in are flagged for inspection, not automatically closed or deemed absent. Queue display names are enriched separately; the worker query, invitation eligibility and financial writes are unchanged.
+
+`calendar-read.service.js` reads current/capability off dates plus effective
+revision baseline/transitions in one read-only snapshot session, using at most four
+data commands (three for a single day). It groups same-day revisions by their
+latest version with existing indexes; no guard or scheduling writes move here.
+
+Current-time MANUAL previews use the same eligibility as explicit manual invitations, expose bounded Staff-only per-person blocking reasons and sort by weekly workload. Automatic/alternative-time previews still require daily-origin route evidence. `sitter-origin.service.js` owns employee-only day-origin declarations with shared capability CAS, employee guards and audited idempotency. See [onboarding design](../../../../doc/testing/dispatch-onboarding-2026-11-09.md).

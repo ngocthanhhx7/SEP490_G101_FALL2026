@@ -2,6 +2,15 @@
 
 Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
 
+Reference catalog candidate: `ensure-indexes.js`, `provision-demo-catalog.js`
+and `provision-hanoi-demo.js` accept `--reference-catalog=target`. The same option
+is supported by the affected seed/demo CLIs. After the reviewed copy/shadow gate,
+production defaults to target; dev/test default to legacy. Choice is bound to
+the connection before any model construction and cannot be switched later.
+Target deployment provisions only `reference_catalog` for breeds/traits, asserts
+strict validator/exact index shape, and rejects leaked legacy registry models.
+See [candidate cutover plan](../../../doc/database/reference-catalog-candidate.md).
+
 `provision-demo-catalog.js` installs the owner-approved 13-service sheet catalog.
 Dry-run is the default. After backup, use the reviewed image with `--apply` and
 explicit `CONFIRMED_CATALOG_KEY=pawworld-demo-sheet-2026-10-30-v1` plus
@@ -35,6 +44,12 @@ transactions are inserted. Conflicting indexes, duplicate data and the obsolete
 all-history payroll period index stop deployment for a reviewed migration; this
 command never drops or replaces an existing index. A failed run may leave additive
 collections/indexes in place and is safe to repeat after the conflict is resolved.
+
+Finance-enabled activation also requires the six reviewed raw native validator
+contracts. New raw collections receive their source options; existing missing or
+drifted validators stop activation and require the separate guarded operator
+preflight/install/reverse command. ensure-indexes never performs collMod or
+overwrites a foreign validator. See the [native validation gates](../../../doc/database/raw-operational-validation-2026-11-08.md).
 
 `extract-hanoi-routing.py` clips an operator-supplied public OSM PBF using
 separately installed osmium 4.3.2, preserving routing tags, complete references

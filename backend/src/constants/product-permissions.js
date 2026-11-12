@@ -7,5 +7,7 @@ export const PRODUCT_PERMISSIONS = Object.freeze({
   // Create and edit products, show or hide them on the public Products page. Never Sale Staff.
   MANAGE_PRODUCTS: Object.freeze(['ADMIN']),
   // Add, edit, stop and resume working with suppliers. Admin only.
-  MANAGE_SUPPLIERS: Object.freeze(['ADMIN'])
+  MANAGE_SUPPLIERS: Object.freeze(['ADMIN']),
+  // Record a goods receipt, and read the active suppliers and the products it needs. Sale Staff is added here when the role exists (D-221).
+  RECORD_GOODS_RECEIPTS: Object.freeze(['ADMIN'])
 });

@@ -32,7 +32,9 @@ export function createProductCatalogService({ connection }) {
       if (category) filter.category = category;
       if (petType) filter.petType = petType;
       if (search) filter.name = { $regex: escapeRegex(search), $options: 'i' };
-      const result = await paginate(Product, { filter, sort: { code: 1, _id: 1 }, page, limit });
+      // Code is globally unique; keep filtered shapes unchanged after skew benchmarks.
+      const sort = search || category || petType ? { code: 1, _id: 1 } : { code: 1 };
+      const result = await paginate(Product, { filter, sort, page, limit });
       return { ...result, items: result.items.map(toProductSummary) };
     },
     async read(productId) {

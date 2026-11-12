@@ -1,6 +1,7 @@
 import { Schema } from 'mongoose';
 
-export function financeSourceModels(connection) {
+export function financeSourceModels(connection, { legacyTasks = false } = {}) {
+  if (typeof legacyTasks !== 'boolean') throw new TypeError('Invalid legacy task storage option');
   const options = { strict: 'throw', versionKey: false, bufferCommands: false, autoIndex: false };
   const command = new Schema({ _id: String, fingerprint: { type: String, required: true },
     result: { type: Schema.Types.Mixed, required: true }, createdAt: { type: Date, required: true } }, options);
@@ -18,7 +19,7 @@ export function financeSourceModels(connection) {
   return {
     FinanceSourceCommand: connection.models.FinanceSourceCommand ?? connection.model('FinanceSourceCommand', command),
     FinanceSourceEvent: connection.models.FinanceSourceEvent ?? connection.model('FinanceSourceEvent', event),
-    EarningAccrualTask: connection.models.EarningAccrualTask ?? connection.model('EarningAccrualTask', task),
+    ...(legacyTasks ? { EarningAccrualTask: connection.models.EarningAccrualTask ?? connection.model('EarningAccrualTask', task) } : {}),
     CareMediaBinding: connection.models.CareMediaBinding ?? connection.model('CareMediaBinding', binding)
   };
 }

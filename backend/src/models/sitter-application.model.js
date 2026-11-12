@@ -1,5 +1,6 @@
 import { Schema } from 'mongoose';
 import { applicationMailModel } from './application-mail.model.js';
+import { concurrencyGuardField } from './concurrency-guard.field.js';
 
 const STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'];
 
@@ -85,8 +86,12 @@ export function sitterApplicationModels(connection) {
     count: { type: Number, required: true, min: 0, default: 0 }
   }, { versionKey: false, strict: 'throw', bufferCommands: false });
   quotaSchema.index({ actorId: 1, windowStart: 1 }, { unique: true });
+  // One-hour enforcement window plus the owner's approved 24-hour diagnostic
+  // retention. The separate access audit and ownership counters never expire here.
+  quotaSchema.index({ windowStart: 1 }, { expireAfterSeconds: 25 * 60 * 60 });
 
   const sitterStatusSchema = new Schema({
+    schedulingGuardVersion: concurrencyGuardField(),
     userId: { type: Schema.Types.ObjectId, required: true },
     status: { type: String, enum: ['ACTIVE', 'SUSPENDED'], required: true },
     statusReason: { type: String, default: null, maxlength: 1000, select: false },

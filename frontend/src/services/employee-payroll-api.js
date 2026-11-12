@@ -31,6 +31,6 @@ export function createEmployeePayrollApi(request) {
     },
     prepare: (body, key) => post('/statements', body, key),
     advanceDecision: (id, body, key) => decide(`/advances/${encodeURIComponent(id)}/decisions`,id,body,key,({APPROVE:'APPROVED',REJECT:'REJECTED',WITHDRAW:'WITHDRAWN',RECORD_PAYMENT:'PAID'})[body.action]),
-    statementDecision: (id, body, key) => decide(`/statements/${encodeURIComponent(id)}/decisions`,id,body,key,({APPROVE:'APPROVED',REJECT:'VOIDED',RECORD_PAYMENT:'PAID'})[body.action])
+    statementDecision: (id, body, key) => decide(`/statements/${encodeURIComponent(id)}/decisions`,id,body,key,({APPROVE:'APPROVED',REJECT:'VOIDED',VOID_UNPAID:'VOIDED',RECORD_PAYMENT:'PAID'})[body.action])
   });
 }

@@ -1,8 +1,9 @@
+import { createReferenceCatalogFacade } from './reference-catalog.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
 import { hasRole } from '../utils/roles.js';
 import { createScopedCursor } from '../utils/scoped-cursor.js';
-import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
+import { createServiceAreaCatalog } from './service-area-catalog.service.js';
 import { sitterManagementQuery } from '../validators/sitter-management.validator.js';
 
 const iso = value => value ? new Date(value).toISOString() : null;
@@ -34,7 +35,7 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
       lookup('aisitterprofiles', '$_id', 'userId', 'capabilities', ['active', 'serviceIds', 'species', 'areaCodes', 'maxPets', 'maxWeightKg', 'allowedTraits', 'version']),
       lookup('employeeavailabilities', { $toString: '$_id' }, '_id', 'schedules', ['areas']),
       lookup('employmentcontracts', '$_id', 'employeeId', 'contracts', ['employmentType', 'weeklyMinutes', 'effectiveAt', 'endsAt', 'version'],
-        [{ $match: { effectiveAt: { $lte: now } } }, { $sort: { effectiveAt: -1, version: -1 } }, { $limit: 1 },
+        [{ $match: { supersededAt: null, effectiveAt: { $lte: now } } }, { $sort: { effectiveAt: -1, version: -1 } }, { $limit: 1 },
           { $match: { signedAt: { $lte: now }, $or: [{ endsAt: { $exists: false } }, { endsAt: null }, { endsAt: { $gt: now } }] } }]),
       { $set: { status: { $ifNull: [{ $first: '$statuses.status' }, 'MISSING'] },
         profileState: { $ifNull: [{ $first: '$profiles.state' }, 'MISSING'] },
@@ -79,7 +80,7 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
       } }], session);
       const page = result.page.slice(0, query.limit);
       return { items: page.map(row), total: result.count[0]?.value ?? 0, asOf: now.toISOString(),
-        areas: DEMO_WORK_AREAS, nextCursor: result.page.length > query.limit ? cursors.encode({ id: id(page.at(-1)._id) }, scope) : null };
+        areas: await createServiceAreaCatalog(connection).list(), nextCursor: result.page.length > query.limit ? cursors.encode({ id: id(page.at(-1)._id) }, scope) : null };
     });
   }
   async function reports({ actor, query: input }) {
@@ -122,7 +123,11 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
         { $project: fields(['state', 'version', 'effectiveFrom', 'zone', 'workingWindows', 'dayOffDates', 'areas']) }], session);
       const capability = user.capabilities[0];
       const serviceIds = capability?.serviceIds ?? [];
-      const services = await aggregate('services', [{ $match: { _id: { $in: serviceIds } } }, { $project: fields(['code']) }], session);
+      const services = await aggregate('services', [{ $sort: { code: 1 } }, { $limit: 61 },
+        { $lookup: { from: 'serviceversions', let: { target: '$_id' }, pipeline: [{ $match: { effectiveAt: { $lte: now }, $expr: { $eq: ['$serviceId', '$$target'] } } },
+          { $sort: { effectiveAt: -1, version: -1 } }, { $limit: 1 }, { $project: { name: 1 } }], as: 'versions' } }, { $project: fields(['code', 'versions.name']) }], session);
+      if (services.length > 60) throw new AppError(409, 'CATALOG_LIMIT', 'Service catalog requires review');
+      const traits = await createReferenceCatalogFacade({ connection }).listTraits({ limit: 100 });
       const status = user.statuses[0];
       const ratings = ratingSource ? await aggregate('reviews', [{ $match: { sitterId: { $in: [target, userId] },
         direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED' } }, { $group: { _id: null, count: { $sum: 1 }, average: { $avg: '$rating' },
@@ -136,15 +141,17 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
         action: { $in: ['SITTER_SUSPENDED', 'SITTER_REINSTATED', 'APPLICATION_DECIDED'] } } },
       { $sort: { occurredAt: -1, _id: -1 } }, { $limit: 20 }, { $project: fields(['action', 'occurredAt', 'resultVersion']) }], session) : [];
       return { ...row(user), rating: { available: ratingSource, count: ratingSource ? ratings[0]?.count ?? 0 : null,
-        average: ratings[0]?.average ?? null }, areaCatalog: DEMO_WORK_AREAS, asOf: now.toISOString(), profile: user.profiles[0] ? {
+        average: ratings[0]?.average ?? null }, areaCatalog: await createServiceAreaCatalog(connection).list(), asOf: now.toISOString(), profile: user.profiles[0] ? {
         bio: user.profiles[0].bio, areas: user.profiles[0].areas, state: user.profiles[0].state, updatedAt: iso(user.profiles[0].updatedAt)
       } : null, application: application ? { ...(admin ? { id: id(application._id) } : {}), experience: application.experience,
         ageEligible: application.ageEligible, employmentType: application.employmentType ?? null,
         requestedServices: application.requestedServices, workAreas: application.workAreas, submittedAt: iso(application.createdAt) } : null,
       statusVersion: status?.version ?? null, statusChangedAt: iso(status?.changedAt),
-      capabilities: capability ? { active: capability.active, species: capability.species,
+      traitCatalog: traits.map(t => ({ code: t.code, label: t.label })),
+      serviceCatalog: services.map(s => ({ id: id(s._id), code: s.code, name: s.versions?.[0]?.name ?? s.code })),
+      capabilities: capability ? { version: capability.version ?? 0, active: capability.active, species: capability.species,
         areas: user.areas, maxPets: capability.maxPets, maxWeightKg: capability.maxWeightKg,
-        allowedTraits: capability.allowedTraits ?? [], services: serviceIds.map(value => ({ id: id(value), code: services.find(s => id(s._id) === id(value))?.code ?? null })) } : null,
+        allowedTraits: capability.allowedTraits ?? [], services: serviceIds.map(value => { const service = services.find(s => id(s._id) === id(value)); return { id: id(value), code: service?.code ?? null, name: service?.versions?.[0]?.name ?? service?.code ?? null }; }) } : null,
       contracts: user.contracts.map(c => ({ employmentType: c.employmentType, weeklyMinutes: c.weeklyMinutes,
         effectiveAt: iso(c.effectiveAt), endsAt: iso(c.endsAt), version: c.version })),
       availability: availability ? { state: availability.state, version: availability.version, zone: availability.zone,
@@ -154,7 +161,7 @@ export function createSitterManagementService({ connection, cursorSecret, clock 
         dayOffDates: availability.dayOffDates ?? [] } : null,
       audit: audit.map(a => ({ id: id(a._id), action: a.action, at: iso(a.occurredAt), version: a.resultVersion })),
       ...(admin ? { contractVersion: latestContract?.version ?? 0 } : {}),
-      permissions: { manageContract: admin && user.state === 'ACTIVE' && Boolean(application),
+      permissions: { manageCapability: user.state === 'ACTIVE' && user.status === 'ACTIVE' && Boolean(user.contracts.length), manageContract: admin && user.state === 'ACTIVE' && Boolean(application),
         manageStatus: admin && Boolean(application && status), reviewApplication: admin && Boolean(application) } };
     });
   }

@@ -4,6 +4,14 @@ Thiết kế đối chiếu ngày 06/11/2026 với develop `5381c62` và product
 `f6a6dca`. Hai nhánh có cùng cây nguồn frontend/backend tại lần kiểm tra.
 [Report trên Google Docs](https://docs.google.com/document/d/1uKvLla8Bx-R46vO_NSDGfhxhgylYA3UMm8umdKMx-GE/edit?tab=t.0)
 giữ nguyên cấu trúc trường, tiêu đề, 18 bảng và số cột, cùng các vị trí ảnh.
+
+Đây là bản lưu thiết kế tại mốc nguồn 06/11/2026, không phải manifest của
+database đang chạy hoặc hướng dẫn migration cho các release sau. Số collection,
+trạng thái PR, provider và kiểm tra trong báo cáo phản ánh đúng mốc đó; khi triển
+khai phải đối chiếu source và storage contract của SHA release đã được review.
+Các phần DESIGN_PENDING_RUNTIME vẫn là đề xuất, chưa cấp quyền thêm dữ liệu
+hay áp dụng chính sách nghiệp vụ.
+
 Các ảnh cũ được giữ để thay bằng PNG xuất từ các file dưới đây.
 
 Bản local đã chứa các sửa sau review ngữ nghĩa. Google Docs còn cần đồng bộ

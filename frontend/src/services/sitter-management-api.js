@@ -39,6 +39,11 @@ export function createSitterManagementApi(request = createApiClient()) {
       && (data.application === null || (text(data.application?.experience) && Array.isArray(data.application.requestedServices))), signal),
     activity: (userId, query, { signal } = {}) => read(target(userId) + '/activity' + path(query), data => Array.isArray(data.items)
       && data.items.every(v => ID.test(v.id) && validDate(v.startAt) && text(v.state)) && cursor(data.nextCursor), signal),
+    async saveCapability(userId, body, key) {
+      const result = await request(target(userId) + '/capability', { method: 'PUT', body, idempotencyKey: key });
+      if (result.pending || result.data?.userId !== userId || result.data?.version !== body.expectedVersion + 1) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     async changeStatus({ applicationId, action, reason, expectedVersion, idempotencyKey }) {
       if (!ID.test(applicationId)) throw new ApiError('INVALID_API_PATH');
       const result = await request(`/applications/${applicationId}/sitter-status`, {
