@@ -35,7 +35,7 @@ beforeAll(async () => {
   await col('aisitterprofiles').insertOne({ userId: target, active: true, species: ['DOG'], areaCodes: ['DISTRICT_TAY_HO'], maxPets: 2, maxWeightKg: 15,
     serviceIds: [], allowedTraits: [], starts: [{ coordinates: [105, 21], privateMarker: 'private-location' }] });
   await col('employmentcontracts').insertOne({ employeeId: target, employmentType: 'PART_TIME', signedAt: new Date(0), effectiveAt: new Date(0),
-    weeklyMinutes: 1200, version: 1, monthlyBaseVnd: 3000000, contractReference: 'private-contract' });
+    weeklyMinutes: 1200, version: 1, monthlyBaseVnd: 3000000, contractReference: 'private-contract', verifiedBy: new mongoose.Types.ObjectId(admin.user.id) });
   await col('employeeavailabilities').insertOne({ _id: employee.user.id, zone: 'Asia/Ho_Chi_Minh', state: 'ACTIVE', version: 1,
     workingWindows: [{ weekday: 2, startLocalTime: '08:00', endLocalTime: '12:00', privateMarker: 'private-window' }], areas: ['DISTRICT_TAY_HO'], dayOffDates: [] });
   await col('users').insertMany(Array.from({ length: 23 }, (_, i) => ({ displayName: 'Demo profile ' + i, roles: ['PET_SITTER'], state: 'ACTIVE',
@@ -298,4 +298,15 @@ test('Staff leaderboard keeps exact global ordering and totals when winners appe
   expect(next.tabCounts).toEqual(first.tabCounts);
   expect(next.items.map(row => row.id)).toEqual([String(ids[250]), String(ids[0])]);
   expect(next.asOf).toBe(first.asOf);
+});
+
+test('management distinguishes a verified signed upcoming contract from an absent contract', async () => {
+ const employeeId=new mongoose.Types.ObjectId(employee.user.id),effectiveAt=new Date(Date.now()+86400000);
+ await col('employmentcontracts').updateOne({employeeId},{$set:{effectiveAt,verifiedBy:new mongoose.Types.ObjectId(admin.user.id)}});
+ try{
+ const result=await request(app).get(root+'/'+employee.user.id).set(headers(admin)).expect(200);
+ expect(result.body.data.employmentType).toBe('MISSING');expect(result.body.data.contracts).toEqual([]);
+ expect(result.body.data.upcomingContract).toMatchObject({effectiveAt:effectiveAt.toISOString(),employmentType:'PART_TIME'});
+ expect(result.body.data.permissions.manageCapability).toBe(true);
+ }finally{await col('employmentcontracts').updateOne({employeeId},{$set:{effectiveAt:new Date(0)}});}
 });

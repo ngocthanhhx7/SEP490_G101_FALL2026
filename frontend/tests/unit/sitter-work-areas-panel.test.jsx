@@ -179,3 +179,11 @@ test('loads all 22 legacy registrations and keeps a closed commune visible for r
   fireEvent.click(commune);expect(commune).toBeDisabled();expect(commune).not.toBeChecked();
   expect(screen.queryByText('Không tải được khu vực phục vụ')).not.toBeInTheDocument();
 });
+
+test('explains signed upcoming contract while allowing preparation', async () => {
+ renderPanel({load:async()=>({data:{...areaData,registrationContract:{state:'UPCOMING',effectiveAt:'2026-11-12T17:00:00Z'}}}),save:jest.fn()});
+ expect(await screen.findByText('Hợp đồng đã ký, sắp có hiệu lực')).toBeVisible();
+ expect(screen.getByText(/13\/11\/2026/)).toBeVisible();
+ fireEvent.click(screen.getByLabelText('Thành phố Hồ Chí Minh'));
+ expect(screen.getByRole('button',{name:'Lưu khu vực'})).toBeEnabled();
+});

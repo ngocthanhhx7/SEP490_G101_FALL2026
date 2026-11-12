@@ -32,3 +32,5 @@ Minimum-hours v2 documents have no fixed weekdays. Full-month automatic salary u
 `employment-prefill.service.js` supplies allowlisted applicant particulars and the current Admin profile/verified contacts for editable draft hints. Company legal identity/authority is never inferred from an Admin name. Hints are available only through the private Admin contract read; a saved draft always wins and immutable signed terms are unchanged. Missing historical originals stay missing with an explicit warning.
 
 Admin `overview` aggregates persisted statement states and pending advance counts. Awaiting-payment VND includes only APPROVED statements; PAID and PREPARED amounts are excluded. Unsafe integer reports fail closed. Admin history joins bounded display names without changing immutable statement names or the owner projection.
+
+The private document read also returns the latest non-superseded operational contract effective date for its employee/document pair. Date corrections are shown separately; encrypted signed terms, their hash and the printable original remain unchanged.

@@ -55,7 +55,7 @@ function AdminSitterManagementPage({ api }) {
         </tr></thead><tbody>{data.items.length ? data.items.map(s => <tr key={s.id}><td><Link className="sitter-name" to={base + '/' + s.id}>{s.displayName}</Link>
           <small>{s.demo ? 'Dữ liệu Demo' : 'Hồ sơ thực'} · {s.id.slice(-6).toUpperCase()}</small></td>
           <td><SitterStatus value={s.status} />{s.accountState !== 'ACTIVE' && <small>Tài khoản: {sitterLabel(s.accountState)}</small>}</td>
-          <td>{sitterLabel(s.employmentType)}</td><td>{s.areas.length ? s.areas.slice(0, 2).map(areaName).join(', ') : 'Chưa đăng ký'}
+          <td>{s.upcomingContract ? <>{sitterLabel(s.upcomingContract.employmentType)}<small>Đã ký · Hiệu lực từ {managementDate(s.upcomingContract.effectiveAt)}</small></> : sitterLabel(s.employmentType)}</td><td>{s.areas.length ? s.areas.slice(0, 2).map(areaName).join(', ') : 'Chưa đăng ký'}
             {s.areas.length > 2 && <small>+{s.areas.length - 2} khu vực</small>}<small>{s.capabilityActive ? 'Năng lực đã bật' : 'Năng lực chưa bật'}</small></td>
           <td><SitterStatus value={s.profileState} /></td><td><RowActionMenu label={'Thao tác ' + s.displayName} actions={[
             { label: 'Xem hồ sơ', icon: Eye, onClick: () => navigate(base + '/' + s.id) }
@@ -194,7 +194,7 @@ function StaffSitterList({ api }) {
           <tbody>{data.items.map(sitter => <tr key={sitter.id}>
             <td data-label="Người chăm sóc"><strong>{sitter.displayName}</strong><small>{sitter.code}</small></td>
             <td data-label="Hợp đồng"><span className={'staff-sitter-contract staff-sitter-contract--' + sitter.employmentType}>
-              {sitter.employmentType === 'MISSING' ? 'Chưa có hợp đồng' : sitterLabel(sitter.employmentType)}
+              {sitter.upcomingContract ? 'Đã ký · Hiệu lực từ ' + managementDate(sitter.upcomingContract.effectiveAt) : sitter.employmentType === 'MISSING' ? 'Chưa có hợp đồng' : sitterLabel(sitter.employmentType)}
             </span></td>
             <td data-label="Khu vực phục vụ">{sitter.areas.map(areaName).join(', ') || 'Chưa đăng ký'}</td>
             <td data-label="Giờ làm hoặc ca"><StaffHours sitter={sitter} /></td>

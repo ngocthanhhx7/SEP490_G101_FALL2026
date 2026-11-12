@@ -54,9 +54,15 @@ test('immutable encrypted document is issued, actually signed then activated ato
   await service.decide(admin,String(appId),draft.id,{action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-11-05',archiveReference:'Synthetic paper archive',bothPartiesSigned:true},'synthetic-contract-sign');
   const employeeId=oid();
   await connection.transaction(async session=>{const application=await connection.collection('sitterapplications').findOne({_id:appId},{session});await service.activate(application,employeeId,admin,session);});
-  const contract=await connection.models.EmploymentContract.findOne({employeeId}).lean();
+  const contract=await connection.models.EmploymentContract.findOne({employeeId}).select('+contractReference').lean();
   expect(contract).toMatchObject({employeeCode:draft.employeeCode,monthlyBaseVnd:10000000,workScheduleMode:'SELF_REGISTERED',minimumWeeklyMinutes:2400,weeklyMinutes:2400,version:1});
-  expect((await service.get(admin,String(appId))).current.state).toBe('ACTIVATED');
+  await connection.collection('sitterapplications').updateOne({_id:appId},{$set:{provisionedUserId:employeeId,state:'APPROVED'}});
+  await connection.models.EmploymentContract.updateOne({_id:contract._id},{$set:{supersededAt:new Date(clock())}});
+  const copy = {...contract}; delete copy._id; delete copy.__v;
+  await connection.models.EmploymentContract.create({...copy,version:2,effectiveAt:new Date('2026-11-04T17:00:00Z')});
+  const after = await service.get(admin,String(appId));
+  expect(after.current).toMatchObject({state:'ACTIVATED',termsHash:draft.termsHash,terms:{effectiveOn:'2026-11-06'}});
+  expect(after.recordedContract).toEqual({version:2,effectiveOn:'2026-11-05'});
   await expect(service.get({...admin,roles:['STAFF']},String(appId))).rejects.toMatchObject({code:'FORBIDDEN'});
 });
 test('contract legal bounds reject missing terms, below-floor pay, excess hours and overlong fixed term',()=>{
