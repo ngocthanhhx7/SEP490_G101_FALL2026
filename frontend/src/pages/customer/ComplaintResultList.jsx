@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
-import { bookingDate, bookingMoney } from '../../utils/booking-presentation.js';
-import { complaintError, complaintSubject, retryKey } from '../../utils/complaint-presentation.js';
+import { bookingMoney } from '../../utils/booking-presentation.js';
+import { complaintDeadline, complaintError, complaintSubject, retryKey } from '../../utils/complaint-presentation.js';
 
 const labels = { OPEN: 'Đang mở', RESOLVED: 'Đã có kết quả', ESCALATED: 'Chuyển quản trị', FINAL: 'Kết quả cuối' };
 
@@ -14,6 +14,7 @@ function ComplaintResultCard({ item, selected, serverNow, api, onUpdated }) {
   const [error, setError] = useState('');
   const [expiredDeadline, setExpiredDeadline] = useState(null);
   const deadline = Date.parse(item.objection?.deadlineAt);
+  const deadlineText = complaintDeadline(item.objection?.deadlineAt);
   const serverTime = Date.parse(serverNow);
   const remaining = deadline - (Number.isFinite(serverTime) ? serverTime : Date.now());
   const expired = Number.isFinite(deadline) && (remaining <= 0 || expiredDeadline === deadline);
@@ -63,7 +64,7 @@ function ComplaintResultCard({ item, selected, serverNow, api, onUpdated }) {
     {item.customerResult && <p className="complaint-result__text">{item.customerResult}</p>}
     {Number.isSafeInteger(item.approvedAmountVnd) && <p>Khoản đã quyết: <strong>{bookingMoney(item.approvedAmountVnd)}</strong></p>}
     {state === 'ESCALATED' && <p>Quản trị viên đang xem lại kết quả.</p>}
-    {canDisagree && <p className="complaint-result__deadline">Có thể không đồng ý đến {bookingDate(item.objection.deadlineAt)}.</p>}
+    {canDisagree && deadlineText && <p className="complaint-result__deadline">Không đồng ý được đến {deadlineText}.</p>}
     {canDisagree && !editing && <Button variant="secondary" onClick={() => setEditing(true)}>Không đồng ý</Button>}
     {canDisagree && editing && <form className="complaint-objection" onSubmit={disagree} noValidate>
       <label>Lý do <span aria-hidden="true">*</span>

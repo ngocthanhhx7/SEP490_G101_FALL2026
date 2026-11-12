@@ -75,12 +75,12 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
   </form>;
 }
 
-export function BookingConfirmation({ api, bookingId: suppliedBookingId, visitActions }) {
+export function BookingConfirmation({ api, bookingId: suppliedBookingId }) {
   const [params] = useSearchParams(), bookingId = suppliedBookingId ?? params.get('booking');
   const load = useCallback(({ signal }) => api.booking(bookingId, { signal }).then(data => ({ data })), [api, bookingId]);
-  return bookingId ? <BookingConfirmationDetail key={bookingId} bookingId={bookingId} api={api} load={load} visitActions={visitActions} /> : null;
+  return bookingId ? <BookingConfirmationDetail key={bookingId} bookingId={bookingId} api={api} load={load} /> : null;
 }
-function BookingConfirmationDetail({ bookingId, api, load, visitActions }) {
+function BookingConfirmationDetail({ bookingId, api, load }) {
   const resource = useApiResource(load), [link, setLink] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const key = useRef(`payment-link:${globalThis.crypto.randomUUID()}`), locked = useRef(false);
   const pay = async () => {
@@ -97,8 +97,7 @@ function BookingConfirmationDetail({ bookingId, api, load, visitActions }) {
   return <section className="pwc-booking-confirmation"><h2>{[...new Set(booking.visits.map(row => row.serviceName).filter(Boolean))].join(', ') || 'Lịch chăm sóc thú cưng'}</h2><p className="pwc-booking-reference">Mã tra cứu: {booking.id}</p><p className="pwc-booking-current-status">{bookingStatus(booking.state)[0]}</p><p>{bookingStatus(booking.state)[1]}</p>{booking.createdAt && <p>Ngày đặt: {bookingDate(booking.createdAt)}</p>}
     <p>Tổng tiền: <strong>{money(booking.totalVnd)}</strong></p>
     {booking.paymentState && <p>Thanh toán: <strong>{({ PAID: 'Đã thanh toán', UNPAID: 'Chưa thanh toán' })[booking.paymentState] ?? 'Đang cập nhật xác nhận'}</strong></p>}
-    {booking.paymentDeadlineAt && ['AWAITING_PAYMENT', 'PAYMENT_EXPIRED', 'OVERDUE'].includes(booking.state) && <p>Hạn thanh toán: {new Date(booking.paymentDeadlineAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
-    {visitActions}
+    {booking.paymentDeadlineAt && ['AWAITING_PAYMENT', 'PAYMENT_EXPIRED'].includes(booking.state) && <p>Hạn thanh toán: {new Date(booking.paymentDeadlineAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
     <h3>Lịch chăm sóc đã đặt</h3><ul>{booking.visits.map((row, index) => <li key={row.id}><p>Buổi {index + 1}{row.petNames?.length ? ` · ${row.petNames.join(', ')}` : ''}</p><strong>{row.serviceName}</strong> · {new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<br />{locations[row.location]}: {row.serviceAddress}
       {googleMapsDirections(row.serviceAddress) && <p><a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a></p>}
       </li>)}</ul>

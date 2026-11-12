@@ -6,6 +6,10 @@ import { AppRoutes } from '../../src/routes/AppRoutes.jsx';
 const bookingId = 'b'.repeat(24), visitId = 'c'.repeat(24);
 const base = '/account/bookings/' + bookingId;
 const apiBase = '/api/v1/complaints';
+const bookingEndpoint = '/api/v1/checkout/bookings/' + bookingId;
+const paymentDeadlineAt = '2026-11-10T00:00:00Z';
+const overdueBooking = { id: bookingId, state: 'OVERDUE', totalVnd: 120000, paymentDeadlineAt,
+  visits: [], careShifts: [], scheduleProposals: [] };
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 
@@ -31,10 +35,7 @@ function show(path, overrides = {}, role = 'CUSTOMER') {
   const rules = {
     [apiBase + '/eligibility/bookings/' + bookingId]: () => reply(eligibility()),
     [apiBase]: () => reply({ items: [], nextCursor: null }),
-    ['/api/v1/checkout/bookings/' + bookingId]: () => reply({
-      id: bookingId, state: 'OVERDUE', totalVnd: 120000, paymentDeadlineAt: '2026-11-10T00:00:00Z',
-      visits: [], careShifts: [], scheduleProposals: []
-    }),
+    [bookingEndpoint]: () => reply(overdueBooking),
     ...overrides
   };
   globalThis.fetch = jest.fn(async (path, options) => {
@@ -47,12 +48,27 @@ function show(path, overrides = {}, role = 'CUSTOMER') {
 }
 
 test('UC-27 renders eligibility per visit and preserves Overdue and payment deadline', async () => {
-  show(base);
+  const read = jest.fn().mockImplementationOnce(() => reply(overdueBooking))
+    .mockImplementation(() => reply({ ...overdueBooking, state: 'COMPLETED' }));
+  const data = eligibility();
+  data.booking.state = 'COMPLETED';
+  show(base, { [bookingEndpoint]: read, [apiBase + '/eligibility/bookings/' + bookingId]: () => reply(data) });
   const link = await screen.findByRole('link', { name: 'Gửi khiếu nại' });
   expect(link).toHaveAttribute('href', base + '/complaints/new?visit=' + visitId);
-  expect(screen.getByText('Quá hạn', { exact: true })).toBeVisible();
-  expect(screen.getByText(/Hạn thanh toán/)).toBeVisible();
+  const confirmation = screen.getByRole('button', { name: 'Cập nhật trạng thái đơn' }).closest('section');
+  const visitList = screen.getByRole('region', { name: 'Các buổi chăm sóc' });
+  expect(confirmation.contains(visitList)).toBe(false);
+  expect(confirmation.parentElement.nextElementSibling).toBe(visitList);
+  expect(await screen.findByText('Quá hạn', { exact: true })).toBeVisible();
+  const due = new Date(paymentDeadlineAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
+  expect(screen.getByText('Hạn thanh toán: ' + due)).toBeVisible();
+  expect(confirmation.parentElement).toHaveClass('customer-booking-detail__confirmation--overdue');
   expect(screen.queryByText('Hóa đơn đang chờ', { exact: true })).not.toBeInTheDocument();
+  expect(read).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Cập nhật trạng thái đơn' }));
+  expect(await screen.findByText('Đã hoàn tất', { exact: true, selector: '.pwc-booking-current-status' })).toBeVisible();
+  expect(screen.queryByText('Quá hạn', { exact: true })).toBeNull();
+  expect(read).toHaveBeenCalledTimes(2);
 });
 
 test('UC-52 uses whole-booking scope, submits the short form and shows MSG128', async () => {
@@ -61,8 +77,9 @@ test('UC-52 uses whole-booking scope, submits the short form and shows MSG128', 
   show(base + '/complaints/new?visit=' + visitId, { ['POST ' + apiBase]: submit });
   const description = await screen.findByRole('textbox', { name: /Điều chưa ổn/ });
   expect(description).toHaveAttribute('maxLength', '1000');
-  expect(screen.getByRole('radio', { name: /Buổi này/ })).toBeDisabled();
-  expect(screen.getByRole('radio', { name: /Cả lịch đặt/ })).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'Buổi này (10/11, 07:00)' })).toBeDisabled();
+  expect(screen.getByRole('radio', { name: 'Cả lịch đặt BK-0042' })).toBeChecked();
+  expect(screen.getByText('Bạn gửi được khiếu nại đến 07:00, 17/11/2026 (7 ngày sau khi lịch đặt kết thúc). Mỗi buổi chỉ có một khiếu nại đang mở.')).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Gửi khiếu nại' }));
   expect(await screen.findByText('Trường này là bắt buộc.')).toBeVisible();
   fireEvent.change(description, { target: { value: 'Bơ về nhà bị dính bùn.' } });
@@ -71,6 +88,20 @@ test('UC-52 uses whole-booking scope, submits the short form and shows MSG128', 
   const request = submit.mock.calls[0][0];
   expect(JSON.parse(request.body)).toMatchObject({ scope: 'BOOKING', bookingId, description: 'Bơ về nhà bị dính bùn.', expectedVersion: 1 });
   expect(JSON.parse(request.body)).not.toHaveProperty('visitId');
+});
+
+test.each([
+  ['COMPLETED', 'buổi kết thúc'],
+  ['STAFF_CLOSED', 'buổi được đóng']
+])('UC-52 shows the server deadline for an eligible %s visit', async (state, cutoff) => {
+  const data = eligibility();
+  data.visits[0] = { ...data.visits[0], state, eligibility: { eligible: true, deadlineAt: '2026-11-17T17:05:00Z' } };
+  show(base + '/complaints/new?visit=' + visitId, { [apiBase + '/eligibility/bookings/' + bookingId]: () => reply(data) });
+  expect(await screen.findByRole('radio', { name: 'Buổi này (10/11, 07:00)' })).toBeChecked();
+  expect(screen.getByText('Bạn gửi được khiếu nại đến 00:05, 18/11/2026 (7 ngày sau khi ' + cutoff +
+    '). Mỗi buổi chỉ có một khiếu nại đang mở.')).toBeVisible();
+  expect(screen.getByText('Khi khiếu nại chưa có kết quả cuối, hoá đơn của lịch đặt được giữ lại.')).toBeVisible();
+  expect(screen.queryByText(/Lịch đã quá hạn/)).toBeNull();
 });
 
 test('UC-52 notification link opens a complaint outside the first page and keeps other case labels', async () => {
@@ -116,6 +147,7 @@ test('UC-52 shows one objection only before the server deadline', async () => {
     ['POST ' + apiBase + '/resolved/objections']: object
   });
   const row = await screen.findByRole('article', { name: item.code });
+  expect(within(row).getByText('Không đồng ý được đến 19:00, 12/11/2026.')).toBeVisible();
   expect(within(screen.getByRole('article', { name: late.code })).queryByRole('button', { name: 'Không đồng ý' })).toBeNull();
   fireEvent.click(within(row).getByRole('button', { name: 'Không đồng ý' }));
   fireEvent.click(within(row).getByRole('button', { name: 'Gửi lý do' }));

@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button, Notice } from '../../components/ui/index.js';
@@ -36,13 +36,39 @@ function BookingComplaintVisits({ api, bookingId }) {
   </section>;
 }
 
-export function CustomerBookingDetailPage() {
-  const { bookingId } = useParams(), { getCsrfToken } = useSession();
-  const api = useMemo(() => createServiceBasketApi({ getCsrfToken }), [getCsrfToken]);
+function CustomerBookingDetail({ bookingId }) {
+  const { getCsrfToken } = useSession();
+  const [booking, setBooking] = useState(null);
+  const api = useMemo(() => {
+    const checkout = createServiceBasketApi({ getCsrfToken });
+    return {
+      ...checkout,
+      async booking(id, { signal } = {}) {
+        if (!signal?.aborted) setBooking(null);
+        const result = await checkout.booking(id, { signal });
+        if (!signal?.aborted) setBooking(result);
+        return result;
+      }
+    };
+  }, [getCsrfToken]);
   const complaints = useMemo(() => createComplaintApi({ getCsrfToken }), [getCsrfToken]);
+  const overdue = booking?.state === 'OVERDUE';
   return <section className="customer-booking-detail"><Link className="customer-booking-detail__back" to="/account/bookings"><ArrowLeft size={17} />Danh sách đơn chăm sóc</Link>
     <h1>Chi tiết đơn chăm sóc</h1><p>Lịch đã đặt, người chăm sóc, thanh toán và tiến độ từng buổi.</p>
-    <BookingConfirmation key={bookingId} bookingId={bookingId} api={api}
-      visitActions={<BookingComplaintVisits api={complaints} bookingId={bookingId} />} />
+    {overdue && <div className="customer-booking-detail__payment">
+      <strong className="customer-bookings__status customer-bookings__status--payment_expired">Quá hạn</strong>
+      {booking.paymentDeadlineAt && <p>Hạn thanh toán: {new Date(booking.paymentDeadlineAt).toLocaleString('vi-VN', {
+        timeZone: 'Asia/Ho_Chi_Minh'
+      })}</p>}
+    </div>}
+    <div className={overdue ? 'customer-booking-detail__confirmation--overdue' : undefined}>
+      <BookingConfirmation bookingId={bookingId} api={api} />
+    </div>
+    {booking && <BookingComplaintVisits api={complaints} bookingId={bookingId} />}
   </section>;
+}
+
+export function CustomerBookingDetailPage() {
+  const { bookingId } = useParams();
+  return <CustomerBookingDetail key={bookingId} bookingId={bookingId} />;
 }

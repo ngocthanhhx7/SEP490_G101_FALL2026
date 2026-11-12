@@ -7,7 +7,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { createComplaintApi } from '../../services/complaint-api.js';
 import { createPrivateImageApi, PRIVATE_IMAGE_MAX_BYTES } from '../../services/private-image-api.js';
 import { bookingDate } from '../../utils/booking-presentation.js';
-import { bookingPath, complaintError, complaintVisitTime, retryKey } from '../../utils/complaint-presentation.js';
+import { bookingPath, complaintDeadline, complaintError, complaintVisitStart, complaintVisitTime, retryKey } from '../../utils/complaint-presentation.js';
 import { ComplaintResultList } from './ComplaintResultList.jsx';
 import './complaint-submit.css';
 
@@ -40,7 +40,10 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
   const canVisit = visit?.eligibility.eligible === true;
   const canWhole = wholeBooking.eligible && (visit ? visit.canSubmit : wholeBooking.aboveVisitTable);
   const scope = canVisit && (choice !== 'BOOKING' || !canWhole) ? 'VISIT' : 'BOOKING';
-  const deadlineAt = scope === 'VISIT' ? visit?.eligibility.deadlineAt : wholeBooking.deadlineAt;
+  const deadline = complaintDeadline(scope === 'VISIT' ? visit.eligibility.deadlineAt : wholeBooking.deadlineAt);
+  const visitStart = complaintVisitStart(visit?.startAt);
+  const cutoff = scope === 'BOOKING' ? 'lịch đặt kết thúc' :
+    visit.state === 'STAFF_CLOSED' ? 'buổi được đóng' : 'buổi kết thúc';
 
   function choosePhotos(event) {
     const files = [...event.target.files];
@@ -103,7 +106,7 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
       <legend>Khiếu nại về <span aria-hidden="true">*</span></legend>
       <div>
         {visit && <label><input type="radio" name="complaint-scope" checked={scope === 'VISIT'} disabled={!canVisit}
-          onChange={() => setChoice('VISIT')} /><span>Buổi này</span></label>}
+          onChange={() => setChoice('VISIT')} /><span>Buổi này{visitStart ? ' (' + visitStart + ')' : ''}</span></label>}
         {(canWhole || visit) && <label><input type="radio" name="complaint-scope" checked={scope === 'BOOKING'} disabled={!canWhole}
           onChange={() => setChoice('BOOKING')} /><span>Cả lịch đặt{booking.code ? ' ' + booking.code : ''}</span></label>}
       </div>
@@ -128,8 +131,8 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
       {photoError && <p className="complaint-form-error" role="alert">{photoError}</p>}
     </fieldset>
     <aside className="complaint-form__note">
-      {deadlineAt && <p>Bạn có thể gửi khiếu nại đến {bookingDate(deadlineAt)}.</p>}
-      <p>Hóa đơn trả sau đang chờ thanh toán được giữ đến khi khiếu nại có kết quả cuối. Lịch đã quá hạn giữ nguyên trạng thái và hạn thanh toán.</p>
+      {deadline && <p>Bạn gửi được khiếu nại đến {deadline} (7 ngày sau khi {cutoff}). Mỗi buổi chỉ có một khiếu nại đang mở.</p>}
+      <p>Khi khiếu nại chưa có kết quả cuối, hoá đơn của lịch đặt được giữ lại.</p>
     </aside>
     {error && !error.description && <p className="complaint-form-error" role="alert">{error.text}</p>}
     <div className="complaint-form-actions">

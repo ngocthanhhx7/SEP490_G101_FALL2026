@@ -15,6 +15,30 @@ const visitTime = new Intl.DateTimeFormat('vi-VN', {
   dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh'
 });
 
+const complaintDateTime = new Intl.DateTimeFormat('en-GB', {
+  day: '2-digit', month: '2-digit', year: 'numeric',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Ho_Chi_Minh'
+});
+
+function complaintDateParts(value) {
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return null;
+  const { day, month, year, hour, minute } = Object.fromEntries(
+    complaintDateTime.formatToParts(timestamp).map(({ type, value: part }) => [type, part])
+  );
+  return { date: day + '/' + month, year, time: hour + ':' + minute };
+}
+
+export function complaintDeadline(value) {
+  const parts = complaintDateParts(value);
+  return parts ? parts.time + ', ' + parts.date + '/' + parts.year : null;
+}
+
+export function complaintVisitStart(value) {
+  const parts = complaintDateParts(value);
+  return parts ? parts.date + ', ' + parts.time : null;
+}
+
 export function complaintVisitTime(visit) {
   const start = Date.parse(visit.startAt), end = Date.parse(visit.endAt);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return bookingDate(visit.startAt);

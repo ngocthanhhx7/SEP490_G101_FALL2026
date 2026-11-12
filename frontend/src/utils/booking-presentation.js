@@ -9,7 +9,6 @@ const states = {
   CANCELLED: ['Đã hủy', 'Đơn này đã được hủy.'],
   AWAITING_PAYMENT: ['Chờ thanh toán trước', 'Thanh toán đúng hạn để PawWorld bắt đầu gửi lời mời chăm sóc.'],
   PAYMENT_EXPIRED: ['Hết hạn thanh toán', 'Đơn đã quá hạn thanh toán. Mở chi tiết để kiểm tra trạng thái mới nhất.'],
-  OVERDUE: ['Quá hạn', 'Hóa đơn đã quá hạn thanh toán.'],
   UNPAID: ['Chờ thanh toán', 'Đơn đang chờ thanh toán.'], PAID: ['Đã thanh toán', 'Thanh toán đã được ghi nhận.']
 };
 export const bookingStatus = state => states[state] ?? ['Đang cập nhật', 'Mở chi tiết hoặc tải lại để kiểm tra trạng thái đơn.'];
