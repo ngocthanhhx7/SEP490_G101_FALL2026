@@ -44,3 +44,9 @@ ciphertext hoặc địa chỉ từ hàng đợi. Các lần cập nhật mới 
 transaction; chỉ worker được cấu hình EMAIL_ENABLED mới gửi. Người nhận phải là
 email đã xác minh của owner tại lúc xếp hàng và trước khi gửi. Chưa có email thì
 SKIPPED; không tạo liên hệ giả. Không backfill thư cho các quyết định lịch sử.
+
+### Bounded administrative search
+
+Partial phone/code/name search examines at most 500 candidate applications per request, with a 5-second query deadline and the existing state/time/id keyset index. It does not persist plaintext phone search tokens. `searchIncomplete: true` means the response is not the full search result; `nextCursor` continues after the checked window even if `applications` is empty. `totalMatching` is null when the global matching count is unknown. The UI offers continuation and does not describe such an empty window as no matches. No-term lists retain exact filtered totals. Existing filter-signed cursors remain compatible.
+
+Area filters include the existing registry (including closed historical areas) plus legacy aliases, without rewriting application work-area values or opening service coverage.

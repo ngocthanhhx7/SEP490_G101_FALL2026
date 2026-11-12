@@ -1,0 +1,214 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="JOB-02 Bounded dispatch, expired offers and Staff escalation" id="job-02">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2178" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Worker scheduler" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1898" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": EmployeeDispatchWorker" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1898" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": EmployeeDispatch.runBatch" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1898" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": MongoDB queue / command / events" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1898" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": EmployeeDispatch.invite" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1898" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Eligibility / optional Ranker" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1898" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="349" />
+        </mxCell>
+        <mxCell id="caption-1" value="Bounded worker loop" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Immediate tick then configured interval (default 30&#10;seconds); skip overlapping run, await graceful stop" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: runBatch(limit 1..20); assert employee scheduling storage;&#10;run bounded care-plan preparation" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Load overdue and future SCHEDULED/unassigned queue rows;&#10;approved care plan + allowed booking state + PREPAY paid&#10;where needed" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="670" y="336" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="336" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Bounded rows, current versions, directed sitter, active&#10;pending invitations and dispatch retryAt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="407" />
+            <mxPoint as="targetPoint" x="480" y="407" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="loop" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="480" width="1110" height="661" />
+        </mxCell>
+        <mxCell id="caption-5" value="loop [each actionable row]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="487" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Skip dispatchReview retryAt in future; if shift already&#10;started -&gt; SHIFT_START_REACHED" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="600" />
+            <mxPoint as="targetPoint" x="480" y="622" />
+            <Array as="points">
+              <mxPoint x="520" y="600" />
+              <mxPoint x="520" y="622" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-6" value="6: invite SYSTEM_DISPATCH with deterministic&#10;agent:visitId:version key and current expectedVersion" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="680" />
+            <mxPoint as="targetPoint" x="855" y="680" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="680" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Command replay/guard; readyVisit rechecks exact&#10;receipt/care-plan/state/version/start time" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="738" />
+            <mxPoint as="targetPoint" x="670" y="738" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="738" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Enumerate at most 100 registered employees with bounded&#10;parallel eligibility; directed=1 target, normal=5" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="796" />
+            <mxPoint as="targetPoint" x="1035" y="796" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="796" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Sort eligible travel/workload; optional AI ranking only&#10;reorders same eligible set with timeout fallback" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="854" />
+            <mxPoint as="targetPoint" x="855" y="854" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-10" value="10: Exclude pending/prior declined/expired targets; employee&#10;guard + eligibility recheck for selected sitters" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="912" />
+            <mxPoint as="targetPoint" x="670" y="912" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="912" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Expire elapsed PENDING offers; CAS SCHEDULED visit version;&#10;create bounded new PENDING offers with&#10;deadline=min(now+15m,startAt)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="970" />
+            <mxPoint as="targetPoint" x="670" y="970" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="970" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: Append OfferCreated events/notifications and command result&#10;in same transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="1041" />
+            <mxPoint as="targetPoint" x="670" y="1041" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1041" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Commit invitation result, or rollback on stale version/guard&#10;failure" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="1099" />
+            <mxPoint as="targetPoint" x="480" y="1099" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-14" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1172" width="1110" height="291" />
+        </mxCell>
+        <mxCell id="caption-14" value="alt [no viable candidate, directed or schedule/travel requires review]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1179" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: For listed domain 409 codes: CAS original&#10;SCHEDULED/unassigned visit/version -&gt;&#10;dispatchReview(code,at,retryAt=now+60s,diagnostics)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1292" />
+            <mxPoint as="targetPoint" x="670" y="1292" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-14" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1292" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: Publish DispatchReviewRequired only on first entry; do not&#10;assign, charge or fabricate customer schedule consent" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1363" />
+            <mxPoint as="targetPoint" x="670" y="1363" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-15" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1363" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: Count review; Staff must resolve authoritative&#10;schedule/capability/customer decision" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1421" />
+            <mxPoint as="targetPoint" x="295" y="1421" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-17" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1494" width="1110" height="162" />
+        </mxCell>
+        <mxCell id="caption-17" value="alt [other conflict or operational failure]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1501" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: Other 409 does not force review overwrite; non-409 aborts&#10;batch and worker logs safe failure" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1614" />
+            <mxPoint as="targetPoint" x="295" y="1614" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-18" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1687" width="1110" height="220" />
+        </mxCell>
+        <mxCell id="caption-18" value="End batch" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1694" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-18" value="18: Return processed/invited/review counts; no provider or&#10;actual assignment acceptance implied" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1807" />
+            <mxPoint as="targetPoint" x="295" y="1807" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-19" value="19: A later tick handles new versions/retries. Accept/decline&#10;happens separately via UC-35" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1865" />
+            <mxPoint as="targetPoint" x="105" y="1865" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="Source: employee-dispatch.job.js and employee-dispatch.service.js. This is not a global expiry scan: elapsed invitations are excluded by query and expired as part of a later invite command. No invitation is sent for a shift that already started. Autonomous ranking is advisory; actual acceptance and occupancy are rechecked in UC-35." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1978" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

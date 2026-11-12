@@ -644,3 +644,58 @@ test('application ownership rechecks the persisted role after an in-flight accou
   await User.updateOne({ _id: CUSTOMER_ID }, { $set: { roles: ['PET_SITTER'] } });
   await expect(service.getMine({ actor: { ...actor, roles: ['PET_SITTER'] } })).resolves.toEqual({ application: null });
 });
+
+test('partial phone search bounds decrypted candidates and continues past an empty candidate window', async () => {
+  const instance = app();
+  const submitted = (await submit(instance, applicationBody({ contactChannel: 'PHONE', contactValue: '+84912001234' })).expect(201)).body.data;
+  const applicationModels = sitterApplicationModels(connection), Applicant = applicationModels.SitterApplication;
+  const template = await Applicant.collection.findOne({ _id: new connection.base.Types.ObjectId(submitted.id) });
+  await Applicant.deleteMany({});
+  const documents = Array.from({ length: 701 }, (_, index) => {
+    const value = { ...template, _id: new connection.base.Types.ObjectId(), submissionKeyDigest: `bounded-search-${index}`,
+      createdAt: new Date(clockNow + index * 1000), updatedAt: new Date(clockNow + index * 1000),
+      contactCiphertext: contactCrypto.encrypt(index === 700 ? '+84919999999' : '+84912001234') };
+    for (const key of ['trackingCodeDigest', 'activePendingOwnerUserId', 'activePendingContactKey', 'activePendingIdentityKey']) delete value[key];
+    return value;
+  });
+  await Applicant.collection.insertMany(documents);
+  const decrypt = jest.fn(contactCrypto.decrypt);
+  const service = createSitterApplicationService({ connection, User, Applicant,
+    Audit: applicationModels.SitterApplicationAudit, DownloadQuota: applicationModels.SitterApplicationDownloadQuota,
+    SitterStatus: applicationModels.SitterStatus, contactCrypto: { ...contactCrypto, decrypt }, privateMedia: mediaPort,
+    lookupSecret: SECRETS.CONTACT_LOOKUP_SECRET, cursorSecret: SECRETS.SESSION_TOKEN_SECRET,
+    employmentDocuments: { activate: async () => {} }, clock: () => clockNow });
+  const actor = { userId: ADMIN_ID, state: 'ACTIVE', roles: ['ADMIN'] };
+  const query = { state: 'ALL', search: '999999', sortOrder: 'asc' };
+  const first = await service.list({ actor, query });
+  expect(decrypt.mock.calls.length).toBeLessThanOrEqual(500);
+  const plan = await Applicant.collection.find({ state: { $in: ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'] } })
+    .sort({ createdAt: 1, _id: 1 }).limit(501).explain('executionStats');
+  expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(501);
+  expect(first.applications).toEqual([]);
+  expect(first.searchIncomplete).toBe(true);
+  expect(first.totalMatching).toBeNull();
+  expect(first.nextCursor).toEqual(expect.any(String));
+  decrypt.mockClear();
+  const last = await service.list({ actor, query: { ...query, cursor: first.nextCursor } });
+  expect(last.applications.map(row => row.id)).toEqual([String(documents[700]._id)]);
+  expect(last.nextCursor).toBeNull();
+  expect(decrypt.mock.calls.length).toBeLessThanOrEqual(500);
+});
+
+test('application area filters include the persisted commune registry alongside legacy names', async () => {
+  const instance = app();
+  const submitted = (await submit(instance, applicationBody()).expect(201)).body.data;
+  const code = 'COMMUNE_SYNTHETIC_FILTER';
+  await connection.db.collection('serviceareas').insertMany([
+    { _id: 'coverage-policy', level: 'CONTROL', version: 0 },
+    { _id: code, level: 'COMMUNE', label: 'Phường thử nghiệm', enabled: false }
+  ]);
+  try {
+    await sitterApplicationModels(connection).SitterApplication.updateOne({ _id: submitted.id }, { $set: { workAreas: [code] } });
+    const admin = await login();
+    const response = await request(instance).get('/api/v1/applications').query({ serviceArea: code }).set('Cookie', admin.cookie).expect(200);
+    expect(response.body.data.applications.map(row => row.id)).toEqual([submitted.id]);
+    expect(response.body.data.serviceAreas).toContainEqual({ id: code, name: 'Phường thử nghiệm' });
+  } finally { await connection.db.collection('serviceareas').deleteMany({}); }
+});

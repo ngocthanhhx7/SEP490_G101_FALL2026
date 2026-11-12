@@ -1,0 +1,304 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron" agent="Antigravity" pages="3">
+  <diagram id="backend-packages" name="1. Backend Package Diagram">
+    <mxGraphModel dx="1040" dy="660" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="950" pageHeight="650" math="0" shadow="0">
+      <root>
+        <mxCell id="b_0" />
+        <mxCell id="b_1" parent="b_0" />
+        <mxCell id="yCT6tZJWLFnK_oRsxYtS-0" parent="b_1" style="html=1;shape=mxgraph.sysml.package;html=1;overflow=fill;whiteSpace=wrap;" value="&lt;p style=&quot;margin:0px;margin-top:4px;margin-left:10px;text-align:left;&quot;&gt;&lt;b&gt;Backend&amp;nbsp;&lt;/b&gt;&lt;/p&gt;" vertex="1">
+          <mxGeometry height="510" width="850" x="30" y="50" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_middlewares" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=55;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="middlewares" vertex="1">
+          <mxGeometry height="55" width="130" x="80" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_routes" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="routes" vertex="1">
+          <mxGeometry height="55" width="130" x="290" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_jobs" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=40;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="jobs" vertex="1">
+          <mxGeometry height="55" width="130" x="500" y="105" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_controllers" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=50;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="controllers" vertex="1">
+          <mxGeometry height="55" width="130" x="80" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_services" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=50;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="services" vertex="1">
+          <mxGeometry height="55" width="140" x="285" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_models" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="models" vertex="1">
+          <mxGeometry height="55" width="130" x="500" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_utils" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=40;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="utils" vertex="1">
+          <mxGeometry height="55" width="130" x="720" y="265" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_validators" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=50;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="validators" vertex="1">
+          <mxGeometry height="55" width="130" x="80" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_config" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="config" vertex="1">
+          <mxGeometry height="55" width="130" x="290" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="bpkg_constants" parent="b_1" style="shape=folder;fontStyle=1;tabWidth=50;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="constants" vertex="1">
+          <mxGeometry height="55" width="130" x="500" y="445" as="geometry" />
+        </mxCell>
+        <mxCell id="be_routes_mid" edge="1" parent="b_1" source="bpkg_routes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="bpkg_middlewares">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="be_routes_ctrl" edge="1" parent="b_1" source="bpkg_routes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.501;entryY=0.31;entryDx=0;entryDy=0;entryPerimeter=0;" target="bpkg_controllers">
+          <mxGeometry relative="1" x="-0.0583" as="geometry">
+            <Array as="points">
+              <mxPoint x="322.5" y="205" />
+              <mxPoint x="145.1" y="205" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_routes_serv" edge="1" parent="b_1" source="bpkg_routes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.487;exitY=0.997;exitDx=0;exitDy=0;entryX=0.484;entryY=0.268;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="bpkg_services">
+          <mxGeometry relative="1" x="-0.1389" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_routes_models" edge="1" parent="b_1" source="bpkg_routes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=87.5;entryDy=16;entryPerimeter=0;" target="bpkg_models">
+          <mxGeometry relative="1" x="-0.1215" as="geometry">
+            <Array as="points">
+              <mxPoint x="387.5" y="205" />
+              <mxPoint x="587.5" y="205" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_ctrl_serv" edge="1" parent="b_1" source="bpkg_controllers" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="bpkg_services">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="be_jobs_serv" edge="1" parent="b_1" source="bpkg_jobs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.751;entryY=0.271;entryDx=0;entryDy=0;entryPerimeter=0;" target="bpkg_services">
+          <mxGeometry relative="1" x="-0.0595" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="132.5" />
+              <mxPoint x="460" y="235" />
+              <mxPoint x="390.1" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_serv_models" edge="1" parent="b_1" source="bpkg_services" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="bpkg_models">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="be_serv_config" edge="1" parent="b_1" source="bpkg_services" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0.287;entryDx=0;entryDy=0;entryPerimeter=0;" target="bpkg_config">
+          <mxGeometry relative="1" x="-0.1241" as="geometry" />
+        </mxCell>
+        <mxCell id="be_serv_const" edge="1" parent="b_1" source="bpkg_services" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=25;entryDy=0;entryPerimeter=0;" target="bpkg_constants">
+          <mxGeometry relative="1" x="0.1538" as="geometry">
+            <Array as="points">
+              <mxPoint x="390" y="385" />
+              <mxPoint x="525" y="385" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_serv_utils" edge="1" parent="b_1" source="bpkg_services" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.25;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="bpkg_utils">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="278.8" />
+              <mxPoint x="460" y="250" />
+              <mxPoint x="680" y="250" />
+              <mxPoint x="680" y="292.5" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_ctrl_utils" edge="1" parent="b_1" source="bpkg_controllers" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="bpkg_utils">
+          <mxGeometry relative="1" x="0.0466" as="geometry">
+            <Array as="points">
+              <mxPoint x="145" y="365" />
+              <mxPoint x="752.5" y="365" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_mid_utils" edge="1" parent="b_1" source="bpkg_middlewares" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.499;exitY=0.299;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=85;entryDy=16;exitPerimeter=0;entryPerimeter=0;" target="bpkg_utils">
+          <mxGeometry relative="1" x="-0.0205" as="geometry">
+            <Array as="points">
+              <mxPoint x="144.9" y="80" />
+              <mxPoint x="805" y="80" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_jobs_utils" edge="1" parent="b_1" source="bpkg_jobs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="bpkg_utils">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="be_val_utils" edge="1" parent="b_1" source="bpkg_validators" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.75;entryY=1;entryDx=0;entryDy=0;" target="bpkg_utils">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="240" y="473" />
+              <mxPoint x="240" y="535" />
+              <mxPoint x="818" y="535" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="be_cfg_utils" edge="1" parent="b_1" source="bpkg_config" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="bpkg_utils">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="460" y="473" />
+              <mxPoint x="460" y="515" />
+              <mxPoint x="785" y="515" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="frontend-packages" name="2. Frontend Package Diagram">
+    <mxGraphModel dx="1253" dy="795" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="950" pageHeight="650" math="0" shadow="0">
+      <root>
+        <mxCell id="f_0" />
+        <mxCell id="f_1" parent="f_0" />
+        <mxCell id="ntl3vPuXuKfaD_0we9V6-0" parent="f_1" style="html=1;shape=mxgraph.sysml.package;html=1;overflow=fill;whiteSpace=wrap;" value="&lt;p style=&quot;margin:0px;margin-top:4px;margin-left:10px;text-align:left;&quot;&gt;&lt;b&gt;Frontend&amp;nbsp;&lt;/b&gt;&lt;/p&gt;" vertex="1">
+          <mxGeometry height="540" width="875" x="35" y="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_app" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=40;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="app" vertex="1">
+          <mxGeometry height="55" width="130" x="120" y="143" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_routes" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="routes" vertex="1">
+          <mxGeometry height="55" width="130" x="340" y="143" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_layouts" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="layouts" vertex="1">
+          <mxGeometry height="55" width="130" x="120" y="293" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_pages" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="pages" vertex="1">
+          <mxGeometry height="55" width="130" x="340" y="293" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_contexts" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=50;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="contexts" vertex="1">
+          <mxGeometry height="55" width="130" x="560" y="293" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_services" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=50;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="services" vertex="1">
+          <mxGeometry height="55" width="130" x="760" y="293" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_components" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=60;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="components" vertex="1">
+          <mxGeometry height="55" width="130" x="120" y="453" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_hooks" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="hooks" vertex="1">
+          <mxGeometry height="55" width="130" x="340" y="453" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_styles" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=45;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="styles" vertex="1">
+          <mxGeometry height="55" width="130" x="560" y="453" as="geometry" />
+        </mxCell>
+        <mxCell id="fpkg_utils" parent="f_1" style="shape=folder;fontStyle=1;tabWidth=40;tabHeight=16;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="utils" vertex="1">
+          <mxGeometry height="55" width="130" x="760" y="453" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_app_routes" edge="1" parent="f_1" source="fpkg_app" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fpkg_routes">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_app_ctx" edge="1" parent="f_1" source="fpkg_app" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.495;exitY=0.349;exitDx=0;exitDy=0;entryX=0.504;entryY=0.293;entryDx=0;entryDy=0;exitPerimeter=0;entryPerimeter=0;" target="fpkg_contexts">
+          <mxGeometry relative="1" x="0.0053" as="geometry">
+            <Array as="points">
+              <mxPoint x="184.4" y="118" />
+              <mxPoint x="625.5" y="118" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fe_routes_pages" edge="1" parent="f_1" source="fpkg_routes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.503;entryY=0.267;entryDx=0;entryDy=0;entryPerimeter=0;" target="fpkg_pages">
+          <mxGeometry relative="1" x="-0.1207" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_routes_layouts" edge="1" parent="f_1" source="fpkg_routes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0;exitY=0;exitDx=0;exitDy=45.25;entryX=0.502;entryY=0.255;entryDx=0;entryDy=0;exitPerimeter=0;entryPerimeter=0;" target="fpkg_layouts">
+          <mxGeometry relative="1" x="-0.1149" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="188.3" />
+              <mxPoint x="300" y="243" />
+              <mxPoint x="185.3" y="243" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fe_routes_ctx" edge="1" parent="f_1" source="fpkg_routes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="fpkg_contexts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_pages_comp" edge="1" parent="f_1" source="fpkg_pages" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=95;entryDy=16;entryPerimeter=0;" target="fpkg_components">
+          <mxGeometry relative="1" x="0.053" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="320.5" />
+              <mxPoint x="300" y="403" />
+              <mxPoint x="215" y="403" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fe_pages_hooks" edge="1" parent="f_1" source="fpkg_pages" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.501;entryY=0.293;entryDx=0;entryDy=0;entryPerimeter=0;" target="fpkg_hooks">
+          <mxGeometry relative="1" x="-0.1003" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_pages_ctx" edge="1" parent="f_1" source="fpkg_pages" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fpkg_contexts">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_pages_serv" edge="1" parent="f_1" source="fpkg_pages" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.754;exitY=0.289;exitDx=0;exitDy=0;entryX=0.497;entryY=0.242;entryDx=0;entryDy=0;exitPerimeter=0;entryPerimeter=0;" target="fpkg_services">
+          <mxGeometry relative="1" x="-0.0268" as="geometry">
+            <Array as="points">
+              <mxPoint x="438" y="243" />
+              <mxPoint x="824.6" y="243" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fe_layouts_comp" edge="1" parent="f_1" source="fpkg_layouts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.237;exitY=0.998;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=30;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="fpkg_components">
+          <mxGeometry relative="1" x="-0.6186" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fe_ctx_serv" edge="1" parent="f_1" source="fpkg_contexts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fpkg_services">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fe_hooks_serv" edge="1" parent="f_1" source="fpkg_hooks" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="fpkg_services">
+          <mxGeometry relative="1" x="0.0725" as="geometry">
+            <Array as="points">
+              <mxPoint x="500" y="480.5" />
+              <mxPoint x="500" y="403" />
+              <mxPoint x="792.5" y="403" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fe_comp_styles" edge="1" parent="f_1" source="fpkg_components" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="fpkg_styles">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="481" />
+              <mxPoint x="300" y="533" />
+              <mxPoint x="520" y="533" />
+              <mxPoint x="520" y="481" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fe_serv_utils" edge="1" parent="f_1" source="fpkg_services" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.3;endArrow=classic;endFill=1;endSize=6;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.503;entryY=0.291;entryDx=0;entryDy=0;entryPerimeter=0;" target="fpkg_utils">
+          <mxGeometry relative="1" x="-0.1203" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="overall-packages" name="3. Overall Package Diagram">
+    <mxGraphModel dx="1040" dy="660" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="950" pageHeight="650" math="0" shadow="0">
+      <root>
+        <mxCell id="o_0" />
+        <mxCell id="o_1" parent="o_0" />
+        <mxCell id="o_title" parent="o_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#000000;" value="Overall Sub-systems Package Diagram" vertex="1">
+          <mxGeometry height="30" width="450" x="250" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="opkg_frontend" parent="o_1" style="shape=folder;fontStyle=1;tabWidth=70;tabHeight=18;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="frontend&#10;(React 19 Client SPA)" vertex="1">
+          <mxGeometry height="80" width="220" x="120" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="opkg_backend" parent="o_1" style="shape=folder;fontStyle=1;tabWidth=70;tabHeight=18;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="backend&#10;(Node.js 24 / Express 5 API)" vertex="1">
+          <mxGeometry height="85" width="220" x="120" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="opkg_ai" parent="o_1" style="shape=folder;fontStyle=1;tabWidth=75;tabHeight=18;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="sitter_matching / pricing&#10;(Advisory / Deterministic Services)" vertex="1">
+          <mxGeometry height="85" width="220" x="540" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="opkg_database" parent="o_1" style="shape=folder;fontStyle=1;tabWidth=70;tabHeight=18;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="database&#10;(MongoDB / Collections)" vertex="1">
+          <mxGeometry height="80" width="220" x="120" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="opkg_ext" parent="o_1" style="shape=folder;fontStyle=1;tabWidth=110;tabHeight=18;tabPosition=left;html=1;boundedLbl=1;labelInHeader=0;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.5;fontSize=12;" value="external_services&#10;(R2 / Mongo media, SMTP, eSMS, payOS)" vertex="1">
+          <mxGeometry height="80" width="220" x="540" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="oe_front_back" edge="1" parent="o_1" source="opkg_frontend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=classic;endFill=1;endSize=6;strokeColor=#000000;strokeWidth=1.3;html=1;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.507;entryY=0.202;entryDx=0;entryDy=0;entryPerimeter=0;" target="opkg_backend" value="«use»&#10;HTTPS REST JSON">
+          <mxGeometry relative="1" x="-0.1718" as="geometry" />
+        </mxCell>
+        <mxCell id="oe_back_ai" edge="1" parent="o_1" source="opkg_backend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=classic;endFill=1;endSize=6;strokeColor=#000000;strokeWidth=1.3;html=1;fontSize=11;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="opkg_ai" value="«use»&#10;In-process advisory call">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="oe_back_db" edge="1" parent="o_1" source="opkg_backend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=classic;endFill=1;endSize=6;html=1;fontSize=11;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0.25;entryDx=0;entryDy=0;entryPerimeter=0;" target="opkg_database" value="«access»&#10;Mongoose ODM">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="oe_back_ext" edge="1" parent="o_1" source="opkg_backend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;dashed=1;dashPattern=5 3;endArrow=classic;endFill=1;endSize=6;html=1;fontSize=11;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="opkg_ext" value="«access»&#10;SDK &amp; Webhooks">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="440" y="338" />
+              <mxPoint x="440" y="480" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

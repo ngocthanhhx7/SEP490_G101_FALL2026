@@ -102,7 +102,10 @@ export function SitterApplicationsPage({ api = sitterApplicationAdminApi }) {
         <p>{Number.isSafeInteger(data.totalMatching) ? `${data.totalMatching} hồ sơ phù hợp` : `${data.applications.length} hồ sơ trên trang`}</p>
         <SortButton sortOrder={sortOrder} onClick={toggleSort} className="sitter-app-sort sitter-app-sort--mobile" />
       </div>
-      {!data.applications.length ? <Notice state="empty" title={EMPTY_MESSAGE} />
+      {data.searchIncomplete && <Notice state="pending" title="Đang tìm trong hồ sơ">
+        Kết quả chưa bao phủ toàn bộ hồ sơ. Chọn Trang sau để tiếp tục tìm hoặc thu hẹp bộ lọc.
+      </Notice>}
+      {!data.applications.length ? <Notice state="empty" title={data.searchIncomplete ? 'Chưa tìm thấy trong phần hồ sơ vừa kiểm tra.' : EMPTY_MESSAGE} />
         : <table className="sitter-app-table">
           <caption className="pwc-visually-hidden">Danh sách đơn ứng tuyển người chăm sóc</caption>
           <thead><tr>

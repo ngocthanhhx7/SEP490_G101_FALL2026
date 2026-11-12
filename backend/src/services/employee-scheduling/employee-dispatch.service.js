@@ -1,4 +1,5 @@
 import { createDispatchWorkspaceService } from './dispatch-workspace.service.js';
+import { createVisitWithdrawalService, hasPendingWithdrawal } from './visit-withdrawal.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/app-error.js';
 import { createSitterOfferService } from '../sitter-offer.service.js';
@@ -9,7 +10,10 @@ import { createSchedulingNotifications } from '../notifications/scheduling-notif
 
 const oid = value => new Types.ObjectId(value);
 const offerView = row => row && ({ ...row, id: String(row._id), visitId: String(row.visitId), sitterId: row.sitterId });
-export function createEmployeeDispatchService({ repository, clock = Date.now, ranker, carePlans }) {
+// The customer's nominee remains binding until a customer-confirmed proposal repins it.
+const directedSitter = visit => visit.requestedSitterId ? String(visit.requestedSitterId) : null;
+
+export function createEmployeeDispatchService({ repository, clock = Date.now, ranker, carePlans, autoDispatchWithdrawals = false }) {
   const { models, col, uow, employeeGuard, eligible } = repository;
   const workspace = createDispatchWorkspaceService({col,clock});
   const notifications = createSchedulingNotifications({ col, clock });
@@ -61,6 +65,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const rows = await col('visits').find({ sitterId: oid(sitterId), state: state ?? { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] },
         ...(cursor ? { _id: { $lt: oid(cursor) } } : {}) }).sort({ _id: -1 }).limit(limit + 1).toArray();
       return { items: rows.slice(0, limit).map(row => ({ id: String(row._id), sitterId, state: row.state, version: row.version,
+        canWithdraw: row.state === 'ASSIGNED' && !row.checkInAt && !hasPendingWithdrawal(row),
         startAt: row.startAt, endAt: row.endAt, serviceName: row.snapshots.serviceName, serviceAddress: row.snapshots.serviceAddress, areaCode: row.areaCode, pets: row.snapshots.pets })),
       nextCursor: rows.length > limit ? String(rows[limit - 1]._id) : null };
     },
@@ -74,7 +79,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       return execute({
         getOffer: async () => offerView(await models.EmployeeVisitOffer.findOne({ _id: offerId, sitterId }).session(session).lean()),
         getVisit: async () => { const row = await visitForOffer(); return { ...row, id: String(row._id), sitterId: row.sitterId && String(row.sitterId),
-          requestedSitterId: row.requestedSitterId && String(row.requestedSitterId), directed: !!row.requestedSitterId }; },
+          requestedSitterId: directedSitter(row), directed: !!directedSitter(row) }; },
         recheckEligibility: async ({ visit }) => {
           const saved = await models.EmployeeVisitOffer.findOne({ _id: offerId, sitterId }).session(session).lean();
           await eligible(sitterId, visit, session, { requireOrigin: saved?.originRouteRequired === true }); return { eligible: true };
@@ -87,7 +92,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           if (!accepted) fail('VERSION_CONFLICT', 'Offer changed', 409);
           const assigned = await col('visits').updateOne({ _id: visit._id, sitterId: null, state: 'SCHEDULED', version: visit.version },
             { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt: new Date(clock()),
-              ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) }, $inc: { version: 1 } }, { session });
+              ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) },
+              $unset: { withdrawalDispatch: 1, withdrawalRequest: 1 }, $inc: { version: 1 } }, { session });
           if (!assigned.matchedCount) fail('SLOT_UNAVAILABLE', 'Visit changed', 409);
           await col('bookings').updateOne({ _id: visit.bookingId }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });
           const pending = await col('visits').countDocuments({ bookingId: visit.bookingId, state: 'SCHEDULED' }, { session });
@@ -106,9 +112,12 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       });
     })
   } });
-  async function candidates(visit, { manual = false, explain = false } = {}) {
-    const directed = visit.requestedSitterId && String(visit.requestedSitterId);
-    const rows = await models.EmployeeAvailability.find({ areas: { $in: repository.areaKeys(visit.areaCode) }, ...(directed ? { _id: directed } : {}) }).sort({ _id: 1 }).limit(101).lean();
+  async function candidates(visit, { manual = false, explain = false, alternatives = false } = {}) {
+    const directed = directedSitter(visit);
+    const withdrawn = visit.withdrawalDispatch?.sitterId;
+    const sitterFilter = directed && !alternatives ? { _id: directed } : withdrawn ? { _id: { $ne: String(withdrawn) } } : {};
+    const rows = await models.EmployeeAvailability.find({ areas: { $in: await repository.areaKeys(visit.areaCode) }, ...sitterFilter })
+      .sort({ _id: 1 }).limit(101).lean();
     if (rows.length > 100) fail('DISPATCH_SEARCH_LIMIT', 'Employee population requires a wider reviewed dispatch search', 409);
     const allowed = [];
     const rejected = {};
@@ -167,20 +176,25 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     finally { clearTimeout(timer); }
     return { sitterIds: allowed };
   }
-  const service = { offers, readContext: readyVisit,
+  const withdrawals = createVisitWithdrawalService({ repository, clock,
+    runCommand: (actor, payload, key, execute) => command(actor, 'visit-withdrawal', payload, key, execute),
+    requeue: autoDispatchWithdrawals ? requeueWithdrawal : undefined });
+  const service = { offers, withdrawals, readContext: readyVisit,
     async previewCandidates(actor, visitId, input) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       id(visitId); exact(input, ['startAt', 'areaCode', 'mode'], ['startAt']);
-      if (input.mode !== undefined && input.mode !== 'MANUAL') fail('VALIDATION_FAILED', 'Invalid preview mode');
+      if (input.mode !== undefined && !['MANUAL', 'REPLACEMENT'].includes(input.mode)) fail('VALIDATION_FAILED', 'Invalid preview mode');
       const visit = await readyVisit(visitId), startAt = new Date(instant(input.startAt));
       const areaCode = input.areaCode ?? visit.areaCode;
-      if (!repository.coverageAreas.some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
+      if (!(await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas))).some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
         fail('VALIDATION_FAILED', 'Choose the current area or a more precise home area');
-      const manual = input.mode === 'MANUAL';
+      const replacement = input.mode === 'REPLACEMENT';
+      if (replacement && !visit.dispatchReview) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'Replacement previews require staff escalation', 409);
+      const manual = input.mode === 'MANUAL' || replacement && startAt.getTime() === visit.startAt.getTime() && areaCode === visit.areaCode;
       if (manual && (startAt.getTime() !== visit.startAt.getTime() || areaCode !== visit.areaCode)) fail('VALIDATION_FAILED', 'Manual preview must retain booked time and area');
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
       try {
-        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual });
+        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual, alternatives: replacement });
         const users = await col('users').find({ _id: { $in: [...ids, ...blocked.map(row => row.sitterId)].map(oid) } }, { projection: { displayName: 1 } }).limit(101).toArray();
         return { items: ids.map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
           ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: users.find(user => String(user._id) === row.sitterId)?.displayName })) } : {}),
@@ -192,16 +206,16 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     },
     async queue(actor) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
-      const rows = await queueRows(51), today = await workspace.read();
-      const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,r.requestedSitterId]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
+      const [rows, today, withdrawalQueue] = await Promise.all([queueRows(51), workspace.read(), withdrawals.staffRequests()]);
+      const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,directedSitter(r)]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
       const name=id=>people.find(p=>String(p._id)===String(id))?.displayName??null;
-      return { today, queueHasMore: rows.length>50, workAreas: repository.coverageAreas, items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(row.requestedSitterId), version: row.version, startAt: row.startAt,
+      return { ...withdrawalQueue, today, queueHasMore: rows.length>50, workAreas: await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas)), items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(directedSitter(row)), version: row.version, startAt: row.startAt,
         endAt: row.endAt, serviceName: row.snapshots.serviceName, areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
         dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,
         pendingInvitationCount: row.pendingOffers.length,
         diagnostics: row.dispatchReview?.diagnostics, location: row.location, boarding: row.snapshots.boarding === true,
-        requestedSitterId: row.requestedSitterId && String(row.requestedSitterId) })) };
+        requestedSitterId: directedSitter(row) })) };
     },
     async invite(actor, visitId, body, key) {
       id(visitId); const input = invitationInput(body);
@@ -211,7 +225,12 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         if (visit.version !== input.expectedVersion) fail('VERSION_CONFLICT', 'Visit changed', 409);
         if (visit.startAt <= new Date(clock())) fail('SHIFT_START_REACHED', 'Customer must confirm a future schedule before invitations', 409);
         const pending = await models.EmployeeVisitOffer.find({ visitId: visit._id, state: 'PENDING', deadline: { $gt: new Date(clock()) } }).session(session).lean();
-        const target = visit.requestedSitterId || input.sitterId ? 1 : 5;
+        const directed = directedSitter(visit);
+        if (directed && String(visit.withdrawalDispatch?.sitterId) === directed)
+          fail('DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'Customer must confirm a replacement employee', 409);
+        if (input.sitterId && input.sitterId === String(visit.withdrawalDispatch?.sitterId))
+          fail('SITTER_WITHDREW', 'Employee withdrew from this visit', 409);
+        const target = directed || input.sitterId ? 1 : 5;
         const resultView = rows => ({ offerId: String(rows[0]._id), state: 'PENDING', visitId, sitterId: rows[0].sitterId,
           invitationCount: rows.length, minimumRequested: target, shortfall: Math.max(0, target - rows.length),
           invitations: rows.map(row => ({ offerId: String(row._id), sitterId: row.sitterId, deadline: row.deadline })) });
@@ -221,7 +240,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const ranked = ranking.sitterIds;
         if (!ranked.length) {
           if (pending.length) return resultView(pending);
-          fail(visit.requestedSitterId ? 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' : 'NO_ELIGIBLE_SITTER', 'Staff must arrange a suitable schedule with the customer', 409);
+          fail(directed ? 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' : 'NO_ELIGIBLE_SITTER', 'Staff must arrange a suitable schedule with the customer', 409);
         }
         const previous = await models.EmployeeVisitOffer.find({ visitId: visit._id, $or: [
           { state: { $in: ['DECLINED', 'EXPIRED'] } }, { state: 'PENDING', deadline: { $lte: new Date(clock()) } }
@@ -233,7 +252,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           fail('STAFF_REVIEW_REQUIRED', 'All available employees have already been invited', 409);
         }
         for (const sitterId of [...selected].sort()) {
-          if (visit.requestedSitterId && String(visit.requestedSitterId) !== sitterId) fail('DIRECTED_SITTER_MISMATCH', 'Only the customer selected employee may be invited', 409);
+          if (directed && directed !== sitterId) fail('DIRECTED_SITTER_MISMATCH', 'Only the customer selected employee may be invited', 409);
           await employeeGuard(sitterId, session); await eligible(sitterId, visit, session, { requireOrigin: !input.sitterId });
         }
         await models.EmployeeVisitOffer.updateMany({ visitId: visit._id, state: 'PENDING', deadline: { $lte: new Date(clock()) } }, { $set: { state: 'EXPIRED' }, $inc: { version: 1 } }, { session });
@@ -258,28 +277,42 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       for (const row of rows) {
         if (row.dispatchReview?.retryAt > new Date(clock())) continue;
         result.processed++;
-        try {
-          if (row.startAt <= new Date(clock())) fail('SHIFT_START_REACHED', 'No employee accepted before shift start', 409);
-          await service.invite(agentActor, String(row._id), { expectedVersion: row.version }, `agent:${row._id}:${row.version}`);
-          result.invited++;
-        } catch (error) {
-          if (error.status !== 409) throw error;
-          result.review++;
-          if (!['NO_ELIGIBLE_SITTER', 'DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'STAFF_REVIEW_REQUIRED',
-            'TRAVEL_REVIEW_REQUIRED', 'DAY_ORIGIN_MISSING', 'DISPATCH_SEARCH_LIMIT', 'SHIFT_START_REACHED'].includes(error.code)) continue;
-          await uow.run(async session => {
-            const updated = await col('visits').findOneAndUpdate({ _id: row._id, version: row.version, state: 'SCHEDULED', sitterId: null },
-              { $set: { dispatchReview: { code: error.code, at: new Date(clock()), retryAt: new Date(clock() + 60000),
-                ...(error.details?.diagnostics || row.dispatchReview?.diagnostics ? { diagnostics: error.details?.diagnostics ?? row.dispatchReview.diagnostics } : {}) } } },
-              { session, returnDocument: 'before' });
-            if (updated && !updated.dispatchReview) await event({ type: 'DispatchReviewRequired', actorId: agentActor.userId,
-              visitId: String(row._id), detail: { code: error.code, version: row.version } }, session);
-          });
-        }
+        const outcome = await dispatchRow(row);
+        result[outcome]++;
       }
       return result;
     }
   };
+  async function dispatchRow(row) {
+    try {
+      if (row.startAt <= new Date(clock())) fail('SHIFT_START_REACHED', 'No employee accepted before shift start', 409);
+      await service.invite(agentActor, String(row._id), { expectedVersion: row.version }, `agent:${row._id}:${row.version}`);
+      return 'invited';
+    } catch (error) {
+      if (error.status !== 409) throw error;
+      if (!['NO_ELIGIBLE_SITTER', 'DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'STAFF_REVIEW_REQUIRED',
+        'TRAVEL_REVIEW_REQUIRED', 'DAY_ORIGIN_MISSING', 'DISPATCH_SEARCH_LIMIT', 'SHIFT_START_REACHED'].includes(error.code)) return 'review';
+      await uow.run(async session => {
+        const updated = await col('visits').findOneAndUpdate({ _id: row._id, version: row.version, state: 'SCHEDULED', sitterId: null },
+          { $set: { dispatchReview: { code: error.code, at: new Date(clock()), retryAt: new Date(clock() + 60000),
+            ...(error.details?.diagnostics || row.dispatchReview?.diagnostics ? { diagnostics: error.details?.diagnostics ?? row.dispatchReview.diagnostics } : {}) } } },
+          { session, returnDocument: 'before' });
+        if (updated && !updated.dispatchReview) await event({ type: 'DispatchReviewRequired', actorId: agentActor.userId,
+          visitId: String(row._id), detail: { code: error.code, version: row.version } }, session);
+      });
+      return 'review';
+    }
+  }
+
+  async function requeueWithdrawal(visitId, version) {
+    try {
+      const row = await col('visits').findOne({ _id: oid(visitId), version, state: 'SCHEDULED', sitterId: null });
+      if (row && !(row.dispatchReview?.retryAt > new Date(clock()))) await dispatchRow(row);
+    } catch {
+      // The visit is already requeued. The existing dispatch worker retries it.
+    }
+  }
+
   async function queueRows(limit, actionable = false, overdue = false) {
     return col('visits').aggregate([
       { $match: { state: 'SCHEDULED', ...(actionable ? { startAt: { [overdue ? '$lte' : '$gt']: new Date(clock()) },

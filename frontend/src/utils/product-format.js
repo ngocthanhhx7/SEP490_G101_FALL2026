@@ -33,6 +33,12 @@ export function formatOrderDate(value) {
   return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' }).format(time);
 }
 
+// A day such as 2026-11-04 (a goods receipt's day) as 04/11/2026. Anything else is shown as it was.
+export function formatDay(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(typeof value === 'string' ? value : '');
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : (typeof value === 'string' ? value : '');
+}
+
 export function productMessage(key, values = {}) {
   const template = PRODUCT_MESSAGES[key] ?? '';
   return template.replace(/\{(\w+)\}/g, (_match, name) => String(values[name] ?? ''));

@@ -79,3 +79,14 @@ test('GBR-25 shows the stored reapplication date and UC-17 shows MSG14 for an em
   expect(date).toHaveAttribute('datetime', '2026-11-12T17:30:00.000Z');
   expect(date.parentElement).toHaveTextContent('Nộp lại từ 13/11/2026');
 });
+
+test('an empty bounded search window still exposes continuation without claiming no matching applications', async () => {
+  const list = jest.fn(async ({ cursor }) => ({ data: { applications: cursor ? [row] : [], totalMatching: null,
+    searchIncomplete: !cursor, nextCursor: cursor ? null : 'continue-search' } }));
+  show(list);
+  expect(await screen.findByText('Chưa tìm thấy trong phần hồ sơ vừa kiểm tra.')).toBeVisible();
+  expect(screen.queryByText('Không có đơn ứng tuyển phù hợp.')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Trang sau' }));
+  expect(await screen.findByRole('table')).toBeVisible();
+  expect(list).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'continue-search' }));
+});

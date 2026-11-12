@@ -1,3 +1,4 @@
+import { createServiceAreaCatalog } from './service-area-catalog.service.js';
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { canonicalizeContact } from './contact-crypto.service.js';
@@ -14,6 +15,7 @@ const MAX_DOCUMENT_VIEWS_PER_HOUR = 20;
 const ALLOWED_STATES = new Set(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED']);
 const ACTIVE_STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW'];
 const PAGE_LIMIT = 50;
+const SEARCH_CANDIDATE_LIMIT = 500;
 
 function invalid(message = 'Application request is invalid') {
   const field = ['displayName', 'contactValue', 'dateOfBirth', 'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'employmentType']
@@ -176,15 +178,6 @@ function phoneSearchTerm(search) {
 function phoneMatches(phone, term) {
   const local = phone.startsWith('+84') ? `0${phone.slice(3)}` : phone;
   return phone.includes(term) || local.includes(term);
-}
-
-function isAfterCursor(row, position, direction) {
-  if (!position) return true;
-  const byDate = row.createdAt - position.createdAt;
-  const id = row._id.toString();
-  const cursorId = position.id.toString();
-  const comparison = byDate || (id > cursorId ? 1 : id < cursorId ? -1 : 0);
-  return comparison * direction > 0;
 }
 
 function assertAdmin(actor) {
@@ -367,7 +360,10 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     const serviceArea = query.serviceArea ?? '';
     if (employmentType && !['FULL_TIME', 'PART_TIME'].includes(employmentType)) invalid('Employment filter is invalid');
     if (state && !ALLOWED_STATES.has(state)) invalid('state is invalid');
-    const area = LIST_SERVICE_AREAS.find(option => option.id === serviceArea);
+    const serviceAreas = [...new Map([...LIST_SERVICE_AREAS,
+      ...(await createServiceAreaCatalog(connection).list({ all: true })).map(area => ({ id: area.code, name: area.label }))]
+      .map(area => [area.id, area])).values()];
+    const area = serviceAreas.find(option => option.id === serviceArea);
     if (typeof search !== 'string' || search.length > 50
       || typeof limitText !== 'string' || !/^[1-9]\d{0,2}$/.test(limitText)
       || typeof cursorValue !== 'string'
@@ -382,40 +378,43 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     })).digest('base64url');
     const position = cursorValue ? cursors.decode(cursorValue, fingerprint) : null;
     const matchingFilter = {
-      ...(state && { state }),
+      state: state || { $in: [...ALLOWED_STATES] },
       ...(employmentType && { employmentType }),
       ...(area && areaFilter(area))
     };
 
-    let rows;
-    let totalMatching;
+    const operator = direction === 1 ? '$gt' : '$lt';
+    const pageFilter = position ? { ...matchingFilter, $or: [
+      { createdAt: { [operator]: position.createdAt } },
+      { createdAt: position.createdAt, _id: { [operator]: position.id } }
+    ] } : matchingFilter;
+    let rows, totalMatching, continuation = null, searchIncomplete = false;
     if (term) {
       const phoneTerm = phoneSearchTerm(term);
       rows = [];
-      totalMatching = 0;
-      const candidates = Applicant.find(matchingFilter).select(LIST_FIELDS).sort(sort).lean().cursor({ batchSize: 100 });
-      for await (const row of candidates) {
+      const candidates = await Applicant.find(pageFilter).select(LIST_FIELDS).sort(sort)
+        .limit(SEARCH_CANDIDATE_LIMIT + 1).maxTimeMS(5000).lean();
+      let scanned;
+      for (const row of candidates.slice(0, SEARCH_CANDIDATE_LIMIT)) {
+        scanned = row;
         const code = row.submissionKeyDigest ? receiptCode(lookupSecret, row.submissionKeyDigest) : null;
         const matches = row.displayName.normalize('NFC').toLocaleLowerCase('vi').includes(term)
           || code?.toLowerCase().includes(term)
           || (phoneTerm && row.contactChannel === 'PHONE' && phoneMatches(contactCrypto.decrypt(row.contactCiphertext), phoneTerm));
-        if (!matches) continue;
-        totalMatching++;
-        if (rows.length <= limit && isAfterCursor(row, position, direction)) rows.push(row);
+        if (matches) rows.push(row);
+        if (rows.length > limit) break;
       }
+      searchIncomplete = rows.length > limit || candidates.length > SEARCH_CANDIDATE_LIMIT;
+      continuation = rows.length > limit ? rows[limit - 1] : candidates.length > SEARCH_CANDIDATE_LIMIT ? scanned : null;
+      totalMatching = !position && !searchIncomplete ? rows.length : null;
     } else {
-      const operator = direction === 1 ? '$gt' : '$lt';
-      const pageFilter = position ? { ...matchingFilter, $or: [
-        { createdAt: { [operator]: position.createdAt } },
-        { createdAt: position.createdAt, _id: { [operator]: position.id } }
-      ] } : matchingFilter;
       [rows, totalMatching] = await Promise.all([
-        Applicant.find(pageFilter).select(LIST_FIELDS).sort(sort).limit(limit + 1).lean(),
-        Applicant.countDocuments(matchingFilter)
+        Applicant.find(pageFilter).select(LIST_FIELDS).sort(sort).limit(limit + 1).maxTimeMS(5000).lean(),
+        Applicant.countDocuments(matchingFilter).maxTimeMS(5000)
       ]);
+      continuation = rows.length > limit ? rows[limit - 1] : null;
     }
 
-    const hasMore = rows.length > limit;
     const page = rows.slice(0, limit);
     const items = page.map(row => {
       const contactValue = contactCrypto.decrypt(row.contactCiphertext);
@@ -430,12 +429,12 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString()
       };
     });
-    const counts = await Applicant.aggregate([{ $group: { _id: '$state', count: { $sum: 1 } } }]);
+    const counts = await Applicant.aggregate([{ $group: { _id: '$state', count: { $sum: 1 } } }]).option({ maxTimeMS: 5000 });
     const byState = Object.fromEntries([...ALLOWED_STATES].map(state => [state, 0]));
     for (const row of counts) if (Object.hasOwn(byState, row._id)) byState[row._id] = row.count;
     return { applications: items, summary: { total: Object.values(byState).reduce((sum, value) => sum + value, 0), byState },
-      serviceAreas: LIST_SERVICE_AREAS, totalMatching, nextCursor: hasMore && page.length
-      ? cursors.encode(page.at(-1).createdAt, page.at(-1)._id, fingerprint) : null };
+      serviceAreas, totalMatching, searchIncomplete, nextCursor: continuation
+      ? cursors.encode(continuation.createdAt, continuation._id, fingerprint) : null };
   }
 
   async function get({ applicationId, actor, correlationId }) {

@@ -1,0 +1,267 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron">
+  <diagram id="domain-cases" name="10. Incidents, Complaints and Refund Decisions">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1530" math="0" shadow="0">
+      <root>
+        <mxCell id="p_0" value="" />
+        <mxCell id="p_1" parent="p_0" value="" />
+        <mxCell id="p_title" value="Class Diagram: Incidents, Complaints and Refund Decisions" vertex="1" parent="p_1" style="text;html=0;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;">
+          <mxGeometry as="geometry" x="40" y="25" width="1080" height="38" />
+        </mxCell>
+        <mxCell id="complaint_ctrl" value="ComplaintController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="110" width="300" height="155" />
+        </mxCell>
+        <mxCell id="complaint_ctrl_body" value="+ createRoot /&#10;createVisitsByVisitId(req,res)&#10;+ getRoot / getByComplaintId(req,res)&#10;+ createByComplaintIdReview(req,res)&#10;+ createByComplaintIdResolution(req,res)&#10;+ createByComplaintIdObjections(req,res)&#10;+ createByComplaintIdDecision(req,res)" vertex="1" parent="complaint_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="129" />
+        </mxCell>
+        <mxCell id="complaint_service" value="ComplaintService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="110" width="320" height="104" />
+        </mxCell>
+        <mxCell id="complaint_service_body" value="+ submit / list / get(input)&#10;+ review / resolve / object / decide(input)&#10;- authorization, source/state/version guards&#10;- command identity and safe projections" vertex="1" parent="complaint_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="78" />
+        </mxCell>
+        <mxCell id="complaint_repo" value="MongoComplaintRepository" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="110" width="300" height="104" />
+        </mxCell>
+        <mxCell id="complaint_repo_body" value="+ runForVisitActor(actor,id,work)&#10;+ runForCase(actor,id,work)&#10;+ listComplaints(query)&#10;+ tx: case/version/command/event/hold" vertex="1" parent="complaint_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="complaint_ctrl_service" value="" edge="1" parent="p_1" source="complaint_ctrl" target="complaint_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="156.5" />
+              <mxPoint x="380.0" y="156.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="complaint_service_repo" value="" edge="1" parent="p_1" source="complaint_service" target="complaint_repo" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="141.2" />
+              <mxPoint x="780.0" y="156.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="complaint_source" value="Source: complaint.controller.js → complaints/complaint.service.js → complaints/mongo-complaint.repository.js. finance-source-runtime.js composes this dependency. The repository reads visits/bookings, writes cases and FinanceSourceCommand/Event, and changes booking financial holds within its unit of work. It is not IncidentService." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="360" width="1080" height="110" />
+        </mxCell>
+        <mxCell id="incident_ctrl" value="IncidentController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="560" width="300" height="104" />
+        </mxCell>
+        <mxCell id="incident_ctrl_body" value="+ createIncidents(req,res)&#10;+ createVisitsByVisitIdIncidents(req,res)&#10;+ getIncidents / getCasesByCaseId(req,res)&#10;+ createCasesByCaseIdResolutions(req,res)" vertex="1" parent="incident_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="incident_service" value="IncidentService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="560" width="320" height="104" />
+        </mxCell>
+        <mxCell id="incident_service_body" value="+ report / create(input)&#10;+ list / listIncidents(input)&#10;+ detail / get(input)&#10;+ resolve / resolveIncident(input)" vertex="1" parent="incident_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="78" />
+        </mxCell>
+        <mxCell id="incident_port" value="IncidentRepository «injected port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="560" width="300" height="121" />
+        </mxCell>
+        <mxCell id="incident_port_body" value="+ runForVisitActor / runForCase(...)&#10;+ OR runIncidentTransaction /&#10;runTransaction&#10;+ tx methods supplied by repository&#10;No concrete adapter inheritance asserted" vertex="1" parent="incident_port" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="95" />
+        </mxCell>
+        <mxCell id="incident_ctrl_service" value="" edge="1" parent="p_1" source="incident_ctrl" target="incident_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="591.2" />
+              <mxPoint x="380.0" y="606.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="incident_service_repo" value="" edge="1" parent="p_1" source="incident_service" target="incident_port" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="591.2" />
+              <mxPoint x="780.0" y="614.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="incident_source" value="Source: incident.controller.js → incidents/incident.service.js; incident.routes.js accepts the service and session port. This source module requires an injected transaction repository. A concrete runtime adapter/mount is not established by this diagram; implementation and live acceptance remain separate gates." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="800" width="1080" height="105" />
+        </mxCell>
+        <mxCell id="refund_ctrl" value="RefundsController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="1010" width="300" height="87" />
+        </mxCell>
+        <mxCell id="refund_ctrl_body" value="+ createRoot(req,res)&#10;+ createByIdDecisions(req,res)&#10;+ createByIdTransferRecords(req,res)" vertex="1" parent="refund_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="refund_service" value="RefundService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="1010" width="320" height="87" />
+        </mxCell>
+        <mxCell id="refund_service_body" value="+ propose({actor,input,idempotencyKey})&#10;+ decide({actor,refundId,...})&#10;+ recordTransfer({actor,refundId,...})" vertex="1" parent="refund_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="61" />
+        </mxCell>
+        <mxCell id="refund_ports" value="Refund dependencies «injected ports»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="1010" width="300" height="121" />
+        </mxCell>
+        <mxCell id="refund_ports_body" value="+ unitOfWork.run(callback)&#10;+ refunds: guarded repository&#10;+ ledger: source identity and effects&#10;+ capacity: refundable amount&#10;+ authorizeSource(actor,source,action,tx)" vertex="1" parent="refund_ports" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="95" />
+        </mxCell>
+        <mxCell id="refund_ctrl_service" value="" edge="1" parent="p_1" source="refund_ctrl" target="refund_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="1036.1" />
+              <mxPoint x="380.0" y="1049.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="refund_service_ports" value="" edge="1" parent="p_1" source="refund_service" target="refund_ports" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="1036.1" />
+              <mxPoint x="780.0" y="1064.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="refund_source" value="Source: refunds.controller.js → refunds/refund.service.js. Refund decision/transfer recording uses distinct injected source-authorization, capacity, repository and ledger contracts. A case may be a source reference; this does not mean IncidentService owns a Refund instance." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1260" width="1080" height="100" />
+        </mxCell>
+        <mxCell id="source-notation" value="Notation: dashed open arrows are dependencies. Boxes describe JavaScript factory roles, injected ports and model contracts, not ES class inheritance. No diamond implies lifecycle ownership. A shown source capability does not prove live route/provider acceptance." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1390" width="1080" height="95" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="target-cases-incidentcaseextension" name="Incident case and audited resolution design — DESIGN_PENDING_RUNTIME">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="1044" math="0" shadow="0">
+      <root>
+        <mxCell id="p_0" value="" />
+        <mxCell id="p_1" parent="p_0" value="" />
+        <mxCell id="p_title" parent="p_1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#000000;" value="Class Diagram: Incident case and audited resolution design [DESIGN_PENDING_RUNTIME]" vertex="1">
+          <mxGeometry height="30" width="620" x="260" y="28.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionCommandDTO" vertex="1">
+          <mxGeometry height="110.0" width="190" x="50" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_req_fields" parent="p_quote_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ actorId: ObjectId&#10;+ resourceId: key&#10;+ expectedVersion: integer&#10;+ idempotencyKey: string" vertex="1">
+          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_basket_req" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="AuthoritativeSourceContext" vertex="1">
+          <mxGeometry height="94" width="190" x="50" y="361.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_basket_req_fields" parent="p_basket_req" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ owner / assignment binding&#10;+ current state / source version&#10;+ approved policy reference" vertex="1">
+          <mxGeometry height="68" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_res" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionResultDTO" vertex="1">
+          <mxGeometry height="110.0" width="190" x="50" y="560.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_quote_res_fields" parent="p_quote_res" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ resourceId: key&#10;+ state: domain state&#10;+ version: integer&#10;+ replayed: boolean" vertex="1">
+          <mxGeometry height="84.0" width="190" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_base_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="GuardedPersistencePort «interface, design»" vertex="1">
+          <mxGeometry height="94" width="180" x="120" y="845.5" as="geometry" />
+        </mxCell>
+        <mxCell id="p_base_repo_methods" parent="p_base_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ findOwned(filter)&#10;+ compareAndSet(guard,change)&#10;+ runTransaction(work)" vertex="1">
+          <mxGeometry height="68" width="180" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ctrl" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionController «design»" vertex="1">
+          <mxGeometry height="95.0" width="230" x="420" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_ctrl_methods" parent="p_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ authorizeAndValidate(req)&#10;+ executeOwnedCommand(req,res)&#10;+ mapDomainError(error)" vertex="1">
+          <mxGeometry height="69.0" width="230" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_serv" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentResolutionService «design»" vertex="1">
+          <mxGeometry height="110.0" width="240" x="415" y="418.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_serv_methods" parent="p_serv" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ submitIncident(actor,dto,key)&#10;+ recordFollowUp(actor,dto,key)&#10;+ proposeFinancialDecision(actor,dto)&#10;+ concludeWithApprovedDecision(actor,dto)" vertex="1">
+          <mxGeometry height="84.0" width="240" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_repo" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="SourceRepository «design»" vertex="1">
+          <mxGeometry height="95.0" width="240" x="415" y="836.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_repo_methods" parent="p_repo" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ persistCommandAndAudit(command)&#10;+ appendImmutableSource(source)&#10;+ claimEventOnce(key)" vertex="1">
+          <mxGeometry height="69.0" width="240" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_calc" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="CaseFinancialHoldPolicy «design»" vertex="1">
+          <mxGeometry height="95.0" width="250" x="780" y="114.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_calc_methods" parent="p_calc" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ requireEvidenceAndApprovedSource(context)&#10;+ retainHoldUntilFinalConclusion(case)" vertex="1">
+          <mxGeometry height="69.0" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_policy" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="IncidentCaseExtension" vertex="1">
+          <mxGeometry height="110.0" width="250" x="780" y="418.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_policy_fields" parent="p_policy" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ _id: String&#10;+ kind: INCIDENT&#10;+ visitId: ObjectId&#10;+ bookingId: ObjectId&#10;+ reportedBy: ObjectId" vertex="1">
+          <mxGeometry height="84.0" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="p_snap" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;" value="Booking" vertex="1">
+          <mxGeometry height="108" width="250" x="780" y="836.0" as="geometry" />
+        </mxCell>
+        <mxCell id="p_snap_fields" parent="p_snap" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=visible;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;" value="+ _id: ObjectId&#10;+ customerId: ObjectId&#10;+ quoteId: ObjectId&#10;+ quoteVersion: Integer&#10;+ originalVisitCount: Integer" vertex="1">
+          <mxGeometry height="82" width="250" y="26" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_serv" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;startArrow=none;endArrow=open;dashed=1;dashPattern=5 3;" target="p_serv" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_repo" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#000000;strokeWidth=1.3;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;startArrow=none;endArrow=open;dashed=1;dashPattern=5 3;" target="p_repo" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_repo_base" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;endSize=10;strokeColor=#000000;strokeWidth=1.3;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;dashed=1;dashPattern=5 3;" target="p_base_repo" value="proposed port realization">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_req" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_quote_req" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_ctrl_basket" edge="1" parent="p_1" source="p_ctrl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=1;entryY=0.3;entryDx=0;entryDy=0;" target="p_basket_req" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="360" y="240.35" />
+              <mxPoint x="360" y="409.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_req" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.2;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="p_quote_req" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="330" y="459.8" />
+              <mxPoint x="330" y="260.3" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_basket" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.75;entryDx=0;entryDy=0;" target="p_basket_req" value="">
+          <mxGeometry relative="1" x="0.0194" as="geometry">
+            <Array as="points">
+              <mxPoint x="300" y="522.5" />
+              <mxPoint x="300" y="482.22" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_res" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="p_quote_res" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_calc" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.2;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_calc" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel_p_serv_policy" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="p_policy" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_serv_snap" edge="1" parent="p_1" source="p_serv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.8;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;" target="p_snap" value="">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="690" y="585.2" />
+              <mxPoint x="690" y="890.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_repo_policy" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="p_policy" value="">
+          <mxGeometry relative="1" x="0.0879" as="geometry">
+            <Array as="points">
+              <mxPoint x="655" y="926.25" />
+              <mxPoint x="720" y="926.25" />
+              <mxPoint x="720" y="741.0" />
+              <mxPoint x="905" y="741.0" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="rel_p_repo_snap" edge="1" parent="p_1" source="p_repo" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;exitX=1;exitY=0.7;exitDx=0;exitDy=0;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" target="p_snap" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
