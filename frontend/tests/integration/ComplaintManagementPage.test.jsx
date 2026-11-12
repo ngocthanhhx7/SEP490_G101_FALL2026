@@ -1,5 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { safeComplaint } from '../../../backend/src/services/complaints/complaint-projection.js';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { ComplaintManagementPage } from '../../src/pages/staff/ComplaintManagementPage.jsx';
 import { AppRoutes } from '../../src/routes/AppRoutes.jsx';
@@ -49,6 +50,39 @@ test('UC-53 reads counts, searches, sorts, and shows the old open case warning',
   expect(api.list).toHaveBeenLastCalledWith(expect.objectContaining({ state: 'OPEN', sort: 'oldest', q: 'BK-9999' }));
   fireEvent.click(screen.getByRole('tab', { name: 'Chuyển quản trị (1)' }));
   await waitFor(() => expect(api.list).toHaveBeenLastCalledWith(expect.objectContaining({ state: 'ESCALATED' })));
+});
+
+test('UC-53 shows Mở 3 ngày only after the open complaint exceeds 72 hours', async () => {
+  const asOf = new Date('2026-11-15T02:05:00Z');
+  const staff = { roles: ['STAFF'] };
+  const atThreshold = safeComplaint(item, staff, asOf);
+  const pastThreshold = safeComplaint({
+    ...item, id: 'case-2', code: 'KN-123456789ABD', createdAt: '2026-11-12T02:04:00Z'
+  }, staff, asOf);
+  const api = fixture(atThreshold);
+  api.list.mockResolvedValue(list([atThreshold, pastThreshold]));
+  show(api);
+
+  const exactRow = within(await screen.findByRole('button', { name: /KN-123456789ABC/ }));
+  expect(exactRow.getByText('Đang mở')).toBeVisible();
+  expect(exactRow.queryByText(/^Mở \d+ ngày$/)).not.toBeInTheDocument();
+  const olderRow = within(screen.getByRole('button', { name: /KN-123456789ABD/ }));
+  expect(olderRow.getByText('Mở 3 ngày')).toBeVisible();
+});
+
+test('UC-53 retries a failed list request and displays the recovered list', async () => {
+  const api = fixture();
+  api.list.mockRejectedValueOnce(Object.assign(new Error('List unavailable'), { status: 503 }));
+  show(api);
+
+  const error = await screen.findByRole('alert', { name: 'Chưa tải được danh sách khiếu nại' });
+  expect(error).toBeVisible();
+  expect(api.list).toHaveBeenCalledTimes(1);
+  fireEvent.click(within(error).getByRole('button', { name: 'Thử lại' }));
+
+  expect(await screen.findByRole('button', { name: /KN-123456789ABC/ })).toBeVisible();
+  expect(api.list).toHaveBeenCalledTimes(2);
+  expect(screen.queryByRole('alert', { name: 'Chưa tải được danh sách khiếu nại' })).not.toBeInTheDocument();
 });
 
 test('UC-53 validates required fields and resolves without money when billing is unavailable', async () => {
