@@ -1,0 +1,57 @@
+.counter-sale { --shop-green: var(--pwc-ink); --shop-green-soft: var(--pwc-lavender-soft); padding-top: 1rem; }
+.counter-sale h1 { font-family: var(--pwc-font-display); font-size: 2.25rem; }
+.counter-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); align-items: start; gap: 1.5rem; }
+.counter-grid > * { min-width: 0; }
+.counter-sale .pwc-shop-panel { background: var(--pwc-surface); box-shadow: none; }
+.counter-product-table { margin-top: 1rem; }
+.counter-product-table th { white-space: nowrap; font-size: .8rem; }
+.counter-product-table td { font-size: .9rem; }
+.counter-product-table small, .counter-line-name small { display: block; color: var(--shop-muted); font-weight: 400; }
+.counter-product-table .pwc-shop-outline-button { padding: .35rem .8rem; border-width: 1px; }
+.counter-product-table button:disabled { color: var(--pwc-disabled-ink); background: var(--pwc-disabled-surface); border-color: var(--pwc-disabled-ink); border-style: dashed; box-shadow: none; cursor: not-allowed; }
+.counter-order-heading { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: .5rem; margin-bottom: 1rem; }
+.counter-order-heading h2 { margin: 0; }
+.counter-status { display: inline-flex; border-radius: 999px; padding: .3rem .7rem; font-size: .8rem; font-weight: 800; }
+.counter-status--awaiting_payment { color: var(--shop-warn-ink); background: var(--shop-warn-bg); }
+.counter-status--paid, .counter-status--completed { color: var(--pwc-success); background: var(--pwc-success-surface); }
+.counter-status--cancelled { color: var(--pwc-disabled-ink); background: var(--pwc-disabled-surface); }
+.counter-customer-search { display: flex; gap: .5rem; margin-bottom: .5rem; }
+.counter-customer-search input { min-width: 0; }
+.counter-customer-search button { flex-shrink: 0; white-space: nowrap; }
+.counter-order .pwc-shop-label { font-size: .9rem; }
+.counter-customer { display: flex; align-items: center; gap: .6rem; background: var(--pwc-lavender-soft); color: var(--pwc-ink); border-radius: .75rem; padding: .75rem; font-weight: 800; }
+.counter-customer svg { flex-shrink: 0; }
+.counter-customer span { min-width: 0; overflow-wrap: anywhere; }
+.counter-empty { padding: 1.25rem 0; }
+.counter-line { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; padding: 1rem 0; border-bottom: 1px solid var(--shop-border); }
+.counter-line-name { flex: 1 1 35%; min-width: 0; overflow-wrap: anywhere; font-size: .9rem; }
+.counter-line-total { margin-left: auto; white-space: nowrap; }
+.counter-sale .pwc-shop-stepper button { width: 2rem; height: 2rem; }
+.counter-sale .pwc-shop-stepper output { min-width: 1.8rem; }
+.counter-totals { margin-top: 1rem; }
+.counter-payment { border: 0; border-top: 1px solid var(--shop-border); padding: 1rem 0 0; margin: 1rem 0; display: flex; gap: 1.25rem; }
+.counter-payment legend { font-weight: 800; padding-top: 1rem; }
+.counter-payment label { display: inline-flex; flex: 1; gap: .4rem; align-items: center; padding: .8rem; border: 1px solid var(--shop-border); border-radius: 1rem; font-weight: 800; }
+.counter-payment label:has(input:checked) { border: 2px solid var(--shop-green); background: var(--shop-green-soft); }
+.counter-payment input { width: 1.25rem; height: 1.25rem; margin: 0; }
+.counter-payment input { accent-color: var(--pwc-ink); }
+.counter-payment label:has(input:disabled) { color: var(--pwc-disabled-ink); }
+.counter-actions { display: grid; gap: .65rem; }
+.counter-actions .pwc-shop-outline-button { width: 100%; }
+.counter-cash { color: var(--pwc-success); background: var(--pwc-success-surface); padding: .8rem; border-radius: .75rem; font-weight: 800; }
+.counter-open { margin-top: 1.5rem; }
+.counter-open-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; border-top: 1px solid var(--shop-border); padding: .6rem 0; }
+.counter-open-row span { display: block; color: var(--shop-muted); font-size: .85rem; }
+@media (max-width: 70rem) { .counter-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 40rem) {
+  .counter-sale { padding-inline: 0; }
+  .counter-sale .pwc-shop-panel { padding: 1rem; }
+  .counter-line-name { flex-basis: 100%; }
+  .counter-product-table, .counter-product-table tbody { display: block; }
+  .counter-product-table thead { display: none; }
+  .counter-product-table tr { display: grid; grid-template-columns: 1fr auto; padding: .75rem 0; border-bottom: 1px solid var(--shop-border); }
+  .counter-product-table td { border: 0; padding: .25rem; white-space: normal; }
+  .counter-product-table td:first-child { grid-column: 1 / -1; }
+  .counter-product-table td[data-label]::before { content: attr(data-label) ': '; color: var(--shop-muted); }
+  .counter-product-table td:last-child { grid-column: 1 / -1; justify-self: end; }
+}

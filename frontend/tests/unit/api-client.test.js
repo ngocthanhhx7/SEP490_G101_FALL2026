@@ -4,6 +4,13 @@ const envelope = (data = []) => ({ data, meta: { schemaVersion: 1 } });
 const response = (status, data) => ({ status, ok: status >= 200 && status < 300,
   json: async () => data });
 
+test('preserves only validated stock error details, including zero availability', async () => {
+  const fetchImpl = async () => response(409, { error: { code: 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', available: 0, productId: 'a'.repeat(24) } });
+  await expect(createApiClient({ fetchImpl })('/products')).rejects.toMatchObject({ available: 0, productId: 'a'.repeat(24) });
+  const invalid = new ApiError('SYNTHETIC', 409, { available: -1, productId: '../secret' });
+  expect(invalid.available).toBeUndefined(); expect(invalid.productId).toBeUndefined();
+});
+
 test('preserves a safe current available quantity on stock adjustment conflicts', async () => {
   for (const available of [0, 3]) {
     const fetchImpl = async () => response(409, { error: { code: 'STOCK_ADJUSTMENT_EXCEEDS_AVAILABLE', available }, meta: { schemaVersion: 1 } });

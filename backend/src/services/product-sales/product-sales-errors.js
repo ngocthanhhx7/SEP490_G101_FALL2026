@@ -69,4 +69,5 @@ function requirePermission(actor, allowedRoles) {
 export const requireOrderHandler = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.HANDLE_ORDERS);
 export const requireProductManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_PRODUCTS);
 export const requireSupplierManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_SUPPLIERS);
+export const requireCounterSeller = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.SELL_AT_COUNTER);
 export const requireReceiptRecorder = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.RECORD_GOODS_RECEIPTS);

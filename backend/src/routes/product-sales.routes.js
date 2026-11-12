@@ -28,6 +28,9 @@ import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
 import { PRODUCT_PERMISSIONS } from '../constants/product-permissions.js';
+import { createCounterSaleController } from '../controllers/counter-sale.controller.js';
+import { createCounterSaleService } from '../services/product-sales/counter-sale.service.js';
+import { createCounterCatalogService } from '../services/product-sales/counter-catalog.service.js';
 
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); };
 
@@ -118,6 +121,19 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   supplierRouter.post('/:supplierId/stop', csrf, supplierManagement.stop);
   supplierRouter.post('/:supplierId/resume', csrf, supplierManagement.resume);
 
+  const counter = createCounterSaleController(createCounterSaleService({ connection, clock }),
+    createCounterCatalogService({ connection, contacts: phones }));
+  const counterRouter = Router();
+  counterRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.SELL_AT_COUNTER));
+  counterRouter.get('/products', counter.products);
+  counterRouter.post('/previews', csrf, counter.preview);
+  counterRouter.post('/customer-lookups', csrf, counter.lookup);
+  counterRouter.get('/', counter.list);
+  counterRouter.post('/', csrf, counter.create);
+  counterRouter.get('/:orderId', counter.read);
+  counterRouter.post('/:orderId/record-cash', csrf, counter.recordCash);
+  counterRouter.post('/:orderId/complete', csrf, counter.complete);
+  counterRouter.post('/:orderId/cancel', csrf, counter.cancel);
   // Goods Receipt: who may use it comes from PRODUCT_PERMISSIONS.RECORD_GOODS_RECEIPTS. A receipt can be saved and read, never edited or deleted.
   const goodsReceipts = createGoodsReceiptController(createGoodsReceiptService({ connection, clock }));
   const receiptRouter = Router();
@@ -149,6 +165,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter },
     { name: 'admin-products', mount: '/api/v1/admin/products', router: productManagementRouter },
     { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter },
+    { name: 'admin-counter-orders', mount: '/api/v1/admin/counter-orders', router: counterRouter },
     { name: 'admin-goods-receipts', mount: '/api/v1/admin/goods-receipts', router: receiptRouter },
     { name: 'admin-stock-levels', mount: '/api/v1/admin/stock-levels', router: stockRouter },
     { name: 'admin-stock-adjustments', mount: '/api/v1/admin/stock-adjustments', router: adjustmentRouter }

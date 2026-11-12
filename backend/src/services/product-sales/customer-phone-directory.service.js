@@ -7,13 +7,18 @@ const toLocalForm = (canonical) => canonical.replace(/^\+84(\d{9})$/u, '0$1');
 // Numbers are stored encrypted with a keyed lookup hash, so a search can only match a whole number, never part of one.
 export function createCustomerPhoneDirectory({ connection, contactCrypto }) {
   const { Contact } = identityModels(connection);
+  async function userIdsByContact(channel, value) {
+    const { lookupKey } = contactCrypto.lookup(channel, value);
+    const rows = await Contact.find({ channel, state: 'VERIFIED', lookupKey }).select('userId').lean();
+    return rows.map(row => row.userId);
+  }
   return Object.freeze({
     // phone is the canonical +84 form from the validator.
     async userIdsByPhone(phone) {
-      const { lookupKey } = contactCrypto.lookup('PHONE', phone);
-      const rows = await Contact.find({ channel: 'PHONE', state: 'VERIFIED', lookupKey }).select('userId').lean();
-      return rows.map((row) => row.userId);
+      return userIdsByContact('PHONE', phone);
     },
+    // The same verified-contact lookup for Counter Sale; no decrypted contact enters its DTO.
+    async userIdsByEmail(email) { return userIdsByContact('EMAIL', email); },
     // Map of user id -> phone. A number that cannot be read is left out so one bad record cannot break the whole list.
     async phonesOf(userIds) {
       if (userIds.length === 0) return new Map();

@@ -19,6 +19,8 @@ visitors retain public browsing and must sign in before booking.
 
 The shop catalog (`/products`, `/products/:productId`) is public inside the public layout. Cart, checkout and product orders (`/customer/cart`, `/customer/product-checkout`, `/customer/product-orders`) require a Customer. `ProductCartProvider` (in `contexts/`) loads the signed-in Customer's cart for the header badge; guests and operational roles never load it. `loginDestination` lets a Customer return to `/products/:id` after signing in.
 
+`/admin/counter-sale` nằm trong Admin guard, menu Bán tại quầy ngay sau Đơn hàng sản phẩm trong nhóm Bán hàng. Wrapper key theo account, ghép transport bằng CSRF session hiện có; không cấp quyền Staff/Customer qua shell.
+
 Customer navigation exposes product history under Mua sắm. `/customer/product-orders` stays Customer-protected and uses the account workspace, preserving checkout and notification deep links.
 
 `/account/bookings/:bookingId` is Customer-only, uses the account workspace and keeps the service-order navigation active. It loads the owner-checked checkout read API by route ID; the legacy checkout confirmation query remains compatible.

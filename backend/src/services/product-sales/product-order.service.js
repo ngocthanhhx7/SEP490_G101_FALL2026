@@ -3,7 +3,8 @@ import { createDomainNotifications } from '../notifications/domain-notifications
 import { paginate } from '../pagination.service.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
-import { PRODUCT_ORDER_COUNTER_ID, PRODUCT_ORDER_CODE_PREFIX } from '../../constants/product-fields.js';
+import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
+import { createProductOrderCodeService } from './product-order-code.service.js';
 import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { priceProductOrder, sellableQuantity } from './product-order-pricing.js';
@@ -41,13 +42,14 @@ const fingerprintOf = (customerId, input) =>
 
 // serviceAreas is injected by route composition (the same demo work areas used by Customer addresses).
 export function createProductOrderService({ connection, serviceAreas = [] }) {
-  const { Product, ProductCart, ProductOrder, ProductCounter } = productSalesModels(connection);
+  const { Product, ProductCart, ProductOrder } = productSalesModels(connection);
   const { CustomerAddress } = petCareModels(connection);
   const unitOfWork = createUnitOfWork(connection);
   const notifications = createDomainNotifications({ connection });
+  const { nextCode: nextOrderCode } = createProductOrderCodeService({ connection });
 
   async function replay(customerId, key, fingerprint) {
-    const existing = await ProductOrder.findOne({ customerId, idempotencyKey: key }).lean();
+    const existing = await ProductOrder.findOne({ customerId, idempotencyKey: key, channel: { $ne: COUNTER_CHANNEL } }).lean();
     if (!existing) return null;
     if (existing.requestFingerprint !== fingerprint) throw productSalesErrors.idempotencyConflict();
     return toOrderView(existing);
@@ -75,13 +77,6 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
     throw available <= 0
       ? productSalesErrors.outOfStock(String(line.productId))
       : productSalesErrors.exceedsAvailable(String(line.productId), available);
-  }
-
-  async function nextOrderCode() {
-    // Allocated outside the order transaction so concurrent orders do not serialise on the counter; gaps are acceptable.
-    const counter = await ProductCounter.findOneAndUpdate({ _id: PRODUCT_ORDER_COUNTER_ID },
-      { $inc: { value: 1 } }, { upsert: true, returnDocument: 'after' });
-    return `${PRODUCT_ORDER_CODE_PREFIX}${String(counter.value).padStart(4, '0')}`;
   }
 
   return Object.freeze({
@@ -138,13 +133,13 @@ export function createProductOrderService({ connection, serviceAreas = [] }) {
     async list(actor, query) {
       const customerId = requireCustomer(actor);
       const { page, limit } = parseOrderListQuery(query);
-      const result = await paginate(ProductOrder, { filter: { customerId }, sort: { createdAt: -1, _id: -1 }, page, limit });
+      const result = await paginate(ProductOrder, { filter: { customerId, channel: { $ne: COUNTER_CHANNEL } }, sort: { createdAt: -1, _id: -1 }, page, limit });
       return { ...result, items: result.items.map(toOrderView) };
     },
     // Customers see only their own orders (GBR-02); another customer's id is indistinguishable from a missing one.
     async read(actor, orderId) {
       const customerId = requireCustomer(actor);
-      const doc = await ProductOrder.findOne({ _id: parseObjectId(orderId, 'orderId'), customerId }).lean();
+      const doc = await ProductOrder.findOne({ _id: parseObjectId(orderId, 'orderId'), customerId, channel: { $ne: COUNTER_CHANNEL } }).lean();
       if (!doc) throw productSalesErrors.notFound();
       return toOrderView(doc);
     }

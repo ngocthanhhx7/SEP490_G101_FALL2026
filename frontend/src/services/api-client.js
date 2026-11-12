@@ -7,9 +7,10 @@ export class ApiError extends Error {
     this.fieldErrors = details.fieldErrors;
     // Per-field reasons from a 422, e.g. { name: 'REQUIRED', sellingPrice: 'WHOLE_NUMBER' }.
     this.fields = details.fields;
+    this.available = Number.isSafeInteger(details.available) && details.available >= 0 ? details.available : undefined;
+    this.productId = /^[a-f\d]{24}$/i.test(details.productId ?? '') ? details.productId : undefined;
     // Per-line reasons from a 422 on a list of lines, by line number from 0: { 0: { quantityReceived: 'INVALID' } }.
     this.lineFields = details.lineFields;
-    this.available = Number.isSafeInteger(details.available) && details.available >= 0 ? details.available : undefined;
     this.decisionIds = details.decisionIds;
     this.retryAfterSeconds = Number.isSafeInteger(details.retryAfterSeconds) && details.retryAfterSeconds > 0 ? details.retryAfterSeconds : undefined;
     this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
@@ -75,7 +76,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       if (!response.ok) {
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
           fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
-          available: envelope?.error?.available,
+          available: envelope?.error?.available, productId: envelope?.error?.productId,
           retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
           correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         });

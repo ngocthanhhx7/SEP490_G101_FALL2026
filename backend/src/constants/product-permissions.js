@@ -8,6 +8,8 @@ export const PRODUCT_PERMISSIONS = Object.freeze({
   MANAGE_PRODUCTS: Object.freeze(['ADMIN']),
   // Add, edit, stop and resume working with suppliers. Admin only.
   MANAGE_SUPPLIERS: Object.freeze(['ADMIN']),
+  // Sale Staff will be added here when that role exists.
+  SELL_AT_COUNTER: Object.freeze(['ADMIN']),
   // Record a goods receipt, and read the active suppliers and the products it needs. Sale Staff is added here when the role exists (D-221).
   RECORD_GOODS_RECEIPTS: Object.freeze(['ADMIN']),
   VIEW_STOCK: Object.freeze(['ADMIN']),

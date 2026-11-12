@@ -111,6 +111,8 @@ SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submissi
 
 `avatar.model.js` stores bounded JPEG blobs/version/tombstones in `profileavatars`; User/Pet collection names and projections remain unchanged. Sitter application document types add IDENTITY_FRONT/IDENTITY_BACK/PORTRAIT while preserving legacy IDENTITY.
 
+`ProductOrder` giữ collection `productorders`, thêm channel ONLINE/COUNTER; legacy thiếu channel vẫn đọc như online. Quầy cho phép customerId vắng, snapshot người tạo/tên khách, audit cashPayment, completedAt/cancelledAt, tierDiscount=0. Index unique theo counterCreatedBy/key riêng kênh quầy và index hàng đợi channel/status/date cần provision bằng lệnh deployment hiện có trước writers. Không đổi index customer/key cũ; key quầy được namespace/hash riêng, DH dùng chung ProductCounter.
+
 EmploymentContract adds optional supersededAt/supersededBy/supersededReason metadata for an explicitly corrected erroneous future version. Current-contract selection excludes superseded rows; historical contract IDs/versions remain intact. No index or native validator is changed.
 
 `customer-tier.model.js` identifies the customer tier, policy, run and staged
