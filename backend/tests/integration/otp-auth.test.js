@@ -1,11 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
+import express from 'express';
+import request from 'supertest';
 import { connectDatabase } from '../../src/config/database.js';
 import { identityModels } from '../../src/models/identity.model.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { createOtpService } from '../../src/services/otp-verification.service.js';
 import { createSessionService, lockUserAndRevokeSessions } from '../../src/services/session.service.js';
+import { createAccountSettingsService } from '../../src/services/account-settings.service.js';
+import { authModule } from '../../src/routes/auth.routes.js';
+import { errorHandler, requestId } from '../../src/middlewares/http.js';
 
 const key = 'synthetic-auth-test-secret-at-least-32-bytes';
 let replica, connection, User, models, contactCrypto, clockNow;
@@ -47,6 +52,39 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P06 OTP policy using an isolated MongoDB replica set', () => {
+  test.each([
+    ['EMAIL', 'Person@example.test', 'p*****@example.test'],
+    ['PHONE', '+84912345678', '+•••••••5678']
+  ])('%s login challenge masks the registered destination and resend response (%s)', async (channel, contact, maskedContact) => {
+    const { otpService, sessionService } = fixture();
+    const passThrough = (_req, _res, next) => next();
+    const runtime = authModule({
+      otpService, sessionService,
+      accountSettingsService: createAccountSettingsService({ models, contactCrypto }),
+      requireAuthenticated: passThrough, requireCsrf: passThrough
+    });
+    const app = express();
+    app.use(express.json(), requestId);
+    app.use(runtime.mount, runtime.router);
+    app.use(errorHandler(() => {}));
+    const begin = async () => {
+      const response = await request(app).post('/api/v1/otp-challenges')
+        .send({ channel, contact, purpose: 'LOGIN' }).expect(202);
+      expect(response.body.data).toEqual({
+        challengeId: expect.stringMatching(/^[a-f0-9-]{36}$/i),
+        expiresInSeconds: 300, resendAfterSeconds: 60, maskedContact
+      });
+      expect(JSON.stringify(response.body)).not.toContain(contact);
+      return response.body.data;
+    };
+
+    await createActiveUser({ channel, contact });
+    const first = await begin();
+    clockNow += 61000;
+    const resent = await begin();
+    expect(resent).toEqual({ ...first, challengeId: expect.any(String) });
+  });
+
   test.each(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'])('locked %s gets a distinct denial only after valid OTP, without issuing a session', async role => {
     const { user } = await createActiveUser({ role });
     await User.updateOne({ _id: user._id }, { $set: { state: 'LOCKED' } });
