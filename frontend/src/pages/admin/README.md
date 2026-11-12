@@ -1,5 +1,14 @@
 # Admin pages
 
+Service price history uses bounded cursor pages with first/previous/next/reload.
+Service changes and acknowledged saves reset to the first page; stale history
+cannot supply a write version. A version conflict refreshes without retrying POST.
+
+Approved employee payroll offers `VOID_UNPAID` only after an explicit no-payment
+attestation and reason. This preserves the old breakdown, releases source claims
+server-side and lets Admin prepare salary again while disputed booking commission
+remains held. Paid statements use the existing separate reconciliation workflow.
+
 Product Management includes a separate `ProductImageManager` after saving the
 product, placed inside the form between "Mô tả" and the "Hiện trên trang Sản phẩm"
 switch (D-249; its buttons are `type="button"` and never submit the form).
@@ -11,6 +20,10 @@ require reload. Image bytes live in MongoDB and hidden photos use the Admin read
 and detail panel. It confirms before submission, reconciles uncertain responses
 through reload and refreshes list/detail after acknowledgement. Admins cannot
 change their own roles. Pet Sitter access stays in application/status review.
+The dialog now selects one radio role, replacing membership rather than adding
+checkbox roles. Pet Sitter accounts show a read-only role and link to application
+management. Mixed/invalid legacy data requires reload; it never selects a role
+by privilege priority. User rows and account details show a single role label.
 
 `ServiceWorkspacePage` is the composed `/admin/services` route: searchable,
 filtered, sorted and paginated catalog table with current effective prices.
@@ -65,3 +78,5 @@ reconciliation. Contract and statement printing use a selected body-level portal
 Payroll and settlement workspaces use full-width tables, server-derived reports and focused detail dialogs. Payroll retains automatic source-based preparation and selected payslip printing; legacy/advanced forms are collapsed. Settlement filtering is explicitly limited to the current cursor page. Reports are operational counts and persisted VND totals, never bank balances or proof of transfer. Policy/source gates remain authoritative; unknown commands freeze the modal and retry the original payload/key.
 
 AI Models includes a separate bounded source-readiness audit. It does not train from public research/demo data or automatically promote a model.
+
+`ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.

@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
+import { isSingleRole } from '../utils/roles.js';
 
 const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
 const STATES = new Set(['ACTIVE', 'LOCKED', 'SUSPENDED']);
@@ -152,7 +153,7 @@ export function createUserAdminService({ connection, User, Contact, Audit, sessi
       || submittedReason.trim().length < 3 || submittedReason.trim().length > 1000
       || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0
       || !Types.ObjectId.isValid(userId)) invalid('Account decision is invalid');
-    if (!actor?.userId || actor.state !== 'ACTIVE' || !actor.roles?.includes('ADMIN')) {
+    if (!actor?.userId || actor.state !== 'ACTIVE' || (!isSingleRole(actor.roles) || actor.roles[0] !== 'ADMIN')) {
       throw new AppError(403, 'FORBIDDEN', 'Action is not permitted');
     }
 
@@ -161,6 +162,17 @@ export function createUserAdminService({ connection, User, Contact, Audit, sessi
     const auditAction = action === 'LOCK' ? 'USER_LOCKED' : 'USER_UNLOCKED';
     const reason = submittedReason.trim();
     return connection.transaction(async session => {
+      const self = String(userId).toLowerCase() === String(actor.userId).toLowerCase();
+      // A different actor must conflict with concurrent permission revocation.
+      // Self-lock uses the target CAS below, without incrementing its version twice.
+      if (!self) {
+        const admin = await User.findOneAndUpdate({ _id: actor.userId, roles: 'ADMIN', state: 'ACTIVE', synthetic: { $ne: true } },
+          { $inc: { version: 1 } }, { session, returnDocument: 'after' });
+        if (!admin) throw new AppError(403, 'FORBIDDEN', 'Administrator permission changed');
+      } else {
+        const admin = await User.exists({ _id: actor.userId, roles: 'ADMIN', state: 'ACTIVE', synthetic: { $ne: true } }).session(session);
+        if (!admin) throw new AppError(403, 'FORBIDDEN', 'Administrator permission changed');
+      }
       const user = await User.findOneAndUpdate({
         _id: new Types.ObjectId(userId), synthetic: { $ne: true }, state: sourceState, version: expectedVersion
       }, { $set: { state: targetState }, $inc: { authEpoch: 1, version: 1 } }, {
@@ -181,14 +193,13 @@ export function createUserAdminService({ connection, User, Contact, Audit, sessi
   }
 
   async function changeRoles({ userId, body, actor }) {
-    if (!actor?.userId || actor.state !== 'ACTIVE' || !actor.roles?.includes('ADMIN')) {
+    if (!actor?.userId || actor.state !== 'ACTIVE' || (!isSingleRole(actor.roles) || actor.roles[0] !== 'ADMIN')) {
       throw new AppError(403, 'FORBIDDEN', 'Action is not permitted');
     }
     if (!body || typeof body !== 'object' || Array.isArray(body)
       || Object.keys(body).length !== 3 || !Object.hasOwn(body, 'roles')
       || !Object.hasOwn(body, 'reason') || !Object.hasOwn(body, 'expectedVersion')
-      || !Array.isArray(body.roles) || body.roles.length < 1 || body.roles.length > ROLES.size
-      || body.roles.some(role => !ROLES.has(role)) || new Set(body.roles).size !== body.roles.length
+      || !isSingleRole(body.roles)
       || typeof body.reason !== 'string' || body.reason.trim().length < 3 || body.reason.trim().length > 1000
       || !Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0
       || !Types.ObjectId.isValid(userId)) invalid('Role decision is invalid');

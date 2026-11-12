@@ -8,12 +8,12 @@ const quote = { quoteId: 'quote', totalVnd: 120000, baseVnd: 120000, surchargeVn
 function fixture() {
   return { pets: jest.fn(async () => ({ data: [{ id: 'pet', name: 'Milo', species: 'DOG', weightKg: 4 }] })),
     addresses: jest.fn(async () => ({ data: [{ id: 'address', label: 'Nhà đã xác nhận' }] })),
-    checkoutOptions: jest.fn(async () => ({ data: {} })), quote: jest.fn(async () => quote),
-    availability: jest.fn(async () => ({ sitters: [{ id: 'sitter', displayName: 'Sitter phù hợp' }], complete: true })),
+    checkoutOptions: jest.fn(async () => ({ data: { recommendationAllowed: true } })), quote: jest.fn(async () => quote),
+    availability: jest.fn(async () => ({ sitters: [{ id: 'sitter', displayName: 'Sitter phù hợp', eligible: true, rating: null, reviewCount: 0 }], complete: true, nextPage: null })),
     confirm: jest.fn(async () => ({ id: 'booking' })) };
 }
-async function chooseSchedule(api, matching = {}, onBooked = jest.fn()) {
-  render(<MemoryRouter><BookingFlow service={service} api={api} matching={matching} onBooked={onBooked} /></MemoryRouter>);
+async function chooseSchedule(api, matching = {}, onBooked = jest.fn(), selectedService = service) {
+  render(<MemoryRouter><BookingFlow service={selectedService} api={api} matching={matching} onBooked={onBooked} /></MemoryRouter>);
   fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
   fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
   fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
@@ -55,8 +55,7 @@ test('directed booking checks availability before selection and retains the same
   const api = fixture(); api.confirm.mockRejectedValueOnce({ code: 'TIMEOUT' }); await chooseSchedule(api);
   fireEvent.click(screen.getByLabelText('Chỉ định pet sitter'));
   expect(screen.getByText('Xem lại đơn')).toBeDisabled();
-  fireEvent.click(screen.getByText('Tìm sitter phù hợp'));
-  fireEvent.click(await screen.findByLabelText('Sitter phù hợp')); await reviewAndConfirm();
+  fireEvent.click(await screen.findByRole('radio', { name: /Sitter phù hợp/ })); await reviewAndConfirm();
   await screen.findByText('Kiểm tra lại đơn');
   fireEvent.submit(screen.getByText('Kiểm tra lại đơn').closest('form'));
   await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(2));
@@ -72,8 +71,8 @@ test('AI shortlist reference reaches system checkout, without directing or assig
 });
 test('empty eligibility cannot be selected as a directed booking', async () => {
   const api = fixture(); api.availability.mockResolvedValue({ sitters: [], complete: true }); await chooseSchedule(api);
-  fireEvent.click(screen.getByLabelText('Chỉ định pet sitter')); fireEvent.click(screen.getByText('Tìm sitter phù hợp'));
-  await screen.findByText(/Chưa có sitter đáp ứng tất cả buổi/); expect(screen.getByText('Xem lại đơn')).toBeDisabled();
+  fireEvent.click(screen.getByLabelText('Chỉ định pet sitter'));
+  await screen.findByText(/Chưa có sitter đăng ký dịch vụ này/); expect(screen.getByText('Xem lại đơn')).toBeDisabled();
   expect(api.confirm).not.toHaveBeenCalled();
 });
 
@@ -113,4 +112,70 @@ test.each(['ngày','km'])('extended-play notice does not invent minutes for serv
  render(<MemoryRouter><BookingFlow service={{...service,price:{unitLabel},details:{locations:['HOME']}}} api={api} matching={{}} onBooked={jest.fn()}/></MemoryRouter>);
  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
  expect(screen.getByRole('status')).toHaveTextContent('thời lượng dịch vụ đã chọn');expect(screen.getByRole('status')).not.toHaveTextContent(/\d+ phút/);
+});
+
+
+test('returning Customer sees the complete direct directory automatically and cannot select an unavailable sitter', async () => {
+  const api = fixture(); api.checkoutOptions.mockResolvedValue({ data: { recommendationAllowed: false } });
+  api.availability.mockResolvedValue({ sitters: [
+    { id: 'high', displayName: 'Điểm cao', rating: 4.9, reviewCount: 12, eligible: false, unavailableReason: 'OUTSIDE_WORKING_HOURS' },
+    { id: 'lower', displayName: 'Có lịch phù hợp', rating: 4.5, reviewCount: 4, eligible: true, unavailableReason: null }
+  ], complete: true, nextPage: null });
+  const matching = { recommend: jest.fn() }; await chooseSchedule(api, matching);
+  const radios = await screen.findAllByRole('radio', { name: /Điểm cao|Có lịch phù hợp/ });
+  expect(radios[0]).toBeDisabled(); expect(radios[1]).not.toBeDisabled();
+  expect(screen.getByText('4.9/5 · 12 đánh giá')).toBeVisible();
+  expect(screen.queryByLabelText('Hệ thống đề xuất')).not.toBeInTheDocument();
+  expect(screen.queryByText('Xem gợi ý cho lịch này')).not.toBeInTheDocument();
+  expect(api.availability).toHaveBeenCalledTimes(1);
+  expect(api.availability.mock.calls[0][0]).toMatchObject({ directory: true, page: 1 });
+  fireEvent.click(radios[1]); await reviewAndConfirm();
+  await waitFor(() => expect(api.confirm).toHaveBeenCalled());
+  expect(api.confirm.mock.calls[0][0].visits[0]).toMatchObject({ bookingMode: 'DIRECT', requestedSitterId: 'lower' });
+  expect(matching.recommend).not.toHaveBeenCalled();
+});
+
+test('direct directory retains earlier choices when loading more registered sitters', async () => {
+  const api = fixture();
+  api.availability.mockResolvedValueOnce({ sitters: [{ id: 'first', displayName: 'Trang một', rating: 5, reviewCount: 2, eligible: true }], complete: false, nextPage: 2 })
+    .mockResolvedValueOnce({ sitters: [{ id: 'second', displayName: 'Chưa đánh giá', rating: null, reviewCount: 0, eligible: true }], complete: true, nextPage: null });
+  await chooseSchedule(api); fireEvent.click(screen.getByLabelText('Chỉ định pet sitter'));
+  const first = await screen.findByRole('radio', { name: /Trang một/ }); fireEvent.click(first);
+  fireEvent.click(screen.getByText('Xem thêm sitter'));
+  expect(await screen.findByRole('radio', { name: /Chưa đánh giá/ })).toBeVisible();
+  expect(screen.getByRole('radio', { name: /Trang một/ })).toBeChecked();
+  expect(api.availability.mock.calls[1][0]).toMatchObject({ page: 2 });
+});
+
+
+test('direct selection requires eligibility for every visit while still showing the registered sitter', async () => {
+  const api = fixture();
+  api.availability.mockResolvedValueOnce({ sitters: [{ id: 'same', displayName: 'Sitter nhiều buổi', rating: 4.8, reviewCount: 5, eligible: true }], complete: true, nextPage: null })
+    .mockResolvedValueOnce({ sitters: [{ id: 'same', displayName: 'Sitter nhiều buổi', rating: 4.8, reviewCount: 5, eligible: false, unavailableReason: 'DAY_OFF' }], complete: true, nextPage: null });
+  render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: '2098-11-04T09:00' } });
+  fireEvent.submit(screen.getByText('Tiếp tục').closest('form'));
+  fireEvent.click(await screen.findByLabelText('Chỉ định pet sitter'));
+  expect(await screen.findByRole('radio', { name: /Sitter nhiều buổi/ })).toBeDisabled();
+  expect(screen.getByText('Nghỉ trong ngày đã chọn.')).toBeVisible();
+  expect(screen.getByText('Xem lại đơn')).toBeDisabled();
+  expect(api.confirm).not.toHaveBeenCalled();
+});
+
+
+test('returning Customer can book boarding through staff-arranged shifts without requesting AI advice', async () => {
+  const api = fixture(), matching = { recommend: jest.fn() };
+  api.checkoutOptions.mockResolvedValue({ data: { recommendationAllowed: false } });
+  await chooseSchedule(api, matching, jest.fn(), { ...service, price: { unitLabel: 'ngày' } });
+  expect(screen.getByLabelText('PawWorld sắp xếp')).toBeChecked();
+  expect(screen.queryByText('Xem gợi ý cho lịch này')).not.toBeInTheDocument();
+  await reviewAndConfirm(); await waitFor(() => expect(api.confirm).toHaveBeenCalled());
+  expect(api.confirm.mock.calls[0][0].visits[0]).toMatchObject({ bookingMode: 'SYSTEM' });
+  expect(api.confirm.mock.calls[0][0].visits[0]).not.toHaveProperty('matchId');
+  expect(matching.recommend).not.toHaveBeenCalled();
+  expect(api.availability).not.toHaveBeenCalled();
 });

@@ -54,9 +54,15 @@ export function createWorkspaceAnalytics({ connection, clock = Date.now }) {
           { label: 'Chờ phân công', value: count('SCHEDULED') }];
         groups = states; points = trend;
         if (kind === 'services') {
-          const versions = await aggregate('serviceversions', [{ $match: { effectiveAt: { $lte: now } } }, { $sort: { serviceId: 1, effectiveAt: -1, version: -1 } },
+          const services = await connection.db.collection('services').find({}, { ...options, projection: { _id: 1 } }).limit(1001).toArray();
+          if (services.length > 1000) throw new AppError(503, 'ANALYTICS_SOURCE_LIMIT', 'Service catalog exceeds the analytics budget');
+          const serviceIds = services.map(row => row._id);
+          // Unique (serviceId,effectiveAt) makes a version tie impossible. The
+          // reverse index traversal obtains each parent's latest effective row
+          // without sorting the entire historical version collection.
+          const versions = await aggregate('serviceversions', [{ $match: { serviceId: { $in: serviceIds }, effectiveAt: { $lte: now } } }, { $sort: { serviceId: -1, effectiveAt: -1 } },
             { $group: { _id: '$serviceId', state: { $first: '$state' } } }]);
-          const prices = await aggregate('servicepriceversions', [{ $match: { effectiveAt: { $lte: now } } },
+          const prices = await aggregate('servicepriceversions', [{ $match: { serviceId: { $in: serviceIds }, effectiveAt: { $lte: now } } },
             { $group: { _id: '$serviceId' } }, { $count: 'value' }]);
           metrics = [{ label: 'Tổng dịch vụ', value: versions.length },
             { label: 'Đang cung cấp', value: versions.filter(row => row.state === 'ACTIVE').length },

@@ -25,3 +25,7 @@ labels are pure helpers in `utils/dispatch-format.js`. Unknown proposal response
 freeze inputs and reuse the original payload/key. No expired shift is retried.
 
 Dispatch now separates a bounded intervention table, the Vietnam-day visit table and paged travel monitoring. Detail dialogs preserve eligibility and customer-consent recovery. Public profile moderation uses server state filters/cursors, current-profile counts and a focused review dialog; it never exposes applicant documents. Unknown decisions retain the original payload/key and freeze edits.
+
+`DispatchSitterPicker` checks current-time manual candidates, explains blocked profiles and sends an invitation for the selected employee. `SitterCapabilityForm` records verified skills from the capability tab with a reason and stable operation key. Neither component creates assignments or outcomes.
+
+Dispatch details use an opt-in wide two-column layout, compact native-radio candidate rows and a collapsible blocked group. No eligibility or invitation contract changes are made by presentation.

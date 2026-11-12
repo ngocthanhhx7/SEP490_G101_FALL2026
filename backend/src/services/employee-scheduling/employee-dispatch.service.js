@@ -106,25 +106,31 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       });
     })
   } });
-  async function candidates(visit) {
+  async function candidates(visit, { manual = false, explain = false } = {}) {
     const directed = visit.requestedSitterId && String(visit.requestedSitterId);
-    const rows = await models.EmployeeAvailability.find({ areas: { $in: repository.areaKeys(visit.areaCode) }, ...(directed ? { _id: directed } : {}) }).sort({ _id: 1 }).limit(101).lean();
+    const rows = await models.EmployeeAvailability.find({ areas: { $in: await repository.areaKeys(visit.areaCode) }, ...(directed ? { _id: directed } : {}) }).sort({ _id: 1 }).limit(101).lean();
     if (rows.length > 100) fail('DISPATCH_SEARCH_LIMIT', 'Employee population requires a wider reviewed dispatch search', 409);
     const allowed = [];
     const rejected = {};
+    const blocked = [];
     const evidence = new Map();
+    const ids = rows.map(row => oid(row._id));
+    const [users, statuses] = ids.length ? await Promise.all([
+      col('users').find({ _id: { $in: ids }, state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } }, { projection: { _id: 1 } }).limit(101).toArray(),
+      col('sitterstatuses').find({ userId: { $in: ids }, status: 'ACTIVE' }, { projection: { userId: 1 } }).limit(101).toArray()
+    ]) : [[], []];
+    const activeUsers = new Set(users.map(user => String(user._id))), activeStatuses = new Set(statuses.map(status => String(status.userId)));
     let next = 0;
     async function scan() {
       while (next < rows.length) {
         const row = rows[next++];
-        const user = await col('users').findOne({ _id: oid(row._id), state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } });
-        const status = await col('sitterstatuses').findOne({ userId: oid(row._id), status: 'ACTIVE' });
-        if (!user || !status) { rejected.SITTER_NOT_ELIGIBLE = (rejected.SITTER_NOT_ELIGIBLE ?? 0) + 1; continue; }
-        try { evidence.set(row._id, await eligible(row._id, visit, undefined, { requireOrigin: true })); allowed.push(row._id); }
-        catch (error) { if (error.status !== 409) throw error; rejected[error.code] = (rejected[error.code] ?? 0) + 1; }
+        if (!activeUsers.has(row._id) || !activeStatuses.has(row._id)) { rejected.SITTER_NOT_ELIGIBLE = (rejected.SITTER_NOT_ELIGIBLE ?? 0) + 1; blocked.push({ sitterId: row._id, reason: 'SITTER_NOT_ELIGIBLE' }); continue; }
+        try { evidence.set(row._id, await eligible(row._id, visit, undefined, { requireOrigin: !manual })); allowed.push(row._id); }
+        catch (error) { if (error.status !== 409) throw error; rejected[error.code] = (rejected[error.code] ?? 0) + 1; blocked.push({ sitterId: row._id, reason: error.code }); }
       }
     }
     await Promise.all(Array.from({ length: Math.min(4, rows.length) }, scan));
+    if (explain) return { sitterIds: allowed.sort((a, b) => evidence.get(a).weeklyWorkMinutes - evidence.get(b).weeklyWorkMinutes || a.localeCompare(b)), blocked, diagnostics: { registered: rows.length, eligible: allowed.length, rejected } };
     if (!allowed.length) {
       throw new AppError(409, directed ? 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' : 'NO_ELIGIBLE_SITTER', 'No eligible employee',
         { diagnostics: { registered: rows.length, eligible: 0, rejected } });
@@ -164,16 +170,20 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
   const service = { offers, readContext: readyVisit,
     async previewCandidates(actor, visitId, input) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
-      id(visitId); exact(input, ['startAt', 'areaCode'], ['startAt']);
+      id(visitId); exact(input, ['startAt', 'areaCode', 'mode'], ['startAt']);
+      if (input.mode !== undefined && input.mode !== 'MANUAL') fail('VALIDATION_FAILED', 'Invalid preview mode');
       const visit = await readyVisit(visitId), startAt = new Date(instant(input.startAt));
       const areaCode = input.areaCode ?? visit.areaCode;
-      if (!repository.coverageAreas.some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
+      if (!(await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas))).some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
         fail('VALIDATION_FAILED', 'Choose the current area or a more precise home area');
+      const manual = input.mode === 'MANUAL';
+      if (manual && (startAt.getTime() !== visit.startAt.getTime() || areaCode !== visit.areaCode)) fail('VALIDATION_FAILED', 'Manual preview must retain booked time and area');
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
       try {
-        const { sitterIds: ids } = await candidates(revised);
-        const users = await col('users').find({ _id: { $in: ids.map(oid) } }, { projection: { displayName: 1 } }).toArray();
+        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual });
+        const users = await col('users').find({ _id: { $in: [...ids, ...blocked.map(row => row.sitterId)].map(oid) } }, { projection: { displayName: 1 } }).limit(101).toArray();
         return { items: ids.map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
+          ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: users.find(user => String(user._id) === row.sitterId)?.displayName })) } : {}),
           areaCode, startAt, endAt: revised.endAt };
       } catch (error) {
         if (!error.details?.diagnostics) throw error;
@@ -185,7 +195,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const rows = await queueRows(51), today = await workspace.read();
       const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,r.requestedSitterId]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
       const name=id=>people.find(p=>String(p._id)===String(id))?.displayName??null;
-      return { today, queueHasMore: rows.length>50, workAreas: repository.coverageAreas, items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(row.requestedSitterId), version: row.version, startAt: row.startAt,
+      return { today, queueHasMore: rows.length>50, workAreas: await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas)), items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(row.requestedSitterId), version: row.version, startAt: row.startAt,
         endAt: row.endAt, serviceName: row.snapshots.serviceName, areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
         dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,

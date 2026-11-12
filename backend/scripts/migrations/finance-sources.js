@@ -2,6 +2,7 @@ import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
 import { provisionSettlementStorage } from '../../src/services/settlements/provisioning.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
+import { storageProfile } from '../../src/config/storage-profile.js';
 
 if (!process.argv.includes('--apply')) {
   console.log(JSON.stringify({ state: 'DRY_RUN', operation: 'Add canonical finance source collections and unique indexes; no data import or policy activation' }));
@@ -11,8 +12,9 @@ if (!process.argv.includes('--apply')) {
     const config = loadConfig();
     if (config.nodeEnv === 'production' || !config.database.endsWith('_dev')) throw new Error('Development database required');
     connection = await connectDatabase(config);
-    await provisionSettlementStorage(connection);
-    await provisionFinanceSources(connection);
+    const compensationProfile = storageProfile(process.env);
+    if (compensationProfile === 'LEGACY_PARTNER') await provisionSettlementStorage(connection, { compensationProfile });
+    await provisionFinanceSources(connection, { legacyTasks: compensationProfile === 'LEGACY_PARTNER' });
     console.log(JSON.stringify({ state: 'FINANCE_SOURCE_STORAGE_PROVISIONED', policyState: 'UNCHANGED' }));
   } catch {
     console.error('Finance source provisioning failed; raw database details omitted'); process.exitCode = 1;

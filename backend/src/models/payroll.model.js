@@ -4,6 +4,7 @@ const money = { type: Number, min: 0, validate: Number.isSafeInteger };
 export function payrollModels(connection) {
   const options = { strict: 'throw', bufferCommands: false, versionKey: false };
   const contracts = new Schema({
+    supersededAt: Date, supersededBy: oid, supersededReason: { type: String, maxlength: 1000 },
     workScheduleMode: { type: String, enum: ['SELF_REGISTERED'] }, minimumWeeklyMinutes: { type: Number, min: 1, max: 2880 },
     documentId: oid, employeeCode: String, schedule: Schema.Types.Mixed, paySchedule: String, monthlyAllowanceVnd: money,
     employeeId: { type: oid, required: true }, version: { type: Number, min: 1, required: true, validate: Number.isSafeInteger },
@@ -54,7 +55,7 @@ export function payrollModels(connection) {
     dueAt: { type: Date, required: true }, payCycle: { type: String, enum: ['MONTHLY', 'WEEKLY'], required: true },
     status: { type: String, enum: ['PREPARED', 'APPROVED', 'PAID', 'VOIDED'], required: true }, version: { type: Number, default: 0 },
     breakdown: { type: Schema.Types.Mixed, required: true }, assessment: { type: Schema.Types.Mixed, required: true, select: false },
-    creditIds: [{ type: oid }], advanceIds: [{ type: oid }],
+    creditIds: [{ type: oid }], heldCreditIds: { type: [oid], default: undefined }, advanceIds: [{ type: oid }],
     preparedBy: { type: oid, required: true }, preparedAt: { type: Date, required: true },
     approvedBy: oid, approvedAt: Date, paidBy: oid, paidAt: Date,
     voidedBy: oid, voidedAt: Date, voidReason: { type: String, maxlength: 1000 },

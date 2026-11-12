@@ -4,25 +4,37 @@ import { App } from '../../src/app/App.jsx';
 import { SessionProvider, useSession } from '../../src/contexts/SessionContext.jsx';
 import { AppRoutes } from '../../src/routes/AppRoutes.jsx';
 
-test('real sitter settlement route loads same-origin API and exposes policy blocker in navigation', async () => {
+const payrollData = identity => ({ contracts: [], advances: [], adjustments: [], statements: [{
+  id: `private-${identity}`, reference: `private-${identity}`, employeeId: 'synthetic-employee',
+  status: 'PAID', version: 2, periodStart: '2026-10-01', periodEnd: '2026-11-01', dueAt: '2026-11-02', breakdown: {}
+}] });
+const reply = data => ({ ok: true, status: 200, json: async () => ({ meta: { schemaVersion: 1 }, data }) });
+function fetchFixture(identity) {
+  return async url => {
+    const data = payrollData(identity());
+    if (String(url).includes('/notifications?')) return reply({items: [], unreadCount: 0});
+    if (String(url).includes('/payroll/me')) return reply(data);
+    if (String(url).includes('/payroll/statements')) return reply({items: data.statements, nextCursor: null});
+    return reply({items: [], nextCursor: null, summary: {}});
+  };
+}
+
+test('legacy sitter deep link redirects to employee payroll without requesting settlement APIs', async () => {
   const original = globalThis.fetch;
-  globalThis.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({ meta: { schemaVersion: 1 },
-    data: { requestWeekKey: '2026-10-12', balances: { accrued: 0, available: 0, reserved: 0, paid: 0 },
-      earnings: [], requests: [], quotaUsed: false, decisionIds: ['FIN-07-ELIG'] } }) }));
+  globalThis.fetch = jest.fn(fetchFixture(() => 'first'));
   try {
     render(<MemoryRouter initialEntries={['/sitter/settlements']}><App sessionAdapter={{
       resolve: async () => ({ status: 'authenticated', user: { id: 'sitter', roles: ['PET_SITTER'] } }),
       getCsrfToken: () => 'synthetic-csrf' }} /></MemoryRouter>);
-    expect(await screen.findByText(/Chờ quyết định/)).toHaveTextContent('FIN-07-ELIG');
+    expect(await screen.findByText(/private-first/)).toBeVisible();
+    expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/payroll/me', expect.objectContaining({ credentials: 'same-origin' }));
+    expect(globalThis.fetch.mock.calls.every(([url]) => !/settlement-requests|admin\/settlements|me\/earnings/.test(url))).toBe(true);
     expect(screen.getByRole('link', { name: 'Lương và tạm ứng' })).toHaveAttribute('href', '/sitter/payroll');
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/settlement-requests', expect.objectContaining({ credentials: 'same-origin' }));
-    expect(screen.getByRole('button', { name: 'Gửi yêu cầu tất toán' })).toBeDisabled();
   } finally { globalThis.fetch = original; }
 });
 
-test('Staff cannot reach sitter settlement API through protected route', async () => {
-  const original = globalThis.fetch;
-  globalThis.fetch = jest.fn();
+test('Staff cannot access the protected legacy sitter deep link', async () => {
+  const original = globalThis.fetch; globalThis.fetch = jest.fn();
   try {
     render(<MemoryRouter initialEntries={['/sitter/settlements']}><App sessionAdapter={{
       resolve: async () => ({ status: 'authenticated', user: { id: 'staff', roles: ['STAFF'] } }) }} /></MemoryRouter>);
@@ -31,19 +43,10 @@ test('Staff cannot reach sitter settlement API through protected route', async (
   } finally { globalThis.fetch = original; }
 });
 
-test('same-role account change clears prior private rows and reloads the API', async () => {
-  const original = globalThis.fetch;
-  let identity = 'first';
-  const response = () => ({ ok: true, status: 200, json: async () => ({ meta: { schemaVersion: 1 }, data: {
-    requestWeekKey: '2026-10-12', balances: { accrued: 0, available: 0, reserved: 0, paid: 0 },
-    earnings: [{ id: identity, earningPeriodKey: `private-${identity}`, availableVnd: 0 }], requests: [], decisionIds: [], quotaUsed: false
-  } }) });
-  globalThis.fetch = jest.fn(async () => response());
+test('same-role account switch clears prior employee payroll rows after legacy redirect', async () => {
+  const original = globalThis.fetch; let identity = 'first'; globalThis.fetch = jest.fn(fetchFixture(() => identity));
   const session = id => ({ status: 'authenticated', user: { id, roles: ['PET_SITTER'] } });
-  function SwitchAccount() {
-    const { login } = useSession();
-    return <button onClick={() => { identity = 'second'; login({}); }}>Switch account</button>;
-  }
+  function SwitchAccount() { const { login } = useSession(); return <button onClick={() => { identity = 'second'; login({}); }}>Switch account</button>; }
   try {
     render(<MemoryRouter initialEntries={['/sitter/settlements']}><SessionProvider adapter={{
       resolve: async () => session('first'), login: async () => session('second')
@@ -52,6 +55,6 @@ test('same-role account change clears prior private rows and reloads the API', a
     fireEvent.click(screen.getByRole('button', { name: 'Switch account' }));
     await waitFor(() => expect(screen.queryByText(/private-first/)).not.toBeInTheDocument());
     expect(await screen.findByText(/private-second/)).toBeVisible();
-    expect(globalThis.fetch.mock.calls.filter(([url]) => !String(url).includes('/notifications?'))).toHaveLength(2);
+    expect(globalThis.fetch.mock.calls.filter(([url]) => String(url).startsWith('/api/v1/payroll/me'))).toHaveLength(2);
   } finally { globalThis.fetch = original; }
 });

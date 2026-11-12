@@ -1,0 +1,1 @@
+Versioned public reference facts for explicit operator provisioning. Source URL, hash, vintage and extraction notes are described in [home-care coverage](../../doc/api/home-care-coverage.md). No runtime downloads, customer records or credentials belong here.

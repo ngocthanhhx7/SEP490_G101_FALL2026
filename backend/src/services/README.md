@@ -1,13 +1,64 @@
 # Domain services
 
+`otp-verification.service.js` checks the canonical verified contact before
+creating a LOGIN challenge. Unknown/replaced contacts return
+`409 REGISTRATION_REQUIRED` without OTP persistence or delivery. Verification
+still rechecks authoritative contact/account state before issuing a session.
+
+`single-account-role.service.js` owns bounded existing-user inspection, the
+explicitly confirmed operator migration and validator-only recovery. It never
+selects between distinct operational roles or restores old whole-user/session
+data. Roles/authEpoch/version and affected session revocation share one transaction;
+native DDL has a separate durable journal. Deployment asserts the native contract.
+Runtime role changes remain in user-admin and signed-application services.
+
+`empty-accrual-queue-retirement.service.js` inspects/retires/restores one exact
+empty legacy queue with profile, namespace, metadata, freeze, confirmation and
+journal guards. It never changes the old16-store manifest or core records.
+Restoration refuses conflicting/nonempty state and can finish a known partial
+empty index restoration. Runtime never invokes this operator-only service.
+
+`raw-operational-validation.service.js` owns bounded preflight, journaled explicit
+install and known-contract reverse for six native raw validators. It preserves
+current data/indexes and refuses foreign validators/stale digests; no automatic
+collMod runs during application startup or normal provisioning. Missing raw stores
+created by explicit finance provisioning receive their source-declared options.
+Existing stores require the reviewed operator command and isolated restore gates.
+
+`storage-contract-inspection.service.js` builds a runtime-scoped metadata manifest
+and compares ordered index keys/options, critical constraints and read-index drift
+without reading business documents or changing storage. Raw finance/scheduling
+declarations are shared with their explicit provisioners. Specialized catalog
+validators are checked only for their declared/selected contracts; uncovered
+validators and physical stores remain visible as unasserted scope.
+
+`service-presentation-retirement.service.js` verifies the complete embedded copy
+and bounded legacy store before explicit cleanup; restore retains old IDs but
+reads current canonical parent values. `catalog-index-retirement.service.js`
+handles only two known redundant nonunique indexes and preserves unique guards.
+
+`reference-catalog-retirement.service.js` verifies an exact copy before retiring
+two fixed legacy catalogs. Private Extended JSON manifests retain the baseline
+for metadata restoration and guarded reverse after target writes.
+
+`reference-catalog-migration.service.js` owns bounded insert-only catalog copy and
+checkpointed reverse reconciliation after target writes. Its storage service
+provisions strict typed validation and three indexes; readers inherit one
+connection-scoped source and never combine legacy with target data.
+
+`legacy-storage-retirement.service.js` owns bounded empty-store inspection and
+explicit retirement/restoration for the fixed compensation profile legacy set.
+It verifies metadata and keeps compound index field order; it never deletes
+business records or chooses collections by their emptiness alone.
+
 `catalog-audit-migration.service.js` owns copy, verified cleanup and reverse-copy
 orchestration for provenance embedded in immutable catalog versions. It reconstructs
 legacy audit views from canonical facts, preserves BSON types/IDs, never
 overwrites conflicts, defaults to aggregate dry-run and requires writer-drain
 confirmation for cleanup/reverse. It does not migrate pricing or financial state.
 
-`service-presentation.service.js` reads embedded Service metadata with legacy
-fallback and owns provisioning compatibility writes. Its migration service
+`service-presentation.service.js` reads and provisions canonical embedded Service
+metadata without legacy fallback or mirror writes. Its migration service
 performs aggregate-only dry-run or explicitly confirmed additive copies; it
 never removes the legacy collection. `service-catalog.service.js` batches public
 policy/price reads and projects catalog metadata without private audit fields.
@@ -17,6 +68,11 @@ blocks all order history and remaining/reserved stock, and serializes with
 product/stock writes. Active reads exclude tombstones. The list's global summary
 counts active/visible/hidden/out-of-stock products directly from persistence.
 See [product management rules](../../../doc/testing/product-management-lifecycle-2026-11-05.md).
+
+Default product lists use the existing unique code ordering without the redundant
+_id sort suffix; search/category/pet queries retain their measured original shape.
+Exact filtered totals and global Admin summaries remain separate authoritative
+reads. Offset/deep-page work still grows; see the [conditional query evidence](../../../doc/database/product-default-query-2026-11-08.md).
 
 `product-sales/product-photo.service.js` owns Admin gallery changes, bounded
 decoding, metadata-free normalization, version checks and transactional MongoDB
@@ -28,6 +84,10 @@ Admin, prevents self role changes and preserves Pet Sitter review boundaries.
 Changes increment authEpoch/version, revoke sessions and audit old/new roles.
 
 Services own domain decisions, data access orchestration and provider interactions. They import models/config/validators/utils/constants; never routes/controllers/middleware. Pricing is deterministic in `pricing/`; AI only recommends sitters in `sitter-matching/`. Shared owned-pet/service context has no pricing prerequisite. Private provider/default ports fail closed if unconfigured.
+
+`demo-workflow-reset.service.js` is an operator-only bounded reset with snapshot
+digests, seed-manifest selection, reservation reconciliation and transaction
+postchecks. Runtime composition never calls it. See the [maintenance plan](../../../doc/database/demo-core-reset-2026-11-08.md).
 
 `pet-care-management.service.js` owns Customer pet/address intake, owner-scoped
 edit/archive and durable command replay. `customer-bookings.service.js` provides
@@ -56,3 +116,24 @@ Product order lists page after authoritative role/owner filters. Domain notifica
 Public profile moderation lists SUBMITTED/APPROVED/REJECTED states with state-scoped cursors, bounded user display-name lookups and aggregate counts across current profile records. Counts do not represent historical application submissions or immutable review events.
 
 `avatar.service.js` owns owner-scoped normalized avatar bytes, transaction/version/retry guards and parent-profile concurrency; applicant document slots remain in sitter-application service. See [profile media](../../../doc/testing/profile-media-2026-11-05.md).
+
+`booking-read-storage.service.js` owns aggregate preflight and explicitly confirmed
+provision of the raw bookings owner/cursor index. Deployment asserts an equivalent
+plain two-field index (including reverse scans); it never silently creates one.
+Missing/null legacy owners are preserved, unknown types/conflicts block apply.
+
+`retired-compensation.service.js` is the EMPLOYEE compatibility facade for legacy
+settlement/earnings routes. It returns a retired-domain error after existing HTTP
+security middleware, and never registers or queries legacy compensation storage.
+
+`customer-care-history.service.js` reads only owned COMPLETED care visits to determine whether Customer recommendations are available. It does not count product orders, scheduled visits or another Customer’s history.
+
+Customer booking list reads a projected summary from the existing owner-scoped booking snapshot: service/pet names, saved schedule/count, created time and payment amount/state. It does not expose private access/care notes or calculate money. Detail adds snapshot pet names and assigned sitter display names through bounded identity lookups after ownership checks.
+
+`sitter-capability.service.js` owns Staff/Admin verification of existing employee capability with signed-contract checks, employee transaction guards, CAS and idempotent audited commands. It preserves employee-owned calendar/origin fields and adds no collection or index.
+
+`employee-onboarding-repair.service.js` is an operator-only, digest-guarded exact-four employee correction under the owner's 2026-11-09 attestation. It preserves superseded future contract rows, historical versions and existing leave/origins, and audits each correction in existing payroll/scheduling stores. It never runs on startup.
+
+Pet-record import is transient transcription with bounded input/token/output and an allowlist of care fields; it has no database or financial writes.
+
+`service-area-*` services own sourced home-care coverage, Admin activation and insert-only operator provisioning. They keep legal-unit identities separate from legacy operational zones; see [coverage contract](../../../doc/api/home-care-coverage.md).

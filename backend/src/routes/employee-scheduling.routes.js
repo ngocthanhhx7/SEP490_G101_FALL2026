@@ -1,10 +1,10 @@
+import { createSitterOriginService } from '../services/employee-scheduling/sitter-origin.service.js';
 import { Router } from 'express';
 import { createEmployeeSchedulingController } from '../controllers/employee-scheduling.controller.js';
 import { createEmployeeScheduleRepository } from '../services/employee-scheduling/employee-schedule.repository.js';
 import { createEmployeeDispatchService } from '../services/employee-scheduling/employee-dispatch.service.js';
 import { createBookingCarePlanService } from '../services/booking-proposals/booking-care-plan.service.js';
 import { createEmployeeScheduleProposalService } from '../services/employee-scheduling/schedule-proposal.service.js';
-import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
@@ -15,10 +15,11 @@ import { createAssignedCareService } from '../services/care/assigned-care.servic
 import { createAssignedCareController } from '../controllers/assigned-care.controller.js';
 import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
 
-export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas = DEMO_WORK_AREAS }) {
+export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== 'true' || !config.auth?.enabled || !connection?.db) return null;
   if (env.VISIT_TRAVEL_ENABLED !== undefined && !['true', 'false'].includes(env.VISIT_TRAVEL_ENABLED)) throw new TypeError('Invalid VISIT_TRAVEL_ENABLED');
+  const visitTravelEnabled = env.VISIT_TRAVEL_ENABLED === 'true';
   const routingProvider = createConfiguredRoutingProvider({ env, config, clock });
   const repository = createEmployeeScheduleRepository({ connection, clock, coverageAreas, routingProvider });
   const carePlans = createBookingCarePlanService({ connection, clock });
@@ -26,11 +27,14 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
     ranker: config.ai?.enabled ? createOperationalRanker({ connection, routingProvider, clock }) : undefined });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const proposals = createEmployeeScheduleProposalService({ repository, dispatch, clock });
-  const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals }), router = Router();
+  const c = createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, visitTravelEnabled,
+    origins: createSitterOriginService({ repository, clock }) }), router = Router();
   const csrf = requireCsrf(session), sitter = requireRoles('PET_SITTER'), staff = requireRoles('STAFF', 'ADMIN');
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); res.vary('Cookie'); next(); }, requireSession(session, { clock }));
   router.get('/availability', sitter, c.availability);
   router.put('/availability', sitter, csrf, c.saveAvailability);
+  router.get('/day-origins', sitter, c.origins);
+  router.put('/day-origins', sitter, csrf, c.saveOrigin);
   router.get('/calendar', sitter, c.calendar);
   router.get('/work-areas', sitter, c.areas);
   router.put('/work-areas', sitter, csrf, c.saveAreas);
@@ -51,7 +55,7 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/care-plans', staff, c.plans);
   router.post('/care-plans/:id/preview', staff, csrf, c.previewPlan);
   router.post('/care-plans/:id/finalization', staff, csrf, c.finalizePlan);
-  if (env.VISIT_TRAVEL_ENABLED === 'true') {
+  if (visitTravelEnabled) {
     const t = createVisitTravelController({ service: createVisitTravelService({ repository, routingProvider, clock }) });
     const reads = rateLimit({ windowMs: 60000, limit: 120, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false });
     const writes = rateLimit({ windowMs: 60000, limit: 20, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false });

@@ -5,6 +5,9 @@ import { createApp } from './app.js';
 import { startEarningAccrualWorker } from './jobs/earning-accrual.job.js';
 import { startEmployeeDispatchWorker } from './jobs/employee-dispatch.job.js';
 import { startApplicationMailWorker } from './jobs/application-mail.job.js';
+import { assertRuntimeStorageProfile } from './config/storage-profile.js';
+import { referenceCatalogSource } from './models/reference-catalog-source.js';
+import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
 
 export async function startRuntime({ env = process.env, logger = () => {}, ...appOptions } = {}) {
   const config = loadConfig(env);
@@ -13,6 +16,8 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   let server, accrualWorker, dispatchWorker, applicationMailWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
+    if (config.nodeEnv === 'production') await assertRuntimeStorageProfile(connection, app.locals.compensationProfile);
+    if (referenceCatalogSource(connection) === 'target') await assertReferenceCatalogStorage(connection.db);
     server = createServer(app);
     server.requestTimeout = 15000;
     server.headersTimeout = 10000;
@@ -20,7 +25,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       server.once('error', reject);
       server.listen(config.port, config.host, resolve);
     });
-    if (app.locals.financeSources) accrualWorker = startEarningAccrualWorker({ service: app.locals.financeSources, logger });
+    if (app.locals.financeSources && app.locals.compensationProfile === 'LEGACY_PARTNER') accrualWorker = startEarningAccrualWorker({ service: app.locals.financeSources, logger });
     if (app.locals.employeeDispatch) dispatchWorker = startEmployeeDispatchWorker({ service: app.locals.employeeDispatch, logger });
     if (app.locals.applicationMail) applicationMailWorker = startApplicationMailWorker({ service: app.locals.applicationMail, logger });
   } catch {

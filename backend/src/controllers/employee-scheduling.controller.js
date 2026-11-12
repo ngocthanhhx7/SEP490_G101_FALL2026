@@ -2,9 +2,11 @@ import { metadata } from '../utils/app-error.js';
 import { id } from '../validators/pet-care.validator.js';
 import { availabilityInput, workAreasInput, decisionInput, proposalConfirmationInput } from '../validators/employee-scheduling.validator.js';
 
-export function createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals }) {
+export function createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, origins, visitTravelEnabled }) {
   const send = (req, res, data) => res.json({ data, meta: metadata(req) });
   return {
+    origins: async (req, res) => send(req, res, await origins.get(req.auth)),
+    saveOrigin: async (req, res) => send(req, res, await origins.save(req.auth, req.body, req.get('idempotency-key'))),
     availability: async (req, res) => send(req, res, await repository.availability.getMine({ actor: req.auth })),
     calendar: async (req, res) => send(req, res, await repository.availability.listMyCalendar({ actor: req.auth,
       fromLocalDate: req.query.fromLocalDate, toLocalDate: req.query.toLocalDate })),
@@ -17,7 +19,7 @@ export function createEmployeeSchedulingController({ repository, dispatch, careP
     assignments: async (req, res) => send(req, res, await dispatch.offers.assignments(req.auth, req.query)),
     accept: async (req, res) => send(req, res, await dispatch.offers.accept(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),
     decline: async (req, res) => send(req, res, await dispatch.offers.decline(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),
-    queue: async (req, res) => send(req, res, await dispatch.queue(req.auth)),
+    queue: async (req, res) => send(req, res, { ...await dispatch.queue(req.auth), visitTravelEnabled }),
     candidates: async (req, res) => send(req, res, await dispatch.previewCandidates(req.auth, req.params.id, req.query)),
     invite: async (req, res) => send(req, res, await dispatch.invite(req.auth, req.params.id, req.body, req.get('idempotency-key'))),
     plans: async (req, res) => send(req, res, await carePlans.list(req.auth)),

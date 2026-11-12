@@ -1,3 +1,4 @@
+import { createSitterCapabilityService } from '../../src/services/sitter-capability.service.js';
 import { createOperationalRanker } from '../../src/services/sitter-matching/operational-ranker.service.js';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
@@ -32,7 +33,7 @@ const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
 const staff = actor('STAFF'), customer = actor('CUSTOMER');
 const windows = Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '08:00', endLocalTime: '18:00' }));
-let replica, connection, module, app, payroll, reviewApp, payrollService, reviewNow = clock();
+let replica, connection, module, app, payroll, reviewApp, payrollService, sessionService, reviewNow = clock();
 const serviceId = oid();
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
@@ -40,7 +41,7 @@ beforeAll(async () => {
   await provisionFinanceSources(connection); await provisionEmployeeScheduling(connection); payroll = payrollModels(connection);
   for (const model of Object.values(payroll)) { await model.createCollection(); await model.createIndexes(); }
   for (const value of [staff, customer]) await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(value.userId), ...value });
-  const sessionService = { authenticate: async req => {
+  sessionService = { authenticate: async req => {
     const user = req.get('x-test-actor'); if (!user) return null;
     const record = await connection.collection('users').findOne({ _id: new mongoose.Types.ObjectId(user) });
     return record ? { ...record, userId: user, expiresAt: clock() + 60000 } : null;
@@ -57,6 +58,22 @@ beforeAll(async () => {
   for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
+
+test.each([undefined, 'false', 'true'])('dispatch reports travel capability for VISIT_TRAVEL_ENABLED=%s', async flag => {
+  const runtime = employeeSchedulingRuntimeModule({
+    connection, config: { auth: { enabled: true } }, clock, sessionService,
+    env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: flag }
+  });
+  const server = express();
+  server.use(requestId);
+  server.use(runtime.mount, runtime.router);
+  server.use(errorHandler(() => {}));
+
+  const result = await request(server).get(`${runtime.mount}/dispatch`).set('x-test-actor', staff.userId).expect(200);
+  expect(result.body.data).toMatchObject({ visitTravelEnabled: flag === 'true', items: expect.any(Array) });
+  await request(server).get(`${runtime.mount}/travel-visits`).set('x-test-actor', staff.userId)
+    .expect(flag === 'true' ? 200 : 404);
+});
 
 test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });
@@ -610,6 +627,35 @@ test('system recovery previews precise area, requires customer consent and reche
   expect((await connection.collection('visits').findOne({ _id: row._id })).state).toBe('ASSIGNED');
 });
 
+test('dispatch batches projected account/status prefilters while retaining authoritative eligibility', async () => {
+  const workers = await Promise.all(Array.from({ length: 4 }, () => employee()));
+  const row = await visit();
+  await connection.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(workers[1].userId) }, { $set: { state: 'LOCKED' } });
+  await connection.collection('sitterstatuses').updateOne({ userId: new mongoose.Types.ObjectId(workers[2].userId) }, { $set: { status: 'SUSPENDED' } });
+  const reads = [], checked = [];
+  const repository = { ...module.repository,
+    col: name => {
+      const collection = module.repository.col(name);
+      return new Proxy(collection, { get(target, key) {
+        if (key === 'find') return (query, options) => {
+          if (['users', 'sitterstatuses'].includes(name) && (query._id?.$in || query.userId?.$in)
+            && !options?.projection?.displayName) reads.push({ name, query, projection: options?.projection });
+          return target.find(query, options);
+        };
+        const value = Reflect.get(target, key); return typeof value === 'function' ? value.bind(target) : value;
+      } });
+    }, eligible: async (...args) => { checked.push(args[0]); return module.repository.eligible(...args); }
+  };
+  const dispatch = createEmployeeDispatchService({ repository, clock });
+  const result = await dispatch.previewCandidates(staff, String(row._id), { startAt: row.startAt.toISOString() });
+  expect(reads).toHaveLength(2);
+  expect(reads.map(read => read.projection)).toEqual([{ _id: 1 }, { userId: 1 }]);
+  expect(reads.every(read => (read.query._id?.$in ?? read.query.userId.$in).length <= 100)).toBe(true);
+  expect(checked).toContain(workers[0].userId);
+  expect(checked).not.toContain(workers[1].userId); expect(checked).not.toContain(workers[2].userId);
+  expect(result.items.some(item => item.sitterId === workers[0].userId)).toBe(true);
+});
+
 test('recovery rejects unrelated areas, customer-selected sitter replacement, missing origin, unpaid and boarding changes', async () => {
   const sitter = await employee(), other = await employee();
   const row = await visit({ start: '2026-11-26T02:00:00Z', requestedSitterId: sitter.userId });
@@ -674,4 +720,56 @@ test('operational advice may reorder the complete eligible set but cannot add or
     expect((await fallback.previewCandidates(staff, String(row._id), input)).items.map(item => item.sitterId))
       .toEqual(baseline.items.map(item => item.sitterId));
   }
+});
+
+
+test('new employee can be verified, manually invited and accept without any previous work or ratings', async () => {
+  const newcomer = await employee(), userId = new mongoose.Types.ObjectId(newcomer.userId);
+  await connection.collection('services').updateOne({ _id: serviceId }, { $setOnInsert: { code: 'synthetic-newcomer-service' } }, { upsert: true });
+  await connection.collection('aisitterprofiles').deleteOne({ userId });
+  const row = await visit({ requestedSitterId: newcomer.userId });
+  const before = await module.dispatch.previewCandidates(staff, String(row._id), { startAt: row.startAt.toISOString(), mode: 'MANUAL' });
+  expect(before.items).toEqual([]); expect(before.blocked).toEqual([expect.objectContaining({ sitterId: newcomer.userId, reason: 'SERVICE_CAPABILITY_REQUIRED' })]);
+  const capabilities = createSitterCapabilityService({ connection, clock }), actor = { ...staff, expiresAt: clock() + 60000 };
+  const body = { expectedVersion: 0, serviceIds: [String(serviceId)], species: ['DOG'], allowedTraits: [], maxPets: 2, maxWeightKg: 10, active: true, reason: 'Synthetic practical skill verification' };
+  await expect(capabilities.save({ actor: { ...customer, expiresAt: clock() + 60000 }, userId: newcomer.userId, body, key: 'verify-no-customer' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  const result = await capabilities.save({ actor, userId: newcomer.userId, body, key: 'verify-newcomer-skill' });
+  expect(await capabilities.save({ actor, userId: newcomer.userId, body, key: 'verify-newcomer-skill' })).toEqual(result);
+  await expect(capabilities.save({ actor, userId: newcomer.userId, body: { ...body, maxPets: 3 }, key: 'verify-newcomer-skill' })).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+  await expect(capabilities.save({ actor, userId: newcomer.userId, body, key: 'verify-newcomer-stale' })).rejects.toMatchObject({ code: 'VERSION_CONFLICT' });
+  const profile = await connection.collection('aisitterprofiles').findOne({ userId });
+  expect(profile.starts).toEqual([]); expect(profile.windows).toEqual([]);
+  const manual = await module.dispatch.previewCandidates(staff, String(row._id), { startAt: row.startAt.toISOString(), mode: 'MANUAL' });
+  expect(manual.items).toEqual([expect.objectContaining({ sitterId: newcomer.userId })]);
+  const automatic = await module.dispatch.previewCandidates(staff, String(row._id), { startAt: row.startAt.toISOString() });
+  expect(automatic.items).toEqual([]); expect(automatic.diagnostics.rejected.DAY_ORIGIN_MISSING).toBe(1);
+  await expect(module.dispatch.previewCandidates(staff, String(row._id), { startAt: new Date(+row.startAt + 3600000).toISOString(), mode: 'MANUAL' })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const invitation = await module.dispatch.invite(staff, String(row._id), { expectedVersion: 0, sitterId: newcomer.userId }, 'manual-newcomer-invite');
+  expect((await connection.collection('visits').findOne({ _id: row._id })).sitterId).toBeNull();
+  await module.dispatch.offers.accept(newcomer, invitation.offerId, 0, 'newcomer-accepts-first-job');
+  expect(String((await connection.collection('visits').findOne({ _id: row._id })).sitterId)).toBe(newcomer.userId);
+  expect(await module.repository.models.EmployeeScheduleEvent.countDocuments({ type: 'CapabilityVerified', sitterId: newcomer.userId })).toBe(1);
+});
+
+test('daily origins are self-scoped, versioned, idempotent and preserve capabilities and working hours', async () => {
+  const owner = await employee(), other = await employee();
+  const url = '/api/v1/employee-scheduling/day-origins';
+  await request(app).get(url).expect(401);
+  await request(app).get(url).set('x-test-actor', staff.userId).expect(403);
+  const existing = (await request(app).get(url).set('x-test-actor', owner.userId).expect(200)).body.data;
+  const before = await connection.collection('aisitterprofiles').findOne({ userId: new mongoose.Types.ObjectId(owner.userId) });
+  const otherBefore = await connection.collection('aisitterprofiles').findOne({ userId: new mongoose.Types.ObjectId(other.userId) });
+  const body = { expectedVersion: existing.version, localDate: '2026-11-02', coordinates: [105.86, 21.02], availableFrom: '2026-11-02T01:00:00Z', availableUntil: '2026-11-02T11:00:00Z' };
+  await request(app).put(url).set('x-test-actor', owner.userId).send(body).expect(403);
+  const send = (payload, key) => request(app).put(url).set('host', '127.0.0.1').set('origin', 'http://127.0.0.1').set('x-test-actor', owner.userId).set('X-CSRF-Token', 'synthetic-csrf').set('Idempotency-Key', key).send(payload);
+  const first = await send(body, 'self-origin-declaration').expect(200);
+  const second = await send(body, 'self-origin-declaration').expect(200);
+  expect(second.body.data).toEqual(first.body.data);
+  await send({ ...body, expectedVersion: first.body.data.version, userId: other.userId }, 'origin-no-foreign-user').expect(422);
+  await send(body, 'origin-stale-version').expect(409);
+  await send({ ...body, expectedVersion: first.body.data.version, availableUntil: '2026-11-03T11:00:00Z' }, 'origin-invalid-overnight').expect(422);
+  const after = await connection.collection('aisitterprofiles').findOne({ userId: new mongoose.Types.ObjectId(owner.userId) });
+  expect(after.serviceIds).toEqual(before.serviceIds); expect(after.windows).toEqual(before.windows);
+  expect(after.starts).toHaveLength(30); expect(after.version).toBe(existing.version + 1);
+  expect(await connection.collection('aisitterprofiles').findOne({ userId: new mongoose.Types.ObjectId(other.userId) })).toEqual(otherBefore);
 });
