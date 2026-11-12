@@ -10,6 +10,7 @@ import { createApiClient } from '../../services/api-client.js';
 import { createCustomerCareApi } from '../../services/customer-care-api.js';
 import { customerPetBody, newCustomerPet, petCareStatus } from '../../utils/customer-pet-profile.js';
 import { CustomerPetForm } from './CustomerPetForm.jsx';
+import { PetOnboardingWizard } from './PetOnboardingWizard.jsx';
 import { PetProfileDetails } from './PetProfileDetails.jsx';
 import './customer-pets.css';
 const problem = error => ({ VERSION_CONFLICT: 'Hồ sơ đã thay đổi. Tải lại hồ sơ rồi kiểm tra trước khi lưu tiếp.',
@@ -75,9 +76,10 @@ export function CustomerPetsPage({ api: suppliedApi }) {
     </li>)}<li className="pet-add-card"><span className="pet-add-symbol"><Plus size={28} /></span><h2>Bạn vừa đón bé mới?</h2><p>Tạo hồ sơ để lưu ảnh, thói quen và những lưu ý chăm sóc của bé.</p><Button variant="secondary" onClick={() => edit()} disabled={busy || uncertain}>Thêm thú cưng mới</Button></li></ul><p className="pet-privacy-note"><ShieldCheck size={16} />Thông tin chưa biết không được hiểu là không có dị ứng, thuốc hoặc rủi ro.</p></>}
     {pet && <PetProfileDetails key={pet.id} pet={pet} breed={breed(pet)} traits={catalog.traits} disabled={busy || uncertain || photoBusy}
       onEdit={(group, openImport) => edit(pet, group, openImport)} onArchive={() => { setArchive(pet); setError(''); }} onPhotoSaved={resource.retry} onPhotoBusyChange={setPhotoBusy} />}
-    <Dialog open={Boolean(editor)} title={editor?.id ? `Chỉnh sửa hồ sơ ${draft?.name || 'thú cưng'}` : 'Thêm thú cưng'} className="pet-editor-dialog" dismissible={!busy && !uncertain && !importBusy} onClose={requestClose}>
-      {editor && draft && catalog && <form className="pet-editor-form" onSubmit={save} onInvalidCapture={event => { const section = event.target.closest('details'); if (section) section.open = true; }} aria-label="Hồ sơ thú cưng">
-        <div className="pet-editor-scroll">{!editor.id && <p className="pet-editor-intro">Lưu thông tin cơ bản trước. Bạn có thể thêm ảnh ở trang hồ sơ ngay sau đó.</p>}
+    {editor && !editor.id && draft && catalog && <PetOnboardingWizard draft={draft} change={setDraft} catalog={catalog} api={api} onClose={close} onSaved={(row, photoSaved) => { close(); setCreated(row.id); setSaved(photoSaved ? 'Đã lưu hồ sơ và ảnh của bé.' : 'Đã lưu thú cưng. Bạn có thể bổ sung ảnh và thông tin trong hồ sơ.'); resource.retry(); }} />}
+    <Dialog open={Boolean(editor?.id)} title={`Chỉnh sửa hồ sơ ${draft?.name || 'thú cưng'}`} className="pet-editor-dialog" dismissible={!busy && !uncertain && !importBusy} onClose={requestClose}>
+      {editor?.id && draft && catalog && <form className="pet-editor-form" onSubmit={save} onInvalidCapture={event => { const section = event.target.closest('details'); if (section) section.open = true; }} aria-label="Hồ sơ thú cưng">
+        <div className="pet-editor-scroll">
         <PetRecordImport initiallyOpen={editor.openImport} disabled={busy || uncertain || photoBusy} onBusyChange={setImportBusy} onApply={entries => setDraft(value => ({ ...value, careNeedsConfirmed: false, careProfile: { ...value.careProfile, ...entries } }))} />
         <CustomerPetForm initialGroup={editor.group} draft={draft} change={setDraft} catalog={catalog} disabled={busy || uncertain || photoBusy || importBusy} />
         {error && <Notice state="error" title={error}>{stale && <Button variant="secondary" onClick={() => { setReloadAfterDiscard(true); setDiscard(true); }}>Tải lại hồ sơ</Button>}</Notice>}

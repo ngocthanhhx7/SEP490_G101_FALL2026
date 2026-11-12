@@ -77,3 +77,5 @@
   .sitter-work-areas__card { gap: var(--pwc-space-4); padding: var(--pwc-space-3); }
   .sitter-work-areas__actions { display: grid; grid-template-columns: minmax(0, 1fr); }
 }
+
+.sitter-work-areas__fieldset>label { display:grid; gap:8px; font-weight:600; }.sitter-work-areas__fieldset>label>input,.sitter-work-areas__fieldset>label>select { min-height:44px; border:1px solid #d7cce5; border-radius:8px; padding:10px; font:inherit; width:100%; box-sizing:border-box; }.sitter-work-areas__options { max-height:420px; overflow-y:auto; padding:2px; }
