@@ -30,7 +30,7 @@ function createImageProcessingGate(limit) {
 }
 
 export function createPrivateImageService({ connection, media, secret, maxImagesPerUser = 20,
-  maxConcurrentDecoders = MAX_IMAGE_PROCESSING, imageModels = privateImageModels(connection), storagePrefix = 'private-images' }) {
+  maxConcurrentDecoders = MAX_IMAGE_PROCESSING, imageModels = privateImageModels(connection), storagePrefix = 'private-images', authorizeEvidenceRead }) {
   if (!['private-images', 'applicant-documents'].includes(storagePrefix)) throw new TypeError('Invalid private image namespace');
   const { PrivateImage, PrivateImageQuota } = imageModels;
   if (!Number.isInteger(maxConcurrentDecoders) || maxConcurrentDecoders < 1 || maxConcurrentDecoders > 4) {
@@ -100,9 +100,9 @@ export function createPrivateImageService({ connection, media, secret, maxImages
   }
   async function read({ actor, id }) {
     if (!/^[a-f0-9]{64}$/.test(id ?? '') || !Types.ObjectId.isValid(actor?.userId)) throw notFound();
-    const record = await PrivateImage.findOne({ _id: id, ownerId: actor.userId, state: 'READY' })
+    const record = await PrivateImage.findOne({ _id: id, state: 'READY' })
       .select('+storageRef +contentDigest').lean();
-    if (!record) throw notFound(); // No Admin/Staff ownership bypass.
+    if (!record || String(record.ownerId) !== actor.userId && !(await authorizeEvidenceRead?.({ actor, image: record }))) throw notFound(); // No Admin/Staff bypass.
     let result;
     try { result = await media.read({ storageRef: record.storageRef }); }
     catch { throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private media is unavailable'); }

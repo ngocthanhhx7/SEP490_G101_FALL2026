@@ -54,7 +54,7 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
     const visits = await connection.db.collection('visits').find({
       bookingId: booking._id, state: { $ne: 'SUPERSEDED' },
       ...(booking.visitIds?.length ? { _id: { $in: booking.visitIds } } : {})
-    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1 }, maxTimeMS: 2000 })
+    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, checkInAt: 1, checkOutAt: 1, checklist: 1, 'snapshots.checklistItems': 1, evidenceRefs: 1 }, maxTimeMS: 2000 })
       .sort({ startAt: 1, _id: 1 }).limit(60).toArray();
     const ids = [...new Set([
       ...(includeCustomerName ? [booking.customerId] : []),
@@ -68,9 +68,19 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
       ...(includeCustomerName ? { customerName: personName(names, booking.customerId) } : {}),
       details: {
         consentAt: booking.checkoutSnapshot?.consentAt ?? null,
-        terms: original.map(visit => savedTerms(visit, names, areaNames)),
+        terms: original.map(visit => {
+          const saved = savedTerms(visit, names, areaNames);
+          const actual = visits.filter(row => row.customerVisitId === String(visit._id));
+          return actual.length === 1 ? { ...saved, startAt: actual[0].startAt, endAt: actual[0].endAt } : saved;
+        }),
         visits: visits.map(visit => ({
           id: String(visit._id), startAt: visit.startAt ?? null, endAt: visit.endAt ?? null,
+          checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
+          checklist: (visit.checklist ?? []).slice(0, 100).map(item => ({ itemId: item.itemId,
+            label: visit.snapshots?.checklistItems?.find(row => row.itemId === item.itemId)?.label ?? item.itemId,
+            status: item.status, ...(item.reason ? { reason: item.reason } : {}) })),
+          evidence: (visit.evidenceRefs ?? []).filter(item => ['CHECK_IN','CHECK_OUT'].includes(item.kind) && /^[a-f0-9]{64}$/.test(item.mediaId)).slice(0,2)
+            .map(({kind,mediaId}) => ({kind,mediaId})),
           state: visit.state, sitterName: personName(names, visit.sitterId)
         })),
         price: savedPrice(booking, original)

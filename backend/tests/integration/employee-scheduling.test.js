@@ -76,10 +76,11 @@ test.each([undefined, 'false', 'true'])('dispatch reports travel capability for 
 });
 
 test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
+  const otherCustomer = actor('CUSTOMER');
   const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });
   await connection.collection('visits').updateOne({ _id: row._id }, { $set: { 'snapshots.checklistItemIds': ['pet-condition'] } });
   const session = { authenticate: async req => {
-    const record = [sitter, customer, staff].find(value => value.userId === req.get('x-test-actor'));
+    const record = [sitter, customer, staff, otherCustomer].find(value => value.userId === req.get('x-test-actor'));
     return record && { ...record, expiresAt: clock() + 60000 };
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
   const bytes = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#38a178' } }).png().toBuffer();
@@ -102,10 +103,16 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   const replay = await request(server).post(`${root}/proposals/${proposal.id}/confirmation`).set(headers(customer, 'synthetic-confirm-care')).send(confirmation).expect(200);
   expect(replay.body.data).toEqual(confirmed.body.data);
   await request(server).post(`${root}/offers/${confirmed.body.data.offer.id}/acceptances`).set(headers(sitter, 'synthetic-accept-care')).send({ expectedVersion: 0 }).expect(200);
+  const pendingOffers = (await request(server).get(root+'/offers?state=PENDING').set(headers(sitter,'synthetic-pending')).expect(200)).body.data;
+  const historyOffers = (await request(server).get(root+'/offers?state=HISTORY').set(headers(sitter,'synthetic-history')).expect(200)).body.data;
+  expect(pendingOffers.items.every(offer=>offer.state==='PENDING')).toBe(true);
+  expect(historyOffers.items.some(offer=>offer.state==='ACCEPTED')).toBe(true);
+  expect(historyOffers.items.every(offer=>offer.state!=='PENDING')).toBe(true);
   const endpoint = `/api/v1/visits/${row._id}`;
   let current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   const upload = async key => (await request(server).post(images.mount).set(headers(sitter, key)).set('Content-Type', 'image/png').send(bytes).expect(201)).body.data.id;
   const mediaIn = await upload('synthetic-private-care-in');
+  await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(customer,'synthetic-unbound-denied')).expect(404);
   const input = { expectedVersion: current.version, mediaId: mediaIn };
   const checkedIn = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
   const repeated = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
@@ -123,10 +130,16 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect((await checkout.read(customer, String(row.bookingId))).state).toBe('COMPLETED');
   await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
   expect(stored.size).toBe(2);
+  const finalRead = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-final')).expect(200)).body.data;
+  expect(finalRead.evidence).toEqual([{kind:'CHECK_IN',mediaId:mediaIn},{kind:'CHECK_OUT',mediaId:mediaOut}]);
+  await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(otherCustomer,'synthetic-other-customer')).expect(404);
+  expect(Date.parse(finalRead.checkInOpensAt)).toBe(Date.parse(finalRead.startAt)-1800000);
+  await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(customer,'synthetic-customer-image')).expect(200).expect('Cache-Control','private, no-store');
+  await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(staff,'synthetic-no-staff-image')).expect(404);
   expect(await connection.collection('caremediabindings').countDocuments({ visitId: String(row._id) })).toBe(2);
 });
 
-test('execution read is assigned-sitter scoped and omits private notes, media and money', async () => {
+test('execution read exposes timing and bound evidence while excluding private notes and money', async () => {
   const sitter = await employee(), other = await employee(), row = await visit();
   await connection.collection('visits').updateOne({ _id: row._id }, { $set: { sitterId: new mongoose.Types.ObjectId(sitter.userId),
     state: 'ASSIGNED', 'snapshots.checklistItemIds': ['service-scope', 'pet-condition'],
@@ -134,7 +147,7 @@ test('execution read is assigned-sitter scoped and omits private notes, media an
   const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()) });
   const result = await service.readVisit(sitter, String(row._id));
   expect(result).toMatchObject({ visitId: String(row._id), state: 'ASSIGNED', version: 0, checklistItemIds: ['service-scope', 'pet-condition'] });
-  expect(Object.keys(result).sort()).toEqual(['visitId', 'state', 'version', 'startAt', 'endAt', 'checkInAt', 'checkOutAt', 'checklistItemIds', 'checklist'].sort());
+  expect(Object.keys(result).sort()).toEqual(['visitId', 'state', 'version', 'startAt', 'endAt', 'checkInAt', 'checkOutAt', 'checklistItemIds', 'checklist', 'serverNow', 'checkInOpensAt', 'checkInClosesAt', 'checkOutClosesAt', 'checklistItems', 'evidence'].sort());
   await expect(service.readVisit(other, String(row._id))).rejects.toMatchObject({ status: 404 });
   await expect(service.readVisit(customer, String(row._id))).rejects.toMatchObject({ status: 403 });
   const runtime = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } }, env: { FINANCE_SOURCES_ENABLED: 'true' }, clock,

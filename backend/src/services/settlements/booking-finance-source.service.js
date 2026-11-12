@@ -11,6 +11,7 @@ import { recordEmployeeServiceCompletion } from '../payroll/completion-payroll-s
 import { assertPayrollStorage } from '../payroll/payroll-storage.service.js';
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 
+const CHECK_IN_EARLY_MS = 30 * 60 * 1000, CHECK_OUT_GRACE_MS = 2 * 60 * 60 * 1000;
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const fail = (status, code) => { throw new AppError(status, code, code); };
 const oid = value => typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value)
@@ -141,7 +142,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
           if (visit.state !== 'ASSIGNED' || visit.checkInAt) fail(409, 'INVALID_STATE');
           if (!(visit.startAt instanceof Date) || !(visit.endAt instanceof Date)
             || visit.endAt <= visit.startAt) fail(409, 'SOURCE_RECONCILIATION_REQUIRED');
-          if (at.getTime() < visit.startAt.getTime() - 30 * 60 * 1000) fail(409, 'CHECK_IN_TOO_EARLY');
+          if (at.getTime() < visit.startAt.getTime() - CHECK_IN_EARLY_MS) fail(409, 'CHECK_IN_TOO_EARLY');
           if (at > visit.endAt) fail(409, 'INVALID_STATE');
           if (visit.handoverRequired && visit.handoverAccepted !== true) fail(409, 'HANDOVER_REQUIRED');
           if (booking.originalVisitCount > 1 || booking.paymentMode === 'PREPAY') {
@@ -175,7 +176,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             fields = { checklist: items.map(row => ({ itemId: row.itemId, status: row.status,
               ...(row.status === 'SKIPPED' ? { reason: row.reason.trim() } : {}) })) };
           } else {
-            if (!(visit.endAt instanceof Date) || at.getTime() > visit.endAt.getTime() + 2 * 60 * 60 * 1000
+            if (!(visit.endAt instanceof Date) || at.getTime() > visit.endAt.getTime() + CHECK_OUT_GRACE_MS
               || at < visit.checkInAt) fail(409, 'CHECK_OUT_DEADLINE_PASSED');
             const required = visit.snapshots?.checklistItemIds;
             if (!Array.isArray(required) || !Array.isArray(visit.checklist) || required.length !== visit.checklist.length
@@ -246,6 +247,12 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       return unitOfWork.run(async session => {
         const { visit } = await visitContext(current, visitId, session);
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
+          serverNow: now(), checkInOpensAt: new Date(+visit.startAt - CHECK_IN_EARLY_MS),
+          checkInClosesAt: visit.endAt, checkOutClosesAt: new Date(+visit.endAt + CHECK_OUT_GRACE_MS),
+          checklistItems: (visit.snapshots?.checklistItemIds ?? []).slice(0, 100).map(itemId => ({ itemId,
+            label: visit.snapshots?.checklistItems?.find(item => item.itemId === itemId && typeof item.label === 'string')?.label ?? itemId })),
+          evidence: (visit.evidenceRefs ?? []).filter(item => ['CHECK_IN', 'CHECK_OUT'].includes(item.kind) && /^[a-f0-9]{64}$/i.test(item.mediaId)).slice(0, 2)
+            .map(({ kind, mediaId }) => ({ kind, mediaId })),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
           checklistItemIds: visit.snapshots?.checklistItemIds ?? null,
           checklist: (visit.checklist ?? []).map(({ itemId, status, reason }) => ({ itemId, status, ...(reason ? { reason } : {}) })) };

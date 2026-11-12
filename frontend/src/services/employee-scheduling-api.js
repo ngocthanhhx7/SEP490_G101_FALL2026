@@ -11,12 +11,13 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
       const result = await request(`/visits/${encodeURIComponent(id)}/execution`, { signal });
       const row = result.data;
       if (row?.visitId !== id || !Number.isSafeInteger(row.version) || row.version < 0 ||
-        !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'].includes(row.state) || !Array.isArray(row.checklist) ||
+        !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'].includes(row.state) || !Number.isFinite(Date.parse(row.startAt)) || !Number.isFinite(Date.parse(row.endAt)) || !Array.isArray(row.checklist) ||
         row.checklistItemIds !== null && (!Array.isArray(row.checklistItemIds) || row.checklistItemIds.some(item => typeof item !== 'string'))) {
         throw new ApiError('INVALID_RESPONSE');
       }
       return result;
     },
+    readEvidence: privateImages ? (id, options) => privateImages.read(id, options) : undefined,
     uploadEvidence: privateImages ? (file, key) => privateImages.upload(file, { idempotencyKey: key }) : undefined,
     async executeVisit(id, action, body, key) {
       if (!['check-ins', 'checklists', 'check-outs'].includes(action)) throw new ApiError('INVALID_API_PATH');
@@ -34,7 +35,10 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     saveAvailability: ({ idempotencyKey, ...body }) => mutate('/availability', body, idempotencyKey, 'PUT'),
     load: ({ signal } = {}) => get('/work-areas', signal),
     save: ({ idempotencyKey, signal, ...body }) => mutate('/work-areas', body, idempotencyKey, 'PUT', signal),
-    offers: ({ signal, cursor } = {}) => get(`/offers${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, signal),
+    offers: ({ signal, cursor, state } = {}) => {
+      const query = new globalThis.URLSearchParams({ ...(cursor ? { cursor } : {}), ...(state ? { state } : {}) });
+      return get('/offers' + (query.size ? '?' + query : ''), signal);
+    },
     assignments: ({ signal, cursor } = {}) => get(`/assignments${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, signal),
     async withdrawalOptions(id, { signal } = {}) {
       const result = await get(`/visits/${encodeURIComponent(id)}/withdrawal-options`, signal);

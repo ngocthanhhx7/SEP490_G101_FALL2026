@@ -93,7 +93,7 @@ export function BookingDetailsContent({ booking, visitActions }) {
               <td>{time(visit.startAt)} – {time(visit.endAt)}{visit.endAt && date(visit.startAt) !== date(visit.endAt) && ` (${date(visit.endAt)})`}</td>
               <td>{visit.sitterName ?? '—'}</td>
               <td><span className="booking-details__status" data-state={visit.state}>{visitStatus[visit.state] ?? 'Đang cập nhật'}</span></td>
-              <td>—</td>
+              <td>{visitActions?.reportForVisit?.(visit) ?? '—'}</td>
               {visitActions && <td>{visitActions.forVisit?.(visit)}</td>}
             </tr>)}</tbody>
           </table>

@@ -31,6 +31,7 @@ const visitLabel = {
   CANCELLED: 'Đã hủy',
   STAFF_CLOSED: 'Đã đóng',
 };
+const visitTitle = row => `${row.serviceName || 'Ca chăm sóc'}${row.petNames?.length ? ' cho ' + row.petNames.join(', ') : ''}`;
 const short = (id) => (id ? '…' + id.slice(-6) : '—');
 const reviewLabel = (code) =>
   ({
@@ -142,7 +143,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
               label: 'Buổi',
               render: (r) => (
                 <>
-                  <strong title={r.id}>{short(r.bookingId)}</strong>
+                  <strong>{visitTitle(r)}</strong>
                   <small>
                     {time(r.startAt)} – {time(r.endAt)}
                   </small>
@@ -150,7 +151,6 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
               ),
             },
             { key: 'customerName', label: 'Khách hàng', render: (r) => r.customerName ?? 'Chưa có tên' },
-            { key: 'serviceName', label: 'Dịch vụ' },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
             {
               key: 'reason',
@@ -220,9 +220,8 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             {
               key: 'booking',
               label: 'Lịch đặt',
-              render: (r) => <span title={r.bookingId}>{short(r.bookingId)}</span>,
+              render: (r) => <span>{visitTitle(r)}</span>,
             },
-            { key: 'serviceName', label: 'Dịch vụ' },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
             { key: 'sitterName', label: 'Người chăm sóc', render: (r) => r.sitterName ?? 'Chưa phân công' },
             {
