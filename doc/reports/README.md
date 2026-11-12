@@ -5,3 +5,6 @@ Thư mục dành cho các bản báo cáo chính thức được nhóm chọn đ
 Bản làm việc gốc được quản lý trên Google Drive. Khi bổ sung một bản xuất, ghi rõ tên báo cáo, phiên bản, ngày cập nhật và người phụ trách; giữ tên của tài liệu đã phát hành để truy vết. Với tài liệu mới, dùng quy ước `PawWorldCare_DocumentName_vX.Y` trong Report 2.
 
 Danh mục nguồn đang được tham chiếu nằm tại [references](../references/README.md).
+
+- [Report 4 — SDS và nguồn draw.io](report4/README.md): bản đối chiếu ngày
+  06/11/2026, giữ cấu trúc trường; có schema dictionary và truy vết 95 use case.

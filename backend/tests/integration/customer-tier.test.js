@@ -35,6 +35,11 @@ beforeAll(async () => {
   db = connection.db;
   for (const name of ['users', 'bookings', 'payments', 'productorders']) await db.createCollection(name);
   await provisionCustomerTierStorage(connection);
+  expect(await db.collection('customer_tier_policies').findOne({ _id: 'current' })).toMatchObject({ state: 'DRAFT' });
+  // Approval is synthetic test setup, never a production policy decision.
+  await db.collection('customer_tier_policies').updateOne({ _id: 'current' }, { $set: {
+    state: 'APPROVED', approvedAt: new Date(0), approvedBy: 'synthetic-reviewer', approvalReference: 'synthetic-fixture-only'
+  } });
   policy = await db.collection('customer_tier_policies').findOne({ _id: 'current' });
   repository = createMongoCustomerTierRepository(connection);
 }, 600000);
@@ -139,4 +144,24 @@ test('JOB-05: a worker whose lease expired cannot write after another worker tak
   await repository.releaseLease(first);
   expect(await repository.acquireLease('third', later)).toBeNull();
   await repository.releaseLease(second);
+});
+
+test('unapproved policy cannot expose discounts or change tiers, and stale staged policy is refused', async () => {
+  const customerId = await customer();
+  const collection = db.collection('customer_tier_policies');
+  await collection.updateOne({ _id: 'current' }, { $set: { state: 'DRAFT' } });
+  try {
+    await expect(service().read(customerId)).rejects.toMatchObject({ code: 'CUSTOMER_TIER_POLICY_UNAPPROVED' });
+    await expect(service({ clock: () => at.getTime() + 30 * 86400000 }).run()).rejects.toMatchObject({ code: 'CUSTOMER_TIER_POLICY_UNAPPROVED' });
+    expect(await db.collection('customer_tiers').findOne({ _id: customerId })).toBeNull();
+    const lease = await repository.acquireLease('synthetic-policy-guard', at);
+    await expect(repository.applyResults({ policyVersion: policy.version, asOf: at }, [], lease, at))
+      .rejects.toMatchObject({ code: 'CUSTOMER_TIER_POLICY_UNAPPROVED' });
+    await repository.releaseLease(lease);
+    await collection.updateOne({ _id: 'current' }, { $set: { state: 'APPROVED', version: policy.version + 1 } });
+    const next = await repository.acquireLease('synthetic-policy-version', at);
+    await expect(repository.applyResults({ policyVersion: policy.version, asOf: at }, [], next, at))
+      .rejects.toMatchObject({ code: 'CUSTOMER_TIER_POLICY_UNAPPROVED' });
+    await repository.releaseLease(next);
+  } finally { await collection.updateOne({ _id: 'current' }, { $set: { state: 'APPROVED', version: policy.version } }); }
 });

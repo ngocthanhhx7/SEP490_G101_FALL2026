@@ -1,0 +1,114 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron">
+  <diagram id="domain-settlement" name="20. Legacy Earnings, Holds and Settlement Reconciliation">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="p_0" value="" />
+        <mxCell id="p_1" parent="p_0" value="" />
+        <mxCell id="p_title" value="Class Diagram: Legacy Earnings, Holds and Settlement Reconciliation" vertex="1" parent="p_1" style="text;html=0;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;">
+          <mxGeometry as="geometry" x="40" y="25" width="1080" height="38" />
+        </mxCell>
+        <mxCell id="admin_ctrl" value="AdminSettlementController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="110" width="300" height="87" />
+        </mxCell>
+        <mxCell id="admin_ctrl_body" value="+ list(req,res)&#10;+ decide(req,res)&#10;+ recordTransfer(req,res)" vertex="1" parent="admin_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="admin_service" value="AdminSettlementService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="110" width="320" height="121" />
+        </mxCell>
+        <mxCell id="admin_service_body" value="+ list({actor,cursor})&#10;+ decide({actor,requestId,...})&#10;+ recordTransfer({actor,requestId,...})&#10;- current state/version and policy guard&#10;- private command replay + evidence" vertex="1" parent="admin_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="95" />
+        </mxCell>
+        <mxCell id="admin_ports" value="AdminSettlementRepository «port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="110" width="300" height="138" />
+        </mxCell>
+        <mxCell id="admin_ports_body" value="+ findCommand / saveCommand&#10;+ getById / compareAndSet / appendEvent&#10;+ releaseReservation / settleReservation&#10;+ assertReservationReady&#10;+ assertEvidenceOwnership&#10;+ recordTransferAttempt / listPayroll" vertex="1" parent="admin_ports" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="112" />
+        </mxCell>
+        <mxCell id="admin_ctrl_service" value="" edge="1" parent="p_1" source="admin_ctrl" target="admin_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="136.1" />
+              <mxPoint x="380.0" y="164.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="admin_service_repository" value="" edge="1" parent="p_1" source="admin_service" target="admin_ports" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="146.3" />
+              <mxPoint x="780.0" y="172.1" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="admin_source" value="Source: admin-settlement.controller.js → settlements/admin-settlement.service.js. This service defines its own private command wrapper and does not use createCommandRunner as its public service. UnitOfWork.run and the trusted policy.resolve port bound every command; UNKNOWN transfer acknowledgement is not success." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="400" width="1080" height="110" />
+        </mxCell>
+        <mxCell id="request_ctrl" value="SettlementRequestController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="620" width="300" height="87" />
+        </mxCell>
+        <mxCell id="request_ctrl_body" value="+ read(req,res)&#10;+ submit(req,res)&#10;+ withdraw(req,res)" vertex="1" parent="request_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="request_service" value="SettlementService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="620" width="320" height="104" />
+        </mxCell>
+        <mxCell id="request_service_body" value="+ readOwn({actor})&#10;+ submit({actor,earningIds,idempotencyKey})&#10;+ withdraw({actor,requestId,...})&#10;- execute: CommandRunner function" vertex="1" parent="request_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="78" />
+        </mxCell>
+        <mxCell id="request_ports" value="SettlementRepository «port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="620" width="300" height="104" />
+        </mxCell>
+        <mxCell id="request_ports_body" value="+ findCommand / saveCommand&#10;+ claimWeek / reserveEarnings&#10;+ create / appendEvent / readOwn&#10;+ withdrawal conditional release" vertex="1" parent="request_ports" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="request_ctrl_service" value="" edge="1" parent="p_1" source="request_ctrl" target="request_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="646.1" />
+              <mxPoint x="380.0" y="666.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="request_service_ports" value="" edge="1" parent="p_1" source="request_service" target="request_ports" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="651.2" />
+              <mxPoint x="780.0" y="666.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="request_source" value="Source: settlement-request.controller.js → settlements/settlement.service.js. createSettlementService creates the reusable CommandRunner function for the sitter submission/withdrawal path. It does not make CommandRunner a base class of the Admin service. Every release gate remains subject to approved source/policy evidence." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="880" width="1080" height="110" />
+        </mxCell>
+        <mxCell id="money_policy" value="TrustedSettlementPolicy «port»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="1100" width="320" height="104" />
+        </mxCell>
+        <mxCell id="money_policy_body" value="+ resolve({action,transaction,...})&#10;+ policyVersion / decisionVersion&#10;+ decisionIds must be empty for ready&#10;No client-supplied rate or AI money" vertex="1" parent="money_policy" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="78" />
+        </mxCell>
+        <mxCell id="ledger" value="Earnings / SettlementRequest «contracts»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="1100" width="300" height="104" />
+        </mxCell>
+        <mxCell id="ledger_body" value="Integer VND and immutable source snapshots&#10;Reserve / hold / settle scoped to source&#10;Confirmed external transfer evidence&#10;Separate financial reconciliation state" vertex="1" parent="ledger" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="policy_source_contract" value="" edge="1" parent="p_1" source="money_policy" target="ledger" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="1131.2" />
+              <mxPoint x="780.0" y="1146.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="settlement_scope" value="Legacy settlement contracts coexist with the employee payroll model. Their UNKNOWN/evidence reconciliation semantics do not introduce an UNKNOWN state into payroll statement or payroll adjustment schemas. Deployment/provider/business approval is not established by a diagram." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1330" width="1080" height="100" />
+        </mxCell>
+        <mxCell id="source-notation" value="Notation: dashed open arrows are dependencies. Boxes describe JavaScript factory roles, injected ports and model contracts, not ES class inheritance. No diamond implies lifecycle ownership. A shown source capability does not prove live route/provider acceptance." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1460" width="1080" height="95" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

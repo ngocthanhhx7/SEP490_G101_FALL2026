@@ -1,4 +1,4 @@
-﻿# Deployment tools
+# Deployment tools
 
 Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
 
@@ -89,3 +89,5 @@ delivery must still pass the integration gate. `TRUST_PROXY_HOPS` remains a meas
 See [staging runbook](../../../doc/deployment/p35-staging-runbook.md) and
 [verification matrix](../../../doc/deployment/p35-verification.md). P34 owns changes to
 runtime registration, manifests and shared auth/proxy configuration.
+
+Customer tiers remain disabled by default. Provisioning inserts an unapproved DRAFT sample, not an approved spending/discount policy. Before enabling, the owner must approve exact versioned values and spend-source acceptance (including refund and additional sales-source behavior). Record `state: APPROVED`, BSON Date `approvedAt`, `approvedBy` and `approvalReference` only for that actual reviewed decision; never manufacture approval metadata. Reads/runs refuse DRAFT or unmarked policies. Staged-result application also requires the same current approved version within its fenced transaction, so changing/revoking a policy blocks stale resumed writes. Existing unmarked policies are not implicitly approved or backfilled. This PR does not enable the job or approve any real discount.

@@ -25,7 +25,11 @@ const errors = {
   TRAVEL_TIME_CONFLICT: 'Chưa đủ thời gian di chuyển và bàn giao giữa các ca.',
   DAY_OFF: 'Nhân viên đã có ngày nghỉ được xác nhận.',
   PAYMENT_REQUIRED: 'Cần xác minh đủ thanh toán trước khi gửi hoặc nhận lời mời.',
+  VISIT_ALREADY_ASSIGNED: 'Buổi đã có người nhận.',
   VISIT_UNAVAILABLE: 'Ca chưa sẵn sàng nhận việc. Kiểm tra thanh toán và kế hoạch chăm sóc.',
+  WITHDRAWAL_MODE_CHANGED: 'Thời gian còn lại đã thay đổi. Kiểm tra hộp thoại mới rồi xác nhận lại.',
+  WITHDRAWAL_ALREADY_REQUESTED: 'Buổi này đã có yêu cầu rút đang chờ nhân viên.',
+  SITTER_WITHDREW: 'Người chăm sóc này vừa rút khỏi buổi.',
   OFFER_EXPIRED: 'Lời mời đã hết hạn.', VERSION_CONFLICT: 'Dữ liệu đã thay đổi. Hãy tải lại.',
   SCHEDULING_STORAGE_NOT_READY: 'Chức năng lịch làm việc chưa được kích hoạt đầy đủ.'
 };
@@ -41,7 +45,7 @@ export function useSchedulingCommand(onSuccess) {
     try {
       const result = await operation.current.work(operation.current.key);
       if (result?.pending || result?.status === 202) { setPending(true); setMessage('Đang chờ xác nhận.'); return; }
-      operation.current = null; setPending(false); setMessage('Đã xác nhận.'); onSuccess?.();
+      operation.current = null; setPending(false); setMessage('Đã xác nhận.'); onSuccess?.(result);
     } catch (error) {
       const uncertain = !error.status || error.status >= 500 || ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'INVALID_RESPONSE'].includes(error.code);
       setPending(uncertain);

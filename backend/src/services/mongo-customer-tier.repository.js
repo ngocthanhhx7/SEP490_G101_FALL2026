@@ -1,3 +1,5 @@
+import { isApprovedCustomerTierPolicy } from '../config/customer-tier-policy.js';
+import { AppError } from '../utils/app-error.js';
 import { Types } from 'mongoose';
 import { CUSTOMER_TIER_COLLECTIONS, CUSTOMER_TIER_LEASE_ID } from '../models/customer-tier.model.js';
 import { createUnitOfWork } from './unit-of-work.service.js';
@@ -112,6 +114,12 @@ export function createMongoCustomerTierRepository(connection) {
       { maxTimeMS: QUERY_MS }).sort({ customerId: 1 }).limit(limit).toArray(),
 
     applyResults: (run, rows, lease, now) => fenced(lease, now, async session => {
+      const policy = await policies.findOne({ _id: 'current' }, { session });
+      if (!isApprovedCustomerTierPolicy(policy) || policy.version !== run.policyVersion)
+        throw new AppError(503, 'CUSTOMER_TIER_POLICY_UNAPPROVED', 'Staged results require the same approved policy');
+      const guarded = await policies.updateOne({ _id: 'current', version: run.policyVersion, state: 'APPROVED' },
+        { $inc: { guardVersion: 1 } }, { session });
+      if (guarded.matchedCount !== 1) throw new Error('Customer tier policy changed');
       const ids = rows.filter(row => !row.held).map(row => row.customerId);
       const currentCustomers = new Set((await users.find({ _id: { $in: ids }, roles: ['CUSTOMER'] },
         { session, projection: { _id: 1 } }).toArray()).map(row => String(row._id)));

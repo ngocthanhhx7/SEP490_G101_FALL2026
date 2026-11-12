@@ -1,0 +1,248 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-65 Record a delivery outcome" id="uc-65">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2332" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Admin (current permission)" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="2052" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": OrderManagementController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="2052" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": OrderManagementService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="2052" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": ProductOrder" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="2052" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Product / Refusal" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="2052" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": DomainNotifications / View" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="2052" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="300" />
+        </mxCell>
+        <mxCell id="caption-1" value="Request and actual authorization" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Request selected management action with orderId and its&#10;validated body; session + CSRF" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Delegate actor/id/body only; no Idempotency-Key is passed by&#10;this controller" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: requireOrderHandler uses PRODUCT_PERMISSIONS.HANDLE_ORDERS =&#10;ADMIN; validate id/action input" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="480" y="358" />
+            <Array as="points">
+              <mxPoint x="520" y="336" />
+              <mxPoint x="520" y="358" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-4" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="431" width="1110" height="661" />
+        </mxCell>
+        <mxCell id="caption-4" value="alt [carrier confirms delivered]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="438" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Begin UnitOfWork transaction: read order by id" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="551" />
+            <mxPoint as="targetPoint" x="670" y="551" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="551" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Order current status/version or RESOURCE_NOT_FOUND 404" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="609" />
+            <mxPoint as="targetPoint" x="480" y="609" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-6" value="6: Require DELIVERY / HANDED_TO_CARRIER; disallowed current&#10;state -&gt; ORDER_STATE_CONFLICT 409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="667" />
+            <mxPoint as="targetPoint" x="480" y="689" />
+            <Array as="points">
+              <mxPoint x="520" y="667" />
+              <mxPoint x="520" y="689" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7: CAS {_id,status:readStatus,version:readVersion};&#10;status=DELIVERED, deliveredAt; COD sets paid=true; prepaid&#10;state preserved; increment version" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="747" />
+            <mxPoint as="targetPoint" x="670" y="747" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="747" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Changed document or CAS miss -&gt; ORDER_STATE_CONFLICT; abort&#10;transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="818" />
+            <mxPoint as="targetPoint" x="480" y="818" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-9" value="9: Publish productOrder domain notification intent with&#10;previous/result in SAME session" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="876" />
+            <mxPoint as="targetPoint" x="1035" y="876" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="876" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: Commit order + stock/refusal + notification changes&#10;together; any failure rolls all back" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="934" />
+            <mxPoint as="targetPoint" x="670" y="934" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="934" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: After commit: read customer displayName/phone directory and&#10;build management DTO" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="992" />
+            <mxPoint as="targetPoint" x="1035" y="992" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="992" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: 200 current updated order view; a later repeated transition&#10;may conflict, not replay the prior result" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="1050" />
+            <mxPoint as="targetPoint" x="105" y="1050" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-13" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1123" width="1110" height="674" />
+        </mxCell>
+        <mxCell id="caption-13" value="alt [carrier is returning parcel]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1130" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Begin UnitOfWork transaction: read order by id" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1243" />
+            <mxPoint as="targetPoint" x="670" y="1243" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1243" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: Order current status/version or RESOURCE_NOT_FOUND 404" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1301" />
+            <mxPoint as="targetPoint" x="480" y="1301" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-15" value="15: Require DELIVERY / HANDED_TO_CARRIER and bounded&#10;carrierReason; disallowed current state -&gt;&#10;ORDER_STATE_CONFLICT 409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1359" />
+            <mxPoint as="targetPoint" x="480" y="1381" />
+            <Array as="points">
+              <mxPoint x="520" y="1359" />
+              <mxPoint x="520" y="1381" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-16" value="16: CAS {_id,status:readStatus,version:readVersion};&#10;status=BEING_RETURNED, carrierReturnReason; increment&#10;version" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1452" />
+            <mxPoint as="targetPoint" x="670" y="1452" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-16" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1452" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: Changed document or CAS miss -&gt; ORDER_STATE_CONFLICT; abort&#10;transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1523" />
+            <mxPoint as="targetPoint" x="480" y="1523" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-18" value="18: Publish productOrder domain notification intent with&#10;previous/result in SAME session" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1581" />
+            <mxPoint as="targetPoint" x="1035" y="1581" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-18" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1581" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-19" value="19: Commit order + stock/refusal + notification changes&#10;together; any failure rolls all back" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1639" />
+            <mxPoint as="targetPoint" x="670" y="1639" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-19" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1639" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-20" value="20: After commit: read customer displayName/phone directory and&#10;build management DTO" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1697" />
+            <mxPoint as="targetPoint" x="1035" y="1697" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-20" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1697" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-21" value="21: 200 current updated order view; a later repeated transition&#10;may conflict, not replay the prior result" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="1755" />
+            <mxPoint as="targetPoint" x="105" y="1755" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-22" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1828" width="1110" height="233" />
+        </mxCell>
+        <mxCell id="caption-22" value="Failure and acknowledgement boundary" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1835" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-22" value="22: Invalid fields -&gt; 422; missing -&gt; 404; unauthorized -&gt;&#10;401/403; stock mismatch/state/CAS -&gt; 409 with transaction&#10;rollback" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1948" />
+            <mxPoint as="targetPoint" x="105" y="1948" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-23" value="23: If acknowledgement is lost: GET current order before&#10;choosing a new action; no stored command replay guarantee" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="2019" />
+            <mxPoint as="targetPoint" x="295" y="2019" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-23" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="2019" width="10" height="26" />
+        </mxCell>
+        <mxCell id="scope-note" value="Source: product-order-management.service.js/controller and product-permissions.js. ADMIN currently handles Sale Staff tasks; STAFF is not independently permitted here. One successful CAS prevents the same transition/stock effect twice. This is distinct from returning a stored successful acknowledgement on retry. Carrier booking/payment itself remains external when described." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="2132" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,3 +1,5 @@
+import { isApprovedCustomerTierPolicy } from '../config/customer-tier-policy.js';
+import { AppError } from '../utils/app-error.js';
 import { randomUUID } from 'node:crypto';
 import { CUSTOMER_TIERS } from '../models/customer-tier.model.js';
 
@@ -19,6 +21,8 @@ export function customerTierWindow(asOf) {
 }
 
 function assertPolicy(policy) {
+  if (!isApprovedCustomerTierPolicy(policy))
+    throw new AppError(503, 'CUSTOMER_TIER_POLICY_UNAPPROVED', 'Approve the versioned customer tier policy before use');
   const thresholds = policy?.thresholds;
   if (!Number.isSafeInteger(policy?.version) || policy.version < 1
     || CUSTOMER_TIERS.some(tier => !validMoney(thresholds?.[tier]) || !validMoney(policy.discountsBps?.[tier]) || policy.discountsBps[tier] > 10000)
