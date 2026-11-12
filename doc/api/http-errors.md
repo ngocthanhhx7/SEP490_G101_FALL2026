@@ -26,7 +26,7 @@ cứu/hướng dẫn chờ; không tự gửi lại thao tác ghi.
 | 404 | Route hoặc tài nguyên không tồn tại/không thuộc người đọc (`RESOURCE_NOT_FOUND`) | Kiểm tra đường dẫn hoặc tải lại; không tiết lộ tài nguyên của người khác |
 | 405 | Phương thức HTTP không được hỗ trợ tại upstream | Không đổi thành lỗi validation; chỉ dùng nếu thành phần xử lý thực sự phát status này |
 | 408 | Hết thời gian nhận request ở upstream | Kiểm tra trạng thái thao tác trước khi gửi lại |
-| 409 | Trạng thái/version xung đột, `CONTACT_ALREADY_LINKED`, `VISIT_SCHEDULE_OVERLAP`, `ACTIVE_BOOKING_CONFLICT` | Đăng nhập bằng tài khoản đã có; đổi giờ; hoặc hoàn tất/hủy buổi trước khi xóa hồ sơ |
+| 409 | Trạng thái/version xung đột, `CONTACT_ALREADY_LINKED`, `CONTACT_UNCHANGED` (liên hệ mới trùng liên hệ hiện tại của chính tài khoản, không gửi mã), `CONTACT_UNAVAILABLE` (liên hệ thuộc tài khoản khác), `VISIT_SCHEDULE_OVERLAP`, `ACTIVE_BOOKING_CONFLICT` | Đăng nhập bằng tài khoản đã có; đổi giờ; hoặc hoàn tất/hủy buổi trước khi xóa hồ sơ |
 | 413 | Body quá lớn (`PAYLOAD_TOO_LARGE`) | Giảm dung lượng; giới hạn JSON và ảnh là hai giới hạn riêng |
 | 415 | Encoding/charset không hỗ trợ (`UNSUPPORTED_MEDIA_TYPE`) | Gửi đúng định dạng; không báo nhầm lỗi nội bộ 500 |
 | 422 | DTO hợp lệ về cú pháp nhưng sai trường/giá trị (`VALIDATION_FAILED` và code riêng của module) | Sửa trường được chỉ ra; không đặt lỗi trong `data` |

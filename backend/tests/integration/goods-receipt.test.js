@@ -90,6 +90,27 @@ beforeEach(async () => {
 });
 afterEach(() => jest.restoreAllMocks());
 
+test('canonicalizes uppercase ObjectIds for supplier and product identities', async () => {
+  const supplierId = await makeSupplier();
+  const productId = await idOf('SP-0012');
+  const key = newKey();
+  const body = { supplierId: supplierId.toUpperCase(), lines: [{ productId: productId.toUpperCase(), quantityReceived: 1, quantityAccepted: 1 }] };
+  const first = (await save(body, key).expect(201)).body.data;
+  const replayed = (await save({ supplierId, lines: [{ ...body.lines[0], productId }] }, key).expect(201)).body.data;
+  expect(replayed).toEqual(first);
+});
+
+test('refuses stock overflow and rolls back the entire receipt transaction', async () => {
+  const supplierId = await makeSupplier();
+  await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: Number.MAX_SAFE_INTEGER } });
+  const body = { supplierId, lines: [await line('SP-0012', 2, 2)] };
+  await save(body).expect(422);
+  expect(await stockOf('SP-0012')).toBe(Number.MAX_SAFE_INTEGER);
+  expect(await models.GoodsReceipt.countDocuments()).toBe(0);
+  expect(await models.ProductCounter.findById('GOODS_RECEIPT').lean()).toBeNull();
+  expect((await models.Supplier.findById(supplierId).lean()).lastReceiptAt).toBeUndefined();
+});
+
 describe('access (AC-34)', () => {
   test('AC-34 a guest gets 401 and a Customer, Staff or Pet Sitter gets 403 on every goods receipt call', async () => {
     const supplierId = await makeSupplier();

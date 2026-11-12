@@ -54,7 +54,8 @@ export function createAuthController({
       return respond(res, req, 202, {
         challengeId: challenge.challengeId,
         expiresInSeconds: challenge.expiresInSeconds,
-        resendAfterSeconds: challenge.resendAfterSeconds
+        resendAfterSeconds: challenge.resendAfterSeconds,
+        maskedContact: challenge.maskedContact
       });
     },
     createOtpVerifications: async (req, res) => {
@@ -139,7 +140,8 @@ export function createAuthController({
       return respond(res, req, 202, {
         challengeId: challenge.challengeId,
         expiresInSeconds: challenge.expiresInSeconds,
-        resendAfterSeconds: challenge.resendAfterSeconds
+        resendAfterSeconds: challenge.resendAfterSeconds,
+        maskedContact: challenge.maskedContact
       });
     },
     createMeContactVerifications: async (req, res) => {

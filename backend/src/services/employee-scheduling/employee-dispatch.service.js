@@ -108,7 +108,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
   } });
   async function candidates(visit, { manual = false, explain = false } = {}) {
     const directed = visit.requestedSitterId && String(visit.requestedSitterId);
-    const rows = await models.EmployeeAvailability.find({ areas: { $in: repository.areaKeys(visit.areaCode) }, ...(directed ? { _id: directed } : {}) }).sort({ _id: 1 }).limit(101).lean();
+    const rows = await models.EmployeeAvailability.find({ areas: { $in: await repository.areaKeys(visit.areaCode) }, ...(directed ? { _id: directed } : {}) }).sort({ _id: 1 }).limit(101).lean();
     if (rows.length > 100) fail('DISPATCH_SEARCH_LIMIT', 'Employee population requires a wider reviewed dispatch search', 409);
     const allowed = [];
     const rejected = {};
@@ -174,7 +174,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       if (input.mode !== undefined && input.mode !== 'MANUAL') fail('VALIDATION_FAILED', 'Invalid preview mode');
       const visit = await readyVisit(visitId), startAt = new Date(instant(input.startAt));
       const areaCode = input.areaCode ?? visit.areaCode;
-      if (!repository.coverageAreas.some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
+      if (!(await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas))).some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
         fail('VALIDATION_FAILED', 'Choose the current area or a more precise home area');
       const manual = input.mode === 'MANUAL';
       if (manual && (startAt.getTime() !== visit.startAt.getTime() || areaCode !== visit.areaCode)) fail('VALIDATION_FAILED', 'Manual preview must retain booked time and area');
@@ -195,7 +195,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const rows = await queueRows(51), today = await workspace.read();
       const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,r.requestedSitterId]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
       const name=id=>people.find(p=>String(p._id)===String(id))?.displayName??null;
-      return { today, queueHasMore: rows.length>50, workAreas: repository.coverageAreas, items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(row.requestedSitterId), version: row.version, startAt: row.startAt,
+      return { today, queueHasMore: rows.length>50, workAreas: await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas)), items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(row.requestedSitterId), version: row.version, startAt: row.startAt,
         endAt: row.endAt, serviceName: row.snapshots.serviceName, areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
         dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,

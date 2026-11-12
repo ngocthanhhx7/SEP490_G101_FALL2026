@@ -1,3 +1,4 @@
+import { serviceAreaRuntimeModule } from './routes/service-area.routes.js';
 import { petRecordImportRuntimeModule } from './routes/pet-record-import.routes.js';
 import { avatarRuntimeModule } from './routes/avatar.routes.js';
 import { pricingRuntimeModule } from './routes/pricing.routes.js';
@@ -104,6 +105,7 @@ export function createApp({
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
+  const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
   if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_DISPATCH_AGENT_ENABLED)) throw new TypeError('Invalid EMPLOYEE_DISPATCH_AGENT_ENABLED');
@@ -139,6 +141,7 @@ export function createApp({
     healthModule(context),
     publicPolicyModule(context),
     publicServiceAreasModule(context),
+    ...(serviceAreas ? [serviceAreas] : []),
     ...(auth ? [auth] : []),
     ...(customerProfile ? [customerProfile] : []),
     ...(avatars ? [avatars] : []),

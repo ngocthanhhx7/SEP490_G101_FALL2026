@@ -13,6 +13,11 @@ must be null or absent), while hidden products remain eligible (AC-31, D-262).
 The save transaction rechecks eligibility and returns the existing
 `422 PRODUCT_NOT_FOUND` for missing or deleted products without changing stock.
 
+`otp-verification.service.js` checks the canonical verified contact before
+creating a LOGIN challenge. Unknown/replaced contacts return
+`409 REGISTRATION_REQUIRED` without OTP persistence or delivery. Verification
+still rechecks authoritative contact/account state before issuing a session.
+
 `single-account-role.service.js` owns bounded existing-user inspection, the
 explicitly confirmed operator migration and validator-only recovery. It never
 selects between distinct operational roles or restores old whole-user/session
@@ -143,3 +148,5 @@ Customer booking list reads a projected summary from the existing owner-scoped b
 `employee-onboarding-repair.service.js` is an operator-only, digest-guarded exact-four employee correction under the owner's 2026-11-09 attestation. It preserves superseded future contract rows, historical versions and existing leave/origins, and audits each correction in existing payroll/scheduling stores. It never runs on startup.
 
 Pet-record import is transient transcription with bounded input/token/output and an allowlist of care fields; it has no database or financial writes.
+
+`service-area-*` services own sourced home-care coverage, Admin activation and insert-only operator provisioning. They keep legal-unit identities separate from legacy operational zones; see [coverage contract](../../../doc/api/home-care-coverage.md).

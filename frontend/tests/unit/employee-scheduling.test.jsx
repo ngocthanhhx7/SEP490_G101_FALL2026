@@ -8,6 +8,51 @@ import { DirectedBookingProposalPage } from '../../src/pages/customer/DirectedBo
 import { StaffTravelMonitor } from '../../src/pages/staff/StaffTravelMonitor.jsx';
 
 afterEach(cleanup);
+test.each([false, undefined])('dispatch omits travel requests when travel capability is %s', async visitTravelEnabled => {
+  const request = jest.fn().mockResolvedValue({ data: { items: [], visitTravelEnabled } });
+  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+  await waitFor(() => expect(screen.queryByText('Đang tải ca…')).not.toBeInTheDocument());
+
+  expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+  expect(screen.queryByRole('heading', { name: 'Ca đang đến điểm chăm sóc' })).not.toBeInTheDocument();
+  expect(screen.queryByText('Chưa tải được các ca di chuyển.')).not.toBeInTheDocument();
+  expect(request.mock.calls.map(([path]) => path)).toEqual(['/employee-scheduling/dispatch']);
+});
+
+test('dispatch loads travel rows when travel capability is enabled', async () => {
+  const request = jest.fn()
+    .mockResolvedValueOnce({ data: { items: [], visitTravelEnabled: true } })
+    .mockResolvedValueOnce({ data: { items: [{ id: 'visit', serviceName: 'Synthetic travel row',
+      startAt: '2026-11-03T02:00:00Z', endAt: '2026-11-03T03:00:00Z' }] } })
+    .mockResolvedValue({ data: { items: [], visitTravelEnabled: true } });
+  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+
+  expect(await screen.findByText('Synthetic travel row')).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Ca đang đến điểm chăm sóc' })).toBeVisible();
+  expect(request.mock.calls.map(([path]) => path)).toEqual([
+    '/employee-scheduling/dispatch', '/employee-scheduling/travel-visits'
+  ]);
+
+  fireEvent.click(screen.getByRole('button', { name: 'Tải lại lịch điều phối' }));
+  await waitFor(() => expect(screen.queryByText('Đang tải ca…')).not.toBeInTheDocument());
+  expect(screen.getByText('Synthetic travel row')).toBeVisible();
+  expect(request.mock.calls.map(([path]) => path)).toEqual([
+    '/employee-scheduling/dispatch', '/employee-scheduling/travel-visits', '/employee-scheduling/dispatch'
+  ]);
+});
+
+test.each([['HTTP 500', { status: 500 }], ['network', new Error('Offline')]])(
+  'dispatch shows the travel error for an enabled feature with a %s failure', async (_label, error) => {
+    const request = jest.fn()
+      .mockResolvedValueOnce({ data: { items: [], visitTravelEnabled: true } })
+      .mockRejectedValueOnce(error);
+    render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+
+    expect(await screen.findByText('Chưa tải được các ca di chuyển.')).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+  }
+);
+
 test('Staff travel monitor pages assigned visits without exposing employee mutation controls', async () => {
   const api = { travelVisits: jest.fn().mockResolvedValueOnce({ data: { items: [{ id: 'visit', sitterId: 'employee',
     serviceName: 'Synthetic live care', areaCode: 'HANOI', startAt: new Date(Date.now() + 60000).toISOString(), endAt: new Date(Date.now() + 3600000).toISOString() }], nextCursor: 'next' } })

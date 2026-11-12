@@ -37,6 +37,16 @@ function errorMessage(error) {
   return 'Không thể hoàn tất thao tác lúc này. Thử lại sau.';
 }
 
+const CHANNEL_NAMES = { EMAIL: 'email', PHONE: 'số điện thoại' };
+
+// MSG04 and MSG05: shown in red under the input before any code is sent.
+function contactFieldError(error, channel) {
+  const name = CHANNEL_NAMES[channel];
+  if (error?.code === 'CONTACT_UNCHANGED') return `Đây đã là ${name} hiện tại của bạn.`;
+  if (error?.code === 'CONTACT_UNAVAILABLE') return `${name[0].toLocaleUpperCase('vi-VN')}${name.slice(1)} này đã được tài khoản khác sử dụng.`;
+  return null;
+}
+
 function verifiedContact(contacts, channel) {
   return contacts.find(contact => contact.channel === channel && contact.state === 'VERIFIED');
 }
@@ -100,7 +110,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
     setNotice({ state: 'info', title: 'Đã hủy bước xác minh', message: 'Liên hệ hiện tại không thay đổi.' });
   }
 
-  async function sendCode(channel, value) {
+  async function sendCode(channel, value, { underInput = false } = {}) {
     setPending(true);
     setFieldError('');
     setNotice(null);
@@ -108,13 +118,16 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
       const challenge = await api.requestContactOtp({ channel, contact: value });
       const startedAt = Date.now();
       setFlow({ channel, contact: value, challengeId: challenge.challengeId,
+        maskedContact: challenge.maskedContact,
         expiresAt: startedAt + challenge.expiresInSeconds * 1000,
         resendAt: startedAt + challenge.resendAfterSeconds * 1000 });
       setCode('');
       setNotice({ state: 'pending', title: 'Đã yêu cầu mã xác minh',
         message: `Kiểm tra ${channel === 'EMAIL' ? 'email' : 'điện thoại'} vừa nhập. Liên hệ đang dùng vẫn giữ nguyên cho đến khi mã được xác minh.` });
     } catch (error) {
-      setNotice({ state: error?.status === 403 ? 'forbidden' : 'error', title: 'Không gửi được mã', message: errorMessage(error) });
+      const inputError = underInput ? contactFieldError(error, channel) : null;
+      if (inputError) setFieldError(inputError);
+      else setNotice({ state: error?.status === 403 ? 'forbidden' : 'error', title: 'Không gửi được mã', message: errorMessage(error) });
     } finally {
       setPending(false);
     }
@@ -128,7 +141,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
       setFieldError(activeChannel === 'EMAIL' ? 'Nhập email hợp lệ.' : 'Nhập số điện thoại hợp lệ, ví dụ +84912345678.');
       return;
     }
-    await sendCode(activeChannel, contact);
+    await sendCode(activeChannel, contact, { underInput: true });
   }
 
   async function submitCode(event) {
@@ -212,7 +225,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
               <span className="account-settings-label">{channel.label}</span>
               {current
                 ? <><strong>{current.value}</strong><span className="account-settings-verified"><span aria-hidden="true" />Đã xác minh</span></>
-                : <span className="account-settings-unlinked">Chưa liên kết</span>}
+                : <span className="account-settings-unlinked">Chưa thêm</span>}
             </div>
             <Button variant="secondary" disabled={!canChangeContacts || pending || Boolean(flow)}
               onClick={() => { setActiveChannel(channel.id); setFieldError(''); setNotice(null); }}>
@@ -225,9 +238,9 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
       {activeChannel && !flow && (() => {
         const channel = CHANNELS.find(item => item.id === activeChannel);
         return <form className="account-settings-form" onSubmit={submitContact}>
-          <h3>{verifiedContact(contacts, activeChannel) ? `Đổi ${channel.label.toLocaleLowerCase('vi-VN')}` : `Liên kết ${channel.label.toLocaleLowerCase('vi-VN')}`}</h3>
+          <h3>{verifiedContact(contacts, activeChannel) ? `Đổi ${channel.label.toLocaleLowerCase('vi-VN')}` : `Thêm ${channel.label.toLocaleLowerCase('vi-VN')}`}</h3>
           <Input label={channel.label} type={channel.type} autoComplete={channel.autocomplete} inputMode={channel.id === 'PHONE' ? 'tel' : undefined}
-            placeholder={channel.placeholder} value={contactInput} onChange={event => setContactInput(event.target.value)}
+            placeholder={channel.placeholder} value={contactInput} onChange={event => { setContactInput(event.target.value); setFieldError(''); }}
             required disabled={pending} error={fieldError} hint={channel.id === 'PHONE' ? 'Có thể nhập số Việt Nam hoặc dạng quốc tế +84.' : 'Mã xác minh sẽ được gửi đến địa chỉ này.'} />
           <div className="account-settings-actions">
             <Button type="submit" loading={pending} loadingLabel="Đang gửi mã…">Gửi mã xác minh</Button>
@@ -238,6 +251,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
 
       {flow && <form className="account-settings-form" onSubmit={submitCode}>
         <h3>Xác minh {flow.channel === 'EMAIL' ? 'email' : 'số điện thoại'}</h3>
+        {flow.maskedContact && <p>Mã được gửi đến <strong>{flow.maskedContact}</strong>.</p>}
         <p>Mã có hiệu lực thêm {secondsToExpire} giây. Có thể yêu cầu mã khác sau {secondsToResend} giây.</p>
         <Input label="Mã OTP gồm 6 chữ số" type="text" inputMode="numeric" autoComplete="one-time-code"
           pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}

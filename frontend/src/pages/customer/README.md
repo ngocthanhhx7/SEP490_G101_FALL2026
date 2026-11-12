@@ -3,6 +3,15 @@
 Customer-owned profile, service-address, pet and booking presentation belongs here.
 Shared transport belongs in `../../services`; backend enforces ownership.
 
+`PetOnboardingWizard` owns the eight-phase create-only presentation: identity,
+local photo preview, breed/age, weight, daily care, contacts, health choice, review.
+`usePetCreation` retains independent idempotent create/photo attempts: no writes
+before review, no second pet after a photo failure. Existing profile edits retain
+the grouped editor. `PetCareFields` shares care status controls with both flows;
+`PetVaccinations` displays bounded vaccine/date rows and keeps the existing
+owner-declared note contract via `utils/pet-vaccinations.js`. No medical inference
+or migration is performed. Health import retains consent and explicit review.
+
 `CustomerDashboardPage` owns the Customer care overview, separate from operational
 dashboards: authoritative counters, visit list, date filters and server cursors.
 `CustomerProfilePage` presents the existing versioned profile form and masked

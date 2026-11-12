@@ -59,7 +59,7 @@ export function createStockListService({ connection, cursorSecret, clock = Date.
         filter.$or = [{ createdAt: { $lt: position.createdAt } }, { createdAt: position.createdAt, _id: { $lt: position.id } }];
       }
       const receipts = await GoodsReceipt.find(filter, { code: 1, createdAt: 1, receivedOn: 1, supplierName: 1,
-        lines: { $elemMatch: { productId: id } } }).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).lean();
+        lines: { $elemMatch: { productId: id } } }).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).maxTimeMS(5000).lean();
       const shown = receipts.slice(0, limit), last = shown.at(-1);
       return { product: toStock(product), items: shown.map(receipt => ({ id: String(receipt._id), kind: 'GOODS_RECEIPT',
         referenceCode: receipt.code, occurredAt: receipt.createdAt.toISOString(), receivedOn: receipt.receivedOn,
