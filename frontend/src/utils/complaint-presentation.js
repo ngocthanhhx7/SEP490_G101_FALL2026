@@ -1,5 +1,3 @@
-import { bookingDate } from './booking-presentation.js';
-
 export const bookingPath = bookingId => '/account/bookings/' + encodeURIComponent(bookingId);
 export const complaintSubmitPath = (bookingId, visitId) => bookingPath(bookingId) + '/complaints/new' +
   (visitId ? '?visit=' + encodeURIComponent(visitId) : '');
@@ -11,43 +9,45 @@ const visitLabels = {
 
 export const visitLabel = state => visitLabels[state] ?? 'Đang cập nhật';
 
-const visitTime = new Intl.DateTimeFormat('vi-VN', {
-  dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh'
-});
-
-const complaintDateTime = new Intl.DateTimeFormat('en-GB', {
-  day: '2-digit', month: '2-digit', year: 'numeric',
+const complaintDateTime = new Intl.DateTimeFormat('vi-VN', {
+  weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric',
   hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'Asia/Ho_Chi_Minh'
 });
 
 function complaintDateParts(value) {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return null;
-  const { day, month, year, hour, minute } = Object.fromEntries(
+  const { weekday, day, month, year, hour, minute } = Object.fromEntries(
     complaintDateTime.formatToParts(timestamp).map(({ type, value: part }) => [type, part])
   );
-  return { date: day + '/' + month, year, time: hour + ':' + minute };
+  const shortDate = day + '/' + month;
+  return { weekday, shortDate, date: shortDate + '/' + year, time: hour + ':' + minute };
 }
 
 export function complaintDeadline(value) {
   const parts = complaintDateParts(value);
-  return parts ? parts.time + ', ' + parts.date + '/' + parts.year : null;
+  return parts ? parts.time + ', ' + parts.date : null;
 }
 
 export function complaintVisitStart(value) {
   const parts = complaintDateParts(value);
-  return parts ? parts.date + ', ' + parts.time : null;
+  return parts ? parts.shortDate + ', ' + parts.time : null;
 }
 
-export function complaintVisitTime(visit) {
-  const start = Date.parse(visit.startAt), end = Date.parse(visit.endAt);
-  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return bookingDate(visit.startAt);
-  return visitTime.formatRange(start, end);
+export function complaintVisitTime(period) {
+  const start = complaintDateParts(period?.startAt);
+  if (!start) return null;
+  const context = start.weekday + ', ' + start.date + ' · ' + start.time;
+  const end = complaintDateParts(period.endAt);
+  if (!end || Date.parse(period.endAt) <= Date.parse(period.startAt)) return context;
+  const endText = end.date === start.date ? end.time : end.weekday + ', ' + end.date + ' · ' + end.time;
+  return context + ' – ' + endText;
 }
 
 export function complaintSubject(item) {
   if (item.scope === 'BOOKING') return 'Lịch đặt ' + (item.booking?.code ?? item.bookingId);
-  return item.visit?.startAt ? 'Buổi ' + complaintVisitTime(item.visit) : 'Buổi chăm sóc';
+  const start = complaintDateParts(item.visit?.startAt);
+  return start ? 'Buổi ' + start.date + ', ' + start.time : 'Buổi chăm sóc';
 }
 
 const messages = {

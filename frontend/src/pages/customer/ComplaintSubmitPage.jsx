@@ -6,7 +6,6 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createComplaintApi } from '../../services/complaint-api.js';
 import { createPrivateImageApi, PRIVATE_IMAGE_MAX_BYTES } from '../../services/private-image-api.js';
-import { bookingDate } from '../../utils/booking-presentation.js';
 import { bookingPath, complaintDeadline, complaintError, complaintVisitStart, complaintVisitTime, retryKey } from '../../utils/complaint-presentation.js';
 import { ComplaintResultList } from './ComplaintResultList.jsx';
 import './complaint-submit.css';
@@ -151,8 +150,7 @@ function ComplaintWorkspace({ bookingId, visitId, selectedId, api, imageApi }) {
   const context = visit
     ? [visit.serviceName, complaintVisitTime(visit), visit.sitterName,
       booking?.code ? 'Lịch đặt ' + booking.code : null]
-    : [booking?.code ? 'Lịch đặt ' + booking.code : null, booking?.serviceName,
-      booking?.startAt ? bookingDate(booking.startAt) : null, booking?.endAt ? bookingDate(booking.endAt) : null];
+    : [booking?.code ? 'Lịch đặt ' + booking.code : null, booking?.serviceName, complaintVisitTime(booking)];
   return <section className="complaint-submit" aria-labelledby="complaint-submit-title">
     <header className="complaint-submit__header">
       <Link to={bookingPath(bookingId)}><ArrowLeft size={18} aria-hidden="true" />Quay lại chi tiết lịch đặt</Link>

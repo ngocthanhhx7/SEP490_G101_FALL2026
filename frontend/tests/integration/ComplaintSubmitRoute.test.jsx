@@ -3,13 +3,16 @@ import { MemoryRouter } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { AppRoutes } from '../../src/routes/AppRoutes.jsx';
 
-const bookingId = 'b'.repeat(24), visitId = 'c'.repeat(24);
+const bookingId = 'b'.repeat(24), visitId = 'c'.repeat(24), bookedVisitId = 'd'.repeat(24);
 const base = '/account/bookings/' + bookingId;
 const apiBase = '/api/v1/complaints';
 const bookingEndpoint = '/api/v1/checkout/bookings/' + bookingId;
 const paymentDeadlineAt = '2026-11-10T00:00:00Z';
 const overdueBooking = { id: bookingId, state: 'OVERDUE', totalVnd: 120000, paymentDeadlineAt,
-  visits: [], careShifts: [], scheduleProposals: [] };
+  visits: [
+    { id: bookedVisitId, serviceName: 'Dắt chó đi dạo', startAt: '2026-11-10T00:00:00Z' },
+    { id: 'cancelled', serviceName: 'Dắt chó đi dạo', startAt: '2026-11-10T01:00:00Z' }
+  ], careShifts: [], scheduleProposals: [] };
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 
@@ -17,7 +20,8 @@ const eligibility = (whole = true) => ({
   booking: { id: bookingId, code: 'BK-0042', state: 'OVERDUE', version: 1, serviceName: 'Dắt chó đi dạo' },
   wholeBooking: { eligible: whole, aboveVisitTable: false, deadlineAt: '2026-11-17T00:00:00Z' },
   visits: [
-    { id: visitId, version: 2, state: 'COMPLETED', startAt: '2026-11-10T00:00:00Z', endAt: '2026-11-10T00:30:00Z',
+    { id: visitId, customerVisitId: bookedVisitId, version: 2, state: 'COMPLETED',
+      startAt: '2026-11-10T00:00:00Z', endAt: '2026-11-10T00:30:00Z',
       serviceName: 'Dắt chó đi dạo', sitterName: 'Lê Văn Minh',
       canSubmit: true, eligibility: { eligible: false, reason: 'COMPLAINT_ALREADY_OPEN' } },
     { id: 'cancelled', state: 'CANCELLED', canSubmit: false, eligibility: { eligible: false } }
@@ -52,16 +56,22 @@ test('UC-27 renders eligibility per visit and preserves Overdue and payment dead
     .mockImplementation(() => reply({ ...overdueBooking, state: 'COMPLETED' }));
   const data = eligibility();
   data.booking.state = 'COMPLETED';
+  data.visits.splice(1, 0, { id: 'second-shift', customerVisitId: bookedVisitId, state: 'IN_PROGRESS',
+    canSubmit: false, startAt: '2026-11-10T01:00:00Z' });
   show(base, { [bookingEndpoint]: read, [apiBase + '/eligibility/bookings/' + bookingId]: () => reply(data) });
   const link = await screen.findByRole('link', { name: 'Gửi khiếu nại' });
   expect(link).toHaveAttribute('href', base + '/complaints/new?visit=' + visitId);
   const confirmation = screen.getByRole('button', { name: 'Cập nhật trạng thái đơn' }).closest('section');
-  const visitList = screen.getByRole('region', { name: 'Các buổi chăm sóc' });
-  expect(confirmation.contains(visitList)).toBe(false);
-  expect(confirmation.parentElement.nextElementSibling).toBe(visitList);
+  const visitList = within(confirmation).getByRole('list');
+  const [completed, cancelled] = within(visitList).getAllByRole('listitem');
+  expect(completed).toContainElement(link);
+  expect(within(completed).getByText('Đã hoàn tất')).toBeVisible();
+  expect(within(completed).getByText('Đang chăm sóc')).toBeVisible();
+  expect(within(cancelled).getByText('Đã hủy')).toBeVisible();
+  expect(within(cancelled).queryByRole('link', { name: 'Gửi khiếu nại' })).toBeNull();
+  expect(screen.queryByRole('heading', { name: 'Các buổi chăm sóc' })).toBeNull();
   expect(await screen.findByText('Quá hạn', { exact: true })).toBeVisible();
-  const due = new Date(paymentDeadlineAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
-  expect(screen.getByText('Hạn thanh toán: ' + due)).toBeVisible();
+  expect(screen.getByText('Hạn thanh toán: 07:00, 10/11/2026')).toBeVisible();
   expect(confirmation.parentElement).toHaveClass('customer-booking-detail__confirmation--overdue');
   expect(screen.queryByText('Hóa đơn đang chờ', { exact: true })).not.toBeInTheDocument();
   expect(read).toHaveBeenCalledTimes(1);
@@ -98,6 +108,7 @@ test.each([
   data.visits[0] = { ...data.visits[0], state, eligibility: { eligible: true, deadlineAt: '2026-11-17T17:05:00Z' } };
   show(base + '/complaints/new?visit=' + visitId, { [apiBase + '/eligibility/bookings/' + bookingId]: () => reply(data) });
   expect(await screen.findByRole('radio', { name: 'Buổi này (10/11, 07:00)' })).toBeChecked();
+  expect(screen.getByText(/Thứ Ba, 10\/11\/2026 · 07:00 – 07:30/)).toBeVisible();
   expect(screen.getByText('Bạn gửi được khiếu nại đến 00:05, 18/11/2026 (7 ngày sau khi ' + cutoff +
     '). Mỗi buổi chỉ có một khiếu nại đang mở.')).toBeVisible();
   expect(screen.getByText('Khi khiếu nại chưa có kết quả cuối, hoá đơn của lịch đặt được giữ lại.')).toBeVisible();
@@ -110,7 +121,7 @@ test('UC-52 notification link opens a complaint outside the first page and keeps
     [apiBase + '/selected']: () => reply(item),
     [apiBase]: () => reply({ items: [
       resultItem('open', 'KN-111111111111', 'OPEN'),
-      resultItem('resolved', 'KN-222222222222', 'RESOLVED'),
+      resultItem('resolved', 'KN-222222222222', 'RESOLVED', { scope: 'BOOKING', booking: { code: 'BK-0042' } }),
       resultItem('escalated', 'KN-333333333333', 'ESCALATED')
     ] })
   });
@@ -121,6 +132,8 @@ test('UC-52 notification link opens a complaint outside the first page and keeps
   expect(screen.getByText('Đang mở')).toBeVisible();
   expect(screen.getByText('Đã có kết quả')).toBeVisible();
   expect(screen.getByText('Chuyển quản trị')).toBeVisible();
+  expect(within(selected).getByText('Buổi 10/11/2026, 07:00')).toBeVisible();
+  expect(screen.getByText('Lịch đặt BK-0042', { exact: true })).toBeVisible();
 });
 
 
@@ -165,7 +178,11 @@ test('UC-27 offers only a booking complaint above an all-cancelled schedule with
   data.wholeBooking.aboveVisitTable = true;
   data.visits = [{ id: 'cancelled', state: 'CANCELLED', canSubmit: false, eligibility: { eligible: false } }];
   show(base, { [apiBase + '/eligibility/bookings/' + bookingId]: () => reply(data) });
-  expect(await screen.findByRole('link', { name: 'Gửi khiếu nại' })).toHaveAttribute('href', base + '/complaints/new');
+  const link = await screen.findByRole('link', { name: 'Gửi khiếu nại' });
+  expect(link).toHaveAttribute('href', base + '/complaints/new');
+  const confirmation = screen.getByRole('button', { name: 'Cập nhật trạng thái đơn' }).closest('section');
+  expect(confirmation).toContainElement(link);
+  expect(within(confirmation).getByRole('list')).not.toContainElement(link);
 });
 
 test('UC-52 route blocks operational sessions', async () => {

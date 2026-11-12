@@ -28,14 +28,5 @@
 .customer-booking-detail__confirmation--overdue > .pwc-booking-confirmation > .pwc-booking-current-status + p { display: none; }
 @media(max-width: 40rem) { .customer-bookings { padding: 20px 0; } .customer-bookings__list > li { padding: 18px 16px; } .customer-bookings__card-heading { display: block; } .customer-bookings__total { display: block; padding-top: 10px; } .customer-bookings__facts { grid-template-columns: minmax(0,1fr); gap: 14px; } .customer-bookings__actions { gap: 8px; } .customer-bookings__status, .customer-bookings__detail-button { padding: 9px 12px; font-size: 13px; } }
 
-.booking-complaint-visits { margin-block: 1.25rem; }
-.booking-complaint-visits__rows { display: grid; gap: .55rem; padding: 0; list-style: none; }
-.booking-complaint-visits__rows > li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(8rem, auto) auto;
-  align-items: center; gap: .6rem 1rem; padding: .85rem 1rem; border: 1px solid #e5d7ee;
-  border-radius: var(--pwc-radius-control); background: var(--pwc-surface); }
-.booking-complaint-visits__rows p { margin: .2rem 0 0; }
-.booking-complaint-visits__status { font-size: var(--pwc-text-small); color: var(--pwc-ink-muted); }
-@media (max-width: 38rem) {
-  .booking-complaint-visits__rows > li { grid-template-columns: minmax(0, 1fr); }
-  .booking-complaint-visits__rows .pwc-button { justify-self: start; }
-}
+.booking-complaint-visit { display: flex; flex-wrap: wrap; gap: .25rem .65rem; align-items: center; margin-block: .4rem; }
+.booking-complaint-visit__status { font-size: var(--pwc-text-small); color: var(--pwc-ink-muted); }

@@ -15,7 +15,7 @@ All paths below use `/api/v1/complaints`. Writes require a session, CSRF, an `Id
 
 | Path | Role and result |
 | --- | --- |
-| `GET /eligibility/bookings/:bookingId` | Owner. Booking, whole-booking and visit eligibility, reasons, deadlines and versions. |
+| `GET /eligibility/bookings/:bookingId` | Owner. Booking, whole-booking and visit eligibility, reasons, deadlines and versions. A visit includes `customerVisitId` when available so Booking Details can locate its booked row. |
 | `POST /` | Owner. `scope`, `bookingId`, `visitId` for a visit, `description` and optional `evidenceRefs`. Returns 201 and MSG128. `POST /visits/:visitId` remains an alias. |
 | `GET /`, `GET /:complaintId` | Scoped list and detail. Staff/Admin list supports `state`, `q`, `sort`, `limit`, `cursor` and per-tab counts. |
 | `POST /:complaintId/resolution` | Staff/Admin. `handlingNotes`, `customerResult` and optional `proposal {amountVnd,reason,evidenceRefs}`. Returns MSG131 or MSG147. |

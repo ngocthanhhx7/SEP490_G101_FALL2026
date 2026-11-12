@@ -75,12 +75,13 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
   </form>;
 }
 
-export function BookingConfirmation({ api, bookingId: suppliedBookingId }) {
+export function BookingConfirmation({ api, bookingId: suppliedBookingId, visitActions }) {
   const [params] = useSearchParams(), bookingId = suppliedBookingId ?? params.get('booking');
   const load = useCallback(({ signal }) => api.booking(bookingId, { signal }).then(data => ({ data })), [api, bookingId]);
-  return bookingId ? <BookingConfirmationDetail key={bookingId} bookingId={bookingId} api={api} load={load} /> : null;
+  return bookingId ? <BookingConfirmationDetail key={bookingId} bookingId={bookingId} api={api} load={load}
+    visitActions={visitActions} /> : null;
 }
-function BookingConfirmationDetail({ bookingId, api, load }) {
+function BookingConfirmationDetail({ bookingId, api, load, visitActions }) {
   const resource = useApiResource(load), [link, setLink] = useState(null), [error, setError] = useState(null), [busy, setBusy] = useState(false);
   const key = useRef(`payment-link:${globalThis.crypto.randomUUID()}`), locked = useRef(false);
   const pay = async () => {
@@ -98,8 +99,9 @@ function BookingConfirmationDetail({ bookingId, api, load }) {
     <p>Tổng tiền: <strong>{money(booking.totalVnd)}</strong></p>
     {booking.paymentState && <p>Thanh toán: <strong>{({ PAID: 'Đã thanh toán', UNPAID: 'Chưa thanh toán' })[booking.paymentState] ?? 'Đang cập nhật xác nhận'}</strong></p>}
     {booking.paymentDeadlineAt && ['AWAITING_PAYMENT', 'PAYMENT_EXPIRED'].includes(booking.state) && <p>Hạn thanh toán: {new Date(booking.paymentDeadlineAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
-    <h3>Lịch chăm sóc đã đặt</h3><ul>{booking.visits.map((row, index) => <li key={row.id}><p>Buổi {index + 1}{row.petNames?.length ? ` · ${row.petNames.join(', ')}` : ''}</p><strong>{row.serviceName}</strong> · {new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<br />{locations[row.location]}: {row.serviceAddress}
+    <h3>Lịch chăm sóc đã đặt</h3>{visitActions?.beforeList}<ul>{booking.visits.map((row, index) => <li key={row.id}><p>Buổi {index + 1}{row.petNames?.length ? ` · ${row.petNames.join(', ')}` : ''}</p><strong>{row.serviceName}</strong> · {new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}<br />{locations[row.location]}: {row.serviceAddress}
       {googleMapsDirections(row.serviceAddress) && <p><a href={googleMapsDirections(row.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a></p>}
+      {visitActions?.forVisit?.(row)}
       </li>)}</ul>
     {(booking.careShifts || []).map(row => <div key={row.id}><h4>{row.serviceName}</h4>{row.sitterName && <p>Người chăm sóc: <strong>{row.sitterName}</strong></p>}<p>{({ ASSIGNED: 'Người chăm sóc đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn tất ca' })[row.state] ?? row.state}</p>
       {row.checkInAt && <p>Bắt đầu: {new Date(row.checkInAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
