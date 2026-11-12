@@ -226,6 +226,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     runCommand: (actor, payload, key, execute) => command(actor, 'visit-withdrawal', payload, key, execute),
     requeue: autoDispatchWithdrawals ? requeueWithdrawal : undefined });
   const service = { offers, withdrawals, readContext: readyVisit,
+    requeueVisit: autoDispatchWithdrawals ? requeueWithdrawal : undefined,
     async previewCandidates(actor, visitId, input) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       id(visitId); exact(input, ['startAt', 'areaCode', 'mode'], ['startAt']);

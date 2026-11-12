@@ -124,7 +124,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       await models.EmployeeScheduleEvent.create([{ type: 'WorkAreasChanged', sitterId, actorId: sitterId, at: new Date(clock()), detail: { areas } }], { session });
       return result;
     }) });
-  async function eligible(sitterId, visit, session, { requireOrigin = false } = {}) {
+  async function eligible(sitterId, visit, session, { requireOrigin = false, excludeVisitIds = [], proposedVisits = [] } = {}) {
     const start = new Date(visit.startAt), end = new Date(visit.endAt), date = schedulingDate(start);
     if (start <= new Date(clock()) || end <= start || end - start > 480 * 60000) fail('SHIFT_REVIEW_REQUIRED', 'Future care shifts must not exceed eight hours', 409);
     const contract = await contractAt(sitterId, start, end, session), record = await find(sitterId, session);
@@ -157,8 +157,13 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
         fail('OUTSIDE_WORKING_HOURS', 'Shift crosses an availability change', 409);
     }
     const week = schedulingWeekStart(start), until = new Date(schedulingWeekStart(new Date(end.getTime() - 1)).getTime() + 7 * DAY);
+    const loadFrom = new Date(week.getTime() - DAY), loadUntil = new Date(until.getTime() + DAY);
     const rows = await col('visits').find({ sitterId: oid(sitterId), state: { $in: [...ACTIVE_VISITS, 'COMPLETED'] },
-      startAt: { $lt: new Date(until.getTime() + DAY) }, endAt: { $gt: new Date(week.getTime() - DAY) } }, { session }).limit(201).toArray();
+      ...(excludeVisitIds.length ? { _id: { $nin: excludeVisitIds.map(oid) } } : {}),
+      startAt: { $lt: loadUntil }, endAt: { $gt: loadFrom } }, { session }).limit(201).toArray();
+    for (const proposed of proposedVisits) {
+      if (proposed.startAt < loadUntil && proposed.endAt > loadFrom) rows.push(proposed);
+    }
     if (rows.length > 200) fail('SHIFT_REVIEW_REQUIRED', 'Staff schedule review required', 409);
     if (rows.some(row => row.startAt < end && row.endAt > start)) fail('SLOT_UNAVAILABLE', 'Employee already has work in this slot', 409);
     const samePlace = (a, b) => a.location === 'FACILITY' && b.location === 'FACILITY'
