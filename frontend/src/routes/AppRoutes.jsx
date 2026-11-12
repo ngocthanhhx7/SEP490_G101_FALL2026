@@ -69,6 +69,8 @@ import { ProductManagementPage } from '../pages/admin/ProductManagementPage.jsx'
 import { createProductManagementApi } from '../services/product-management-api.js';
 import { SupplierManagementPage } from '../pages/admin/SupplierManagementPage.jsx';
 import { createSupplierManagementApi } from '../services/supplier-management-api.js';
+import { GoodsReceiptPage } from '../pages/admin/GoodsReceiptPage.jsx';
+import { createGoodsReceiptApi } from '../services/goods-receipt-api.js';
 
 function ServiceAreasRoute() {
   const { getCsrfToken, user } = useSession();
@@ -87,6 +89,12 @@ function SupplierManagementRoute() {
   const api = useMemo(() => createSupplierManagementApi({ getCsrfToken }), [getCsrfToken]);
   const productApi = useMemo(() => createProductManagementApi({ getCsrfToken }), [getCsrfToken]);
   return <SupplierManagementPage key={user?.id} api={api} productApi={productApi} />;
+}
+
+function GoodsReceiptRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createGoodsReceiptApi({ getCsrfToken }), [getCsrfToken]);
+  return <GoodsReceiptPage key={user?.id} api={api} recorderName={user?.displayName ?? ''} />;
 }
 
 function ProductOrderManagementRoute() {
@@ -141,6 +149,7 @@ const navigationByRole = {
     ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
     ['Sản phẩm', '/admin/products', 'Cửa hàng'],
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
+    ['Nhập hàng', '/admin/goods-receipts', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
     ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
@@ -243,6 +252,7 @@ export function AppRoutes({
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
+          <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
           <Route path="admin/service-areas" element={<ServiceAreasRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route

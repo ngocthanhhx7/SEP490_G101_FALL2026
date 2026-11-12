@@ -21,6 +21,8 @@ Reusable pieces of the Customer product shop: `ProductCard`, `ProductPhoto` (pho
 
 `ProductPicker` lets the Admin choose products from the catalog (search by name or code, hidden products included) and remove them with a cross; it reads the catalog through the Admin product API it is given and keeps nothing itself.
 
+`ProductSearch` is the search box and results of `ProductPicker`, exported for the Goods Receipt page, which adds a product as a row instead of a chip. It takes any product API with `listProducts({ search, limit })`.
+
 `HomeProductPreview` loads published products only when Home's product mode is
 selected. `QuantityStepper` enforces the API's 99-per-line ceiling in addition to
 available stock. `ProductPhoto` falls back to the brand mark for broken images.
