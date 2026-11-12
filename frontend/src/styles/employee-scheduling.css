@@ -80,3 +80,8 @@
 .withdrawal-requests { margin-bottom: var(--pwc-space-4); }
 .withdrawal-requests .ops-table { min-width: 0; }
 .withdrawal-requests td { overflow-wrap: anywhere; }
+
+.employee-invitations > header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+.employee-invitations td small { display:block; margin-top:4px; color:#6d647f; }
+.employee-invitations > details { margin-top:24px; }
+.employee-assignment-dialog { width:min(1080px,calc(100vw - 24px)); max-height:90dvh; }

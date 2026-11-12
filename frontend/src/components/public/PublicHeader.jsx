@@ -1,3 +1,4 @@
+import { SiteBrandMark } from '../ui/SiteBrandMark.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart } from 'lucide-react';
@@ -36,7 +37,7 @@ export function PublicHeader({ notificationTo } = {}) {
   return <header className="pwc-public-header">
     <div className="pwc-public-header-inner">
       <Link className="pwc-public-brand" to="/" onClick={closeMenu} aria-label="Paw World Care — Trang chủ">
-        <img src="/assets/figma-public/header-Vector.svg" alt="Paw World Care" /><span>PawWorld<span className="pwc-brand-care">Care</span></span>
+        <SiteBrandMark />
       </Link>
       <button
         className="pwc-menu-toggle"

@@ -122,3 +122,5 @@ and applies user-approved half-up VND rounding per booking with exact BigInt
 arithmetic. The platform bears any odd VND when sharing tax cost equally.
 The tax split is preview-only from confirmed tax amounts, never a hard-coded
 statutory rate or earning eligibility. See the P41 commission/tax addendum.
+
+The execution read now adds server time and authoritative check-in/out window timestamps, saved checklist labels and at most two bound evidence references for the assigned sitter. No storage/schema/index changes or relaxed timing/payment/version gates. Customer booking reports show saved checklist/evidence through the separate booking-owner projection; private image content authorizes the actual bound booking, never a public storage URL.

@@ -1,0 +1,6 @@
+.care-progress-steps { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); list-style:none; padding:20px 8px; margin:12px 0 20px; background:#f5f1fc; border-radius:16px; gap:8px; }
+.care-progress-steps li { display:grid; justify-items:center; align-content:start; gap:8px; text-align:center; font-size:14px; color:#736783; position:relative; }
+.care-progress-steps__marker { display:grid; place-items:center; border-radius:50%; width:36px; height:36px; background:#e4deef; color:#67597d; font-weight:700; }
+.care-progress-steps .is-complete { color:#452275; }.care-progress-steps .is-complete .care-progress-steps__marker { background:#452275; color:white; }
+.care-progress-steps .is-current { color:#663d00; font-weight:700; }.care-progress-steps .is-current .care-progress-steps__marker { background:#ffd22e; color:#341466; box-shadow:0 0 0 4px #fff3c4; }
+@media(max-width:480px) { .care-progress-steps { gap:4px; padding:16px 4px; }.care-progress-steps li { font-size:12px; }.care-progress-steps__marker { width:30px; height:30px; } }

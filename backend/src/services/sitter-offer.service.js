@@ -75,6 +75,7 @@ function safeOffer(record, sitterId, asOf) {
     endAt: instant(record.endAt, 'endAt'),
     serviceName: text(record.serviceName, 'serviceName'),
     areaCode: text(record.areaCode, 'areaCode', 80),
+    areaLabel: text(record.areaLabel ?? record.areaCode, 'areaLabel', 160),
     pets: safePetSummary(record.pets ?? record.petSummary),
     canRespond: state === 'PENDING' && Date.parse(deadline) > asOf,
     // Address, access notes, contact and payment fields are deliberately not projected.
@@ -86,7 +87,7 @@ function requireKey(value) {
   return value;
 }
 
-const OFFER_STATES = ['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'REVOKED'];
+const OFFER_STATES = ['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED', 'REVOKED', 'HISTORY'];
 const ASSIGNMENT_STATES = ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'WITHDRAWN', 'CANCELLED'];
 
 function pageQuery(query = {}, states = OFFER_STATES) {

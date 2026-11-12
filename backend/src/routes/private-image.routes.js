@@ -1,3 +1,4 @@
+import { createVisitEvidenceAccess } from '../services/care/visit-evidence-access.service.js';
 import express, { Router } from 'express';
 import { requireSession, requireCsrf } from '../middlewares/session.js';
 import { createSessionService } from '../services/session.service.js';
@@ -13,7 +14,8 @@ const admissionByConnection = new WeakMap();
 export function privateImageModule({ connection, media, secret, maxImagesPerUser,
   requireAuthenticated, csrf, maxInFlight = 4, imageModels, storagePrefix = 'private-images',
   name = 'private-images', mount = '/api/v1/private-images' }) {
-  const service = createPrivateImageService({ connection, media, secret, maxImagesPerUser, imageModels, storagePrefix });
+  const service = createPrivateImageService({ connection, media, secret, maxImagesPerUser, imageModels, storagePrefix,
+    authorizeEvidenceRead: storagePrefix === 'private-images' ? createVisitEvidenceAccess({ connection }) : undefined });
   const controller = createPrivateImageController({ service });
   const router = Router();
   let admission = admissionByConnection.get(connection);
