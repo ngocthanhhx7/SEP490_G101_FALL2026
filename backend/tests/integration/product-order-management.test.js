@@ -11,6 +11,7 @@ import { productSalesModels } from '../../src/models/product.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createProductOrderManagementService } from '../../src/services/product-sales/product-order-management.service.js';
+import { readProductOrderTabCounts } from '../../src/services/product-sales/product-order-tab-counts.js';
 import { identityModels } from '../../src/models/identity.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 import { requestId, notFound, errorHandler } from '../../src/middlewares/http.js';
@@ -135,6 +136,28 @@ beforeEach(async () => {
 });
 
 
+test('queue counts exclude counter orders and scan pending statuses instead of closed history', async () => {
+  const statuses = ['PLACED', 'READY', 'HANDED_TO_CARRIER', 'BEING_RETURNED'];
+  const row = (status, index, channel) => ({ _id: oid(), code: `SYNTHETIC-${index}`, customerId: new mongoose.Types.ObjectId(actors.a.userId),
+    idempotencyKey: `synthetic-count-${index}`, status, createdAt: new Date(), ...(channel ? { channel } : {}) });
+  await models.ProductOrder.collection.insertMany([
+    ...Array.from({ length: 1000 }, (_, index) => row('DELIVERED', index)),
+    ...statuses.map((status, index) => row(status, index + 1000, index % 2 ? 'ONLINE' : undefined)),
+    ...statuses.map((status, index) => row(status, index + 2000, 'COUNTER'))
+  ]);
+  const capture = jest.spyOn(models.ProductOrder, 'aggregate');
+  let pipeline;
+  try {
+    expect(await readProductOrderTabCounts(models.ProductOrder)).toEqual({ PREPARE: 1, AWAITING_PICKUP: 1, IN_TRANSIT: 1, RETURNING: 1 });
+    pipeline = capture.mock.calls[0][0];
+  } finally { capture.mockRestore(); }
+  const before = await models.ProductOrder.collection.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]).explain('executionStats');
+  const after = await models.ProductOrder.collection.aggregate(pipeline).explain('executionStats');
+  const stats = plan => plan.executionStats ?? plan.stages.find(stage => stage.$cursor).$cursor.executionStats;
+  expect(stats(before).totalDocsExamined).toBeGreaterThanOrEqual(1000);
+  expect(stats(after).totalDocsExamined).toBeLessThanOrEqual(8);
+});
+
 describe('UC-94 Sale Staff dashboard', () => {
   const DASHBOARD = '/api/v1/dashboards/sale-staff';
   const NO_ORDERS = { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 };
@@ -188,7 +211,9 @@ describe('UC-94 Sale Staff dashboard', () => {
   });
 
   test('returns a service error when the order count query fails', async () => {
-    const aggregate = jest.spyOn(models.ProductOrder, 'aggregate').mockRejectedValueOnce(new Error('Synthetic query failure'));
+    const aggregate = jest.spyOn(models.ProductOrder, 'aggregate').mockImplementationOnce(() => {
+      throw new Error('Synthetic query failure');
+    });
     try {
       const response = await api('saleStaff').get(DASHBOARD).expect(503);
       expect(response.body.error.code).toBe('SALES_DASHBOARD_SOURCE_UNAVAILABLE');
