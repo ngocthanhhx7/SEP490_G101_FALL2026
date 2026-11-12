@@ -1,3 +1,4 @@
+import { CareProgressSteps } from './CareProgressSteps.jsx';
 import { bookingMoney, bookingStatus } from '../../utils/booking-presentation.js';
 import './booking-details.css';
 
@@ -39,16 +40,21 @@ export function BookingDetailsContent({ booking, visitActions }) {
       : ({ PAID: 'Đã thanh toán trước', UNPAID: 'Chờ thanh toán trước' })[booking.paymentState] ?? 'Đang cập nhật trạng thái trả trước'
     : paymentStatus[booking.paymentState] ?? 'Đang cập nhật';
   const serviceNames = summary(terms.map(row => row.serviceName));
+  const pets = unique(terms.flatMap(row => row.petNames ?? []));
+  const title = serviceNames === '—' ? 'Lịch chăm sóc thú cưng' : serviceNames + (pets.length && !pets.every(pet => serviceNames.toLocaleLowerCase('vi').includes(pet.toLocaleLowerCase('vi'))) ? ' cho ' + pets.join(', ') : '');
+  const progress = booking.state === 'COMPLETED' || visits.length && visits.every(visit => visit.state === 'COMPLETED') ? 4
+    : visits.some(visit => ['IN_PROGRESS','COMPLETED'].includes(visit.state)) ? 3 : visits.some(visit => visit.state === 'ASSIGNED') ? 1 : 0;
   const days = unique(terms.map(row => row.startAt).filter(value => value && Number.isFinite(Date.parse(value))).sort().map(date));
   return <div className="booking-details">
     <header className="booking-details__header">
       <div>
-        <h2>{serviceNames === '—' ? 'Lịch chăm sóc thú cưng' : serviceNames}</h2>
-        <p>Mã tra cứu: {booking.id}</p>
+        <h2>{title}</h2>
+        <details className="booking-details__reference"><summary>Mã tra cứu</summary><code>{booking.id}</code></details>
         {booking.customerName && <p>Khách hàng · <strong>{booking.customerName}</strong></p>}
       </div>
       <span className="booking-details__status">{bookingStatus(booking.state)[0]}</span>
     </header>
+    <CareProgressSteps steps={['Đã đặt', 'Đã nhận ca', 'Check-in', 'Đang chăm sóc', 'Hoàn tất']} current={progress} complete={progress === 4} />
     <div className="booking-details__grid">
       <section className="booking-details__card booking-details__terms">
         <h3>Thông tin lịch đặt</h3>

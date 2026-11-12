@@ -4,6 +4,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button } from '../../components/ui/index.js';
 
+import { CareProgressSteps } from '../../components/common/CareProgressSteps.jsx';
 import { VisitEvidencePreview } from '../../components/common/VisitEvidencePreview.jsx';
 
 const date = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -57,6 +58,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const savedChecklist = Array.isArray(required) && required.every(id => row.checklist?.some(item =>
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
+    <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
     <h4>{states[row.state] ?? 'Cần kiểm tra trạng thái ca'}</h4>
     <Button variant="ghost" disabled={locked} onClick={resource.retry}>Tải lại tiến độ</Button>
     {row.checkInAt && <p>Check-in: {new Date(row.checkInAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}

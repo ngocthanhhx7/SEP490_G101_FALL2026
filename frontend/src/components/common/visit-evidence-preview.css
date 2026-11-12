@@ -4,3 +4,7 @@
 .visit-evidence-preview__thumbnail img { width: 144px; height: 108px; object-fit: contain; }
 .visit-evidence-dialog { width: min(960px, calc(100vw - 32px)); }
 .visit-evidence-dialog img { display: block; max-width: 100%; max-height: 70dvh; object-fit: contain; margin: auto; }
+
+.visit-evidence-dialog .pwc-dialog-header { background:#452275; color:white; padding:16px; border-radius:12px 12px 0 0; }.visit-evidence-dialog .pwc-dialog-header h2 { color:inherit; }
+.visit-evidence-dialog .pwc-dialog-header button { color:inherit; }.booking-visit-report { padding:8px; }.booking-visit-report > dl { display:grid; grid-template-columns:1fr 2fr; gap:8px; }.booking-visit-report li { padding:12px; background:#f5f1fc; border-radius:10px; margin:8px 0; }
+@media(max-width:480px) { .visit-evidence-preview__thumbnail { width:100%; }.visit-evidence-preview__thumbnail img { width:100%; max-width:360px; height:210px; }.booking-visit-report > dl { grid-template-columns:1fr; } }
