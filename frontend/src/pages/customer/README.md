@@ -72,3 +72,5 @@ Pet editing uses four explicit groups with retained draft values; invalid fields
 PetRecordImport presents untrusted Gemini suggestions with excerpts, editable fields, per-field opt-in and explicit confirmation; applying only modifies the draft, existing pet save handles ownership/version checks.
 
 `PetProfileDetails` presents the owned pet photo/identity, daily care, health and support notes using existing careProfile statuses. Contextual edit buttons select the matching form group; the AI entry opens the existing consent/review/draft workflow. Photo controls use the existing AvatarEditor in a separate dialog. No health verification, derived vaccine validity, additional persistence or public sharing is inferred from this presentation.
+
+`CustomerBookingDetailPage.jsx` uses the shared read-only booking detail while retaining the existing checkout confirmation actions and owner-scoped transport.

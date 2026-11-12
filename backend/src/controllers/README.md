@@ -10,3 +10,5 @@ no-store and inline headers after the service's Admin/document/quota/audit check
 They no longer redirect a browser to an R2 capability URL.
 
 `avatar.controller.js` translates avatar metadata, binary reads and versioned PUT/DELETE commands; domain authorization/decoding stays in the avatar service.
+
+`booking-details.controller.js` maps the Staff/Admin booking detail GET to the read service.
