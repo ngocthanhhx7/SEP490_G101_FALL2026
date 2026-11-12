@@ -161,3 +161,5 @@ Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu
 ## Product sales
 
 Customer shop (catalog, cart, product orders) is off unless `PRODUCT_SALES_ENABLED=true` with `AUTH_ENABLED=true`. `npm run seed:products` remains the original nine-product development fixture. The reviewed deployment command `scripts/deployment/provision-storefront-catalog.js` adds those nine plus 20 owner-supplied legacy sample products without replacing existing records. It requires explicit catalog/database confirmation for apply, after backup. Admin order handling includes delivery, returns, pickup, payment recording and cancellation. Sale Staff role, online payment and tier discounts remain unavailable. See [product sales API](../doc/api/product-sales-v1.md) and [storefront plan](../doc/ui-ux/storefront-integration-2026-11-04.md).
+
+Home-care coverage is managed through Admin service areas and a versioned source registry. See [coverage contract and rollout](../doc/api/home-care-coverage.md).

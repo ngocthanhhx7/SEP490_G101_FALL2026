@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Input, Select } from '../../components/ui/index.js';
-import { PET_CARE_GROUPS, PET_CARE_LABELS } from '../../utils/customer-pet-profile.js';
+import { PET_CARE_GROUPS } from '../../utils/customer-pet-profile.js';
+import { PetCareFields } from './PetCareFields.jsx';
 
 export function CustomerPetForm({ draft, change, catalog, disabled, initialGroup = 'basic' }) {
   const [group, setGroup] = useState(initialGroup), [invalidMessage, setInvalidMessage] = useState('');
@@ -33,14 +34,7 @@ export function CustomerPetForm({ draft, change, catalog, disabled, initialGroup
           <span>{row.label}{row.explanation && <small>{row.explanation}</small>}</span></label>)}
       </div></section>}
     </div>{PET_CARE_GROUPS.map((section,index) => <section className="pet-editor-section" key={section.title} data-pet-group={['daily','health','contacts'][index]} hidden={group !== ['daily','health','contacts'][index]}><h3>{section.title}</h3><p>{section.hint}</p>
-      <div className="pet-editor-grid">{section.fields.map(key => {
-        const value = draft.careProfile[key], label = PET_CARE_LABELS[key];
-        const update = next => field('careProfile', { ...draft.careProfile, [key]: next });
-        return <div className="pet-care-field" key={key}><Select label={label} aria-label={`Tình trạng thông tin: ${label}`} value={value.status} disabled={disabled} onChange={e => update({ status: e.target.value, value: '' })}>
-          <option value="NOT_PROVIDED">Để bổ sung sau</option><option value="UNKNOWN">Tôi chưa biết</option><option value="KNOWN">Tôi có thông tin</option></Select>
-          {value.status === 'KNOWN' && <label className="pet-care-note">Chi tiết {label.toLowerCase()}<textarea rows={3} required maxLength={2000} value={value.value ?? ''} disabled={disabled} onChange={e => update({ ...value, value: e.target.value })} /></label>}
-        </div>;
-      })}</div>
+      <PetCareFields fields={section.fields} draft={draft} change={change} disabled={disabled} />
     </section>)}
     <label className="pet-profile-confirm"><input type="checkbox" checked={draft.careNeedsConfirmed} disabled={disabled} onChange={e => change({ ...draft, careNeedsConfirmed: e.target.checked })} /><span>Tôi đã kiểm tra thông tin và nhu cầu chăm sóc.<small>Thông tin chưa biết vẫn cần được xác nhận trước buổi chăm sóc. Bạn có thể lưu hồ sơ rồi bổ sung sau.</small></span></label>
   </div>;

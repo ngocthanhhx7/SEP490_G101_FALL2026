@@ -1,3 +1,4 @@
+import { createServiceAreaCatalog } from '../service-area-catalog.service.js';
 import { hasCompletedCustomerCare } from '../customer-care-history.service.js';
 import { randomInt } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
@@ -144,6 +145,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               if (!address) fail('RESOURCE_NOT_FOUND', 'Owned confirmed address unavailable', 404);
               serviceAddress = address.location;
               areaCode = address.areaCode;
+              await createServiceAreaCatalog(connection).assertOpen(areaCode, session);
               point = address.point;
               privateAccessNotes = address.privateAccessNotes ?? '';
               selectedAddress = address;

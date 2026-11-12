@@ -10,7 +10,9 @@ server-side and lets Admin prepare salary again while disputed booking commissio
 remains held. Paid statements use the existing separate reconciliation workflow.
 
 Product Management includes a separate `ProductImageManager` after saving the
-product. Save pending text changes before gallery edits. Upload, replacement and
+product, placed inside the form between "Mô tả" and the "Hiện trên trang Sản phẩm"
+switch (D-249; its buttons are `type="button"` and never submit the form).
+Save pending text changes before gallery edits. Upload, replacement and
 confirmed removal return the updated product version; unknown acknowledgements
 require reload. Image bytes live in MongoDB and hidden photos use the Admin reader.
 
@@ -62,6 +64,8 @@ is allowed and moves the stock; the page shows its answer and reloads after a co
 
 `SupplierManagementPage` is the `/admin/suppliers` screen (menu group "Cửa hàng"): tabs Đang hợp tác / Ngừng hợp tác / Tất cả with their counts, a paged table (name and contact person, phone, number of products, status) and a side form to add or edit one. The form checks MSG01, MSG02, MSG03 and MSG125 before it sends; the backend checks again and decides MSG116. Ngừng hợp tác asks MSG118 first, Hợp tác lại does not; both are locked while the form has changes that are not saved. The products it supplies are chosen from the catalog with `components/product/ProductPicker.jsx`, hidden products included; the list is a record and does not limit goods receipts.
 
+`GoodsReceiptPage` is the `/admin/goods-receipts` screen (menu group "Cửa hàng", item "Nhập hàng"): the form for a new receipt (supplier, the day and the recorder as read-only, one row per product with Số nhận, Nhận vào kho, the rejected quantity worked out and the reason, the totals) beside "Phiếu nhập gần đây". The form checks MSG113, MSG119 and MSG120 before it sends; the backend checks again, and decides the code, the day, the recorder and the stock. `?receipt=PN-0012` (the link of a MSG122 notice) opens that receipt read only. The draft is kept while a receipt is open. The page keeps one `Idempotency-Key` while the form is unchanged, so saving again after a lost answer cannot make a second receipt (D-218). The products are searched with `components/product/ProductPicker.jsx`'s `ProductSearch`, through the goods receipt API.
+
 `AiModelsPage.jsx` at `/admin/ai-models` reads the current AI source, model history
 and unqualified source counts. It imports trainer DRAFT/evidence pairs and submits
 versioned model review decisions through `services/ai-model-api.js`. It never
@@ -76,3 +80,5 @@ reconciliation. Contract and statement printing use a selected body-level portal
 Payroll and settlement workspaces use full-width tables, server-derived reports and focused detail dialogs. Payroll retains automatic source-based preparation and selected payslip printing; legacy/advanced forms are collapsed. Settlement filtering is explicitly limited to the current cursor page. Reports are operational counts and persisted VND totals, never bank balances or proof of transfer. Policy/source gates remain authoritative; unknown commands freeze the modal and retry the original payload/key.
 
 AI Models includes a separate bounded source-readiness audit. It does not train from public research/demo data or automatically promote a model.
+
+`ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.

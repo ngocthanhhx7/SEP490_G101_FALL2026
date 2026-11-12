@@ -14,6 +14,8 @@ live in `services/sitter-management-api.js`; pure labels live in
 
 Admin-only application documents and personal information remain in the existing
 application review page. Status commands reuse its versioned audited backend API.
+`EmployeeDispatchPage.jsx` lists pending visit withdrawal requests under Cần xử lý, with the assigned sitter, reason and visit start time.
+
 `EmployeeDispatchPage.jsx` can receive a selected sitter from the route composition;
 invitation creation still rechecks authoritative eligibility, payment and the
 Customer's directed choice. No page assigns work by itself.

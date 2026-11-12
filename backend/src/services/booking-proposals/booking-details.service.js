@@ -10,13 +10,13 @@ const oid = value => new Types.ObjectId(value);
 const money = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
 const personName = (names, id) => names.get(String(id)) ?? null;
 
-function savedTerms(visit, names) {
+function savedTerms(visit, names, areaNames) {
   const snapshot = visit.snapshots ?? {};
   return {
     serviceName: snapshot.serviceName ?? null,
     durationMinutes: snapshot.careMinutes ?? null,
     serviceAddress: snapshot.serviceAddress ?? null,
-    areaName: areas.get(visit.areaCode) ?? visit.areaCode ?? null,
+    areaName: areaNames.get(visit.areaCode) ?? areas.get(visit.areaCode) ?? visit.areaCode ?? null,
     startAt: visit.startAt ?? null,
     endAt: visit.endAt ?? null,
     petNames: (snapshot.pets ?? []).map(pet => pet.name).filter(Boolean),
@@ -47,6 +47,10 @@ function savedPrice(booking, visits) {
 export function createBookingDetailsService({ connection, clock = Date.now }) {
   async function project(booking, { includeCustomerName = false } = {}) {
     const original = booking.checkoutSnapshot?.customerVisits ?? [];
+    const codes = [...new Set(original.map(visit => visit.areaCode).filter(code => typeof code === 'string'))];
+    const areaRows = codes.length ? await connection.db.collection('serviceareas').find({ _id: { $in: codes } },
+      { projection: { label: 1 }, maxTimeMS: 2000 }).limit(60).toArray() : [];
+    const areaNames = new Map(areaRows.map(area => [area._id, area.label]));
     const visits = await connection.db.collection('visits').find({
       bookingId: booking._id, state: { $ne: 'SUPERSEDED' },
       ...(booking.visitIds?.length ? { _id: { $in: booking.visitIds } } : {})
@@ -64,7 +68,7 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
       ...(includeCustomerName ? { customerName: personName(names, booking.customerId) } : {}),
       details: {
         consentAt: booking.checkoutSnapshot?.consentAt ?? null,
-        terms: original.map(visit => savedTerms(visit, names)),
+        terms: original.map(visit => savedTerms(visit, names, areaNames)),
         visits: visits.map(visit => ({
           id: String(visit._id), startAt: visit.startAt ?? null, endAt: visit.endAt ?? null,
           state: visit.state, sitterName: personName(names, visit.sitterId)

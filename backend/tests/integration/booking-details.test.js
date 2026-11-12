@@ -99,3 +99,16 @@ test('UC-27 / GBR-17: checkout and auth gates govern details independently of th
   await request(app({ auth: false })).get(path('staff')).set('x-test-actor', 'staff').expect(404);
   await request(app({ finance: false })).get(path('staff')).set('x-test-actor', 'staff').expect(200);
 });
+
+test('saved terms resolve official commune labels even after an area closes, without changing snapshots', async () => {
+  const code = 'COMMUNE_SYNTHETIC', label = 'Phường thử nghiệm';
+  const copy = await connection.db.collection('bookings').findOne({ _id: bookingId });
+  const id = oid();
+  await connection.db.collection('serviceareas').insertOne({ _id: code, label, level: 'COMMUNE', enabled: false });
+  await connection.db.collection('bookings').insertOne({ ...copy, _id: id,
+    checkoutSnapshot: { ...copy.checkoutSnapshot, customerVisits: copy.checkoutSnapshot.customerVisits.map(visit => ({ ...visit, areaCode: code })) } });
+  const before = await connection.db.collection('bookings').findOne({ _id: id });
+  const result = await request(app()).get(`/api/v1/staff/bookings/${id}`).set('x-test-actor', 'staff').expect(200);
+  expect(result.body.data.details.terms.map(term => term.areaName)).toEqual([label, label]);
+  expect(await connection.db.collection('bookings').findOne({ _id: id })).toEqual(before);
+});

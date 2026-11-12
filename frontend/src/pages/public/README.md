@@ -1,5 +1,10 @@
 # Public pages
 
+`SignInPage` opens the shared native `Dialog` when login returns
+`REGISTRATION_REQUIRED`, before asking for OTP. The popup links to `/register`
+and can close to edit the contact. Verification/resend use the same popup if
+the verified contact was replaced after the first send.
+
 `ServiceBookingPage.jsx` owns the selected-service flow at `/booking/:serviceId`:
 owned pets, confirmed address and per-visit schedule, system dispatch or explicit
 employee selection, then a deterministic quote/consent/checkout confirmation.
@@ -45,7 +50,7 @@ instant. The refresh action reads the server's canReapply flag before opening a
 new form; the device clock cannot bypass the waiting screen. Public OTP status
 provides a reapplication link when its server projection permits it.
 
-`ProductListPage.jsx` and `ProductDetailsPage.jsx` are the public shop at `/products` and `/products/:productId`. Filters live in the URL (`q`, `category`, `pet`); only Shown products are returned by the API. A guest pressing "Thêm vào giỏ hàng" is sent to sign-in and returns to the product page. Out-of-stock products lock the button (MSG98). Pressing + when the quantity already equals what can be sold shows MSG58 and the number does not go up (D-219; `QuantityStepper` `onLimit`); the cart still locks + at that quantity. A quantity above what can be sold when adding re-reads the product and shows MSG58 with the current number.
+`ProductListPage.jsx` and `ProductDetailsPage.jsx` are the public shop at `/products` and `/products/:productId`. Filters live in the URL (`q`, `category`, `pet`); only Shown products are returned by the API. A guest pressing "Thêm vào giỏ hàng" is sent to sign-in and returns to the product page. Out-of-stock products lock the button (MSG98). Pressing + when the quantity already equals what can be sold shows MSG58 and the number does not go up (D-219; `QuantityStepper` `onLimit`); the cart still locks + at that quantity. A quantity above what can be sold when adding re-reads the product and shows MSG58 with the current number. Product Details shows the photos through `ProductGallery` (D-249): the large photo with a thumbnail row below it when the product has two or more photos, the single photo alone, or the brand placeholder when it has none. Product List and the cart keep showing the first photo.
 
 The storefront also keeps `page` in the URL and uses server pagination. Home
 switches its existing three-card service section to `HomeProductPreview` only

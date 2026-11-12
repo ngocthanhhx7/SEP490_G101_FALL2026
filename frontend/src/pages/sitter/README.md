@@ -36,4 +36,8 @@ moderation policy.
 must scope every list/detail result to the Sitter's assigned visit and omit
 Staff private notes; no Sitter complaint creation or Staff command is exposed.
 
+`EmployeeInvitationsPage.jsx` opens `VisitWithdrawalDialog.jsx` from Ca đã nhận. The server supplies the withdrawal mode and version. The dialog keeps the same key when retrying an uncertain submission.
+
 `SitterDayOriginForm` lets an approved employee select a map pin and same-day outward/return availability for automatic dispatch. Shared transport stays in employee-scheduling-api; unknown outcomes retain the original operation payload/key.
+
+`SitterWorkAreasPanel` preserves historical registrations beyond the old 20-code reader limit; active wards and retained closed choices use province/search filters and bounded pages. Only database-enabled areas can be newly registered.
