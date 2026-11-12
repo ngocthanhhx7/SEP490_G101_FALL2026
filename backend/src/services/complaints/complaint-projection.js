@@ -1,6 +1,8 @@
 import { hasRole } from '../../utils/roles.js';
 import { APPEAL_WINDOW_MS, COMPLAINT_SCHEMA_VERSION, complaintFinalAt, complaintState, instant } from './complaint-lifecycle.js';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 export const complaintCode = id => 'KN-' + String(id).replaceAll('-', '').slice(0, 12).toUpperCase();
 const iso = value => instant(value)?.toISOString() ?? null;
 
@@ -44,7 +46,7 @@ export function safeComplaint(record, actor, asOf, { customerPhone, billing } = 
   const amountVnd = record.moneyDecision?.amountVnd ?? null;
   const openedAt = instant(record.openedAt ?? record.createdAt);
   const elapsed = openedAt ? +asOf - +openedAt : 0;
-  const openDays = state === 'OPEN' && elapsed > APPEAL_WINDOW_MS ? Math.floor(elapsed / (APPEAL_WINDOW_MS / 3)) : null;
+  const openDays = state === 'OPEN' && elapsed > APPEAL_WINDOW_MS ? Math.floor(elapsed / DAY_MS) : null;
   const response = result ? {
     summary: result, amountVnd, recordedAt: iso(record.resultDeliveredAt ?? record.resolution?.recordedAt ?? record.decision?.recordedAt),
     ...(sitter ? { actionsTaken: record.resolution?.actionsTaken ?? null } : {})
