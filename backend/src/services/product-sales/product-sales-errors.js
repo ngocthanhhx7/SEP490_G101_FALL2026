@@ -14,6 +14,10 @@ export const productSalesErrors = Object.freeze({
   // R3 has no message for these: stopping a supplier that already stopped, or a product that is not in the catalog.
   supplierStateConflict: (status) => new AppError(409, 'SUPPLIER_STATE_CONFLICT', 'This supplier cannot be changed in its current state.', { status }),
   productNotFound: (productIds) => new AppError(422, 'PRODUCT_NOT_FOUND', 'Some products are not in the catalog.', { productIds }),
+  // R3 has no message for these: a goods receipt for a supplier that is gone or stopped, or a code clash.
+  supplierNotFound: () => new AppError(422, 'SUPPLIER_NOT_FOUND', 'This supplier does not exist.'),
+  supplierNotActive: () => new AppError(409, 'SUPPLIER_NOT_ACTIVE', 'This supplier no longer works with the shop, so it cannot be chosen.'),
+  receiptCodeConflict: () => new AppError(409, 'RECEIPT_CODE_CONFLICT', 'The receipt code was taken at the same moment. Nothing was saved; please save again.'),
   productCodesExhausted: () => new AppError(409, 'PRODUCT_CODES_EXHAUSTED', 'No product code is left.'),
   // MSG98
   outOfStock: (productId) => new AppError(409, 'PRODUCT_OUT_OF_STOCK', 'This product is out of stock.', { productId }),
@@ -35,6 +39,7 @@ export const productSalesErrors = Object.freeze({
   orderStateConflict: (status) => new AppError(409, 'ORDER_STATE_CONFLICT', 'This order cannot be changed in its current state.', { status }),
   orderStockMismatch: (orderId) => new AppError(409, 'ORDER_STOCK_MISMATCH', 'The stock of this order does not match; nothing was changed.', { orderId }),
   idempotencyConflict: () => new AppError(409, 'IDEMPOTENCY_CONFLICT', 'The key was already used for a different order.'),
+  receiptIdempotencyConflict: () => new AppError(409, 'IDEMPOTENCY_CONFLICT', 'The key was already used for a different goods receipt.'),
   // MSG104
   resellableQuantityInvalid: (productId) => new AppError(422, 'RESELLABLE_QUANTITY_INVALID',
     'This cannot be more than the quantity returned.', { productId })
@@ -51,7 +56,6 @@ export function requireCustomer(actor) {
   return actor.userId;
 }
 
-// Who may do what comes from PRODUCT_PERMISSIONS (today only Admin; Sale Staff is a separate role change).
 function requirePermission(actor, allowedRoles) {
   if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles)
     || typeof actor.userId !== 'string' || !OBJECT_ID.test(actor.userId)) {
@@ -62,5 +66,8 @@ function requirePermission(actor, allowedRoles) {
 }
 
 export const requireOrderHandler = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.HANDLE_ORDERS);
+export const requireOnlineOrderCanceller = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.CANCEL_ONLINE_ORDERS);
 export const requireProductManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_PRODUCTS);
 export const requireSupplierManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_SUPPLIERS);
+export const requireCounterSeller = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.SELL_AT_COUNTER);
+export const requireReceiptRecorder = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.RECORD_GOODS_RECEIPTS);

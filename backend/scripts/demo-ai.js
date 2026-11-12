@@ -12,6 +12,7 @@ import { seedDemo, DEMO_DATABASE, GROUNDED_DEMO_DATABASE, validateGroundedSnapsh
 import { createDemoApp } from './demo-ai/server.js';
 
 const grounded = process.argv.includes('--grounded');
+const includeSaleStaff = process.argv.includes('--include-sale-staff');
 const snapshotIndex = process.argv.indexOf('--snapshot');
 if (
   !process.argv.includes('--apply') ||
@@ -80,7 +81,7 @@ if (
       );
     const config = loadConfig(demoEnv);
     connection = await connectDatabase(config, { referenceCatalog: referenceCatalogCliSource() });
-    const manifest = await seedDemo(connection, config, Date.now, { groundedSnapshot });
+    const manifest = await seedDemo(connection, config, Date.now, { groundedSnapshot, includeSaleStaff });
     const origin = `http://127.0.0.1:${port}`;
     app = createDemoApp({ config, connection, manifest, origin, groundedSnapshot });
     console.log(

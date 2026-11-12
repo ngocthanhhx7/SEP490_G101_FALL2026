@@ -8,7 +8,7 @@ import { Button, Notice } from '../ui/index.js';
 import '../../styles/workspaces.css';
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, DoughnutController, ArcElement, Tooltip, Legend);
-const labels = { ADMIN: 'Quản trị viên', STAFF: 'Nhân viên', CUSTOMER: 'Khách hàng', PET_SITTER: 'Người chăm sóc',
+const labels = { ADMIN: 'Quản trị viên', STAFF: 'Nhân viên', SALE_STAFF: 'Nhân viên bán hàng', CUSTOMER: 'Khách hàng', PET_SITTER: 'Người chăm sóc',
   COMPLETED: 'Hoàn thành', CANCELLED: 'Đã hủy', SCHEDULED: 'Chờ phân công', ASSIGNED: 'Đã phân công',
   IN_PROGRESS: 'Đang chăm sóc', STAFF_CLOSED: 'Đã đóng', UNKNOWN: 'Chưa phân loại' };
 const palette = ['#7351ac', '#168978', '#d69b00', '#4581c4', '#bd527b', '#69717c'];

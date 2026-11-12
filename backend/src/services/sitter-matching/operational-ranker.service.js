@@ -52,7 +52,8 @@ export function createOperationalRanker({ connection, routingProvider, clock = D
     const ranked = [...sitterIds].sort((a, b) => scores.has(a) && scores.has(b) ? scores.get(b).rawScore - scores.get(a).rawScore || sitterIds.indexOf(a) - sitterIds.indexOf(b)
       : scores.has(a) ? -1 : scores.has(b) ? 1 : sitterIds.indexOf(a) - sitterIds.indexOf(b));
     const decisionAt = new Date(clock()).toISOString();
-    return { sitterIds: ranked, featureSnapshot: { version: 'PWC_MATCH_FEATURES_V1', decisionAt,
+    const scoresBySitterId = Object.fromEntries([...scores].map(([sitterId, score]) => [sitterId, score.rawScore]));
+    return { sitterIds: ranked, scoresBySitterId, featureSnapshot: { version: 'PWC_MATCH_FEATURES_V1', decisionAt,
       slotStartAt: new Date(visit.startAt).toISOString(), slotEndAt: new Date(visit.endAt).toISOString(),
       featuresAsOf: Object.fromEntries(['fit', 'travel', 'quality', 'reliability', 'workload'].map(key => [key, decisionAt])),
       candidates: [...scores].map(([sitterId, score]) => ({ sitterId, features: score.features })), policyVersion: policy.version, modelVersion } };

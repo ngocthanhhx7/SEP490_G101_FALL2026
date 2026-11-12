@@ -1,8 +1,9 @@
 import { hasRole, isSingleRole } from '../utils/roles.js';
 export { hasRole } from '../utils/roles.js';
 import { AppError } from '../utils/app-error.js';
+import { ACCOUNT_ROLES } from '../constants/account-roles.js';
 
-const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
+const ROLES = new Set(ACCOUNT_ROLES);
 
 export function requireSession(sessionPort, { clock = Date.now } = {}) {
   if (

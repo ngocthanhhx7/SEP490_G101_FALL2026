@@ -1,0 +1,173 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-43 Check Out" id="uc-43">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1782" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Assigned Pet Sitter" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1502" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": FinanceSourceController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1502" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": BookingFinanceSourceService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1502" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Visits / booking DB" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1502" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Care media / PayrollCredit" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1502" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Command / source event / notification" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1502" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="336" />
+        </mxCell>
+        <mxCell id="caption-1" value="ref [checkout command]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: POST check-outs {expectedVersion,owned READY mediaId} +&#10;session/CSRF/key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Authorize current assigned visit/ACTIVE sitter/booking;&#10;exact command fingerprint replay" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Require current version and IN_PROGRESS/checkInAt;&#10;now&gt;=checkInAt and &lt;=endAt+2h" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="670" y="336" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="336" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Require every snapshot checklist item exactly represented&#10;DONE or SKIPPED with nonempty reason" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="394" />
+            <mxPoint as="targetPoint" x="670" y="394" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="394" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-5" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="467" width="1110" height="278" />
+        </mxCell>
+        <mxCell id="caption-5" value="ref [complete visit atomically]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="474" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Bind unique actor-owned CHECK_OUT photo; reject previous&#10;care/transfer binding" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="587" />
+            <mxPoint as="targetPoint" x="855" y="587" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="587" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: CAS visit COMPLETED/checkOutAt/completedAt/version++, append&#10;evidence" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="645" />
+            <mxPoint as="targetPoint" x="670" y="645" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="645" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Touch booking version/finance guard; re-read all&#10;authoritative booking visit IDs (&lt;=60)" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="703" />
+            <mxPoint as="targetPoint" x="670" y="703" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="703" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-8" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="776" width="1110" height="291" />
+        </mxCell>
+        <mxCell id="caption-8" value="alt [all care visits COMPLETED]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="783" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: CAS whole booking COMPLETED/completedAt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="896" />
+            <mxPoint as="targetPoint" x="670" y="896" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="896" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: EMPLOYEE mode: upsert immutable PayrollServiceCredit per&#10;completed visit from snapshot service-net, actual&#10;times/version" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="954" />
+            <mxPoint as="targetPoint" x="855" y="954" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="954" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: BookingCompleted source event; no legacy EarningAccrualTask&#10;in EMPLOYEE mode" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1025" />
+            <mxPoint as="targetPoint" x="1035" y="1025" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1025" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-11" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1098" width="1110" height="162" />
+        </mxCell>
+        <mxCell id="caption-11" value="alt [other visits still incomplete]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1105" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: This visit completes, booking remains IN_PROGRESS; no&#10;invented whole-booking completion" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1218" />
+            <mxPoint as="targetPoint" x="105" y="1218" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-12" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1291" width="1110" height="220" />
+        </mxCell>
+        <mxCell id="caption-12" value="ref [finish shared transaction]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1298" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: VisitCHECK_OUT + Customer notification + command result;&#10;commit" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1411" />
+            <mxPoint as="targetPoint" x="1035" y="1411" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1411" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: COMPLETED/version; rollback media/state/credits/events on&#10;failure. After2h -&gt; deadline error, not automatic completion" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1469" />
+            <mxPoint as="targetPoint" x="105" y="1469" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Current composed compensation mode is EMPLOYEE: completed service credits support later payroll, not an automatic cash payout or legacy accrual outbox. Staff late-close/report-delivery acceptance is a separate integration gate. Sources: backend/src/services/settlements/booking-finance-source.service.js; backend/src/services/payroll/completion-payroll-source.service.js; backend/src/routes/finance-source-runtime.js" style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1582" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

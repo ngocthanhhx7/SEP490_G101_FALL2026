@@ -1,0 +1,114 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" version="24.7.17">
+  <diagram id="sd-payos-webhook" name="2.2.2 PayOS Webhook IPN">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1150" pageHeight="650" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_payos" value="PayOS Payment Gateway" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="30" y="50" width="150" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": PaymentWebhookController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_bill" value=": PayosPaymentWebhookService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="410" y="50" width="140" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_prov" value=": PayosProvider" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="585" y="50" width="140" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_repo" value=": MongoPaymentWebhookRepository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="760" y="50" width="170" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": DomainNotifications" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="965" y="50" width="150" height="560" as="geometry" />
+        </mxCell>
+        <mxCell id="act_ctrl" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="105" width="10" height="425" as="geometry" />
+        </mxCell>
+        <mxCell id="act_bill" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="475" y="145" width="10" height="345" as="geometry" />
+        </mxCell>
+        <mxCell id="act_prov" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="650" y="185" width="10" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="act_repo" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="300" width="10" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="act_smtp" value="" style="html=1;points=[];perimeter=orthogonalPerimeter;outlineConnect=0;targetShapes=umlLifeline;portConstraint=eastwest;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="1035" y="380" width="10" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="m_1" value="1: POST /api/v1/payments/payos/webhook (PayosWebhookDTO)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="105" y="105" as="sourcePoint" />
+            <mxPoint x="290" y="105" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_2" value="2: processWebhook(webhookPayload)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="300" y="145" as="sourcePoint" />
+            <mxPoint x="475" y="145" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_3" value="3: verifyWebhookSignature(data, sig)" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="485" y="185" as="sourcePoint" />
+            <mxPoint x="650" y="185" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_4" value="4: signatureValid = true" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="650" y="225" as="sourcePoint" />
+            <mxPoint x="485" y="225" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_5" value="5: match pending intent, amountVnd, currency, deadline and version" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="485" y="260" as="sourcePoint" />
+            <mxPoint x="485" y="285" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="525" y="260" />
+              <mxPoint x="525" y="285" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_6" value="6: transaction: unique event/reference + receipt + guarded intent/booking" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="485" y="300" as="sourcePoint" />
+            <mxPoint x="840" y="300" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_7" value="7: APPLIED / DUPLICATE / RECONCILIATION_REQUIRED" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="840" y="340" as="sourcePoint" />
+            <mxPoint x="485" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_8" value="8: persist recipient-scoped payment notification in transaction" style="html=1;verticalAlign=bottom;endArrow=block;endFill=1;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="485" y="380" as="sourcePoint" />
+            <mxPoint x="1035" y="380" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_9" value="9: notification persisted; delivery is a separate concern" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1035" y="420" as="sourcePoint" />
+            <mxPoint x="485" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_10" value="10: { status }; late/unknown/mismatch never revives expired booking" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="475" y="460" as="sourcePoint" />
+            <mxPoint x="300" y="460" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="m_11" value="11: 200 OK (Webhook Handled)" style="html=1;verticalAlign=bottom;endArrow=open;endSize=7;dashed=1;dashPattern=5 3;strokeColor=#000000;strokeWidth=1.2;fontSize=10;fontColor=#000000;edgeStyle=orthogonalEdgeStyle;rounded=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="290" y="500" as="sourcePoint" />
+            <mxPoint x="105" y="500" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

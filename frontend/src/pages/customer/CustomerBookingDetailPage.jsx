@@ -8,6 +8,7 @@ import { createComplaintApi } from '../../services/complaint-api.js';
 import { createServiceBasketApi } from '../../services/service-basket-api.js';
 import { complaintDeadline, complaintSubmitPath, complaintVisitStart, visitLabel } from '../../utils/complaint-presentation.js';
 import { BookingConfirmation } from '../public/BookingCheckout.jsx';
+import { BookingDetailsContent } from '../../components/common/BookingDetailsContent.jsx';
 import './customer-bookings.css';
 
 function ComplaintListAction({ resource, bookingId }) {
@@ -50,10 +51,11 @@ function CustomerBookingDetail({ bookingId }) {
   const visitsByRow = useMemo(() => {
     const rows = new Map();
     for (const visit of eligibility.data?.visits ?? []) {
-      const rowId = visit.customerVisitId ?? visit.id;
-      const visits = rows.get(rowId) ?? [];
-      visits.push(visit);
-      rows.set(rowId, visits);
+      for (const rowId of new Set([visit.customerVisitId, visit.id].filter(Boolean))) {
+        const visits = rows.get(rowId) ?? [];
+        visits.push(visit);
+        rows.set(rowId, visits);
+      }
     }
     return rows;
   }, [eligibility.data]);
@@ -70,7 +72,7 @@ function CustomerBookingDetail({ bookingId }) {
       {deadline && <p>Hạn thanh toán: {deadline}</p>}
     </div>}
     <div className={overdue ? 'customer-booking-detail__confirmation--overdue' : undefined}>
-      <BookingConfirmation bookingId={bookingId} api={api} visitActions={visitActions} />
+      <BookingConfirmation bookingId={bookingId} api={api} Details={BookingDetailsContent} visitActions={visitActions} />
     </div>
   </section>;
 }

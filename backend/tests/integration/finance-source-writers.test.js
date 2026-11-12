@@ -485,7 +485,8 @@ test('UC-53 searches, counts and paginates by sent time with role-scoped detail'
   expect((await complaints.list({ actor: admin, query: { q: first.complaint.code } })).items).toHaveLength(1);
   expect((await complaints.list({ actor: admin, query: { q: '.*' } })).items).toHaveLength(0);
   expect((await complaintApp(complaints, null).get('/api/v1/complaints')).status).toBe(401);
-  expect((await complaintApp(complaints, { ...customer, roles: ['SALE_STAFF'] }).get('/api/v1/complaints')).status).toBe(401);
+  expect((await complaintApp(complaints, { ...customer, roles: ['SALE_STAFF'] }).get('/api/v1/complaints')).status).toBe(403);
+  expect((await complaintApp(complaints, { ...customer, roles: ['UNKNOWN_ROLE'] }).get('/api/v1/complaints')).status).toBe(401);
   expect((await complaintApp(complaints, { ...customer, userId: String(oid()) }).get('/api/v1/complaints/' + first.complaintId)).status)
     .toBe(404);
 });

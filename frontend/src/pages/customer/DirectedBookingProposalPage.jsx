@@ -94,7 +94,11 @@ function ProposalDetails({ api, proposalId: suppliedProposalId, proposal: suppli
         <span className="directed-proposal__state">{({ PENDING_CUSTOMER_CONFIRMATION: 'Chờ bạn xác nhận', CONFIRMED: 'Đã xác nhận lịch', EXPIRED: 'Đã hết hạn', CANCELLED: 'Đã hủy' })[proposal.state] ?? 'Cần kiểm tra trạng thái'}</span>
       </header>
       <section className="directed-proposal__panel" aria-labelledby="directed-proposal-summary-title">
-        <h2 id="directed-proposal-summary-title">Thông tin visit</h2>
+        <h2 id="directed-proposal-summary-title">Thông tin buổi chăm sóc</h2>
+        {proposal.previousSitterId && proposal.previousSitterId !== proposal.sitterId && <Notice state="pending" title="Đề xuất đổi người chăm sóc">
+          Người đã chọn: {proposal.previousSitter?.displayName || 'Theo đơn đã đặt'}. Người thay thế: {proposal.sitter?.displayName || 'Người chăm sóc được đề xuất'}.
+          Chỉ khi bạn xác nhận, hệ thống mới gửi lời mời cho người thay thế; người đó vẫn cần chấp nhận ca.
+        </Notice>}
         <dl className="directed-proposal__facts">
           <div><dt>Visit</dt><dd>{visit?.localDate || formatDate(visit?.startAt || proposal.slots?.[0]?.startAt)}</dd></div>
           {proposal.areaCode && <div><dt>Khu vực tại địa chỉ đã đặt</dt><dd>{proposal.areaLabel ?? proposal.areaCode}{proposal.previousAreaCode !== proposal.areaCode && ' · Đề xuất xác nhận khu vực cụ thể hơn, giữ nguyên vị trí ghim'}</dd></div>}

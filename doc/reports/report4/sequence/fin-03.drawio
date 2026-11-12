@@ -1,0 +1,190 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="FIN-03 Record transfer and reconcile uncertain result" id="fin-03">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1856" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Admin" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1576" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": AdminSettlementService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1576" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": Private transfer evidence" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1576" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Mongo settlement repository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1576" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Request / ledger / claims DB" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1576" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Command / audit event" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1576" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="416" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: recordTransfer requestId/version/key +&#10;reference/evidenceReference + CONFIRMED or UNKNOWN" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Validate positive integer amount/date for CONFIRMED; no&#10;future/pre-submission paidAt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="295" y="300" />
+            <Array as="points">
+              <mxPoint x="335" y="278" />
+              <mxPoint x="335" y="300" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-3" value="3: Command transaction: replay fingerprint or load current&#10;APPROVED/TRANSFER_PENDING request; approved policy gate" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="358" />
+            <mxPoint as="targetPoint" x="670" y="358" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="358" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: assertEvidenceOwnership: exact request + Admin-owned&#10;uploaded private evidence" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="416" />
+            <mxPoint as="targetPoint" x="480" y="416" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="416" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Missing/wrong evidence -&gt; EVIDENCE_UNAVAILABLE" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="474" />
+            <mxPoint as="targetPoint" x="295" y="474" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-6" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="547" width="1110" height="452" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: settleReservation: recheck exact held slices, ledger and&#10;active locks" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="667" />
+            <mxPoint as="targetPoint" x="670" y="667" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="667" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Claim TRANSFER/reference and EVIDENCE/reference uniquely to&#10;this request; record transfer attempt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="725" />
+            <mxPoint as="targetPoint" x="855" y="725" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="725" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: CAS earning slices RESERVED -&gt; PAID; clear reservation;&#10;append exact ledger lines" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="783" />
+            <mxPoint as="targetPoint" x="855" y="783" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="783" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: CAS request PAID/version++; retain transfer/paidAt evidence" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="841" />
+            <mxPoint as="targetPoint" x="855" y="841" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="841" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: EARNING_PAID event + saved command result in same&#10;transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="899" />
+            <mxPoint as="targetPoint" x="1035" y="899" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="899" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: PAID acknowledgement; replay cannot create second payment&#10;record" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="957" />
+            <mxPoint as="targetPoint" x="105" y="957" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-12" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1030" width="1110" height="349" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: recordTransferAttempt with outcome UNKNOWN or&#10;AMOUNT_MISMATCH; preserve unique reference claims" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1150" />
+            <mxPoint as="targetPoint" x="670" y="1150" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1150" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: CAS request TRANSFER_PENDING/version++; reserved funds&#10;remain reserved" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1208" />
+            <mxPoint as="targetPoint" x="855" y="1208" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1208" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: SETTLEMENT_RECONCILIATION_REQUIRED + command result" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1266" />
+            <mxPoint as="targetPoint" x="1035" y="1266" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-14" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1266" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: Needs reconciliation; operator checks real&#10;bank/provider/recipient evidence before later versioned&#10;confirmation" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1324" />
+            <mxPoint as="targetPoint" x="105" y="1324" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-16" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1410" width="1110" height="175" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: TRANSFER_REFERENCE_CONFLICT / RESERVATION_CONFLICT /&#10;VERSION_CONFLICT: rollback; never release or reuse uncertain&#10;reference" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1530" />
+            <mxPoint as="targetPoint" x="105" y="1530" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="PARTIAL_SCOPE_OR_ACCEPTANCE. Application records external evidence, not an automatic transfer. UNKNOWN belongs to transfer outcome; request state is TRANSFER_PENDING. These legacy settlement semantics must not be copied into payroll statements. Sources: backend/src/services/settlements/admin-settlement.service.js; backend/src/services/settlements/mongo-settlement.repository.js" style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1656" width="1100" height="145" />
+        </mxCell>
+        <mxCell id="frame-1-guard" value="[record external result; not a bank send]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="107.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-6-guard" value="[CONFIRMED and amount exactly immutable request amount]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="554.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-12-guard" value="[UNKNOWN or CONFIRMED amount differs]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="1037.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-16-guard" value="[reference reused by different request / state conflict]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="1417.0" width="1010" height="30" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

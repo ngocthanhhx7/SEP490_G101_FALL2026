@@ -1,0 +1,166 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="FIN-04 Apply and release a case or refund money hold" id="fin-04">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1521" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Authorized case/refund service" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1241" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": BookingFinancialHolds" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1241" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": Finance source guard" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1241" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Mongo settlement repository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1241" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Earning / FinancialLock / Ledger" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1241" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Accrual / Admin adjustment" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1241" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="358" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: change({booking,lockType:CASE|REFUND,reference,actorId,relea&#10;se,session})" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Require actual shared session, audited source reference and&#10;actor; assert settlement indexes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="295" y="300" />
+            <Array as="points">
+              <mxPoint x="335" y="278" />
+              <mxPoint x="335" y="300" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-3" value="3: finance.touch(booking,SAME session) to serialize financial-&#10;source changes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="358" />
+            <mxPoint as="targetPoint" x="480" y="358" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="358" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Read booking earnings (limit61); &gt;60 -&gt;&#10;SOURCE_RECONCILIATION_REQUIRED" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="416" />
+            <mxPoint as="targetPoint" x="855" y="416" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="416" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-5" value="loop" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="489" width="1110" height="336" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: lockEarning exact earning/source/type; touch same earning&#10;version as reservation writers" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="609" />
+            <mxPoint as="targetPoint" x="670" y="609" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="609" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: If existing source lock is active, retain it; AVAILABLE with&#10;valid ledger -&gt; HELD bucket + unique hold ledger" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="667" />
+            <mxPoint as="targetPoint" x="855" y="667" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="667" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: If earning was already paid, create PENDING_ADMIN_REVIEW&#10;adjustment with no invented proposed amount" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="725" />
+            <mxPoint as="targetPoint" x="1035" y="725" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="725" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Persist ACTIVE FinancialLock with source/type/reference;&#10;keep all writes in caller transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="783" />
+            <mxPoint as="targetPoint" x="855" y="783" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="783" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-9" value="loop" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="856" width="1110" height="394" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: unlockEarning exact source/type/reference + actor in SAME&#10;session" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="976" />
+            <mxPoint as="targetPoint" x="670" y="976" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="976" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: Mark matching ACTIVE lock RELEASED and audit actor/time;&#10;touch earning versions" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1034" />
+            <mxPoint as="targetPoint" x="855" y="1034" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1034" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Only HELD earnings with NO remaining active lock move HELD&#10;-&gt; AVAILABLE plus release ledger" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1092" />
+            <mxPoint as="targetPoint" x="855" y="1092" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1092" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: finance.enqueue(guarded booking,SAME session) for source&#10;recalculation" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1150" />
+            <mxPoint as="targetPoint" x="480" y="1150" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="1150" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Return guarded booking; outer case/refund command commits or&#10;rolls back everything" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1208" />
+            <mxPoint as="targetPoint" x="105" y="1208" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="PARTIAL_SCOPE_OR_ACCEPTANCE. A hold does not claw back paid salary/settlement or choose a liability amount. Final release is an explicit authorized conclusion; other active locks continue blocking funds. Sources: backend/src/services/settlements/booking-financial-holds.service.js; backend/src/services/settlements/mongo-settlement.repository.js" style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1321" width="1100" height="145" />
+        </mxCell>
+        <mxCell id="frame-1-guard" value="[inside caller domain transaction]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="107.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-5-guard" value="[hold each earning, release=false]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="496.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-9-guard" value="[explicit final authorized release=true]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="863.0" width="1010" height="30" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

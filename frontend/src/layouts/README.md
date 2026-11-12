@@ -1,6 +1,6 @@
 # Layouts
 
-FoundationLayout.jsx owns the public foundation page landmarks and route focus. RoleDashboardLayout.jsx supplies shared dashboard chrome for Customer, Pet Sitter, Staff, and Admin routes.
+FoundationLayout.jsx owns the public foundation page landmarks and route focus. RoleDashboardLayout.jsx supplies shared dashboard chrome for Customer, Pet Sitter, Staff, Sale Staff and Admin routes.
 
 The role layouts read the existing session context, fail closed for a missing role, and render explicit loading, pending, error, and forbidden states. They do not authenticate a user or grant API access. Admin may use the Staff UX shell where a Staff route allows Admin, matching RequireSession.
 

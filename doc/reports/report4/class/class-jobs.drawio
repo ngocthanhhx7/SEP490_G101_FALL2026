@@ -1,0 +1,128 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="Electron">
+  <diagram id="domain-jobs" name="21. Background Jobs and Durable Application Mail">
+    <mxGraphModel dx="1239" dy="781" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="p_0" />
+        <mxCell id="p_1" parent="p_0" />
+        <mxCell id="p_title" value="Class Diagram: Background Jobs and Durable Application Mail" vertex="1" parent="p_1" style="text;html=0;align=center;verticalAlign=middle;fontSize=15;fontStyle=1;">
+          <mxGeometry as="geometry" x="40" y="25" width="1080" height="38" />
+        </mxCell>
+        <mxCell id="application_ctrl" value="SitterApplicationController" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="110" width="300" height="87" />
+        </mxCell>
+        <mxCell id="application_ctrl_body" value="+ createRoot / updateMine(req,res)&#10;+ createByApplicationIdDecisions(req,res)&#10;Calls application service, not mail worker" vertex="1" parent="application_ctrl" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="application_service" value="SitterApplicationService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="110" width="320" height="87" />
+        </mxCell>
+        <mxCell id="application_service_body" value="+ submit / updateMine / decide(input)&#10;- applicationMail.enqueue(app,session)&#10;Application state and mail intent together" vertex="1" parent="application_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="61" />
+        </mxCell>
+        <mxCell id="application_mail" value="ApplicationMailService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="110" width="300" height="104" />
+        </mxCell>
+        <mxCell id="application_mail_body" value="+ enqueue(application,session)&#10;+ runBatch({limit})&#10;+ list(applicationId)&#10;SMTP occurs after domain commit" vertex="1" parent="application_mail" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="application_ctrl_service" value="" edge="1" parent="p_1" source="application_ctrl" target="application_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="136.1" />
+              <mxPoint x="380.0" y="149.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="application_service_mail" value="" edge="1" parent="p_1" source="application_service" target="application_mail" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="136.1" />
+              <mxPoint x="780.0" y="156.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="application_source" value="Source: sitter-application.controller.js → sitter-application.service.js. That service optionally enqueues the mail intent using the same domain session. ApplicationMailService is a distinct dependency; the controller does not run the delivery batch." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="360" width="1080" height="100" />
+        </mxCell>
+        <mxCell id="mail_worker" value="ApplicationMailWorker «job factory»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="570" width="300" height="87" />
+        </mxCell>
+        <mxCell id="mail_worker_body" value="+ startApplicationMailWorker({service,...})&#10;+ stop()&#10;15s interval; bounded, no overlap" vertex="1" parent="mail_worker" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="mail_batch" value="ApplicationMailService «batch role»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="570" width="320" height="121" />
+        </mxCell>
+        <mxCell id="mail_batch_body" value="+ runBatch({limit=10})&#10;- lease PENDING → SENDING&#10;- verify current exact recipient&#10;- persist ACCEPTED/UNKNOWN/PENDING/FAILED&#10;- expired lease → UNKNOWN, no blind resend" vertex="1" parent="mail_batch" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="95" />
+        </mxCell>
+        <mxCell id="mail_sources" value="ApplicationMail / Contact «models»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="570" width="300" height="104" />
+        </mxCell>
+        <mxCell id="mail_sources_body" value="Encrypted snapshot / stable operationId&#10;Lease, attempts, nextAttemptAt&#10;Exact current verified contact lookup&#10;SMTP notificationDelivery port outside tx" vertex="1" parent="mail_sources" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="mail_worker_service" value="" edge="1" parent="p_1" source="mail_worker" target="mail_batch" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="596.1" />
+              <mxPoint x="380.0" y="624.45" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mail_batch_models" value="" edge="1" parent="p_1" source="mail_batch" target="mail_sources" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="606.3" />
+              <mxPoint x="780.0" y="616.8" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="mail_source" value="Source: jobs/application-mail.job.js → applications/application-mail.service.js → application-mail.model.js / identity.model.js + injected delivery. No superclass or object-lifecycle ownership is implied. SMTP ACCEPTED is not proof of inbox delivery." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="860" width="1080" height="100" />
+        </mxCell>
+        <mxCell id="dispatch_worker" value="EmployeeDispatchWorker «job factory»" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="40" y="1080" width="300" height="104" />
+        </mxCell>
+        <mxCell id="dispatch_worker_body" value="+&#10;startEmployeeDispatchWorker({service,...})&#10;+ stop()&#10;30s interval; bounded, no overlap" vertex="1" parent="dispatch_worker" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="78" />
+        </mxCell>
+        <mxCell id="dispatch_service" value="EmployeeDispatchService" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="420" y="1080" width="320" height="87" />
+        </mxCell>
+        <mxCell id="dispatch_service_body" value="+ runBatch({limit})&#10;- expiry / next candidate / Staff attention&#10;- authoritative assignment guards" vertex="1" parent="dispatch_service" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="320" height="61" />
+        </mxCell>
+        <mxCell id="dispatch_repository" value="EmployeeScheduleRepository" vertex="1" parent="p_1" style="swimlane;fontStyle=1;align=center;verticalAlign=top;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=0;marginBottom=0;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontSize=12;">
+          <mxGeometry as="geometry" x="820" y="1080" width="300" height="87" />
+        </mxCell>
+        <mxCell id="dispatch_repository_body" value="Models / col / uow / employeeGuard&#10;eligible(...) / source scheduling state&#10;Not an ApplicationMailService dependency" vertex="1" parent="dispatch_repository" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;fontSize=11;">
+          <mxGeometry as="geometry" y="26" width="300" height="61" />
+        </mxCell>
+        <mxCell id="dispatch_worker_service" value="" edge="1" parent="p_1" source="dispatch_worker" target="dispatch_service" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="380.0" y="1111.2" />
+              <mxPoint x="380.0" y="1119.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dispatch_service_repository" value="" edge="1" parent="p_1" source="dispatch_service" target="dispatch_repository" style="edgeStyle=none;html=0;rounded=0;dashed=1;dashPattern=5 3;endArrow=open;endSize=8;strokeColor=#000000;strokeWidth=1.2;fontSize=10;labelBackgroundColor=#ffffff;exitX=1;exitY=0.3;entryX=0;entryY=0.45;exitPerimeter=0;entryPerimeter=0;">
+          <mxGeometry as="geometry" relative="1">
+            <Array as="points">
+              <mxPoint x="780.0" y="1106.1" />
+              <mxPoint x="780.0" y="1119.15" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="dispatch_source" value="Source: jobs/employee-dispatch.job.js → employee-scheduling/employee-dispatch.service.js. Startup flag/composition and source/provider acceptance must be checked separately. Other planned jobs retain DESIGN_PENDING_RUNTIME in their own sequences." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1330" width="1080" height="100" />
+        </mxCell>
+        <mxCell id="source-notation" value="Notation: dashed open arrows are dependencies. Boxes describe JavaScript factory roles, injected ports and model contracts, not ES class inheritance. No diamond implies lifecycle ownership. A shown source capability does not prove live route/provider acceptance." vertex="1" parent="p_1" style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;spacing=10;fontSize=12;fillColor=#ffffff;strokeColor=#000000;">
+          <mxGeometry as="geometry" x="40" y="1460" width="1080" height="95" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

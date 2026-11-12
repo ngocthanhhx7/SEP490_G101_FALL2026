@@ -22,3 +22,16 @@ test('empty eligible pool keeps invitation disabled and offers a management acti
   fixture([]); await screen.findByText(/Chưa thể gửi lời mời/);
   expect(screen.getByRole('button', { name: 'Gửi lời mời cho người đã chọn' })).toBeDisabled();
 });
+
+test('a replacement sends a customer proposal and never directly invites the alternate sitter', async () => {
+  const api = { candidates: jest.fn().mockResolvedValue({ data: { items: [{ sitterId: id, displayName: 'Người thay thế' }] } }),
+    propose: jest.fn().mockResolvedValue({ data: { id: 'proposal' } }), invite: jest.fn() };
+  const command = { execute: jest.fn(fn => fn('replacement-operation-key')) }, onProposed = jest.fn();
+  render(<MemoryRouter><DispatchSitterPicker row={{ ...row, requestedSitterId: blocked }} api={api} command={command} onProposed={onProposed} /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('radio', { name: /Người thay thế/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi đề xuất đổi người cho khách' }));
+  await waitFor(() => expect(api.propose).toHaveBeenCalledWith(row.id,
+    { expectedVersion: row.version, startAt: row.startAt, sitterId: id }, 'replacement-operation-key'));
+  expect(api.invite).not.toHaveBeenCalled();
+  expect(onProposed).toHaveBeenCalledWith({ id: 'proposal' });
+});

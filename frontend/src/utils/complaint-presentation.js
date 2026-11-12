@@ -71,3 +71,5 @@ export function retryKey(ref, payload) {
   }
   return ref.current.key;
 }
+
+export const uncertainComplaint = error => !error?.status || error.status >= 500 || ['TIMEOUT', 'NETWORK_ERROR', 'INVALID_RESPONSE'].includes(error.code);

@@ -1,0 +1,140 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-39 Cancel Booking or Visit" id="uc-39">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1422" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Customer / authorized Staff" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1142" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Proposed CancellationController" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1142" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": Proposed CancellationService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1142" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Booking / Visit / policy" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1142" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Proposed command / ledger / audit" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1142" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": External refund reconciliation" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1142" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="349" />
+        </mxCell>
+        <mxCell id="caption-1" value="DESIGN_PENDING_RUNTIME — request and policy gate" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Cancel selected owned booking or visit with reason,&#10;expectedVersion and operation key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Authenticate Customer owner or explicit operational&#10;authority; reject unsupported scope" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Read current aggregate/visit version,&#10;assignment/start/payment/holds and approved effective&#10;cancellation policy" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="670" y="336" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="336" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: No approved rule/source -&gt; REVIEW_REQUIRED; older SRS 30% is&#10;not an approved default" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="407" />
+            <mxPoint as="targetPoint" x="480" y="407" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="480" width="1110" height="407" />
+        </mxCell>
+        <mxCell id="caption-5" value="Proposed atomic cancellation" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="487" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Proposed transaction: exact operation fingerprint replay or&#10;conflict; lock aggregate/occupancy/source guards" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="600" />
+            <mxPoint as="targetPoint" x="855" y="600" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="600" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Recheck uncancelled eligible state/version; evaluate&#10;approved timing/exemption rule deterministically in integer&#10;VND" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="658" />
+            <mxPoint as="targetPoint" x="670" y="658" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="658" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: CAS cancellation, revoke outstanding invitations and release&#10;only applicable operational reservations" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="729" />
+            <mxPoint as="targetPoint" x="670" y="729" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="729" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Append immutable policy/version/evidence/amount decision and&#10;notification intent; preserve completed work/history" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="787" />
+            <mxPoint as="targetPoint" x="855" y="787" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="787" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Commit cancellation result or rollback all effects on stale&#10;state/unauthorized/policy conflict" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="845" />
+            <mxPoint as="targetPoint" x="105" y="845" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-10" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="918" width="1110" height="233" />
+        </mxCell>
+        <mxCell id="caption-10" value="Financial follow-up is separate" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="925" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: If verified paid amount and approved refund entitlement&#10;exist: create reviewed reconciliation proposal, not an&#10;assumed transfer" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1038" />
+            <mxPoint as="targetPoint" x="1035" y="1038" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1038" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: No refund success until real provider/bank evidence; missing&#10;policy keeps money mutation disabled" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="1109" />
+            <mxPoint as="targetPoint" x="105" y="1109" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="DESIGN_PENDING_RUNTIME. This is a complete proposed command boundary, not an existing checkout cancellation route. Specific percentages, deadlines, exemption authority and refund policy require approved versioned sources; do not derive approval from the old SRS examples." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1222" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

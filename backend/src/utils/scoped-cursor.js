@@ -1,7 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { AppError } from './app-error.js';
 
-export function createScopedCursor({ secret, namespace, clock = Date.now, ttlMs = 15 * 60 * 1000 }) {
+export function createScopedCursor({ secret, namespace, clock = Date.now, ttlMs = 15 * 60 * 1000, maxTokenLength = 512 }) {
   if (typeof secret !== 'string' || Buffer.byteLength(secret) < 32 || !namespace) throw new TypeError('Cursor signing configuration required');
   const fingerprint = context => createHash('sha256').update(JSON.stringify(context)).digest('base64url');
   const sign = payload => createHmac('sha256', secret).update(`${namespace}\0${payload}`).digest('base64url');
@@ -13,7 +13,7 @@ export function createScopedCursor({ secret, namespace, clock = Date.now, ttlMs 
     },
     decode(token, context) {
       try {
-        if (typeof token !== 'string' || token.length > 512 || !/^[A-Za-z0-9_-]+$/.test(token)) invalid();
+        if (typeof token !== 'string' || token.length > maxTokenLength || !/^[A-Za-z0-9_-]+$/.test(token)) invalid();
         const [payload, signature] = JSON.parse(Buffer.from(token, 'base64url').toString('utf8'));
         if (typeof payload !== 'string' || typeof signature !== 'string') invalid();
         const expected = Buffer.from(sign(payload));

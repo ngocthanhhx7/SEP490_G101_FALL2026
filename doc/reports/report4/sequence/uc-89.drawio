@@ -1,0 +1,154 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="uc-89" name="UC-89 View Operational Reports">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="985" pageHeight="1574" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Admin" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Client view" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": OperationalReportController «design»" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": OperationalReportReader «design»" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Read source / injected port" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="sd" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="110" width="950" height="323" />
+        </mxCell>
+        <mxCell id="phase-title-1" value="DESIGN_PENDING_RUNTIME — proposed read interaction — request and access" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="116" width="840" height="35" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Open View Operational Reports and select applicable filters/resource" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="170" />
+            <mxPoint as="targetPoint" x="295" y="170" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="170" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Proposed filtered booking/visit/payment/refund report; current&#10;/workspaces/:kind/analytics is partial source" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="234" />
+            <mxPoint as="targetPoint" x="480" y="234" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="234" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Delegate read operation with authenticated actor/resource/query; no mutation&#10;command key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="298" />
+            <mxPoint as="targetPoint" x="670" y="298" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="298" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: ADMIN session; approved report visibility, UTC/local-time range and bounded signed&#10;pagination; no arbitrary export fields" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="362" />
+            <mxPoint as="targetPoint" x="670" y="384" />
+            <Array as="points">
+              <mxPoint x="708" y="362" />
+              <mxPoint x="708" y="384" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="sd" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="466" width="950" height="579" />
+        </mxCell>
+        <mxCell id="phase-title-5" value="Scoped source reads and safe projection" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="472" width="840" height="35" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Current WorkspaceAnalytics.read supports only days7/30/90 and role-scoped&#10;operational aggregates" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="526" />
+            <mxPoint as="targetPoint" x="855" y="526" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="526" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Actual source metrics concern visits/users/services, not complete payment/refund&#10;period reports" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="590" />
+            <mxPoint as="targetPoint" x="670" y="590" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7: Proposed read-only report joins authoritative booking/payment/refund records with&#10;source reconciliation status" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="654" />
+            <mxPoint as="targetPoint" x="855" y="654" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="654" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Only verified source amounts, integer VND, explicit unknowns and per-page totals;&#10;no heuristic/AI finance" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="718" />
+            <mxPoint as="targetPoint" x="670" y="718" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-9" value="9: Validate source scope and construct Proposed report&#10;rows/asOf/sourceVersion/filters/cursor with explicit reconciliation gaps" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="782" />
+            <mxPoint as="targetPoint" x="670" y="804" />
+            <Array as="points">
+              <mxPoint x="708" y="782" />
+              <mxPoint x="708" y="804" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-10" value="10: Proposed report rows/asOf/sourceVersion/filters/cursor with explicit&#10;reconciliation gaps" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="868" />
+            <mxPoint as="targetPoint" x="480" y="868" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-11" value="11: Return the source-bound read result; no business write acknowledgement" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="932" />
+            <mxPoint as="targetPoint" x="295" y="932" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-12" value="12: Render returned values, explicit empty/pending state or safe error; refresh is a&#10;new read" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="996" />
+            <mxPoint as="targetPoint" x="105" y="996" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-13" value="alt" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1078" width="950" height="173" />
+        </mxCell>
+        <mxCell id="phase-title-13" value="alt [access, input, cursor or source contract fails]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="1084" width="840" height="35" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Current analytics invalid days -&gt;422, missing collections -&gt;503; complete&#10;financial report pending until reader and policy/source gates are implemented" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1138" />
+            <mxPoint as="targetPoint" x="480" y="1138" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-14" value="14: Display the explicit safe response; do not replace unavailable data with invented&#10;successful totals" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1202" />
+            <mxPoint as="targetPoint" x="295" y="1202" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="source-scope-note" value="DESIGN_PENDING_RUNTIME. Do not relabel operational count analytics as revenue/payment/refund acceptance or invent financial totals. Read source/port lifeline groups the named query dependencies; it is not an invented runtime repository class. A read-only snapshot transaction, when used in source, does not imply a domain mutation, replay result store, ledger entry or money transfer. Sources: backend/src/services/dashboards/workspace-analytics.service.js; backend/src/routes/dashboard-runtime.routes.js." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1324" width="935" height="200" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

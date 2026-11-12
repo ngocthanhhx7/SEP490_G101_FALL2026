@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { bookingMoney } from '../../utils/booking-presentation.js';
-import { complaintDeadline, complaintError, complaintSubject, retryKey } from '../../utils/complaint-presentation.js';
+import { complaintDeadline, complaintError, complaintSubject, retryKey, uncertainComplaint } from '../../utils/complaint-presentation.js';
 
 const labels = { OPEN: 'Đang mở', RESOLVED: 'Đã có kết quả', ESCALATED: 'Chuyển quản trị', FINAL: 'Kết quả cuối' };
 
@@ -11,6 +11,7 @@ function ComplaintResultCard({ item, selected, serverNow, api, onUpdated }) {
   const [editing, setEditing] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState('');
   const [expiredDeadline, setExpiredDeadline] = useState(null);
   const deadline = Date.parse(item.objection?.deadlineAt);
@@ -40,13 +41,19 @@ function ComplaintResultCard({ item, selected, serverNow, api, onUpdated }) {
     setBusy(true);
     setError('');
     try {
-      const payload = { complaintId: item.id, expectedVersion: item.version, reason: reason.trim() };
-      const result = await api.disagree({ ...payload, idempotencyKey: retryKey(operation, payload) });
-      if (result.pending) { setError('Đang chờ xác nhận. Hãy thử lại để kiểm tra.'); return; }
+      const payload = operation.current?.payload ?? { complaintId: item.id, expectedVersion: item.version, reason: reason.trim() };
+      const idempotencyKey = retryKey(operation, payload);
+      operation.current.payload = payload;
+      const result = await api.disagree({ ...payload, idempotencyKey });
+      if (result.pending) { setUncertain(true); setError('Đang chờ xác nhận. Hãy thử lại để kiểm tra.'); return; }
+      setUncertain(false);
+      operation.current = null;
       onUpdated(result.data.complaint ?? result.data);
       setEditing(false);
       setReason('');
     } catch (failure) {
+      if (uncertainComplaint(failure)) setUncertain(true);
+      else if (!uncertain) operation.current = null;
       setError(complaintError(failure, 'Không gửi được lý do. Hãy thử lại.'));
     } finally {
       locked.current = false;
@@ -69,12 +76,12 @@ function ComplaintResultCard({ item, selected, serverNow, api, onUpdated }) {
     {canDisagree && editing && <form className="complaint-objection" onSubmit={disagree} noValidate>
       <label>Lý do <span aria-hidden="true">*</span>
         <textarea value={reason} onChange={event => { setReason(event.target.value); setError(''); }}
-          maxLength={4000} required disabled={busy} aria-invalid={Boolean(error)} />
+          maxLength={4000} required disabled={busy || uncertain} aria-invalid={Boolean(error)} />
       </label>
       {error && <p className="complaint-form-error" role="alert">{error}</p>}
       <div className="complaint-form-actions">
-        <Button variant="secondary" disabled={busy} onClick={() => { setEditing(false); setError(''); }}>Hủy</Button>
-        <Button type="submit" loading={busy}>Gửi lý do</Button>
+        <Button variant="secondary" disabled={busy || uncertain} onClick={() => { setEditing(false); setError(''); }}>Hủy</Button>
+        <Button type="submit" loading={busy}>{uncertain ? 'Kiểm tra lại yêu cầu' : 'Gửi lý do'}</Button>
       </div>
     </form>}
   </article>;

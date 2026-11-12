@@ -1,7 +1,8 @@
-﻿import { createHash } from 'node:crypto';
+﻿import { createHash, randomUUID } from 'node:crypto';
 import { AppError } from '../../utils/app-error.js';
+import { ACCOUNT_ROLES } from '../../constants/account-roles.js';
 
-const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
+const ROLES = new Set(ACCOUNT_ROLES);
 const CHANNELS = new Set(['IN_APP', 'EMAIL', 'SMS', 'PUSH']);
 const SENSITIVE_KEY = /(password|token|secret|otp|code|medical|health|diagnos|document|identity|national|access|address|phone|email|credential|private)/i;
 const SAFE_META_KEY = /^[a-z][a-zA-Z0-9_]{0,31}$/;
@@ -162,6 +163,21 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
     return Object.freeze({ status: result.status === 'ALREADY_READ' ? 'ALREADY_READ' : 'READ', notificationId: id, readAt: result.readAt ?? new Date(clock()).toISOString() });
   }
 
+  async function markAllRead({ actor, idempotencyKey } = {}) {
+    const scope = actorScope(actor);
+    if (typeof repository.markAllRead !== 'function') throw new AppError(503, 'NOTIFICATION_UNAVAILABLE', 'Notifications are temporarily unavailable');
+    const key = operationKey(idempotencyKey, randomUUID());
+    const readAt = instant(clock(), 'clock').toISOString();
+    // The server clock at request time is the cutoff: notifications created later stay unread.
+    const result = await repository.markAllRead({ ...scope, cutoff: readAt, readAt, idempotencyKey: key });
+    if (!result || result.status === 'FORBIDDEN') throw new AppError(403, 'FORBIDDEN', 'Action is not permitted');
+    if (result.status !== 'READ' || !Number.isSafeInteger(result.markedCount) || result.markedCount < 0) {
+      throw new AppError(503, 'NOTIFICATION_UNAVAILABLE', 'Notifications are temporarily unavailable');
+    }
+    return Object.freeze({ status: 'READ', markedCount: result.markedCount,
+      readAt: instant(result.readAt ?? readAt, 'readAt').toISOString() });
+  }
+
   async function publish({ eventId, eventType, title, message, deepLink, metadata, recipients, channel = 'IN_APP', idempotencyKey } = {}) {
     const normalizedEventId = requiredId(eventId ?? idempotencyKey, 'eventId');
     const normalized = {
@@ -219,7 +235,7 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
     return Object.freeze({ status: result?.status === 'ALREADY_EXISTS' ? 'ALREADY_EXISTS' : 'SUBSCRIBED' });
   }
 
-  return Object.freeze({ list, markRead, publish, updatePreferences, registerPushSubscription });
+  return Object.freeze({ list, markRead, markAllRead, publish, updatePreferences, registerPushSubscription });
 }
 
 export { actorScope, normalizeNotification, safeDeepLink };

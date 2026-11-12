@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-73 Update Sitter Profile" id="uc-73">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1601" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Pet Sitter / Staff reviewer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1321" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": PublicProfileService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1321" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": Current user + SitterStatus" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1321" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Profile / command store" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1321" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Version/hash audit" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1321" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Public directory" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1321" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="532" />
+        </mxCell>
+        <mxCell id="caption-1" value="ref [sitter submits own public profile]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: PUT /sitter-public-profiles/me with&#10;bio/areas/expectedVersion/key; session/CSRF" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Validate bio&lt;=1000, distinct areas1..30 and nonnegative&#10;version; assert unique storage indexes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="295" y="300" />
+            <Array as="points">
+              <mxPoint x="335" y="278" />
+              <mxPoint x="335" y="300" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-3" value="3: Transaction: recheck current actor role and eligible ACTIVE&#10;sitter account/status by shared writes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="358" />
+            <mxPoint as="targetPoint" x="480" y="358" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="358" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Read actor/operation/key command; exact fingerprint replay&#10;or key conflict409" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="416" />
+            <mxPoint as="targetPoint" x="670" y="416" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="416" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Require profile version; create/CAS SUBMITTED, reset review&#10;metadata and increment version" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="474" />
+            <mxPoint as="targetPoint" x="670" y="474" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="474" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: PROFILE_SUBMITTED contentHash audit + command result in same&#10;transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="532" />
+            <mxPoint as="targetPoint" x="855" y="532" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="532" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Own submitted profile; not public approval" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="590" />
+            <mxPoint as="targetPoint" x="105" y="590" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-8" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="663" width="1110" height="474" />
+        </mxCell>
+        <mxCell id="caption-8" value="ref [separate Staff/Admin moderation]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="670" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Review exact sitter userId/current&#10;version/APPROVE|REJECT/reason/new key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="783" />
+            <mxPoint as="targetPoint" x="295" y="783" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="783" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Require Staff role (Admin inherits Staff), forbid self-&#10;review" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="841" />
+            <mxPoint as="targetPoint" x="295" y="863" />
+            <Array as="points">
+              <mxPoint x="335" y="841" />
+              <mxPoint x="335" y="863" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-10" value="10: Recheck current moderator role + sitter eligibility inside&#10;transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="921" />
+            <mxPoint as="targetPoint" x="480" y="921" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="921" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Require SUBMITTED/current version; CAS APPROVED or REJECTED&#10;+ reviewer/time/reason" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="979" />
+            <mxPoint as="targetPoint" x="670" y="979" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="979" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: Profile decision/hash audit + command result" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1037" />
+            <mxPoint as="targetPoint" x="855" y="1037" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1037" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Directory exposes APPROVED content only; private application&#10;data is not republished" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1095" />
+            <mxPoint as="targetPoint" x="1035" y="1095" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-14" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1168" width="1110" height="162" />
+        </mxCell>
+        <mxCell id="caption-14" value="ref [photo is a separate media command]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1175" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: This profile payload is bio/areas only; profile avatar&#10;upload/version/owner handling belongs to MEDIA-02" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="1288" />
+            <mxPoint as="targetPoint" x="105" y="1288" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. Public profile is separate from application experience/private documents and AI matching profile. Changing public bio resubmits for moderation; image upload is not part of this DTO. Sources: backend/src/services/sitter-public-profile.service.js; backend/src/validators/sitter-public-profile.validator.js; backend/src/routes/sitter-public-profile.routes.js; backend/src/models/sitter-public-profile.model.js" style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1401" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

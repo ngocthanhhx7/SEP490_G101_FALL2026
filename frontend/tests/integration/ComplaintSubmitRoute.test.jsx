@@ -190,3 +190,43 @@ test('UC-52 route blocks operational sessions', async () => {
   expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
   expect(globalThis.fetch).not.toHaveBeenCalled();
 });
+
+ test('ambiguous submit freezes draft and retries the identical command', async () => {
+  const complaint = resultItem('retry-case', 'KN-RETRY', 'OPEN', { scope: 'BOOKING', visitId: null });
+  const submit = jest.fn().mockRejectedValueOnce(new Error('synthetic network')).mockImplementationOnce(() => reply({ complaint }, 201));
+  show(base + '/complaints/new?visit=' + visitId, { ['POST ' + apiBase]: submit });
+  const description = await screen.findByRole('textbox', { name: /Điều chưa ổn/ });
+  fireEvent.change(description, { target: { value: 'Nội dung gốc' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi khiếu nại' }));
+  const retry = await screen.findByRole('button', { name: 'Kiểm tra lại yêu cầu' });
+  expect(description).toBeDisabled();
+  expect(screen.getByLabelText('Thêm ảnh')).toBeDisabled();
+  fireEvent.click(retry);
+  expect(await screen.findByText(/Khiếu nại của bạn đã được gửi/)).toBeVisible();
+  expect(submit.mock.calls[1][0].body).toBe(submit.mock.calls[0][0].body);
+  expect(submit.mock.calls[1][0].headers.get('Idempotency-Key')).toBe(submit.mock.calls[0][0].headers.get('Idempotency-Key'));
+ });
+ test('ambiguous objection freezes reason and retries the identical command', async () => {
+  const item = resultItem('resolved', 'KN-RETRY-OBJECTION', 'RESOLVED', { objection: { allowed: true, count: 0, deadlineAt: '2026-11-12T12:00:00Z' } });
+  const submit = jest.fn().mockRejectedValueOnce(new Error('synthetic network')).mockImplementationOnce(() => reply({ complaint: { ...item, version: 2, state: 'ESCALATED', objection: { allowed: false } } }));
+  show(base + '/complaints/new', { [apiBase]: () => reply({ items: [item] }), ['POST ' + apiBase + '/resolved/objections']: submit });
+  fireEvent.click(await screen.findByRole('button', { name: 'Không đồng ý' }));
+  const reason = screen.getByRole('textbox', { name: /Lý do/ });
+  fireEvent.change(reason, { target: { value: 'Lý do gốc' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi lý do' }));
+  const retry = await screen.findByRole('button', { name: 'Kiểm tra lại yêu cầu' });
+  expect(reason).toBeDisabled();
+  fireEvent.click(retry);
+  expect(await screen.findByText('Đã gửi lý do không đồng ý đến quản trị viên.')).toBeVisible();
+  expect(submit.mock.calls[1][0].body).toBe(submit.mock.calls[0][0].body);
+  expect(submit.mock.calls[1][0].headers.get('Idempotency-Key')).toBe(submit.mock.calls[0][0].headers.get('Idempotency-Key'));
+ });
+
+test('shared booking detail keeps complaint action on its operational visit row', async () => {
+ const details={terms:[],visits:[{id:visitId,state:'COMPLETED',startAt:'2026-11-10T00:00:00Z',endAt:'2026-11-10T00:30:00Z',sitterName:'Synthetic sitter'}],price:{visitCount:1,visitPricesVnd:[120000],discountVnd:0,totalVnd:120000}};
+ const data=eligibility();data.visits[0].canSubmit=true;data.visits[0].eligibility.eligible=true;
+ show(base,{[bookingEndpoint]:()=>reply({...overdueBooking,details}),[apiBase+'/eligibility/bookings/'+bookingId]:()=>reply(data)});
+ const link=await screen.findByRole('link',{name:'Gửi khiếu nại'});
+ const row=link.closest('tr');expect(row).not.toBeNull();expect(within(row).getByText('Synthetic sitter')).toBeVisible();
+ expect(link).toHaveAttribute('href',base+'/complaints/new?visit='+visitId);
+});

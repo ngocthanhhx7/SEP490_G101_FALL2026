@@ -1,4 +1,17 @@
 import { exact, id, number, fail, instant } from './pet-care.validator.js';
+import { VISIT_WITHDRAWAL_REASONS } from '../constants/visit-withdrawal.js';
+
+export function withdrawalInput(value) {
+  exact(value, ['expectedVersion', 'expectedMode', 'reasonCode', 'note'], ['expectedVersion', 'expectedMode', 'reasonCode']);
+  number(value.expectedVersion, 0, 1000000, true);
+  if (!['EARLY', 'LATE'].includes(value.expectedMode) || !VISIT_WITHDRAWAL_REASONS.includes(value.reasonCode))
+    fail('VALIDATION_FAILED', 'Withdrawal mode and reason are required');
+  if (value.note !== undefined && (typeof value.note !== 'string' || value.note.trim().length > 1000))
+    fail('VALIDATION_FAILED', 'Withdrawal note must be no more than 1000 characters');
+  const { expectedVersion, expectedMode, reasonCode } = value;
+  const note = value.note?.trim();
+  return { expectedVersion, expectedMode, reasonCode, ...(note ? { note } : {}) };
+}
 export function availabilityInput(value) {
   exact(value, ['zone', 'workingWindows', 'effectiveFrom', 'expectedVersion'], ['zone', 'workingWindows', 'effectiveFrom', 'expectedVersion']);
   return value;

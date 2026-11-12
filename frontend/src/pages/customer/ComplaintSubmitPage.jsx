@@ -6,7 +6,7 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createComplaintApi } from '../../services/complaint-api.js';
 import { createPrivateImageApi, PRIVATE_IMAGE_MAX_BYTES } from '../../services/private-image-api.js';
-import { bookingPath, complaintDeadline, complaintError, complaintVisitStart, complaintVisitTime, retryKey } from '../../utils/complaint-presentation.js';
+import { bookingPath, complaintDeadline, complaintError, complaintVisitStart, complaintVisitTime, retryKey, uncertainComplaint } from '../../utils/complaint-presentation.js';
 import { ComplaintResultList } from './ComplaintResultList.jsx';
 import './complaint-submit.css';
 
@@ -34,6 +34,7 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
   const [photos, setPhotos] = useState([]);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const [photoError, setPhotoError] = useState('');
   const { booking, wholeBooking } = data;
   const canVisit = visit?.eligibility.eligible === true;
@@ -69,18 +70,23 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
         const uploaded = await imageApi.upload(photo.file, { idempotencyKey: photo.key });
         evidenceRefs.push(uploaded.id);
       }
-      const payload = {
+      const payload = operation.current?.payload ?? {
         scope, bookingId, ...(scope === 'VISIT' ? { visitId: visit.id } : {}),
         expectedVersion: (scope === 'VISIT' ? visit.version : booking.version) ?? undefined,
         description: description.trim(), evidenceRefs
       };
-      const result = await api.submit({ ...payload, idempotencyKey: retryKey(operation, payload) });
-      if (result.pending) { setError({ text: 'Đang chờ xác nhận. Hãy thử lại để kiểm tra.' }); return; }
+      const idempotencyKey = retryKey(operation, payload);
+      operation.current.payload = payload;
+      const result = await api.submit({ ...payload, idempotencyKey });
+      if (result.pending) { setUncertain(true); setError({ text: 'Đang chờ xác nhận. Hãy thử lại để kiểm tra.' }); return; }
+      setUncertain(false);
       setDescription('');
       setPhotos([]);
       operation.current = null;
       onSubmitted(result.data.complaint ?? result.data);
     } catch (failure) {
+      if (uncertainComplaint(failure)) setUncertain(true);
+      else if (!uncertain) operation.current = null;
       setError({
         description: Boolean(failure.fieldErrors?.description),
         text: complaintError(failure, 'Không gửi được khiếu nại. Hãy thử lại.')
@@ -101,7 +107,7 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
 
   return <form className="complaint-panel complaint-form" onSubmit={submit} noValidate aria-busy={busy || undefined}>
     <h2>Nội dung khiếu nại</h2>
-    <fieldset disabled={busy} className="complaint-scopes">
+    <fieldset disabled={busy || uncertain} className="complaint-scopes">
       <legend>Khiếu nại về <span aria-hidden="true">*</span></legend>
       <div>
         {visit && <label><input type="radio" name="complaint-scope" checked={scope === 'VISIT'} disabled={!canVisit}
@@ -111,16 +117,16 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
       </div>
     </fieldset>
     <label className="complaint-field" htmlFor="complaint-description">Điều chưa ổn <span aria-hidden="true">*</span></label>
-    <textarea id="complaint-description" rows={5} maxLength={1000} value={description} disabled={busy} required
+    <textarea id="complaint-description" rows={5} maxLength={1000} value={description} disabled={busy || uncertain} required
       aria-invalid={error?.description || undefined}
       aria-describedby={error?.description ? 'complaint-description-error' : 'complaint-description-limit'}
       onChange={event => { setDescription(event.target.value); setError(null); }} />
     {error?.description && <p className="complaint-form-error" id="complaint-description-error" role="alert">{error.text}</p>}
     <p id="complaint-description-limit" className="complaint-form__hint">Tối đa 1.000 ký tự.</p>
-    <fieldset disabled={busy} className="complaint-photos">
+    <fieldset disabled={busy || uncertain} className="complaint-photos">
       <legend>Ảnh <span>(không bắt buộc)</span></legend>
       <div className="complaint-photos__grid">
-        {photos.map(photo => <PhotoTile key={photo.key} photo={photo} busy={busy}
+        {photos.map(photo => <PhotoTile key={photo.key} photo={photo} busy={busy || uncertain}
           onRemove={() => { setPhotoError(''); setPhotos(previous => previous.filter(item => item.key !== photo.key)); }} />)}
         {photos.length < IMAGE_LIMIT && <label className="complaint-photo-add">
           <input type="file" accept="image/jpeg,image/png" multiple aria-label="Thêm ảnh" onChange={choosePhotos} />
@@ -136,7 +142,7 @@ function ComplaintForm({ data, visit, bookingId, api, imageApi, onSubmitted }) {
     {error && !error.description && <p className="complaint-form-error" role="alert">{error.text}</p>}
     <div className="complaint-form-actions">
       <Link to={bookingPath(bookingId)} className="pwc-button pwc-button--secondary">Hủy</Link>
-      <Button type="submit" loading={busy}>Gửi khiếu nại</Button>
+      <Button type="submit" loading={busy}>{uncertain ? 'Kiểm tra lại yêu cầu' : 'Gửi khiếu nại'}</Button>
     </div>
   </form>;
 }

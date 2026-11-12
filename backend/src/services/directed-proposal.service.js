@@ -141,6 +141,8 @@ function proposalView(proposal) {
     bookingId: proposal.bookingId ?? null,
     visitId: proposal.visitId,
     sitterId: proposal.sitterId,
+    ...(proposal.previousSitterId ? { previousSitterId: proposal.previousSitterId } : {}),
+    ...(typeof proposal.previousSitter?.displayName === 'string' ? { previousSitter: { displayName: proposal.previousSitter.displayName } } : {}),
     ...(typeof proposal.sitter?.displayName === 'string' ? { sitter: { displayName: proposal.sitter.displayName } } : {}),
     ...(proposal.areaCode ? { areaCode: proposal.areaCode, previousAreaCode: proposal.previousAreaCode, areaLabel: proposal.areaLabel } : {}),
     customerId: proposal.customerId,

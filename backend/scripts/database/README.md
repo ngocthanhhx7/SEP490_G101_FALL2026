@@ -8,10 +8,13 @@ new private `SINGLE_ACCOUNT_ROLE_MANIFEST` path. `--apply` requires matching
 not runtime .env changes. Unknown/ambiguous roles and foreign validators block.
 Drain old writers, including approval's former add-to-set writer, before apply.
 Use the reviewed main source and a fresh backup/isolated replica rehearsal.
+The exact previous four-role validator supports an enum-only upgrade when every
+existing user already meets that contract. The upgrade preserves users and sessions.
 
 For `--restore-validator`, point `SINGLE_ACCOUNT_ROLE_MANIFEST` at the original
 apply journal and confirm a fresh inspection digest. It only restores the known
-prior validator; migrated roles and revoked sessions remain. Journal files use
+prior validator. An older validator cannot be restored while a Sale Staff account
+exists. Migrated roles and revoked sessions remain. Journal files use
 exclusive private creation, fsync and atomic replace. Never elevate the app role
 to obtain collMod; use the existing authorized database operator. See the
 [scope, cutover and rollback](../../../doc/architecture/single-account-role-2026-11-09.md).

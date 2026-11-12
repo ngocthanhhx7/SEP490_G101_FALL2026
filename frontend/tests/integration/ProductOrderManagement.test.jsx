@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { ApiError } from '../../src/services/api-client.js';
 import { ProductOrderManagementPage } from '../../src/pages/admin/ProductOrderManagementPage.jsx';
 
@@ -10,6 +11,10 @@ const order = (over = {}) => ({ id: 'o1', code: 'DH-0032', createdAt: '2026-11-0
   lines: [line], subtotal: 420000, shippingFee: 25000, total: 445000, customer: { id: 'u1', displayName: 'Hoàng Thị Mai', phone: '0912345678' }, ...over });
 const pickup = (over = {}) => order({ id: 'o3', code: 'DH-0034', receiveMethod: 'PICKUP', paymentMethod: 'PAY_AT_SHOP', deliveryAddress: null,
   shippingFee: 0, subtotal: 185000, total: 185000, customer: { id: 'u3', displayName: 'Lý Quốc Huy' }, ...over });
+
+function renderOrderManagement(api) {
+  return render(<MemoryRouter><ProductOrderManagementPage api={api} /></MemoryRouter>);
+}
 
 function fakeApi(over = {}) {
   return {
@@ -33,7 +38,7 @@ const detail = (code) => screen.getByRole('complementary', { name: `Chi tiết �
 describe('Order Management', () => {
   test('shows the tabs with their counts, the orders to prepare and the first order in detail', async () => {
     const api = fakeApi();
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     expect(await screen.findByRole('button', { name: 'Cần chuẩn bị (3)' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Chờ khách lấy (1)' })).toBeVisible();
     expect(screen.getByRole('button', { name: 'Đang giao (2)' })).toBeVisible();
@@ -51,7 +56,7 @@ describe('Order Management', () => {
 
   test('switches tab and searches, and shows another order when chosen', async () => {
     const api = fakeApi();
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByRole('button', { name: 'Cần chuẩn bị (3)' });
     fireEvent.click(screen.getByRole('button', { name: 'Xem đơn DH-0034' }));
     expect(detail('DH-0034')).toBeVisible();
@@ -63,7 +68,7 @@ describe('Order Management', () => {
 
   test('AC-19 (D-236) searches by phone number and shows the customer phone in the order detail', async () => {
     const api = fakeApi();
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByRole('button', { name: 'Cần chuẩn bị (3)' });
     expect(screen.getByRole('searchbox', { name: SEARCH_LABEL })).toHaveAttribute('placeholder', SEARCH_LABEL);
     expect(within(detail('DH-0032')).getByText('Số điện thoại')).toBeVisible();
@@ -76,13 +81,13 @@ describe('Order Management', () => {
   test('AC-19 says so when the customer has no phone number', async () => {
     const api = fakeApi({ listOrders: jest.fn().mockResolvedValue({ data: [order({ customer: { id: 'u1', displayName: 'Hoàng Thị Mai', phone: null } })],
       meta: { counts: COUNTS } }) });
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     expect(await within(await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0032' })).findByText('Chưa có')).toBeVisible();
   });
 
   test('hands a delivery order to the carrier with the tracking code and confirms with MSG106', async () => {
     const api = fakeApi();
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByText('Mã vận đơn');
     fireEvent.change(screen.getByLabelText('Mã vận đơn'), { target: { value: 'VN7290018342' } });
     fireEvent.click(screen.getByRole('button', { name: 'Đã giao cho hãng vận chuyển' }));
@@ -93,7 +98,7 @@ describe('Order Management', () => {
 
   test('shows MSG103 when the backend rejects a missing tracking code and does not reload', async () => {
     const api = fakeApi({ handToCarrier: jest.fn().mockRejectedValue(new ApiError('TRACKING_CODE_REQUIRED', 422)) });
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByText('Mã vận đơn');
     fireEvent.click(screen.getByRole('button', { name: 'Đã giao cho hãng vận chuyển' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Vui lòng nhập mã vận đơn.');
@@ -103,7 +108,7 @@ describe('Order Management', () => {
   test('sends a request only once while it is in flight', async () => {
     let finish;
     const api = fakeApi({ handToCarrier: jest.fn().mockReturnValue(new Promise((resolve) => { finish = resolve; })) });
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByText('Mã vận đơn');
     fireEvent.change(screen.getByLabelText('Mã vận đơn'), { target: { value: 'VN7290018342' } });
     const button = screen.getByRole('button', { name: 'Đã giao cho hãng vận chuyển' });
@@ -115,7 +120,7 @@ describe('Order Management', () => {
 
   test('marks a pickup order ready', async () => {
     const api = fakeApi();
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByRole('button', { name: 'Cần chuẩn bị (3)' });
     fireEvent.click(screen.getByRole('button', { name: 'Xem đơn DH-0034' }));
     fireEvent.click(screen.getByRole('button', { name: 'Đánh dấu sẵn sàng' }));
@@ -128,7 +133,7 @@ describe('Order Management', () => {
       listOrders: jest.fn().mockResolvedValue({ data: [pickup({ status: 'READY' })], meta: { counts: COUNTS } }),
       handToCustomer: jest.fn().mockRejectedValue(new ApiError('ORDER_NOT_PAID', 409))
     });
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     fireEvent.click(await screen.findByRole('button', { name: 'Giao cho khách' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Đơn hàng này chưa được thanh toán đủ. Vui lòng thu tiền trước.');
     fireEvent.click(screen.getByRole('button', { name: 'Đã thu tiền' }));
@@ -137,7 +142,7 @@ describe('Order Management', () => {
 
   test('offers no payment step once a pickup order is paid, and hands it over', async () => {
     const api = fakeApi({ listOrders: jest.fn().mockResolvedValue({ data: [pickup({ status: 'READY', paid: true })], meta: { counts: COUNTS } }) });
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByRole('button', { name: 'Giao cho khách' });
     expect(screen.queryByRole('button', { name: 'Đã thu tiền' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Giao cho khách' }));
@@ -146,7 +151,7 @@ describe('Order Management', () => {
 
   test('offers no step for an order that is finished', async () => {
     const api = fakeApi({ listOrders: jest.fn().mockResolvedValue({ data: [order({ status: 'DELIVERED', paid: true, trackingCode: 'VN7290018342' })], meta: { counts: COUNTS } }) });
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     const panel = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0032' });
     expect(within(panel).getByText('VN7290018342')).toBeVisible();
     expect(within(panel).queryByRole('button')).toBeNull();
@@ -154,7 +159,7 @@ describe('Order Management', () => {
 
   test('reloads when the order changed status under the Admin', async () => {
     const api = fakeApi({ handToCarrier: jest.fn().mockRejectedValue(new ApiError('ORDER_STATE_CONFLICT', 409)) });
-    render(<ProductOrderManagementPage api={api} />);
+    renderOrderManagement(api);
     await screen.findByText('Mã vận đơn');
     fireEvent.change(screen.getByLabelText('Mã vận đơn'), { target: { value: 'VN7290018342' } });
     fireEvent.click(screen.getByRole('button', { name: 'Đã giao cho hãng vận chuyển' }));
@@ -164,12 +169,12 @@ describe('Order Management', () => {
 
   test('says so when a tab is empty and does not present a failed load as empty', async () => {
     const empty = fakeApi({ listOrders: jest.fn().mockResolvedValue({ data: [], meta: { counts: { ...COUNTS, PREPARE: 0 } } }) });
-    const { unmount } = render(<ProductOrderManagementPage api={empty} />);
+    const { unmount } = renderOrderManagement(empty);
     expect(await screen.findByText('Không có đơn hàng nào trong mục này.')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Cần chuẩn bị (0)' })).toBeVisible();
     unmount();
     const failing = fakeApi({ listOrders: jest.fn().mockRejectedValue(new ApiError('HTTP_ERROR', 500)) });
-    render(<ProductOrderManagementPage api={failing} />);
+    renderOrderManagement(failing);
     expect(await screen.findByText('Chưa tải được đơn hàng')).toBeVisible();
     expect(screen.queryByText('Không có đơn hàng nào trong mục này.')).toBeNull();
     expect(screen.getByRole('button', { name: 'Thử lại' })).toBeVisible();
@@ -179,7 +184,7 @@ describe('Order Management', () => {
     const shipped = (over = {}) => order({ status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342', ...over });
     const twoLines = [line, { productId: 'p2', productCode: 'SP-0020', productName: 'Cát vệ sinh cho mèo', quantity: 1, unitPrice: 185000, lineTotal: 185000 }];
     const returningOrder = (over = {}) => order({ status: 'BEING_RETURNED', trackingCode: 'VN7290018342', carrierReturnReason: 'Khách không có nhà', lines: twoLines, ...over });
-    const open = async (api, code = 'DH-0032') => { render(<ProductOrderManagementPage api={api} />); return within(await screen.findByRole('complementary', { name: `Chi tiết đơn ${code}` })); };
+    const open = async (api, code = 'DH-0032') => { renderOrderManagement(api); return within(await screen.findByRole('complementary', { name: `Chi tiết đơn ${code}` })); };
     const apiWith = (data) => fakeApi({ listOrders: jest.fn().mockResolvedValue({ data, meta: { counts: COUNTS } }) });
 
     test('AC-19 (AC-04) marks a shipped order as delivered and confirms with MSG106', async () => {
