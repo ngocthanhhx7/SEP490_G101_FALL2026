@@ -32,12 +32,33 @@ export function createMongoNotificationRepository({ connection, cursorSecret, cl
       const previous = await Notification.findOne(filter).lean();
       return previous ? { status: 'ALREADY_READ', readAt: previous.readAt.toISOString() } : { status: 'NOT_FOUND' };
     },
-    async markAllRead({ recipientId, roles, cutoff, readAt }) {
-      const result = await Notification.updateMany(
-        { ...scope({ recipientId, roles }), readAt: null, createdAt: { $lte: new Date(cutoff) } },
-        { $set: { readAt: new Date(readAt) } }
-      );
-      return { status: 'READ', markedCount: result.modifiedCount, readAt: new Date(readAt).toISOString() };
+    async markAllRead({ recipientId, roles, cutoff, readAt, idempotencyKey }) {
+      const receiptId = `read-all:${digest([recipientId, idempotencyKey])}`;
+      const fingerprint = digest({ recipientId, roles: [...roles].sort() });
+      const acknowledged = record => {
+        if (record.operation !== 'READ_ALL' || record.fingerprint !== fingerprint)
+          fail('IDEMPOTENCY_CONFLICT', 'Operation scope changed', 409);
+        return record.result;
+      };
+      try {
+        return await connection.transaction(async session => {
+          const prior = await NotificationEvent.findById(receiptId).session(session).lean();
+          if (prior) return acknowledged(prior);
+          const result = await Notification.updateMany(
+            { ...scope({ recipientId, roles }), readAt: null, createdAt: { $lte: new Date(cutoff) } },
+            { $set: { readAt: new Date(readAt) } }, { session }
+          );
+          const response = { status: 'READ', markedCount: result.modifiedCount, readAt: new Date(readAt).toISOString() };
+          await NotificationEvent.create([{ _id: receiptId, operation: 'READ_ALL', fingerprint,
+            result: response, expiresAt: new Date(+new Date(readAt) + 30 * 86400000) }], { session });
+          return response;
+        });
+      } catch (error) {
+        if (error.code !== 11000) throw error;
+        const prior = await NotificationEvent.findById(receiptId).lean();
+        if (!prior) throw error;
+        return acknowledged(prior);
+      }
     },
     async createEvent(body) {
       const { occurredAt, ...content } = body;

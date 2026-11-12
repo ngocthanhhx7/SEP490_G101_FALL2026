@@ -72,6 +72,12 @@ Tất cả dưới prefix /api/v1; dấu * chỉ diễn tả family trong tài l
 
 `POST /otp-challenges` accepts `{ channel, contact, purpose: "REGISTER" }` and returns HTTP 202 with `{ challengeId, expiresInSeconds, resendAfterSeconds }`. HTTP 202 means the challenge request was accepted; delivery is usable only when the configured provider accepts it. Do not infer inbox/SMS delivery from this response.
 
+For `purpose: "LOGIN"`, an unknown/replaced verified contact returns HTTP 409
+with `error.code: "REGISTRATION_REQUIRED"` before creating or sending OTP.
+The client opens a registration popup instead of the OTP form. This deliberately
+discloses registration presence as requested on 2026-11-11; account lock/state
+remains checked only after valid OTP. See [flow and rollout](../testing/login-registration-popup-2026-11-11.md).
+
 `POST /otp-verifications` accepts exactly `{ challengeId, channel, contact, purpose: "REGISTER", code, displayName }`. `displayName` is trimmed, internal whitespace is collapsed and the resulting value must contain 1–100 characters. Password, role, status, owner ID and other unknown fields are rejected. An invalid/expired/replayed code creates no account.
 
 On valid OTP, one MongoDB transaction consumes the challenge, creates an ACTIVE User with the fixed `CUSTOMER` role, stores the verified contact (encrypted value and keyed lookup), and creates a 30-day session. A verified contact already owned by an account returns `409 CONTACT_ALREADY_LINKED`; the caller should direct the user to OTP sign-in. Transaction failure leaves no partial Customer, Contact or session. REGISTER verification requires the P07 handler to be injected into P06; without it, the endpoint fails closed with `503 REGISTRATION_UNAVAILABLE`.

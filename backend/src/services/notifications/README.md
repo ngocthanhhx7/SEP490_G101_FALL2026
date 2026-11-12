@@ -4,7 +4,9 @@ This directory contains the recipient-scoped notification domain port. `notifica
 
 `markAllRead` marks every unread notification of the signed-in recipient that
 was created up to the server clock at request time; later notifications stay
-unread and a repeated call marks nothing.
+unread. Repeating an operation key returns its original cutoff and acknowledgement;
+a new gesture uses a new key. Read-all receipts share the existing event store,
+use a namespaced ID and expire after 30 days. Publication events have no expiry.
 
 `mongo-notification.repository.js` supplies durable list/read/event storage,
 signed scope/filter-bound pagination and snapshot-consistent unread counts.

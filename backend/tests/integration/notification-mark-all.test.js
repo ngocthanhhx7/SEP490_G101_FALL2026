@@ -1,6 +1,8 @@
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
+import { createMongoNotificationRepository } from '../../src/services/notifications/mongo-notification.repository.js';
+import { createNotificationService } from '../../src/services/notifications/notification.service.js';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
@@ -57,9 +59,9 @@ test('UC-88 marks every unread notification of the caller, across pages, and lea
   expect(kept.readAt.toISOString()).toBe('2026-10-01T00:00:00.000Z');
 });
 
-test('UC-88 repeating the request is safe and marks nothing the second time', async () => {
+test('UC-88 retry returns the original acknowledgement; a distinct request has no new rows to mark', async () => {
   await request(app).post('/api/v1/notifications/read-all').set(headers(owner, 'synthetic-read-all-01')).expect(200)
-    .expect(res => expect(res.body.data).toMatchObject({ status: 'READ', markedCount: 0 }));
+    .expect(res => expect(res.body.data).toMatchObject({ status: 'READ', markedCount: 45 }));
   await request(app).post('/api/v1/notifications/read-all').set(headers(owner)).expect(200)
     .expect(res => expect(res.body.data.markedCount).toBe(0));
 });
@@ -77,4 +79,29 @@ test('UC-88 single read receipts keep working next to read-all', async () => {
   await request(app).post(`/api/v1/notifications/${single._id}/read-receipts`).set(headers(owner)).expect(200);
   await request(app).post(`/api/v1/notifications/${single._id}/read-receipts`).set(headers(owner)).expect(200);
   expect((await Notification.findById(single._id).lean()).readAt).toBeTruthy();
+});
+
+test('concurrent retries keep the original cutoff, while a new operation can read a later arrival', async () => {
+  let time = Date.now();
+  const actor = { userId: 'synthetic-replay-owner', state: 'ACTIVE', roles: ['CUSTOMER'] };
+  const repository = createMongoNotificationRepository({ connection, cursorSecret: 'synthetic-notification-replay-secret-32-bytes', clock: () => time });
+  const service = createNotificationService({ repository, clock: () => time });
+  await Notification.create(row('replay-first', actor.userId, { createdAt: new Date(time - 1000) }));
+  const command = { actor, idempotencyKey: 'synthetic-stable-command' };
+  const [first, concurrent] = await Promise.all([service.markAllRead(command), service.markAllRead(command)]);
+  expect(first).toEqual(concurrent);
+  expect(first.markedCount).toBe(1);
+  time += 2000;
+  await Notification.create(row('replay-later', actor.userId, { createdAt: new Date(time - 1000) }));
+  expect(await service.markAllRead(command)).toEqual(first);
+  expect((await Notification.findById('replay-later').lean()).readAt).toBeNull();
+  expect((await service.markAllRead({ actor, idempotencyKey: 'synthetic-new-command' })).markedCount).toBe(1);
+  const Event = connection.models.NotificationEvent;
+  await Event.create({ _id: 'synthetic-permanent-publication', fingerprint: 'synthetic' });
+  expect((await Event.findById('synthetic-permanent-publication').lean()).expiresAt).toBeUndefined();
+  const indexes = await Event.collection.indexes();
+  expect(indexes.find(index => index.name === 'notification_operation_expiry').expireAfterSeconds).toBe(0);
+  const plan = await Notification.collection.find({ recipientId: actor.userId, readAt: null,
+    createdAt: { $lte: new Date(time) } }).explain('executionStats');
+  expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(2);
 });

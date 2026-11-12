@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY src ./src
+COPY data ./data
+COPY scripts/deployment/provision-service-areas.js ./scripts/deployment/provision-service-areas.js
 COPY scripts/deployment/ensure-indexes.js ./scripts/deployment/ensure-indexes.js
 COPY scripts/deployment/provision-demo-catalog.js ./scripts/deployment/provision-demo-catalog.js
 COPY scripts/deployment/provision-storefront-catalog.js ./scripts/deployment/provision-storefront-catalog.js

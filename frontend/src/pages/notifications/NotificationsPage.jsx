@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Notice } from '../../components/ui/index.js';
 import { Link } from 'react-router-dom';
 import { Bell, Check, RefreshCw } from 'lucide-react';
@@ -73,6 +73,7 @@ export function NotificationsPage({ api }) {
   const [rows, setRows] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const readAllKey = useRef(null);
   const [readStatus, setReadStatus] = useState(null);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [unreadCount, setUnreadCount] = useState(null);
@@ -143,7 +144,9 @@ export function NotificationsPage({ api }) {
     setMarkingAll(true);
     setReadStatus(null);
     try {
-      await api.markAllRead('notification-read-all');
+      readAllKey.current ??= globalThis.crypto.randomUUID();
+      await api.markAllRead(readAllKey.current);
+      readAllKey.current = null;
       // The server decides what is still unread (notifications created after its cutoff stay unread).
       retry();
       window.dispatchEvent(new window.Event('pwc:notifications-changed'));

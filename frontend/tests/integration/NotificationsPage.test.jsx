@@ -144,4 +144,22 @@ describe('NotificationsPage mark all as read (UC-88)', () => {
     expect(list).toHaveBeenCalledTimes(1);
     expect(link()).toBeEnabled();
   });
+
+  test('uncertain retries keep their operation key and a confirmed new gesture gets a new key', async () => {
+    const markAllRead = jest.fn().mockRejectedValueOnce(new Error('Lost response'))
+      .mockResolvedValue({ data: { markedCount: 1 } });
+    const list = jest.fn(async () => page([item], 1));
+    render(<NotificationsPage api={{ list, markRead: jest.fn(), markAllRead }} />);
+    await screen.findByText('1 chưa đọc');
+    fireEvent.click(link());
+    await screen.findByText('Chưa đánh dấu được thông báo');
+    const firstKey = markAllRead.mock.calls[0][0];
+    fireEvent.click(link());
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(link()).toBeEnabled());
+    expect(markAllRead.mock.calls[1][0]).toBe(firstKey);
+    fireEvent.click(link());
+    await waitFor(() => expect(markAllRead).toHaveBeenCalledTimes(3));
+    expect(markAllRead.mock.calls[2][0]).not.toBe(firstKey);
+  });
 });

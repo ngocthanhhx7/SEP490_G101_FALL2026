@@ -1,3 +1,4 @@
+import { createServiceAreaCatalog } from '../service-area-catalog.service.js';
 import { Types } from 'mongoose';
 import { employeeSchedulingModels } from '../../models/employee-scheduling.model.js';
 import { payrollModels } from '../../models/payroll.model.js';
@@ -14,8 +15,10 @@ import { createCalendarReader } from './calendar-read.service.js';
 
 const oid = value => new Types.ObjectId(value), DAY = 86400000;
 const ACTIVE_VISITS = ['ASSIGNED', 'IN_PROGRESS'];
-export function createEmployeeScheduleRepository({ connection, clock = Date.now, coverageAreas = [], routingProvider }) {
+export function createEmployeeScheduleRepository({ connection, clock = Date.now, coverageAreas, routingProvider }) {
   const models = employeeSchedulingModels(connection), payroll = payrollModels(connection), uow = createUnitOfWork(connection);
+  const catalog = coverageAreas === undefined ? createServiceAreaCatalog(connection) : null;
+  const getCoverageAreas = (options = {}) => catalog ? catalog.list(options) : Promise.resolve(coverageAreas);
   const col = name => connection.db.collection(name);
   async function employeeGuard(sitterId, session, authEpoch) {
     if (!Types.ObjectId.isValid(sitterId)) fail('UNAUTHENTICATED', 'Invalid employee identity', 401);
@@ -86,7 +89,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       const items = rows.filter(row => !windowsCover(workingWindows, row.startAt, row.endAt));
       return { items: items.slice(0, 50), hasMore: items.length > 50 };
     } } });
-  const areas = createSitterWorkAreasService({ listCoverageAreas: async () => coverageAreas, getSitterAvailability: find,
+  const areas = createSitterWorkAreasService({ listCoverageAreas: () => getCoverageAreas({ all: true }), getSitterAvailability: find,
     replaceSitterAreas: input => runGuard(input, async session => {
       const { sitterId, expectedVersion, idempotencyKey, areas } = input, key = commandId(sitterId, idempotencyKey, 'areas'), fingerprint = digest({ areas, expectedVersion });
       const previous = await models.EmployeeScheduleCommand.findById(key).session(session).lean();
@@ -95,7 +98,10 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       const current = await find(sitterId, session);
       if (current.version !== expectedVersion) fail('VERSION_CONFLICT', 'Schedule changed; reload', 409);
       const rows = await assignments(sitterId, new Date(clock()), session);
-      if (rows.some(row => !workAreaKeys(row.areaCode, coverageAreas).some(code => areas.includes(code)))) fail('CONFIRMED_VISIT_CONFLICT', 'Staff must review assigned work before removing its area', 409);
+      if (catalog) await catalog.lock(session);
+      const allAreas = await getCoverageAreas({ all: true, session });
+      if (areas.some(code => !allAreas.some(row => row.code === code && (row.enabled !== false || current.areas.includes(code))))) fail('WORK_AREA_CLOSED', 'Area closed for registration', 409);
+      if (rows.some(row => !workAreaKeys(row.areaCode, allAreas).some(code => areas.includes(code)))) fail('CONFIRMED_VISIT_CONFLICT', 'Staff must review assigned work before removing its area', 409);
       const result = await models.EmployeeAvailability.findOneAndUpdate({ _id: sitterId, version: expectedVersion },
         { $set: { areas }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
       await models.EmployeeScheduleCommand.create([{ _id: key, fingerprint, result, createdAt: new Date(clock()) }], { session });
@@ -124,7 +130,9 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       $or: [{ state: 'CONFIRMED' }, { state: 'HOLD', holdExpiresAt: { $gt: new Date(clock()) } }] }, { session }))
       fail('SLOT_UNAVAILABLE', 'Employee has another confirmed schedule block', 409);
     const revision = await revisionAt(sitterId, date, session);
-    if (!workAreaKeys(visit.areaCode, coverageAreas).some(code => record?.areas.includes(code))) fail('WORK_AREA_MISMATCH', 'Visit is outside registered work areas', 409);
+    if (catalog) await catalog.assertOpen(visit.areaCode, session);
+    const currentAreas = await getCoverageAreas({ session });
+    if (!workAreaKeys(visit.areaCode, currentAreas).some(code => record?.areas.includes(code))) fail('WORK_AREA_MISMATCH', 'Visit is outside registered work areas', 409);
     if (!windowsCover(revision?.workingWindows, start, end)) fail('OUTSIDE_WORKING_HOURS', 'Visit is outside registered shifts', 409);
     const lastDate = schedulingDate(new Date(end.getTime() - 1));
     if (lastDate !== date) {
@@ -187,5 +195,5 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       routingSource: routingProvider?.source ?? 'OSRM_STATIC_ROAD_ETA', weeklyWorkMinutes: occupiedMinutes(rows, week, until) };
   }
   return { models, payroll, uow, col, availability, areas, employeeGuard, eligible, runGuard, find, contractAt,
-    coverageAreas, areaKeys: code => workAreaKeys(code, coverageAreas) };
+    coverageAreas, getCoverageAreas, areaKeys: async code => { if (catalog) await catalog.assertOpen(code); return workAreaKeys(code, await getCoverageAreas()); } };
 }

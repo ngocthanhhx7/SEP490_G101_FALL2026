@@ -1,4 +1,4 @@
-﻿import { createHash } from 'node:crypto';
+﻿import { createHash, randomUUID } from 'node:crypto';
 import { AppError } from '../../utils/app-error.js';
 
 const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
@@ -165,7 +165,7 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
   async function markAllRead({ actor, idempotencyKey } = {}) {
     const scope = actorScope(actor);
     if (typeof repository.markAllRead !== 'function') throw new AppError(503, 'NOTIFICATION_UNAVAILABLE', 'Notifications are temporarily unavailable');
-    const key = operationKey(idempotencyKey, `notification-read-all:${scope.recipientId}`);
+    const key = operationKey(idempotencyKey, randomUUID());
     const readAt = instant(clock(), 'clock').toISOString();
     // The server clock at request time is the cutoff: notifications created later stay unread.
     const result = await repository.markAllRead({ ...scope, cutoff: readAt, readAt, idempotencyKey: key });
@@ -173,7 +173,8 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
     if (result.status !== 'READ' || !Number.isSafeInteger(result.markedCount) || result.markedCount < 0) {
       throw new AppError(503, 'NOTIFICATION_UNAVAILABLE', 'Notifications are temporarily unavailable');
     }
-    return Object.freeze({ status: 'READ', markedCount: result.markedCount, readAt });
+    return Object.freeze({ status: 'READ', markedCount: result.markedCount,
+      readAt: instant(result.readAt ?? readAt, 'readAt').toISOString() });
   }
 
   async function publish({ eventId, eventType, title, message, deepLink, metadata, recipients, channel = 'IN_APP', idempotencyKey } = {}) {
