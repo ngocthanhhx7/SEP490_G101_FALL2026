@@ -1,0 +1,168 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-95 Proposed evidenced stock adjustment" id="uc-95">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1730" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Admin" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Proposed StockBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": StockAdjustmentService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Product / Receipt source" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": MongoDB guarded stock" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Ledger / Command adapter" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1450" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="326" />
+        </mxCell>
+        <mxCell id="caption-1" value="Request and approved release gate" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Proposed adjustStock: current Admin, CSRF/key; productId,&#10;expectedStockVersion, nonzero quantityDelta,&#10;reasonCode/reason" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Require reviewed stock/ledger adapter and correction&#10;authority; validate typed key/fingerprint and safe integers" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="291" />
+            <mxPoint as="targetPoint" x="480" y="291" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="291" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: DAMAGED/LOST/INTERNAL_USE -&gt; negative delta only;&#10;RECEIPT_CORRECTION -&gt; required sourceReceiptId and evidenced&#10;signed correction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="349" />
+            <mxPoint as="targetPoint" x="480" y="371" />
+            <Array as="points">
+              <mxPoint x="520" y="349" />
+              <mxPoint x="520" y="371" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-4" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="457" width="1110" height="358" />
+        </mxCell>
+        <mxCell id="caption-4" value="Replay and source/quantity guard" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="464" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Read [actorId,STOCK_ADJUST_SUBMIT,key]; identical&#10;fingerprint -&gt; saved result; mismatch -&gt; conflict" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="577" />
+            <mxPoint as="targetPoint" x="1035" y="577" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-4" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="577" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Read product/current stock version; if correction read&#10;original immutable receipt and same product line" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="635" />
+            <mxPoint as="targetPoint" x="670" y="635" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="635" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Current onHand/held/source version; missing source or&#10;unauthorized correction -&gt; reject" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="693" />
+            <mxPoint as="targetPoint" x="480" y="693" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7: Check expectedVersion; for decrease abs(delta)&lt;=onHand-held;&#10;resulting onHand&gt;=held&gt;=0; no arithmetic overflow" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="751" />
+            <mxPoint as="targetPoint" x="480" y="773" />
+            <Array as="points">
+              <mxPoint x="520" y="751" />
+              <mxPoint x="520" y="773" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-8" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="846" width="1110" height="336" />
+        </mxCell>
+        <mxCell id="caption-8" value="Atomic application" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="853" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: CAS Product by expected version and sellable predicate;&#10;apply signed delta and increment version once" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="966" />
+            <mxPoint as="targetPoint" x="855" y="966" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="966" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Append unique ADJUSTMENT ledger source tuple; create&#10;immutable APPLIED StockAdjustment referencing event/receipt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1024" />
+            <mxPoint as="targetPoint" x="1035" y="1024" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1024" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: Persist canonical original-key result within SAME&#10;transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1082" />
+            <mxPoint as="targetPoint" x="1035" y="1082" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1082" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Commit APPLIED DTO; any version/capacity/unique/write&#10;failure rolls back all stock/ledger/adjustment writes" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1140" />
+            <mxPoint as="targetPoint" x="105" y="1140" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-12" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1213" width="1110" height="246" />
+        </mxCell>
+        <mxCell id="caption-12" value="Failure and uncertain acknowledgement" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1220" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: Repeat after uncertain HTTP result with original&#10;key/payload, never create a second correction key to test&#10;success" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1333" />
+            <mxPoint as="targetPoint" x="295" y="1333" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1333" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Saved result for identical command; changed payload/stale&#10;stock/insufficient sellable -&gt; conflict; invalid&#10;reason/quantity -&gt; validation error" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1404" />
+            <mxPoint as="targetPoint" x="105" y="1404" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="DESIGN_PENDING_RUNTIME. Proposed interactions and technical DTO limits, not an existing deployed endpoint, provider acceptance or approved missing business policy. Every mutation rechecks current session/role/CSRF; user-supplied actor/state is ignored. External delivery/transfer is outside database transactions. No historic receipt rewrite, arbitrary positive stock or unexplained balance adjustment. Proposed sourceReceiptId and payloadFingerprint make correction provenance and replay scope explicit." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1530" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

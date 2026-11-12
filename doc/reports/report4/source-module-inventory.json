@@ -1,0 +1,5860 @@
+[
+  {
+    "source": "backend/src/app.js",
+    "exports": [
+      "createApp(options)"
+    ],
+    "methods": [
+      "skip(req)",
+      "handler(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createApp",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/config/database.js",
+    "exports": [
+      "connectDatabase(config)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/config/environment.js",
+    "exports": [
+      "loadConfig(env)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/config/esms.js",
+    "exports": [
+      "loadEsmsConfig(env)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/config/ports.js",
+    "exports": [
+      "createPorts(overrides)"
+    ],
+    "methods": [
+      "authenticate()",
+      "send()",
+      "createIntent()",
+      "verifyCallback()",
+      "reconcile()",
+      "upload()",
+      "read()",
+      "createReadCapability()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPorts",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/config/provider-ports.js",
+    "exports": [
+      "createProviderPortOverrides(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createProviderPortOverrides",
+        "operations": [],
+        "delegates": [
+          "email",
+          "sms",
+          "composed port"
+        ]
+      }
+    ]
+  },
+  {
+    "source": "backend/src/config/r2.js",
+    "exports": [
+      "loadR2Config(env)",
+      "loadApplicantDocumentConfig(env)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/config/smtp.js",
+    "exports": [
+      "loadSmtpConfig(env)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/config/staging-preflight.js",
+    "exports": [
+      "validateStagingEnvironment(env)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/auth-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/care-trait-price-rules.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/complaint-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/contact-topics.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/demo-service-catalog.js",
+    "exports": [
+      "demoPricingPolicy(item)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/demo-work-areas.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/directed-proposal-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/employee-payroll-policy.js",
+    "exports": [],
+    "methods": [
+      "resolve()"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/hanoi-demo-population.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/incident-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/initial-service-catalog.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/initial-service-details.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/leash-handling-price-rule.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/legacy-product-catalog.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/pagination.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/product-demo-catalog.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/product-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/product-permissions.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/product-photos.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/review-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/sitter-operations-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/constants/supplier-fields.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/controllers/admin-settlement.controller.js",
+    "exports": [
+      "createAdminSettlementController(service)"
+    ],
+    "methods": [
+      "list(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAdminSettlementController",
+        "operations": [
+          "list(req, res)",
+          "decide(req, res)",
+          "recordTransfer(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/application-status.controller.js",
+    "exports": [
+      "createApplicationStatusController(options)"
+    ],
+    "methods": [
+      "createChallenges(req, res)",
+      "createVerify(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createApplicationStatusController",
+        "operations": [
+          "createChallenges(req, res)",
+          "createVerify(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/assigned-care.controller.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/controllers/auth.controller.js",
+    "exports": [
+      "createAuthController(options)"
+    ],
+    "methods": [
+      "getMe(req, res)",
+      "createOtpChallenges(req, res)",
+      "createOtpVerifications(req, res)",
+      "createSessions(req, res)",
+      "createMeContactChanges(req, res)",
+      "createMeContactVerifications(req, res)",
+      "deleteSessionsCurrent(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAuthController",
+        "operations": [
+          "getMe(req, res)",
+          "createOtpChallenges(req, res)",
+          "createOtpVerifications(req, res)",
+          "createSessions(req, res)",
+          "createMeContactChanges(req, res)",
+          "createMeContactVerifications(req, res)",
+          "deleteSessionsCurrent(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/avatar.controller.js",
+    "exports": [
+      "createAvatarController(options)"
+    ],
+    "methods": [
+      "metadata(req, res)",
+      "content(req, res)",
+      "change(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAvatarController",
+        "operations": [
+          "metadata(req, res)",
+          "content(req, res)",
+          "change(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/booking-checkout.controller.js",
+    "exports": [
+      "createBookingCheckoutController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createBookingCheckoutController",
+        "operations": [
+          "availability(req, res)",
+          "options(req, res)",
+          "confirm(req, res)",
+          "read(req, res)",
+          "paymentLink(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/complaint.controller.js",
+    "exports": [
+      "createComplaintController(options)"
+    ],
+    "methods": [
+      "createVisitsByVisitId(req, res)",
+      "createRoot(req, res)",
+      "getRoot(req, res)",
+      "getCasesByComplaintId(req, res)",
+      "getByComplaintId(req, res)",
+      "createByComplaintIdReview(req, res)",
+      "createByComplaintIdResolution(req, res)",
+      "createByComplaintIdObjections(req, res)",
+      "createByComplaintIdDecision(req, res)",
+      "createCasesByComplaintIdObjections(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createComplaintController",
+        "operations": [
+          "createVisitsByVisitId(req, res)",
+          "createRoot(req, res)",
+          "getRoot(req, res)",
+          "getCasesByComplaintId(req, res)",
+          "getByComplaintId(req, res)",
+          "createByComplaintIdReview(req, res)",
+          "createByComplaintIdResolution(req, res)",
+          "createByComplaintIdObjections(req, res)",
+          "createByComplaintIdDecision(req, res)",
+          "createCasesByComplaintIdObjections(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/contact.controller.js",
+    "exports": [
+      "createContactController(options)"
+    ],
+    "methods": [
+      "createMessages(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createContactController",
+        "operations": [
+          "createMessages(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/controller-action.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/controllers/customer-address.controller.js",
+    "exports": [
+      "createCustomerAddressController(options)"
+    ],
+    "methods": [
+      "getRoot(req, res)",
+      "createRoot(req, res)",
+      "updateByAddressId(req, res)",
+      "createByAddressIdArchives(req, res)",
+      "getByVisitIdAccessNotes(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCustomerAddressController",
+        "operations": [
+          "getRoot(req, res)",
+          "createRoot(req, res)",
+          "updateByAddressId(req, res)",
+          "createByAddressIdArchives(req, res)",
+          "getByVisitIdAccessNotes(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/customer-bookings.controller.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/controllers/customer-profile.controller.js",
+    "exports": [
+      "createCustomerProfileController(options)"
+    ],
+    "methods": [
+      "getProfile(req, res)",
+      "updateProfile(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCustomerProfileController",
+        "operations": [
+          "getProfile(req, res)",
+          "updateProfile(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/dashboard-read.controller.js",
+    "exports": [
+      "createDashboardReadController(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createDashboardReadController",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/directed-proposal.controller.js",
+    "exports": [
+      "createDirectedProposalController(options)"
+    ],
+    "methods": [
+      "create(req, res)",
+      "read(req, res)",
+      "confirm(req, res)",
+      "preview(req, res)",
+      "createBookingsByBookingIdVisitsByVisitIdProposals(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createDirectedProposalController",
+        "operations": [
+          "create(req, res)",
+          "read(req, res)",
+          "confirm(req, res)",
+          "preview(req, res)",
+          "createBookingsByBookingIdVisitsByVisitIdProposals(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/employee-scheduling.controller.js",
+    "exports": [
+      "createEmployeeSchedulingController(options)"
+    ],
+    "methods": [
+      "availability(req, res)",
+      "calendar(req, res)",
+      "saveAvailability(req, res)",
+      "areas(req, res)",
+      "saveAreas(req, res)",
+      "offers(req, res)",
+      "assignments(req, res)",
+      "accept(req, res)",
+      "decline(req, res)",
+      "queue(req, res)",
+      "candidates(req, res)",
+      "invite(req, res)",
+      "plans(req, res)",
+      "previewPlan(req, res)",
+      "finalizePlan(req, res)",
+      "propose(req, res)",
+      "proposal(req, res)",
+      "confirmProposal(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmployeeSchedulingController",
+        "operations": [
+          "availability(req, res)",
+          "calendar(req, res)",
+          "saveAvailability(req, res)",
+          "areas(req, res)",
+          "saveAreas(req, res)",
+          "offers(req, res)",
+          "assignments(req, res)",
+          "accept(req, res)",
+          "decline(req, res)",
+          "queue(req, res)",
+          "candidates(req, res)",
+          "invite(req, res)",
+          "plans(req, res)",
+          "previewPlan(req, res)",
+          "finalizePlan(req, res)",
+          "propose(req, res)",
+          "proposal(req, res)",
+          "confirmProposal(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/employment-document.controller.js",
+    "exports": [
+      "createEmploymentDocumentController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createEmploymentDocumentController",
+        "operations": [
+          "get(req, res)",
+          "save(req, res)",
+          "decide(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/finance-source.controller.js",
+    "exports": [
+      "createFinanceSourceController(options)"
+    ],
+    "methods": [
+      "execution(req, res)",
+      "assessment(req, res)",
+      "payment(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createFinanceSourceController",
+        "operations": [
+          "execution(req, res)",
+          "checkIn(req, res)",
+          "checkOut(req, res)",
+          "checklist(req, res)",
+          "assessment(req, res)",
+          "payment(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/health.controller.js",
+    "exports": [
+      "createHealthController(service)"
+    ],
+    "methods": [
+      "health(req, res)",
+      "ready(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createHealthController",
+        "operations": [
+          "health(req, res)",
+          "ready(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/incident.controller.js",
+    "exports": [
+      "createIncidentController(options)"
+    ],
+    "methods": [
+      "createIncidents(req, res)",
+      "createVisitsByVisitIdIncidents(req, res)",
+      "getIncidents(req, res)",
+      "getVisitsByVisitIdIncidents(req, res)",
+      "getIncidentsByIncidentId(req, res)",
+      "getCasesByCaseId(req, res)",
+      "createCasesByCaseIdResolutions(req, res)",
+      "createIncidentsByIncidentIdResolutions(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createIncidentController",
+        "operations": [
+          "createIncidents(req, res)",
+          "createVisitsByVisitIdIncidents(req, res)",
+          "getIncidents(req, res)",
+          "getVisitsByVisitIdIncidents(req, res)",
+          "getIncidentsByIncidentId(req, res)",
+          "getCasesByCaseId(req, res)",
+          "createCasesByCaseIdResolutions(req, res)",
+          "createIncidentsByIncidentIdResolutions(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/maps.controller.js",
+    "exports": [
+      "createMapsController(options)"
+    ],
+    "methods": [
+      "render(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMapsController",
+        "operations": [
+          "search(req, res)",
+          "resolve(req, res)",
+          "render(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/notification.controller.js",
+    "exports": [
+      "createNotificationController(options)"
+    ],
+    "methods": [
+      "getRoot(req, res)",
+      "createByNotificationIdReadReceipts(req, res)",
+      "updatePreferences(req, res)",
+      "createSubscriptions(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createNotificationController",
+        "operations": [
+          "getRoot(req, res)",
+          "createByNotificationIdReadReceipts(req, res)",
+          "updatePreferences(req, res)",
+          "createSubscriptions(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/payroll.controller.js",
+    "exports": [
+      "createPayrollController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createPayrollController",
+        "operations": [
+          "overview(req, res)",
+          "employees(req, res)",
+          "preview(req, res)",
+          "automatic(req, res)",
+          "submitAdjustment(req, res)",
+          "adjustmentDecision(req, res)",
+          "adjustments(req, res)",
+          "own(req, res)",
+          "contracts(req, res)",
+          "submit(req, res)",
+          "decision(req, res)",
+          "list(req, res)",
+          "prepare(req, res)",
+          "statements(req, res)",
+          "statementDecision(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/pet-care.controller.js",
+    "exports": [
+      "createPetCareController(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createPetCareController",
+        "operations": [
+          "catalog(req, res)",
+          "pets(req, res)",
+          "addresses(req, res)",
+          "managedAddresses(req, res)",
+          "pet(req, res)",
+          "address(req, res)",
+          "updatePet(req, res)",
+          "updateAddress(req, res)",
+          "archivePet(req, res)",
+          "archiveAddress(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/pricing.controller.js",
+    "exports": [
+      "createPricingController(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createPricingController",
+        "operations": [
+          "readCombo(req, res)",
+          "updateCombo(req, res)",
+          "basket(req, res)",
+          "quote(req, res)",
+          "read(req, res)",
+          "policy(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/private-image.controller.js",
+    "exports": [
+      "createPrivateImageController(options)"
+    ],
+    "methods": [
+      "upload(req, res)",
+      "read(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPrivateImageController",
+        "operations": [
+          "upload(req, res)",
+          "read(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/product-cart.controller.js",
+    "exports": [
+      "createProductCartController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createProductCartController",
+        "operations": [
+          "read(req, res)",
+          "addLine(req, res)",
+          "setLine(req, res)",
+          "removeLine(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/product-catalog.controller.js",
+    "exports": [
+      "createProductCatalogController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createProductCatalogController",
+        "operations": [
+          "list(req, res)",
+          "read(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/product-management.controller.js",
+    "exports": [
+      "createProductManagementController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createProductManagementController",
+        "operations": [
+          "list(req, res)",
+          "read(req, res)",
+          "create(req, res)",
+          "update(req, res)",
+          "remove(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/product-order-management.controller.js",
+    "exports": [
+      "createProductOrderManagementController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createProductOrderManagementController",
+        "operations": [
+          "list(req, res)",
+          "read(req, res)",
+          "handToCarrier(req, res)",
+          "markReady(req, res)",
+          "markDelivered(req, res)",
+          "markReturning(req, res)",
+          "confirmReturned(req, res)",
+          "handToCustomer(req, res)",
+          "recordPayment(req, res)",
+          "cancel(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/product-order.controller.js",
+    "exports": [
+      "createProductOrderController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createProductOrderController",
+        "operations": [
+          "place(req, res)",
+          "list(req, res)",
+          "read(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/product-photo.controller.js",
+    "exports": [
+      "createProductPhotoController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createProductPhotoController",
+        "operations": [
+          "upload(req, res)",
+          "remove(req, res)",
+          "read(req, res)",
+          "readAdmin(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/public-policy.controller.js",
+    "exports": [
+      "createPublicPolicyController(options)"
+    ],
+    "methods": [
+      "getPublicPolicies(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPublicPolicyController",
+        "operations": [
+          "getPublicPolicies(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/public-service-areas.controller.js",
+    "exports": [
+      "createPublicServiceAreasController(service)"
+    ],
+    "methods": [
+      "list(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPublicServiceAreasController",
+        "operations": [
+          "list(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/refunds.controller.js",
+    "exports": [
+      "createRefundsController(options)"
+    ],
+    "methods": [
+      "createRoot(req, res)",
+      "createByIdDecisions(req, res)",
+      "createByIdTransferRecords(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createRefundsController",
+        "operations": [
+          "createRoot(req, res)",
+          "createByIdDecisions(req, res)",
+          "createByIdTransferRecords(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/review.controller.js",
+    "exports": [
+      "createReviewController(options)"
+    ],
+    "methods": [
+      "createVisitsByVisitId(req, res)",
+      "createVisitsByVisitIdRating(req, res)",
+      "createVisitsByVisitIdRatings(req, res)",
+      "createRoot(req, res)",
+      "createSitterVisitsByVisitId(req, res)",
+      "getByReviewId(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createReviewController",
+        "operations": [
+          "createVisitsByVisitId(req, res)",
+          "createVisitsByVisitIdRating(req, res)",
+          "createVisitsByVisitIdRatings(req, res)",
+          "createRoot(req, res)",
+          "createSitterVisitsByVisitId(req, res)",
+          "getByReviewId(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/service-catalog.controller.js",
+    "exports": [
+      "createServiceCatalogController(options)"
+    ],
+    "methods": [
+      "getRoot(req, res)",
+      "getAdmin(req, res)",
+      "createAdmin(req, res)",
+      "replaceAdminById(req, res)",
+      "createAdminByIdPolicies(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createServiceCatalogController",
+        "operations": [
+          "getRoot(req, res)",
+          "getAdmin(req, res)",
+          "createAdmin(req, res)",
+          "replaceAdminById(req, res)",
+          "createAdminByIdPolicies(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/service-price.controller.js",
+    "exports": [
+      "createServicePriceController(options)"
+    ],
+    "methods": [
+      "getByServiceIdActive(req, res)",
+      "getAdminByServiceId(req, res)",
+      "createAdminByServiceId(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createServicePriceController",
+        "operations": [
+          "getByServiceIdActive(req, res)",
+          "getAdminByServiceId(req, res)",
+          "createAdminByServiceId(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/settlement-request.controller.js",
+    "exports": [
+      "createSettlementRequestController(service)"
+    ],
+    "methods": [
+      "withdraw(req, res)",
+      "read(req, res)",
+      "submit(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSettlementRequestController",
+        "operations": [
+          "withdraw(req, res)",
+          "read(req, res)",
+          "submit(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/sitter-application.controller.js",
+    "exports": [
+      "createSitterApplicationController(options)"
+    ],
+    "methods": [
+      "getMine(req, res)",
+      "updateMine(req, res)",
+      "getIntake(req, res)",
+      "createRoot(req, res)",
+      "getRoot(req, res)",
+      "getByApplicationId(req, res)",
+      "createByApplicationIdReview(req, res)",
+      "createByApplicationIdInterview(req, res)",
+      "createByApplicationIdDecisions(req, res)",
+      "createByApplicationIdSitterStatus(req, res)",
+      "getByApplicationIdDocumentsByDocumentId(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterApplicationController",
+        "operations": [
+          "getMine(req, res)",
+          "updateMine(req, res)",
+          "getIntake(req, res)",
+          "createRoot(req, res)",
+          "getRoot(req, res)",
+          "getByApplicationId(req, res)",
+          "createByApplicationIdReview(req, res)",
+          "createByApplicationIdInterview(req, res)",
+          "createByApplicationIdDecisions(req, res)",
+          "createByApplicationIdSitterStatus(req, res)",
+          "getByApplicationIdDocumentsByDocumentId(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/sitter-management.controller.js",
+    "exports": [
+      "createSitterManagementController(service)"
+    ],
+    "methods": [
+      "list(req, res)",
+      "reports(req, res)",
+      "get(req, res)",
+      "activity(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterManagementController",
+        "operations": [
+          "list(req, res)",
+          "reports(req, res)",
+          "get(req, res)",
+          "activity(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/sitter-operations.controller.js",
+    "exports": [
+      "createSitterOperationsController(options)"
+    ],
+    "methods": [
+      "getOffers(req, res)",
+      "getOffersByOfferId(req, res)",
+      "createOffersByOfferIdAcceptances(req, res)",
+      "createOffersByOfferIdDeclines(req, res)",
+      "getAssignments(req, res)",
+      "getVisitsByVisitId(req, res)",
+      "createVisitsByVisitIdReassignments(req, res)",
+      "createVisitsByVisitIdWithdrawals(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterOperationsController",
+        "operations": [
+          "getOffers(req, res)",
+          "getOffersByOfferId(req, res)",
+          "createOffersByOfferIdAcceptances(req, res)",
+          "createOffersByOfferIdDeclines(req, res)",
+          "getAssignments(req, res)",
+          "getVisitsByVisitId(req, res)",
+          "createVisitsByVisitIdReassignments(req, res)",
+          "createVisitsByVisitIdWithdrawals(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/sitter-public-profile.controller.js",
+    "exports": [
+      "createSitterPublicProfileController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createSitterPublicProfileController",
+        "operations": [
+          "own(req, res)",
+          "list(req, res)",
+          "submit(req, res)",
+          "review(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/sitter-recommendations.controller.js",
+    "exports": [
+      "createAiController(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createAiController",
+        "operations": [
+          "recommend(req, res)",
+          "decision(req, res)",
+          "ranking(req, res)",
+          "sitter(req, res)",
+          "block(req, res)",
+          "outcome(req, res)",
+          "model(req, res)",
+          "status(req, res)",
+          "trainingReadiness(req, res)",
+          "importModel(req, res)",
+          "reviewModel(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/supplier-management.controller.js",
+    "exports": [
+      "createSupplierManagementController(service)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createSupplierManagementController",
+        "operations": [
+          "list(req, res)",
+          "read(req, res)",
+          "create(req, res)",
+          "update(req, res)",
+          "stop(req, res)",
+          "resume(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/system-settings.controller.js",
+    "exports": [
+      "createSystemSettingsController(options)"
+    ],
+    "methods": [
+      "getServiceCatalog(req, res)",
+      "createServiceCatalogVisibility(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSystemSettingsController",
+        "operations": [
+          "getServiceCatalog(req, res)",
+          "createServiceCatalogVisibility(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/user-admin.controller.js",
+    "exports": [
+      "createUserAdminController(options)"
+    ],
+    "methods": [
+      "changeRoles(req, res)",
+      "getRoot(req, res)",
+      "getById(req, res)",
+      "createByIdLockDecisions(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createUserAdminController",
+        "operations": [
+          "changeRoles(req, res)",
+          "getRoot(req, res)",
+          "getById(req, res)",
+          "createByIdLockDecisions(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/visit-board.controller.js",
+    "exports": [
+      "createVisitBoardController(options)"
+    ],
+    "methods": [
+      "getStaffVisitBoard(req, res)",
+      "getVisitsByVisitIdDispatch(req, res)",
+      "createVisitsByVisitIdRemedies(req, res)",
+      "createVisitsByVisitIdRemediesByRemedyIdResponses(req, res)",
+      "createVisitsByVisitIdAssignments(req, res)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createVisitBoardController",
+        "operations": [
+          "getStaffVisitBoard(req, res)",
+          "getVisitsByVisitIdDispatch(req, res)",
+          "createVisitsByVisitIdRemedies(req, res)",
+          "createVisitsByVisitIdRemediesByRemedyIdResponses(req, res)",
+          "createVisitsByVisitIdAssignments(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/visit-travel.controller.js",
+    "exports": [
+      "createVisitTravelController(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createVisitTravelController",
+        "operations": [
+          "list(req, res)",
+          "get(req, res)",
+          "command(req, res)",
+          "locate(req, res)",
+          "eta(req, res)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/controllers/workspace-analytics.controller.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/jobs/application-mail.job.js",
+    "exports": [
+      "startApplicationMailWorker(options)"
+    ],
+    "methods": [
+      "stop()"
+    ],
+    "publicFactories": [
+      {
+        "name": "startApplicationMailWorker",
+        "operations": [
+          "stop()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/jobs/auto-assignment.job.js",
+    "exports": [
+      "createAutoAssignmentJob(options)"
+    ],
+    "methods": [
+      "runOnce()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAutoAssignmentJob",
+        "operations": [
+          "runOnce()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/jobs/earning-accrual.job.js",
+    "exports": [
+      "startEarningAccrualWorker(options)"
+    ],
+    "methods": [
+      "stop()"
+    ],
+    "publicFactories": [
+      {
+        "name": "startEarningAccrualWorker",
+        "operations": [
+          "stop()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/jobs/employee-dispatch.job.js",
+    "exports": [
+      "startEmployeeDispatchWorker(options)"
+    ],
+    "methods": [
+      "stop()"
+    ],
+    "publicFactories": [
+      {
+        "name": "startEmployeeDispatchWorker",
+        "operations": [
+          "stop()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/jobs/operational-sweep.job.js",
+    "exports": [
+      "calculateOfferDeadline(options)",
+      "canAcceptOfferAt(options)",
+      "createOperationalSweepJob(options)"
+    ],
+    "methods": [
+      "runOnce()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createOperationalSweepJob",
+        "operations": [
+          "runOnce()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/jobs/payment-reminder-overdue.job.js",
+    "exports": [
+      "createPaymentReminderOverdueJob(options)"
+    ],
+    "methods": [
+      "runOnce()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPaymentReminderOverdueJob",
+        "operations": [
+          "runOnce()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/jobs/visit-reminder.job.js",
+    "exports": [
+      "createVisitReminderJob(options)"
+    ],
+    "methods": [
+      "runOnce()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createVisitReminderJob",
+        "operations": [
+          "runOnce()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/middlewares/http.js",
+    "exports": [
+      "requestId(req, res, next)",
+      "notFound(_req, _res, next)",
+      "errorHandler(logger)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/middlewares/private-response.js",
+    "exports": [
+      "privateResponse(_req, res, next)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/middlewares/same-origin.js",
+    "exports": [
+      "requireSameOrigin(req, _res, next)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/middlewares/session.js",
+    "exports": [
+      "requireSession(sessionPort, options)",
+      "requireRoles(options)",
+      "requireCsrf(sessionPort, options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/application-mail.model.js",
+    "exports": [
+      "applicationMailModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/avatar.model.js",
+    "exports": [
+      "avatarModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/customer-review.model.js",
+    "exports": [
+      "customerReviewModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/decision-snapshot.model.js",
+    "exports": [
+      "decisionSnapshotModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/earning-accrual.model.js",
+    "exports": [
+      "earningAccrualModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/employee-scheduling.model.js",
+    "exports": [
+      "employeeSchedulingModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/employment-document.model.js",
+    "exports": [
+      "employmentDocumentModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/finance-source.model.js",
+    "exports": [
+      "financeSourceModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/identity.model.js",
+    "exports": [
+      "identityModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/model-definitions.js",
+    "exports": [
+      "registerModels(connection, definitions)"
+    ],
+    "methods": [
+      "validate(v)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/notification.model.js",
+    "exports": [
+      "notificationModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/payroll.model.js",
+    "exports": [
+      "payrollModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/pet-care.model.js",
+    "exports": [
+      "petCareModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/platform-data.model.js",
+    "exports": [
+      "platformDataModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/pricing.model.js",
+    "exports": [
+      "pricingModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/private-image.model.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/product-photo.model.js",
+    "exports": [
+      "productPhotoModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/product.model.js",
+    "exports": [
+      "productSalesModels(connection)"
+    ],
+    "methods": [
+      "validate(ids)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/public-policy-version.model.js",
+    "exports": [
+      "publicPolicyVersionModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/service-audit.model.js",
+    "exports": [
+      "serviceAuditModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/service-policy-version.model.js",
+    "exports": [
+      "servicePolicyVersionModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/service-presentation.model.js",
+    "exports": [
+      "servicePresentationModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/service-price-audit.model.js",
+    "exports": [
+      "servicePriceAuditModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/service-price-version.model.js",
+    "exports": [
+      "servicePriceVersionModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/service-version.model.js",
+    "exports": [
+      "serviceVersionModel(connection)"
+    ],
+    "methods": [
+      "validate(value)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/service.model.js",
+    "exports": [
+      "serviceModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/settlement.model.js",
+    "exports": [
+      "settlementModels(connection)"
+    ],
+    "methods": [
+      "validate(value)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/sitter-application.model.js",
+    "exports": [
+      "sitterApplicationModels(connection)"
+    ],
+    "methods": [
+      "validate(value)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/sitter-matching.model.js",
+    "exports": [
+      "matchingModels(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/sitter-public-profile.model.js",
+    "exports": [
+      "sitterPublicProfileModels(connection)"
+    ],
+    "methods": [
+      "validate(value)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/system-setting-audit.model.js",
+    "exports": [
+      "systemSettingAuditModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/system-setting-version.model.js",
+    "exports": [
+      "systemSettingVersionModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/user-admin-audit.model.js",
+    "exports": [
+      "userAdminAuditModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/models/user.model.js",
+    "exports": [
+      "userModel(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/admin-dashboard.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/admin-settlement-runtime.js",
+    "exports": [
+      "adminSettlementRuntimeModule(options)"
+    ],
+    "methods": [
+      "resolve()",
+      "clock()"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/admin-settlements.routes.js",
+    "exports": [
+      "adminSettlementModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/application-status.routes.js",
+    "exports": [
+      "applicationStatusModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/auth.module.js",
+    "exports": [
+      "authenticationModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/auth.routes.js",
+    "exports": [
+      "authModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/avatar.routes.js",
+    "exports": [
+      "avatarModule(options)",
+      "avatarRuntimeModule(options)"
+    ],
+    "methods": [
+      "work(req, res)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/booking-checkout.routes.js",
+    "exports": [
+      "bookingCheckoutRuntimeModule(options)"
+    ],
+    "methods": [
+      "keyGenerator(req)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/complaint.routes.js",
+    "exports": [
+      "createComplaintRouter(options)",
+      "complaintModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createComplaintRouter",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/routes/contact.routes.js",
+    "exports": [
+      "contactModule(options)"
+    ],
+    "methods": [
+      "handler(_req, _res, next)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/customer-address.routes.js",
+    "exports": [
+      "customerAddressesModule(options)",
+      "visitAccessNotesModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/customer-dashboard.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/customer-profile.routes.js",
+    "exports": [
+      "customerProfileModule(options)",
+      "customerProfileRuntimeModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/customer-read-runtime.js",
+    "exports": [
+      "customerReadRuntime(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/dashboard-read-router.js",
+    "exports": [
+      "createDashboardReadRouter(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createDashboardReadRouter",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/routes/dashboard-runtime.routes.js",
+    "exports": [
+      "dashboardReadRuntimeModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/directed-proposal.routes.js",
+    "exports": [
+      "createDirectedProposalRouter(options)",
+      "directedProposalModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createDirectedProposalRouter",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/routes/earnings.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/employee-payroll.routes.js",
+    "exports": [
+      "payrollRuntimeModule(options)"
+    ],
+    "methods": [
+      "clock()",
+      "keyGenerator(req)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/employee-scheduling.routes.js",
+    "exports": [
+      "employeeSchedulingRuntimeModule(options)"
+    ],
+    "methods": [
+      "keyGenerator(req)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/finance-source-runtime.js",
+    "exports": [
+      "financeSourceRuntime(options)"
+    ],
+    "methods": [
+      "clock()"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/health.routes.js",
+    "exports": [
+      "healthModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/incident.routes.js",
+    "exports": [
+      "createIncidentRouter(options)",
+      "incidentModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createIncidentRouter",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/routes/incidents.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/maps.routes.js",
+    "exports": [
+      "mapsRuntimeModule(options)"
+    ],
+    "methods": [
+      "keyGenerator(req)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/module-registry.js",
+    "exports": [
+      "registerModules(app, modules)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/notification.routes.js",
+    "exports": [
+      "createNotificationRouter(options)",
+      "notificationModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createNotificationRouter",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/routes/payroll.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/pet-care.routes.js",
+    "exports": [
+      "petCareRuntimeModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/pricing.routes.js",
+    "exports": [
+      "pricingRuntimeModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/private-image.routes.js",
+    "exports": [
+      "privateImageModule(options)",
+      "createMediaAdmission(options)",
+      "parseBody(parser, req, res)",
+      "createAdmissionMiddleware(options)",
+      "privateImageRuntimeModule(options)",
+      "applicantDocumentRuntimeModule(options)"
+    ],
+    "methods": [
+      "active()",
+      "tryAcquire()",
+      "release()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMediaAdmission",
+        "operations": [
+          "active()",
+          "tryAcquire()"
+        ],
+        "delegates": []
+      },
+      {
+        "name": "createAdmissionMiddleware",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/routes/product-sales.routes.js",
+    "exports": [
+      "productSalesRuntimeModules(options)"
+    ],
+    "methods": [
+      "keyGenerator(req)",
+      "work(req, res)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/public-policy.routes.js",
+    "exports": [
+      "publicPolicyModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/public-service-areas.routes.js",
+    "exports": [
+      "publicServiceAreasModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/refunds.routes.js",
+    "exports": [
+      "refundProposalModule(options)",
+      "refundLifecycleModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/review.routes.js",
+    "exports": [
+      "createReviewRouter(options)",
+      "reviewModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createReviewRouter",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/routes/service-catalog-runtime.js",
+    "exports": [
+      "serviceCatalogRuntimeModules(context)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/service-catalog.routes.js",
+    "exports": [
+      "serviceCatalogModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/service-price.routes.js",
+    "exports": [
+      "servicePriceModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/settlement-requests.routes.js",
+    "exports": [
+      "settlementRequestModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/settlement-runtime.js",
+    "exports": [
+      "settlementRequestRuntimeModule(options)"
+    ],
+    "methods": [
+      "resolve()",
+      "clock()"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-application.routes.js",
+    "exports": [
+      "sitterApplicationModule(options)",
+      "sitterApplicationRuntimeModule(context)"
+    ],
+    "methods": [
+      "keyGenerator(req)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-dashboard.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-list.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-management.routes.js",
+    "exports": [
+      "sitterManagementModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-operations.routes.js",
+    "exports": [
+      "sitterOperationsModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-profile.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-public-profile.routes.js",
+    "exports": [
+      "sitterPublicProfileModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/sitter-recommendations.routes.js",
+    "exports": [
+      "aiRuntimeModule(options)"
+    ],
+    "methods": [
+      "keyGenerator(req)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/staff-dashboard.routes.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/system-settings.routes.js",
+    "exports": [
+      "systemSettingsModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/user-admin.routes.js",
+    "exports": [
+      "userAdminModule(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/routes/visit-board.routes.js",
+    "exports": [
+      "createVisitBoardRouter(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createVisitBoardRouter",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/runtime.js",
+    "exports": [
+      "startRuntime(options)"
+    ],
+    "methods": [
+      "stop()"
+    ],
+    "publicFactories": [
+      {
+        "name": "startRuntime",
+        "operations": [
+          "stop()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/server.js",
+    "exports": [],
+    "methods": [
+      "logger(event)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/account-settings.service.js",
+    "exports": [
+      "createAccountSettingsService(options)"
+    ],
+    "methods": [
+      "listVerifiedContacts(actor)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAccountSettingsService",
+        "operations": [
+          "listVerifiedContacts(actor)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/admin-seed.service.js",
+    "exports": [
+      "seedDevelopmentAdmin(connection, config)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/ai-training/dataset-export.service.js",
+    "exports": [
+      "createTrainingDatasetExporter(options)"
+    ],
+    "methods": [
+      "collect(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createTrainingDatasetExporter",
+        "operations": [
+          "collect(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/ai-training/training-readiness.service.js",
+    "exports": [
+      "createTrainingReadinessService(options)"
+    ],
+    "methods": [
+      "read(actor)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createTrainingReadinessService",
+        "operations": [
+          "read(actor)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/applications/application-intake.service.js",
+    "exports": [
+      "createApplicationIntakeService(options)"
+    ],
+    "methods": [
+      "getIntake(options)",
+      "verifyApplicantDocuments(options)",
+      "readDocument(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createApplicationIntakeService",
+        "operations": [
+          "getIntake(options)",
+          "verifyApplicantDocuments(options)",
+          "readDocument(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/applications/application-mail-template.service.js",
+    "exports": [
+      "renderApplicationMail(command)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/applications/application-mail.service.js",
+    "exports": [
+      "createApplicationMailService(options)"
+    ],
+    "methods": [
+      "enqueue(application, session)",
+      "runBatch(options)",
+      "list(applicationId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createApplicationMailService",
+        "operations": [
+          "enqueue(application, session)",
+          "runBatch(options)",
+          "list(applicationId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/applications/application-status-runtime.service.js",
+    "exports": [
+      "createApplicationStatusRuntimeService(options)"
+    ],
+    "methods": [
+      "send(command)",
+      "findApplicantStatusById(options)",
+      "beginForApplication(options)",
+      "verifyForApplication(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createApplicationStatusRuntimeService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/applications/application-status.service.js",
+    "exports": [
+      "createApplicationStatusService(options)"
+    ],
+    "methods": [
+      "requestVerification(input)",
+      "verifyAndReadStatus(input)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createApplicationStatusService",
+        "operations": [
+          "requestVerification(input)",
+          "verifyAndReadStatus(input)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/authorization.service.js",
+    "exports": [
+      "createAuthorizationService(options)",
+      "requireResourceAuthorization(authorization, options)"
+    ],
+    "methods": [
+      "decide(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAuthorizationService",
+        "operations": [
+          "decide(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/avatar.service.js",
+    "exports": [
+      "createAvatarService(options)"
+    ],
+    "methods": [
+      "get(options)",
+      "change(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAvatarService",
+        "operations": [
+          "get(options)",
+          "change(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/billing/billing.service.js",
+    "exports": [
+      "createBillingService(options)"
+    ],
+    "methods": [
+      "createPrepaymentIntent(command)",
+      "issuePostpayBill(command)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createBillingService",
+        "operations": [
+          "createPrepaymentIntent(command)",
+          "issuePostpayBill(command)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/booking-proposals/boarding-care-plan.service.js",
+    "exports": [
+      "boardingCarePlan(booking, shiftMinutes)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/booking-proposals/booking-care-plan.service.js",
+    "exports": [
+      "createBookingCarePlanService(options)"
+    ],
+    "methods": [
+      "runBatch(options)",
+      "list(actor)",
+      "preview(actor, bookingId, body)",
+      "finalize(actor, bookingId, body, key)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createBookingCarePlanService",
+        "operations": [
+          "runBatch(options)",
+          "list(actor)",
+          "preview(actor, bookingId, body)",
+          "finalize(actor, bookingId, body, key)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/booking-proposals/booking-checkout.service.js",
+    "exports": [
+      "createBookingCheckoutService(options)"
+    ],
+    "methods": [
+      "options(actor)",
+      "confirm(actor, body, key)",
+      "read(actor, bookingId)",
+      "paymentLink(actor, bookingId, key)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createBookingCheckoutService",
+        "operations": [
+          "options(actor)",
+          "confirm(actor, body, key)",
+          "read(actor, bookingId)",
+          "paymentLink(actor, bookingId, key)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/booking-proposals/checkout-availability.service.js",
+    "exports": [
+      "createCheckoutAvailabilityService(options)"
+    ],
+    "methods": [
+      "guard(actor, visit, session)",
+      "search(actor, body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCheckoutAvailabilityService",
+        "operations": [
+          "guard(actor, visit, session)",
+          "search(actor, body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/booking-proposals/checkout-snapshot.service.js",
+    "exports": [
+      "checkoutVisitMoney(result)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/booking-proposals/directed-booking-proposal.service.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/booking-proposals/match-selection.service.js",
+    "exports": [
+      "assertMatchSelection(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/care/assigned-care.service.js",
+    "exports": [
+      "createAssignedCareService(options)"
+    ],
+    "methods": [
+      "get(actor, visitId)",
+      "acknowledge(actor, visitId, body, key)",
+      "accessNotes(actor, visitId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAssignedCareService",
+        "operations": [
+          "get(actor, visitId)",
+          "acknowledge(actor, visitId, body, key)",
+          "accessNotes(actor, visitId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/care/care-instructions.service.js",
+    "exports": [
+      "createCareInstructionsService(options)"
+    ],
+    "methods": [
+      "get(options)",
+      "getInstructions(options)",
+      "update(options)",
+      "updateInstructions(options)",
+      "acknowledge(options)",
+      "acknowledgeInstructions(options)",
+      "getAccessNotes(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCareInstructionsService",
+        "operations": [
+          "get(options)",
+          "getInstructions(options)",
+          "update(options)",
+          "updateInstructions(options)",
+          "acknowledge(options)",
+          "acknowledgeInstructions(options)",
+          "getAccessNotes(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/care/handover.service.js",
+    "exports": [
+      "createHandoverService(options)"
+    ],
+    "methods": [
+      "confirm(options)",
+      "confirmHandover(options)",
+      "get(options)",
+      "getHandover(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createHandoverService",
+        "operations": [
+          "confirm(options)",
+          "confirmHandover(options)",
+          "get(options)",
+          "getHandover(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/complaints/complaint.service.js",
+    "exports": [
+      "createComplaintService(options)"
+    ],
+    "methods": [
+      "run(options)",
+      "submit(options)",
+      "create(options)",
+      "createComplaint(options)",
+      "submitComplaint(options)",
+      "list(options)",
+      "get(options)",
+      "detail(options)",
+      "review(options)",
+      "resolve(options)",
+      "object(options)",
+      "disagree(options)",
+      "decide(options)",
+      "finalize(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createComplaintService",
+        "operations": [
+          "submit(options)",
+          "create(options)",
+          "createComplaint(options)",
+          "submitComplaint(options)",
+          "list(options)",
+          "get(options)",
+          "detail(options)",
+          "review(options)",
+          "resolve(options)",
+          "object(options)",
+          "disagree(options)",
+          "decide(options)",
+          "finalize(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/complaints/index.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/complaints/mongo-complaint.repository.js",
+    "exports": [
+      "createMongoComplaintRepository(options)"
+    ],
+    "methods": [
+      "getVisit(visitId)",
+      "getComplaint(id)",
+      "findOpenComplaint(options)",
+      "createComplaint(input)",
+      "updateComplaint(options)",
+      "holdSettlement(input)",
+      "releaseSettlementHold(input)",
+      "getIdempotencyResult(identity)",
+      "saveIdempotencyResult(options)",
+      "appendAuditAndOutbox(input)",
+      "runForVisitActor(_actor, _resourceId, work)",
+      "runForCase(_actor, _resourceId, work)",
+      "listComplaints(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoComplaintRepository",
+        "operations": [
+          "runForVisitActor(_actor, _resourceId, work)",
+          "runForCase(_actor, _resourceId, work)",
+          "listComplaints(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/contact-change-audit.service.js",
+    "exports": [
+      "createContactChangeAuditService(options)"
+    ],
+    "methods": [
+      "record(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createContactChangeAuditService",
+        "operations": [
+          "record(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/contact-crypto.service.js",
+    "exports": [
+      "canonicalizeContact(channel, value)",
+      "createContactCrypto(options)"
+    ],
+    "methods": [
+      "lookup(channel, value)",
+      "encrypt(canonicalValue)",
+      "decrypt(payload)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createContactCrypto",
+        "operations": [
+          "lookup(channel, value)",
+          "encrypt(canonicalValue)",
+          "decrypt(payload)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/contact-delivery.service.js",
+    "exports": [
+      "createContactDelivery(options)"
+    ],
+    "methods": [
+      "send(command)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createContactDelivery",
+        "operations": [
+          "send(command)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/contact.service.js",
+    "exports": [
+      "createContactService(options)"
+    ],
+    "methods": [
+      "send(body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createContactService",
+        "operations": [
+          "send(body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/customer-address.service.js",
+    "exports": [
+      "normalizeServiceLocation(value)",
+      "normalizePrivateAccessNotes(value)",
+      "createCustomerAddressService(options)"
+    ],
+    "methods": [
+      "list(actor, query)",
+      "create(actor, input, idempotencyKey)",
+      "execute(transaction)",
+      "update(actor, addressId, input, idempotencyKey)",
+      "archive(actor, addressId, input, idempotencyKey)",
+      "accessNotes(actor, visitId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCustomerAddressService",
+        "operations": [
+          "list(actor, query)",
+          "create(actor, input, idempotencyKey)",
+          "update(actor, addressId, input, idempotencyKey)",
+          "archive(actor, addressId, input, idempotencyKey)",
+          "accessNotes(actor, visitId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/customer-bookings.service.js",
+    "exports": [
+      "createCustomerBookingsService(options)"
+    ],
+    "methods": [
+      "list(actor, query)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCustomerBookingsService",
+        "operations": [
+          "list(actor, query)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/customer-profile.service.js",
+    "exports": [
+      "createCustomerProfileService(options)"
+    ],
+    "methods": [
+      "get(actor)",
+      "update(actor, input)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCustomerProfileService",
+        "operations": [
+          "get(actor)",
+          "update(actor, input)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/customer-registration.service.js",
+    "exports": [
+      "normalizeCustomerDisplayName(value)",
+      "createCustomerRegistrationHandler(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createCustomerRegistrationHandler",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/admin-dashboard.service.js",
+    "exports": [
+      "createAdminDashboardService(options)"
+    ],
+    "methods": [
+      "project(snapshot, scope)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAdminDashboardService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/customer-dashboard.service.js",
+    "exports": [
+      "createCustomerDashboardService(options)"
+    ],
+    "methods": [
+      "project(snapshot, scope)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCustomerDashboardService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/earnings.service.js",
+    "exports": [
+      "projectEarnings(snapshot, scope)",
+      "createEarningsService(options)"
+    ],
+    "methods": [
+      "project(snapshot, scope)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEarningsService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/mongo-earnings.repository.js",
+    "exports": [
+      "createMongoEarningsRepository(options)"
+    ],
+    "methods": [
+      "readSnapshot(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoEarningsRepository",
+        "operations": [
+          "readSnapshot(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/mongo-operational-dashboard.repository.js",
+    "exports": [
+      "createMongoOperationalDashboardRepository(options)"
+    ],
+    "methods": [
+      "readSnapshot(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoOperationalDashboardRepository",
+        "operations": [
+          "readSnapshot(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/mongo-payroll.repository.js",
+    "exports": [
+      "createMongoPayrollRepository(options)",
+      "createMongoDashboardRepositories(options)"
+    ],
+    "methods": [
+      "readSnapshot(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoPayrollRepository",
+        "operations": [
+          "readSnapshot(options)"
+        ],
+        "delegates": []
+      },
+      {
+        "name": "createMongoDashboardRepositories",
+        "operations": [],
+        "delegates": [
+          "composed port"
+        ]
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/mongo-sitter-profile.repository.js",
+    "exports": [
+      "createMongoSitterProfileRepository(options)"
+    ],
+    "methods": [
+      "readSnapshot(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoSitterProfileRepository",
+        "operations": [
+          "readSnapshot(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/payroll.service.js",
+    "exports": [
+      "createPayrollService(options)"
+    ],
+    "methods": [
+      "project(snapshot)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPayrollService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/read-projection.js",
+    "exports": [
+      "integer(value)",
+      "authorize(actor, roles)",
+      "filters(query)",
+      "date(value)",
+      "createProjectionReader(options)",
+      "visitRows(snapshot, scope, ownerField)",
+      "metrics(snapshot, names)"
+    ],
+    "methods": [
+      "read(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createProjectionReader",
+        "operations": [
+          "read(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/sitter-dashboard.service.js",
+    "exports": [
+      "createSitterDashboardService(options)"
+    ],
+    "methods": [
+      "project(snapshot, scope)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterDashboardService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/sitter-list.service.js",
+    "exports": [
+      "createSitterListService(options)"
+    ],
+    "methods": [
+      "project(snapshot)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterListService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/sitter-profile.service.js",
+    "exports": [
+      "createSitterProfileService(options)"
+    ],
+    "methods": [
+      "project(snapshot, scope)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterProfileService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/staff-dashboard.service.js",
+    "exports": [
+      "createStaffDashboardService(options)"
+    ],
+    "methods": [
+      "project(snapshot, scope)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createStaffDashboardService",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dashboards/workspace-analytics.service.js",
+    "exports": [
+      "createWorkspaceAnalytics(options)"
+    ],
+    "methods": [
+      "read(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createWorkspaceAnalytics",
+        "operations": [
+          "read(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/day-off-request.service.js",
+    "exports": [
+      "createDayOffRequestService(options)"
+    ],
+    "methods": [
+      "request(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createDayOffRequestService",
+        "operations": [
+          "request(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/demo-catalog-provisioning.service.js",
+    "exports": [
+      "provisionDemoCatalog(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/deployment-storage.service.js",
+    "exports": [
+      "provisionDeploymentStorage(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/directed-proposal.service.js",
+    "exports": [
+      "createDirectedSitterProposalService(options)"
+    ],
+    "methods": [
+      "createProposal(options)",
+      "previewProposal(options)",
+      "confirmProposal(options)",
+      "getProposal(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createDirectedSitterProposalService",
+        "operations": [
+          "createProposal(options)",
+          "previewProposal(options)",
+          "confirmProposal(options)",
+          "getProposal(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dispatch/candidate-batch.service.js",
+    "exports": [
+      "createCandidateBatchReader(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createCandidateBatchReader",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/dispatch.service.js",
+    "exports": [
+      "normalizeDispatchRequest(request)",
+      "evaluateCandidate(candidate, request)",
+      "rankEligibleCandidates(options)",
+      "createSitterDispatchService(options)"
+    ],
+    "methods": [
+      "suggest(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterDispatchService",
+        "operations": [
+          "suggest(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/email-delivery.service.js",
+    "exports": [
+      "mapSmtpError(error)",
+      "createEmailDelivery(options)"
+    ],
+    "methods": [
+      "send(command)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmailDelivery",
+        "operations": [
+          "send(command)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/email-template.service.js",
+    "exports": [
+      "renderEmail(command, now)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/employee-scheduling/dispatch-workspace.service.js",
+    "exports": [
+      "createDispatchWorkspaceService(options)"
+    ],
+    "methods": [
+      "read()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createDispatchWorkspaceService",
+        "operations": [
+          "read()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/employee-scheduling/employee-dispatch.service.js",
+    "exports": [
+      "createEmployeeDispatchService(options)"
+    ],
+    "methods": [
+      "listOffers(options)",
+      "getOffer(options)",
+      "listAssignedVisits(options)",
+      "runOfferCommand(options)",
+      "getOffer()",
+      "getVisit()",
+      "recheckEligibility(options)",
+      "checkSlotAvailability()",
+      "acceptOffer(options)",
+      "declineOffer(options)",
+      "appendAuditAndOutbox(value)",
+      "readContext(visitId, session)",
+      "previewCandidates(actor, visitId, input)",
+      "queue(actor)",
+      "invite(actor, visitId, body, key)",
+      "runBatch(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmployeeDispatchService",
+        "operations": [
+          "readContext(visitId, session)",
+          "previewCandidates(actor, visitId, input)",
+          "queue(actor)",
+          "invite(actor, visitId, body, key)",
+          "runBatch(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/employee-scheduling/employee-schedule.repository.js",
+    "exports": [
+      "createEmployeeScheduleRepository(options)"
+    ],
+    "methods": [
+      "findBySitterId(options)",
+      "listCalendar(options)",
+      "findCommand(options)",
+      "createIfAbsent(options)",
+      "replaceIfVersion(options)",
+      "saveCommand(options)",
+      "clock()",
+      "withEligibilityGuard(options, work)",
+      "findConflicts(options)",
+      "listCoverageAreas()",
+      "getSitterAvailability(sitterId, session)",
+      "replaceSitterAreas(input)",
+      "col(name)",
+      "employeeGuard(sitterId, session, authEpoch)",
+      "eligible(sitterId, visit, session, options)",
+      "runGuard(options, work)",
+      "find(sitterId, session)",
+      "contractAt(sitterId, start, end, session)",
+      "areaKeys(code)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmployeeScheduleRepository",
+        "operations": [
+          "col(name)",
+          "employeeGuard(sitterId, session, authEpoch)",
+          "eligible(sitterId, visit, session, options)",
+          "runGuard(options, work)",
+          "find(sitterId, session)",
+          "contractAt(sitterId, start, end, session)",
+          "areaKeys(code)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/employee-scheduling/schedule-policy.service.js",
+    "exports": [
+      "windowsCover(windows, startAt, endAt)",
+      "schedulingWeekStart(value)",
+      "matchingWindows(windows)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/employee-scheduling/schedule-proposal.service.js",
+    "exports": [
+      "createEmployeeScheduleProposalService(options)"
+    ],
+    "methods": [
+      "findByIdempotency()",
+      "createPending(input)",
+      "findOwned(options)",
+      "findConfirmationByIdempotency(input)",
+      "confirmAndCreateOffer(input)",
+      "findAvailableSlots(options)",
+      "propose(actor, visitId, body, key)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmployeeScheduleProposalService",
+        "operations": [
+          "propose(actor, visitId, body, key)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/employee-scheduling/scheduling-storage.service.js",
+    "exports": [
+      "provisionEmployeeScheduling(connection)",
+      "assertEmployeeSchedulingStorage(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/employee-scheduling/visit-travel.service.js",
+    "exports": [
+      "createVisitTravelService(options)"
+    ],
+    "methods": [
+      "list(actor, query)",
+      "get(actor, visitId)",
+      "command(actor, visitId, body)",
+      "locate(actor, visitId, body)",
+      "eta(actor, visitId, body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createVisitTravelService",
+        "operations": [
+          "list(actor, query)",
+          "get(actor, visitId)",
+          "command(actor, visitId, body)",
+          "locate(actor, visitId, body)",
+          "eta(actor, visitId, body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/esms-sms.service.js",
+    "exports": [
+      "createSmsPortOverrides(options)"
+    ],
+    "methods": [
+      "send(command)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSmsPortOverrides",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/hanoi-demo-population.service.js",
+    "exports": [
+      "provisionHanoiDemo(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/health.service.js",
+    "exports": [
+      "createHealthService(connection, lifecycle, timeoutMs)"
+    ],
+    "methods": [
+      "health()",
+      "readiness()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createHealthService",
+        "operations": [
+          "health()",
+          "readiness()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/incidents/incident.service.js",
+    "exports": [
+      "createIncidentService(options)"
+    ],
+    "methods": [
+      "report(options)",
+      "create(options)",
+      "list(options)",
+      "listIncidents(options)",
+      "detail(options)",
+      "get(options)",
+      "resolve(options)",
+      "resolveIncident(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createIncidentService",
+        "operations": [
+          "report(options)",
+          "create(options)",
+          "list(options)",
+          "listIncidents(options)",
+          "detail(options)",
+          "get(options)",
+          "resolve(options)",
+          "resolveIncident(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/incidents.service.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/initial-catalog-provisioning.service.js",
+    "exports": [
+      "provisionInitialCatalog(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/maps/location-search.service.js",
+    "exports": [
+      "createLocationSearchService(options)"
+    ],
+    "methods": [
+      "search(body)",
+      "resolve(body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createLocationSearchService",
+        "operations": [
+          "search(body)",
+          "resolve(body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/maps/map-render.service.js",
+    "exports": [
+      "createMapRenderService(options)"
+    ],
+    "methods": [
+      "resource(path, query)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMapRenderService",
+        "operations": [
+          "resource(path, query)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/notifications/domain-notifications.service.js",
+    "exports": [
+      "createDomainNotifications(options)"
+    ],
+    "methods": [
+      "productOrder(options, session)",
+      "payment(options, session)",
+      "payroll(options, session)",
+      "application(options, session)",
+      "visit(options, session)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createDomainNotifications",
+        "operations": [
+          "productOrder(options, session)",
+          "payment(options, session)",
+          "payroll(options, session)",
+          "application(options, session)",
+          "visit(options, session)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/notifications/mongo-notification.repository.js",
+    "exports": [
+      "createMongoNotificationRepository(options)"
+    ],
+    "methods": [
+      "list(options)",
+      "markRead(options)",
+      "createEvent(body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoNotificationRepository",
+        "operations": [
+          "list(options)",
+          "markRead(options)",
+          "createEvent(body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/notifications/notification.service.js",
+    "exports": [
+      "createNotificationService(options)"
+    ],
+    "methods": [
+      "list(options)",
+      "markRead(options)",
+      "publish(options)",
+      "updatePreferences(options)",
+      "registerPushSubscription(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createNotificationService",
+        "operations": [
+          "list(options)",
+          "markRead(options)",
+          "publish(options)",
+          "updatePreferences(options)",
+          "registerPushSubscription(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/notifications/scheduling-notifications.service.js",
+    "exports": [
+      "createSchedulingNotifications(options)"
+    ],
+    "methods": [
+      "publish(event, session)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSchedulingNotifications",
+        "operations": [
+          "publish(event, session)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/otp-verification.service.js",
+    "exports": [
+      "createOtpService(options)"
+    ],
+    "methods": [
+      "begin(options)",
+      "verify(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createOtpService",
+        "operations": [
+          "begin(options)",
+          "verify(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/pagination.service.js",
+    "exports": [
+      "paginate(model, options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/payroll/completion-payroll-source.service.js",
+    "exports": [
+      "recordEmployeeServiceCompletion(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/payroll/employment-document.service.js",
+    "exports": [
+      "createEmploymentDocumentService(options)"
+    ],
+    "methods": [
+      "get(actor, applicationId)",
+      "save(actor, applicationId, body, key)",
+      "decide(actor, applicationId, documentId, body, key)",
+      "activate(application, employeeId, actor, session)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmploymentDocumentService",
+        "operations": [
+          "get(actor, applicationId)",
+          "save(actor, applicationId, body, key)",
+          "decide(actor, applicationId, documentId, body, key)",
+          "activate(application, employeeId, actor, session)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/payroll/employment-prefill.service.js",
+    "exports": [
+      "createEmploymentPrefillService(options)"
+    ],
+    "methods": [
+      "get(actor, application)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmploymentPrefillService",
+        "operations": [
+          "get(actor, application)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/payroll/payroll-adjustment.service.js",
+    "exports": [
+      "createPayrollAdjustmentService(options)"
+    ],
+    "methods": [
+      "submitAdjustment(actor, body, key)",
+      "decideAdjustment(actor, adjustmentId, body, key)",
+      "listAdjustments(actor, query)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPayrollAdjustmentService",
+        "operations": [
+          "submitAdjustment(actor, body, key)",
+          "decideAdjustment(actor, adjustmentId, body, key)",
+          "listAdjustments(actor, query)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/payroll/payroll-calculation.service.js",
+    "exports": [
+      "calculateEmployeePayroll(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/payroll/payroll-draft.service.js",
+    "exports": [
+      "createPayrollDraftService(options)"
+    ],
+    "methods": [
+      "employees(actor)",
+      "preview(actor, input, session)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPayrollDraftService",
+        "operations": [
+          "employees(actor)",
+          "preview(actor, input, session)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/payroll/payroll-storage.service.js",
+    "exports": [
+      "assertPayrollStorage(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/payroll/payroll.service.js",
+    "exports": [
+      "createPayrollService(options)"
+    ],
+    "methods": [
+      "clock()",
+      "role(actor, name)",
+      "command(actor, operation, key, input, work)",
+      "employeeGuard(employeeId, session)",
+      "claimTransfer(reference, resource, session)",
+      "event(actor, employeeId, resourceId, type, reason, session)",
+      "page(model, match, actor, input, field, kind, project, select)",
+      "now()",
+      "payrollEmployees(actor)",
+      "previewStatement(actor, body)",
+      "prepareAutomaticStatement(actor, body, key)",
+      "recordContract(actor, body, key)",
+      "own(actor, query)",
+      "submitAdvance(actor, body, key)",
+      "decideAdvance(actor, advanceId, body, key)",
+      "overview(actor)",
+      "prepareStatement(actor, body, key, sourceDraft)",
+      "decideStatement(actor, statementId, body, key)",
+      "listStatements(actor, query)",
+      "listAdvances(actor, query)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPayrollService",
+        "operations": [
+          "payrollEmployees(actor)",
+          "previewStatement(actor, body)",
+          "prepareAutomaticStatement(actor, body, key)",
+          "recordContract(actor, body, key)",
+          "own(actor, query)",
+          "submitAdvance(actor, body, key)",
+          "decideAdvance(actor, advanceId, body, key)",
+          "overview(actor)",
+          "prepareStatement(actor, body, key, sourceDraft)",
+          "decideStatement(actor, statementId, body, key)",
+          "listStatements(actor, query)",
+          "listAdvances(actor, query)"
+        ],
+        "delegates": [
+          "composed port"
+        ]
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/pet-care-context.service.js",
+    "exports": [
+      "createPetCareContext(connection, clock)"
+    ],
+    "methods": [
+      "context(ownerId, input)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPetCareContext",
+        "operations": [
+          "context(ownerId, input)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/pet-care-management.service.js",
+    "exports": [
+      "createPetCareManagement(options)"
+    ],
+    "methods": [
+      "catalog()",
+      "listPets(ownerId)",
+      "listAddresses(ownerId, management)",
+      "createPet(ownerId, body, key)",
+      "createAddress(ownerId, body, key)",
+      "update(ownerId, kind, resourceId, body, key)",
+      "archive(ownerId, kind, resourceId, body, key)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPetCareManagement",
+        "operations": [
+          "catalog()",
+          "listPets(ownerId)",
+          "listAddresses(ownerId, management)",
+          "createPet(ownerId, body, key)",
+          "createAddress(ownerId, body, key)",
+          "update(ownerId, kind, resourceId, body, key)",
+          "archive(ownerId, kind, resourceId, body, key)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/pet-list.service.js",
+    "exports": [
+      "createPetListService(options)"
+    ],
+    "methods": [
+      "handler()",
+      "list(options)",
+      "create(options)",
+      "archive(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPetListService",
+        "operations": [
+          "list(options)",
+          "create(options)",
+          "archive(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/pricing/care-trait-policy.service.js",
+    "exports": [
+      "applyCareTraitDecision(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/pricing/leash-handling-policy.service.js",
+    "exports": [
+      "applyLeashHandlingDecision(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/pricing/pricing-calculation.service.js",
+    "exports": [
+      "validatePricingPolicy(policy)",
+      "calculateQuote(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/pricing/pricing-management.service.js",
+    "exports": [
+      "createPricingManagement(options)"
+    ],
+    "methods": [
+      "readCombo(serviceId)",
+      "updateCombo(actor, serviceId, body)",
+      "pricing(actor, body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPricingManagement",
+        "operations": [
+          "readCombo(serviceId)",
+          "updateCombo(actor, serviceId, body)",
+          "pricing(actor, body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/pricing/pricing.repository.js",
+    "exports": [
+      "createPricingRepository(connection, clock)"
+    ],
+    "methods": [
+      "context(ownerId, input)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPricingRepository",
+        "operations": [
+          "context(ownerId, input)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/pricing/pricing.service.js",
+    "exports": [
+      "createPricingService(options)"
+    ],
+    "methods": [
+      "quote(ownerId, body)",
+      "basket(ownerId, body)",
+      "readDecision(ownerId, decisionId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPricingService",
+        "operations": [
+          "quote(ownerId, body)",
+          "basket(ownerId, body)",
+          "readDecision(ownerId, decisionId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/private-image.service.js",
+    "exports": [
+      "createPrivateImageService(options)"
+    ],
+    "methods": [
+      "run(work)",
+      "upload(options)",
+      "read(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPrivateImageService",
+        "operations": [
+          "upload(options)",
+          "read(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/customer-phone-directory.service.js",
+    "exports": [
+      "createCustomerPhoneDirectory(options)"
+    ],
+    "methods": [
+      "userIdsByPhone(phone)",
+      "phonesOf(userIds)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCustomerPhoneDirectory",
+        "operations": [
+          "userIdsByPhone(phone)",
+          "phonesOf(userIds)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/product-cart.service.js",
+    "exports": [
+      "createProductCartService(options)"
+    ],
+    "methods": [
+      "read(actor)",
+      "addLine(actor, body)",
+      "setLine(actor, productId, body)",
+      "removeLine(actor, productId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createProductCartService",
+        "operations": [
+          "read(actor)",
+          "addLine(actor, body)",
+          "setLine(actor, productId, body)",
+          "removeLine(actor, productId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/product-catalog-provisioning.service.js",
+    "exports": [
+      "provisionProductCatalog(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/product-sales/product-catalog.service.js",
+    "exports": [
+      "toProductSummary(doc)",
+      "createProductCatalogService(options)"
+    ],
+    "methods": [
+      "list(query)",
+      "read(productId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createProductCatalogService",
+        "operations": [
+          "list(query)",
+          "read(productId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/product-management.service.js",
+    "exports": [
+      "toAdminProduct(doc)",
+      "createProductManagementService(options)"
+    ],
+    "methods": [
+      "list(actor, query)",
+      "read(actor, productId)",
+      "create(actor, body)",
+      "update(actor, productId, body)",
+      "remove(actor, productId, body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createProductManagementService",
+        "operations": [
+          "list(actor, query)",
+          "read(actor, productId)",
+          "create(actor, body)",
+          "update(actor, productId, body)",
+          "remove(actor, productId, body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/product-order-management.service.js",
+    "exports": [
+      "createProductOrderManagementService(options)"
+    ],
+    "methods": [
+      "list(actor, query)",
+      "read(actor, orderId)",
+      "handToCarrier(actor, orderId, body)",
+      "allowed(order)",
+      "changes()",
+      "markReady(actor, orderId, body)",
+      "handToCustomer(actor, orderId, body)",
+      "check(order)",
+      "markDelivered(actor, orderId, body)",
+      "changes(order)",
+      "markReturning(actor, orderId, body)",
+      "confirmReturned(actor, orderId, body)",
+      "effects(order, session)",
+      "recordPayment(actor, orderId, body)",
+      "cancel(actor, orderId, body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createProductOrderManagementService",
+        "operations": [
+          "list(actor, query)",
+          "read(actor, orderId)",
+          "handToCarrier(actor, orderId, body)",
+          "markReady(actor, orderId, body)",
+          "handToCustomer(actor, orderId, body)",
+          "markDelivered(actor, orderId, body)",
+          "markReturning(actor, orderId, body)",
+          "confirmReturned(actor, orderId, body)",
+          "recordPayment(actor, orderId, body)",
+          "cancel(actor, orderId, body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/product-order-pricing.js",
+    "exports": [
+      "priceProductOrder(options)",
+      "sellableQuantity(product)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/product-sales/product-order.service.js",
+    "exports": [
+      "toOrderView(doc)",
+      "createProductOrderService(options)"
+    ],
+    "methods": [
+      "place(actor, body, idempotencyKey)",
+      "list(actor, query)",
+      "read(actor, orderId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createProductOrderService",
+        "operations": [
+          "place(actor, body, idempotencyKey)",
+          "list(actor, query)",
+          "read(actor, orderId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/product-photo.service.js",
+    "exports": [
+      "createProductPhotoService(options)"
+    ],
+    "methods": [
+      "upload(input)",
+      "remove(input)",
+      "read(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createProductPhotoService",
+        "operations": [
+          "upload(input)",
+          "remove(input)",
+          "read(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/product-sales/product-sales-errors.js",
+    "exports": [
+      "requireCustomer(actor)"
+    ],
+    "methods": [
+      "notFound()",
+      "unauthenticated()",
+      "forbidden()",
+      "invalidRequest(message)",
+      "versionConflict(subject)",
+      "supplierNameTaken()",
+      "supplierStateConflict(status)",
+      "productNotFound(productIds)",
+      "productCodesExhausted()",
+      "outOfStock(productId)",
+      "exceedsAvailable(productId, available)",
+      "unavailable(productId)",
+      "cartEmpty()",
+      "cartFull()",
+      "cartLineNotFound()",
+      "outsideServiceArea()",
+      "addressNotFound()",
+      "trackingCodeRequired()",
+      "orderNotPaid()",
+      "orderStateConflict(status)",
+      "orderStockMismatch(orderId)",
+      "idempotencyConflict()",
+      "resellableQuantityInvalid(productId)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/product-sales/storefront-catalog-provisioning.service.js",
+    "exports": [
+      "provisionStorefrontCatalog(options)",
+      "backfillStorefrontPhotos(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/product-sales/supplier-management.service.js",
+    "exports": [
+      "toSupplier(doc)",
+      "createSupplierManagementService(options)"
+    ],
+    "methods": [
+      "list(actor, query)",
+      "read(actor, supplierId)",
+      "create(actor, body)",
+      "update(actor, supplierId, body)",
+      "stop(actor, supplierId, body)",
+      "resume(actor, supplierId, body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSupplierManagementService",
+        "operations": [
+          "list(actor, query)",
+          "read(actor, supplierId)",
+          "create(actor, body)",
+          "update(actor, supplierId, body)",
+          "stop(actor, supplierId, body)",
+          "resume(actor, supplierId, body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/providers/payos/mongo-payment-webhook.repository.js",
+    "exports": [
+      "createMongoPaymentWebhookRepository(options)"
+    ],
+    "methods": [
+      "findPaymentIntentByProviderReference(providerReference)",
+      "recordWebhookOutcome(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoPaymentWebhookRepository",
+        "operations": [
+          "findPaymentIntentByProviderReference(providerReference)",
+          "recordWebhookOutcome(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/providers/payos/payment-webhook.service.js",
+    "exports": [
+      "createPayosPaymentWebhookService(options)"
+    ],
+    "methods": [
+      "handleWebhook(body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPayosPaymentWebhookService",
+        "operations": [
+          "handleWebhook(body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/providers/payos/payos.provider.js",
+    "exports": [
+      "loadPayosConfig(env)",
+      "createPayosProvider(options)"
+    ],
+    "methods": [
+      "createPaymentLink(input)",
+      "getPaymentLink(orderCode)",
+      "verifyWebhook(body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPayosProvider",
+        "operations": [
+          "createPaymentLink(input)",
+          "getPaymentLink(orderCode)",
+          "verifyWebhook(body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/public-policy-catalog.service.js",
+    "exports": [
+      "createPublicPolicyCatalog(options)"
+    ],
+    "methods": [
+      "list()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPublicPolicyCatalog",
+        "operations": [
+          "list()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/public-service-areas.service.js",
+    "exports": [
+      "createPublicServiceAreas(options)"
+    ],
+    "methods": [
+      "list()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPublicServiceAreas",
+        "operations": [
+          "list()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/r2-private-media.service.js",
+    "exports": [
+      "createR2PrivateMedia(options)",
+      "createR2PortOverrides(options)"
+    ],
+    "methods": [
+      "upload(options)",
+      "read(options)",
+      "createReadCapability(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createR2PrivateMedia",
+        "operations": [
+          "upload(options)",
+          "read(options)",
+          "createReadCapability(options)"
+        ],
+        "delegates": []
+      },
+      {
+        "name": "createR2PortOverrides",
+        "operations": [],
+        "delegates": [
+          "composed port"
+        ]
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/refunds/refund.service.js",
+    "exports": [
+      "createRefundService(options)"
+    ],
+    "methods": [
+      "onReplay(transaction)",
+      "run(transaction)",
+      "propose(options)",
+      "decide(options)",
+      "recordTransfer(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createRefundService",
+        "operations": [
+          "propose(options)",
+          "decide(options)",
+          "recordTransfer(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/registration-policy.service.js",
+    "exports": [
+      "createRegistrationPolicyService(options)"
+    ],
+    "methods": [
+      "validateAndBuildReceipt(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createRegistrationPolicyService",
+        "operations": [
+          "validateAndBuildReceipt(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/reviews/index.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/reviews/mongo-customer-review.repository.js",
+    "exports": [
+      "createMongoCustomerReviewRepository(options)"
+    ],
+    "methods": [
+      "getReview(options)",
+      "runForVisitActor(actor, visitId, work)",
+      "getVisit()",
+      "getIdempotencyResult(identity)",
+      "saveIdempotencyResult(value)",
+      "findReview()",
+      "createReview(value)",
+      "appendAuditAndOutbox(value)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoCustomerReviewRepository",
+        "operations": [
+          "getReview(options)",
+          "runForVisitActor(actor, visitId, work)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/reviews/review.service.js",
+    "exports": [
+      "createReviewService(options)"
+    ],
+    "methods": [
+      "rateVisit(options)",
+      "rate(options)",
+      "create(options)",
+      "createRating(options)",
+      "get(options)",
+      "detail(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createReviewService",
+        "operations": [
+          "rateVisit(options)",
+          "rate(options)",
+          "create(options)",
+          "createRating(options)",
+          "get(options)",
+          "detail(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/reviews/sitter-review.service.js",
+    "exports": [
+      "createSitterReviewService(options)"
+    ],
+    "methods": [
+      "rateCustomer(options)",
+      "rateSitter(options)",
+      "create(options)",
+      "createRating(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterReviewService",
+        "operations": [
+          "rateCustomer(options)",
+          "rateSitter(options)",
+          "create(options)",
+          "createRating(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/service-catalog.service.js",
+    "exports": [
+      "createServiceCatalogService(options)"
+    ],
+    "methods": [
+      "create(options)",
+      "update(options)",
+      "setPolicy(options)",
+      "listAdmin(options)",
+      "publicList(options)",
+      "bookableSnapshot(serviceId, at)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createServiceCatalogService",
+        "operations": [
+          "create(options)",
+          "update(options)",
+          "setPolicy(options)",
+          "listAdmin(options)",
+          "publicList(options)",
+          "bookableSnapshot(serviceId, at)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/service-details-provisioning.service.js",
+    "exports": [
+      "provisionServiceDetails(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/service-existence.service.js",
+    "exports": [
+      "createServiceExistence(connection)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createServiceExistence",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/service-price.service.js",
+    "exports": [
+      "parsePriceVersionInput(value)",
+      "createServicePriceService(options)"
+    ],
+    "methods": [
+      "list(serviceId)",
+      "latestVersion(serviceId)",
+      "getActivePrice(serviceId, at)",
+      "getActivePrices(serviceIds, at)",
+      "createVersion(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createServicePriceService",
+        "operations": [
+          "list(serviceId)",
+          "latestVersion(serviceId)",
+          "getActivePrice(serviceId, at)",
+          "getActivePrices(serviceIds, at)",
+          "createVersion(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/session.service.js",
+    "exports": [
+      "createSessionService(options)",
+      "lockUserAndRevokeSessions(options)"
+    ],
+    "methods": [
+      "authenticate(req)",
+      "getCurrentUser(auth)",
+      "verifyCsrf(auth, token)",
+      "issueInTransaction(user, mongoSession, options)",
+      "revoke(req)",
+      "revokeUserSessions(userId, options)",
+      "setCookie(res, issued, options)",
+      "clearCookie(res, options)",
+      "resumeCsrf(req, auth)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSessionService",
+        "operations": [
+          "authenticate(req)",
+          "getCurrentUser(auth)",
+          "verifyCsrf(auth, token)",
+          "issueInTransaction(user, mongoSession, options)",
+          "revoke(req)",
+          "revokeUserSessions(userId, options)",
+          "setCookie(res, issued, options)",
+          "clearCookie(res, options)",
+          "resumeCsrf(req, auth)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/admin-settlement.service.js",
+    "exports": [
+      "createAdminSettlementService(options)"
+    ],
+    "methods": [
+      "list(options)",
+      "decide(input)",
+      "mutate(row, transaction, _occurredAt, versions)",
+      "recordTransfer(input)",
+      "mutate(row, transaction, occurredAt, versions)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAdminSettlementService",
+        "operations": [
+          "list(options)",
+          "decide(input)",
+          "recordTransfer(input)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/booking-allocation.js",
+    "exports": [
+      "allocateBookingReceipt(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/settlements/booking-finance-source.service.js",
+    "exports": [
+      "createBookingFinanceSourceService(options)"
+    ],
+    "methods": [
+      "authorize(session)",
+      "work(options, session)",
+      "clock()",
+      "work(booking, session)",
+      "readVisit(current, visitId)",
+      "checkIn(input)",
+      "updateChecklist(input)",
+      "checkOut(input)",
+      "confirmAssessment(options)",
+      "drain(options)",
+      "enqueue(booking, session)",
+      "touch(booking, session, fields)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createBookingFinanceSourceService",
+        "operations": [
+          "readVisit(current, visitId)",
+          "checkIn(input)",
+          "updateChecklist(input)",
+          "checkOut(input)",
+          "confirmAssessment(options)",
+          "drain(options)",
+          "enqueue(booking, session)",
+          "touch(booking, session, fields)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/booking-financial-holds.service.js",
+    "exports": [
+      "createBookingFinancialHolds(options)"
+    ],
+    "methods": [
+      "change(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createBookingFinancialHolds",
+        "operations": [
+          "change(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/earning-accrual.service.js",
+    "exports": [
+      "createEarningAccrualService(options)"
+    ],
+    "methods": [
+      "recognizeCompletion(options)",
+      "accrue(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEarningAccrualService",
+        "operations": [
+          "recognizeCompletion(options)",
+          "accrue(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/mongo-earning-sources.repository.js",
+    "exports": [
+      "createMongoEarningSources(options)"
+    ],
+    "methods": [
+      "readCompletion(input)",
+      "readBooking(input)",
+      "guardBooking(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoEarningSources",
+        "operations": [
+          "readCompletion(input)",
+          "readBooking(input)",
+          "guardBooking(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/mongo-settlement.repository.js",
+    "exports": [
+      "createMongoSettlementRepository(options)"
+    ],
+    "methods": [
+      "assertIndexesReady()",
+      "findCommand(scope, session)",
+      "saveCommand(command, session)",
+      "claimWeek(options, session)",
+      "reserveEarnings(options, session)",
+      "create(row, session)",
+      "appendEvent(event, session)",
+      "readOwn(input, session)",
+      "getById(id, session)",
+      "compareAndSet(id, expectedVersion, patch, session)",
+      "assertReservationReady(options, session)",
+      "releaseReservation(options, session)",
+      "assertEvidenceOwnership(options, session)",
+      "recordTransferAttempt(options, session)",
+      "settleReservation(options, session)",
+      "listPayroll(options)",
+      "registerEvidence(options, session)",
+      "lockEarning(options, session)",
+      "unlockEarning(options, session)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createMongoSettlementRepository",
+        "operations": [
+          "assertIndexesReady()",
+          "findCommand(scope, session)",
+          "saveCommand(command, session)",
+          "claimWeek(options, session)",
+          "reserveEarnings(options, session)",
+          "create(row, session)",
+          "appendEvent(event, session)",
+          "readOwn(input, session)",
+          "getById(id, session)",
+          "compareAndSet(id, expectedVersion, patch, session)",
+          "assertReservationReady(options, session)",
+          "releaseReservation(options, session)",
+          "assertEvidenceOwnership(options, session)",
+          "recordTransferAttempt(options, session)",
+          "settleReservation(options, session)",
+          "listPayroll(options)",
+          "registerEvidence(options, session)",
+          "lockEarning(options, session)",
+          "unlockEarning(options, session)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/private-transfer-evidence.repository.js",
+    "exports": [
+      "createPrivateTransferEvidenceRepository(options)"
+    ],
+    "methods": [
+      "findReady(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createPrivateTransferEvidenceRepository",
+        "operations": [
+          "findReady(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/provisioning.js",
+    "exports": [
+      "provisionSettlementStorage(connection, options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/settlements/settlement.service.js",
+    "exports": [
+      "fail(status, code, details)",
+      "requireRole(actor, role)",
+      "text(value, max)",
+      "publicRequest(row)",
+      "requireDecision(policy, action, transaction)",
+      "createCommandRunner(options)",
+      "createSettlementService(options)"
+    ],
+    "methods": [
+      "readOwn(options)",
+      "withdraw(options)",
+      "run(transaction)",
+      "submit(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createCommandRunner",
+        "operations": [],
+        "delegates": []
+      },
+      {
+        "name": "createSettlementService",
+        "operations": [
+          "readOwn(options)",
+          "withdraw(options)",
+          "submit(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/settlements/source-provisioning.js",
+    "exports": [
+      "provisionFinanceSources(connection)",
+      "assertFinanceSourceStorage(connection)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/settlements/week.js",
+    "exports": [
+      "vietnamRequestWeek(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/settlements/weekly-commission.js",
+    "exports": [
+      "calculateWeeklyCommission(options)",
+      "previewEqualTaxCostSplit(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/sitter-application.service.js",
+    "exports": [
+      "createSitterApplicationService(options)"
+    ],
+    "methods": [
+      "encode(createdAt, id, fingerprint)",
+      "decode(value, fingerprint)",
+      "getMine(options)",
+      "updateMine(options)",
+      "submit(options)",
+      "list(options)",
+      "get(options)",
+      "startReview(options)",
+      "startInterview(input)",
+      "decide(options)",
+      "changeSitterStatus(options)",
+      "readDocument(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterApplicationService",
+        "operations": [
+          "getMine(options)",
+          "updateMine(options)",
+          "submit(options)",
+          "list(options)",
+          "get(options)",
+          "startReview(options)",
+          "startInterview(input)",
+          "decide(options)",
+          "changeSitterStatus(options)",
+          "readDocument(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-availability.service.js",
+    "exports": [
+      "normalizeSitterTimeZone(zone)",
+      "localDateTimeToUtc(localDate, localTime, zone)",
+      "normalizeWorkingWindows(windows)",
+      "createSitterAvailabilityService(options)"
+    ],
+    "methods": [
+      "getMine(options)",
+      "listMyCalendar(options)",
+      "updateMine(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterAvailabilityService",
+        "operations": [
+          "getMine(options)",
+          "listMyCalendar(options)",
+          "updateMine(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-management.service.js",
+    "exports": [
+      "createSitterManagementService(options)"
+    ],
+    "methods": [
+      "list(options)",
+      "reports(options)",
+      "get(options)",
+      "activity(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterManagementService",
+        "operations": [
+          "list(options)",
+          "reports(options)",
+          "get(options)",
+          "activity(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/commercial-routing.service.js",
+    "exports": [
+      "createConfiguredRoutingProvider(options)"
+    ],
+    "methods": [
+      "edgeKey(a, b)",
+      "validatePoints(points)",
+      "matrix(points)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createConfiguredRoutingProvider",
+        "operations": [
+          "edgeKey(a, b)",
+          "validatePoints(points)",
+          "matrix(points)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/management.service.js",
+    "exports": [
+      "createAiManagement(options)"
+    ],
+    "methods": [
+      "ranking(actor, body)",
+      "sitter(actor, userId, body)",
+      "block(actor, body)",
+      "outcome(actor, body)",
+      "model(actor, body)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAiManagement",
+        "operations": [
+          "ranking(actor, body)",
+          "sitter(actor, userId, body)",
+          "block(actor, body)",
+          "outcome(actor, body)",
+          "model(actor, body)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/matching.repository.js",
+    "exports": [
+      "createAiRepository(connection, clock, options)"
+    ],
+    "methods": [
+      "candidates(context, slot)",
+      "statistics(profile, context, snapshot)",
+      "ranking()"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAiRepository",
+        "operations": [
+          "candidates(context, slot)",
+          "statistics(profile, context, snapshot)",
+          "ranking()"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/model-registry.service.js",
+    "exports": [
+      "createModelRegistry(options)"
+    ],
+    "methods": [
+      "status(actor)",
+      "importArtifact(actor, body)",
+      "review(actor, modelId, body, key)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createModelRegistry",
+        "operations": [
+          "status(actor)",
+          "importArtifact(actor, body)",
+          "review(actor, modelId, body, key)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/operational-ranker.service.js",
+    "exports": [
+      "createOperationalRanker(options)"
+    ],
+    "methods": [],
+    "publicFactories": [
+      {
+        "name": "createOperationalRanker",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/recommendation.service.js",
+    "exports": [
+      "createAiService(options)"
+    ],
+    "methods": [
+      "recommend(ownerId, body)",
+      "readDecision(ownerId, decisionId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createAiService",
+        "operations": [
+          "recommend(ownerId, body)",
+          "readDecision(ownerId, decisionId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/routing.service.js",
+    "exports": [
+      "readRoutingBody(response, signal)",
+      "createRoutingProvider(options)",
+      "cachedMatrix(options)"
+    ],
+    "methods": [
+      "validatePoints(points)",
+      "matrix()",
+      "matrix(points)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createRoutingProvider",
+        "operations": [
+          "validatePoints(points)",
+          "matrix()",
+          "matrix(points)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-matching/scheduling.service.js",
+    "exports": [
+      "localDay(at)",
+      "localMinute(at)",
+      "validateSlot(slot, now)",
+      "planInsertion(options)",
+      "requiredPoints(profile, blocks, address, date)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/sitter-matching/scoring.service.js",
+    "exports": [
+      "scoreSitter(options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/sitter-offer.service.js",
+    "exports": [
+      "createSitterOfferService(options)"
+    ],
+    "methods": [
+      "execute(transaction)",
+      "list(actor, query)",
+      "detail(actor, offerId)",
+      "assignments(actor, query)",
+      "accept(actor, offerId, expectedVersion, idempotencyKey)",
+      "decline(actor, offerId, expectedVersion, idempotencyKey)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterOfferService",
+        "operations": [
+          "list(actor, query)",
+          "detail(actor, offerId)",
+          "assignments(actor, query)",
+          "accept(actor, offerId, expectedVersion, idempotencyKey)",
+          "decline(actor, offerId, expectedVersion, idempotencyKey)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-public-profile.service.js",
+    "exports": [
+      "createSitterPublicProfileService(options)"
+    ],
+    "methods": [
+      "readOwn(options)",
+      "listPending(options)",
+      "submit(input)",
+      "review(input)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterPublicProfileService",
+        "operations": [
+          "readOwn(options)",
+          "listPending(options)",
+          "submit(input)",
+          "review(input)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-visit.service.js",
+    "exports": [
+      "createSitterVisitService(options)"
+    ],
+    "methods": [
+      "detail(actor, visitId)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterVisitService",
+        "operations": [
+          "detail(actor, visitId)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sitter-work-areas.service.js",
+    "exports": [
+      "createSitterWorkAreasService(options)"
+    ],
+    "methods": [
+      "getMine(options)",
+      "replaceMine(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSitterWorkAreasService",
+        "operations": [
+          "getMine(options)",
+          "replaceMine(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sms-delivery.service.js",
+    "exports": [
+      "createSmsDelivery(options)"
+    ],
+    "methods": [
+      "send(command)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSmsDelivery",
+        "operations": [
+          "send(command)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/sms-template.service.js",
+    "exports": [
+      "normalizeVietnamPhone(value)",
+      "renderSms(command, now, template)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/services/smtp-email.service.js",
+    "exports": [
+      "createEmailPortOverrides(options)"
+    ],
+    "methods": [
+      "createAttempt()",
+      "send(command)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createEmailPortOverrides",
+        "operations": [],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/system-settings.service.js",
+    "exports": [
+      "parseCatalogSettingInput(value)",
+      "createSystemSettingsService(options)"
+    ],
+    "methods": [
+      "overview()",
+      "currentAt(at)",
+      "isEnabledAt(at)",
+      "updateCatalogVisibility(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createSystemSettingsService",
+        "operations": [
+          "overview()",
+          "currentAt(at)",
+          "isEnabledAt(at)",
+          "updateCatalogVisibility(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/unit-of-work.service.js",
+    "exports": [
+      "createUnitOfWork(connection)"
+    ],
+    "methods": [
+      "run(callback)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createUnitOfWork",
+        "operations": [
+          "run(callback)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/user-admin.service.js",
+    "exports": [
+      "createUserAdminService(options)"
+    ],
+    "methods": [
+      "encode(position, fingerprint)",
+      "decode(value, fingerprint)",
+      "list(query)",
+      "getById(userId)",
+      "decide(options)",
+      "changeRoles(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createUserAdminService",
+        "operations": [
+          "list(query)",
+          "getById(userId)",
+          "decide(options)",
+          "changeRoles(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/visit-board.service.js",
+    "exports": [
+      "createVisitBoardService(options)"
+    ],
+    "methods": [
+      "list(options)",
+      "detail(options)",
+      "proposeRemedy(options)",
+      "respondRemedy(options)",
+      "manualAssign(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createVisitBoardService",
+        "operations": [
+          "list(options)",
+          "detail(options)",
+          "proposeRemedy(options)",
+          "respondRemedy(options)",
+          "manualAssign(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/visit-reassignment.service.js",
+    "exports": [
+      "createVisitReassignmentService(options)"
+    ],
+    "methods": [
+      "execute(transaction)",
+      "reassign(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createVisitReassignmentService",
+        "operations": [
+          "reassign(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/services/visit-withdrawal.service.js",
+    "exports": [
+      "createVisitWithdrawalService(options)"
+    ],
+    "methods": [
+      "execute(transaction)",
+      "withdraw(options)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createVisitWithdrawalService",
+        "operations": [
+          "withdraw(options)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/utils/app-error.js",
+    "exports": [
+      "metadata(req)",
+      "errorPayload(req, code, message, details)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/utils/mailbox.js",
+    "exports": [
+      "isMailbox(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/utils/roles.js",
+    "exports": [
+      "hasRole(actorRoles, requiredRole)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/utils/scoped-cursor.js",
+    "exports": [
+      "createScopedCursor(options)"
+    ],
+    "methods": [
+      "encode(position, context)",
+      "decode(token, context)"
+    ],
+    "publicFactories": [
+      {
+        "name": "createScopedCursor",
+        "operations": [
+          "encode(position, context)",
+          "decode(token, context)"
+        ],
+        "delegates": []
+      }
+    ]
+  },
+  {
+    "source": "backend/src/utils/supplier-name.js",
+    "exports": [
+      "supplierNameKey(name)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/auth.validator.js",
+    "exports": [
+      "hasOnlyKeys(body, keys)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/booking-care-plan.validator.js",
+    "exports": [
+      "carePlanInput(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/booking-checkout.validator.js",
+    "exports": [
+      "bookingCheckoutInput(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/command.validator.js",
+    "exports": [
+      "validateCommand(validate)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/complaint.validator.js",
+    "exports": [
+      "body(req, allowed)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/contact.validator.js",
+    "exports": [
+      "validateContactInput(body)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/customer-care.validator.js",
+    "exports": [
+      "careProfileInput(body)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/directed-proposal.validator.js",
+    "exports": [
+      "parameter(value, label)",
+      "body(req, fields)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/employee-scheduling.validator.js",
+    "exports": [
+      "availabilityInput(value)",
+      "workAreasInput(value)",
+      "invitationInput(value)",
+      "decisionInput(value)",
+      "proposalConfirmationInput(value)",
+      "schedulingKey(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/employment-document.validator.js",
+    "exports": [
+      "contractFieldError(fields, code)",
+      "normalizeContractGender(value)",
+      "contractDate(value)",
+      "employmentTermsInput(value, now)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/finance-source.validator.js",
+    "exports": [
+      "validateFinanceSourceInput(input, fields)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/incident.validator.js",
+    "exports": [
+      "body(req, allowed)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/notification.validator.js",
+    "exports": [
+      "body(req, fields)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/pagination.validator.js",
+    "exports": [
+      "parsePageQuery(query, options)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/payroll.validator.js",
+    "exports": [
+      "payrollPageInput(value, own)",
+      "payrollAdjustmentInput(value)",
+      "payrollAdjustmentDecisionInput(value)",
+      "contractInput(value)",
+      "advanceInput(value)",
+      "advanceDecisionInput(value)",
+      "payrollAssessmentInput(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/pet-care.validator.js",
+    "exports": [
+      "fail(code, message, status)",
+      "exact(value, allowed, required)",
+      "id(value)",
+      "number(value, min, max, integer)",
+      "instant(value)",
+      "point(value)",
+      "weights(value)",
+      "digest(value)",
+      "validatePetCareSelection(body)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/pricing-selection.validator.js",
+    "exports": [
+      "validatePricingSelection(body)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/product-cart.validator.js",
+    "exports": [
+      "parseAddCartLine(body)",
+      "parseSetCartLine(productId, body)",
+      "parseRemoveCartLine(productId)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/product-management.validator.js",
+    "exports": [
+      "parseDeleteProduct(body)",
+      "parseAdminProductQuery(query)",
+      "parseText(raw, options)",
+      "parseSellingPrice(raw)",
+      "parseCreateProduct(body)",
+      "parseUpdateProduct(body)"
+    ],
+    "methods": [
+      "name(raw)",
+      "category(raw)",
+      "petType(raw)",
+      "sellingPrice(raw)",
+      "description(raw)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/product-order-management.validator.js",
+    "exports": [
+      "parseManagementListQuery(query)",
+      "parseHandToCarrier(body)",
+      "parseNoBody(body)",
+      "parseMarkReturning(body)",
+      "parseConfirmReturned(body)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/product-order.validator.js",
+    "exports": [
+      "parseIdempotencyKey(value)",
+      "parsePlaceOrder(body)",
+      "parseOrderListQuery(query)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/product-photo.validator.js",
+    "exports": [
+      "parsePhotoVersion(value)",
+      "parsePhotoIndex(value)",
+      "parsePhotoDigest(value)",
+      "validatePhotoBody(body, contentType)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/product.validator.js",
+    "exports": [
+      "parseObjectId(value, field)",
+      "parseQuantity(value)",
+      "requireOnlyKeys(input, allowed, required)",
+      "parseProductQuery(query)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/refunds.validator.js",
+    "exports": [
+      "isObject(value)",
+      "hasOnlyKeys(body, allowed, required)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/review.validator.js",
+    "exports": [
+      "body(req, allowed)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/routing.validator.js",
+    "exports": [
+      "parseRoutingBounds(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/sitter-management.validator.js",
+    "exports": [
+      "sitterManagementQuery(query, kind)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/sitter-operations.validator.js",
+    "exports": [
+      "body(req, allowed, required)",
+      "resourceId(value, field)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/sitter-public-profile.validator.js",
+    "exports": [
+      "validatePublicProfileCommand(body, operation)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/sms-template.validator.js",
+    "exports": [
+      "isSmsOtpTemplate(value)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/supplier-management.validator.js",
+    "exports": [
+      "parseSupplierQuery(query)",
+      "parseSupplierPhone(raw)",
+      "parseSupplierEmail(raw)",
+      "requireContact(contact)",
+      "parseCreateSupplier(body)",
+      "parseUpdateSupplier(body)",
+      "parseSupplierVersion(body)"
+    ],
+    "methods": [
+      "name(raw)",
+      "contactName(raw)",
+      "phone(raw)",
+      "email(raw)",
+      "productIds(raw)"
+    ],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/visit-board.validator.js",
+    "exports": [],
+    "methods": [],
+    "publicFactories": []
+  },
+  {
+    "source": "backend/src/validators/visit-travel.validator.js",
+    "exports": [
+      "travelCommand(body)",
+      "travelLocation(body, now)"
+    ],
+    "methods": [],
+    "publicFactories": []
+  }
+]
