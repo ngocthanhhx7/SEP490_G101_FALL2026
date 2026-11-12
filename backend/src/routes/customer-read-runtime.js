@@ -8,6 +8,8 @@ import { createNotificationRouter } from './notification.routes.js';
 import { createMongoCustomerReviewRepository } from '../services/reviews/mongo-customer-review.repository.js';
 import { createReviewService } from '../services/reviews/review.service.js';
 import { createReviewRouter } from './review.routes.js';
+import { createBookingDetailsController } from '../controllers/booking-details.controller.js';
+import { createBookingDetailsService } from '../services/booking-proposals/booking-details.service.js';
 
 export function customerReadRuntime({ config, connection, sessionService, env, clock }) {
   const router = Router();
@@ -15,6 +17,12 @@ export function customerReadRuntime({ config, connection, sessionService, env, c
     enabled: env.BOOKING_CHECKOUT_ENABLED === 'true' || env.FINANCE_SOURCES_ENABLED === 'true' });
   router.get('/bookings', requireSession(sessionService, { clock }), requireRoles('CUSTOMER'),
     (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, createCustomerBookingsController(bookings).list);
+  if (config.auth.enabled && env.BOOKING_CHECKOUT_ENABLED === 'true' && connection?.db) {
+    const details = createBookingDetailsController(createBookingDetailsService({ connection, clock }));
+    router.get('/staff/bookings/:id',
+      (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); },
+      requireSession(sessionService, { clock }), requireRoles('STAFF', 'ADMIN'), details.readStaff);
+  }
   const notifications = createNotificationService({ repository: createMongoNotificationRepository({ connection,
     cursorSecret: config.auth.tokenSecret, clock }), clock });
   router.use('/notifications', createNotificationRouter({ service: notifications, sessionPort: sessionService, clock }));

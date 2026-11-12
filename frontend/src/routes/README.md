@@ -1,5 +1,8 @@
 # Route composition
 
+Admin's Cửa hàng group exposes Tồn kho after Nhập hàng. `/admin/stock` composes a
+per-account page with the read-only stock transport under the existing Admin guard.
+
 Route manifests and role/session guards belong here. `PublicPolicyRoutes.jsx` exports the public policy route fragment; pages export presentation components. `AppRoutes.jsx` keys the private layout by account ID so a same-role account switch resets child state. Do not move HTTP transport or domain calculations into route components.
 
 Operational menu entries include explicit group labels, independent of Customer's
@@ -20,3 +23,4 @@ Customer navigation exposes product history under Mua sắm. `/customer/product-
 
 Admin and Sale Staff share the order management route at `/admin/product-orders`.
 Sale Staff uses its own menu and lands on this route after sign-in.
+`/staff/bookings/:bookingId` uses the existing Staff/Admin account workspace and opens read-only booking details.

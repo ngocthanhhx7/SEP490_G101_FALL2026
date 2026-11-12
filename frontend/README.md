@@ -2,6 +2,13 @@
 
 P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.22.1, npm 11.19.1, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
 
+Stock List uses `src/constants/stock-list.js` for Vietnamese labels and technical
+page/search limits; availability/status decisions stay in the backend.
+`tests/integration/StockList.test.jsx` covers server labels/counts, tab/search/MSG97,
+paging, selection, receivedOn history/+0, load more, retries and late responses.
+`tests/unit/stock-list-api.test.js` checks transport/DTOs/cancellation;
+`tests/unit/stock-format.test.js` checks quantities and signed deltas. Run via `npm test`.
+
 From `frontend/`:
 
 Recommendation selection can request a deterministic quote and confirm an owned

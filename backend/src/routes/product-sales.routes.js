@@ -10,12 +10,16 @@ import { createProductOrderController } from '../controllers/product-order.contr
 import { createProductOrderManagementController } from '../controllers/product-order-management.controller.js';
 import { createProductManagementController } from '../controllers/product-management.controller.js';
 import { createSupplierManagementController } from '../controllers/supplier-management.controller.js';
+import { createGoodsReceiptController } from '../controllers/goods-receipt.controller.js';
+import { createStockListController } from '../controllers/stock-list.controller.js';
+import { createStockListService } from '../services/product-sales/stock-list.service.js';
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
 import { createProductManagementService } from '../services/product-sales/product-management.service.js';
 import { createSupplierManagementService } from '../services/product-sales/supplier-management.service.js';
+import { createGoodsReceiptService } from '../services/product-sales/goods-receipt.service.js';
 import { createCustomerPhoneDirectory } from '../services/product-sales/customer-phone-directory.service.js';
 import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
@@ -111,12 +115,30 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   supplierRouter.post('/:supplierId/stop', csrf, supplierManagement.stop);
   supplierRouter.post('/:supplierId/resume', csrf, supplierManagement.resume);
 
+  // Goods Receipt: who may use it comes from PRODUCT_PERMISSIONS.RECORD_GOODS_RECEIPTS. A receipt can be saved and read, never edited or deleted.
+  const goodsReceipts = createGoodsReceiptController(createGoodsReceiptService({ connection, clock }));
+  const receiptRouter = Router();
+  receiptRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.RECORD_GOODS_RECEIPTS));
+  receiptRouter.get('/suppliers', goodsReceipts.listSuppliers);
+  receiptRouter.get('/products', goodsReceipts.searchProducts);
+  receiptRouter.get('/', goodsReceipts.listRecent);
+  receiptRouter.post('/', csrf, goodsReceipts.create);
+  receiptRouter.get('/:code', goodsReceipts.read);
+
+  const stock = createStockListController(createStockListService({ connection, cursorSecret: config.auth.tokenSecret, clock }));
+  const stockRouter = Router();
+  stockRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.VIEW_STOCK));
+  stockRouter.get('/', stock.list);
+  stockRouter.get('/:productId/history', stock.history);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
     { name: 'product-orders', mount: '/api/v1/product-orders', router: orderRouter },
     { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter },
     { name: 'admin-products', mount: '/api/v1/admin/products', router: productManagementRouter },
-    { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter }
+    { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter },
+    { name: 'admin-goods-receipts', mount: '/api/v1/admin/goods-receipts', router: receiptRouter },
+    { name: 'admin-stock-levels', mount: '/api/v1/admin/stock-levels', router: stockRouter }
   ];
 }

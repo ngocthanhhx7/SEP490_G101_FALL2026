@@ -32,7 +32,7 @@ test.each(['/sign-in', '/register', '/sitter/apply', '/products'])('GBR-01 Sale 
   expect(await screen.findByRole('heading', { name: 'Quản lý đơn hàng' })).toBeVisible();
   const sidebar = screen.getByRole('complementary');
   expect(within(sidebar).getByText('Bán hàng')).toBeVisible();
-  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Đơn hàng']);
+  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Đơn hàng', 'Nhập hàng', 'Tồn kho']);
 });
 
 test('Permission Matrix Admin keeps the existing order menu', async () => {
