@@ -177,7 +177,8 @@ export function productSalesModels(connection) {
       indexes: [
         [{ code: 1 }, { unique: true }],
         [{ number: -1 }, { unique: true }],
-        [{ recorderId: 1, idempotencyKey: 1 }, { unique: true }]
+        [{ recorderId: 1, idempotencyKey: 1 }, { unique: true }],
+        [{ 'lines.productId': 1, createdAt: -1, _id: -1 }, {}]
       ]
     },
     StockAdjustment: {

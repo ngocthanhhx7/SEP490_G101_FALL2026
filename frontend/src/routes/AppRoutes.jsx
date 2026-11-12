@@ -1,3 +1,5 @@
+import { ServiceAreasPage as AdminServiceAreasPage } from '../pages/admin/ServiceAreasPage.jsx';
+import { createServiceAreaManagementApi } from '../services/service-area-management-api.js';
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
@@ -86,6 +88,12 @@ function StockListRoute() {
   return <StockListPage key={user?.id} api={api} />;
 }
 
+function ServiceAreasRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createServiceAreaManagementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return <AdminServiceAreasPage key={user?.id} api={api} />;
+}
+
 function ProductManagementRoute() {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createProductManagementApi({ getCsrfToken }), [getCsrfToken]);
@@ -162,6 +170,7 @@ const navigationByRole = {
     ['Điều chỉnh tồn kho', '/admin/stock-adjustments', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
+    ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
     ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
     ['Điều phối AI', '/admin/ai-models', 'Hệ thống'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
@@ -264,6 +273,7 @@ export function AppRoutes({
           <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
           <Route path="admin/stock" element={<StockListRoute />} />
           <Route path="admin/stock-adjustments" element={<StockAdjustmentRoute />} />
+          <Route path="admin/service-areas" element={<ServiceAreasRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
             path="admin/service-prices"

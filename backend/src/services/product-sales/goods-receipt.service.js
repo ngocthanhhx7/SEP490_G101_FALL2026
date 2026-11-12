@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
+import { AppError } from '../../utils/app-error.js';
 import { GOODS_RECEIPT_COUNTER_ID, GOODS_RECEIPT_CODE_PREFIX, GOODS_RECEIPT_LIMITS } from '../../constants/goods-receipt-fields.js';
 import {
   parseCreateReceipt, parseReceiptCode, parseRecentReceiptsQuery, parseReceiptProductQuery
@@ -165,11 +166,17 @@ export function createGoodsReceiptService({ connection, clock = Date.now, notifi
             idempotencyKey: key, requestFingerprint: fingerprint },
           session, now);
 
-          for (const line of lines) {
+          for (const [index, line] of lines.entries()) {
             if (line.quantityAccepted > 0) {
-              const applied = await Product.updateOne({ _id: line.productId, deletedAt: null },
+              const applied = await Product.updateOne({ _id: line.productId, deletedAt: null,
+                $expr: { $lte: [{ $ifNull: ['$stockOnHand', 0] }, Number.MAX_SAFE_INTEGER - line.quantityAccepted] } },
                 { $inc: { stockOnHand: line.quantityAccepted, version: 1 } }, { session });
-              if (applied.matchedCount !== 1) throw productSalesErrors.productNotFound([line.productId]);
+              if (applied.matchedCount !== 1) {
+                if (!await Product.exists({ _id: line.productId, deletedAt: null }).session(session))
+                  throw productSalesErrors.productNotFound([line.productId]);
+                throw new AppError(422, 'VALIDATION_FAILED', 'Stock exceeds the technical limit',
+                  { lineFields: { [index]: { quantityAccepted: 'TOO_LARGE' } } });
+              }
             }
             if (line.quantityRejected > 0) {
               await notice.goodsReceiptRejected({ code, productId: line.productId, productName: line.productName,

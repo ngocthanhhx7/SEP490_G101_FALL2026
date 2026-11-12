@@ -1,3 +1,4 @@
+import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { adminProductPhotoUrl } from '../../utils/product-photo.js';
 import { isUncertainOutcome } from '../../utils/product-format.js';
@@ -50,14 +51,26 @@ export function ProductImageManager({ product, api, disabled, onSaved, onBusy, o
     <h3>Ảnh sản phẩm</h3>
     <p className="pwc-shop-hint">Tối đa 5 ảnh JPG, PNG hoặc WebP; mỗi ảnh tối đa 5 MB và 4 triệu điểm ảnh. Ảnh đầu tiên là ảnh đại diện.</p>
     {disabled && <p className="pwc-shop-hint">Lưu thay đổi thông tin trước khi sửa ảnh.</p>}
-    <ul className="pwc-pm-photos" aria-label="Ảnh hiện có">
-      {product.photos.map((photo, index) => <li key={photo}>
-        <img src={adminProductPhotoUrl(photo)} alt={`Ảnh sản phẩm ${index + 1}`} />
-        <label>Thay ảnh {index + 1}<input type="file" aria-label={`Thay ảnh ${index + 1}`} accept="image/jpeg,image/png,image/webp" disabled={blocked} onChange={event => pick(event, index)} /></label>
-        <button type="button" disabled={blocked} onClick={() => { setConfirmRemove(index); setSelection(null); }}>Xóa ảnh {index + 1}</button>
-      </li>)}
-    </ul>
-    {product.photos.length < 5 && <label>Thêm ảnh<input type="file" aria-label="Thêm ảnh sản phẩm" accept="image/jpeg,image/png,image/webp" disabled={blocked} onChange={event => pick(event)} /></label>}
+    <div className="pwc-pm-photo-row">
+      <ul className="pwc-pm-photos" aria-label="Ảnh hiện có">
+        {product.photos.map((photo, index) => <li key={photo} className={index === 0 ? 'is-cover' : undefined}
+          {...(index === 0 ? { title: 'Ảnh đại diện', 'aria-label': 'Ảnh đại diện' } : {})}>
+          <img src={adminProductPhotoUrl(photo)} alt={`Ảnh sản phẩm ${index + 1}`} />
+          <span className="pwc-pm-photo-actions">
+            <label className={`pwc-pm-photo-action${blocked ? ' is-disabled' : ''}`} title={`Thay ảnh ${index + 1}`}>
+              <RefreshCw aria-hidden="true" size={16} />
+              <input type="file" aria-label={`Thay ảnh ${index + 1}`} accept="image/jpeg,image/png,image/webp" disabled={blocked} onChange={event => pick(event, index)} />
+            </label>
+            <button type="button" className="pwc-pm-photo-action" title={`Xóa ảnh ${index + 1}`} aria-label={`Xóa ảnh ${index + 1}`} disabled={blocked}
+              onClick={() => { setConfirmRemove(index); setSelection(null); }}><Trash2 aria-hidden="true" size={16} /></button>
+          </span>
+        </li>)}
+      </ul>
+      {product.photos.length < 5 && <label className={`pwc-pm-photo-add${blocked ? ' is-disabled' : ''}`} title="Thêm ảnh">
+        <Plus aria-hidden="true" size={24} />
+        <input type="file" aria-label="Thêm ảnh sản phẩm" accept="image/jpeg,image/png,image/webp" disabled={blocked} onChange={event => pick(event)} />
+      </label>}
+    </div>
     {selection && <div><p>{selection.index === undefined ? 'Ảnh mới' : `Thay ảnh ${selection.index + 1}`} — {selection.file.name}</p>
       {preview && <img className="pwc-product-image-preview" src={preview} alt="Xem trước ảnh sản phẩm" />}
       <button type="button" disabled={blocked} onClick={() => mutate(false)}>{busy ? 'Đang lưu ảnh…' : 'Lưu ảnh'}</button>

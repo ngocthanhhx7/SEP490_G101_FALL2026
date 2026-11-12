@@ -27,9 +27,9 @@ export function createStockHistoryService({ connection, cursorSecret, clock = Da
       const adjustmentFilter = { productId, ...(position ? afterPosition(position, 'STOCK_ADJUSTMENT') : {}) };
       const [receipts, adjustments] = await Promise.all([
         GoodsReceipt.find(receiptFilter, { code: 1, createdAt: 1, receivedOn: 1, supplierName: 1,
-          lines: { $elemMatch: { productId } } }).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).lean(),
+          lines: { $elemMatch: { productId } } }).sort({ createdAt: -1, _id: -1 }).limit(limit + 1).maxTimeMS(5000).lean(),
         StockAdjustment.find(adjustmentFilter, { code: 1, createdAt: 1, type: 1, quantity: 1, reason: 1, recorderName: 1 })
-          .sort({ createdAt: -1, _id: -1 }).limit(limit + 1).lean()
+          .sort({ createdAt: -1, _id: -1 }).limit(limit + 1).maxTimeMS(5000).lean()
       ]);
       const candidates = [
         ...receipts.map(doc => ({ id: String(doc._id), kind: 'GOODS_RECEIPT', referenceCode: doc.code,

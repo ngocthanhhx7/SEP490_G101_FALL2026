@@ -126,3 +126,23 @@ test('AC-32 receipt history uses accepted quantity including +0, receivedOn, cre
   expect((await get(historyPath(other.id)).query({ cursor: first.nextCursor })).status).toBe(422);
   expect(await models.GoodsReceipt.find().lean()).toEqual(before);
 });
+
+test('history uses a bounded product-and-time index across unrelated receipt history', async () => {
+  const p = await product('SP-0001'), other = await product('SP-0002');
+  const sample = (await receipt(1, other.id, 1, new Date('2026-11-01T01:00:00Z'))).toObject();
+  await models.GoodsReceipt.insertMany(Array.from({ length: 1000 }, (_, offset) => {
+    const number = offset + 2;
+    return { ...sample, _id: oid(), number, code: `PN-${number}`, idempotencyKey: `history-benchmark-${number}`,
+      lines: sample.lines.map(line => ({ ...line, productId: offset < 10 ? p._id : other._id })),
+      createdAt: new Date(Date.parse('2026-11-01T01:00:00Z') + offset * 1000) };
+  }));
+  await models.GoodsReceipt.createIndexes();
+  const filter = { 'lines.productId': p._id };
+  const plan = await models.GoodsReceipt.collection.find(filter).sort({ createdAt: -1, _id: -1 }).limit(4).explain('executionStats');
+  expect(plan.executionStats.nReturned).toBe(4);
+  expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(4);
+  expect(plan.executionStats.totalKeysExamined).toBeLessThanOrEqual(5);
+  const first = (await get(historyPath(p.id)).query({ limit: 3 }).expect(200)).body.data;
+  expect(first.items).toHaveLength(3);
+  expect(first.nextCursor).toEqual(expect.any(String));
+});

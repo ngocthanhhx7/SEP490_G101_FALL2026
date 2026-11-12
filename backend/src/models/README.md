@@ -112,3 +112,5 @@ SitterApplicationAudit supports APPLICATION_UPDATED, retaining original submissi
 `avatar.model.js` stores bounded JPEG blobs/version/tombstones in `profileavatars`; User/Pet collection names and projections remain unchanged. Sitter application document types add IDENTITY_FRONT/IDENTITY_BACK/PORTRAIT while preserving legacy IDENTITY.
 
 EmploymentContract adds optional supersededAt/supersededBy/supersededReason metadata for an explicitly corrected erroneous future version. Current-contract selection excludes superseded rows; historical contract IDs/versions remain intact. No index or native validator is changed.
+
+Goods receipt stock history uses the additive multikey compound index `lines.productId, createdAt descending, _id descending`; it preserves immutable receipts and the existing unique code/number/recorder-operation indexes. Provision explicitly with the reviewed release; runtime reads do not create it.

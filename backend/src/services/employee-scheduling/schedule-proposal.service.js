@@ -27,7 +27,7 @@ export function createEmployeeScheduleProposalService({ repository, dispatch, cl
     if (visit.requestedSitterId && String(visit.requestedSitterId) !== input.sitterId) fail('DIRECTED_SITTER_MISMATCH', 'Only the requested employee can be proposed', 409);
     if (visit.snapshots.boarding) fail('STAY_CHANGE_REQUIRES_REVIEW', 'Boarding stay changes require a whole-stay review', 409);
     const areaCode = input.areaCode ?? visit.areaCode;
-    const area = repository.coverageAreas.find(row => row.code === areaCode);
+    const area = (await (repository.getCoverageAreas?.({ session }) ?? Promise.resolve(repository.coverageAreas))).find(row => row.code === areaCode);
     if (!area || areaCode !== visit.areaCode && (visit.location !== 'HOME' || area.parentCode !== visit.areaCode))
       fail('VALIDATION_FAILED', 'Only a more precise area at the same home address can be proposed');
     const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });

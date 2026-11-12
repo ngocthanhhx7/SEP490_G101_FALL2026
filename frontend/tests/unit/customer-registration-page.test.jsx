@@ -46,12 +46,17 @@ test('validates name, contact, OTP and consent before sending or registering', (
 });
 
 test('shows provider delivery as pending and enforces resend cooldown', async () => {
-  const api = { requestOtp: jest.fn().mockResolvedValue({ challengeId: 'challenge-1', expiresInSeconds: 300, resendAfterSeconds: 60 }) };
-  renderRegistration(api);
+  const api = { requestOtp: jest.fn().mockResolvedValue({
+    challengeId: 'challenge-1', expiresInSeconds: 300, resendAfterSeconds: 60, maskedContact: 'h****@pawworld.com'
+  }) };
+  const { container } = renderRegistration(api);
   fillNameAndEmail();
   sendAfterDetails();
   expect(await screen.findByRole('status')).toHaveTextContent('Trạng thái gửi email/tin nhắn chưa được xác nhận');
   expect(api.requestOtp).toHaveBeenCalledWith({ channel: 'EMAIL', contact: 'hello@pawworld.com' });
+  expect(screen.getByDisplayValue('h****@pawworld.com')).toHaveAttribute('readonly');
+  expect(container.innerHTML).not.toContain('hello@pawworld.com');
+  expect(screen.queryByDisplayValue('hello@pawworld.com')).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /gửi lại sau 00:59|gửi lại sau 01:00/i })).toBeDisabled();
 });
 

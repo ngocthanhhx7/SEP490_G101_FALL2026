@@ -5,6 +5,8 @@ import { loginDestination } from '../../utils/role-access.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { otpFeedback } from '../../utils/otp-feedback.js';
 import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
+import { Dialog } from '../../components/ui/Dialog.jsx';
+import { Button } from '../../components/ui/Button.jsx';
 import './auth-public.css';
 import './sign-in.css';
 
@@ -31,6 +33,7 @@ export function SignInPage() {
   const location = useLocation();
   const [channel, setChannel] = useState(CHANNELS.EMAIL);
   const [contact, setContact] = useState('');
+  const [maskedContact, setMaskedContact] = useState('');
   const [challengeId, setChallengeId] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState('contact');
@@ -38,6 +41,12 @@ export function SignInPage() {
   const [error, setError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [rememberDevice, setRememberDevice] = useState(false);
+  const [registrationRequired, setRegistrationRequired] = useState(false);
+
+  function showRegistrationRequired() {
+    setStep('contact'); setCode(''); setChallengeId(''); setError(''); setCooldown(0);
+    setRegistrationRequired(true);
+  }
 
   function changeChannel(value) {
     setChannel(value); setContact(''); setCode(''); setChallengeId(''); setError('');
@@ -78,8 +87,12 @@ export function SignInPage() {
     setBusy(true);
     try {
       const result = await session.requestLoginOtp({ channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: loginContact() });
+      setMaskedContact(result.maskedContact);
       setChallengeId(result.challengeId); setCode(''); setStep('otp'); setCooldown(result.resendAfterSeconds ?? 60);
-    } catch (requestError) { setError(messageFor(requestError)); }
+    } catch (requestError) {
+      if (requestError?.code === 'REGISTRATION_REQUIRED') showRegistrationRequired();
+      else setError(messageFor(requestError));
+    }
     finally { setBusy(false); }
   }
 
@@ -92,14 +105,17 @@ export function SignInPage() {
     try {
       const result = await session.login({ challengeId, channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: loginContact(), code, rememberDevice });
       if (result?.reason === 'REGISTRATION_REQUIRED') {
-        setStep('registration-required'); setCode(''); setChallengeId(''); return;
+        showRegistrationRequired(); return;
       }
       if (result?.status !== 'authenticated') {
         setStep('contact'); setCode(''); setChallengeId('');
         setError('Mã đã được xác minh nhưng tài khoản chưa thể đăng nhập. Vui lòng liên hệ hỗ trợ.'); return;
       }
       // Session refresh drives one landing decision, including the owned application.
-    } catch (requestError) { setError(messageFor(requestError)); }
+    } catch (requestError) {
+      if (requestError?.code === 'REGISTRATION_REQUIRED') showRegistrationRequired();
+      else setError(messageFor(requestError));
+    }
     finally { setBusy(false); }
   }
 
@@ -108,8 +124,12 @@ export function SignInPage() {
     setBusy(true); setError('');
     try {
       const result = await session.requestLoginOtp({ channel: channel === CHANNELS.EMAIL ? 'EMAIL' : 'PHONE', contact: loginContact() });
+      setMaskedContact(result.maskedContact);
       setChallengeId(result.challengeId); setCode(''); setCooldown(result.resendAfterSeconds ?? 60);
-    } catch (requestError) { setError(messageFor(requestError)); }
+    } catch (requestError) {
+      if (requestError?.code === 'REGISTRATION_REQUIRED') showRegistrationRequired();
+      else setError(messageFor(requestError));
+    }
     finally { setBusy(false); }
   }
 
@@ -128,11 +148,7 @@ export function SignInPage() {
       <p className="sign-in-eyebrow">ĐĂNG NHẬP · PAW WORLD CARE</p>
       <h1 id="sign-in-title">Chào mừng<br />trở lại</h1>
       <p className="sign-in-description">Đăng nhập an toàn bằng mã OTP gửi tới liên hệ đã xác minh.</p>
-      {step === 'registration-required' ? <div role="status">
-        <p>Mã OTP đã được xác minh. Liên hệ này chưa được đăng ký tài khoản Paw World Care.</p>
-        <p><Link to="/register">Đăng ký tài khoản</Link> để tiếp tục với vai trò Khách hàng hoặc ứng tuyển Pet Sitter.</p>
-        <button type="button" className="sign-in-link" onClick={() => { setStep('contact'); setError(''); }}>Dùng liên hệ khác</button>
-      </div> : step === 'contact' ? <form onSubmit={requestCode} noValidate>
+      {step === 'contact' ? <form onSubmit={requestCode} noValidate>
         <fieldset className="sign-in-channel"><legend>Nhận mã bằng</legend>
           <label><input type="radio" name="channel" value="email" checked={channel === CHANNELS.EMAIL} onChange={() => changeChannel(CHANNELS.EMAIL)} disabled={busy} /> Email</label>
           <label><input type="radio" name="channel" value="phone" checked={channel === CHANNELS.PHONE} onChange={() => changeChannel(CHANNELS.PHONE)} disabled={busy} /> SMS</label>
@@ -144,7 +160,7 @@ export function SignInPage() {
         {error && <p id="sign-in-error" className="sign-in-error" role="alert">{error}</p>}
         <button type="submit" disabled={busy || cooldown > 0}>{busy ? 'Đang gửi mã…' : cooldown > 0 ? `Gửi lại sau ${cooldown}s` : 'Gửi mã OTP'}</button>
       </form> : <form onSubmit={verifyCode} noValidate>
-        <p className="sign-in-sent" role="status">Yêu cầu gửi mã tới <strong>{contact}</strong> đã được tiếp nhận. {channel === CHANNELS.EMAIL ? 'Vui lòng kiểm tra hộp thư và thư rác.' : 'Vui lòng kiểm tra tin nhắn SMS trên điện thoại.'}</p>
+        <p className="sign-in-sent" role="status">Yêu cầu gửi mã{maskedContact && <> tới <strong>{maskedContact}</strong></>} đã được tiếp nhận. {channel === CHANNELS.EMAIL ? 'Vui lòng kiểm tra hộp thư và thư rác.' : 'Vui lòng kiểm tra tin nhắn SMS trên điện thoại.'}</p>
         <label className="sign-in-field"><span>Mã OTP 6 chữ số</span>
           <input className="sign-in-otp" inputMode="numeric" autoComplete="one-time-code" placeholder="000000" value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} disabled={busy} aria-invalid={!!error} aria-describedby={error ? 'sign-in-error' : undefined} required maxLength={6} />
         </label>
@@ -157,5 +173,10 @@ export function SignInPage() {
       </form>}
       <p className="sign-in-register">Bạn chưa có tài khoản? <Link to="/register">Đăng ký</Link></p>
     </div>
+    <Dialog open={registrationRequired} onClose={() => setRegistrationRequired(false)}
+      title="Bạn chưa đăng ký tài khoản"
+      description={`${channel === CHANNELS.EMAIL ? 'Email' : 'Số điện thoại'} này chưa được đăng ký tài khoản Paw World Care. Vui lòng đăng ký trước khi đăng nhập.`}
+      footer={<><Button variant="secondary" onClick={() => setRegistrationRequired(false)}>Dùng liên hệ khác</Button>
+        <Link className="pwc-button pwc-button--primary" to="/register">Đăng ký tài khoản</Link></>} />
   </section>;
 }

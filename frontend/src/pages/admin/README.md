@@ -25,7 +25,9 @@ server-side and lets Admin prepare salary again while disputed booking commissio
 remains held. Paid statements use the existing separate reconciliation workflow.
 
 Product Management includes a separate `ProductImageManager` after saving the
-product. Save pending text changes before gallery edits. Upload, replacement and
+product, placed inside the form between "Mô tả" and the "Hiện trên trang Sản phẩm"
+switch (D-249; its buttons are `type="button"` and never submit the form).
+Save pending text changes before gallery edits. Upload, replacement and
 confirmed removal return the updated product version; unknown acknowledgements
 require reload. Image bytes live in MongoDB and hidden photos use the Admin reader.
 
@@ -93,3 +95,5 @@ reconciliation. Contract and statement printing use a selected body-level portal
 Payroll and settlement workspaces use full-width tables, server-derived reports and focused detail dialogs. Payroll retains automatic source-based preparation and selected payslip printing; legacy/advanced forms are collapsed. Settlement filtering is explicitly limited to the current cursor page. Reports are operational counts and persisted VND totals, never bank balances or proof of transfer. Policy/source gates remain authoritative; unknown commands freeze the modal and retry the original payload/key.
 
 AI Models includes a separate bounded source-readiness audit. It does not train from public research/demo data or automatically promote a model.
+
+`ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.
