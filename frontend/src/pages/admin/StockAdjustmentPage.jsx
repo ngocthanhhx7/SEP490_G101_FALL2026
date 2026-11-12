@@ -25,6 +25,7 @@ export function StockAdjustmentPage({ api }) {
   const [type, setType] = useState('DECREASE'), [quantity, setQuantity] = useState(''), [reason, setReason] = useState('');
   const [page, setPage] = useState(1), [errors, setErrors] = useState({});
   const [notice, setNotice] = useState(null), [failure, setFailure] = useState(false), [busy, setBusy] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const [conflictAvailable, setConflictAvailable] = useState(null);
   const lock = useRef(false), command = useRef(null);
   const selectedId = selected?.id;
@@ -49,19 +50,22 @@ export function StockAdjustmentPage({ api }) {
   const invalidProps = field => errors[field] ? {'aria-invalid':true,'aria-describedby':`adjustment-${field}-error`} : {};
   async function submit(event) {
     event.preventDefault(); if (lock.current) return;
-    const found = validateAdjustmentForm({product,type,quantity,reason});
+    const found = command.current?.uncertain ? {} : validateAdjustmentForm({product,type,quantity,reason});
     setErrors(found); setNotice(null); setFailure(false);
     if (Object.keys(found).length) return;
-    const body = {productId:product.id,type,quantity:Number(quantity.trim()),reason};
+    const body = command.current?.uncertain ? command.current.body : {productId:product.id,type,quantity:Number(quantity.trim()),reason};
     const fingerprint = JSON.stringify(body);
-    if (command.current?.fingerprint !== fingerprint) command.current = {fingerprint,key:`stock-adjustment:${globalThis.crypto.randomUUID()}`};
+    if (command.current?.fingerprint !== fingerprint) command.current = {fingerprint,body,key:`stock-adjustment:${globalThis.crypto.randomUUID()}`};
     lock.current = true; setBusy(true);
     try {
       const saved = await api.createAdjustment(body,command.current.key);
-      command.current = null; setQuantity(''); setReason(''); setErrors({}); setConflictAvailable(null); setSearching(false);
+      command.current = null; setUncertain(false); setQuantity(''); setReason(''); setErrors({}); setConflictAvailable(null); setSearching(false);
       setNotice(productMessage('MSG124',{code:saved.code}));
       setPage(1); recorded.retry(); productResource.retry();
     } catch (error) {
+      if (!error?.status || error.status >= 500 || ['TIMEOUT', 'NETWORK_ERROR', 'INVALID_RESPONSE'].includes(error.code)) {
+        command.current.uncertain = true; setUncertain(true);
+      }
       if (error?.code === 'STOCK_ADJUSTMENT_EXCEEDS_AVAILABLE' && Number.isSafeInteger(error.available)) {
         setConflictAvailable(error.available); setErrors({quantity:'EXCEEDS_AVAILABLE'}); productResource.retry();
       } else if (error?.code === 'VALIDATION_FAILED' && error.fields) setErrors(error.fields);
@@ -78,9 +82,9 @@ export function StockAdjustmentPage({ api }) {
         <h2 id="new-adjustment-title">Phiếu điều chỉnh mới</h2>
         <Field id="adjustment-productId" label="Sản phẩm" error={errorText('productId')}>
           <button id="adjustment-productId" type="button" className="pwc-shop-field pwc-sa-product" aria-label="Chọn sản phẩm" aria-expanded={searching}
-            disabled={busy} onClick={() => setSearching(value => !value)} {...invalidProps('productId')}>
+            disabled={busy || uncertain} onClick={() => setSearching(value => !value)} {...invalidProps('productId')}>
             {selected ? `${selected.code} · ${selected.name}` : 'Chọn sản phẩm'}<ChevronDown size={16} aria-hidden="true" /></button>
-          {searching && !busy && <ProductSearch productApi={api} selectedIds={[]} onPick={value => {
+          {searching && !busy && !uncertain && <ProductSearch productApi={api} selectedIds={[]} onPick={value => {
             edited('productId'); setSelected(value); setSearching(false);
           }} />}
         </Field>
@@ -88,16 +92,16 @@ export function StockAdjustmentPage({ api }) {
         {selected && ['error','forbidden'].includes(productResource.status) && <Failure retry={productResource.retry} />}
         <dl className="pwc-sa-stock">{[['Tồn thực tế','stockOnHand'],['Đang giữ','quantityHeld'],['Có thể bán','available']].map(([label,field]) =>
           <div key={field}><dt>{label}</dt><dd><output aria-label={label}>{product ? formatStockQuantity(product[field]) : '—'}</output></dd></div>)}</dl>
-        <fieldset className="pwc-sa-directions" disabled={busy}><legend>Loại điều chỉnh</legend><div>
+        <fieldset className="pwc-sa-directions" disabled={busy || uncertain}><legend>Loại điều chỉnh</legend><div>
           {STOCK_ADJUSTMENT_TYPES.map(([value,label]) => <label key={value}><input type="radio" name="adjustment-type" value={value} checked={type===value}
             onChange={() => {edited('type');setType(value);}} />{label}</label>)}</div></fieldset>
         <div className="pwc-sa-inputs">
           <Field id="adjustment-quantity" label="Số lượng" error={errorText('quantity')}>
-            <input id="adjustment-quantity" className="pwc-shop-field" inputMode="numeric" value={quantity} disabled={busy} autoComplete="off" maxLength={7}
+            <input id="adjustment-quantity" className="pwc-shop-field" inputMode="numeric" value={quantity} disabled={busy || uncertain} autoComplete="off" maxLength={7}
               onChange={event => {edited('quantity');setQuantity(event.target.value);}} {...invalidProps('quantity')} />
           </Field>
           <Field id="adjustment-reason" label="Lý do" error={errorText('reason')}>
-            <select id="adjustment-reason" className="pwc-shop-field" value={reason} disabled={busy}
+            <select id="adjustment-reason" className="pwc-shop-field" value={reason} disabled={busy || uncertain}
               onChange={event => {edited('reason');setReason(event.target.value);}} {...invalidProps('reason')}>
               <option value="">Chọn lý do</option>{Object.entries(STOCK_ADJUSTMENT_REASON_LABELS).map(([value,label]) => <option value={value} key={value}>{label}</option>)}
             </select>
@@ -105,7 +109,8 @@ export function StockAdjustmentPage({ api }) {
         </div>
         <div className="pwc-sa-preview"><span>Tồn thực tế sau khi lưu</span><output aria-label="Tồn thực tế sau khi lưu">{preview === null ? '—' : formatStockQuantity(preview)}</output></div>
         {failure && <p className="pwc-shop-alert pwc-shop-alert--error" role="alert">{TEXT.failed}</p>}
-        <button type="submit" className="pwc-shop-primary-button" disabled={busy}>Lưu phiếu điều chỉnh</button>
+        {uncertain && <p role="status">Chưa xác định phiếu đã được lưu hay chưa. Kiểm tra lại cùng yêu cầu trước khi tạo hoặc sửa phiếu khác.</p>}
+        <button type="submit" className="pwc-shop-primary-button" disabled={busy}>{uncertain ? 'Kiểm tra lại phiếu điều chỉnh' : 'Lưu phiếu điều chỉnh'}</button>
       </form>
       <section className="pwc-shop-panel pwc-sa-recorded" aria-labelledby="recorded-adjustments-title">
         <h2 id="recorded-adjustments-title">Phiếu đã ghi</h2><p className="pwc-shop-hint">{TEXT.immutable}</p>

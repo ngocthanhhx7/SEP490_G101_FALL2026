@@ -14,7 +14,7 @@ function fakeApi(over = {}) {
 const show = (api = fakeApi()) => { render(<MemoryRouter><StockAdjustmentPage api={api} /></MemoryRouter>); return api; };
 const quantity = () => screen.getByLabelText('Số lượng');
 const reason = () => screen.getByLabelText('Lý do');
-const save = () => fireEvent.click(screen.getByRole('button', { name: 'Lưu phiếu điều chỉnh' }));
+const save = () => fireEvent.click(screen.getByRole('button', { name: /^(Lưu phiếu điều chỉnh|Kiểm tra lại phiếu điều chỉnh)$/ }));
 async function pick() {
   fireEvent.click(screen.getByRole('button', { name: 'Chọn sản phẩm' }));
   fireEvent.click(await screen.findByRole('button', { name: `Thêm ${P.code} ${P.name}` }));
@@ -118,4 +118,16 @@ test('ignores a late stock read after the Admin switches products', async () => 
   await waitFor(()=>expect(screen.getByLabelText('Tồn thực tế')).toHaveTextContent('20'));
   resolveOld(P);
   await waitFor(()=>expect(screen.getByLabelText('Tồn thực tế')).toHaveTextContent('20'));
+});
+
+test('an unknown save freezes edited content until the exact operation is resolved', async () => {
+  const api = show(fakeApi({ createAdjustment: jest.fn().mockRejectedValueOnce(new ApiError('TIMEOUT')).mockResolvedValueOnce(receipt()) }));
+  await pick(); fill(); save();
+  await screen.findByText('Chưa thể hoàn tất. Vui lòng thử lại sau.');
+  expect(quantity()).toBeDisabled();
+  expect(reason()).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Chọn sản phẩm' })).toBeDisabled();
+  save(); await screen.findByText('Phiếu điều chỉnh DC-0001 đã được lưu.');
+  expect(api.createAdjustment.mock.calls[1]).toEqual(api.createAdjustment.mock.calls[0]);
+  expect(quantity()).toBeEnabled();
 });
