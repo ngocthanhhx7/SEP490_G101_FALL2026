@@ -16,7 +16,8 @@ transport for directed booking; pages do not call the transport directly.
 `workspace-api.js` validates aggregate metric, trend and distribution responses
 from `/workspaces/:kind/analytics`; it never calculates financial figures.
 
-`employee-scheduling-api.js` owns assigned care/acknowledgement/access-note
+`employee-scheduling-api.js` owns UC-82 withdrawal options and submission transport.
+It also owns assigned care/acknowledgement/access-note
 transport, execution reads and existing check-in/checklist/check-out commands.
 Its injected private-image transport uploads evidence with a separate stable key.
 `service-basket-api.js` owns quote, checkout and Customer rating calls;

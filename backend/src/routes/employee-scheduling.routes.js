@@ -24,6 +24,7 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   const repository = createEmployeeScheduleRepository({ connection, clock, coverageAreas, routingProvider });
   const carePlans = createBookingCarePlanService({ connection, clock });
   const dispatch = createEmployeeDispatchService({ repository, clock, carePlans,
+    autoDispatchWithdrawals: env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true',
     ranker: config.ai?.enabled ? createOperationalRanker({ connection, routingProvider, clock }) : undefined });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const proposals = createEmployeeScheduleProposalService({ repository, dispatch, clock });
@@ -40,6 +41,8 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.put('/work-areas', sitter, csrf, c.saveAreas);
   router.get('/offers', sitter, c.offers);
   router.get('/assignments', sitter, c.assignments);
+  router.get('/visits/:id/withdrawal-options', sitter, c.withdrawalOptions);
+  router.post('/visits/:id/withdrawals', sitter, csrf, c.withdraw);
   const care = createAssignedCareController(createAssignedCareService({ repository, clock }));
   router.get('/visits/:id/care', sitter, care.get);
   router.post('/visits/:id/care/acknowledgements', sitter, csrf, care.acknowledge);
