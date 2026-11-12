@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="BOOK-01 Quote and confirm a multi-line service basket" id="book-01">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1848" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Customer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1568" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Pricing HTTP boundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1568" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": PricingService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1568" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Pricing repository / MongoDB" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1568" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Deterministic calculation" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1568" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Checkout snapshot helper" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1568" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="336" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Submit 1..20 service selections with session/CSRF" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: basket(ownerId,{items}); validate exact items shape" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: For each selection load owned pets and approved&#10;service/price/policy versions" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="670" y="336" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="336" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Current pet/version, service version, price and matching&#10;approved trait rules" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="394" />
+            <mxPoint as="targetPoint" x="480" y="394" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="loop" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="467" width="1110" height="220" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: calculateQuote(...,deferOrderAdjustments=true): integer VND&#10;base and approved surcharges" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="587" />
+            <mxPoint as="targetPoint" x="855" y="587" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="587" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Item lines and subtotal; unresolved trait rule -&gt;&#10;PRICING_REVIEW_REQUIRED, no quote" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="645" />
+            <mxPoint as="targetPoint" x="480" y="645" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-7" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="718" width="1110" height="380" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Require common combo/order-fee policy parameters; total&#10;visit count &lt;=60" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="838" />
+            <mxPoint as="targetPoint" x="480" y="860" />
+            <Array as="points">
+              <mxPoint x="520" y="838" />
+              <mxPoint x="520" y="860" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-8" value="8: Compute one combo from basket visits (approved 1%/visit,&#10;cap10%); one order fee, safe BigInt rounding" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="918" />
+            <mxPoint as="targetPoint" x="480" y="940" />
+            <Array as="points">
+              <mxPoint x="520" y="918" />
+              <mxPoint x="520" y="940" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-9" value="9: Create owner-bound QUOTE DecisionSnapshot with input, item&#10;versions, result and 10-minute expiry" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="998" />
+            <mxPoint as="targetPoint" x="670" y="998" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="998" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: quoteId/expiresAt/items/total/paymentMode; estimate is not&#10;booking/payment" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1056" />
+            <mxPoint as="targetPoint" x="105" y="1056" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-11" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1129" width="1110" height="242" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: checkoutVisitMoney: split base/surcharge by customer visit,&#10;largest-remainder discount allocation" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="1249" />
+            <mxPoint as="targetPoint" x="1035" y="1271" />
+            <Array as="points">
+              <mxPoint x="1075" y="1249" />
+              <mxPoint x="1075" y="1271" />
+            </Array>
+            <mxPoint as="offset" x="-170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-12" value="12: Exact sum(employee service net)=basket subtotal; order fee&#10;counted once outside commission" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="1329" />
+            <mxPoint as="targetPoint" x="105" y="1329" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-13" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1402" width="1110" height="175" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Requote changed pet/service/time selections; incompatible&#10;policy/overflow -&gt; explicit error. Checkout rechecks&#10;snapshots separately" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1522" />
+            <mxPoint as="targetPoint" x="105" y="1522" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="SOURCE_IMPLEMENTED_NOT_LIVE_ACCEPTED. PricingService persists only quote decisions here. No AI price calculation, invented tax or trait fee. The checkout helper is pure and does not create a booking by itself. Sources: backend/src/services/pricing/pricing.service.js; backend/src/services/pricing/pricing-calculation.service.js; backend/src/services/booking-proposals/checkout-snapshot.service.js" style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1648" width="1100" height="145" />
+        </mxCell>
+        <mxCell id="frame-1-guard" value="[basket quote request]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="107.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-5-guard" value="[each service item]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="474.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-7-guard" value="[one basket-level adjustment]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="725.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-11-guard" value="[later checkout allocation, separate command]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="1136.0" width="1010" height="30" />
+        </mxCell>
+        <mxCell id="frame-13-guard" value="[changed selections or incompatible policy]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90.0" y="1409.0" width="1010" height="30" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -41,6 +41,36 @@ and the last20 application/status audit events. Published CUSTOMER_TO_SITTER rat
 alone produce the optional rating count/average; comments are never exposed here.
 All reads use bounded snapshot queries. Existing collection names are preserved.
 
+## Staff directory (UC-74)
+
+`GET /api/v1/sitter-management?view=staffList` requires Staff or Admin. It
+restricts results to active accounts with an active sitter status. The Staff
+page sends `status=ACTIVE`, `limit=20` and the chosen `sort`. Calls without
+`view`, including the Admin list, retain the existing defaults and DTO.
+
+- `sort=rating|lateCheckIns|withdrawals`, default `rating`. Values sort
+  descending, unknown values last, followed by name and ID for ties.
+  `withdrawals` is reserved for the follow-up and returns
+  `422 VALIDATION_FAILED` while its source is unavailable.
+- `search` matches a literal substring of the name, displayed employee code
+  or verified phone. Vietnamese local and international mobile formats are
+  equivalent. Phones and their ciphertext stay on the server.
+- `employmentType`, `area`, `profileState`, `source`, `limit` and `cursor`
+  retain their existing validation. The signed Staff cursor is bound to actor,
+  filters, sort and the as-of time used for the 30-day window.
+- `tabCounts` contains `all`, `partTime` and `fullTime` for the active population,
+  before search or other filters. An active sitter without a current contract
+  contributes to `all` only. `total` reflects the filtered result.
+- Rows include the current contract's `employeeCode` as `code`, or the
+  previously displayed six-character ID suffix. `workingWindows` shows the
+  effective part-time revision. `rating` is the mean of published customer
+  ratings. `lateCheckIns` counts actual check-ins more than five minutes after
+  the scheduled start, from `asOf - 30 days` through `asOf`.
+- `withdrawalsAvailable: false` and `withdrawals: null` indicate the missing
+  UC-82 source. `approvedLeave: null` and `shift: null` indicate the missing
+  approved-leave and Admin shift sources. These nulls do not represent zero
+  or an empty schedule. The separate reports endpoint retains its own period.
+
 ## Commands And Navigation
 
 Admin suspension/reinstatement reuses
@@ -58,3 +88,7 @@ neither the directory nor an AI score reserves or assigns a slot.
 
 AI threshold60 remains unchanged. No verified outcome, rating, employment claim,
 payment or assignment is fabricated by this module.
+
+### Staff directory query bounds
+
+Global metric ordering scans the snapshot through a Mongo cursor in batches of 100 and retains only the best `limit + 1` candidates after each batch. Contact and metric reads remain scoped to each batch. Exact filtered totals/tab counts and signed metric cursor semantics are preserved; the implementation does not enrich only the first page and misrepresent the global order. Queries have a 5-second server deadline; a scan exceeding the 8-second processing budget fails explicitly (`503 SITTER_LIST_TIMEOUT`) instead of returning a partial leaderboard. No new store, index, plaintext phone tokens or materialized metrics cache is introduced.

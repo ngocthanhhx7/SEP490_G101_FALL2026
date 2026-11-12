@@ -36,6 +36,22 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     save: ({ idempotencyKey, signal, ...body }) => mutate('/work-areas', body, idempotencyKey, 'PUT', signal),
     offers: ({ signal, cursor } = {}) => get(`/offers${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, signal),
     assignments: ({ signal, cursor } = {}) => get(`/assignments${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, signal),
+    async withdrawalOptions(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/withdrawal-options`, signal);
+      const row = result.data;
+      if (row?.visitId !== id || !['EARLY', 'LATE'].includes(row.mode) || !Number.isSafeInteger(row.version) ||
+        !Number.isFinite(Date.parse(row.startAt)) || !Number.isFinite(Date.parse(row.serverNow)) ||
+        !Array.isArray(row.reasonCodes)) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async withdraw(id, body, key) {
+      const result = await mutate(`/visits/${encodeURIComponent(id)}/withdrawals`, body, key);
+      if (result.pending || result.status === 202) return result;
+      if (result.data?.visitId !== id || result.data?.mode !== body.expectedMode ||
+        result.data?.version !== body.expectedVersion + 1 || !Number.isFinite(Date.parse(result.data?.startAt)))
+        throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     care: (id, { signal } = {}) => get(`/visits/${encodeURIComponent(id)}/care`, signal),
     acknowledgeCare: (id, version, key) => mutate(`/visits/${encodeURIComponent(id)}/care/acknowledgements`, { version }, key),
     accessNotes: id => get(`/visits/${encodeURIComponent(id)}/access-notes`),

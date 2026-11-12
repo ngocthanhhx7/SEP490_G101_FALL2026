@@ -56,6 +56,7 @@ import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPag
 import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api.js';
 import { SitterWorkAreasPanel } from '../pages/sitter/SitterWorkAreasPanel.jsx';
 import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
+import { StaffBookingDetailPage } from '../pages/staff/StaffBookingDetailPage.jsx';
 import { EmployeeInvitationsPage } from '../pages/sitter/EmployeeInvitationsPage.jsx';
 import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingProposalPage.jsx';
 import { ProductListPage } from '../pages/public/ProductListPage.jsx';
@@ -65,11 +66,31 @@ import { ProductCheckoutPage } from '../pages/customer/ProductCheckoutPage.jsx';
 import { MyProductOrdersPage } from '../pages/customer/MyProductOrdersPage.jsx';
 import { ProductOrderManagementPage } from '../pages/admin/ProductOrderManagementPage.jsx';
 import { SaleStaffDashboardPage } from '../pages/dashboards/SaleStaffDashboardPage.jsx';
+import { CounterSalePage } from '../pages/admin/CounterSalePage.jsx';
+import { createCounterSaleApi } from '../services/counter-sale-api.js';
 import { createProductOrderManagementApi } from '../services/product-order-management-api.js';
 import { ProductManagementPage } from '../pages/admin/ProductManagementPage.jsx';
 import { createProductManagementApi } from '../services/product-management-api.js';
 import { SupplierManagementPage } from '../pages/admin/SupplierManagementPage.jsx';
 import { createSupplierManagementApi } from '../services/supplier-management-api.js';
+import { GoodsReceiptPage } from '../pages/admin/GoodsReceiptPage.jsx';
+import { createGoodsReceiptApi } from '../services/goods-receipt-api.js';
+import { StockListPage } from '../pages/admin/StockListPage.jsx';
+import { createStockListApi } from '../services/stock-list-api.js';
+import { StockAdjustmentPage } from '../pages/admin/StockAdjustmentPage.jsx';
+import { createStockAdjustmentApi } from '../services/stock-adjustment-api.js';
+
+function StockAdjustmentRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createStockAdjustmentApi({ getCsrfToken }), [getCsrfToken]);
+  return <StockAdjustmentPage key={user?.id} api={api} />;
+}
+
+function StockListRoute() {
+  const { user } = useSession();
+  const api = useMemo(() => createStockListApi(), []);
+  return <StockListPage key={user?.id} api={api} />;
+}
 
 function ServiceAreasRoute() {
   const { getCsrfToken, user } = useSession();
@@ -90,10 +111,22 @@ function SupplierManagementRoute() {
   return <SupplierManagementPage key={user?.id} api={api} productApi={productApi} />;
 }
 
+function GoodsReceiptRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createGoodsReceiptApi({ getCsrfToken }), [getCsrfToken]);
+  return <GoodsReceiptPage key={user?.id} api={api} recorderName={user?.displayName ?? ''} />;
+}
+
 function ProductOrderManagementRoute() {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createProductOrderManagementApi({ getCsrfToken }), [getCsrfToken]);
   return <ProductOrderManagementPage key={user?.id} api={api} />;
+}
+
+function CounterSaleRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createCounterSaleApi({ getCsrfToken }), [getCsrfToken]);
+  return <CounterSalePage key={user?.id} api={api} />;
 }
 
 function SitterManagementRoute({ detail = false }) {
@@ -140,8 +173,12 @@ const navigationByRole = {
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
     ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
     ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
+    ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
     ['Sản phẩm', '/admin/products', 'Cửa hàng'],
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
+    ['Nhập hàng', '/admin/goods-receipts', 'Cửa hàng'],
+    ['Tồn kho', '/admin/stock', 'Cửa hàng'],
+    ['Điều chỉnh tồn kho', '/admin/stock-adjustments', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
     ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
@@ -177,7 +214,10 @@ const navigationByRole = {
   ],
   SALE_STAFF: [
     ['Tổng quan', '/sale-staff/dashboard', 'Bán hàng'],
-    ['Đơn hàng', '/admin/product-orders', 'Bán hàng']
+    ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
+    ['Đơn hàng', '/admin/product-orders', 'Bán hàng'],
+    ['Nhập hàng', '/admin/goods-receipts', 'Bán hàng'],
+    ['Tồn kho', '/admin/stock', 'Bán hàng']
   ],
   STAFF: [
     ['Tổng quan', '/staff', 'Công việc'],
@@ -247,6 +287,7 @@ export function AppRoutes({
           <Route path="admin/ai-models" element={<AiModelsPage />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
+          <Route path="admin/stock-adjustments" element={<StockAdjustmentRoute />} />
           <Route path="admin/service-areas" element={<ServiceAreasRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
@@ -277,6 +318,9 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['ADMIN', 'SALE_STAFF']} />}>
         <Route element={<AccountWorkspace />}>
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
+          <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
+          <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
+          <Route path="admin/stock" element={<StockListRoute />} />
         </Route>
       </Route>
       <Route element={<RequireSession />}>
@@ -335,6 +379,7 @@ export function AppRoutes({
         <Route element={<AccountWorkspace />}>
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
           <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
+          <Route path="staff/bookings/:bookingId" element={<StaffBookingDetailPage />} />
         </Route>
       </Route>
       <Route element={<PublicSiteLayout />}>

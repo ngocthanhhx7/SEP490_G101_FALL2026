@@ -5,8 +5,9 @@ Staff review/resolution commands with expected versions. It never exposes
 Customer-private media as a public URL and leaves final closure to the Admin
 decision endpoint. P34 owns route registration and the live session/API wiring.
 
-`SitterManagementPage.jsx` presents the operational table and source-labelled
-reports for Staff/Admin. `SitterManagementDetailPage.jsx` presents application
+`SitterManagementPage.jsx` presents the UC-74 Staff directory and the existing
+Admin operational list. Staff list metrics use a rolling 30-day window, with
+the report period controlled separately. `SitterManagementDetailPage.jsx` presents application
 summary, public profile, capabilities, current contract terms, registered schedule,
 paged work history and Admin management history. Shared transport and DTO validation
 live in `services/sitter-management-api.js`; pure labels live in
@@ -14,6 +15,8 @@ live in `services/sitter-management-api.js`; pure labels live in
 
 Admin-only application documents and personal information remain in the existing
 application review page. Status commands reuse its versioned audited backend API.
+`EmployeeDispatchPage.jsx` lists pending visit withdrawal requests under Cần xử lý, with the assigned sitter, reason and visit start time.
+
 `EmployeeDispatchPage.jsx` can receive a selected sitter from the route composition;
 invitation creation still rechecks authoritative eligibility, payment and the
 Customer's directed choice. No page assigns work by itself.
@@ -29,3 +32,5 @@ Dispatch now separates a bounded intervention table, the Vietnam-day visit table
 `DispatchSitterPicker` checks current-time manual candidates, explains blocked profiles and sends an invitation for the selected employee. `SitterCapabilityForm` records verified skills from the capability tab with a reason and stable operation key. Neither component creates assignments or outcomes.
 
 Dispatch details use an opt-in wide two-column layout, compact native-radio candidate rows and a collapsible blocked group. No eligibility or invitation contract changes are made by presentation.
+
+`StaffBookingDetailPage.jsx` displays the shared read-only booking detail through the Staff/Admin booking detail API.

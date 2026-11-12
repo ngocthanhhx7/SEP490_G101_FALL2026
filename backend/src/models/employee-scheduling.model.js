@@ -16,7 +16,8 @@ export function employeeSchedulingModels(connection) {
   offer.index({ visitId: 1, state: 1, deadline: 1 });
   const event = new Schema({ type: String, actorId: String, sitterId: String, visitId: String,
     offerId: String, at: Date, detail: Schema.Types.Mixed }, options);
-  const proposal = new Schema({ customerId: String, bookingId: String, visitId: String, sitterId: String,
+  event.index({ type: 1, sitterId: 1, at: -1 });
+  const proposal = new Schema({ customerId: String, bookingId: String, visitId: String, sitterId: String, previousSitterId: String,
     areaCode: String, previousAreaCode: String, areaLabel: String,
     slots: [Schema.Types.Mixed], availabilityVersion: Number, visitVersion: Number, state: String, version: Number,
     expiresAt: Date, priceSnapshot: Schema.Types.Mixed, petSnapshots: [Schema.Types.Mixed], paymentState: String,

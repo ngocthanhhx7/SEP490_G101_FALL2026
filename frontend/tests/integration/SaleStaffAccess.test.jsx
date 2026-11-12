@@ -7,6 +7,7 @@ jest.mock('../../src/pages/admin/ProductOrderManagementPage.jsx', () => ({
   ProductOrderManagementPage: () => <h1>Quản lý đơn hàng</h1>
 }));
 
+jest.mock('../../src/pages/admin/CounterSalePage.jsx', () => ({ CounterSalePage: () => <h1>Bán tại quầy</h1> }));
 const originalFetch = globalThis.fetch;
 beforeEach(() => {
   window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -37,7 +38,12 @@ test.each(['/sign-in', '/register', '/sitter/apply', '/products'])('GBR-01 Sale 
   expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeVisible();
   const sidebar = screen.getByRole('complementary');
   expect(within(sidebar).getByText('Bán hàng')).toBeVisible();
-  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Đơn hàng']);
+  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đơn hàng', 'Nhập hàng', 'Tồn kho']);
+});
+
+test('Sale Staff opens the counter workspace', async () => {
+  open('/admin/counter-sale', 'SALE_STAFF');
+  expect(await screen.findByRole('heading', { name: 'Bán tại quầy' })).toBeVisible();
 });
 
 test('Permission Matrix Admin keeps the existing order menu', async () => {
@@ -46,7 +52,7 @@ test('Permission Matrix Admin keeps the existing order menu', async () => {
   expect(within(screen.getByRole('complementary')).getByRole('link', { name: 'Đơn hàng sản phẩm' })).toBeVisible();
 });
 
-test.each(['/admin/users', '/admin/products', '/staff/dispatch', '/sitter/payroll', '/account/bookings'])('Permission Matrix Sale Staff is denied at %s', async path => {
+test.each(['/admin/users', '/admin/products', '/admin/stock-adjustments', '/staff/dispatch', '/sitter/payroll', '/account/bookings'])('Permission Matrix Sale Staff is denied at %s', async path => {
   open(path, 'SALE_STAFF');
   expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
   expect(screen.getByRole('link', { name: 'Về khu vực của tôi' })).toHaveAttribute('href', '/sale-staff/dashboard');

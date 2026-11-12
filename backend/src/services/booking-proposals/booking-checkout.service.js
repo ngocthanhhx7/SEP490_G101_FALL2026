@@ -21,6 +21,7 @@ import { assertFinanceSourceStorage } from '../settlements/source-provisioning.j
 import { checkoutVisitMoney, CHECKOUT_POLICY_VERSION, PREPAY_WINDOW_MS } from './checkout-snapshot.service.js';
 import { assertMatchSelection } from './match-selection.service.js';
 import { boardingCarePlan } from './boarding-care-plan.service.js';
+import { createBookingDetailsService } from './booking-details.service.js';
 
 export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
@@ -30,6 +31,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
     Setting = systemSettingVersionModel(connection), { PricingPolicy } = pricingModels(connection);
   const col = name => connection.db.collection(name), oid = value => new Types.ObjectId(value), now = () => new Date(clock());
   const uow = createUnitOfWork(connection);
+  const details = createBookingDetailsService({ connection, clock });
   function customer(actor) {
     if (actor?.state !== 'ACTIVE' || actor.synthetic === true) fail('UNAUTHENTICATED', 'Authentication required', 401);
     id(actor.userId); if (!hasRole(actor.roles, 'CUSTOMER')) fail('FORBIDDEN', 'Customer required', 403);
@@ -223,7 +225,10 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       });
     },
     async read(actor, bookingId) {
-      customer(actor); id(bookingId); await assertFinanceSourceStorage(connection); return view(await owned(actor, bookingId));
+      customer(actor); id(bookingId); await assertFinanceSourceStorage(connection);
+      const booking = await owned(actor, bookingId);
+      const [checkout, projection] = await Promise.all([view(booking), details.project(booking)]);
+      return { ...checkout, ...projection };
     },
     async paymentLink(actor, bookingId, key) {
       customer(actor); id(bookingId); await assertFinanceSourceStorage(connection);

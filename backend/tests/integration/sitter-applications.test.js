@@ -202,7 +202,7 @@ describe('P16 public sitter application submission', () => {
 });
 
 describe('P16 Admin application review and private documents', () => {
-  test('denies Customer and unauthenticated reads; Admin receives no raw identity number', async () => {
+  test('GBR-02 denies Customer and unauthenticated reads; Admin receives no raw identity number', async () => {
     const events = [];
     const application = app({ logger: event => events.push(event) });
     const submitted = await submit(application, applicationBody()).expect(201);
@@ -514,6 +514,80 @@ test('Admin overview counts all applications while filters and cursor pagination
     .set('Cookie', admin.cookie).expect(422);
 });
 
+test('UC-17 keeps legacy API defaults and pages by submission date and ID in both directions', async () => {
+  const application = app();
+  const admin = await login();
+  const Applicant = sitterApplicationModels(connection).SitterApplication;
+  const ids = [];
+  for (let index = 0; index < 22; index++) {
+    const submitted = await submit(application, applicationBody({
+      contactValue: `candidate${index}@example.test`,
+      identityNumber: String(100000000000 + index)
+    }), `application-list-${index}`).expect(201);
+    ids.push(submitted.body.data.id);
+  }
+  // Make the order deterministic even when the page boundary has the same submitted timestamp.
+  await Applicant.collection.updateMany({}, { $set: { createdAt: new Date('2026-10-14T00:00:00Z') } });
+  ids.sort();
+  await Applicant.findByIdAndUpdate(ids[0], { state: 'REJECTED' });
+  const read = query => request(application).get('/api/v1/applications').query(query).set('Cookie', admin.cookie);
+  const legacy = (await read({}).expect(200)).body.data;
+  expect(legacy.totalMatching).toBe(22);
+  expect(legacy.applications[0].id).toBe(ids.at(-1));
+  for (const sortOrder of ['asc', 'desc']) {
+    const ordered = sortOrder === 'asc' ? ids.slice(1) : ids.slice(1).reverse();
+    const first = (await read({ state: 'PENDING', sortOrder }).expect(200)).body.data;
+    expect(first.applications.map(row => row.id)).toEqual(ordered.slice(0, 20));
+    const second = (await read({ state: 'PENDING', sortOrder, cursor: first.nextCursor }).expect(200)).body.data;
+    expect(second.applications.map(row => row.id)).toEqual(ordered.slice(20));
+    expect(second.nextCursor).toBeNull();
+    await read({ state: 'PENDING', sortOrder: sortOrder === 'asc' ? 'desc' : 'asc', cursor: first.nextCursor }).expect(422);
+  }
+});
+
+test('UC-17 searches literal name, original code and phone; area and state compose without changing tab totals', async () => {
+  const application = app();
+  const admin = await login();
+  const phone = (await submit(application, applicationBody({
+    displayName: 'Nguyễn [A]', contactChannel: 'PHONE', contactValue: '+84912001234',
+    workAreas: ['Cầu Giấy', 'Đống Đa']
+  })).expect(201)).body.data;
+  const email = (await submit(application, applicationBody({
+    displayName: 'Nguyễn B', contactValue: 'another@example.test', identityNumber: '012345678902',
+    workAreas: ['DISTRICT_CAU_GIAY']
+  }), 'second-application').expect(201)).body.data;
+  const deadline = '2026-11-13T03:00:00.000Z';
+  await sitterApplicationModels(connection).SitterApplication.findByIdAndUpdate(email.id, {
+    state: 'REJECTED', reapplyAt: new Date(deadline)
+  });
+  const read = query => request(application).get('/api/v1/applications').query(query).set('Cookie', admin.cookie);
+  const all = (await read({}).expect(200)).body.data;
+  expect(all.serviceAreas).toEqual(expect.arrayContaining([
+    expect.objectContaining({ id: 'DISTRICT_CAU_GIAY', name: 'Khu vực Cầu Giấy' })
+  ]));
+  for (const search of ['[a]', phone.applicationCode.slice(3, 18), '0912 001 234', '+84912001234', '1234']) {
+    const response = await read({ search }).expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.body.data.summary).toEqual(all.summary);
+    expect(response.body.data.totalMatching).toBe(1);
+    expect(response.body.data.applications).toEqual([expect.objectContaining({
+      id: phone.id, phoneNumber: '+84912001234', applicationCode: phone.applicationCode
+    })]);
+  }
+  const area = (await read({ serviceArea: 'DISTRICT_CAU_GIAY' }).expect(200)).body.data;
+  expect(area.applications.map(row => row.id)).toEqual(expect.arrayContaining([phone.id, email.id]));
+  const combined = (await read({ state: 'REJECTED', search: 'Nguyễn', serviceArea: 'DISTRICT_CAU_GIAY' }).expect(200)).body.data;
+  // GBR-25 uses the persisted deadline. Email-only applications have no submitted phone.
+  expect(combined.applications).toEqual([expect.objectContaining({ id: email.id, reapplyAt: deadline, phoneNumber: null })]);
+  const empty = (await read({ state: 'REJECTED', search: 'Nguyễn', serviceArea: 'DISTRICT_DONG_DA' }).expect(200)).body.data;
+  expect(empty.applications).toEqual([]);
+  expect(empty.totalMatching).toBe(0);
+  expect(empty.summary).toEqual(all.summary);
+  await read({ search: 'a'.repeat(51) }).expect(422);
+  await read({ serviceArea: 'unknown' }).expect(422);
+  await read({ sortOrder: 'newest' }).expect(422);
+});
+
 test('private document provider errors return a controlled JSON error instead of redirecting to XML', async () => {
   const application = app({ privateMedia: { ...mediaPort, readDocument: async () => { throw Error('<Error>AccessDenied</Error>'); } } });
   const submitted = await submit(application, applicationBody()).expect(201);
@@ -569,4 +643,59 @@ test('application ownership rechecks the persisted role after an in-flight accou
   await expect(service.updateMine({ actor, body: {} })).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
   await User.updateOne({ _id: CUSTOMER_ID }, { $set: { roles: ['PET_SITTER'] } });
   await expect(service.getMine({ actor: { ...actor, roles: ['PET_SITTER'] } })).resolves.toEqual({ application: null });
+});
+
+test('partial phone search bounds decrypted candidates and continues past an empty candidate window', async () => {
+  const instance = app();
+  const submitted = (await submit(instance, applicationBody({ contactChannel: 'PHONE', contactValue: '+84912001234' })).expect(201)).body.data;
+  const applicationModels = sitterApplicationModels(connection), Applicant = applicationModels.SitterApplication;
+  const template = await Applicant.collection.findOne({ _id: new connection.base.Types.ObjectId(submitted.id) });
+  await Applicant.deleteMany({});
+  const documents = Array.from({ length: 701 }, (_, index) => {
+    const value = { ...template, _id: new connection.base.Types.ObjectId(), submissionKeyDigest: `bounded-search-${index}`,
+      createdAt: new Date(clockNow + index * 1000), updatedAt: new Date(clockNow + index * 1000),
+      contactCiphertext: contactCrypto.encrypt(index === 700 ? '+84919999999' : '+84912001234') };
+    for (const key of ['trackingCodeDigest', 'activePendingOwnerUserId', 'activePendingContactKey', 'activePendingIdentityKey']) delete value[key];
+    return value;
+  });
+  await Applicant.collection.insertMany(documents);
+  const decrypt = jest.fn(contactCrypto.decrypt);
+  const service = createSitterApplicationService({ connection, User, Applicant,
+    Audit: applicationModels.SitterApplicationAudit, DownloadQuota: applicationModels.SitterApplicationDownloadQuota,
+    SitterStatus: applicationModels.SitterStatus, contactCrypto: { ...contactCrypto, decrypt }, privateMedia: mediaPort,
+    lookupSecret: SECRETS.CONTACT_LOOKUP_SECRET, cursorSecret: SECRETS.SESSION_TOKEN_SECRET,
+    employmentDocuments: { activate: async () => {} }, clock: () => clockNow });
+  const actor = { userId: ADMIN_ID, state: 'ACTIVE', roles: ['ADMIN'] };
+  const query = { state: 'ALL', search: '999999', sortOrder: 'asc' };
+  const first = await service.list({ actor, query });
+  expect(decrypt.mock.calls.length).toBeLessThanOrEqual(500);
+  const plan = await Applicant.collection.find({ state: { $in: ['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVED', 'REJECTED'] } })
+    .sort({ createdAt: 1, _id: 1 }).limit(501).explain('executionStats');
+  expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(501);
+  expect(first.applications).toEqual([]);
+  expect(first.searchIncomplete).toBe(true);
+  expect(first.totalMatching).toBeNull();
+  expect(first.nextCursor).toEqual(expect.any(String));
+  decrypt.mockClear();
+  const last = await service.list({ actor, query: { ...query, cursor: first.nextCursor } });
+  expect(last.applications.map(row => row.id)).toEqual([String(documents[700]._id)]);
+  expect(last.nextCursor).toBeNull();
+  expect(decrypt.mock.calls.length).toBeLessThanOrEqual(500);
+});
+
+test('application area filters include the persisted commune registry alongside legacy names', async () => {
+  const instance = app();
+  const submitted = (await submit(instance, applicationBody()).expect(201)).body.data;
+  const code = 'COMMUNE_SYNTHETIC_FILTER';
+  await connection.db.collection('serviceareas').insertMany([
+    { _id: 'coverage-policy', level: 'CONTROL', version: 0 },
+    { _id: code, level: 'COMMUNE', label: 'Phường thử nghiệm', enabled: false }
+  ]);
+  try {
+    await sitterApplicationModels(connection).SitterApplication.updateOne({ _id: submitted.id }, { $set: { workAreas: [code] } });
+    const admin = await login();
+    const response = await request(instance).get('/api/v1/applications').query({ serviceArea: code }).set('Cookie', admin.cookie).expect(200);
+    expect(response.body.data.applications.map(row => row.id)).toEqual([submitted.id]);
+    expect(response.body.data.serviceAreas).toContainEqual({ id: code, name: 'Phường thử nghiệm' });
+  } finally { await connection.db.collection('serviceareas').deleteMany({}); }
 });

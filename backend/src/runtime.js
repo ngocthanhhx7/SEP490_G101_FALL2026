@@ -5,6 +5,9 @@ import { createApp } from './app.js';
 import { startEarningAccrualWorker } from './jobs/earning-accrual.job.js';
 import { startEmployeeDispatchWorker } from './jobs/employee-dispatch.job.js';
 import { startApplicationMailWorker } from './jobs/application-mail.job.js';
+import { startCustomerTierWorker } from './jobs/customer-tier.job.js';
+import { createCustomerTierService } from './services/customer-tier.service.js';
+import { createMongoCustomerTierRepository } from './services/mongo-customer-tier.repository.js';
 import { assertRuntimeStorageProfile } from './config/storage-profile.js';
 import { referenceCatalogSource } from './models/reference-catalog-source.js';
 import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
@@ -13,7 +16,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   const config = loadConfig(env);
   const connection = await connectDatabase(config);
   const lifecycle = { draining: false };
-  let server, accrualWorker, dispatchWorker, applicationMailWorker;
+  let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
     if (config.nodeEnv === 'production') await assertRuntimeStorageProfile(connection, app.locals.compensationProfile);
@@ -28,6 +31,8 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     if (app.locals.financeSources && app.locals.compensationProfile === 'LEGACY_PARTNER') accrualWorker = startEarningAccrualWorker({ service: app.locals.financeSources, logger });
     if (app.locals.employeeDispatch) dispatchWorker = startEmployeeDispatchWorker({ service: app.locals.employeeDispatch, logger });
     if (app.locals.applicationMail) applicationMailWorker = startApplicationMailWorker({ service: app.locals.applicationMail, logger });
+    customerTierWorker = startCustomerTierWorker({ enabled: config.customerTierJobEnabled, createService: () =>
+      createCustomerTierService({ repository: createMongoCustomerTierRepository(connection), logger }) });
   } catch {
     await connection.close();
     throw new Error('HTTP server failed to start');
@@ -40,7 +45,14 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       let forced = false;
       const timer = setTimeout(() => { forced = true; server.closeAllConnections(); }, config.shutdownTimeoutMs);
       try { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); }
-      finally { clearTimeout(timer); await applicationMailWorker?.stop(); await dispatchWorker?.stop(); await accrualWorker?.stop(); await connection.close(); }
+      finally {
+        clearTimeout(timer);
+        await customerTierWorker?.stop();
+        await applicationMailWorker?.stop();
+        await dispatchWorker?.stop();
+        await accrualWorker?.stop();
+        await connection.close();
+      }
       logger({ event: 'shutdown_complete', forced });
     })();
     return stopping;

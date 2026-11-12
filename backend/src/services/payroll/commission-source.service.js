@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { payrollModels } from '../../models/payroll.model.js';
 import { fail } from '../../validators/pet-care.validator.js';
+import { holdQueries } from '../complaints/complaint-lifecycle.js';
 
 // Cases/refunds are the authority; no duplicate balance or hold collection.
 export function createCommissionSources({ connection }) {
@@ -8,9 +9,9 @@ export function createCommissionSources({ connection }) {
   async function heldBookings(credits, session) {
     const ids = [...new Map(credits.map(row => [String(row.bookingId), row.bookingId])).values()];
     if (!ids.length) return new Set();
-    const cases = await connection.collection('cases').find({ bookingId: { $in: ids }, $or: [
-      { state: { $in: ['OPEN', 'UNDER_REVIEW', 'RESOLVED'] } }, { financialHold: true }
-    ] }, { session, projection: { bookingId: 1 }, maxTimeMS: 5000 }).limit(2001).toArray();
+    const { legacy, current } = holdQueries(new Date());
+    const cases = await connection.collection('cases').find({ bookingId: { $in: ids }, $or: [legacy, current] },
+      { session, projection: { bookingId: 1 }, maxTimeMS: 5000 }).limit(2001).toArray();
     const refunds = await connection.collection('refunds').find({ bookingId: { $in: ids },
       state: { $in: ['PROPOSED', 'APPROVED', 'TRANSFER_PENDING', 'FAILED'] } },
     { session, projection: { bookingId: 1 }, maxTimeMS: 5000 }).limit(2001).toArray();

@@ -16,12 +16,21 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG104: 'Số bán lại được không thể lớn hơn số lượng hoàn về.',
   MSG105: 'Đơn hàng này chưa được thanh toán đủ. Vui lòng thu tiền trước.',
   MSG106: 'Đơn hàng {code} đã được cập nhật.',
+  MSG110: 'Không tìm thấy khách. Đơn vẫn bán nhưng không giảm theo hạng.',
+  MSG111: 'Đơn {code} đã hoàn tất.',
+  MSG112: 'Đơn {code} đã được huỷ. Hàng đã được trả lại để bán.',
   MSG113: 'Vui lòng nhập số nguyên lớn hơn 0.',
   MSG114: 'Ẩn {product}? Khách hàng sẽ không còn thấy và đặt được sản phẩm này. Các đơn đã đặt không thay đổi.',
   MSG115: 'Sản phẩm {code} đã được lưu.',
   MSG116: 'Đã có nhà cung cấp với tên này.',
   MSG117: 'Nhà cung cấp {name} đã được lưu.',
   MSG118: 'Ngừng hợp tác với {supplier}? Nhà cung cấp này sẽ không còn được chọn ở phiếu nhập mới. Các phiếu nhập cũ được giữ nguyên.',
+  MSG119: 'Vui lòng nhập số nguyên từ 0 đến số lượng đã nhận.',
+  MSG120: 'Vui lòng ghi lý do hàng bị từ chối.',
+  MSG121: 'Phiếu nhập {code} đã được lưu.',
+  MSG122: 'Phiếu nhập {code}: từ chối {n} {product}. Lý do: {reason}.',
+  MSG123: 'Số giảm không được lớn hơn số có thể bán ({n}).',
+  MSG124: 'Phiếu điều chỉnh {code} đã được lưu.',
   MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
 });
 

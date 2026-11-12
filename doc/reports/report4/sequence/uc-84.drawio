@@ -1,0 +1,157 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-84 Proposed Customer time-change request" id="uc-84">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1547" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Customer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1267" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Proposed ChangeBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1267" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": BookingChangeRequestService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1267" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Booking / Visit repository" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1267" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Policy / Eligibility planner" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1267" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": MongoDB / Command adapter" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1267" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="336" />
+        </mxCell>
+        <mxCell id="caption-1" value="Customer submits a proposed time-change request" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Submit bookingId/visitId, requestedSlot, sourceVisitVersion,&#10;approved policyVersion, key + CSRF" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Require owned Customer context; validate exact DTO,&#10;start&lt;end and approved cutoff/expiry policy" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Read owned booking and related visit; compare source version&#10;and old slot; preserve immutable price snapshot" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="670" y="336" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="336" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: Current booking/visit state and customer owner; not-&#10;found/ineligible source -&gt; safe failure" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="394" />
+            <mxPoint as="targetPoint" x="480" y="394" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="467" width="1110" height="465" />
+        </mxCell>
+        <mxCell id="caption-5" value="Authoritative planning and pending-request transaction" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="474" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Evaluate requested time against active eligibility/occupancy&#10;and approved payment/case/change restrictions" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="587" />
+            <mxPoint as="targetPoint" x="855" y="587" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="587" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Feasible candidate or explicit conflict/policy unavailable;&#10;suggestion alone never confirms customer consent" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="645" />
+            <mxPoint as="targetPoint" x="480" y="645" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7: Command identity [customerId,CHANGE_SUBMIT,key] + canonical&#10;fingerprint; replay same input or conflict" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="703" />
+            <mxPoint as="targetPoint" x="1035" y="703" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="703" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Transaction: current source guard, unique PENDING visitId,&#10;create PENDING request with old/requested immutable slots&#10;and expiresAt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="761" />
+            <mxPoint as="targetPoint" x="1035" y="761" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="761" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Save result and request atomically; no assignment/time or&#10;financial mutation on submit" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="832" />
+            <mxPoint as="targetPoint" x="1035" y="832" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="832" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: PENDING id/version/expiry; requested slot is not a&#10;guaranteed reserved assignment" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="890" />
+            <mxPoint as="targetPoint" x="105" y="890" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-11" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="963" width="1110" height="313" />
+        </mxCell>
+        <mxCell id="caption-11" value="Alternative/error/retry contract" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="970" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Unknown response: original key/payload only; another intent&#10;uses a new key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1083" />
+            <mxPoint as="targetPoint" x="295" y="1083" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-11" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1083" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: Duplicate pending visit/source version drift/occupied slot&#10;-&gt; conflict; invalid dates -&gt; validation error; unapproved&#10;policy -&gt; disabled gate" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1141" />
+            <mxPoint as="targetPoint" x="105" y="1141" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-13" value="13: Decision/expiry follows UC-85, with fresh&#10;eligibility/occupancy checks at actual approval" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1212" />
+            <mxPoint as="targetPoint" x="105" y="1234" />
+            <Array as="points">
+              <mxPoint x="145" y="1212" />
+              <mxPoint x="145" y="1234" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="DESIGN_PENDING_RUNTIME. Proposed interactions and technical DTO limits, not an existing deployed endpoint, provider acceptance or approved missing business policy. Every mutation rechecks current session/role/CSRF; user-supplied actor/state is ignored. External delivery/transfer is outside database transactions. A time-only change preserves price snapshots. No arbitrary fee/cancellation rule or fixed expiry is introduced; requestedSlot is explicit customer intent, not an AI-generated confirmation." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1347" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

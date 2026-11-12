@@ -11,6 +11,11 @@ import { createProductOrderManagementController } from '../controllers/product-o
 import { createSaleStaffDashboardController } from '../controllers/sale-staff-dashboard.controller.js';
 import { createProductManagementController } from '../controllers/product-management.controller.js';
 import { createSupplierManagementController } from '../controllers/supplier-management.controller.js';
+import { createGoodsReceiptController } from '../controllers/goods-receipt.controller.js';
+import { createStockListController } from '../controllers/stock-list.controller.js';
+import { createStockAdjustmentController } from '../controllers/stock-adjustment.controller.js';
+import { createStockAdjustmentService } from '../services/product-sales/stock-adjustment.service.js';
+import { createStockListService } from '../services/product-sales/stock-list.service.js';
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
@@ -18,12 +23,16 @@ import { createProductOrderManagementService } from '../services/product-sales/p
 import { createSaleStaffDashboardService } from '../services/product-sales/sale-staff-dashboard.service.js';
 import { createProductManagementService } from '../services/product-sales/product-management.service.js';
 import { createSupplierManagementService } from '../services/product-sales/supplier-management.service.js';
+import { createGoodsReceiptService } from '../services/product-sales/goods-receipt.service.js';
 import { createCustomerPhoneDirectory } from '../services/product-sales/customer-phone-directory.service.js';
 import { createContactCrypto } from '../services/contact-crypto.service.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 import { DEMO_WORK_AREAS } from '../constants/demo-work-areas.js';
 import { PRODUCT_PERMISSIONS } from '../constants/product-permissions.js';
+import { createCounterSaleController } from '../controllers/counter-sale.controller.js';
+import { createCounterSaleService } from '../services/product-sales/counter-sale.service.js';
+import { createCounterCatalogService } from '../services/product-sales/counter-catalog.service.js';
 
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); };
 
@@ -118,6 +127,43 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   supplierRouter.post('/:supplierId/stop', csrf, supplierManagement.stop);
   supplierRouter.post('/:supplierId/resume', csrf, supplierManagement.resume);
 
+  const counter = createCounterSaleController(createCounterSaleService({ connection, clock }),
+    createCounterCatalogService({ connection, contacts: phones }));
+  const counterRouter = Router();
+  counterRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.SELL_AT_COUNTER));
+  counterRouter.get('/products', counter.products);
+  counterRouter.post('/previews', csrf, counter.preview);
+  counterRouter.post('/customer-lookups', csrf, counter.lookup);
+  counterRouter.get('/', counter.list);
+  counterRouter.post('/', csrf, counter.create);
+  counterRouter.get('/:orderId', counter.read);
+  counterRouter.post('/:orderId/record-cash', csrf, counter.recordCash);
+  counterRouter.post('/:orderId/complete', csrf, counter.complete);
+  counterRouter.post('/:orderId/cancel', csrf, counter.cancel);
+  // Goods Receipt: who may use it comes from PRODUCT_PERMISSIONS.RECORD_GOODS_RECEIPTS. A receipt can be saved and read, never edited or deleted.
+  const goodsReceipts = createGoodsReceiptController(createGoodsReceiptService({ connection, clock }));
+  const receiptRouter = Router();
+  receiptRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.RECORD_GOODS_RECEIPTS));
+  receiptRouter.get('/suppliers', goodsReceipts.listSuppliers);
+  receiptRouter.get('/products', goodsReceipts.searchProducts);
+  receiptRouter.get('/', goodsReceipts.listRecent);
+  receiptRouter.post('/', csrf, goodsReceipts.create);
+  receiptRouter.get('/:code', goodsReceipts.read);
+
+  const stock = createStockListController(createStockListService({ connection, cursorSecret: config.auth.tokenSecret, clock }));
+  const stockRouter = Router();
+  stockRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.VIEW_STOCK));
+  stockRouter.get('/', stock.list);
+  stockRouter.get('/:productId/history', stock.history);
+
+  const adjustments = createStockAdjustmentController(createStockAdjustmentService({ connection, clock }));
+  const adjustmentRouter = Router();
+  adjustmentRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.ADJUST_STOCK));
+  adjustmentRouter.get('/products', adjustments.searchProducts);
+  adjustmentRouter.get('/products/:productId', adjustments.readProduct);
+  adjustmentRouter.get('/', adjustments.list);
+  adjustmentRouter.post('/', csrf, adjustments.create);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
@@ -125,6 +171,10 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     { name: 'admin-product-orders', mount: '/api/v1/admin/product-orders', router: managementRouter },
     { name: 'sale-staff-dashboard', mount: '/api/v1/dashboards/sale-staff', router: saleStaffDashboardRouter },
     { name: 'admin-products', mount: '/api/v1/admin/products', router: productManagementRouter },
-    { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter }
+    { name: 'admin-suppliers', mount: '/api/v1/admin/suppliers', router: supplierRouter },
+    { name: 'admin-counter-orders', mount: '/api/v1/admin/counter-orders', router: counterRouter },
+    { name: 'admin-goods-receipts', mount: '/api/v1/admin/goods-receipts', router: receiptRouter },
+    { name: 'admin-stock-levels', mount: '/api/v1/admin/stock-levels', router: stockRouter },
+    { name: 'admin-stock-adjustments', mount: '/api/v1/admin/stock-adjustments', router: adjustmentRouter }
   ];
 }

@@ -1,5 +1,15 @@
 # API services
 
+`stock-list-api.js` validates the read-only stock list/history contracts and forwards
+search, paging, cursors and cancellation through the shared API client. It preserves
+backend counts/status and never derives a stock threshold.
+History validation distinguishes receipt fields from adjustment reason/recorder fields.
+
+`stock-adjustment-api.js` validates product stock, immutable adjustment and paging
+DTOs, forwards cancellation and sends only product/type/quantity/reason with CSRF
+and the caller's stable `Idempotency-Key`. `api-client.js` preserves optional safe
+nonnegative integer `available` in errors so MSG123 can show the backend's value.
+
 `api-client.js` preserves HTTP status, a validated correlation UUID and positive
 retry interval even for HTML gateway errors. Pages use the pure
 `utils/api-error-feedback.js` fallback after their domain-specific messages;
@@ -16,7 +26,8 @@ transport for directed booking; pages do not call the transport directly.
 `workspace-api.js` validates aggregate metric, trend and distribution responses
 from `/workspaces/:kind/analytics`; it never calculates financial figures.
 
-`employee-scheduling-api.js` owns assigned care/acknowledgement/access-note
+`employee-scheduling-api.js` owns UC-82 withdrawal options and submission transport.
+It also owns assigned care/acknowledgement/access-note
 transport, execution reads and existing check-in/checklist/check-out commands.
 Its injected private-image transport uploads evidence with a separate stable key.
 `service-basket-api.js` owns quote, checkout and Customer rating calls;
@@ -43,7 +54,7 @@ All reads keep same-origin credentials/no-store, reject redirects and require a
 PNG/JPEG MIME type; pages never receive an R2 signed URL. The default owner image
 read path remains unchanged.
 
-`product-sales-api.js` is the same-origin transport for `/products`, `/product-cart` and `/product-orders` and validates every DTO (integer VND, known enums). It sends no prices; the order request carries only receive/payment method and the owned address id. `product-order-management-api.js` serves Admin and Sale Staff at `/admin/product-orders`: list with tab counts, and the carrier, ready, payment and hand-over steps. It sends no stock or status values, only the tracking code. `product-management-api.js` is the Admin transport for `/admin/products` (paged list with the page in `meta.page`, read, create, edit by `version`); it sends no code and no stock. `supplier-management-api.js` is the Admin transport for `/admin/suppliers` (paged list with the tab counts in `meta.counts`, read with products, add, edit, stop, resume); it sends no status and no name key. Contract: [product sales API](../../../doc/api/product-sales-v1.md).
+`product-sales-api.js` is the same-origin transport for `/products`, `/product-cart` and `/product-orders` and validates every DTO (integer VND, known enums). It sends no prices; the order request carries only receive/payment method and the owned address id. `product-order-management-api.js` serves Admin and Sale Staff at `/admin/product-orders`: list with tab counts, and the carrier, ready, payment and hand-over steps. It sends no stock or status values, only the tracking code. `product-management-api.js` is the Admin transport for `/admin/products` (paged list with the page in `meta.page`, read, create, edit by `version`); it sends no code and no stock. `supplier-management-api.js` is the Admin transport for `/admin/suppliers` (paged list with the tab counts in `meta.counts`, read with products, add, edit, stop, resume); it sends no status and no name key. `goods-receipt-api.js` is the Admin transport for `/admin/goods-receipts` (active suppliers, product search, the recent receipts, one receipt, save); it sends no code, day, recorder or rejected quantity, and saves with the `Idempotency-Key` the page gives it. Contract: [product sales API](../../../doc/api/product-sales-v1.md).
 
 `ai-model-api.js` owns Admin model status/import/review transport through the
 shared API client and CSRF/idempotency handling; it never computes rankings.
@@ -56,6 +67,8 @@ Sitter application API includes private owned get/update methods. Update acknowl
 
 pagination-response.js validates optional page/limit/total envelopes for shop order transports. Owner-scoped order reads resolve notification deep links. Cards and pages continue using the shared API client.
 
+`counter-sale-api.js` dùng shared client cho `/admin/counter-orders`, kiểm DTO quầy riêng để không nới enum online. Lookup gửi POST body, chỉ nhận id/tên, không đưa contact lên URL. Create gửi key cùng lines/customerId, không gửi tiền/status. Shared ApiError giữ available nguyên không âm và productId ObjectId hợp lệ để MSG58 dùng số authoritative, kể cả 0.
+
 `service-basket-api.js` validates directed directory eligibility, public rating/count and next-page acknowledgements; it does not compute suitability or rating. Existing availability requests retain their compatible minimal response contract.
 
 `customer-bookings-api.js` adapts and validates owner-scoped `/bookings` pages, including optional service/pet/schedule/amount summaries and compatible cursor envelopes. It never calculates payment amounts.
@@ -66,3 +79,5 @@ pet-record-import-api.js handles consented same-origin JPEG/PNG/PDF transport; A
 
 `sale-staff-dashboard-api.js` reads and validates the three UC-94 order counts
 from `/dashboards/sale-staff` through the shared API client.
+
+`booking-details-api.js` reads Staff/Admin booking details. Customer detail retains the service basket checkout transport.

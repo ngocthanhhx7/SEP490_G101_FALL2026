@@ -1,5 +1,20 @@
 # Admin pages
 
+`StockAdjustmentPage.jsx` renders `/admin/stock-adjustments`: one product selected
+through the shared ProductSearch, authoritative stock outputs, decrease/increase,
+blank required quantity/reason, local preview and immutable paged records. Saves
+keep a stable command key until content changes; success retains product/type and
+clears quantity/reason. `stock-adjustment.css` scopes the two-column/mobile layout
+and uses existing theme tokens. API calls remain in the injected service.
+
+`StockListPage.jsx` composes the read-only `/admin/stock` screen with server tabs,
+bounded search, shared pagination and a selected product's receipt history.
+`stock-list.css` scopes its layout, stacking history below the list on small screens.
+It renders server availability/status and uses the current shared shop theme.
+Stock status chips use existing semantic success tokens for Còn hàng, shop warning
+tokens for Sắp hết hàng, and the shared muted gray style for Hết hàng. These rules
+are local to Stock List; shared theme definitions remain unchanged.
+
 Service price history uses bounded cursor pages with first/previous/next/reload.
 Service changes and acknowledged saves reset to the first page; stale history
 cannot supply a write version. A version conflict refreshes without retrying POST.
@@ -10,7 +25,9 @@ server-side and lets Admin prepare salary again while disputed booking commissio
 remains held. Paid statements use the existing separate reconciliation workflow.
 
 Product Management includes a separate `ProductImageManager` after saving the
-product. Save pending text changes before gallery edits. Upload, replacement and
+product, placed inside the form between "Mô tả" and the "Hiện trên trang Sản phẩm"
+switch (D-249; its buttons are `type="button"` and never submit the form).
+Save pending text changes before gallery edits. Upload, replacement and
 confirmed removal return the updated product version; unknown acknowledgements
 require reload. Image bytes live in MongoDB and hidden photos use the Admin reader.
 
@@ -62,6 +79,8 @@ is allowed and moves the stock; the page shows its answer and reloads after a co
 
 `SupplierManagementPage` is the `/admin/suppliers` screen (menu group "Cửa hàng"): tabs Đang hợp tác / Ngừng hợp tác / Tất cả with their counts, a paged table (name and contact person, phone, number of products, status) and a side form to add or edit one. The form checks MSG01, MSG02, MSG03 and MSG125 before it sends; the backend checks again and decides MSG116. Ngừng hợp tác asks MSG118 first, Hợp tác lại does not; both are locked while the form has changes that are not saved. The products it supplies are chosen from the catalog with `components/product/ProductPicker.jsx`, hidden products included; the list is a record and does not limit goods receipts.
 
+`GoodsReceiptPage` is the `/admin/goods-receipts` screen (menu group "Cửa hàng", item "Nhập hàng"): the form for a new receipt (supplier, the day and the recorder as read-only, one row per product with Số nhận, Nhận vào kho, the rejected quantity worked out and the reason, the totals) beside "Phiếu nhập gần đây". The form checks MSG113, MSG119 and MSG120 before it sends; the backend checks again, and decides the code, the day, the recorder and the stock. `?receipt=PN-0012` (the link of a MSG122 notice) opens that receipt read only. The draft is kept while a receipt is open. The page keeps one `Idempotency-Key` while the form is unchanged, so saving again after a lost answer cannot make a second receipt (D-218). The products are searched with `components/product/ProductPicker.jsx`'s `ProductSearch`, through the goods receipt API.
+
 `AiModelsPage.jsx` at `/admin/ai-models` reads the current AI source, model history
 and unqualified source counts. It imports trainer DRAFT/evidence pairs and submits
 versioned model review decisions through `services/ai-model-api.js`. It never
@@ -77,4 +96,5 @@ Payroll and settlement workspaces use full-width tables, server-derived reports 
 
 AI Models includes a separate bounded source-readiness audit. It does not train from public research/demo data or automatically promote a model.
 
+`CounterSalePage.jsx` ghép Tra sản phẩm, Đơn tại quầy và Đơn chưa xong; URL `?order=<id>` mở lại đơn trên máy khác. `counter-sale.css` dùng token sẵn có, không đổi theme. Sau tạo khoá dòng/khách; unpaid có thu tiền/huỷ, paid có hoàn tất, terminal có tạo đơn mới. UI chỉ hiện totals/audit tiền backend trả.
 `ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.

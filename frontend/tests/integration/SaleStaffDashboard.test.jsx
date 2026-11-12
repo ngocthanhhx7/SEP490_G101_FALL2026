@@ -71,7 +71,7 @@ test('UC-94 signs Sale Staff into the dashboard and shows only the three order c
   expect(screen.getByLabelText('Đường dẫn hiện tại')).toHaveTextContent(DASHBOARD);
   expect(screen.getByText('Việc cần làm ở cửa hàng. Bấm vào từng ô để mở danh sách.')).toBeVisible();
   const menu = screen.getByRole('navigation', { name: 'Điều hướng bán hàng' });
-  expect(within(menu).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Đơn hàng']);
+  expect(within(menu).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đơn hàng', 'Nhập hàng', 'Tồn kho']);
   for (const [label, key] of CARDS) {
     const card = await screen.findByRole('link', { name: new RegExp(label) });
     expect(within(card).getByText(String(COUNTS[key]))).toBeVisible();

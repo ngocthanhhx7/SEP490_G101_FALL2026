@@ -6,7 +6,8 @@ import './product-picker.css';
 const SEARCH_DELAY_MS = 300;
 const RESULTS = 10;
 
-function PickerSearch({ productApi, selectedIds, onPick }) {
+// The search box and its results: a part of a name or a code, hidden products too. Used by the supplier form and the goods receipt.
+export function ProductSearch({ productApi, selectedIds, onPick }) {
   const [text, setText] = useState('');
   const [search, setSearch] = useState('');
   useEffect(() => {
@@ -50,7 +51,7 @@ export function ProductPicker({ productApi, selected, onChange, max, disabled = 
     {full && <p className="pwc-shop-hint">{TEXT.tooManyProducts}</p>}
     <button type="button" className="pwc-shop-link-button" disabled={disabled || full} aria-expanded={open}
       onClick={() => setOpen((value) => !value)}>{open ? 'Đóng danh sách' : '+ Thêm sản phẩm'}</button>
-    {open && !full && <PickerSearch productApi={productApi} selectedIds={selected.map((product) => product.id)}
+    {open && !full && <ProductSearch productApi={productApi} selectedIds={selected.map((product) => product.id)}
       onPick={(product) => onChange([...selected, product])} />}
   </div>;
 }

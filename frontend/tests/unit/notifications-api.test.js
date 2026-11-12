@@ -10,6 +10,8 @@ describe('notifications API adapter', () => {
     await api.markRead('notice-1', 'read-key');
     expect(request).toHaveBeenLastCalledWith('/notifications/notice-1/read-receipts', { method: 'POST', idempotencyKey: 'read-key' });
     expect(() => api.markRead('../private', 'key')).toThrow(TypeError);
+    await api.markAllRead('read-all-key');
+    expect(request).toHaveBeenLastCalledWith('/notifications/read-all', { method: 'POST', idempotencyKey: 'read-all-key' });
   });
 
   test('does not request browser push permission when unsupported', async () => {
