@@ -49,7 +49,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
     privateAccessNotes: doc.privateAccessNotes ?? '', version: doc.version, state: doc.state });
   async function addressValues(body) {
     point(body.coordinates); text(body.label); text(body.location, 500); text(body.areaCode, 80);
-    if (coverageAreas.length && !coverageAreas.some(row => row.code === body.areaCode)) fail('VALIDATION_FAILED', 'Choose a supported work area');
+    const activeCoverage = typeof coverageAreas === 'function' ? await coverageAreas() : coverageAreas;
+    if ((typeof coverageAreas === 'function' || activeCoverage.length) && !activeCoverage.some(row => row.code === body.areaCode)) fail('VALIDATION_FAILED', 'Choose a supported work area');
     if (body.pointConfirmed !== true) fail('ADDRESS_CONFIRMATION_REQUIRED', 'Confirm the map pin');
     if (body.privateAccessNotes !== undefined && (typeof body.privateAccessNotes !== 'string' || body.privateAccessNotes.length > 1000)) fail('VALIDATION_FAILED', 'Invalid access notes');
     return { label: body.label.trim(), location: body.location.trim(), areaCode: body.areaCode,
@@ -86,7 +87,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
           .limit(100)
           .lean()
       ]);
-      return { breeds, traits, workAreas: coverageAreas.map(({ code, label }) => ({ code, label })) };
+      const activeCoverage = typeof coverageAreas === 'function' ? await coverageAreas() : coverageAreas;
+      return { breeds, traits, workAreas: activeCoverage.filter(row => row.level !== 'PROVINCE').map(({ code, label }) => ({ code, label })) };
     },
     async listPets(ownerId) {
       return models.Pet.find({ ownerId, state: 'ACTIVE' })
@@ -179,7 +181,8 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
       text(body.label);
       text(body.location, 500);
       text(body.areaCode, 80);
-      if (coverageAreas.length && !coverageAreas.some(row => row.code === body.areaCode))
+      const activeCoverage = typeof coverageAreas === 'function' ? await coverageAreas() : coverageAreas;
+    if ((typeof coverageAreas === 'function' || activeCoverage.length) && !activeCoverage.some(row => row.code === body.areaCode))
         fail('VALIDATION_FAILED', 'Choose a supported work area');
       if (body.pointConfirmed !== true)
         fail('ADDRESS_CONFIRMATION_REQUIRED', 'Confirm the map pin');

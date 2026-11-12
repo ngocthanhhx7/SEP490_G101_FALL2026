@@ -1,3 +1,5 @@
+import { ServiceAreasPage as AdminServiceAreasPage } from '../pages/admin/ServiceAreasPage.jsx';
+import { createServiceAreaManagementApi } from '../services/service-area-management-api.js';
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
@@ -69,6 +71,22 @@ import { ProductManagementPage } from '../pages/admin/ProductManagementPage.jsx'
 import { createProductManagementApi } from '../services/product-management-api.js';
 import { SupplierManagementPage } from '../pages/admin/SupplierManagementPage.jsx';
 import { createSupplierManagementApi } from '../services/supplier-management-api.js';
+import { GoodsReceiptPage } from '../pages/admin/GoodsReceiptPage.jsx';
+import { createGoodsReceiptApi } from '../services/goods-receipt-api.js';
+import { StockListPage } from '../pages/admin/StockListPage.jsx';
+import { createStockListApi } from '../services/stock-list-api.js';
+
+function StockListRoute() {
+  const { user } = useSession();
+  const api = useMemo(() => createStockListApi(), []);
+  return <StockListPage key={user?.id} api={api} />;
+}
+
+function ServiceAreasRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createServiceAreaManagementApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
+  return <AdminServiceAreasPage key={user?.id} api={api} />;
+}
 
 function ProductManagementRoute() {
   const { getCsrfToken, user } = useSession();
@@ -81,6 +99,12 @@ function SupplierManagementRoute() {
   const api = useMemo(() => createSupplierManagementApi({ getCsrfToken }), [getCsrfToken]);
   const productApi = useMemo(() => createProductManagementApi({ getCsrfToken }), [getCsrfToken]);
   return <SupplierManagementPage key={user?.id} api={api} productApi={productApi} />;
+}
+
+function GoodsReceiptRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createGoodsReceiptApi({ getCsrfToken }), [getCsrfToken]);
+  return <GoodsReceiptPage key={user?.id} api={api} recorderName={user?.displayName ?? ''} />;
 }
 
 function ProductOrderManagementRoute() {
@@ -142,8 +166,11 @@ const navigationByRole = {
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
     ['Sản phẩm', '/admin/products', 'Cửa hàng'],
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
+    ['Nhập hàng', '/admin/goods-receipts', 'Cửa hàng'],
+    ['Tồn kho', '/admin/stock', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
+    ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
     ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
     ['Điều phối AI', '/admin/ai-models', 'Hệ thống'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
@@ -244,6 +271,9 @@ export function AppRoutes({
           <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
+          <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
+          <Route path="admin/stock" element={<StockListRoute />} />
+          <Route path="admin/service-areas" element={<ServiceAreasRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
             path="admin/service-prices"

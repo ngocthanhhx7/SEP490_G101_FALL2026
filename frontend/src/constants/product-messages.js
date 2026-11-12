@@ -25,6 +25,10 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG116: 'Đã có nhà cung cấp với tên này.',
   MSG117: 'Nhà cung cấp {name} đã được lưu.',
   MSG118: 'Ngừng hợp tác với {supplier}? Nhà cung cấp này sẽ không còn được chọn ở phiếu nhập mới. Các phiếu nhập cũ được giữ nguyên.',
+  MSG119: 'Vui lòng nhập số nguyên từ 0 đến số lượng đã nhận.',
+  MSG120: 'Vui lòng ghi lý do hàng bị từ chối.',
+  MSG121: 'Phiếu nhập {code} đã được lưu.',
+  MSG122: 'Phiếu nhập {code}: từ chối {n} {product}. Lý do: {reason}.',
   MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
 });
 

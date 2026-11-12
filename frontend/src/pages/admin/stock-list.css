@@ -1,0 +1,39 @@
+.pwc-stock { min-width: 0; }
+.pwc-stock-tabs { margin: 1.5rem 0 1rem; }
+.pwc-stock-layout { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(280px, 1fr); gap: 1.5rem; align-items: start; }
+.pwc-stock-list, .pwc-stock-history { min-width: 0; }
+.pwc-stock-table-panel { overflow: hidden; padding: 1rem; }
+.pwc-stock-table { width: 100%; table-layout: fixed; margin-top: 1rem; }
+.pwc-stock-table th:first-child { width: 35%; }
+.pwc-stock-table th:last-child { width: 22%; }
+.pwc-stock-table th, .pwc-stock-table td { padding: .85rem .4rem; overflow-wrap: anywhere; }
+.pwc-stock-table tr { cursor: pointer; }
+.pwc-stock-table tr.is-selected { background: var(--shop-green-soft); }
+.pwc-stock-product { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; width: 100%; }
+.pwc-stock-product small { display: block; margin-top: .3rem; color: var(--shop-muted); }
+.pwc-stock-product:focus-visible { outline: 2px solid var(--shop-green); outline-offset: 3px; border-radius: .2rem; }
+.pwc-stock-table .pwc-shop-status { white-space: normal; text-align: center; }
+.pwc-stock .pwc-shop-status--done { color: var(--pwc-success); background: var(--pwc-success-surface); }
+.pwc-stock-history { padding: 1.25rem; overflow-wrap: anywhere; }
+.pwc-stock-history h2 { font-size: 1.05rem; margin: 0 0 1.4rem; }
+.pwc-stock-history h3 { font-size: 1rem; margin: 0; }
+.pwc-stock-code { color: var(--shop-muted); font-size: .85rem; margin-top: .3rem; }
+.pwc-stock-totals { padding: .8rem; border-radius: .7rem; background: var(--shop-bg); font-size: .85rem; }
+.pwc-stock-totals div { display: flex; justify-content: space-between; gap: .8rem; padding: .4rem 0; }
+.pwc-stock-totals dd { margin: 0; font-weight: 800; }
+.pwc-stock-events { margin: 1rem 0; padding: 0; list-style: none; }
+.pwc-stock-events li { padding: .9rem 0; border-bottom: 1px solid var(--shop-border); }
+.pwc-stock-events p { font-size: .8rem; color: var(--shop-muted); margin: .3rem 0 0; }
+.pwc-stock-event-heading { display: flex; justify-content: space-between; gap: .5rem; }
+.pwc-stock-delta { color: var(--shop-green); }
+@media (max-width: 1100px) { .pwc-stock-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) {
+  .pwc-stock-table-panel { padding: .75rem; }
+  .pwc-stock-table thead { display: none; }
+  .pwc-stock-table, .pwc-stock-table tbody, .pwc-stock-table tr, .pwc-stock-table td { display: block; width: auto; }
+  .pwc-stock-table tr { padding: .6rem; border-bottom: 1px solid var(--shop-border); border-radius: .5rem; }
+  .pwc-stock-table td { border: 0; padding: .35rem 0; }
+  .pwc-stock-table td[data-label] { display: flex; justify-content: space-between; gap: .8rem; }
+  .pwc-stock-table td[data-label]::before { content: attr(data-label); color: var(--shop-muted); }
+  .pwc-stock-tabs { flex-wrap: wrap; }
+}

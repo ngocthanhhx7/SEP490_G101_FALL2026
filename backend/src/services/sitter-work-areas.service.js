@@ -1,10 +1,10 @@
 import { AppError } from '../utils/app-error.js';
 import { hasRole } from '../utils/roles.js';
 
-export const MAX_SITTER_WORK_AREA_CODES = 20;
+export const MAX_SITTER_WORK_AREA_CODES = 100;
 
-const LEVELS = new Set(['CITY', 'DISTRICT']);
-const CODE_PATTERN = /^(CITY|DISTRICT)_[A-Z0-9][A-Z0-9_-]{0,55}$/;
+const LEVELS = new Set(['CITY', 'DISTRICT', 'PROVINCE', 'COMMUNE']);
+const CODE_PATTERN = /^(CITY|DISTRICT|PROVINCE|COMMUNE)_[A-Z0-9][A-Z0-9_-]{0,55}$/;
 const LABEL_PATTERN = /[\p{L}]/u;
 
 function failValidation(message = 'Work-area selection is invalid') {
@@ -49,13 +49,13 @@ function normalizeCatalog(rows) {
       );
     }
     seen.add(code);
-    // Project only public city/district codes and labels. Never serialize provider extras.
-    return Object.freeze({ code, label, level });
+    // Project only catalog identity, hierarchy and availability. Never serialize provider extras.
+    return Object.freeze({ code, label, level, ...(row.parentCode ? { parentCode: row.parentCode } : {}), ...(row.enabled === false ? { enabled: false } : {}) });
   });
 }
 
-function normalizeSelection(values, catalog) {
-  if (!Array.isArray(values) || values.length > MAX_SITTER_WORK_AREA_CODES) {
+function normalizeSelection(values, catalog, limit = MAX_SITTER_WORK_AREA_CODES) {
+  if (!Array.isArray(values) || values.length > limit) {
     throw failValidation(
       `Choose no more than ${MAX_SITTER_WORK_AREA_CODES} work areas`
     );
@@ -110,7 +110,7 @@ function persistedSelection(record, catalog) {
   }
   try {
     return {
-      selectedCodes: normalizeSelection(record.areas ?? [], catalog),
+      selectedCodes: normalizeSelection(record.areas ?? [], catalog, 4000),
       expectedVersion: record.version
     };
   } catch {
@@ -174,7 +174,9 @@ export function createSitterWorkAreasService({
         record,
         options
       );
-      return Object.freeze({ options, selectedCodes, expectedVersion });
+      const selected = new Set(selectedCodes);
+      const parents = new Set(options.filter(row => row.enabled !== false || selected.has(row.code)).map(row => row.parentCode));
+      return Object.freeze({ options: options.filter(row => row.enabled !== false || selected.has(row.code) || parents.has(row.code)), selectedCodes, expectedVersion });
     },
 
     async replaceMine({ actor, areas, expectedVersion, idempotencyKey }) {
@@ -189,6 +191,10 @@ export function createSitterWorkAreasService({
       }
       const options = await loadCatalog();
       const normalizedCodes = normalizeSelection(areas, options);
+      let existing;
+      try { existing = await getSitterAvailability(sitterId); }
+      catch { throw new AppError(503, 'AVAILABILITY_UNAVAILABLE', 'Availability is unavailable'); }
+      if (normalizedCodes.some(code => options.find(row => row.code === code)?.enabled === false && !existing?.areas?.includes(code))) throw failValidation('Area is closed for registration');
       let updated;
       try {
         updated = await replaceSitterAreas({
@@ -227,7 +233,8 @@ export function createSitterWorkAreasService({
           'Availability could not be confirmed'
         );
       }
-      return Object.freeze({ options, ...persisted });
+      const selected = new Set(persisted.selectedCodes), parents = new Set(options.filter(row => row.enabled !== false || selected.has(row.code)).map(row => row.parentCode));
+      return Object.freeze({ options: options.filter(row => row.enabled !== false || selected.has(row.code) || parents.has(row.code)), ...persisted });
     }
   });
 }

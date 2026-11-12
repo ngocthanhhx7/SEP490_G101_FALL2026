@@ -64,13 +64,19 @@ Tất cả dưới prefix /api/v1; dấu * chỉ diễn tả family trong tài l
 | POST /incidents; POST /complaints; GET /cases/{id} | Assigned sitter/Customer incident; Customer complaint; Staff/Admin | Related visit only; involved sitter read safe complaint projection, no Sitter create complaint until approved; private Staff notes excluded |
 | POST /cases/{id}/resolutions; POST /cases/{id}/objections | Staff/Admin resolution; Customer baseline objection | Money decisions Admin; Customer complaint7days,one open/visit,one objection; SITTER-FEEDBACK extension gated |
 | POST /visits/{id}/ratings | Customer baseline; Sitter direction extension gated | Completed eligible visit,one rating per direction; sitter window/privacy/moderation decision before launch |
-| GET /notifications; POST /notifications/{id}/read-receipts | Session owner | Recipient scoped, deep link auth rechecked, no private financial details in public notification/cache |
+| GET /notifications; POST /notifications/{id}/read-receipts; POST /notifications/read-all | Session owner | Recipient scoped, deep link auth rechecked, no private financial details in public notification/cache. read-all marks only the caller's unread notifications created up to the server request time, empty body, replay returns markedCount 0 |
 | GET/POST /private-media; GET /private-media/{id}/read-capabilities | Resource-authorized actor | Upload binding owner/resource/type, scan/limits, short-lived capability; MEDIA-RETENTION/provider gate; no public sensitive URL |
 | Financial routes (cancel/change/payment/refund/earnings/settlement/payroll) | P51 actors | [P51 API contract](p51-financial-api-v1.md) canonical route baseline; UPPER_SNAKE_CASE states and common envelope from P01, no duplicated implementation |
 
 ### Customer registration (`purpose=REGISTER`)
 
 `POST /otp-challenges` accepts `{ channel, contact, purpose: "REGISTER" }` and returns HTTP 202 with `{ challengeId, expiresInSeconds, resendAfterSeconds }`. HTTP 202 means the challenge request was accepted; delivery is usable only when the configured provider accepts it. Do not infer inbox/SMS delivery from this response.
+
+For `purpose: "LOGIN"`, an unknown/replaced verified contact returns HTTP 409
+with `error.code: "REGISTRATION_REQUIRED"` before creating or sending OTP.
+The client opens a registration popup instead of the OTP form. This deliberately
+discloses registration presence as requested on 2026-11-11; account lock/state
+remains checked only after valid OTP. See [flow and rollout](../testing/login-registration-popup-2026-11-11.md).
 
 `POST /otp-verifications` accepts exactly `{ challengeId, channel, contact, purpose: "REGISTER", code, displayName }`. `displayName` is trimmed, internal whitespace is collapsed and the resulting value must contain 1–100 characters. Password, role, status, owner ID and other unknown fields are rejected. An invalid/expired/replayed code creates no account.
 

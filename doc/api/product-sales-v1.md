@@ -6,7 +6,7 @@ Customer-facing shop for dog/cat food and accessories (catalog, cart and product
 
 Included: public catalog, Customer cart, order placement with stock reservation, order history. Receive methods are `DELIVERY` (paid on delivery, `COD`) and `PICKUP` (paid at the shop, `PAY_AT_SHOP`).
 
-Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Goods Receipt, Counter Sale. Product Management by Admin is described under "Product Management (Admin)" below, and Supplier Management under "Supplier Management (Admin)". Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
+Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Counter Sale. Product Management by Admin is described under "Product Management (Admin)" below, Supplier Management under "Supplier Management (Admin)", and Goods Receipt under "Goods Receipt (Admin)". Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
 
 Delivery fee is a flat 25,000 VND for every served area. This is a **demo value** in `constants/product-fields.js`; the per-area fee configured by Admin (R3 D-060) is not built. Money is integer VND.
 
@@ -89,7 +89,7 @@ It never removes order/supplier references or image blobs. This user-approved
 extension supersedes the original hide-only scope; see
 [verification and rules](../testing/product-management-lifecycle-2026-11-05.md).
 
-`page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). Supplier Management uses it, and Stock List is meant to. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
+`page` and `limit` are parsed by `validators/pagination.validator.js` and read by `services/pagination.service.js` (`PAGE_LIMITS` in `constants/pagination.js`: 20 by default, 50 at most, D-216). Supplier Management and Stock List use it. The frontend `Pagination` component shows "Hiển thị a–b trên N" with Trước/Sau.
 
 ### Product photos
 
@@ -155,6 +155,39 @@ The products of a supplier are a record only. **Nothing limits a goods receipt t
 
 New errors (none has an R3 message except MSG116): `SUPPLIER_NAME_TAKEN` (409, MSG116), `SUPPLIER_STATE_CONFLICT` (409), `PRODUCT_NOT_FOUND` (422), and `VERSION_CONFLICT` (409) as for products.
 
+## Goods Receipt (Admin)
+
+Who may record a goods receipt is `RECORD_GOODS_RECEIPTS` in `backend/src/constants/product-permissions.js` (today Admin only; Sale Staff is added there when the role exists, D-221). Mounted at `/api/v1/admin/goods-receipts`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer, Staff, Sitter or anonymous caller gets 403 or 401. The suppliers and products this screen reads are part of the same permission, so a Sale Staff will not need `MANAGE_SUPPLIERS` or `MANAGE_PRODUCTS`. A receipt is **never edited or deleted**: there is no PATCH or DELETE. A delivery that arrives later is a new receipt.
+
+| Method and path | Purpose |
+| --- | --- |
+| `GET /api/v1/admin/goods-receipts/suppliers` | The suppliers that can be chosen on a new receipt: only those that are `ACTIVE` (Đang hợp tác), in Vietnamese letter order. `{ items: [{ id, name }] }` |
+| `GET /api/v1/admin/goods-receipts/products` | Product search for the "Thêm sản phẩm" box: `search` (part of a name or a code, any case, at most 100 characters), `page`, `limit` (at most 10). Products with `deletedAt: null`, hidden ones too (AC-31, D-262): `{ items: [{ id, code, name, visible }], page, limit, total }` |
+| `GET /api/v1/admin/goods-receipts` | The 10 newest receipts, newest first (the "Phiếu nhập gần đây" column). No query. `{ items: [{ id, code, supplierName, receivedOn, recordedAt, totalReceived, totalAccepted, totalRejected }] }` |
+| `GET /api/v1/admin/goods-receipts/:code` | One receipt by its code, with its lines. The link of a MSG122 notice opens the Goods Receipt page with `?receipt=PN-0012`, and the page reads the receipt through this call. A code that does not exist or has the wrong shape is `404` |
+| `POST /api/v1/admin/goods-receipts` | Saves a receipt (201). Needs the session CSRF token and an `Idempotency-Key` (see "Sending a save again"). Body: `supplierId` and `lines`, nothing else |
+
+Each line is `{ productId, quantityReceived, quantityAccepted, rejectReason? }`. The system fills in everything else, so none of it can be sent: the **code**, the **day** (`receivedOn`, today in Vietnam, `YYYY-MM-DD`), the **recorder** (the signed-in user, kept as an id and a name), the **rejected quantity** (`quantityRejected = quantityReceived - quantityAccepted`), the supplier name and the product code and name (copied when the receipt is saved, so a later rename changes neither).
+
+Rules (R3 AC-31). Every wrong field is reported in one `422 VALIDATION_FAILED` answer, as `error.fields` (`supplierId`, `lines`) and `error.lineFields` (by line number from 0, e.g. `{ "0": { "quantityReceived": "INVALID" } }`):
+
+| Field | Rule | Reason, R3 message |
+| --- | --- | --- |
+| `supplierId` | needed; must be a supplier that is `ACTIVE` when the receipt is saved (AC-30) | `REQUIRED` (MSG01), `INVALID`; `409 SUPPLIER_NOT_ACTIVE` when it has stopped, `422 SUPPLIER_NOT_FOUND` when it does not exist |
+| `lines` | at least one, at most 50 | `REQUIRED`, `TOO_MANY`, `INVALID` |
+| line `productId` | a product in the catalog, hidden or not, with `deletedAt: null`; rechecked inside the save transaction (AC-31, D-262). Each product once in a receipt. **Nothing limits it to the products the supplier supplies** (R3 does not say so): `422 PRODUCT_NOT_FOUND` with `productIds` lists the missing or deleted ones, with no new error code or MSG | `REQUIRED`, `INVALID`, `DUPLICATE` |
+| line `quantityReceived` | a whole number from 1 to 100000 | `INVALID` (MSG113), `TOO_LARGE` |
+| line `quantityAccepted` | a whole number from 0 to `quantityReceived`; a missing value is wrong too | `INVALID` (MSG119) |
+| line `rejectReason` | needed when `quantityAccepted < quantityReceived`, at most 300 characters; dropped when nothing is rejected | `REQUIRED` (MSG120), `TOO_LONG`, `INVALID` |
+
+Saving is **one transaction**: the receipt, the stock and the notices either all happen or none does. In it, the supplier is checked and touched (`lastReceiptAt`, so a save and a stop of the same supplier take turns; `version` is not changed), the products are read, the next code is handed out, the receipt is inserted, and each line adds `quantityAccepted` to `stockOnHand` (and one to the product `version`, like any stock change; the details version is untouched). A receipt that rejects everything is still saved and leaves the stock as it was. Each line that rejects goods writes one MSG122 notice for every active Admin (see below), in the same transaction.
+
+Codes are `PN-0001`, `PN-0002`, ...: at least four digits and **no upper limit**, so `PN-9999` is followed by `PN-10000`. The code is handed out from a counter that never falls behind the highest `number` in use, inside the saving transaction, so a failed save leaves no gap. The receipt is inserted through the driver after a schema check, because when a Mongoose transaction fails, Mongoose resets the documents it created and, on this strict schema, that reset throws a `StrictModeError` that hides the real error. A duplicate key (`11000`) is caught in the service and answered as `409 RECEIPT_CODE_CONFLICT`; nothing was saved.
+
+**MSG122** is written with the existing notification module: `createDomainNotifications(...).goodsReceiptRejected` in `services/notifications/domain-notifications.service.js` (a new function; the existing ones are unchanged). One notice for each line that rejected goods, for every active Admin (a fixture user is skipped): title "Hàng nhập bị từ chối", message `Phiếu nhập {code}: từ chối {n} {product}. Lý do: {reason}.`, `deepLink` `/admin/goods-receipts?receipt={code}`. The event id is `goods-receipt:{code}:{productId}`, so the same line never writes a second notice. An Admin reads the notices through what the app already has: `GET /api/v1/notifications` (each Admin sees the notices written for them), the bell in the header and the list at `/account/notifications`; opening a notice follows its `deepLink` to the Goods Receipt page. This change adds no notification screen and changes none.
+
+**Sending a save again (D-218, as for orders).** `POST` needs an `Idempotency-Key` header of 8 to 128 characters from `A-Z a-z 0-9 . _ : -`; a missing or wrong key is `422 VALIDATION_FAILED` and nothing is saved. The key belongs to the person who sent it, so two Admins may use the same text. The same key with the same content (supplier and lines, after cleaning) returns the receipt already saved, as a `201` with the same body: no second receipt, the stock is not added again, no second notice, and it does not matter whether the supplier has stopped since. The same key with other content is `409 IDEMPOTENCY_CONFLICT`. A save that was refused (`422`, `409 SUPPLIER_NOT_ACTIVE`, `409 RECEIPT_CODE_CONFLICT`, a failure) keeps nothing, so its key can be used again. Two requests with one key at the same moment save one receipt: the key and the content are looked up inside the transaction, and the request that loses the race is retried by the transaction and then gets the receipt that won. The key and a fingerprint of the content are stored with the receipt (unique per recorder and key) and are never returned. The Goods Receipt page keeps the same key while the form is unchanged, so saving again after a lost answer is safe.
+
 ## Stock rule (GBR-35)
 
 The public `GET /api/v1/products` accepts `page` (starting at 1) and `limit`
@@ -189,10 +222,51 @@ Replaying the same `Idempotency-Key` with the same body returns the original ord
 | `TRACKING_CODE_REQUIRED` | 422 | MSG103 |
 | `ORDER_NOT_PAID` | 409 | MSG105 |
 | `ORDER_STATE_CONFLICT` (`status`), `ORDER_STOCK_MISMATCH` | 409 | none |
+| `SUPPLIER_NOT_ACTIVE`, `RECEIPT_CODE_CONFLICT` | 409 | none |
+| `IDEMPOTENCY_CONFLICT` (a goods receipt key used with other content) | 409 | none |
+| `SUPPLIER_NOT_FOUND`, `PRODUCT_NOT_FOUND` | 422 | none |
 | `PRODUCT_UNAVAILABLE`, `CART_FULL`, `CART_LINE_NOT_FOUND`, `ADDRESS_NOT_FOUND`, `IDEMPOTENCY_CONFLICT` | 409/404 | none |
 | `VALIDATION_FAILED`, `UNAUTHENTICATED`, `FORBIDDEN`, `RESOURCE_NOT_FOUND` | 422/401/403/404 | common |
 
 The API returns codes and English text; the frontend shows the Vietnamese wording. Success messages (MSG59, MSG99, MSG106) and empty-state messages (MSG97, MSG102) are frontend-only.
+
+## Stock List (Admin, UC-71)
+
+Both endpoints are read-only, enabled with the product-sales runtime, and require
+`PRODUCT_PERMISSIONS.VIEW_STOCK`. Guest: `401 UNAUTHENTICATED`; Customer, Staff and
+Pet Sitter: `403 FORBIDDEN`; Admin: 200. Responses use `Cache-Control: private, no-store`.
+No new role, setting, environment variable, collection or stock write is introduced.
+
+| Endpoint | Query and result |
+| --- | --- |
+| `GET /api/v1/admin/stock-levels` | `tab=ALL\|LOW_STOCK` (default ALL), optional `search` (part of name/code, case-insensitive literal, NFC/whitespace normalized, max 100 characters), `page` (default 1), `limit` (default 20, max 50). Result `{items,page,limit,total,counts:{ALL,LOW_STOCK}}`, sorted by code then `_id` ascending. |
+| `GET /api/v1/admin/stock-levels/:productId/history` | Optional `limit` (default 20, max 50) and signed `cursor`. Result `{product,items,nextCursor}`; null cursor means no more entries. Sort: `createdAt DESC, _id DESC`. |
+
+Each stock product is `{id,code,name,stockOnHand,quantityHeld,available,status}`.
+Hidden products remain included. Deleted products are excluded from list, counts
+and history. `available` is computed as on-hand minus held, never persisted.
+With the common backend threshold `{T}`, status is `OUT_OF_STOCK` at zero,
+`LOW_STOCK` from one through `{T}`, and `IN_STOCK` from `{T}+1`. The low-stock tab
+includes zero. The temporary policy lives only in `STOCK_LOW_THRESHOLD`; the team
+has yet to confirm its value. Global tab counts ignore search, selected tab and page.
+
+History entries are `{id,kind:'GOODS_RECEIPT',referenceCode,occurredAt,receivedOn,
+supplierName,quantityChange}`. `quantityChange` is the selected line's accepted
+quantity, including zero. `receivedOn` is the displayed receiving day;
+`occurredAt` is the receipt creation timestamp used for ordering. The response
+does not expose other receipt lines, recorder details, idempotency keys or fingerprints.
+Orders are not history events. Stock adjustments are deferred; extending history
+requires adding the new kind and merging its events under the same ordering/cursor contract.
+
+Cursors use the existing session token secret and shared signed-cursor utility
+(15-minute expiry), bound to actor and product. A missing/deleted product returns
+`404 RESOURCE_NOT_FOUND`; malformed IDs, unsupported query keys, invalid bounds,
+tampered/expired/wrong-context cursors return `422 VALIDATION_FAILED`.
+Empty search results use existing frontend MSG97; other failures use the shared
+generic retry wording. Admin enters through Cửa hàng → Tồn kho at `/admin/stock`.
+
+Receipt history currently has no product/creation compound index; a later measured
+performance change can add it separately without changing the Goods Receipt schema here.
 
 ## Demo data
 
