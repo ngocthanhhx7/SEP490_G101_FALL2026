@@ -72,3 +72,10 @@ Pet editing uses four explicit groups with retained draft values; invalid fields
 PetRecordImport presents untrusted Gemini suggestions with excerpts, editable fields, per-field opt-in and explicit confirmation; applying only modifies the draft, existing pet save handles ownership/version checks.
 
 `PetProfileDetails` presents the owned pet photo/identity, daily care, health and support notes using existing careProfile statuses. Contextual edit buttons select the matching form group; the AI entry opens the existing consent/review/draft workflow. Photo controls use the existing AvatarEditor in a separate dialog. No health verification, derived vaccine validity, additional persistence or public sharing is inferred from this presentation.
+
+
+`ComplaintSubmitPage` uses the Customer-only booking route and the Complaints eligibility API. `CustomerBookingDetailPage` owns the Overdue status and deadline from the booking response. It uses the optional `visitActions` prop on the shared checkout confirmation to show status and actions on the booked visit rows, or one action above the list for eligible all-cancelled bookings. Eligibility links each care visit to its booked row through `customerVisitId` when present. The form and complaint history share one route, including result notifications that select a complaint via the `complaint` query. Complaint eligibility and history never override the booking's payment state or deadline.
+
+`CustomerBookingDetailPage.jsx` uses the shared read-only booking detail while retaining the existing checkout confirmation actions and owner-scoped transport.
+
+Submission and objection preserve body/key and freeze edits after uncertain replies. Shared detail uses operational IDs and legacy customerVisitId for complaint actions.

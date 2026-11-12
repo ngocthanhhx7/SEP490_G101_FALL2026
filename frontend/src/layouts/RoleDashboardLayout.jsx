@@ -43,6 +43,12 @@ const ROLE_CONFIG = Object.freeze({
     navigation: 'Điều hướng nhân viên',
     allows: ['STAFF', 'ADMIN'],
   },
+  SALE_STAFF: {
+    label: 'Nhân viên bán hàng',
+    workspace: 'Khu vực bán hàng',
+    navigation: 'Điều hướng bán hàng',
+    allows: ['SALE_STAFF'],
+  },
   ADMIN: {
     label: 'Quản trị viên',
     workspace: 'Khu vực quản trị',

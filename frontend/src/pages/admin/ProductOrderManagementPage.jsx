@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { Notice, Button, Pagination } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
@@ -106,7 +107,10 @@ function OrderDetail({ order, busy, run, api }) {
 
 // Order Management for Admin. The backend owns every status change and stock effect; this page only asks for them.
 export function ProductOrderManagementPage({ api }) {
-  const [tab, setTab] = useState('PREPARE');
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab');
+  const tab = TABS.some(([key]) => key === requestedTab) ? requestedTab : 'PREPARE';
+  const [viewTab, setViewTab] = useState(tab);
   const [page, setPage] = useState(1);
   const [searchText, setSearchText] = useState('');
   const [search, setSearch] = useState('');
@@ -114,6 +118,24 @@ export function ProductOrderManagementPage({ api }) {
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
+
+  function resetTabView() {
+    setPage(1);
+    setSelectedId(null);
+    setNotice(null);
+  }
+
+  if (tab !== viewTab) {
+    setViewTab(tab);
+    resetTabView();
+  }
+
+  function selectTab(key) {
+    if (key === tab) resetTabView();
+    const next = new globalThis.URLSearchParams(params);
+    next.set('tab', key);
+    setParams(next, { replace: true });
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => { setSearch(searchText.trim()); setPage(1); }, SEARCH_DELAY_MS);
@@ -149,7 +171,7 @@ export function ProductOrderManagementPage({ api }) {
     <p className="pwc-shop-lead">Chuẩn bị, giao và theo dõi đơn hàng online.</p>
     <div className="pwc-shop-chip-row" role="group" aria-label="Lọc đơn theo trạng thái">
       {TABS.map(([key, label]) => <button key={key} type="button" className="pwc-shop-chip" aria-pressed={tab === key}
-        onClick={() => { setTab(key); setPage(1); setSelectedId(null); setNotice(null); }}>
+        onClick={() => selectTab(key)}>
         {label}{key !== 'ALL' && counts ? ` (${counts[key]})` : ''}</button>)}
     </div>
     <input type="search" className="pwc-shop-search" style={{ margin: '1rem 0' }} value={searchText} maxLength={100}

@@ -113,7 +113,7 @@ export function assertDemoDatabase(connection, grounded = false) {
   }
 }
 
-export async function seedDemo(connection, config, clock = Date.now, { groundedSnapshot } = {}) {
+export async function seedDemo(connection, config, clock = Date.now, { groundedSnapshot, includeSaleStaff = false } = {}) {
   const grounded = groundedSnapshot !== undefined;
   assertDemoDatabase(connection, grounded);
   if (config.nodeEnv !== 'development') throw new Error('Demo seed requires development mode');
@@ -180,6 +180,7 @@ export async function seedDemo(connection, config, clock = Date.now, { groundedS
   }
   const admin = await account('admin', 'Quản trị thử nghiệm', 'ADMIN');
   await account('staff', 'Nhân viên thử nghiệm', 'STAFF');
+  if (includeSaleStaff) await account('sale-staff', 'Nhân viên bán hàng thử nghiệm', 'SALE_STAFF');
   const customers = [];
   for (const [key, name] of [
     ['customer-an', 'Khách An'],

@@ -1,7 +1,7 @@
 import { ApiError, createApiClient } from './api-client.js';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
-const STATES = new Set(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'CLOSED']);
+const STATES = new Set(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'CLOSED', 'ESCALATED']);
 const CATEGORIES = new Set(['SERVICE_QUALITY', 'PET_SAFETY', 'SITTER_CONDUCT', 'ACCESS', 'BILLING', 'OTHER']);
 const KEY = /^[A-Za-z0-9_-]{8,128}$/;
 
@@ -31,16 +31,34 @@ export function createComplaintApi({ request, fetchImpl, getCsrfToken, onUnautho
     if (expectedRequired) version(input.expectedVersion); else if (input.expectedVersion !== undefined) version(input.expectedVersion);
     const body = {};
     fields.forEach(field => { if (input[field] !== undefined) body[field] = input[field]; });
-    return send(path, { method: 'POST', body, idempotencyKey: key(createIdempotencyKey) });
+    return send(path, { method: 'POST', body, idempotencyKey: key(input.idempotencyKey ? () => input.idempotencyKey : createIdempotencyKey) });
   };
   const api = {
     async submit(input = {}) {
+      if (input.scope !== undefined) {
+        if (!['VISIT', 'BOOKING'].includes(input.scope)) throw new ApiError('INVALID_SCOPE', 422);
+        id(input.bookingId, 'bookingId');
+        if (input.scope === 'VISIT') id(input.visitId, 'visitId');
+        const description = text(input.description, 'description', false, 1000);
+        const result = await command('/complaints', { ...input, description }, [
+          'scope', 'bookingId', ...(input.scope === 'VISIT' ? ['visitId'] : []), 'expectedVersion', 'description', 'evidenceRefs'
+        ]);
+        return complaintView(result, result?.data?.complaint?.id);
+      }
       const visitId = id(input.visitId, 'visitId'); category(input.category);
       text(input.summary, 'summary', false, 500); text(input.description ?? input.details ?? input.message, 'description');
       const result = await command(`/complaints/visits/${visitId}`, input,
         ['expectedVersion', 'category', 'summary', 'subject', 'description', 'details', 'message', 'evidenceRefs', 'photoRefs', 'requestedOutcome']);
       if (result?.pending) return result;
       return complaintView(result, result?.data?.complaint?.id);
+    },
+    async eligibility({ bookingId, signal } = {}) {
+      const result = await send('/complaints/eligibility/bookings/' + id(bookingId, 'bookingId'), { signal });
+      if (!result?.pending && (result?.data?.booking?.id !== bookingId ||
+        !Array.isArray(result.data.visits) || typeof result.data.wholeBooking?.eligible !== 'boolean')) {
+        throw new ApiError('INVALID_RESPONSE', result?.status || 0);
+      }
+      return result;
     },
     async list(input = {}) {
       state(input.state); category(input.category); if (input.visitId) id(input.visitId, 'visitId');

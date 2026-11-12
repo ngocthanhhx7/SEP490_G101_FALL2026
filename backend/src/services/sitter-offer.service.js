@@ -183,6 +183,7 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
         ...(['ASSIGNED', 'IN_PROGRESS'].includes(item.state) && item.serviceAddress !== undefined
           ? { serviceAddress: text(item.serviceAddress, 'serviceAddress', 500) } : {}),
         pets: safePetSummary(item.pets ?? item.petSummary),
+        ...(typeof item.canWithdraw === 'boolean' ? { canWithdraw: item.state === 'ASSIGNED' && item.canWithdraw } : {}),
         handoverRequired: item.handoverRequired === true,
         handoverAccepted: item.handoverAccepted === true
       });

@@ -100,3 +100,30 @@ test('pending refund holds credits and a paid statement cannot be voided', async
   await expect(payroll.decideStatement(admin, held.id, { action: 'VOID_UNPAID', expectedVersion: 2, reason: 'Synthetic invalid void', confirmNoPayment: true }, 'void-paid'))
     .rejects.toMatchObject({ code: 'INVALID_STATE' });
 });
+
+
+test('GBR-26 employee commission reads booking complaints through finality and preserves legacy case and refund holds', async () => {
+  await change(0, 'CLOSED', false);
+  const { createCommissionSources } = await import('../../src/services/payroll/commission-source.service.js');
+  const { heldBookings } = createCommissionSources({ connection });
+  const isHeld = async () => (await heldBookings([{ bookingId }])).has(String(bookingId));
+  const cases = connection.collection('cases');
+  const recordId = 'synthetic-whole-booking-case';
+  await cases.insertOne({ _id: recordId, bookingId, visitId: null, kind: 'COMPLAINT', complaintSchemaVersion: 2,
+    state: 'RESOLVED', objectionCount: 0, appealUntil: new Date(Date.now() + 3600000), billState: 'ON_HOLD' });
+  expect(await isHeld()).toBe(true);
+  await cases.updateOne({ _id: recordId }, { $set: { appealUntil: new Date(Date.now() - 3600000) } });
+  expect(await isHeld()).toBe(false);
+  await cases.updateOne({ _id: recordId }, { $set: { state: 'ESCALATED', objectionCount: 1 } });
+  expect(await isHeld()).toBe(true);
+  await cases.updateOne({ _id: recordId }, { $set: { state: 'RESOLVED', finalAt: new Date(Date.now() - 1000) } });
+  expect(await isHeld()).toBe(false);
+  const incident = await cases.insertOne({ bookingId, visitId, kind: 'INCIDENT', state: 'RESOLVED', appealUntil: new Date(0) });
+  expect(await isHeld()).toBe(true);
+  await cases.deleteOne({ _id: incident.insertedId });
+  const legacy = await cases.insertOne({ bookingId, visitId, kind: 'COMPLAINT', state: 'RESOLVED', appealUntil: new Date(0) });
+  expect(await isHeld()).toBe(true);
+  await cases.deleteOne({ _id: legacy.insertedId });
+  await connection.collection('refunds').insertOne({ bookingId, state: 'TRANSFER_PENDING' });
+  expect(await isHeld()).toBe(true);
+});

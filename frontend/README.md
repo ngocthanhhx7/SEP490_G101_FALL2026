@@ -1,6 +1,20 @@
-﻿# Frontend
+# Frontend
 
 P03 / WBS-N16 adds the React foundation. Runtime follows [P01 ADR](../doc/architecture/p01-runtime-adr-v1.md): Node 24.22.1, npm 11.19.1, React/react-dom 19.3.0, Vite 8.3.4, plugin-react 6.1.2; JavaScript ESM/JSX. Exact versions and transitive dependencies are locked in package-lock.json.
+
+Stock List uses `src/constants/stock-list.js` for Vietnamese labels and technical
+page/search limits; availability/status decisions stay in the backend.
+`tests/integration/StockList.test.jsx` covers server labels/counts, tab/search/MSG97,
+paging, selection, receivedOn history/+0, load more, retries and late responses.
+`tests/unit/stock-list-api.test.js` checks transport/DTOs/cancellation;
+`tests/unit/stock-format.test.js` checks quantities and signed deltas. Run via `npm test`.
+
+Stock Adjustment uses `src/constants/stock-adjustment.js` for labels/bounds and
+`product-messages.js` for MSG113/MSG123/MSG124 and existing required-field MSG01.
+Its integration test covers blank quantity/reason, preview, save/reset, stock conflict,
+stable-key retry, double submit, paging and stale selection responses. Unit tests cover
+its API, validation and formatting. Stock List also tests mixed history; the shared
+API client validates the optional current `available` value in conflict errors.
 
 From `frontend/`:
 
@@ -96,7 +110,7 @@ created.
 
 ## Integration ports
 
-`App({ sessionAdapter })` accepts a stable adapter whose `resolve({ signal })` returns `{ status: 'guest' }`, `{ status: 'authenticated', user: { id, displayName, roles } }` or `{ status: 'pending' }`. `createApiSessionAdapter()` maps the same-origin `/api/v1/me` DTO and treats only HTTP 401 as guest. Roles are CUSTOMER, PET_SITTER, STAFF, ADMIN. The production entry supplies the `/me` adapter, and P07's screen calls `refresh()` after registration so the cookie-backed session is re-read. There is no fake login or localStorage token. Use `useSession().invalidate` for 401 and `useSession().logout` for CSRF-protected logout; the injected adapter supplies its in-memory CSRF token through `getCsrfToken()`. Stale resolves cannot restore an invalidated session.
+`App({ sessionAdapter })` accepts a stable adapter whose `resolve({ signal })` returns `{ status: 'guest' }`, `{ status: 'authenticated', user: { id, displayName, roles } }` or `{ status: 'pending' }`. `createApiSessionAdapter()` maps the same-origin `/api/v1/me` DTO and treats only HTTP 401 as guest. Roles are CUSTOMER, PET_SITTER, STAFF, SALE_STAFF and ADMIN. The production entry supplies the `/me` adapter, and P07's screen calls `refresh()` after registration so the cookie-backed session is re-read. There is no fake login or localStorage token. Use `useSession().invalidate` for 401 and `useSession().logout` for CSRF-protected logout; the injected adapter supplies its in-memory CSRF token through `getCsrfToken()`. Stale resolves cannot restore an invalidated session.
 
 `createApiClient({ fetchImpl, getCsrfToken, onUnauthorized, timeoutMs })` calls only `/api/v1` paths at the current origin, with same-origin cookies, no-store and redirect rejection. It validates the v1 success envelope, keeps error code/status/fieldErrors/decisionIds, invalidates on 401 including non-JSON failures, supports 204, distinguishes abort/timeout/network errors and labels 202 pending. Unsafe methods require an in-memory CSRF token from the real server adapter; X-CSRF-Token header name needs backend agreement. Commands pass a stable `idempotencyKey` and optionally `expectedVersion`. No automatic mutation retries: a lost acknowledgement requires reconciliation through the module's operation contract, not a new operation key. Cross-site auth requires a P01 ADR amendment first.
 
@@ -136,15 +150,18 @@ Xem [luồng đăng ký, chính sách được duyệt và giới hạn tiếp n
 Form khách hàng và Pet Sitter tham khảo bố cục hai cột của ảnh HouseBuddy, giữ nhận diện PawWorld. OTP email tạo tài khoản trước; form Pet Sitter dùng email đã xác minh, nhóm dịch vụ từ catalog, vùng làm việc, kinh nghiệm và ảnh giấy tờ JPG/PNG. API hồ sơ được nối với applicant-documents và session/CSRF; trạng thái/receipt khôi phục từ server theo owner. Xem [luồng và kiểm tra](../doc/testing/registration-sitter-flow.md). PDF chưa được pipeline ảnh hỗ trợ.
 
 Sitter application Admin workspace uses server-provided overall state totals,
-filtered result counts and signed cursor pagination. Employment preference, service
-choices, work areas and Vietnam-local timestamps are shown without unmasking list
-contacts. Only the authorized detail endpoint exposes private fields. Legacy
+filtered result counts and signed cursor pagination. The Admin list shows the
+original application code, submitted phone (when available), service areas and
+Vietnam-local timestamps. Documents and review notes stay in the authorized detail
+workspace. Legacy
 /admin/applications/:id links remain inside the Admin shell; new links use
 /admin/sitter-applications/:id. Email and SMS templates accept APPLICATION_STATUS,
 while the OTP service retains application scope, expiry and anti-enumeration rules.
 
 ## Product shop
 
-Customers browse `/products`, add items to a cart and check out as delivery (paid on delivery) or pickup (paid at the shop); see `pages/public/ProductListPage.jsx`, `pages/customer/ProductCheckoutPage.jsx` and `services/product-sales-api.js`. The backend API is off unless `PRODUCT_SALES_ENABLED=true` ([contract](../doc/api/product-sales-v1.md)). Admins prepare and hand over orders at `/admin/product-orders` (`pages/admin/ProductOrderManagementPage.jsx`, `services/product-order-management-api.js`). Payment gateway and tier discounts are not part of this release.
+Customers browse `/products`, add items to a cart and check out as delivery (paid on delivery) or pickup (paid at the shop); see `pages/public/ProductListPage.jsx`, `pages/customer/ProductCheckoutPage.jsx` and `services/product-sales-api.js`. The backend API is off unless `PRODUCT_SALES_ENABLED=true` ([contract](../doc/api/product-sales-v1.md)). Admin and Sale Staff prepare and hand over orders at `/admin/product-orders` (`pages/admin/ProductOrderManagementPage.jsx`, `services/product-order-management-api.js`). Payment gateway and tier discounts are not part of this release.
 
 `components/common/ProfileAvatar.jsx` supplies owner avatar rendering/editor, account/header/sidebar and pet screens. `services/avatar-api.js` owns transport and exact retry payloads. Application labels live in constants; two CCCD sides and portrait remain private intake documents. See [profile media](../doc/testing/profile-media-2026-11-05.md).
+
+Counter Sale (UC-68) ở `/admin/counter-sale`, nhóm Bán hàng, chỉ Admin. `src/hooks/useCounterSale.js` giữ draft trong memory, huỷ preview cũ, chống double submit và giữ cùng key/body khi kết quả tạo chưa rõ. `src/constants/counter-sale.js` chứa nhãn/giới hạn. Không lưu liên hệ vào browser storage. Test UI ở `tests/integration/CounterSale.test.jsx`, transport/format ở `tests/unit/counter-sale-*.test.js`; test online giữ nguyên assertions.

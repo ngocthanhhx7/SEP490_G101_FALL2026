@@ -2,13 +2,15 @@ import { createDomainNotifications } from '../notifications/domain-notifications
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
 import { PRODUCT_ORDER_TAB_STATUSES, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
+import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
 import {
   parseManagementListQuery, parseHandToCarrier, parseNoBody, parseMarkReturning, parseConfirmReturned
 } from '../../validators/product-order-management.validator.js';
 import { parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { toOrderView } from './product-order.service.js';
-import { productSalesErrors, requireOrderHandler } from './product-sales-errors.js';
+import { readProductOrderTabCounts } from './product-order-tab-counts.js';
+import { productSalesErrors, requireOnlineOrderCanceller, requireOrderHandler } from './product-sales-errors.js';
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NAME_MATCH_LIMIT = 100;
@@ -81,12 +83,12 @@ export function createProductOrderManagementService({ connection, phones, clock 
     requireOrderHandler(actor);
     const id = parseObjectId(orderId, 'orderId');
     const updated = await unitOfWork.run(async (session) => {
-      const order = await ProductOrder.findById(id).session(session).lean();
+      const order = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).session(session).lean();
       if (!order) throw productSalesErrors.notFound();
       if (!allowed(order)) throw productSalesErrors.orderStateConflict(order.status);
       check?.(order);
       const result = await ProductOrder.findOneAndUpdate(
-        { _id: id, status: order.status, version: order.version },
+        { _id: id, channel: { $ne: COUNTER_CHANNEL }, status: order.status, version: order.version },
         { $set: changes(order), $inc: { version: 1 } },
         { returnDocument: 'after', session }).lean();
       if (!result) throw productSalesErrors.orderStateConflict(order.status);
@@ -111,7 +113,7 @@ export function createProductOrderManagementService({ connection, phones, clock 
     async list(actor, query) {
       requireOrderHandler(actor);
       const { tab, search, phone, limit, page } = parseManagementListQuery(query);
-      const filter = {};
+      const filter = { channel: { $ne: COUNTER_CHANNEL } };
       if (tab !== 'ALL') filter.status = { $in: PRODUCT_ORDER_TAB_STATUSES[tab] };
       if (search) {
         // D-217: by order code, by part of the customer's name, or by the customer's whole phone number.
@@ -124,20 +126,17 @@ export function createProductOrderManagementService({ connection, phones, clock 
           { customerId: { $in: [...named.map((user) => user._id), ...owners] } }];
       }
       const direction = OLDEST_FIRST_TABS.has(tab) ? 1 : -1;
-      const [docs, grouped, total] = await Promise.all([
+      const [docs, counts, total] = await Promise.all([
         ProductOrder.find(filter).sort({ createdAt: direction, _id: direction }).skip((page - 1) * limit).limit(limit).lean(),
-        ProductOrder.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+        readProductOrderTabCounts(ProductOrder),
         ProductOrder.countDocuments(filter)
       ]);
       const customers = await customerDetails([...new Set(docs.map((doc) => String(doc.customerId)))]);
-      const byStatus = new Map(grouped.map((row) => [row._id, row.count]));
-      const counts = Object.fromEntries(Object.entries(PRODUCT_ORDER_TAB_STATUSES).map(([key, statuses]) =>
-        [key, statuses.reduce((sum, status) => sum + (byStatus.get(status) ?? 0), 0)]));
       return { items: docs.map((doc) => toAdminOrderView(doc, customers.get(String(doc.customerId)))), counts, page, limit, total };
     },
     async read(actor, orderId) {
       requireOrderHandler(actor);
-      const doc = await ProductOrder.findById(parseObjectId(orderId, 'orderId')).lean();
+      const doc = await ProductOrder.findOne({ _id: parseObjectId(orderId, 'orderId'), channel: { $ne: COUNTER_CHANNEL } }).lean();
       if (!doc) throw productSalesErrors.notFound();
       return viewOf(doc);
     },
@@ -232,6 +231,7 @@ export function createProductOrderManagementService({ connection, phones, clock 
     // Orders that have not left the shop: release the hold only; real stock is unchanged.
     cancel(actor, orderId, body) {
       parseNoBody(body);
+      requireOnlineOrderCanceller(actor);
       return transition(actor, orderId, {
         allowed: (order) => ['PLACED', 'READY'].includes(order.status),
         changes: () => ({ status: 'CANCELLED' }),

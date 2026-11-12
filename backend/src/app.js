@@ -90,6 +90,7 @@ export function createApp({
   const financeSources = financeSourceRuntime(context);
   if (auth && financeSources) auth.router.use(financeSources.router);
   app.locals.financeSources = financeSources?.service ?? null;
+  app.locals.complaintBilling = financeSources ? { readBookingComplaintHold: financeSources.complaints.readBookingComplaintHold } : null;
   app.locals.compensationProfile = compensationProfile;
   const customerProfile = customerProfileRuntimeModule(context);
   const avatars = avatarRuntimeModule(context);

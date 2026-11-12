@@ -1,0 +1,65 @@
+.complaint-submit { max-width: 74rem; margin: 0 auto; color: var(--pwc-ink); }
+.complaint-submit__header { display: grid; gap: .55rem; margin-bottom: 1.5rem; }
+.complaint-submit__header a { display: inline-flex; align-items: center; gap: .5rem; justify-self: start; font-weight: 800; }
+.complaint-submit .complaint-submit__header h1 { margin: .65rem 0 0; font: 400 var(--pwc-text-heading)/1.2 var(--pwc-font-display); }
+.complaint-submit__header p { margin: 0; line-height: 1.5; }
+.complaint-submit > .pwc-notice { margin-bottom: 1rem; }
+.complaint-submit__columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(19rem, 1fr); gap: 1.5rem; align-items: start; }
+.complaint-panel { min-width: 0; display: grid; gap: 1rem; padding: clamp(1.1rem, 2.5vw, 2rem);
+  background: var(--pwc-surface); border: 1px solid #e5d7ee; border-radius: 1.5rem; }
+.complaint-panel h2 { margin: 0; font: 900 1.375rem/1.3 var(--pwc-font-body); }
+.complaint-panel p { margin: 0; overflow-wrap: anywhere; }
+.complaint-form fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
+.complaint-form legend, .complaint-field, .complaint-objection label { font-weight: 800; }
+.complaint-form legend { margin-bottom: .5rem; }
+.complaint-scopes > div { display: flex; flex-wrap: wrap; gap: .35rem; border: 1px solid #e5d7ee;
+  border-radius: 1.5rem; background: var(--pwc-lavender-soft); padding: .3rem; }
+.complaint-scopes label { position: relative; flex: 1 0 8.5rem; }
+.complaint-scopes input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.complaint-scopes label > span { display: grid; place-items: center; min-height: var(--pwc-target); height: 100%;
+  border: 1px solid transparent; border-radius: 1.25rem; padding: .35rem .7rem; text-align: center; font-weight: 800; }
+.complaint-scopes input:checked + span { border-color: var(--pwc-lavender); background: var(--pwc-surface); }
+.complaint-scopes input:disabled + span { color: var(--pwc-disabled-ink); opacity: .75; }
+.complaint-scopes input:focus-visible + span, .complaint-photo-add:focus-within { outline: 3px solid var(--pwc-focus); outline-offset: 2px; }
+.complaint-form textarea, .complaint-objection textarea { display: block; width: 100%; min-width: 0; resize: vertical;
+  border: 1px solid #cdbbdd; border-radius: var(--pwc-radius-control); padding: .8rem 1rem; color: inherit; font: inherit;
+  background: var(--pwc-surface); }
+.complaint-form textarea[aria-invalid="true"], .complaint-objection textarea[aria-invalid="true"] { border-color: var(--pwc-error); }
+.complaint-form__hint { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.complaint-photos__grid { display: flex; flex-wrap: wrap; gap: .65rem; }
+.complaint-photo, .complaint-photo-add { position: relative; display: grid; place-items: center; width: 6rem; height: 6rem;
+  background: var(--pwc-lavender-soft); border: 1px solid #d9c5e8; border-radius: var(--pwc-radius-control); }
+.complaint-photo-add { background: var(--pwc-surface); }
+.complaint-photo-add input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.complaint-photo { overflow: hidden; overflow-wrap: anywhere; }
+.complaint-photo img { width: 100%; height: 100%; object-fit: cover; }
+.complaint-photo button { position: absolute; top: 4px; right: 4px; display: grid; place-items: center;
+  width: 2rem; height: 2rem; border: 0; border-radius: 50%; background: var(--pwc-surface); color: inherit; cursor: pointer; }
+.complaint-photo span { padding: .4rem; font-size: var(--pwc-text-small); }
+.complaint-form__note { display: grid; gap: .35rem; padding: .85rem 1rem; border-radius: var(--pwc-radius-control);
+  background: var(--pwc-warning-surface); color: var(--pwc-warning); font-size: var(--pwc-text-small); line-height: 1.55; }
+.complaint-form-error { color: var(--pwc-error); font-size: var(--pwc-text-small); font-weight: 800; }
+.complaint-form-actions { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+.complaint-form-actions .pwc-button { min-width: 6.5rem; }
+.complaint-form-actions .pwc-button, .complaint-result .pwc-button { border-radius: 1.5rem; }
+.complaint-form-actions .pwc-button--secondary, .complaint-result .pwc-button--secondary { border-color: var(--pwc-ink); }
+.complaint-result { display: grid; gap: .6rem; padding: 1rem; border: 1px solid #e5d7ee;
+  border-radius: var(--pwc-radius-control); scroll-margin: 1.5rem; }
+.complaint-result[aria-current="true"] { border-color: var(--pwc-lavender); background: var(--pwc-lavender-soft); }
+.complaint-result__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .45rem; }
+.complaint-result h3 { margin: 0; font-size: 1rem; }
+.complaint-result__pill { border-radius: 1.25rem; padding: .25rem .55rem; background: var(--pwc-lavender-soft);
+  font-size: .8rem; font-weight: 900; }
+.complaint-result__pill--open { color: #284a75; background: #eaf3ff; }
+.complaint-result__pill--resolved { color: var(--pwc-success); background: var(--pwc-success-surface); }
+.complaint-result__pill--escalated { color: #582986; background: #f2e6ff; }
+.complaint-result__pill--final { color: var(--pwc-ink); background: var(--pwc-disabled-surface); }
+.complaint-result__deadline, .complaint-result__subject { color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); }
+.complaint-result__text { white-space: pre-wrap; }
+.complaint-result > .pwc-button { justify-self: start; }
+.complaint-objection { display: grid; gap: .6rem; }
+.complaint-objection textarea { margin-top: .3rem; }
+
+@media (max-width: 52rem) {
+  .complaint-submit__columns { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+}

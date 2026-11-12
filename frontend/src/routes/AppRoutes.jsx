@@ -3,6 +3,7 @@ import { createServiceAreaManagementApi } from '../services/service-area-managem
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
+import { ComplaintSubmitPage } from '../pages/customer/ComplaintSubmitPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
 import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
@@ -56,6 +57,7 @@ import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPag
 import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api.js';
 import { SitterWorkAreasPanel } from '../pages/sitter/SitterWorkAreasPanel.jsx';
 import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
+import { StaffBookingDetailPage } from '../pages/staff/StaffBookingDetailPage.jsx';
 import { EmployeeInvitationsPage } from '../pages/sitter/EmployeeInvitationsPage.jsx';
 import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingProposalPage.jsx';
 import { ProductListPage } from '../pages/public/ProductListPage.jsx';
@@ -64,11 +66,32 @@ import { ShoppingCartPage } from '../pages/customer/ShoppingCartPage.jsx';
 import { ProductCheckoutPage } from '../pages/customer/ProductCheckoutPage.jsx';
 import { MyProductOrdersPage } from '../pages/customer/MyProductOrdersPage.jsx';
 import { ProductOrderManagementPage } from '../pages/admin/ProductOrderManagementPage.jsx';
+import { SaleStaffDashboardPage } from '../pages/dashboards/SaleStaffDashboardPage.jsx';
+import { CounterSalePage } from '../pages/admin/CounterSalePage.jsx';
+import { createCounterSaleApi } from '../services/counter-sale-api.js';
 import { createProductOrderManagementApi } from '../services/product-order-management-api.js';
 import { ProductManagementPage } from '../pages/admin/ProductManagementPage.jsx';
 import { createProductManagementApi } from '../services/product-management-api.js';
 import { SupplierManagementPage } from '../pages/admin/SupplierManagementPage.jsx';
 import { createSupplierManagementApi } from '../services/supplier-management-api.js';
+import { GoodsReceiptPage } from '../pages/admin/GoodsReceiptPage.jsx';
+import { createGoodsReceiptApi } from '../services/goods-receipt-api.js';
+import { StockListPage } from '../pages/admin/StockListPage.jsx';
+import { createStockListApi } from '../services/stock-list-api.js';
+import { StockAdjustmentPage } from '../pages/admin/StockAdjustmentPage.jsx';
+import { createStockAdjustmentApi } from '../services/stock-adjustment-api.js';
+
+function StockAdjustmentRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createStockAdjustmentApi({ getCsrfToken }), [getCsrfToken]);
+  return <StockAdjustmentPage key={user?.id} api={api} />;
+}
+
+function StockListRoute() {
+  const { user } = useSession();
+  const api = useMemo(() => createStockListApi(), []);
+  return <StockListPage key={user?.id} api={api} />;
+}
 
 function ServiceAreasRoute() {
   const { getCsrfToken, user } = useSession();
@@ -89,10 +112,22 @@ function SupplierManagementRoute() {
   return <SupplierManagementPage key={user?.id} api={api} productApi={productApi} />;
 }
 
+function GoodsReceiptRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createGoodsReceiptApi({ getCsrfToken }), [getCsrfToken]);
+  return <GoodsReceiptPage key={user?.id} api={api} recorderName={user?.displayName ?? ''} />;
+}
+
 function ProductOrderManagementRoute() {
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createProductOrderManagementApi({ getCsrfToken }), [getCsrfToken]);
   return <ProductOrderManagementPage key={user?.id} api={api} />;
+}
+
+function CounterSaleRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createCounterSaleApi({ getCsrfToken }), [getCsrfToken]);
+  return <CounterSalePage key={user?.id} api={api} />;
 }
 
 function SitterManagementRoute({ detail = false }) {
@@ -139,8 +174,12 @@ const navigationByRole = {
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
     ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
     ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
+    ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
     ['Sản phẩm', '/admin/products', 'Cửa hàng'],
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
+    ['Nhập hàng', '/admin/goods-receipts', 'Cửa hàng'],
+    ['Tồn kho', '/admin/stock', 'Cửa hàng'],
+    ['Điều chỉnh tồn kho', '/admin/stock-adjustments', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
     ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
@@ -173,6 +212,13 @@ const navigationByRole = {
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']
+  ],
+  SALE_STAFF: [
+    ['Tổng quan', '/sale-staff/dashboard', 'Bán hàng'],
+    ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
+    ['Đơn hàng', '/admin/product-orders', 'Bán hàng'],
+    ['Nhập hàng', '/admin/goods-receipts', 'Bán hàng'],
+    ['Tồn kho', '/admin/stock', 'Bán hàng']
   ],
   STAFF: [
     ['Tổng quan', '/staff', 'Công việc'],
@@ -240,9 +286,9 @@ export function AppRoutes({
           <Route path="admin/settlements" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
           <Route path="admin/ai-models" element={<AiModelsPage />} />
-          <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
+          <Route path="admin/stock-adjustments" element={<StockAdjustmentRoute />} />
           <Route path="admin/service-areas" element={<ServiceAreasRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
           <Route
@@ -263,6 +309,19 @@ export function AppRoutes({
           />
           <Route path="admin/applications" element={<Navigate replace to="/admin/sitter-applications" />} />
           <Route path="admin/applications/:applicationId" element={<SitterApplicationReviewPage />} />
+        </Route>
+      </Route>
+      <Route element={<RequireSession roles={['SALE_STAFF']} />}>
+        <Route element={<Workspace role="SALE_STAFF" />}>
+          <Route path="sale-staff/dashboard" element={<SaleStaffDashboardPage />} />
+        </Route>
+      </Route>
+      <Route element={<RequireSession roles={['ADMIN', 'SALE_STAFF']} />}>
+        <Route element={<AccountWorkspace />}>
+          <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
+          <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
+          <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
+          <Route path="admin/stock" element={<StockListRoute />} />
         </Route>
       </Route>
       <Route element={<RequireSession />}>
@@ -289,6 +348,7 @@ export function AppRoutes({
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
           <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
+          <Route path="account/bookings/:bookingId/complaints/new" element={<ComplaintSubmitPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
         </Route>
@@ -321,6 +381,7 @@ export function AppRoutes({
         <Route element={<AccountWorkspace />}>
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
           <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
+          <Route path="staff/bookings/:bookingId" element={<StaffBookingDetailPage />} />
         </Route>
       </Route>
       <Route element={<PublicSiteLayout />}>

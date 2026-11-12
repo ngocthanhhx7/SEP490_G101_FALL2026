@@ -1,0 +1,188 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="UC-85 Proposed time-change decision and expiry" id="uc-85">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="1982" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Staff/Admin / Expiry worker" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1702" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Proposed ChangeBoundary" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1702" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": BookingChangeRequestService" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1702" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": Request / Booking / Visit" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1702" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Eligibility / Occupancy guard" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1702" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": MongoDB / Command adapter" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1702" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="336" />
+        </mxCell>
+        <mxCell id="caption-1" value="Separate authorized decision request" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Staff/Admin: approve or reject PENDING change; expected&#10;request/sourceVisit versions, reason, NEW action key + CSRF" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Current operator + approved versioned change policy;&#10;canonical action fingerprint and replay identity" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Read request, owned booking/visit and explicit customer-&#10;requested slot; compare versions and expiresAt" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="336" />
+            <mxPoint as="targetPoint" x="670" y="336" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="336" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: PENDING/current source or expired/stale/missing resource; no&#10;write before identifying source state" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="394" />
+            <mxPoint as="targetPoint" x="480" y="394" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="467" width="1110" height="420" />
+        </mxCell>
+        <mxCell id="caption-5" value="alt [APPROVE while current and unexpired]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="474" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Recheck employee eligibility, authoritative occupancy,&#10;customer confirmation and payment/case restrictions for&#10;exact requested slot" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="587" />
+            <mxPoint as="targetPoint" x="855" y="587" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="587" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Feasible guarded schedule or conflict; AI recommendation&#10;cannot substitute for eligibility" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="658" />
+            <mxPoint as="targetPoint" x="480" y="658" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7: Transaction: guard source visit/occupancy/request; update&#10;timing and required assignment/handover intents; preserve&#10;original price snapshot" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="716" />
+            <mxPoint as="targetPoint" x="1035" y="716" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="716" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: PENDING -&gt; APPROVED + operator/reason/time/version and&#10;command result in SAME transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="787" />
+            <mxPoint as="targetPoint" x="1035" y="787" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="787" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Approved scheduling DTO only after commit; conflict rolls&#10;back visit, request and intents" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="845" />
+            <mxPoint as="targetPoint" x="105" y="845" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-10" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="918" width="1110" height="220" />
+        </mxCell>
+        <mxCell id="caption-10" value="alt [REJECT]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="925" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: Transaction: expected PENDING/version -&gt; REJECTED + decision&#10;actor/reason/time/version + original-key result" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1038" />
+            <mxPoint as="targetPoint" x="1035" y="1038" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-10" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1038" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Rejected DTO; original schedule and price remain unchanged" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1096" />
+            <mxPoint as="targetPoint" x="105" y="1096" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-12" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1169" width="1110" height="336" />
+        </mxCell>
+        <mxCell id="caption-12" value="Separate bounded expiry worker" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1176" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-12" value="12: Proposed expiry worker selects due PENDING requests with&#10;bounded cursor/limit" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="1289" />
+            <mxPoint as="targetPoint" x="295" y="1289" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-12" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="1289" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: Read actual expiry/source version; do not expire a request&#10;already decided by another command" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1347" />
+            <mxPoint as="targetPoint" x="670" y="1347" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1347" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: CAS PENDING/version and now&gt;=expiresAt -&gt; EXPIRED +&#10;decidedAt; event identity [requestId,EXPIRE,version]" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1405" />
+            <mxPoint as="targetPoint" x="1035" y="1405" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-14" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="1030" y="1405" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: Expired result or safe no-op after competing decision; no&#10;automatic refund or assignment" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1463" />
+            <mxPoint as="targetPoint" x="105" y="1463" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-16" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1536" width="1110" height="175" />
+        </mxCell>
+        <mxCell id="caption-16" value="Replay and stale-source response" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1543" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: Identical stored decision action replays after current&#10;authorization; changed payload/version/expiry/occupancy -&gt;&#10;explicit conflict" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1656" />
+            <mxPoint as="targetPoint" x="105" y="1656" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="DESIGN_PENDING_RUNTIME. Proposed interactions and technical DTO limits, not an existing deployed endpoint, provider acceptance or approved missing business policy. Every mutation rechecks current session/role/CSRF; user-supplied actor/state is ignored. External delivery/transfer is outside database transactions. Approval and rejection are alternative commands; expiry is a separate bounded worker. No current startup job or route is claimed. Fee/cancellation/cutoff treatment is disabled until explicitly approved." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1782" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

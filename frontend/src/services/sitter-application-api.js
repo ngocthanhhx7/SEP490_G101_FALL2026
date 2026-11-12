@@ -111,12 +111,14 @@ export function createSitterApplicationAdminApi({
     throw new TypeError('Admin application API dependencies are invalid');
   }
   return Object.freeze({
-    list({ signal, state = '', search = '', cursor = '', employmentType = '' } = {}) {
+    list({ signal, state = '', search = '', cursor = '', employmentType = '', sortOrder = '', serviceArea = '' } = {}) {
       const params = new globalThis.URLSearchParams();
       if (state) params.set('state', state);
       if (search.trim()) params.set('search', search.trim());
       if (cursor) params.set('cursor', cursor);
       if (employmentType) params.set('employmentType', employmentType);
+      if (sortOrder) params.set('sortOrder', sortOrder);
+      if (serviceArea) params.set('serviceArea', serviceArea);
       const suffix = params.size ? `?${params.toString()}` : '';
       return request(`/applications${suffix}`, { signal });
     },

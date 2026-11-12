@@ -1,0 +1,2701 @@
+[
+  {
+    "name": "EmergencyContact",
+    "collectionOrEmbeddedPath": "proposed emergencycontacts",
+    "scope": "UC-12 / care safety",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "ownerId": "ObjectId",
+      "name": "String",
+      "phoneCiphertext": "String",
+      "relationship": "String",
+      "state": "ACTIVE|ARCHIVED",
+      "version": "Integer",
+      "createdAt": "Date",
+      "updatedAt": "Date"
+    },
+    "invariant": "Private contact. Owner-authorized, explicit user-provided relationship; no inferred identity. Keep separately encrypted from public sitter profile.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed EmergencyContact._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "ownerId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed EmergencyContact.ownerId; enforce role/owner and current state before persistence.",
+          "Reference ownerId -> users._id; stored ObjectId / target ObjectId. Owned active Customer; never reuse public sitter profile contact."
+        ]
+      },
+      "name": {
+        "constraints": [
+          "required trimmed NFC 1..100 characters; no control characters"
+        ],
+        "notes": [
+          "Proposed EmergencyContact.name; enforce role/owner and current state before persistence."
+        ]
+      },
+      "phoneCiphertext": {
+        "constraints": [
+          "required",
+          "select:false private projection",
+          "authenticated encryption envelope <=4096 bytes",
+          "validate normalized phone before encryption"
+        ],
+        "notes": [
+          "Proposed EmergencyContact.phoneCiphertext; enforce role/owner and current state before persistence."
+        ]
+      },
+      "relationship": {
+        "constraints": [
+          "required trimmed NFC 1..100 characters; no control characters"
+        ],
+        "notes": [
+          "Proposed EmergencyContact.relationship; enforce role/owner and current state before persistence."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required",
+          "enum ACTIVE, ARCHIVED"
+        ],
+        "notes": [
+          "Proposed EmergencyContact.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      },
+      "updatedAt": {
+        "constraints": [
+          "required server UTC Date >= createdAt"
+        ],
+        "notes": [
+          "Changes only with successful aggregate mutation."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "ownerId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Owned active Customer; never reuse public sitter profile contact.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "ownerId": 1,
+          "state": 1,
+          "updatedAt": -1,
+          "_id": -1
+        },
+        "options": {},
+        "purpose": "Owner private contact list",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "ACTIVE -> ARCHIVED through owned expected-version command; no global unique phone/name because a contact can be shared by owners.",
+      "Explicit owner-entered contact and relationship only; no inferred identity. Archived entries cannot be selected for a new booking; authorized prior snapshots are immutable."
+    ],
+    "releaseGates": [
+      "Private-contact consent, retention/deletion and new command adapter need approved release acceptance; no public projection or bulk backfill."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "identity": "SHA256([ownerId,EMERGENCY_CONTACT_CREATE|UPDATE|ARCHIVE,resourceId-or-NEW,key])",
+      "storage": "Unique command identity, canonical fingerprint and result in same transaction; no phone/name uniqueness.",
+      "retry": "Same original key/payload after current owner authorization; different payload conflicts."
+    },
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "DayOffRequest",
+    "collectionOrEmbeddedPath": "proposed dayoffrequests",
+    "scope": "UC-79",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "sitterId": "ObjectId",
+      "startLocalDate": "YYYY-MM-DD",
+      "endLocalDate": "YYYY-MM-DD",
+      "reason": "String",
+      "state": "SUBMITTED|APPROVED|REJECTED|WITHDRAWN",
+      "availabilityVersion": "Integer",
+      "affectedVisitVersions": "{visitId,version}[]",
+      "decisionBy": "ObjectId|null",
+      "decisionReason": "String|null",
+      "version": "Integer",
+      "commandKey": "String",
+      "createdAt": "Date",
+      "decidedAt": "Date|null",
+      "payloadFingerprint": "String"
+    },
+    "invariant": "Approval writes date exclusions and replacement/handover events transactionally. Near-term withdrawal follows Staff decision; no automatic salary reduction. Dates use Asia/Ho_Chi_Minh.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed DayOffRequest._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "sitterId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.sitterId; enforce role/owner and current state before persistence.",
+          "Reference sitterId -> users._id; stored ObjectId / target ObjectId. Active PET_SITTER with valid signed contract.",
+          "Reference sitterId -> employeeavailabilities._id; stored ObjectId / target String. Explicit hex-string conversion to employeeavailabilities._id; compare availabilityVersion."
+        ]
+      },
+      "startLocalDate": {
+        "constraints": [
+          "required",
+          "real Gregorian date YYYY-MM-DD; Asia/Ho_Chi_Minh"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.startLocalDate; enforce role/owner and current state before persistence."
+        ]
+      },
+      "endLocalDate": {
+        "constraints": [
+          "required valid local date",
+          "endLocalDate >= startLocalDate",
+          "range length bounded by approved policy"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.endLocalDate; enforce role/owner and current state before persistence."
+        ]
+      },
+      "reason": {
+        "constraints": [
+          "required",
+          "trimmed NFC 1..1000 characters; no control characters"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.reason; enforce role/owner and current state before persistence."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required",
+          "enum SUBMITTED, APPROVED, REJECTED, WITHDRAWN"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "availabilityVersion": {
+        "constraints": [
+          "required",
+          "safe integer 0..9007199254740991"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.availabilityVersion; enforce role/owner and current state before persistence."
+        ]
+      },
+      "affectedVisitVersions": {
+        "constraints": [
+          "required array 0..1000 unique visitId",
+          "each {visitId:ObjectId,version:safe integer >=0}",
+          "reject overflow, never silently truncate affected visits"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.affectedVisitVersions; enforce role/owner and current state before persistence.",
+          "Reference affectedVisitVersions[].visitId -> visits._id; stored ObjectId / target ObjectId. Assigned sitter and captured visit version must still match at decision."
+        ]
+      },
+      "decisionBy": {
+        "constraints": [
+          "null in SUBMITTED/WITHDRAWN",
+          "required Staff/Admin ObjectId in APPROVED/REJECTED"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.decisionBy; enforce role/owner and current state before persistence.",
+          "Reference decisionBy -> users._id; stored ObjectId / target ObjectId. Current authorized Staff/Admin for approval/rejection; null on pending/owner withdrawal."
+        ]
+      },
+      "decisionReason": {
+        "constraints": [
+          "null before decision",
+          "1..1000 characters required for APPROVED/REJECTED"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.decisionReason; enforce role/owner and current state before persistence."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      },
+      "commandKey": {
+        "constraints": [
+          "required immutable",
+          "8..128 ASCII characters matching [A-Za-z0-9._:-]+"
+        ],
+        "notes": [
+          "Initial submit identity; scope and later decision identity are specified in commandContract."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      },
+      "decidedAt": {
+        "constraints": [
+          "null in SUBMITTED",
+          "required server UTC for APPROVED/REJECTED/WITHDRAWN",
+          "decidedAt >= createdAt"
+        ],
+        "notes": [
+          "Proposed DayOffRequest.decidedAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "payloadFingerprint": {
+        "constraints": [
+          "required immutable",
+          "exactly 64 lowercase hex characters; SHA-256"
+        ],
+        "notes": [
+          "Canonical typed source/payload digest; no secrets or mutable source guesses."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "sitterId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Active PET_SITTER with valid signed contract.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "sitterId",
+        "targetCollection": "employeeavailabilities",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "String",
+        "joinRule": "Explicit hex-string conversion to employeeavailabilities._id; compare availabilityVersion.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "affectedVisitVersions[].visitId",
+        "targetCollection": "visits",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Assigned sitter and captured visit version must still match at decision.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "decisionBy",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Current authorized Staff/Admin for approval/rejection; null on pending/owner withdrawal.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "sitterId": 1,
+          "commandKey": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "Deduplicate initial submit; fingerprint must match",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "sitterId": 1,
+          "state": 1,
+          "startLocalDate": 1,
+          "endLocalDate": 1
+        },
+        "options": {},
+        "purpose": "Overlap review; not a date-range exclusion guarantee",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "state": 1,
+          "createdAt": 1,
+          "_id": 1
+        },
+        "options": {},
+        "purpose": "Bounded decision queue",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "SUBMITTED -> APPROVED | REJECTED | WITHDRAWN with current version; terminal states cannot transition again.",
+      "APPROVE atomically updates date exclusions, availability version, affected visit handover/reassignment intents and command result; overlap/occupancy rechecked under employee guard.",
+      "Near-term withdrawal requires authorized decision; no automatic assigned-visit cancellation or salary reduction."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "submitIdentity": [
+        "sitterId",
+        "commandKey"
+      ],
+      "actionIdentity": "SHA256([actorId,operation,aggregateId,actionSpecificKey])",
+      "fingerprint": "Canonical operation/resource/expectedVersion/payload SHA256; changed payload with same identity ->409; same command may return stored allowlisted result after current authorization checks.",
+      "atomicity": "Mutation, source claims/events and immutable command result in one Mongo transaction; no external send/transfer inside it. Later decisions use separate keys.",
+      "resultStore": "Reviewed command-store operation adapter: unique _id, fingerprint, result, createdAt. New operation is not claimed wired.",
+      "retry": "Unknown HTTP acknowledgement retries original key/payload; external outcome needs authoritative reconciliation."
+    },
+    "releaseGates": [
+      "Approved lead time, maximum range and near-term withdrawal/handover cutoffs required; no guessed constants.",
+      "Employee/visit concurrency, notifications and command namespace need independent acceptance."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "BookingChangeRequest",
+    "collectionOrEmbeddedPath": "proposed bookingchangerequests",
+    "scope": "UC-84 / UC-85",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "bookingId": "ObjectId",
+      "visitId": "ObjectId",
+      "customerId": "ObjectId",
+      "oldSlot": "{startAt:Date,endAt:Date}",
+      "requestedSlot": "{startAt:Date,endAt:Date}",
+      "sourceVisitVersion": "Integer",
+      "policyVersion": "String",
+      "state": "PENDING|APPROVED|REJECTED|EXPIRED",
+      "decisionBy": "ObjectId|null",
+      "decisionReason": "String|null",
+      "expiresAt": "Date",
+      "version": "Integer",
+      "createdAt": "Date",
+      "decidedAt": "Date|null",
+      "idempotencyKey": "String",
+      "payloadFingerprint": "String"
+    },
+    "invariant": "Time-only change preserves price snapshot. Request/decision/expiry use approved versioned cutoffs and occupancy recheck; unresolved policy is not replaced by guessed constants.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "bookingId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.bookingId; enforce role/owner and current state before persistence.",
+          "Reference bookingId -> bookings._id; stored ObjectId / target ObjectId. Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator."
+        ]
+      },
+      "visitId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.visitId; enforce role/owner and current state before persistence.",
+          "Reference visitId -> visits._id; stored ObjectId / target ObjectId. Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator."
+        ]
+      },
+      "customerId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.customerId; enforce role/owner and current state before persistence.",
+          "Reference customerId -> users._id; stored ObjectId / target ObjectId. Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator."
+        ]
+      },
+      "oldSlot": {
+        "constraints": [
+          "required immutable {startAt:Date,endAt:Date}",
+          "finite UTC dates startAt < endAt",
+          "oldSlot matches sourceVisitVersion, requestedSlot satisfies approved schedule policy"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.oldSlot; enforce role/owner and current state before persistence."
+        ]
+      },
+      "requestedSlot": {
+        "constraints": [
+          "required immutable {startAt:Date,endAt:Date}",
+          "finite UTC dates startAt < endAt",
+          "oldSlot matches sourceVisitVersion, requestedSlot satisfies approved schedule policy"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.requestedSlot; enforce role/owner and current state before persistence."
+        ]
+      },
+      "sourceVisitVersion": {
+        "constraints": [
+          "required",
+          "safe integer 0..9007199254740991"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.sourceVisitVersion; enforce role/owner and current state before persistence."
+        ]
+      },
+      "policyVersion": {
+        "constraints": [
+          "required immutable approved version reference 1..160 characters",
+          "fail closed if approved policy resolver is unavailable"
+        ],
+        "notes": [
+          "Opaque policy reference; no rate, cutoff or policy approval is inferred."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required",
+          "enum PENDING, APPROVED, REJECTED, EXPIRED"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "decisionBy": {
+        "constraints": [
+          "null in PENDING/EXPIRED",
+          "required operator ObjectId in APPROVED/REJECTED"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.decisionBy; enforce role/owner and current state before persistence.",
+          "Reference decisionBy -> users._id; stored ObjectId / target ObjectId. Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator."
+        ]
+      },
+      "decisionReason": {
+        "constraints": [
+          "null in PENDING/EXPIRED",
+          "required 1..1000 characters for APPROVED/REJECTED"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.decisionReason; enforce role/owner and current state before persistence."
+        ]
+      },
+      "expiresAt": {
+        "constraints": [
+          "required",
+          "createdAt < expiresAt <= requestedSlot.startAt",
+          "derive from approved versioned policy, never invented duration"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.expiresAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      },
+      "decidedAt": {
+        "constraints": [
+          "null in PENDING",
+          "required server UTC in APPROVED/REJECTED/EXPIRED",
+          ">= createdAt, EXPIRED only when now >= expiresAt"
+        ],
+        "notes": [
+          "Proposed BookingChangeRequest.decidedAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "idempotencyKey": {
+        "constraints": [
+          "required immutable",
+          "8..128 ASCII characters matching [A-Za-z0-9._:-]+"
+        ],
+        "notes": [
+          "Initial submit identity; scope and later decision identity are specified in commandContract."
+        ]
+      },
+      "payloadFingerprint": {
+        "constraints": [
+          "required immutable",
+          "exactly 64 lowercase hex characters; SHA-256"
+        ],
+        "notes": [
+          "Canonical typed source/payload digest; no secrets or mutable source guesses."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "bookingId",
+        "targetCollection": "bookings",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "visitId",
+        "targetCollection": "visits",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "customerId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "decisionBy",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check Customer owner, visit.bookingId and current role/state; decision actor must be authorized operator.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "customerId": 1,
+          "idempotencyKey": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "Initial submission replay scope",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "visitId": 1
+        },
+        "options": {
+          "unique": true,
+          "partialFilterExpression": {
+            "state": "PENDING"
+          }
+        },
+        "purpose": "One pending change per visit",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "state": 1,
+          "expiresAt": 1,
+          "_id": 1
+        },
+        "options": {},
+        "purpose": "Bounded expiry sweep",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "PENDING -> APPROVED | REJECTED | EXPIRED using request.version and sourceVisitVersion.",
+      "APPROVE rechecks expiry, eligibility, occupancy, payment/case restrictions and current customer ownership; updates visit scheduling effects transactionally while preserving immutable price snapshot.",
+      "Changed source visit, competing request or unavailable slot returns conflict; rejected/expired request reserves no occupancy."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "submitIdentity": [
+        "customerId",
+        "idempotencyKey"
+      ],
+      "actionIdentity": "SHA256([actorId,operation,aggregateId,actionSpecificKey])",
+      "fingerprint": "Canonical operation/resource/expectedVersion/payload SHA256; changed payload with same identity ->409; same command may return stored allowlisted result after current authorization checks.",
+      "atomicity": "Mutation, source claims/events and immutable command result in one Mongo transaction; no external send/transfer inside it. Later decisions use separate keys.",
+      "resultStore": "Reviewed command-store operation adapter: unique _id, fingerprint, result, createdAt. New operation is not claimed wired.",
+      "retry": "Unknown HTTP acknowledgement retries original key/payload; external outcome needs authoritative reconciliation."
+    },
+    "releaseGates": [
+      "Approved change lead time, expiry and any financial/cancellation treatment are unresolved release gates; no guessed fee/cutoff.",
+      "Review operator authority and customer/employee confirmation protocol before enabling."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "IncidentCaseExtension",
+    "collectionOrEmbeddedPath": "proposed extension of existing cases",
+    "scope": "UC-47 / UC-48",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "String",
+      "kind": "INCIDENT",
+      "visitId": "ObjectId",
+      "bookingId": "ObjectId",
+      "reportedBy": "ObjectId",
+      "category": "String",
+      "description": "String",
+      "evidenceRefs": "PrivateMediaRef[]",
+      "state": "OPEN|UNDER_REVIEW|RESOLVED|CLOSED",
+      "followUpActions": "{actorId,at,note,evidenceRefs}[]",
+      "financialHold": "Boolean",
+      "proposedFinancialDecisionRef": "String|null",
+      "finalDecisionRef": "String|null",
+      "version": "Integer",
+      "createdAt": "Date",
+      "closedAt": "Date|null"
+    },
+    "invariant": "Reuse case aggregate and audited financial locks. Staff proposes evidenced outcome; approved Admin decision is a separate reference. Do not assume incident route has current runtime acceptance.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "trimmed NFC 1..256 characters, no control characters"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension._id; enforce role/owner and current state before persistence.",
+          "Reference _id -> cases._id; stored String / target String. Extension of existing case identity, not another incident collection."
+        ]
+      },
+      "kind": {
+        "constraints": [
+          "required",
+          "constant INCIDENT"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.kind; enforce role/owner and current state before persistence."
+        ]
+      },
+      "visitId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.visitId; enforce role/owner and current state before persistence.",
+          "Reference visitId -> visits._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "bookingId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.bookingId; enforce role/owner and current state before persistence.",
+          "Reference bookingId -> bookings._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "reportedBy": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.reportedBy; enforce role/owner and current state before persistence.",
+          "Reference reportedBy -> users._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "category": {
+        "constraints": [
+          "required",
+          "enum SAFETY, HEALTH_OBSERVATION, MISSING_PET, ACCESS, PROPERTY, BEHAVIOUR, OTHER"
+        ],
+        "notes": [
+          "Vocabulary aligned to incident.service.js; aggregate extension remains proposed."
+        ]
+      },
+      "description": {
+        "constraints": [
+          "required",
+          "trimmed NFC 1..4000 characters; no control characters"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.description; enforce role/owner and current state before persistence."
+        ]
+      },
+      "evidenceRefs": {
+        "constraints": [
+          "required array 0..20",
+          "each {bindingId:String(1..128),contentDigest:SHA256}",
+          "private owned references, never signed URLs or public bytes"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.evidenceRefs; enforce role/owner and current state before persistence.",
+          "Reference evidenceRefs[].bindingId -> caremediabindings._id; stored String / target String. Typed private binding and digest under visit/actor scope; durable incident retention adapter is a release gate."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required",
+          "enum OPEN, UNDER_REVIEW, RESOLVED, CLOSED"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "followUpActions": {
+        "constraints": [
+          "required append-only array 0..100",
+          "each {actorId:ObjectId,at:UTC Date,note:String(1..4000),evidenceRefs:PrivateMediaRef[0..20]}",
+          "server actor/time and owned evidence",
+          "reject overflow instead of truncating history"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.followUpActions; enforce role/owner and current state before persistence.",
+          "Reference followUpActions[].actorId -> users._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "financialHold": {
+        "constraints": [
+          "required Boolean",
+          "hold affected money until evidenced authorized release decision"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.financialHold; enforce role/owner and current state before persistence."
+        ]
+      },
+      "proposedFinancialDecisionRef": {
+        "constraints": [
+          "nullable until state-specific requirement",
+          "trimmed NFC 1..256 characters, no control characters"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.proposedFinancialDecisionRef; enforce role/owner and current state before persistence.",
+          "Reference proposedFinancialDecisionRef -> EXTERNAL_APPROVED_DECISION_ADAPTER.opaque audited decision ID; stored String / target String. No physical collection join claimed; resolve immutable approved decision evidence, not a transfer execution."
+        ]
+      },
+      "finalDecisionRef": {
+        "constraints": [
+          "null before authorized decision",
+          "required before clearing hold or resolving money effects",
+          "approved immutable adapter reference 1..160"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.finalDecisionRef; enforce role/owner and current state before persistence.",
+          "Reference finalDecisionRef -> EXTERNAL_APPROVED_DECISION_ADAPTER.opaque audited decision ID; stored String / target String. No physical collection join claimed; resolve immutable approved decision evidence, not a transfer execution."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      },
+      "closedAt": {
+        "constraints": [
+          "null until CLOSED",
+          "required server UTC in CLOSED",
+          ">= createdAt"
+        ],
+        "notes": [
+          "Proposed IncidentCaseExtension.closedAt; enforce role/owner and current state before persistence."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "_id",
+        "targetCollection": "cases",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Extension of existing case identity, not another incident collection.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "visitId",
+        "targetCollection": "visits",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "bookingId",
+        "targetCollection": "bookings",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "reportedBy",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "followUpActions[].actorId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "evidenceRefs[].bindingId",
+        "targetCollection": "caremediabindings",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Typed private binding and digest under visit/actor scope; durable incident retention adapter is a release gate.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "proposedFinancialDecisionRef",
+        "targetCollection": "EXTERNAL_APPROVED_DECISION_ADAPTER",
+        "targetKey": "opaque audited decision ID",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "No physical collection join claimed; resolve immutable approved decision evidence, not a transfer execution.",
+        "status": "UNRESOLVED_RELEASE_GATE"
+      },
+      {
+        "field": "finalDecisionRef",
+        "targetCollection": "EXTERNAL_APPROVED_DECISION_ADAPTER",
+        "targetKey": "opaque audited decision ID",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "No physical collection join claimed; resolve immutable approved decision evidence, not a transfer execution.",
+        "status": "UNRESOLVED_RELEASE_GATE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "kind": 1,
+          "state": 1,
+          "createdAt": 1,
+          "_id": 1
+        },
+        "options": {},
+        "purpose": "Staff incident queue in cases",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "bookingId": 1,
+          "financialHold": 1,
+          "state": 1
+        },
+        "options": {},
+        "purpose": "Financial hold reader in cases",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "OPEN -> UNDER_REVIEW -> RESOLVED -> CLOSED with current version; evidence/actions append-only.",
+      "Staff proposes evidenced outcome; Admin-authorized financial decision reference is separate.",
+      "Closing case does not prove refund/transfer; confirmed external outcome and hold release need their own authoritative evidence."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "identity": "SHA256([actorId,INCIDENT_REPORT|FOLLOW_UP|RESOLVE|CLOSE,caseId,actionKey])",
+      "storage": "Reviewed existing incident adapter integration: unique identity, fingerprint/result with case and hold intent in one transaction.",
+      "retry": "Same action key/payload can replay; external refund acknowledgement must be reconciled separately."
+    },
+    "releaseGates": [
+      "Incident route composition, case ID compatibility, private evidence retention and immutable decision adapter require review.",
+      "Liability/refund policy and decision authority remain approved versioned release gates; no invented amount."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "GoodsReceipt",
+    "collectionOrEmbeddedPath": "proposed goodsreceipts",
+    "scope": "UC-70",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "supplierId": "ObjectId",
+      "receivedBy": "ObjectId",
+      "receivedAt": "Date",
+      "lines": "{productId,receivedQty,acceptedQty,rejectedQty,rejectionReason}[]",
+      "state": "RECORDED",
+      "stockLedgerRefs": "String[]",
+      "version": "Integer",
+      "idempotencyKey": "String",
+      "payloadFingerprint": "String",
+      "createdAt": "Date"
+    },
+    "invariant": "All quantities integer >=0; accepted+rejected=received per line. Record even all-rejected delivery; increment only accepted stock, deduplicate command/ledger. PR158 is not treated as merged runtime.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed GoodsReceipt._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "supplierId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed GoodsReceipt.supplierId; enforce role/owner and current state before persistence.",
+          "Reference supplierId -> suppliers._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "receivedBy": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed GoodsReceipt.receivedBy; enforce role/owner and current state before persistence.",
+          "Reference receivedBy -> users._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "receivedAt": {
+        "constraints": [
+          "required verified UTC delivery time",
+          "receivedAt <= createdAt",
+          "never invent historic receiving evidence"
+        ],
+        "notes": [
+          "Proposed GoodsReceipt.receivedAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "lines": {
+        "constraints": [
+          "required array 1..100 unique productId",
+          "productId BSON ObjectId, receivedQty positive safe integer",
+          "acceptedQty/rejectedQty nonnegative safe integers, sum equals receivedQty",
+          "rejectionReason 1..1000 required iff rejectedQty>0, otherwise null"
+        ],
+        "notes": [
+          "Proposed GoodsReceipt.lines; enforce role/owner and current state before persistence.",
+          "Reference lines[].productId -> products._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required constant RECORDED",
+          "immutable after successful recording"
+        ],
+        "notes": [
+          "Proposed GoodsReceipt.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "stockLedgerRefs": {
+        "constraints": [
+          "required array 0..100 unique IDs",
+          "one ledger event per product with acceptedQty>0",
+          "no zero-delta event"
+        ],
+        "notes": [
+          "Proposed GoodsReceipt.stockLedgerRefs; enforce role/owner and current state before persistence.",
+          "Reference stockLedgerRefs[] -> proposed stockledgerentries._id; stored String / target String. Exactly committed nonzero accepted RECEIPT events; empty for all-rejected delivery."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      },
+      "idempotencyKey": {
+        "constraints": [
+          "required immutable",
+          "8..128 ASCII characters matching [A-Za-z0-9._:-]+"
+        ],
+        "notes": [
+          "Initial submit identity; scope and later decision identity are specified in commandContract."
+        ]
+      },
+      "payloadFingerprint": {
+        "constraints": [
+          "required immutable",
+          "exactly 64 lowercase hex characters; SHA-256"
+        ],
+        "notes": [
+          "Canonical typed source/payload digest; no secrets or mutable source guesses."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "supplierId",
+        "targetCollection": "suppliers",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "receivedBy",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "lines[].productId",
+        "targetCollection": "products",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "stockLedgerRefs[]",
+        "targetCollection": "proposed stockledgerentries",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Exactly committed nonzero accepted RECEIPT events; empty for all-rejected delivery.",
+        "status": "PROPOSED_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "receivedBy": 1,
+          "idempotencyKey": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "Receipt submit replay scope",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "supplierId": 1,
+          "receivedAt": -1,
+          "_id": -1
+        },
+        "options": {},
+        "purpose": "Supplier receipt history",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "receivedAt": -1,
+          "_id": -1
+        },
+        "options": {},
+        "purpose": "Bounded receiving history",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "Receipt, accepted stock increments, ledger IDs and command result commit in one transaction; all-rejected delivery is still recorded.",
+      "Validate supplier/product existence and approved stopped/deleted-source handling; stable product order and version/quantity guards avoid partial/double stock.",
+      "Correction creates StockAdjustment referencing original receipt; never edit original receiving history."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "submitIdentity": [
+        "receivedBy",
+        "idempotencyKey"
+      ],
+      "actionIdentity": "SHA256([actorId,operation,aggregateId,actionSpecificKey])",
+      "fingerprint": "Canonical operation/resource/expectedVersion/payload SHA256; changed payload with same identity ->409; same command may return stored allowlisted result after current authorization checks.",
+      "atomicity": "Mutation, source claims/events and immutable command result in one Mongo transaction; no external send/transfer inside it. Later decisions use separate keys.",
+      "resultStore": "Reviewed command-store operation adapter: unique _id, fingerprint, result, createdAt. New operation is not claimed wired.",
+      "retry": "Unknown HTTP acknowledgement retries original key/payload; external outcome needs authoritative reconciliation."
+    },
+    "releaseGates": [
+      "Proposed technical line bounds and supplier-status eligibility need review; PR158 existence is not merged/runtime acceptance.",
+      "Ledger migration/stock authority and unique indexes require independent transaction/concurrency acceptance."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "StockLedgerEntry",
+    "collectionOrEmbeddedPath": "proposed stockledgerentries",
+    "scope": "UC-70 / UC-71 / UC-95",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "String",
+      "productId": "ObjectId",
+      "kind": "RECEIPT|SALE|RETURN|ADJUSTMENT",
+      "deltaOnHand": "Integer",
+      "deltaHeld": "Integer",
+      "sourceRef": "String",
+      "sourceVersion": "Integer",
+      "actorId": "ObjectId",
+      "reason": "String",
+      "beforeVersion": "Integer",
+      "afterVersion": "Integer",
+      "recordedAt": "Date"
+    },
+    "invariant": "Append-only event/source identity. Current product/order snapshots remain authoritative until reviewed migration. Ledger must be committed with guarded stock update; never rewrite an old receipt.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required immutable",
+          "SHA256([kind,sourceRef,sourceVersion,productId]) lowercase hex string",
+          "unique event identity"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "productId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.productId; enforce role/owner and current state before persistence.",
+          "Reference productId -> products._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "kind": {
+        "constraints": [
+          "required",
+          "enum RECEIPT, SALE, RETURN, ADJUSTMENT"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.kind; enforce role/owner and current state before persistence."
+        ]
+      },
+      "deltaOnHand": {
+        "constraints": [
+          "required signed safe integer -9007199254740991..9007199254740991",
+          "at least one delta nonzero",
+          "resulting onHand >= held >=0"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.deltaOnHand; enforce role/owner and current state before persistence."
+        ]
+      },
+      "deltaHeld": {
+        "constraints": [
+          "required signed safe integer -9007199254740991..9007199254740991",
+          "at least one delta nonzero",
+          "resulting onHand >= held >=0"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.deltaHeld; enforce role/owner and current state before persistence."
+        ]
+      },
+      "sourceRef": {
+        "constraints": [
+          "required",
+          "trimmed NFC 1..256 characters, no control characters"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.sourceRef; enforce role/owner and current state before persistence.",
+          "Reference sourceRef -> proposed goodsreceipts OR productorders OR proposed stockadjustments._id; stored String / target ObjectId serialized as String. kind discriminates RECEIPT->goodsreceipt, SALE/RETURN->productorder, ADJUSTMENT->stockadjustment; include sourceVersion/productId."
+        ]
+      },
+      "sourceVersion": {
+        "constraints": [
+          "required",
+          "safe integer 0..9007199254740991"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.sourceVersion; enforce role/owner and current state before persistence."
+        ]
+      },
+      "actorId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.actorId; enforce role/owner and current state before persistence.",
+          "Reference actorId -> users._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "reason": {
+        "constraints": [
+          "required",
+          "trimmed NFC 1..1000 characters; no control characters"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.reason; enforce role/owner and current state before persistence."
+        ]
+      },
+      "beforeVersion": {
+        "constraints": [
+          "required",
+          "safe integer 0..9007199254740991"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.beforeVersion; enforce role/owner and current state before persistence."
+        ]
+      },
+      "afterVersion": {
+        "constraints": [
+          "required safe integer",
+          "afterVersion = beforeVersion+1 without overflow"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.afterVersion; enforce role/owner and current state before persistence."
+        ]
+      },
+      "recordedAt": {
+        "constraints": [
+          "required",
+          "finite UTC Date; service-assigned or evidenced event time"
+        ],
+        "notes": [
+          "Proposed StockLedgerEntry.recordedAt; enforce role/owner and current state before persistence."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "productId",
+        "targetCollection": "products",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "actorId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "sourceRef",
+        "targetCollection": "proposed goodsreceipts OR productorders OR proposed stockadjustments",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "ObjectId serialized as String",
+        "joinRule": "kind discriminates RECEIPT->goodsreceipt, SALE/RETURN->productorder, ADJUSTMENT->stockadjustment; include sourceVersion/productId.",
+        "status": "POLYMORPHIC_PROPOSED_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "kind": 1,
+          "sourceRef": 1,
+          "sourceVersion": 1,
+          "productId": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "One stock effect per source version/product/event kind",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "productId": 1,
+          "recordedAt": 1,
+          "_id": 1
+        },
+        "options": {},
+        "purpose": "Append-only product audit history",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "Append-only; no committed event update/delete. Product/order snapshots retain authority until reviewed migration.",
+      "RECEIPT deltaOnHand>0/deltaHeld=0; ADJUSTMENT nonzero onHand/held=0. SALE/RETURN deltas match exact guarded order transition; faulty goods never restock.",
+      "Ledger event, guarded Product.version increment and source transition commit together; same source with changed deltas conflicts, never increments again."
+    ],
+    "eventIdentity": {
+      "fields": [
+        "kind",
+        "sourceRef",
+        "sourceVersion",
+        "productId"
+      ],
+      "canonicalId": "SHA256 typed tuple",
+      "atomicity": "Unique source claim plus guarded product update in same transaction; collision with different effect is conflict."
+    },
+    "releaseGates": [
+      "Stock event mapping, reversal rules and migration authority require independent review.",
+      "No TTL/retention deletion assumed for financial/stock history."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "StockAdjustment",
+    "collectionOrEmbeddedPath": "proposed stockadjustments",
+    "scope": "UC-95",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "productId": "ObjectId",
+      "quantityDelta": "Integer !=0",
+      "reasonCode": "DAMAGED|LOST|INTERNAL_USE|RECEIPT_CORRECTION",
+      "reason": "String",
+      "actorId": "ObjectId",
+      "expectedStockVersion": "Integer",
+      "ledgerRef": "String",
+      "state": "APPLIED",
+      "idempotencyKey": "String",
+      "createdAt": "Date",
+      "payloadFingerprint": "String",
+      "sourceReceiptId": "ObjectId|null"
+    },
+    "invariant": "Admin only; decrease cannot exceed sellable quantity, stock cannot go below zero. Atomic version/quantity guard plus immutable reason/audit; no change to earlier receipts.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed StockAdjustment._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "productId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.productId; enforce role/owner and current state before persistence.",
+          "Reference productId -> products._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "quantityDelta": {
+        "constraints": [
+          "required nonzero signed safe integer",
+          "decrease magnitude <= current stockOnHand-quantityHeld",
+          "resulting stockOnHand >= quantityHeld >=0",
+          "positive delta only evidenced receipt correction"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.quantityDelta; enforce role/owner and current state before persistence."
+        ]
+      },
+      "reasonCode": {
+        "constraints": [
+          "required",
+          "enum DAMAGED, LOST, INTERNAL_USE, RECEIPT_CORRECTION"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.reasonCode; enforce role/owner and current state before persistence."
+        ]
+      },
+      "reason": {
+        "constraints": [
+          "required",
+          "trimmed NFC 1..1000 characters; no control characters"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.reason; enforce role/owner and current state before persistence."
+        ]
+      },
+      "actorId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.actorId; enforce role/owner and current state before persistence.",
+          "Reference actorId -> users._id; stored ObjectId / target ObjectId. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "expectedStockVersion": {
+        "constraints": [
+          "required",
+          "safe integer 0..9007199254740991"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.expectedStockVersion; enforce role/owner and current state before persistence."
+        ]
+      },
+      "ledgerRef": {
+        "constraints": [
+          "required immutable SHA256 event ID",
+          "exactly one matching ADJUSTMENT event with same product/source/version/delta"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.ledgerRef; enforce role/owner and current state before persistence.",
+          "Reference ledgerRef -> proposed stockledgerentries._id; stored String / target String. Resolve under current owner/role/state and transaction guards."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required",
+          "constant APPLIED"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "idempotencyKey": {
+        "constraints": [
+          "required immutable",
+          "8..128 ASCII characters matching [A-Za-z0-9._:-]+"
+        ],
+        "notes": [
+          "Initial submit identity; scope and later decision identity are specified in commandContract."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      },
+      "payloadFingerprint": {
+        "constraints": [
+          "required immutable",
+          "exactly 64 lowercase hex characters; SHA-256"
+        ],
+        "notes": [
+          "Canonical typed source/payload digest; no secrets or mutable source guesses."
+        ]
+      },
+      "sourceReceiptId": {
+        "constraints": [
+          "required ObjectId iff reasonCode=RECEIPT_CORRECTION",
+          "null for DAMAGED/LOST/INTERNAL_USE"
+        ],
+        "notes": [
+          "Proposed StockAdjustment.sourceReceiptId; enforce role/owner and current state before persistence.",
+          "Reference sourceReceiptId -> proposed goodsreceipts._id; stored ObjectId / target ObjectId. Required for RECEIPT_CORRECTION and same product line; original receipt immutable."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "productId",
+        "targetCollection": "products",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "actorId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "ledgerRef",
+        "targetCollection": "proposed stockledgerentries",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Resolve under current owner/role/state and transaction guards.",
+        "status": "PROPOSED_REFERENCE"
+      },
+      {
+        "field": "sourceReceiptId",
+        "targetCollection": "proposed goodsreceipts",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Required for RECEIPT_CORRECTION and same product line; original receipt immutable.",
+        "status": "PROPOSED_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "actorId": 1,
+          "idempotencyKey": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "Initial adjustment submit scope",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "ledgerRef": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "One applied adjustment per ledger event",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "productId": 1,
+          "createdAt": -1,
+          "_id": -1
+        },
+        "options": {},
+        "purpose": "Product adjustment history",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "Admin-only APPLIED record; DAMAGED/LOST/INTERNAL_USE require negative delta. RECEIPT_CORRECTION requires source receipt and evidenced signed delta.",
+      "Expected stock version, sellable predicate, adjustment, ledger and command result commit atomically; stale/insufficient stock conflicts.",
+      "No editing historic receipts, arbitrary positive stock or automatic unexplained balance correction."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "submitIdentity": [
+        "actorId",
+        "idempotencyKey"
+      ],
+      "actionIdentity": "SHA256([actorId,operation,aggregateId,actionSpecificKey])",
+      "fingerprint": "Canonical operation/resource/expectedVersion/payload SHA256; changed payload with same identity ->409; same command may return stored allowlisted result after current authorization checks.",
+      "atomicity": "Mutation, source claims/events and immutable command result in one Mongo transaction; no external send/transfer inside it. Later decisions use separate keys.",
+      "resultStore": "Reviewed command-store operation adapter: unique _id, fingerprint, result, createdAt. New operation is not claimed wired.",
+      "retry": "Unknown HTTP acknowledgement retries original key/payload; external outcome needs authoritative reconciliation."
+    },
+    "releaseGates": [
+      "Stock correction evidence/authority and initial ledger adoption need reviewed acceptance; no migration is implemented."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "GroomingVisitExtension",
+    "collectionOrEmbeddedPath": "proposed embedded visit.grooming",
+    "scope": "UC-58 / UC-59 / UC-60 / UC-91",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "receivedAt": "Date|null",
+      "receivedBy": "ObjectId|null",
+      "arrivalCondition": "String",
+      "arrivalEvidenceRefs": "PrivateMediaRef[]",
+      "declaredCareSnapshotRef": "String",
+      "surchargeProposal": "{policyVersion,amountVnd,reason}|null",
+      "customerConsentRef": "String|null",
+      "assignedSitterId": "ObjectId|null",
+      "workState": "BOOKED|RECEIVED|IN_PROGRESS|READY|STOPPED|HANDED_BACK|CANCELLED",
+      "stopReason": "String|null",
+      "readyAt": "Date|null",
+      "handedBackAt": "Date|null",
+      "paymentReceiptRef": "String|null",
+      "version": "Integer"
+    },
+    "invariant": "Reuse Booking/Visit instead of duplicate booking system. Qualified employee on shift; explicit consent for approved surcharge; final receipt evidence before hand-back. No unapproved surcharge rate is specified.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "receivedAt": {
+        "constraints": [
+          "null before reception",
+          "required verified UTC from RECEIVED onward"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.receivedAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "receivedBy": {
+        "constraints": [
+          "null before reception",
+          "required operational User ObjectId from RECEIVED onward"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.receivedBy; enforce role/owner and current state before persistence.",
+          "Reference receivedBy -> users._id; stored ObjectId / target ObjectId. Authorized receiving operator; assigned sitter must be qualified ACTIVE employee, on shift, occupancy rechecked."
+        ]
+      },
+      "arrivalCondition": {
+        "constraints": [
+          "required 1..4000 characters from RECEIVED onward",
+          "absent before actual reception",
+          "no inferred medical diagnosis"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.arrivalCondition; enforce role/owner and current state before persistence."
+        ]
+      },
+      "arrivalEvidenceRefs": {
+        "constraints": [
+          "required array 0..20 private {bindingId,contentDigest}",
+          "validate visit ownership and immutable evidence"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.arrivalEvidenceRefs; enforce role/owner and current state before persistence.",
+          "Reference arrivalEvidenceRefs[].bindingId -> caremediabindings._id; stored String / target String. Private binding/digest belongs to this visit; evidence writer/retention is not claimed live."
+        ]
+      },
+      "declaredCareSnapshotRef": {
+        "constraints": [
+          "required",
+          "exact lowercase SHA256 of parent visit.snapshots.care",
+          "immutable owner-declared snapshot identity, no invented collection"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.declaredCareSnapshotRef; enforce role/owner and current state before persistence.",
+          "Reference declaredCareSnapshotRef -> visits.snapshots.care digest; stored String / target SHA256 String. Digest of same visit immutable owner-declared care snapshot; no foreign collection."
+        ]
+      },
+      "surchargeProposal": {
+        "constraints": [
+          "nullable",
+          "if present approved policyVersion(1..160), amountVnd safe integer>0, reason(1..1000)",
+          "immutable after actual consent",
+          "no guessed rate"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.surchargeProposal; enforce role/owner and current state before persistence."
+        ]
+      },
+      "customerConsentRef": {
+        "constraints": [
+          "null if no surcharge",
+          "required before IN_PROGRESS when surcharge proposed",
+          "actual Customer approval bound to exact proposal hash"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.customerConsentRef; enforce role/owner and current state before persistence.",
+          "Reference customerConsentRef -> EXTERNAL_APPROVED_CONSENT_ADAPTER.opaque consent evidence ID; stored String / target String. Bind actual Customer, exact proposal hash and approval time; adapter remains a release gate."
+        ]
+      },
+      "assignedSitterId": {
+        "constraints": [
+          "null before assignment",
+          "required qualified on-shift employee before IN_PROGRESS"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.assignedSitterId; enforce role/owner and current state before persistence.",
+          "Reference assignedSitterId -> users._id; stored ObjectId / target ObjectId. Authorized receiving operator; assigned sitter must be qualified ACTIVE employee, on shift, occupancy rechecked."
+        ]
+      },
+      "workState": {
+        "constraints": [
+          "required",
+          "enum BOOKED, RECEIVED, IN_PROGRESS, READY, STOPPED, HANDED_BACK, CANCELLED"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.workState; enforce role/owner and current state before persistence."
+        ]
+      },
+      "stopReason": {
+        "constraints": [
+          "required 1..1000 in STOPPED",
+          "otherwise null unless prior stop recorded"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.stopReason; enforce role/owner and current state before persistence."
+        ]
+      },
+      "readyAt": {
+        "constraints": [
+          "null until READY/HANDED_BACK",
+          "required server UTC then, >=receivedAt"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.readyAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "handedBackAt": {
+        "constraints": [
+          "required verified UTC only for HANDED_BACK",
+          ">=receivedAt",
+          "payment alone is not hand-back evidence"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.handedBackAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "paymentReceiptRef": {
+        "constraints": [
+          "required before HANDED_BACK when amount due>0",
+          "verified receipt evidence only"
+        ],
+        "notes": [
+          "Proposed GroomingVisitExtension.paymentReceiptRef; enforce role/owner and current state before persistence.",
+          "Reference paymentReceiptRef -> payments OR APPROVED_COUNTER_RECEIPT_ADAPTER.typed immutable receipt identity; stored String / target PAYOS ObjectId serialized OR approved CASH/VIETQR opaque String. Verified booking/visit allocation and full amount; current payments is PAYOS-only, so CASH/VIETQR requires reviewed receipt registry/adapter. Browser return is not proof."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "PARENT visits._id",
+        "targetCollection": "visits",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Embedded extension in existing visit, not another booking/collection.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "receivedBy",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Authorized receiving operator; assigned sitter must be qualified ACTIVE employee, on shift, occupancy rechecked.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "assignedSitterId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Authorized receiving operator; assigned sitter must be qualified ACTIVE employee, on shift, occupancy rechecked.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "arrivalEvidenceRefs[].bindingId",
+        "targetCollection": "caremediabindings",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Private binding/digest belongs to this visit; evidence writer/retention is not claimed live.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "declaredCareSnapshotRef",
+        "targetCollection": "visits",
+        "targetKey": "snapshots.care digest",
+        "storedType": "String",
+        "targetType": "SHA256 String",
+        "joinRule": "Digest of same visit immutable owner-declared care snapshot; no foreign collection.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "paymentReceiptRef",
+        "targetCollection": "payments OR APPROVED_COUNTER_RECEIPT_ADAPTER",
+        "targetKey": "typed immutable receipt identity",
+        "storedType": "String",
+        "targetType": "PAYOS ObjectId serialized OR approved CASH/VIETQR opaque String",
+        "joinRule": "Verified booking/visit allocation and full amount; current payments is PAYOS-only, so CASH/VIETQR requires reviewed receipt registry/adapter. Browser return is not proof.",
+        "status": "POLYMORPHIC_PROPOSED_REFERENCE"
+      },
+      {
+        "field": "customerConsentRef",
+        "targetCollection": "EXTERNAL_APPROVED_CONSENT_ADAPTER",
+        "targetKey": "opaque consent evidence ID",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Bind actual Customer, exact proposal hash and approval time; adapter remains a release gate.",
+        "status": "UNRESOLVED_RELEASE_GATE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "grooming.workState": 1,
+          "startAt": 1,
+          "_id": 1
+        },
+        "options": {},
+        "purpose": "Operational shop queue in visits",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "grooming.assignedSitterId": 1,
+          "grooming.workState": 1,
+          "startAt": 1
+        },
+        "options": {},
+        "purpose": "Assigned shop queue; occupancy still needs scheduling guard",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "BOOKED -> RECEIVED -> IN_PROGRESS -> READY -> HANDED_BACK; BOOKED may CANCELLED; RECEIVED/IN_PROGRESS may STOPPED. STOPPED hand-back needs approved disposition and applicable receipt evidence.",
+      "Compare parent Visit.version and grooming.version; mutate extension/event/command result atomically.",
+      "Before work: qualified on-shift sitter, occupancy and any surcharge consent. Before hand-back: actual receipt/approved zero-due treatment and verified handover. No duplicate booking or AI pricing."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "identity": "SHA256([actorId,GROOMING_<action>,visitId,actionKey])",
+      "storage": "Reviewed EmployeeScheduleCommand operation extension with unique _id, fingerprint/result; same transaction as guarded parent Visit.",
+      "guards": "Role, parent/extension state and expected versions, qualification/occupancy, consent and receipt evidence."
+    },
+    "releaseGates": [
+      "Shop transitions and private consent/evidence/receipt adapters require runtime integration review.",
+      "Approved surcharge/stop/cancellation/zero-due policies remain release gates; no rate/term invented."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "ProductFaultyClaim",
+    "collectionOrEmbeddedPath": "proposed productfaultyclaims",
+    "scope": "UC-92 / UC-93",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "orderId": "ObjectId",
+      "customerId": "ObjectId",
+      "lines": "{productId,quantity,reason}[]",
+      "evidenceRefs": "PrivateMediaRef[]",
+      "claimPolicyVersion": "String",
+      "state": "SUBMITTED|UNDER_REVIEW|APPROVED_EXCHANGE|APPROVED_REFUND|REJECTED|RESOLVED",
+      "staffReview": "{actorId,at,note}|null",
+      "adminDecision": "{actorId,at,reason,decision}|null",
+      "replacementOrderRef": "String|null",
+      "refundRef": "String|null",
+      "version": "Integer",
+      "createdAt": "Date",
+      "idempotencyKey": "String",
+      "payloadFingerprint": "String"
+    },
+    "invariant": "Owner/order/deadline/evidence check; Admin approves same-product exchange or external refund. Faulty goods are never restocked; new replacement stock is decremented once. Change-of-mind return is excluded.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "orderId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.orderId; enforce role/owner and current state before persistence.",
+          "Reference orderId -> productorders._id; stored ObjectId / target ObjectId. Check real order owner/purchased line; revalidate current Staff/Admin actor before decision."
+        ]
+      },
+      "customerId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.customerId; enforce role/owner and current state before persistence.",
+          "Reference customerId -> users._id; stored ObjectId / target ObjectId. Check real order owner/purchased line; revalidate current Staff/Admin actor before decision."
+        ]
+      },
+      "lines": {
+        "constraints": [
+          "required 1..100 unique purchased product IDs",
+          "each quantity positive safe integer <= delivered/picked-up quantity minus competing reserved/resolved claims",
+          "reason 1..1000 per line"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.lines; enforce role/owner and current state before persistence.",
+          "Reference lines[].productId -> products._id; stored ObjectId / target ObjectId. Check real order owner/purchased line; revalidate current Staff/Admin actor before decision."
+        ]
+      },
+      "evidenceRefs": {
+        "constraints": [
+          "required array 1..20",
+          "immutable owned private {bindingId:String(1..128),contentDigest:SHA256}",
+          "no public upload URL"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.evidenceRefs; enforce role/owner and current state before persistence.",
+          "Reference evidenceRefs[].bindingId -> PRIVATE_PRODUCT_CLAIM_EVIDENCE_ADAPTER._id; stored String / target String. Immutable owned private evidence binding/digest; productphotos does not retain historical blobs."
+        ]
+      },
+      "claimPolicyVersion": {
+        "constraints": [
+          "required immutable approved version reference 1..160 characters",
+          "fail closed if approved policy resolver is unavailable"
+        ],
+        "notes": [
+          "Opaque policy reference; no rate, cutoff or policy approval is inferred."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required",
+          "enum SUBMITTED, UNDER_REVIEW, APPROVED_EXCHANGE, APPROVED_REFUND, REJECTED, RESOLVED"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "staffReview": {
+        "constraints": [
+          "null in SUBMITTED",
+          "required from UNDER_REVIEW onward except authorized direct Admin rejection",
+          "{actorId:ObjectId,at:UTC Date,note:String(1..4000)}"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.staffReview; enforce role/owner and current state before persistence.",
+          "Reference staffReview.actorId -> users._id; stored ObjectId / target ObjectId. Check real order owner/purchased line; revalidate current Staff/Admin actor before decision."
+        ]
+      },
+      "adminDecision": {
+        "constraints": [
+          "null before decision",
+          "required for approved/rejected/resolved",
+          "{actorId:current Admin ObjectId,at:UTC Date,reason:String(1..1000),decision:EXCHANGE|REFUND|REJECT}",
+          "decision matches branch state"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.adminDecision; enforce role/owner and current state before persistence.",
+          "Reference adminDecision.actorId -> users._id; stored ObjectId / target ObjectId. Check real order owner/purchased line; revalidate current Staff/Admin actor before decision."
+        ]
+      },
+      "replacementOrderRef": {
+        "constraints": [
+          "null on refund/rejection branch",
+          "required before resolving EXCHANGE",
+          "at most one actual replacement order"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.replacementOrderRef; enforce role/owner and current state before persistence.",
+          "Reference replacementOrderRef -> productorders._id; stored String / target ObjectId serialized as String. One confirmed replacement order for approved exchange; source line mapping immutable."
+        ]
+      },
+      "refundRef": {
+        "constraints": [
+          "null on exchange/rejection branch",
+          "required before resolving REFUND",
+          "verified external resolution evidence"
+        ],
+        "notes": [
+          "Proposed ProductFaultyClaim.refundRef; enforce role/owner and current state before persistence.",
+          "Reference refundRef -> EXTERNAL_APPROVED_PRODUCT_REFUND_ADAPTER._id; stored String / target String. Opaque verified external refund resolution; no assumed join to booking-refunds identity."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      },
+      "idempotencyKey": {
+        "constraints": [
+          "required immutable",
+          "8..128 ASCII characters matching [A-Za-z0-9._:-]+"
+        ],
+        "notes": [
+          "Initial submit identity; scope and later decision identity are specified in commandContract."
+        ]
+      },
+      "payloadFingerprint": {
+        "constraints": [
+          "required immutable",
+          "exactly 64 lowercase hex characters; SHA-256"
+        ],
+        "notes": [
+          "Canonical typed source/payload digest; no secrets or mutable source guesses."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "orderId",
+        "targetCollection": "productorders",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check real order owner/purchased line; revalidate current Staff/Admin actor before decision.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "customerId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check real order owner/purchased line; revalidate current Staff/Admin actor before decision.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "lines[].productId",
+        "targetCollection": "products",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check real order owner/purchased line; revalidate current Staff/Admin actor before decision.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "staffReview.actorId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check real order owner/purchased line; revalidate current Staff/Admin actor before decision.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "adminDecision.actorId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Check real order owner/purchased line; revalidate current Staff/Admin actor before decision.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "evidenceRefs[].bindingId",
+        "targetCollection": "PRIVATE_PRODUCT_CLAIM_EVIDENCE_ADAPTER",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Immutable owned private evidence binding/digest; productphotos does not retain historical blobs.",
+        "status": "UNRESOLVED_RELEASE_GATE"
+      },
+      {
+        "field": "replacementOrderRef",
+        "targetCollection": "productorders",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "ObjectId serialized as String",
+        "joinRule": "One confirmed replacement order for approved exchange; source line mapping immutable.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "refundRef",
+        "targetCollection": "EXTERNAL_APPROVED_PRODUCT_REFUND_ADAPTER",
+        "targetKey": "_id",
+        "storedType": "String",
+        "targetType": "String",
+        "joinRule": "Opaque verified external refund resolution; no assumed join to booking-refunds identity.",
+        "status": "UNRESOLVED_RELEASE_GATE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "customerId": 1,
+          "idempotencyKey": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "Initial faulty-claim submit identity",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "orderId": 1,
+          "state": 1,
+          "createdAt": 1
+        },
+        "options": {},
+        "purpose": "Concurrent source-quantity review; capacity enforced transactionally",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "replacementOrderRef": 1
+        },
+        "options": {
+          "unique": true,
+          "partialFilterExpression": {
+            "replacementOrderRef": {
+              "$type": "string"
+            }
+          }
+        },
+        "purpose": "Replacement order cannot resolve multiple claims",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "SUBMITTED -> UNDER_REVIEW -> APPROVED_EXCHANGE | APPROVED_REFUND | REJECTED; approved branch -> RESOLVED only on actual outcome evidence.",
+      "Per-order source guard/CAS reserves allowed quantities across claims; a multikey unique index cannot enforce quantity capacity.",
+      "Faulty units never restock; replacement decrements fresh stock once in exchange transaction. External refund outside transaction; uncertain outcome stays approved/unresolved for reconciliation, never fabricated as paid."
+    ],
+    "commandContract": {
+      "status": "DESIGN_PENDING_RUNTIME",
+      "submitIdentity": [
+        "customerId",
+        "idempotencyKey"
+      ],
+      "actionIdentity": "SHA256([actorId,operation,aggregateId,actionSpecificKey])",
+      "fingerprint": "Canonical operation/resource/expectedVersion/payload SHA256; changed payload with same identity ->409; same command may return stored allowlisted result after current authorization checks.",
+      "atomicity": "Mutation, source claims/events and immutable command result in one Mongo transaction; no external send/transfer inside it. Later decisions use separate keys.",
+      "resultStore": "Reviewed command-store operation adapter: unique _id, fingerprint, result, createdAt. New operation is not claimed wired.",
+      "retry": "Unknown HTTP acknowledgement retries original key/payload; external outcome needs authoritative reconciliation."
+    },
+    "releaseGates": [
+      "Approved faulty-goods deadline/eligibility/refund policy and private evidence retention required; no guessed deadline.",
+      "Replacement/refund adapters and source capacity claims need reviewed integration; booking refunds are not assumed compatible."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "AccessNoteAudit",
+    "collectionOrEmbeddedPath": "proposed accessnoteaudits",
+    "scope": "UC-90",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "String",
+      "visitId": "ObjectId",
+      "actorId": "ObjectId",
+      "assignmentVersion": "Integer|null",
+      "careSnapshotHash": "String|null",
+      "action": "READ_GRANTED|READ_DENIED",
+      "reasonCode": "String",
+      "occurredAt": "Date",
+      "correlationId": "String"
+    },
+    "invariant": "Record actor/time/resource/decision, never note text, key code or address secrets. Current assigned-care reader does not itself establish this audit event.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required immutable",
+          "SHA256([actorId,visitId,correlationId,action]) hex string",
+          "unique decision-event identity"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "visitId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit.visitId; enforce role/owner and current state before persistence.",
+          "Reference visitId -> visits._id; stored ObjectId / target ObjectId. READ_GRANTED resolves assigned current visit; READ_DENIED may retain only attempted syntactically valid ID, not an invented source."
+        ]
+      },
+      "actorId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit.actorId; enforce role/owner and current state before persistence.",
+          "Reference actorId -> users._id; stored ObjectId / target ObjectId. Authenticated requesting actor; anonymous failures remain technical access logs."
+        ]
+      },
+      "assignmentVersion": {
+        "constraints": [
+          "nullable for DENIED before source load",
+          "required safe integer>=0 for READ_GRANTED",
+          "exact evaluated assignment version"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit.assignmentVersion; enforce role/owner and current state before persistence."
+        ]
+      },
+      "careSnapshotHash": {
+        "constraints": [
+          "nullable for DENIED before authorized snapshot load",
+          "required SHA256 for READ_GRANTED",
+          "exact evaluated care digest"
+        ],
+        "notes": [
+          "Canonical typed source/payload digest; no secrets or mutable source guesses."
+        ]
+      },
+      "action": {
+        "constraints": [
+          "required",
+          "enum READ_GRANTED, READ_DENIED"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit.action; enforce role/owner and current state before persistence."
+        ]
+      },
+      "reasonCode": {
+        "constraints": [
+          "required",
+          "enum GRANTED, NOT_ASSIGNED, WINDOW_CLOSED, HANDOVER_REQUIRED, SNAPSHOT_UNAVAILABLE, ACK_REQUIRED, RESOURCE_UNAVAILABLE",
+          "no note/address/key/recipient secrets"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit.reasonCode; enforce role/owner and current state before persistence."
+        ]
+      },
+      "occurredAt": {
+        "constraints": [
+          "required",
+          "finite UTC Date; service-assigned or evidenced event time"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit.occurredAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "correlationId": {
+        "constraints": [
+          "required server-generated UUID",
+          "stable for this evaluated request only"
+        ],
+        "notes": [
+          "Proposed AccessNoteAudit.correlationId; enforce role/owner and current state before persistence."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "visitId",
+        "targetCollection": "visits",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "READ_GRANTED resolves assigned current visit; READ_DENIED may retain only attempted syntactically valid ID, not an invented source.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "actorId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Authenticated requesting actor; anonymous failures remain technical access logs.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "actorId": 1,
+          "visitId": 1,
+          "correlationId": 1,
+          "action": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "Deduplicate one evaluated access event",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "visitId": 1,
+          "occurredAt": -1,
+          "_id": -1
+        },
+        "options": {},
+        "purpose": "Authorized visit audit",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "actorId": 1,
+          "occurredAt": -1,
+          "_id": -1
+        },
+        "options": {},
+        "purpose": "Authorized actor audit",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "Append-only decision event, not assignment/financial mutation.",
+      "GRANTED checks current assignment/handover, acknowledged exact care snapshot and source window [startAt-1h,endAt); log safe metadata only.",
+      "If mandatory audit write fails, fail closed before returning note text; DENIED may lack source version/hash when never authorized/loaded. Never invent them.",
+      "action READ_GRANTED requires reasonCode=GRANTED; READ_DENIED requires a non-GRANTED safe reason. No note text appears in either record."
+    ],
+    "eventIdentity": {
+      "fields": [
+        "actorId",
+        "visitId",
+        "correlationId",
+        "action"
+      ],
+      "atomicity": "Persist evaluated event before releasing protected response; same event retry deduplicates. Later reauthorization uses new correlation ID."
+    },
+    "releaseGates": [
+      "Privacy retention/TTL (none assumed), authorized audit readers and fail-closed behavior require review.",
+      "Current assigned-care reader is not claimed to emit this proposed event."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  },
+  {
+    "name": "CustomerTierAssessment",
+    "collectionOrEmbeddedPath": "proposed customertierassessments",
+    "scope": "SRS GBR-42 / JOB-05",
+    "status": "DESIGN_PENDING_RUNTIME",
+    "fields": {
+      "_id": "ObjectId",
+      "customerId": "ObjectId",
+      "policyVersion": "String",
+      "periodStart": "Date",
+      "periodEnd": "Date",
+      "verifiedSpendVnd": "Integer",
+      "receiptSourceHash": "String",
+      "assessedTier": "String",
+      "discountEligibility": "Boolean",
+      "state": "DRAFT|APPROVED|SUPERSEDED",
+      "createdAt": "Date",
+      "sourceReceiptRefs": "{receiptId:ObjectId,sourceVersion:Integer}[]",
+      "version": "Integer",
+      "approvedBy": "ObjectId|null",
+      "approvedAt": "Date|null",
+      "approvalReference": "String|null"
+    },
+    "invariant": "Disabled until approved tier names/thresholds/discounts and source rules exist. Only verified paid source joins; no arbitrary rates or fabricated profile DTO tier.",
+    "designBasis": "PROPOSED_TECHNICAL_CONTRACT: all following limits/indexes require reviewed implementation; not a migration, existing runtime contract or approval of missing business policy.",
+    "fieldContracts": {
+      "_id": {
+        "constraints": [
+          "required",
+          "immutable",
+          "unique primary identity",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment._id; enforce role/owner and current state before persistence."
+        ]
+      },
+      "customerId": {
+        "constraints": [
+          "required",
+          "BSON ObjectId; reject arbitrary identity conversion"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.customerId; enforce role/owner and current state before persistence.",
+          "Reference customerId -> users._id; stored ObjectId / target ObjectId. Current Customer; preserve operational role separation."
+        ]
+      },
+      "policyVersion": {
+        "constraints": [
+          "required immutable approved version reference 1..160 characters",
+          "fail closed if approved policy resolver is unavailable"
+        ],
+        "notes": [
+          "Opaque policy reference; no rate, cutoff or policy approval is inferred."
+        ]
+      },
+      "periodStart": {
+        "constraints": [
+          "required",
+          "finite UTC Date; service-assigned or evidenced event time"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.periodStart; enforce role/owner and current state before persistence."
+        ]
+      },
+      "periodEnd": {
+        "constraints": [
+          "required UTC Date",
+          "periodStart < periodEnd",
+          "half-open approved-policy period [start,end) and timezone"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.periodEnd; enforce role/owner and current state before persistence."
+        ]
+      },
+      "verifiedSpendVnd": {
+        "constraints": [
+          "required safe integer VND>=0",
+          "recompute deduplicated verified eligible sources less approved refunds",
+          "reject overflow",
+          "no AI/estimate/browser-return spend"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.verifiedSpendVnd; enforce role/owner and current state before persistence."
+        ]
+      },
+      "receiptSourceHash": {
+        "constraints": [
+          "required immutable",
+          "exactly 64 lowercase hex characters; SHA-256"
+        ],
+        "notes": [
+          "Canonical typed source/payload digest; no secrets or mutable source guesses."
+        ]
+      },
+      "assessedTier": {
+        "constraints": [
+          "required canonical 1..100-character tier from approved policyVersion vocabulary",
+          "DRAFT candidate grants no tier"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.assessedTier; enforce role/owner and current state before persistence."
+        ]
+      },
+      "discountEligibility": {
+        "constraints": [
+          "required strict Boolean derived from approved policy",
+          "DRAFT grants no discount and this Boolean is not a rate"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.discountEligibility; enforce role/owner and current state before persistence."
+        ]
+      },
+      "state": {
+        "constraints": [
+          "required",
+          "enum DRAFT, APPROVED, SUPERSEDED"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.state; enforce role/owner and current state before persistence."
+        ]
+      },
+      "createdAt": {
+        "constraints": [
+          "required immutable server UTC Date"
+        ],
+        "notes": [
+          "Creation time, not proof of external action."
+        ]
+      },
+      "sourceReceiptRefs": {
+        "constraints": [
+          "required array 0..10000 unique receiptId",
+          "each {receiptId:ObjectId,sourceVersion:safe integer>=0}",
+          "reject overflow and use reviewed aggregation/batching, never silently truncate"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.sourceReceiptRefs; enforce role/owner and current state before persistence.",
+          "Reference sourceReceiptRefs[].receiptId -> payments._id; stored ObjectId / target ObjectId. Verified receipt and captured version with eligible completed source/allocation; refund/reconciliation/duplicate exclusion follows approved source rules. Product receipt mapping remains gated."
+        ]
+      },
+      "version": {
+        "constraints": [
+          "required safe integer 0..9007199254740991",
+          "start 0; CAS expectedVersion; increment exactly once per successful mutation"
+        ],
+        "notes": [
+          "Optimistic domain version, not a Mongoose version key."
+        ]
+      },
+      "approvedBy": {
+        "constraints": [
+          "null in DRAFT",
+          "required Admin ObjectId in APPROVED, retained in SUPERSEDED"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.approvedBy; enforce role/owner and current state before persistence.",
+          "Reference approvedBy -> users._id; stored ObjectId / target ObjectId. Current Admin reviewer; automated DRAFT does not self-approve."
+        ]
+      },
+      "approvedAt": {
+        "constraints": [
+          "null in DRAFT",
+          "required server UTC>=createdAt in APPROVED, retained in SUPERSEDED"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.approvedAt; enforce role/owner and current state before persistence."
+        ]
+      },
+      "approvalReference": {
+        "constraints": [
+          "null in DRAFT",
+          "required immutable review evidence reference 1..160 in APPROVED/SUPERSEDED"
+        ],
+        "notes": [
+          "Proposed CustomerTierAssessment.approvalReference; enforce role/owner and current state before persistence."
+        ]
+      }
+    },
+    "references": [
+      {
+        "field": "customerId",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Current Customer; preserve operational role separation.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "sourceReceiptRefs[].receiptId",
+        "targetCollection": "payments",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Verified receipt and captured version with eligible completed source/allocation; refund/reconciliation/duplicate exclusion follows approved source rules. Product receipt mapping remains gated.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      },
+      {
+        "field": "approvedBy",
+        "targetCollection": "users",
+        "targetKey": "_id",
+        "storedType": "ObjectId",
+        "targetType": "ObjectId",
+        "joinRule": "Current Admin reviewer; automated DRAFT does not self-approve.",
+        "status": "CURRENT_SOURCE_REFERENCE"
+      }
+    ],
+    "indexes": [
+      {
+        "keys": {
+          "customerId": 1,
+          "policyVersion": 1,
+          "periodStart": 1,
+          "periodEnd": 1,
+          "receiptSourceHash": 1
+        },
+        "options": {
+          "unique": true
+        },
+        "purpose": "Deduplicate assessment input/reruns",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "customerId": 1,
+          "periodStart": 1,
+          "periodEnd": 1
+        },
+        "options": {
+          "unique": true,
+          "partialFilterExpression": {
+            "state": "APPROVED"
+          }
+        },
+        "purpose": "One active approved assessment per customer/period",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      },
+      {
+        "keys": {
+          "state": 1,
+          "createdAt": 1,
+          "_id": 1
+        },
+        "options": {},
+        "purpose": "Bounded review queue",
+        "status": "PROPOSED_NOT_PROVISIONED"
+      }
+    ],
+    "stateRules": [
+      "DRAFT -> APPROVED -> SUPERSEDED with expected version/current Admin; no direct DRAFT public tier.",
+      "Supersede old approval and approve replacement atomically under customer-period guard; drift in source hash/version conflicts.",
+      "Identical customer/policy/period/source hash rerun reads existing assessment, never reapplies spend. Public tier/discount reads APPROVED only."
+    ],
+    "eventIdentity": {
+      "fields": [
+        "customerId",
+        "policyVersion",
+        "periodStart",
+        "periodEnd",
+        "receiptSourceHash"
+      ],
+      "atomicity": "Unique typed input tuple deduplicates DRAFT; approval/supersession command includes actor/action/assessment/key/expectedVersion in reviewed adapter."
+    },
+    "releaseGates": [
+      "Explicit approved tier names/thresholds/period/timezone/expiry/discount rates/refund treatment required; feature disabled until then.",
+      "Verified source receipt mapping, reproducible source hash, review adapter and public projection need independent release acceptance."
+    ],
+    "indexScope": "PROPOSED_NOT_PROVISIONED. Grooming indexes apply to visits; Incident indexes to cases. _id uniqueness implicit for standalone collections; application references are not Mongo-enforced SQL FKs."
+  }
+]
