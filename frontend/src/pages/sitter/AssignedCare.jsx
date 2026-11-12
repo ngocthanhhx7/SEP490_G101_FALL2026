@@ -17,7 +17,10 @@ function CareDetails({ api, visitId }) {
   async function access() {
     setNotes(null); setError('');
     try { const result = await api.accessNotes(visitId); setNotes(result.data); }
-    catch { setError('Chưa được mở ghi chú ra vào. Kiểm tra ca đã nhận, xác nhận hồ sơ và thời gian truy cập.'); }
+    catch (failure) { setError(failure.code === 'ACCESS_WINDOW_CLOSED' ? 'Chưa trong thời gian xem ghi chú. Chỉ mở từ 1 giờ trước ca đến lúc kết thúc ca.'
+      : failure.code === 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED' ? 'Cần xác nhận đã đọc hồ sơ chăm sóc hiện tại trước khi mở ghi chú.'
+        : failure.code === 'HANDOVER_REQUIRED' ? 'Ca cần được điều phối xác nhận bàn giao trước khi xem ghi chú.'
+          : 'Chưa mở được ghi chú ra vào. Hãy tải lại hồ sơ hoặc liên hệ điều phối.'); }
   }
   useEffect(() => {
     if (!notes) return undefined;
@@ -35,7 +38,11 @@ function CareDetails({ api, visitId }) {
     {!care.data.acknowledged && <Button disabled={command.busy || command.pending} onClick={() => command.execute(key => api.acknowledgeCare(visitId, care.data.version, key))}>Xác nhận đã đọc hồ sơ</Button>}
     {command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại xác nhận</Button>}
-    <Button variant="secondary" disabled={!care.data.acknowledged} onClick={access}>Mở ghi chú ra vào</Button>
+    <p id="care-access-help">Ghi chú ra vào là hướng dẫn riêng của khách về cách vào nhà hoặc điểm chăm sóc.
+      {!care.data.acknowledged && ' Bấm “Xác nhận đã đọc hồ sơ” để mở khóa nút.'}
+      {care.data.accessOpensAt && care.data.accessExpiresAt && ' Chỉ xem từ ' + new Date(care.data.accessOpensAt).toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'}) + ' đến ' + new Date(care.data.accessExpiresAt).toLocaleString('vi-VN', {timeZone:'Asia/Ho_Chi_Minh'}) + ' (giờ Việt Nam).'}
+    </p>
+    <Button variant="secondary" aria-describedby="care-access-help" disabled={!care.data.acknowledged} onClick={access}>Mở ghi chú ra vào</Button>
     {notes && <p>{notes.privateAccessNotes || 'Không có ghi chú ra vào.'}</p>}
     {error && <p role="alert">{error}</p>}
   </section>;
