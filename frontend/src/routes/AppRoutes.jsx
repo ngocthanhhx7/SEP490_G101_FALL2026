@@ -3,6 +3,7 @@ import { createServiceAreaManagementApi } from '../services/service-area-managem
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
+import { ComplaintSubmitPage } from '../pages/customer/ComplaintSubmitPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
 import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
@@ -289,6 +290,7 @@ export function AppRoutes({
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
           <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
+          <Route path="account/bookings/:bookingId/complaints/new" element={<ComplaintSubmitPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
         </Route>

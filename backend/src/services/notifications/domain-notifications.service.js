@@ -68,7 +68,9 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       }
       if (['ComplaintResolved', 'ComplaintRefundDecided', 'ComplaintDecided'].includes(event)) {
         const final = event === 'ComplaintDecided';
-        await write(eventId, event, [{ id: record.customerId, role: 'CUSTOMER', to: null }],
+        const to = '/account/bookings/' + encodeURIComponent(String(record.bookingId)) +
+          '/complaints/new?complaint=' + encodeURIComponent(record.id);
+        await write(eventId, event, [{ id: record.customerId, role: 'CUSTOMER', to }],
           final ? 'Kết quả cuối của khiếu nại' : 'Khiếu nại đã có kết quả',
           code + (final ? ' đã có kết quả cuối.' : ' đã có kết quả xử lý.'), session);
       }
