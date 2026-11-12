@@ -89,8 +89,9 @@ not a prerequisite. The worker recovers compatible legacy orders at NEEDS_REVIEW
 UC-82 evaluates the 12-hour boundary again when saving. Early withdrawal clears the
 assignment, sets `handoverRequired`, records `VisitWithdrawn` and returns the visit
 to automatic dispatch when the worker is enabled. The previous sitter is excluded.
-When they were customer-selected, dispatch considers the other eligible sitters
-while preserving the original preference. Late withdrawal keeps the current sitter
+When they were customer-selected, dispatch escalates without inviting another sitter.
+Staff can propose a replacement, and only explicit confirmation by the owning customer
+repins the operational nominee and creates one pending invitation. Late withdrawal keeps the current sitter
 and records `VisitWithdrawalRequested` for Staff. A changed mode or version returns
 409. An out-of-scope visit returns 404. An exact retry replays the committed result.
 
@@ -104,9 +105,10 @@ await dispatch. Moving a single boarding shift is rejected: whole-stay changes n
 
 `EMPLOYEE_DISPATCH_AGENT_ENABLED=true` starts the runtime worker. It resumes from persisted
 visits/offers after restart; pending/declined/expired offers are not repeatedly sent to the same
-candidate automatically. The requested sitter is offered first if eligible. If they
-are unavailable, decline or let the offer expire, dispatch considers other eligible
-sitters. Each group contains one sitter or all remaining sitters tied on the leading
+candidate automatically. Directed bookings retain the requested sitter; unavailability,
+decline or expiry escalates to Staff for a customer-confirmed replacement proposal.
+System-selected bookings consider successive eligible groups. Each group contains
+one sitter or all remaining sitters tied on the leading
 raw score. Dispatch waits until the current group has no live offer before continuing.
 The bounded search still checks up to 100 employees with four concurrent checks.
 Automatic and explicit Staff invitations have a two-hour deadline, or 30 minutes
@@ -175,3 +177,11 @@ Customer AI recommendation requests return `CUSTOMER_CARE_HISTORY_EXISTS` after 
 - Pet Sitter `GET /api/v1/employee-scheduling/day-origins` returns own version/capabilityReady/items. PUT accepts expectedVersion, localDate, coordinates [lng,lat], availableFrom and availableUntil with CSRF/Idempotency-Key. The interval must stay within the same Vietnam calendar day, end in the future and start within 31 days. Entries are bounded to 31 current/future dates. No foreign employee ID is accepted. The shared capability version prevents stale capability/origin overwrites.
 
 These commands create neither employment acceptance nor ratings/outcomes/payments. Real first-job regression coverage is synthetic; live employees still accept their own invitations.
+
+### Customer consent for replacing a directed sitter
+
+After escalation, `GET /visits/:id/candidates?startAt=...&mode=REPLACEMENT` previews alternatives using the existing bounded eligibility scan. Keeping the current time/area uses manual eligibility; another time retains origin-route checks. This read never creates an offer. `MANUAL` and omitted mode retain their original nominee constraint.
+
+Staff sends the existing schedule proposal with the replacement `sitterId` (the booked time may be kept). The additive optional `previousSitterId` records the original nominee; owner-scoped reads return allowlisted previous/replacement display names. Old proposals without that field retain their original same-sitter confirmation contract. No new collection, index, TTL or backfill is required.
+
+Customer confirmation checks ownership, expiry, proposal/visit versions, previous nominee, payment and authoritative eligibility. It atomically repins the visit and creates an offer. Staff invitation and automatic dispatch cannot bypass this consent for withdrawal, decline, expiry or ineligibility. The replacement must still accept, and existing handover/occupancy checks remain. Original checkout and price snapshots stay unchanged.

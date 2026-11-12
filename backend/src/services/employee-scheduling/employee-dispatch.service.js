@@ -23,14 +23,8 @@ function leadingGroup(ids, scores) {
   return Number.isFinite(score) ? ids.filter(id => scores[id] === score) : ids.slice(0, 1);
 }
 const offerView = row => row && ({ ...row, id: String(row._id), visitId: String(row.visitId), sitterId: row.sitterId });
-const directedSitter = visit => visit.requestedSitterId && String(visit.requestedSitterId) !== String(visit.withdrawalDispatch?.sitterId)
-  ? String(visit.requestedSitterId) : null;
-
-function hasPreferredFallback(visit) {
-  const fallback = visit.dispatchPreferredFallback;
-  return !!fallback && !visit.customerScheduleConsent && String(fallback.sitterId) === directedSitter(visit) &&
-    fallback.startAt.getTime() === visit.startAt.getTime();
-}
+// The customer's nominee remains binding until a customer-confirmed proposal repins it.
+const directedSitter = visit => visit.requestedSitterId ? String(visit.requestedSitterId) : null;
 
 export function createEmployeeDispatchService({ repository, clock = Date.now, ranker, carePlans, autoDispatchWithdrawals = false }) {
   const { models, col, uow, employeeGuard, eligible } = repository;
@@ -108,7 +102,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         },
         async getVisit() {
           const row = await visitForOffer();
-          const preferred = hasPreferredFallback(row) ? null : directedSitter(row);
+          const preferred = directedSitter(row);
           return { ...row, id: String(row._id), sitterId: row.sitterId && String(row.sitterId), requestedSitterId: preferred, directed: !!preferred };
         },
         recheckEligibility: async ({ visit }) => {
@@ -143,11 +137,10 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       });
     })
   } });
-  async function candidates(visit, { manual = false, explain = false, skipPreferred = false } = {}) {
-    const preferred = directedSitter(visit);
-    const directed = skipPreferred ? null : preferred;
-    const excluded = [visit.withdrawalDispatch?.sitterId, skipPreferred ? preferred : null].filter(Boolean).map(String);
-    const sitterFilter = directed ? { _id: directed } : excluded.length ? { _id: { $nin: excluded } } : {};
+  async function candidates(visit, { manual = false, explain = false, alternatives = false } = {}) {
+    const directed = directedSitter(visit);
+    const withdrawn = visit.withdrawalDispatch?.sitterId;
+    const sitterFilter = directed && !alternatives ? { _id: directed } : withdrawn ? { _id: { $ne: String(withdrawn) } } : {};
     const rows = await models.EmployeeAvailability.find({ areas: { $in: await repository.areaKeys(visit.areaCode) }, ...sitterFilter })
       .sort({ _id: 1 }).limit(101).lean();
     if (rows.length > 100) fail('DISPATCH_SEARCH_LIMIT', 'Employee population requires a wider reviewed dispatch search', 409);
@@ -213,21 +206,9 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     return { sitterIds: allowed };
   }
   async function chooseCandidates(visit, excluded, preferred) {
-    const mayFallback = preferred && !visit.customerScheduleConsent;
-    if (!mayFallback || (!hasPreferredFallback(visit) && !excluded.has(preferred))) {
-      try {
-        return await candidates(visit);
-      } catch (error) {
-        if (!mayFallback || error.code !== 'DIRECTED_SCHEDULE_REVIEW_REQUIRED') throw error;
-      }
-    }
-    try {
-      return { ...await candidates(visit, { skipPreferred: true }), preferredFallback: true };
-    } catch (error) {
-      if (error.code === 'NO_ELIGIBLE_SITTER' && excluded.has(preferred))
-        throw new AppError(409, 'STAFF_REVIEW_REQUIRED', 'No eligible employee remains after the preferred invitation', error.details);
-      throw error;
-    }
+    if (preferred && excluded.has(preferred))
+      fail('DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'Customer must confirm any replacement employee', 409);
+    return candidates(visit);
   }
 
   function expireOffers(visitId, asOf, session) {
@@ -242,16 +223,18 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     async previewCandidates(actor, visitId, input) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       id(visitId); exact(input, ['startAt', 'areaCode', 'mode'], ['startAt']);
-      if (input.mode !== undefined && input.mode !== 'MANUAL') fail('VALIDATION_FAILED', 'Invalid preview mode');
+      if (input.mode !== undefined && !['MANUAL', 'REPLACEMENT'].includes(input.mode)) fail('VALIDATION_FAILED', 'Invalid preview mode');
       const visit = await readyVisit(visitId), startAt = new Date(instant(input.startAt));
       const areaCode = input.areaCode ?? visit.areaCode;
       if (!(await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas))).some(row => row.code === areaCode && (areaCode === visit.areaCode || visit.location === 'HOME' && row.parentCode === visit.areaCode)))
         fail('VALIDATION_FAILED', 'Choose the current area or a more precise home area');
-      const manual = input.mode === 'MANUAL';
+      const replacement = input.mode === 'REPLACEMENT';
+      if (replacement && !visit.dispatchReview) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'Replacement previews require staff escalation', 409);
+      const manual = input.mode === 'MANUAL' || replacement && startAt.getTime() === visit.startAt.getTime() && areaCode === visit.areaCode;
       if (manual && (startAt.getTime() !== visit.startAt.getTime() || areaCode !== visit.areaCode)) fail('VALIDATION_FAILED', 'Manual preview must retain booked time and area');
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
       try {
-        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual });
+        const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual, alternatives: replacement });
         const users = await col('users').find({ _id: { $in: [...ids, ...blocked.map(row => row.sitterId)].map(oid) } }, { projection: { displayName: 1 } }).limit(101).toArray();
         return { items: ids.map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
           ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: users.find(user => String(user._id) === row.sitterId)?.displayName })) } : {}),
@@ -284,6 +267,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const asOf = new Date(clock());
         const pending = await models.EmployeeVisitOffer.find({ visitId: visit._id, state: 'PENDING', deadline: { $gt: asOf } }).session(session).lean();
         const preferred = directedSitter(visit);
+        if (preferred && String(visit.withdrawalDispatch?.sitterId) === preferred)
+          fail('DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'Customer must confirm a replacement employee', 409);
         if (input.sitterId && input.sitterId === String(visit.withdrawalDispatch?.sitterId))
           fail('SITTER_WITHDREW', 'Employee withdrew from this visit', 409);
         const resultView = rows => ({ offerId: String(rows[0]._id), state: 'PENDING', visitId, sitterId: rows[0].sitterId,
@@ -299,7 +284,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const selected = input.sitterId ? ranking.sitterIds : leadingGroup(ranking.sitterIds.filter(id => !excluded.has(id)), ranking.scoresBySitterId);
         if (!selected.length) fail('STAFF_REVIEW_REQUIRED', 'All available employees have already been invited', 409);
         for (const sitterId of [...selected].sort()) {
-          if (preferred && !ranking.preferredFallback && preferred !== sitterId)
+          if (preferred && preferred !== sitterId)
             fail('DIRECTED_SITTER_MISMATCH', 'Only the customer selected employee may be invited', 409);
           await employeeGuard(sitterId, session); await eligible(sitterId, visit, session, { requireOrigin: !input.sitterId });
         }
@@ -307,8 +292,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const deadline = responseDeadline(offeredAt, visit.startAt);
         await expireOffers(visit._id, asOf, session);
         const changed = await col('visits').updateOne({ _id: visit._id, state: 'SCHEDULED', version: input.expectedVersion },
-          { $inc: { version: 1 }, $unset: { dispatchReview: 1 },
-            ...(ranking.preferredFallback ? { $set: { dispatchPreferredFallback: { sitterId: visit.requestedSitterId, startAt: visit.startAt } } } : {}) },
+          { $inc: { version: 1 }, $unset: { dispatchReview: 1 } },
           { session });
         if (!changed.matchedCount) fail('VERSION_CONFLICT', 'Visit changed', 409);
         const saved = await models.EmployeeVisitOffer.create(selected.map(sitterId => ({ visitId: visit._id, sitterId, state: 'PENDING', version: 0,

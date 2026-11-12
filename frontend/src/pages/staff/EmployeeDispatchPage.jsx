@@ -44,7 +44,14 @@ const reviewLabel = (code) =>
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
 export function EmployeeDispatchPage({ api, selectedSitter }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
-  const load = useCallback(({ signal }) => api.queue({ signal }), [api]);
+  const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
+  const load = useCallback(async ({ signal }) => {
+    const result = await api.queue({ signal });
+    if (!signal.aborted && !result.pending) {
+      setVisitTravelEnabled(result.data?.visitTravelEnabled === true);
+    }
+    return result;
+  }, [api]);
   const queue = useApiResource(load);
   const [selected, setSelected] = useState(null);
   const [proposal, setProposal] = useState(null);
@@ -271,7 +278,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           ) : active.reviewCode === 'SHIFT_START_REACHED' ? (
             <p>Cần khách xác nhận lịch mới trước khi tìm lại.</p>
           ) : active.dispatchState === 'NEEDS_STAFF' && api.candidates ? (
-            <DispatchSitterPicker key={`${active.id}:${active.version}`} row={active} api={api} command={command} selectedSitter={selectedSitter} />
+            <DispatchSitterPicker key={`${active.id}:${active.version}`} row={active} api={api} command={command} selectedSitter={selectedSitter} onProposed={setProposal} />
           ) : active.dispatchState === 'NEEDS_STAFF' ? (
             <Button
               disabled={
@@ -314,7 +321,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           </div></div>
         </Dialog>
       )}
-      {api.travelVisits && <StaffTravelMonitor api={api} />}
+      {visitTravelEnabled && api.travelVisits && <StaffTravelMonitor api={api} />}
     </section>
   );
 }

@@ -33,7 +33,7 @@ const oid = () => new mongoose.Types.ObjectId(), clock = () => Date.parse('2026-
 const actor = role => ({ userId: String(oid()), state: 'ACTIVE', roles: [role], authEpoch: 0 });
 const staff = actor('STAFF'), customer = actor('CUSTOMER');
 const windows = Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, startLocalTime: '08:00', endLocalTime: '18:00' }));
-let replica, connection, module, app, payroll, reviewApp, payrollService, reviewNow = clock();
+let replica, connection, module, app, payroll, reviewApp, payrollService, sessionService, reviewNow = clock();
 const serviceId = oid();
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
@@ -41,7 +41,7 @@ beforeAll(async () => {
   await provisionFinanceSources(connection); await provisionEmployeeScheduling(connection); payroll = payrollModels(connection);
   for (const model of Object.values(payroll)) { await model.createCollection(); await model.createIndexes(); }
   for (const value of [staff, customer]) await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(value.userId), ...value });
-  const sessionService = { authenticate: async req => {
+  sessionService = { authenticate: async req => {
     const user = req.get('x-test-actor'); if (!user) return null;
     const record = await connection.collection('users').findOne({ _id: new mongoose.Types.ObjectId(user) });
     return record ? { ...record, userId: user, expiresAt: clock() + 60000 } : null;
@@ -58,6 +58,22 @@ beforeAll(async () => {
   for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
 }, 600000);
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
+
+test.each([undefined, 'false', 'true'])('dispatch reports travel capability for VISIT_TRAVEL_ENABLED=%s', async flag => {
+  const runtime = employeeSchedulingRuntimeModule({
+    connection, config: { auth: { enabled: true } }, clock, sessionService,
+    env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', VISIT_TRAVEL_ENABLED: flag }
+  });
+  const server = express();
+  server.use(requestId);
+  server.use(runtime.mount, runtime.router);
+  server.use(errorHandler(() => {}));
+
+  const result = await request(server).get(`${runtime.mount}/dispatch`).set('x-test-actor', staff.userId).expect(200);
+  expect(result.body.data).toMatchObject({ visitTravelEnabled: flag === 'true', items: expect.any(Array) });
+  await request(server).get(`${runtime.mount}/travel-visits`).set('x-test-actor', staff.userId)
+    .expect(flag === 'true' ? 200 : 404);
+});
 
 test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });
@@ -440,7 +456,7 @@ test('agent resumes without duplicate invitations, automatically plans legacy or
   await module.repository.models.EmployeeVisitOffer.updateOne({ _id: offers[0]._id }, { $set: { deadline: new Date(clock() - 1) } });
   await module.dispatch.runBatch({ limit: 20 });
   expect(await module.repository.models.EmployeeVisitOffer.countDocuments({ visitId: row._id })).toBe(1);
-  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview.code).toBe('STAFF_REVIEW_REQUIRED');
+  expect((await connection.collection('visits').findOne({ _id: row._id })).dispatchReview.code).toBe('DIRECTED_SCHEDULE_REVIEW_REQUIRED');
   const filter = { eventType: 'DispatchReviewRequired', 'metadata.visitId': String(row._id) };
   expect((await connection.collection('notifications').find(filter).toArray()).map(item => item.role).sort()).toEqual(['ADMIN', 'STAFF']);
   await module.dispatch.runBatch({ limit: 20 });
@@ -633,11 +649,13 @@ test('dispatch batches projected account/status prefilters while retaining autho
   expect(result.items.some(item => item.sitterId === workers[0].userId)).toBe(true);
 });
 
-test('recovery rejects unrelated areas, customer-selected sitter replacement, missing origin, unpaid and boarding changes', async () => {
+test('recovery requires escalation for replacements and rejects unrelated areas, missing origin, unpaid and boarding changes', async () => {
   const sitter = await employee(), other = await employee();
   const row = await visit({ start: '2026-11-26T02:00:00Z', requestedSitterId: sitter.userId });
   const body = { expectedVersion: 0, startAt: '2026-11-26T04:00:00Z', sitterId: other.userId };
-  await expect(module.proposals.propose(staff, String(row._id), body, 'no-directed-substitute')).rejects.toMatchObject({ code: 'DIRECTED_SITTER_MISMATCH' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $unset: { dispatchReview: 1 } });
+  await expect(module.proposals.propose(staff, String(row._id), body, 'no-directed-substitute')).rejects.toMatchObject({ code: 'SYSTEM_DISPATCH_IN_PROGRESS' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { dispatchReview: { code: 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' } } });
   await expect(module.proposals.propose(staff, String(row._id), { ...body, sitterId: sitter.userId, areaCode: 'DISTRICT_HOAN_KIEM' }, 'no-area-relocation')).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   const system = await visit({ start: '2026-11-26T02:00:00Z' });
   await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(other.userId) }, { $set: { starts: [] } });
@@ -804,7 +822,7 @@ test('UC-82 GBR-21 MSG56 scopes requests, stores a late request once and preserv
   expect((await module.dispatch.queue(staff)).withdrawalRequests.some(item => item.id === String(row._id))).toBe(false);
 });
 
-test('UC-82 GBR-24 MSG57 requeues a directed visit, excludes the withdrawing sitter and retains the handover guard', async () => {
+test('directed withdrawal waits for customer replacement consent and retains the handover guard', async () => {
   const sitter = await employee(), replacement = await employee();
   const row = await visit({ start: '2026-11-23T02:00:00Z', requestedSitterId: sitter.userId });
   const dedicatedService = oid();
@@ -830,9 +848,23 @@ test('UC-82 GBR-24 MSG57 requeues a directed visit, excludes the withdrawing sit
   expect(String(saved.requestedSitterId)).toBe(sitter.userId);
   const { EmployeeVisitOffer, EmployeeScheduleEvent } = module.repository.models;
   expect(await EmployeeScheduleEvent.countDocuments({ visitId: String(row._id), sitterId: sitter.userId, type: 'VisitWithdrawn' })).toBe(1);
-  const pending = await EmployeeVisitOffer.find({ visitId: row._id, state: 'PENDING' }).lean();
-  expect(pending.map(offer => offer.sitterId)).toEqual([replacement.userId]);
-  await module.dispatch.offers.accept(replacement, String(pending[0]._id), 0, 'withdraw-replacement-accept');
+  expect(await EmployeeVisitOffer.countDocuments({ visitId: row._id, state: 'PENDING' })).toBe(0);
+  const current = await connection.collection('visits').findOne({ _id: row._id });
+  expect(current.dispatchReview.code).toBe('DIRECTED_SCHEDULE_REVIEW_REQUIRED');
+  await expect(module.dispatch.invite(staff, String(row._id), { expectedVersion: current.version, sitterId: replacement.userId }, 'withdraw-no-manual-bypass'))
+    .rejects.toMatchObject({ code: 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' });
+  const preview = await module.dispatch.previewCandidates(staff, String(row._id), { startAt: current.startAt.toISOString(), mode: 'REPLACEMENT' });
+  expect(preview.items.map(item => item.sitterId)).toContain(replacement.userId);
+  expect(preview.items.map(item => item.sitterId)).not.toContain(sitter.userId);
+  const proposal = await module.proposals.propose(staff, String(row._id), { expectedVersion: current.version,
+    startAt: current.startAt.toISOString(), sitterId: replacement.userId }, 'withdraw-propose-replacement');
+  expect(proposal).toMatchObject({ previousSitterId: sitter.userId, sitterId: replacement.userId, state: 'PENDING_CUSTOMER_CONFIRMATION' });
+  expect(await EmployeeVisitOffer.countDocuments({ visitId: row._id, state: 'PENDING' })).toBe(0);
+  const inputConfirmation = { actor: customer, proposalId: proposal.id, expectedVersion: 0, selectedSlot: proposal.slots[0], idempotencyKey: 'withdraw-confirm-replacement' };
+  const confirmed = await module.proposals.confirmProposal(inputConfirmation);
+  expect(await module.proposals.confirmProposal(inputConfirmation)).toEqual(confirmed);
+  expect(String((await connection.collection('visits').findOne({ _id: row._id })).requestedSitterId)).toBe(replacement.userId);
+  await module.dispatch.offers.accept(replacement, confirmed.offer.id, 0, 'withdraw-replacement-accept');
   expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({ state: 'ASSIGNED', handoverRequired: true, handoverAccepted: false });
   await request(app).get(`${withdrawalPath(row)}/care`).set('x-test-actor', replacement.userId).expect(403);
 });
@@ -887,24 +919,27 @@ async function sequentialFixture({ scores = [4, 3], preferred = false, consent =
   return { row, workers, dispatch, offers, first, rerun };
 }
 
-test.each(['INELIGIBLE', 'DECLINED', 'EXPIRED'])('GBR-12 offers the requested sitter first and falls back when %s', async reason => {
+test.each(['INELIGIBLE', 'DECLINED', 'EXPIRED'])('directed dispatch waits for customer consent after %s', async reason => {
   const { row, workers, dispatch, offers, first, rerun } = await sequentialFixture({ scores: [1, 9, 8], preferred: true });
   if (reason === 'INELIGIBLE') {
     await connection.collection('aisitterprofiles').updateOne({ userId: new mongoose.Types.ObjectId(workers[0].userId) }, { $set: { serviceIds: [] } });
+    await expect(first(`consent-ineligible-${row._id}`)).rejects.toMatchObject({ code: 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' });
+  } else {
+    await first(`consent-first-${row._id}`);
+    const [opening] = await offers('PENDING');
+    expect(opening.sitterId).toBe(workers[0].userId);
+    if (reason === 'DECLINED') await dispatch.offers.decline(workers[0], String(opening._id), 0, `consent-decline-${row._id}`);
+    else await module.repository.models.EmployeeVisitOffer.updateOne({ _id: opening._id }, { $set: { deadline: new Date(clock()) } });
   }
-  await first(`gbr12-first-${row._id}`);
-  const opening = await offers('PENDING');
-  expect(opening.map(offer => offer.sitterId)).toEqual([workers[reason === 'INELIGIBLE' ? 1 : 0].userId]);
-  if (reason === 'DECLINED') await dispatch.offers.decline(workers[0], String(opening[0]._id), 0, `gbr12-decline-${row._id}`);
-  if (reason === 'EXPIRED') await module.repository.models.EmployeeVisitOffer.updateOne({ _id: opening[0]._id }, { $set: { deadline: new Date(clock()) } });
-  if (reason !== 'INELIGIBLE') await rerun();
-  const pending = await offers('PENDING');
-  expect(pending.map(offer => offer.sitterId)).toEqual([workers[1].userId]);
-  if (reason === 'EXPIRED') expect(await offers('EXPIRED')).toHaveLength(1);
-  await dispatch.offers.accept(workers[1], String(pending[0]._id), 0, `gbr12-accept-${row._id}`);
+  await rerun();
+  expect(await offers('PENDING')).toHaveLength(0);
+  expect((await offers()).every(offer => offer.sitterId === workers[0].userId)).toBe(true);
   const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored.dispatchReview.code).toBe('DIRECTED_SCHEDULE_REVIEW_REQUIRED');
+  await expect(dispatch.invite(staff, String(row._id), { expectedVersion: stored.version, sitterId: workers[1].userId }, `consent-no-bypass-${row._id}`))
+    .rejects.toMatchObject({ code: 'DIRECTED_SITTER_MISMATCH' });
   expect(String(stored.requestedSitterId)).toBe(workers[0].userId);
-  expect(String(stored.sitterId)).toBe(workers[1].userId);
+  expect(stored.sitterId).toBeNull();
 });
 
 test('GBR-12 waits for the whole tied group and GBR-13 reports when one sitter took the visit', async () => {
