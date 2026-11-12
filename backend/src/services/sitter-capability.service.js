@@ -24,7 +24,7 @@ export function createSitterCapabilityService({ connection, clock = Date.now }) 
         if (!staff || !hasRole(staff.roles, 'STAFF')) fail('FORBIDDEN', 'Current staff access required', 403);
         const previous = await repository.models.EmployeeScheduleCommand.findById(commandId).session(session).lean();
         if (previous) { if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'Operation key already used', 409); return previous.result; }
-        await repository.contractAt(userId, new Date(clock()), new Date(clock()), session);
+        await repository.registrationContract(userId, session);
         const serviceIds = input.serviceIds.map(value => new Types.ObjectId(value));
         if (await col('services').countDocuments({ _id: { $in: serviceIds } }, { session }) !== serviceIds.length) fail('VALIDATION_FAILED', 'Unknown service');
         const current = await col('aisitterprofiles').findOne({ userId: new Types.ObjectId(userId) }, { session });
