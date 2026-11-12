@@ -168,6 +168,14 @@ beforeAll(() => {
   window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
 });
 
+test('GBR-13 tells a sitter that a concurrent acceptance took the visit and refreshes their offers', async () => {
+  const api = fixture();
+  api.respond.mockRejectedValueOnce({ status: 409, code: 'VISIT_ALREADY_ASSIGNED' });
+  render(<EmployeeInvitationsPage api={api} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Nhận việc' }));
+  expect(await screen.findByText('Buổi đã có người nhận.')).toBeInTheDocument();
+  await waitFor(() => expect(api.offers.mock.calls.length).toBeGreaterThan(1));
+});
 test('customer sees the previous and replacement sitter before choosing to confirm', async () => {
   const proposal = { id: 'replacement', version: 0, state: 'PENDING_CUSTOMER_CONFIRMATION', sitterId: 'new',
     previousSitterId: 'old', previousSitter: { displayName: 'Người ban đầu' }, sitter: { displayName: 'Người thay thế' },

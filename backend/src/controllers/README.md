@@ -12,3 +12,4 @@ They no longer redirect a browser to an R2 capability URL.
 `avatar.controller.js` translates avatar metadata, binary reads and versioned PUT/DELETE commands; domain authorization/decoding stays in the avatar service.
 
 `counter-sale.controller.js` chuyển session/query/body/key sang catalog và counter services, trả 201 cho tạo, 200 cho đọc/lookup/preview/command. Không tính tiền hoặc thay stock tại controller.
+`booking-details.controller.js` maps the Staff/Admin booking detail GET to the read service.

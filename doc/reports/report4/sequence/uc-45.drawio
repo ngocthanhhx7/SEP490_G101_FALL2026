@@ -1,0 +1,154 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram id="uc-45" name="UC-45 View Care Report">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="985" pageHeight="1574" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Customer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Client view" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": CareReportReadController «design»" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": CareReportReadService «design»" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Read source / injected port" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1244" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="sd" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="110" width="950" height="323" />
+        </mxCell>
+        <mxCell id="phase-title-1" value="DESIGN_PENDING_RUNTIME — proposed read interaction — request and access" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="116" width="840" height="35" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Open View Care Report and select applicable filters/resource" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="170" />
+            <mxPoint as="targetPoint" x="295" y="170" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="170" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: Proposed Customer/Staff care-report query; not the assigned sitter care GET" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="234" />
+            <mxPoint as="targetPoint" x="480" y="234" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="234" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Delegate read operation with authenticated actor/resource/query; no mutation&#10;command key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="298" />
+            <mxPoint as="targetPoint" x="670" y="298" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="298" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: CUSTOMER owns parent booking or STAFF authorized scope; validate visit/report&#10;identity and publication/ready state" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="362" />
+            <mxPoint as="targetPoint" x="670" y="384" />
+            <Array as="points">
+              <mxPoint x="708" y="362" />
+              <mxPoint x="708" y="384" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="sd" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="466" width="950" height="579" />
+        </mxCell>
+        <mxCell id="phase-title-5" value="Scoped source reads and safe projection" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="472" width="840" height="35" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: Proposed reader loads visit + parent booking + completed checklist/report evidence" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="526" />
+            <mxPoint as="targetPoint" x="855" y="526" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="526" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Only report-authorized checklist, timestamps and bound private media references" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="590" />
+            <mxPoint as="targetPoint" x="670" y="590" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-7" value="7: Resolve image access through authenticated media authorization, never raw&#10;R2/private access-note URL" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="654" />
+            <mxPoint as="targetPoint" x="855" y="654" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="654" width="10" height="28" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Return report-safe refs/status; inaccessible evidence is not exposed" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="855" y="718" />
+            <mxPoint as="targetPoint" x="670" y="718" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-9" value="9: Validate source scope and construct Proposed care report DTO with ready/pending&#10;state" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="782" />
+            <mxPoint as="targetPoint" x="670" y="804" />
+            <Array as="points">
+              <mxPoint x="708" y="782" />
+              <mxPoint x="708" y="804" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-10" value="10: Proposed care report DTO with ready/pending state" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="868" />
+            <mxPoint as="targetPoint" x="480" y="868" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-11" value="11: Return the source-bound read result; no business write acknowledgement" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="932" />
+            <mxPoint as="targetPoint" x="295" y="932" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-12" value="12: Render returned values, explicit empty/pending state or safe error; refresh is a&#10;new read" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="996" />
+            <mxPoint as="targetPoint" x="105" y="996" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-13" value="alt" style="shape=umlFrame;html=0;whiteSpace=wrap;fillColor=none;fontSize=12;align=left;verticalAlign=top;width=70;height=30;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1078" width="950" height="173" />
+        </mxCell>
+        <mxCell id="phase-title-13" value="alt [access, input, cursor or source contract fails]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="105" y="1084" width="840" height="35" />
+        </mxCell>
+        <mxCell id="msg-13" value="13: No current Customer/Staff report route established; pending until composed; cross-&#10;owner -&gt;404; absent/incomplete evidence -&gt;explicit pending" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1138" />
+            <mxPoint as="targetPoint" x="480" y="1138" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-14" value="14: Display the explicit safe response; do not replace unavailable data with invented&#10;successful totals" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1202" />
+            <mxPoint as="targetPoint" x="295" y="1202" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="source-scope-note" value="DESIGN_PENDING_RUNTIME. AssignedCare.get is sitter-only and provides owner-declared care instructions, not a Customer report read. Report readiness requires actual completion/checklist/media source; no fabricated care evidence. Read source/port lifeline groups the named query dependencies; it is not an invented runtime repository class. A read-only snapshot transaction, when used in source, does not imply a domain mutation, replay result store, ledger entry or money transfer. Sources: backend/src/services/care/assigned-care.service.js; backend/src/services/settlements/booking-finance-source.service.js." style="shape=note;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="1324" width="935" height="200" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

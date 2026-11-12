@@ -1,0 +1,1105 @@
+{
+  "notation": "Two-column database table, yellow name header, cyan outline and crow-foot source references; actual BSON types; no SQL FK enforcement",
+  "models": 103,
+  "catalogPages": [
+    {
+      "page": 1,
+      "models": [
+        "ApplicationMail",
+        "ProfileAvatar",
+        "CustomerVisitReview",
+        "CustomerReviewCommand",
+        "DecisionSnapshot",
+        "BookingEarningSnapshot"
+      ]
+    },
+    {
+      "page": 2,
+      "models": [
+        "WeeklyBookingCounter",
+        "CompletedBookingOrdinal",
+        "EarningAccrualOutbox",
+        "EmployeeAvailability",
+        "EmployeeAvailabilityRevision",
+        "EmployeeScheduleCommand"
+      ]
+    },
+    {
+      "page": 3,
+      "models": [
+        "EmployeeVisitOffer",
+        "EmployeeScheduleEvent",
+        "EmployeeScheduleProposal",
+        "EmployeeVisitTravel",
+        "EmploymentDocument",
+        "EmploymentDocumentCounter"
+      ]
+    },
+    {
+      "page": 4,
+      "models": [
+        "EmploymentDocumentCommand",
+        "FinanceSourceCommand",
+        "FinanceSourceEvent",
+        "EarningAccrualTask",
+        "CareMediaBinding",
+        "Contact"
+      ]
+    },
+    {
+      "page": 5,
+      "models": [
+        "OtpChallenge",
+        "OtpThrottle",
+        "AuthSession",
+        "Notification",
+        "NotificationEvent",
+        "EmploymentContract"
+      ]
+    },
+    {
+      "page": 6,
+      "models": [
+        "SalaryAdvance",
+        "PayrollMonthGuard",
+        "PayrollCommand",
+        "PayrollEvent",
+        "PayrollServiceCredit",
+        "PayrollStatement"
+      ]
+    },
+    {
+      "page": 7,
+      "models": [
+        "PayrollAdjustment",
+        "PayrollSourceClaim",
+        "Pet",
+        "CustomerAddress",
+        "PetCareCommand",
+        "PetTrait"
+      ]
+    },
+    {
+      "page": 8,
+      "models": [
+        "PetBreed",
+        "PricingPolicy",
+        "ApplicantDocument",
+        "ApplicantDocumentQuota",
+        "PrivateImage",
+        "PrivateImageQuota"
+      ]
+    },
+    {
+      "page": 9,
+      "models": [
+        "ProductPhoto",
+        "Product",
+        "Supplier",
+        "ProductCart",
+        "ProductOrder",
+        "ProductCustomerRefusal"
+      ]
+    },
+    {
+      "page": 10,
+      "models": [
+        "ProductCounter",
+        "PublicPolicyVersion",
+        "ServiceAudit",
+        "ServicePolicyVersion",
+        "ServicePresentation",
+        "ServicePriceAudit"
+      ]
+    },
+    {
+      "page": 11,
+      "models": [
+        "ServicePriceVersion",
+        "ServiceVersion",
+        "Service",
+        "SettlementRequest",
+        "SettlementWeekClaim",
+        "Earning"
+      ]
+    },
+    {
+      "page": 12,
+      "models": [
+        "FinancialLock",
+        "EarningLedgerEntry",
+        "SettlementCommand",
+        "SettlementEvent",
+        "SettlementOutbox",
+        "SettlementTransfer"
+      ]
+    },
+    {
+      "page": 13,
+      "models": [
+        "SettlementTransferClaim",
+        "SettlementEvidence",
+        "EarningAdjustment",
+        "SitterApplication",
+        "SitterApplicationAudit",
+        "SitterApplicationDownloadQuota"
+      ]
+    },
+    {
+      "page": 14,
+      "models": [
+        "SitterStatus",
+        "SitterMatchingProfile",
+        "SitterVisitOutcome",
+        "SitterScheduleBlock",
+        "RoutingMatrixCache",
+        "SitterRankingPolicy"
+      ]
+    },
+    {
+      "page": 15,
+      "models": [
+        "SitterRankModel",
+        "SitterRankModelReview",
+        "SitterPublicProfile",
+        "SitterPublicProfileCommand",
+        "SitterPublicProfileAudit",
+        "SystemSettingAudit"
+      ]
+    },
+    {
+      "page": 16,
+      "models": [
+        "SystemSettingVersion",
+        "UserAdminAudit",
+        "User",
+        "Booking",
+        "Visit",
+        "PaymentIntent"
+      ]
+    },
+    {
+      "page": 17,
+      "models": [
+        "Payment",
+        "TaxAssessment",
+        "Case",
+        "Refund",
+        "ContactChangeAudit",
+        "CatalogProvisioningRun"
+      ]
+    },
+    {
+      "page": 18,
+      "models": [
+        "DemoPopulationRun"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "child": "ApplicationMail",
+      "field": "applicationId",
+      "parent": "SitterApplication",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ApplicationMail",
+      "field": "ownerUserId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CustomerVisitReview",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CustomerVisitReview",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CustomerVisitReview",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "DecisionSnapshot",
+      "field": "ownerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "BookingEarningSnapshot",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "BookingEarningSnapshot",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "WeeklyBookingCounter",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CompletedBookingOrdinal",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CompletedBookingOrdinal",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeAvailabilityRevision",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeVisitOffer",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeVisitOffer",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeScheduleEvent",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeScheduleEvent",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeScheduleEvent",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeScheduleProposal",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeScheduleProposal",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeScheduleProposal",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeScheduleProposal",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeVisitTravel",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmploymentDocument",
+      "field": "applicationId",
+      "parent": "SitterApplication",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmploymentDocument",
+      "field": "employeeId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "FinanceSourceEvent",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "FinanceSourceEvent",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EarningAccrualTask",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EarningAccrualTask",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CareMediaBinding",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CareMediaBinding",
+      "field": "ownerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Contact",
+      "field": "userId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "OtpChallenge",
+      "field": "requesterUserId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "AuthSession",
+      "field": "userId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmploymentContract",
+      "field": "employeeId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SalaryAdvance",
+      "field": "employeeId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SalaryAdvance",
+      "field": "contractId",
+      "parent": "EmploymentContract",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollEvent",
+      "field": "employeeId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollEvent",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollServiceCredit",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollServiceCredit",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollServiceCredit",
+      "field": "employeeId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollStatement",
+      "field": "employeeId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollStatement",
+      "field": "contractId",
+      "parent": "EmploymentContract",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollAdjustment",
+      "field": "employeeId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollAdjustment",
+      "field": "statementId",
+      "parent": "PayrollStatement",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollSourceClaim",
+      "field": "statementId",
+      "parent": "PayrollStatement",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Pet",
+      "field": "ownerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "CustomerAddress",
+      "field": "ownerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PricingPolicy",
+      "field": "serviceId",
+      "parent": "Service",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ApplicantDocument",
+      "field": "ownerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PrivateImage",
+      "field": "ownerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ProductPhoto",
+      "field": "productId",
+      "parent": "Product",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ProductCart",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ProductOrder",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ProductCustomerRefusal",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ServiceAudit",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ServicePolicyVersion",
+      "field": "serviceId",
+      "parent": "Service",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ServicePresentation",
+      "field": "serviceId",
+      "parent": "Service",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ServicePriceAudit",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ServicePriceVersion",
+      "field": "serviceId",
+      "parent": "Service",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ServiceVersion",
+      "field": "serviceId",
+      "parent": "Service",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementRequest",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementWeekClaim",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Earning",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Earning",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Earning",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "FinancialLock",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EarningLedgerEntry",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EarningLedgerEntry",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementCommand",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementEvent",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementTransfer",
+      "field": "adminId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementEvidence",
+      "field": "ownerActorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EarningAdjustment",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterApplication",
+      "field": "ownerUserId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterApplication",
+      "field": "provisionedUserId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterApplicationAudit",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterApplicationAudit",
+      "field": "resultUserId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterApplicationDownloadQuota",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterStatus",
+      "field": "userId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterMatchingProfile",
+      "field": "userId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterVisitOutcome",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterVisitOutcome",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterVisitOutcome",
+      "field": "serviceId",
+      "parent": "Service",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterScheduleBlock",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterScheduleBlock",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterRankModelReview",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterPublicProfile",
+      "field": "userId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterPublicProfileCommand",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterPublicProfileAudit",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterPublicProfileAudit",
+      "field": "userId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SystemSettingAudit",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "UserAdminAudit",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Booking",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Visit",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Visit",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Visit",
+      "field": "serviceId",
+      "parent": "Service",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Visit",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PaymentIntent",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PaymentIntent",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Payment",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "TaxAssessment",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Case",
+      "field": "visitId",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Case",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Case",
+      "field": "customerId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Case",
+      "field": "sitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Case",
+      "field": "actorId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Refund",
+      "field": "bookingId",
+      "parent": "Booking",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Booking",
+      "field": "quoteId",
+      "parent": "DecisionSnapshot",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Visit",
+      "field": "addressId",
+      "parent": "CustomerAddress",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Visit",
+      "field": "requestedSitterId",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Payment",
+      "field": "intentId",
+      "parent": "PaymentIntent",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmploymentContract",
+      "field": "documentId",
+      "parent": "EmploymentDocument",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmploymentDocumentCommand",
+      "field": "documentId",
+      "parent": "EmploymentDocument",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SitterRankModelReview",
+      "field": "modelId",
+      "parent": "SitterRankModel",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollSourceClaim",
+      "field": "advanceId",
+      "parent": "SalaryAdvance",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "PayrollSourceClaim",
+      "field": "adjustmentId",
+      "parent": "PayrollAdjustment",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "ProductCustomerRefusal",
+      "field": "orderId",
+      "parent": "ProductOrder",
+      "parentField": "_id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EmployeeAvailability",
+      "field": "_id",
+      "parent": "User",
+      "parentField": "_id",
+      "note": "String form of employee user ID; same identity"
+    },
+    {
+      "child": "EmployeeVisitTravel",
+      "field": "_id",
+      "parent": "Visit",
+      "parentField": "_id",
+      "note": "String form of visit ID; one latest location per visit"
+    },
+    {
+      "child": "EarningLedgerEntry",
+      "field": "earningId",
+      "parent": "Earning",
+      "parentField": "earningId",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EarningAdjustment",
+      "field": "earningId",
+      "parent": "Earning",
+      "parentField": "earningId",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementTransfer",
+      "field": "requestId",
+      "parent": "SettlementRequest",
+      "parentField": "id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementTransferClaim",
+      "field": "requestId",
+      "parent": "SettlementRequest",
+      "parentField": "id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementOutbox",
+      "field": "requestId",
+      "parent": "SettlementRequest",
+      "parentField": "id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementEvent",
+      "field": "requestId",
+      "parent": "SettlementRequest",
+      "parentField": "id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "SettlementEvidence",
+      "field": "requestId",
+      "parent": "SettlementRequest",
+      "parentField": "id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "EarningAccrualOutbox",
+      "field": "snapshotId",
+      "parent": "BookingEarningSnapshot",
+      "parentField": "id",
+      "note": "application-managed reference"
+    },
+    {
+      "child": "Earning",
+      "field": "sourceSnapshotId",
+      "parent": "BookingEarningSnapshot",
+      "parentField": "id",
+      "note": "application-managed reference"
+    }
+  ],
+  "scope": "Scalar verified reference roles; embedded list references are shown as fields, not invented relational join tables"
+}

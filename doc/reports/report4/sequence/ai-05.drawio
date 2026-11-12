@@ -1,0 +1,220 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net">
+  <diagram name="AI-05 Import, review, activate or retire reviewed model" id="ai-05">
+    <mxGraphModel dx="1200" dy="850" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="2204" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="ll_staff" value="Admin / source reviewer" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="25" y="50" width="160" height="1924" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_ctrl" value=": Model HTTP Controller" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="215" y="50" width="160" height="1924" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_serv" value=": ModelRegistry" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="400" y="50" width="160" height="1924" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_app_repo" value=": SitterRankModel" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="590" y="50" width="160" height="1924" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_user_repo" value=": Activation Guard / Review" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="775" y="50" width="160" height="1924" as="geometry" />
+        </mxCell>
+        <mxCell id="ll_smtp" value=": Runtime Scoring" style="shape=umlLifeline;perimeter=lifelinePerimeter;whiteSpace=wrap;html=1;container=1;dropTarget=0;collapsible=0;recursiveResize=0;outlineConnect=0;portConstraint=eastwest;size=40;fillColor=#FFFFFF;strokeColor=#000000;strokeWidth=1.2;fontStyle=1;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="955" y="50" width="160" height="1924" as="geometry" />
+        </mxCell>
+        <mxCell id="frame-1" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="100" width="1110" height="362" />
+        </mxCell>
+        <mxCell id="caption-1" value="Import is a separate earlier request (AI-04)" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="107" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-1" value="1: Provide original DRAFT artifact JSON and matching evidence&#10;through import endpoint" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="220" />
+            <mxPoint as="targetPoint" x="295" y="220" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-1" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="220" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-2" value="2: importArtifact: validate byte bound,&#10;DRAFT/version/weights/date and evidence&#10;hashes/chronology/labels/counts" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="278" />
+            <mxPoint as="targetPoint" x="480" y="278" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-2" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="278" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-3" value="3: Unique version: same artifact/evidence returns existing;&#10;changed bytes/evidence -&gt; VERSION_CONFLICT; otherwise&#10;persist DRAFT" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="349" />
+            <mxPoint as="targetPoint" x="670" y="349" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-3" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="349" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-4" value="4: DRAFT metadata only; import does not activate the model" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="420" />
+            <mxPoint as="targetPoint" x="105" y="420" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-5" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="493" width="1110" height="465" />
+        </mxCell>
+        <mxCell id="caption-5" value="Review request and shared transaction" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="500" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-5" value="5: After independent source/evaluation review: APPROVE or&#10;RETIRE with expectedVersion/reason/reviewReference and&#10;operation key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="105" y="613" />
+            <mxPoint as="targetPoint" x="295" y="613" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-5" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="290" y="613" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-6" value="6: Validate current active ADMIN and allowed review fields/key" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="295" y="684" />
+            <mxPoint as="targetPoint" x="480" y="684" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-6" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="475" y="684" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-7" value="7: Begin transaction: increment activation-guard; recheck&#10;current users ADMIN/authEpoch/synthetic=false" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="742" />
+            <mxPoint as="targetPoint" x="855" y="742" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-7" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="742" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-8" value="8: Read review commandId(actor,MODEL_REVIEW,key); exact&#10;fingerprint -&gt; prior result; changed -&gt; IDEMPOTENCY_CONFLICT" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="800" />
+            <mxPoint as="targetPoint" x="855" y="800" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-8" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="800" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-9" value="9: Read model + original artifactJson/trainingEvidence; require&#10;matching reviewVersion" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="858" />
+            <mxPoint as="targetPoint" x="670" y="858" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-9" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="858" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-10" value="10: Absent/version mismatch -&gt; VERSION_CONFLICT" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="916" />
+            <mxPoint as="targetPoint" x="480" y="916" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="frame-11" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="989" width="1110" height="371" />
+        </mxCell>
+        <mxCell id="caption-11" value="alt [APPROVE]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="996" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-11" value="11: Require original artifact/evidence; validate exact artifact&#10;hash and canonical weight digest; testMae &lt; baselineMae" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1109" />
+            <mxPoint as="targetPoint" x="480" y="1131" />
+            <Array as="points">
+              <mxPoint x="520" y="1109" />
+              <mxPoint x="520" y="1131" />
+            </Array>
+            <mxPoint as="offset" x="170" y="0" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-12" value="12: Missing/mismatched evidence -&gt;&#10;MODEL_EVIDENCE_REQUIRED/INVALID; no improvement -&gt;&#10;MODEL_NOT_IMPROVED; rollback" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1189" />
+            <mxPoint as="targetPoint" x="105" y="1189" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-13" value="13: Retire other APPROVED models and increment their&#10;reviewVersion in SAME transaction" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1260" />
+            <mxPoint as="targetPoint" x="670" y="1260" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-13" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1260" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-14" value="14: CAS selected reviewVersion -&gt; APPROVED, approvedBy/At,&#10;reviewVersion+1" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1318" />
+            <mxPoint as="targetPoint" x="670" y="1318" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-14" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1318" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-15" value="alt" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1391" width="1110" height="162" />
+        </mxCell>
+        <mxCell id="caption-15" value="alt [RETIRE]" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1398" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-15" value="15: CAS selected reviewVersion -&gt; RETIRED, reviewVersion+1;&#10;retain original bytes/evidence/history" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1511" />
+            <mxPoint as="targetPoint" x="670" y="1511" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-15" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1511" width="10" height="26" />
+        </mxCell>
+        <mxCell id="frame-16" value="ref" style="shape=umlFrame;whiteSpace=wrap;html=0;fillColor=none;fontSize=12;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="15" y="1584" width="1110" height="349" />
+        </mxCell>
+        <mxCell id="caption-16" value="Commit review and later inference" style="text;html=0;whiteSpace=wrap;align=left;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="90" y="1591" width="1010" height="32" />
+        </mxCell>
+        <mxCell id="msg-16" value="16: Create durable SitterRankModelReview&#10;action/reason/reference/fingerprint/result; commit&#10;guard/model/audit atomically" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1704" />
+            <mxPoint as="targetPoint" x="855" y="1704" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-16" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="850" y="1704" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-17" value="17: Return reviewed metadata; retry same key/payload replays&#10;only after current Admin guard" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="480" y="1775" />
+            <mxPoint as="targetPoint" x="105" y="1775" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="msg-18" value="18: Later inference reads latest eligible APPROVED model with&#10;timestamp/digest/weights/quality checks" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=block;endFill=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="1035" y="1833" />
+            <mxPoint as="targetPoint" x="670" y="1833" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="act-18" value="" style="fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="665" y="1833" width="10" height="26" />
+        </mxCell>
+        <mxCell id="msg-19" value="19: Valid approved additive weights or explainable rule&#10;fallback; never pricing/assignment" style="html=0;verticalAlign=bottom;fontSize=11;strokeColor=#000000;endArrow=open;dashed=1;" edge="1" parent="1">
+          <mxGeometry as="geometry" relative="1">
+            <mxPoint as="sourcePoint" x="670" y="1891" />
+            <mxPoint as="targetPoint" x="1035" y="1891" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="scope-note" value="Source: model-registry.service.js. Import and review are separate requests. APPROVE/RETIRE are alternative review actions. Independent importer/reviewer separation is a process gate; reviewReference text alone does not prove it and the API does not enforce different actors. Runtime fallback does not mutate money, eligibility or assignment." style="shape=note;whiteSpace=wrap;html=0;align=left;verticalAlign=top;fontSize=12;spacing=10;" vertex="1" parent="1">
+          <mxGeometry as="geometry" x="20" y="2004" width="1100" height="145" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

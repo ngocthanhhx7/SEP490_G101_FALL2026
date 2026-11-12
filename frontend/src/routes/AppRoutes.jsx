@@ -56,6 +56,7 @@ import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPag
 import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api.js';
 import { SitterWorkAreasPanel } from '../pages/sitter/SitterWorkAreasPanel.jsx';
 import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
+import { StaffBookingDetailPage } from '../pages/staff/StaffBookingDetailPage.jsx';
 import { EmployeeInvitationsPage } from '../pages/sitter/EmployeeInvitationsPage.jsx';
 import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingProposalPage.jsx';
 import { ProductListPage } from '../pages/public/ProductListPage.jsx';
@@ -351,6 +352,7 @@ export function AppRoutes({
         <Route element={<AccountWorkspace />}>
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
           <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
+          <Route path="staff/bookings/:bookingId" element={<StaffBookingDetailPage />} />
         </Route>
       </Route>
       <Route element={<PublicSiteLayout />}>
