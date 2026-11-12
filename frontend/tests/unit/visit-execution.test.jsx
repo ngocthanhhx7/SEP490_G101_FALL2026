@@ -4,6 +4,12 @@ import { VisitExecution } from '../../src/pages/sitter/VisitExecution.jsx';
 import { DirectedBookingProposalPage } from '../../src/pages/customer/DirectedBookingProposalPage.jsx';
 import { createEmployeeSchedulingApi } from '../../src/services/employee-scheduling-api.js';
 
+beforeEach(() => {
+  globalThis.URL.createObjectURL = jest.fn(() => 'blob:synthetic-care');
+  globalThis.URL.revokeObjectURL = jest.fn();
+  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  window.HTMLDialogElement.prototype.close = function () { this.open = false; };
+});
 afterEach(cleanup);
 test('lost check-in acknowledgement retries the same version and image without uploading again', async () => {
   const row = { visitId: 'visit', version: 2, state: 'ASSIGNED', checklistItemIds: ['service-scope'], checklist: [] };
@@ -86,4 +92,38 @@ test('check-out stays disabled until the checklist is saved on the server', asyn
   expect(screen.getByRole('button', { name: 'Check-out hoàn tất ca' })).toBeDisabled();
   expect(screen.getByRole('button', { name: 'Lưu nội dung chăm sóc' })).toBeEnabled();
   expect(api.uploadEvidence).not.toHaveBeenCalled();
+});
+
+test('server clock blocks early check-in before upload and opens at its exact boundary', async () => {
+  const row = {visitId:'visit',version:2,state:'ASSIGNED',checklistItemIds:[],checklist:[],serverNow:'2026-11-12T13:29:59Z',
+    startAt:'2026-11-12T14:00:00Z',endAt:'2026-11-12T14:15:00Z',checkInOpensAt:'2026-11-12T13:30:00Z',checkInClosesAt:'2026-11-12T14:15:00Z'};
+  const api={execution:jest.fn().mockResolvedValue({data:row}),uploadEvidence:jest.fn(),executeVisit:jest.fn()};
+  render(<VisitExecution api={api} visitId="visit"/>);
+  fireEvent.change(await screen.findByLabelText('Ảnh tại ca chăm sóc'),{target:{files:[new globalThis.File(['sample'],'care.png',{type:'image/png'})]}});
+  const button=screen.getByRole('button',{name:'Check-in bắt đầu ca'});
+  expect(button).toBeDisabled();fireEvent.click(button);expect(api.uploadEvidence).not.toHaveBeenCalled();
+  expect(screen.getByText(/Chưa đến giờ check-in/)).toHaveTextContent('12/11/2026');
+  await waitFor(()=>expect(button).toBeEnabled(),{timeout:2500});
+});
+
+test('selected evidence has a removable preview and revokes its private blob URL',async()=>{
+  const api={execution:jest.fn().mockResolvedValue({data:{visitId:'visit',version:0,state:'ASSIGNED',checklistItemIds:[],checklist:[]}}),uploadEvidence:jest.fn()};
+  render(<VisitExecution api={api} visitId="visit"/>);
+  fireEvent.change(await screen.findByLabelText('Ảnh tại ca chăm sóc'),{target:{files:[new globalThis.File(['sample'],'care.png',{type:'image/png'})]}});
+  fireEvent.click(await screen.findByRole('button',{name:'Xem trước Ảnh bằng chứng đã chọn'}));
+  expect(screen.getByRole('dialog',{name:'Ảnh bằng chứng đã chọn'})).toBeVisible();
+  fireEvent.click(screen.getByRole('button',{name:'Đóng'}));
+  fireEvent.click(screen.getByRole('button',{name:'Bỏ ảnh đã chọn'}));
+  await waitFor(()=>expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-care'));
+  expect(api.uploadEvidence).not.toHaveBeenCalled();
+});
+
+test('stored check-in photo is fetched through the authenticated port and checklist uses saved service scope',async()=>{
+  const api={execution:jest.fn().mockResolvedValue({data:{visitId:'visit',version:1,state:'IN_PROGRESS',checklistItemIds:['service-scope'],checklist:[],
+    checklistItems:[{itemId:'service-scope',label:'Cắt móng an toàn cho bé'}],evidence:[{kind:'CHECK_IN',mediaId:'a'.repeat(64)}]}}),readEvidence:jest.fn().mockResolvedValue({blob:new globalThis.Blob(['sample'],{type:'image/png'})})};
+  const {unmount}=render(<VisitExecution api={api} visitId="visit"/>);
+  expect(await screen.findByLabelText('Cắt móng an toàn cho bé')).toBeVisible();
+  expect(await screen.findByRole('button',{name:'Xem trước Ảnh check-in đã lưu'})).toBeVisible();
+  expect(api.readEvidence).toHaveBeenCalledWith('a'.repeat(64),expect.objectContaining({signal:expect.anything()}));
+  unmount();expect(URL.revokeObjectURL).toHaveBeenCalled();
 });

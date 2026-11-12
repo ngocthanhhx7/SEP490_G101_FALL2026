@@ -26,3 +26,5 @@ runtime composition. Until those adapters are supplied, the module is
 Private home access notes are never part of a broad booking projection. The
 adapter must return them only to the assigned sitter in the server-authorized
 window and after a required handover.
+
+`visit-evidence-access.service.js` permits the owning Customer to read a private photo only when the media binding, visit evidence reference, image owner/digest/kind and booking ownership agree. Existing image-owner access remains; unbound uploads, applicant documents and other Customers/Admin/Staff receive no new access. All lookups use existing primary IDs and bounded timeouts.

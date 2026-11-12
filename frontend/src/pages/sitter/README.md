@@ -41,3 +41,5 @@ Staff private notes; no Sitter complaint creation or Staff command is exposed.
 `SitterDayOriginForm` lets an approved employee select a map pin and same-day outward/return availability for automatic dispatch. Shared transport stays in employee-scheduling-api; unknown outcomes retain the original operation payload/key.
 
 `SitterWorkAreasPanel` preserves historical registrations beyond the old 20-code reader limit; active wards and retained closed choices use province/search filters and bounded pages. Only database-enabled areas can be newly registered.
+
+The invitation workspace uses compact tables for pending offers, assignments and lazy-loaded invitation history. Only assignment details mount private care, evidence previews and execution controls. A server-synchronized clock disables early/expired evidence submission before upload. The shared photo preview supports selected files, authenticated bound images, zoom-dialog viewing, cancellation and blob cleanup.

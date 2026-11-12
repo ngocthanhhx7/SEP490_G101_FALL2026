@@ -132,3 +132,6 @@
     padding: .2rem .3rem;
   }
 }
+
+.booking-details__header { padding:20px; border-radius:16px; background:linear-gradient(110deg,#f2ecfb,#fff8e2); }
+.booking-details__reference { margin-top:8px; font-size:13px; color:#6f617f; }.booking-details__reference code { display:block; word-break:break-all; margin-top:4px; }

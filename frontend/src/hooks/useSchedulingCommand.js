@@ -1,6 +1,12 @@
 import { useRef, useState } from 'react';
 
 const errors = {
+  IMAGE_DIMENSIONS_EXCEEDED: 'Ảnh vượt 4 megapixel. Giảm kích thước ảnh trước khi gửi.',
+  IMAGE_PROCESSING_BUSY: 'Hệ thống đang xử lý ảnh. Vui lòng thử lại sau ít phút.',
+  HANDOVER_REQUIRED: 'Cần xác nhận bàn giao ca trước khi check-in. Liên hệ điều phối.',
+  PREPAYMENT_REQUIRED: 'Chưa có đủ thanh toán trả trước đã xác minh. Liên hệ điều phối.',
+  INVALID_STATE: 'Trạng thái hoặc thời gian ca không còn phù hợp. Tải lại tiến độ để kiểm tra.',
+  SOURCE_RECONCILIATION_REQUIRED: 'Dữ liệu ca cần được điều phối đối chiếu trước khi tiếp tục.',
   CHECK_IN_TOO_EARLY: 'Chưa đến giờ check-in. Có thể bắt đầu từ 30 phút trước ca.',
   CHECK_OUT_DEADLINE_PASSED: 'Đã quá hạn check-out. Cần liên hệ điều phối để đối chiếu ca.',
   CHECKLIST_REQUIRED: 'Cần lưu đủ nội dung chăm sóc trước khi check-out.',

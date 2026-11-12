@@ -1,3 +1,5 @@
+import { createPrivateImageApi } from '../../services/private-image-api.js';
+import { BookingVisitReport } from '../../components/common/BookingVisitReport.jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -45,6 +47,7 @@ function CustomerBookingDetail({ bookingId }) {
       }
     };
   }, [getCsrfToken]);
+  const images = useMemo(() => createPrivateImageApi({ getCsrfToken }), [getCsrfToken]);
   const complaints = useMemo(() => createComplaintApi({ getCsrfToken }), [getCsrfToken]);
   const eligibility = useApiResource(useCallback(({ signal }) => booking
     ? complaints.eligibility({ bookingId, signal }) : Promise.resolve({ data: null }), [booking, bookingId, complaints]));
@@ -60,6 +63,7 @@ function CustomerBookingDetail({ bookingId }) {
     return rows;
   }, [eligibility.data]);
   const visitActions = {
+    reportForVisit: visit => <BookingVisitReport visit={visit} readEvidence={images.read} />,
     beforeList: <ComplaintListAction resource={eligibility} bookingId={bookingId} />,
     forVisit: row => <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
   };

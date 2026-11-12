@@ -65,19 +65,25 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     await models.EmployeeScheduleEvent.create([{ ...value, at: new Date(clock()) }], { session });
     await notifications.publish(value, session);
   }
+  async function areaNames(rows) {
+    const codes = [...new Set(rows.map(row => row.areaCode).filter(Boolean))];
+    return col('serviceareas').find({ _id: { $in: codes } }, { projection: { label: 1 }, maxTimeMS: 2000 }).limit(50).toArray();
+  }
   const offers = createSitterOfferService({ clock, repository: {
     async listOffers({ sitterId, limit, cursor, state }) {
       if (cursor) id(cursor);
-      const rows = await models.EmployeeVisitOffer.find({ sitterId, ...(cursor ? { _id: { $lt: cursor } } : {}), ...(state ? { state } : {}) })
+      const rows = await models.EmployeeVisitOffer.find({ sitterId, ...(cursor ? { _id: { $lt: cursor } } : {}), ...(state ? { state: state === 'HISTORY' ? { $ne: 'PENDING' } : state } : {}) })
         .sort({ _id: -1 }).limit(limit + 1).lean();
-      return { items: rows.slice(0, limit).map(offerView), nextCursor: rows.length > limit ? String(rows[limit - 1]._id) : null };
+      const areas = await areaNames(rows);
+      return { items: rows.slice(0, limit).map(row => ({ ...offerView(row), areaLabel: areas.find(area => area._id === row.areaCode)?.label ?? row.areaCode })), nextCursor: rows.length > limit ? String(rows[limit - 1]._id) : null };
     },
     async getOffer({ offerId, sitterId }) { id(offerId); return offerView(await models.EmployeeVisitOffer.findOne({ _id: offerId, sitterId }).lean()); },
     async listAssignedVisits({ sitterId, limit, cursor, state }) {
       if (cursor) id(cursor);
       const rows = await col('visits').find({ sitterId: oid(sitterId), state: state ?? { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'] },
         ...(cursor ? { _id: { $lt: oid(cursor) } } : {}) }).sort({ _id: -1 }).limit(limit + 1).toArray();
-      return { items: rows.slice(0, limit).map(row => ({ id: String(row._id), sitterId, state: row.state, version: row.version,
+      const areas = await areaNames(rows);
+      return { items: rows.slice(0, limit).map(row => ({ areaLabel: areas.find(area => area._id === row.areaCode)?.label ?? row.areaCode, id: String(row._id), sitterId, state: row.state, version: row.version,
         canWithdraw: row.state === 'ASSIGNED' && !row.checkInAt && !hasPendingWithdrawal(row),
         startAt: row.startAt, endAt: row.endAt, serviceName: row.snapshots.serviceName, serviceAddress: row.snapshots.serviceAddress, areaCode: row.areaCode, pets: row.snapshots.pets })),
       nextCursor: rows.length > limit ? String(rows[limit - 1]._id) : null };
@@ -250,7 +256,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,directedSitter(r)]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
       const name=id=>people.find(p=>String(p._id)===String(id))?.displayName??null;
       return { ...withdrawalQueue, today, queueHasMore: rows.length>50, workAreas: await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas)), items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(directedSitter(row)), version: row.version, startAt: row.startAt,
-        endAt: row.endAt, serviceName: row.snapshots.serviceName, areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
+        endAt: row.endAt, serviceName: row.snapshots.serviceName, petNames: (row.snapshots.pets ?? []).map(pet => pet.name).filter(name => typeof name === 'string').slice(0,10), areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
         dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,
         pendingInvitationCount: row.pendingInvitationCount,

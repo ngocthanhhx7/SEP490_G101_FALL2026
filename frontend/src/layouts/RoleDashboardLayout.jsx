@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, NavLink, useLocation, useOutlet } from 'react-router-dom';
 import { AvatarMenu } from '../components/common/AvatarMenu.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { BrandLogo } from '../components/ui/BrandLogo.jsx';
+import { SiteBrandMark } from '../components/ui/SiteBrandMark.jsx';
 import { Notice } from '../components/ui/Notice.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { hasRole } from '../utils/role-access.js';
@@ -203,7 +203,7 @@ export function RoleDashboardLayout({
     <a className="pwc-role-shell__skip" href="#pwc-role-main">Đến nội dung chính</a>
     <header className="pwc-role-shell__header">
       <Link to="/" className="pwc-role-shell__brand" aria-label="Paw World Care — Trang chủ">
-        <BrandLogo />
+        <SiteBrandMark />
       </Link>
       <div className="pwc-role-shell__header-actions">
         <NotificationBell to={notificationTo} />
