@@ -64,3 +64,29 @@ describe('notification service', () => {
     await expect(service.publish({ eventId: 'event-1', eventType: 'SYSTEM', title: 'Title', message: 'Message', deepLink: 'https://evil.example', recipients: [actor.userId] })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
 });
+
+describe('notification service mark all read (UC-88)', () => {
+  const clock = () => new Date('2026-10-15T01:00:00.000Z');
+
+  test('UC-88 marks the actor scope up to the server clock and reports the count', async () => {
+    const repository = makeRepository({ markAllRead: jest.fn(async () => ({ status: 'READ', markedCount: 3 })) });
+    const service = createNotificationService({ repository, clock });
+    await expect(service.markAllRead({ actor })).resolves.toEqual({ status: 'READ', markedCount: 3, readAt: '2026-10-15T01:00:00.000Z' });
+    expect(repository.markAllRead).toHaveBeenCalledWith(expect.objectContaining({
+      recipientId: actor.userId, roles: ['CUSTOMER'], cutoff: '2026-10-15T01:00:00.000Z', readAt: '2026-10-15T01:00:00.000Z'
+    }));
+  });
+
+  test('UC-88 rejects missing or inactive actors before touching storage', async () => {
+    const repository = makeRepository({ markAllRead: jest.fn() });
+    const service = createNotificationService({ repository, clock });
+    await expect(service.markAllRead({ actor: null })).rejects.toMatchObject({ status: 401 });
+    await expect(service.markAllRead({ actor: { ...actor, state: 'SUSPENDED' } })).rejects.toMatchObject({ status: 401 });
+    expect(repository.markAllRead).not.toHaveBeenCalled();
+  });
+
+  test('UC-88 reports unavailable storage instead of pretending notifications were read', async () => {
+    const service = createNotificationService({ repository: makeRepository(), clock });
+    await expect(service.markAllRead({ actor })).rejects.toMatchObject({ status: 503 });
+  });
+});
