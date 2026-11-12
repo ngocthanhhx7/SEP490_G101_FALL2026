@@ -25,4 +25,8 @@ Customer navigation exposes product history under Mua sắm. `/customer/product-
 
 `/account/bookings/:bookingId` is Customer-only, uses the account workspace and keeps the service-order navigation active. It loads the owner-checked checkout read API by route ID; the legacy checkout confirmation query remains compatible.
 
+Admin and Sale Staff share the order management route at `/admin/product-orders`.
+Sale Staff uses its own menu and lands on this route after sign-in.
 `/staff/bookings/:bookingId` uses the existing Staff/Admin account workspace and opens read-only booking details.
+
+Admin and Sale Staff also share `/admin/counter-sale`, `/admin/goods-receipts` and `/admin/stock`; product/supplier management and stock adjustments remain Admin-only.

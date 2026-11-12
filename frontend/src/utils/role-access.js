@@ -1,5 +1,5 @@
-const ACCOUNT_ROLES = ['ADMIN', 'STAFF', 'PET_SITTER', 'CUSTOMER'];
-const LANDINGS = { ADMIN: '/admin/dashboard', STAFF: '/staff', PET_SITTER: '/sitter', CUSTOMER: '/' };
+const ACCOUNT_ROLES = ['ADMIN', 'STAFF', 'SALE_STAFF', 'PET_SITTER', 'CUSTOMER'];
+const LANDINGS = { ADMIN: '/admin/dashboard', STAFF: '/staff', SALE_STAFF: '/admin/product-orders', PET_SITTER: '/sitter', CUSTOMER: '/' };
 
 export function isSingleRole(roles) {
   return Array.isArray(roles) && roles.length === 1 && ACCOUNT_ROLES.includes(roles[0]);
@@ -33,6 +33,7 @@ export function loginDestination(user, from) {
   if (path.split('/').some(segment => segment === '.' || segment === '..')) return fallback;
   if (path==='/sitter/application-status' && ['CUSTOMER','PET_SITTER'].includes(primaryRole(user)))return from;
   if (['/account', '/account/settings', '/account/notifications'].includes(path)) return from;
+  if (path === LANDINGS.SALE_STAFF && hasRole(user, 'SALE_STAFF')) return from;
   if (/^\/admin(?:\/|$)/.test(path)) return hasRole(user, 'ADMIN') ? from : fallback;
   if (/^\/staff(?:\/|$)/.test(path)) return hasRole(user, 'STAFF') ? from : fallback;
   if (/^\/sitter(?:\/|$)/.test(path)) return hasRole(user, 'PET_SITTER') ? from : fallback;

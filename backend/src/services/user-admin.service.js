@@ -1,9 +1,10 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
+import { ACCOUNT_ROLES } from '../constants/account-roles.js';
 import { isSingleRole } from '../utils/roles.js';
 
-const ROLES = new Set(['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']);
+const ROLES = new Set(ACCOUNT_ROLES);
 const STATES = new Set(['ACTIVE', 'LOCKED', 'SUSPENDED']);
 const ACTIONS = new Set(['LOCK', 'UNLOCK']);
 const MAX_LIMIT = 50;

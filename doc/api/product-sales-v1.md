@@ -1,12 +1,12 @@
-# Product sales API v1 (Customer shop and Admin order handling)
+# Product sales API v1 (Customer shop and order handling)
 
-Customer-facing shop for dog/cat food and accessories (catalog, cart and product orders) plus the Admin screen that prepares, ships and hands over those orders. Source: R3 FE-21..FE-23, the Order Management screen, GBR-02 and GBR-35. Off unless `PRODUCT_SALES_ENABLED=true`, and it needs `AUTH_ENABLED=true`.
+Customer-facing shop for dog/cat food and accessories (catalog, cart and product orders) plus the order management screen for Admin and Sale Staff that prepares, ships and hands over those orders. Source: R3 FE-21..FE-23, the Order Management screen, GBR-02 and GBR-35. Off unless `PRODUCT_SALES_ENABLED=true`, and it needs `AUTH_ENABLED=true`.
 
 ## Scope and limits
 
 Included: public catalog, Customer cart, order placement with stock reservation, order history. Receive methods are `DELIVERY` (paid on delivery, `COD`) and `PICKUP` (paid at the shop, `PAY_AT_SHOP`).
 
-Not included in this release: online payment (payOS), membership-tier discounts (GBR-42), the refusal limit for COD (GBR-36), returns and the expiry/cancellation jobs, a Sale Staff role, Counter Sale. Product Management by Admin is described under "Product Management (Admin)" below, Supplier Management under "Supplier Management (Admin)", and Goods Receipt under "Goods Receipt (Admin)". Order handling by Admin is described under "Order handling (Admin)" below; the return statuses (`BEING_RETURNED`, `RETURNED`) and `DELIVERED` exist in the model but no endpoint sets them yet.
+This release includes online order handling, Product/Supplier Management, Goods Receipt and Stock List. Admin and Sale Staff share permitted sales operations; catalog/supplier management remains Admin-only. Online payment and membership discounts require their separate release/approval gates; Counter Sale is integrated through its reviewed dependent PR.
 
 Delivery fee is a flat 25,000 VND for every served area. This is a **demo value** in `constants/product-fields.js`; the per-area fee configured by Admin (R3 D-060) is not built. Money is integer VND.
 
@@ -30,13 +30,13 @@ Delivery needs `addressId` of one of the caller's active addresses inside the se
 
 `deliveryFee` in the cart is informational for the checkout preview. The placed order carries the authoritative `subtotal`, `shippingFee` and `total`, and the price of each line at the time of ordering.
 
-## Order handling (Admin)
+## Order handling (Admin and Sale Staff)
 
-Who may handle orders is the table in `backend/src/constants/product-permissions.js` (`HANDLE_ORDERS`; today Admin only, which covers every Sale Staff task in R3; adding Sale Staff later is a role change plus one line there). Mounted at `/api/v1/admin/product-orders`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer or anonymous caller gets 403 or 401. Writes need the session CSRF token and take no `Idempotency-Key`: every step is guarded by the order's current status and version, so repeating a step answers `409 ORDER_STATE_CONFLICT` instead of applying twice.
+`HANDLE_ORDERS` grants Admin and Sale Staff access to list, read and process orders at `/api/v1/admin/product-orders` when `PRODUCT_SALES_ENABLED=true`. `CANCEL_ONLINE_ORDERS` grants cancellation to Admin only. Other signed-in roles receive 403 and unauthenticated requests receive 401. Writes need the session CSRF token and take no `Idempotency-Key`: every step is guarded by the order's current status and version, so repeating a step answers `409 ORDER_STATE_CONFLICT` instead of applying twice.
 
 | Method and path | Purpose |
 | --- | --- |
-| `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix, part of the customer name case-insensitively, or the customer's whole phone number as `0912345678`, `0912 345 678`, `84912345678` or `+84912345678`; a part of a number matches nothing), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName, phone }` (`phone` is the customer's verified number as `0912345678`, or `null`) and `updatedAt`. The phone is only in Admin responses, never in the Customer DTO. Admin items also carry `deliveredAt`, `carrierReturnReason`, `returnReason`, `returnNote`, `returnedAt` and `refundMarked` (all `null`/`false` until set) and `resellableQuantity` on each line (`null` until the return is confirmed); none of these is in the Customer DTO |
+| `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix, part of the customer name case-insensitively, or the customer's whole phone number as `0912345678`, `0912 345 678`, `84912345678` or `+84912345678`; a part of a number matches nothing), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName, phone }` (`phone` is the customer's verified number as `0912345678`, or `null`) and `updatedAt`. The order management DTO includes the phone for Admin and Sale Staff. Order management items also carry `deliveredAt`, `carrierReturnReason`, `returnReason`, `returnNote`, `returnedAt` and `refundMarked` (all `null`/`false` until set) and `resellableQuantity` on each line (`null` until the return is confirmed); none of these is in the Customer DTO |
 | `GET /api/v1/admin/product-orders/:orderId` | One order, any customer |
 | `POST .../:orderId/hand-to-carrier` | Delivery order `PLACED` to `HANDED_TO_CARRIER`. Body `{ trackingCode }` (3-64 of letters, digits, `.`, `_`, `-`; trimmed). Missing or blank is `422 TRACKING_CODE_REQUIRED` (MSG103) |
 | `POST .../:orderId/mark-ready` | Pickup order `PLACED` to `READY`. No stock change |
@@ -45,11 +45,11 @@ Who may handle orders is the table in `backend/src/constants/product-permissions
 | `POST .../:orderId/mark-delivered` | Delivery order `HANDED_TO_CARRIER` to `DELIVERED`, sets `deliveredAt`. A cash-on-delivery order becomes `paid`; an advance payment (`PREPAID`) is left as it was. No stock change |
 | `POST .../:orderId/mark-returning` | Delivery order `HANDED_TO_CARRIER` to `BEING_RETURNED`. Body `{ carrierReason }` (required, trimmed, at most 300 characters, no control characters; missing is `422 VALIDATION_FAILED`, R3 has no message for it). No stock change |
 | `POST .../:orderId/confirm-returned` | `BEING_RETURNED` to `RETURNED`, once. Body `{ reason, note?, lines }`: `reason` is `CUSTOMER_REFUSED`, `CARRIER_UNDELIVERABLE` or `SHOP_FAULT`; `note` at most 500 characters; `lines` holds every line of the order exactly once as `{ productId, resellableQuantity }`. A quantity that is not a whole number from 0 to the ordered quantity is `422 RESELLABLE_QUANTITY_INVALID` (MSG104) and nothing changes. Only the resellable quantity is added back to `stockOnHand`. `CUSTOMER_REFUSED` also writes one `ProductCustomerRefusal` record in the same transaction. A paid `PREPAID` order is marked `refundMarked`; accounting pays the refund outside PWC |
-| `POST .../:orderId/cancel` | Order in `PLACED` or `READY` to `CANCELLED`. Not used by the screen yet |
+| `POST .../:orderId/cancel` | Admin only. Order in `PLACED` or `READY` to `CANCELLED` |
 
 Any other combination of receive method and status is `409 ORDER_STATE_CONFLICT` with the current `status`. The step bodies other than `hand-to-carrier` must be empty. The customer sees the new status and the tracking code through `GET /api/v1/product-orders`.
 
-Phone numbers are stored encrypted with a keyed lookup hash (the same contact keys as sign-in), so the search is an exact match on the whole number and the number is decrypted only for the Admin response. The backend needs `CONTACT_LOOKUP_SECRET` and `CONTACT_ENCRYPTION_KEY`, which authentication already requires.
+Phone numbers are stored encrypted with a keyed lookup hash (the same contact keys as sign-in), so the search is an exact match on the whole number and the number is decrypted for the order management response. The backend needs `CONTACT_LOOKUP_SECRET` and `CONTACT_ENCRYPTION_KEY`, which authentication already requires.
 
 Not built: the COD refusal limit (the refusal records it will count already exist), the expiry job, placing an advance-payment order (`PREPAID` exists in the vocabulary only) and refunds themselves.
 
@@ -157,7 +157,7 @@ New errors (none has an R3 message except MSG116): `SUPPLIER_NAME_TAKEN` (409, M
 
 ## Goods Receipt (Admin)
 
-Who may record a goods receipt is `RECORD_GOODS_RECEIPTS` in `backend/src/constants/product-permissions.js` (today Admin only; Sale Staff is added there when the role exists, D-221). Mounted at `/api/v1/admin/goods-receipts`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer, Staff, Sitter or anonymous caller gets 403 or 401. The suppliers and products this screen reads are part of the same permission, so a Sale Staff will not need `MANAGE_SUPPLIERS` or `MANAGE_PRODUCTS`. A receipt is **never edited or deleted**: there is no PATCH or DELETE. A delivery that arrives later is a new receipt.
+Who may record a goods receipt is `RECORD_GOODS_RECEIPTS` in `backend/src/constants/product-permissions.js` (Admin and Sale Staff, D-221). Mounted at `/api/v1/admin/goods-receipts`, behind the same `PRODUCT_SALES_ENABLED` flag. A Customer, Staff, Sitter or anonymous caller gets 403 or 401. The suppliers and products this screen reads are part of the same permission, so a Sale Staff will not need `MANAGE_SUPPLIERS` or `MANAGE_PRODUCTS`. A receipt is **never edited or deleted**: there is no PATCH or DELETE. A delivery that arrives later is a new receipt.
 
 | Method and path | Purpose |
 | --- | --- |
@@ -331,9 +331,11 @@ its command key after a lost response; inputs are locked while saving.
 
 Customer and Admin order lists accept page (default 1) and limit (default 20, max 50), returning items/page/limit/total. Owner/role/search/tab filters apply before paging. Admin status counts remain global. Product placement and status/payment transitions write IN_APP notifications transactionally, deduplicated by order/version/recipient. Customer links select the owned order; active Admins receive new-order alerts. No SMS/email is enabled. See [Figma pagination and shopping verification](../testing/figma-pagination-shopping-2026-11-05.md).
 
+Sale Staff uses the same protected Goods Receipt and Stock List endpoints and shared workspace routes as Admin; it cannot manage products/suppliers or perform stock adjustment. This integrates the existing D-221 permission intent when the single SALE_STAFF role becomes available.
+
 ## Counter Sale (UC-68)
 
-Mọi endpoint dưới `/api/v1/admin/counter-orders` cần session ACTIVE và quyền SELL_AT_COUNTER (chỉ ADMIN). Không đăng nhập 401, role khác 403; Cache-Control private, no-store; mọi POST cần CSRF. Không dùng giỏ Customer hoặc provider/env mới.
+Mọi endpoint dưới `/api/v1/admin/counter-orders` cần session ACTIVE và quyền SELL_AT_COUNTER (ADMIN hoặc SALE_STAFF). Không đăng nhập 401, role khác 403; Cache-Control private, no-store; mọi POST cần CSRF. Không dùng giỏ Customer hoặc provider/env mới.
 
 | Method/path | Input | Kết quả |
 | --- | --- | --- |
@@ -341,7 +343,7 @@ Mọi endpoint dưới `/api/v1/admin/counter-orders` cần session ACTIVE và q
 | POST `/customer-lookups` | contact ≤254 ký tự | customer id/displayName hoặc null, không trả contact/hạng |
 | POST `/previews` | lines productId/quantity, cho phép rỗng | lines giá/thành tiền/available, subtotal/tierDiscount/shippingFee/total; chỉ đọc |
 | POST `/` | lines 1–30, quantity 1–99, optional customerId; Idempotency-Key 8–128 | 201 AWAITING_PAYMENT, giữ hàng atomic, giá chốt lúc tạo |
-| GET `/` | page20/max50 | AWAITING_PAYMENT/PAID mọi Admin, oldest createdAt/_id trước |
+| GET `/` | page20/max50 | AWAITING_PAYMENT/PAID cho Admin/Sale Staff, oldest createdAt/_id trước |
 | GET `/:orderId` | ObjectId | đơn quầy kể cả terminal; online ID 404 |
 | POST `/:orderId/record-cash` | body rỗng | đủ total một lần, PAID/paid=true; audit amount/receivedAt/receivedBy |
 | POST `/:orderId/complete` | body rỗng | chỉ PAID; COMPLETED, trừ quantityHeld và stockOnHand |
@@ -355,4 +357,4 @@ Create dùng actor-scoped key nội bộ `counter/<sha256>`, unique index counte
 
 Giữ hàng bằng conditional update stockOnHand-quantityHeld>=quantity và insert cùng transaction; một dòng hỏng rollback tất cả. Online/quầy tranh hàng không giữ vượt. Thiếu trả 409 PRODUCT_QUANTITY_EXCEEDS_AVAILABLE với productId/available (kể cả 0, MSG58); hidden/deleted/missing trả PRODUCT_UNAVAILABLE. Thu tiền không đổi kho. Guard channel/status/paid/version và replay cùng bước không lặp audit/stock. Hoàn tất trước trả là ORDER_NOT_PAID/MSG105, sai bước ORDER_STATE_CONFLICT, kho không khớp ORDER_STOCK_MISMATCH và rollback.
 
-Quầy bị loại khỏi list/search/detail/count và mọi mutation của Order Management/My Orders. Legacy online thiếu channel vẫn hoạt động. Chưa có VietQR, hạng/giảm%, in hoá đơn, tự huỷ JOB-04, Sale Staff hoặc notification online cho quầy. Draft trong memory; recovery dành cho đơn đã lưu. Deployment cần provision hai index additive mới trước writers bằng lệnh hiện có; không xoá index customer/key, đổi collection hoặc backfill legacy.
+Quầy bị loại khỏi list/search/detail/count và mọi mutation của Order Management/My Orders. Legacy online thiếu channel vẫn hoạt động. Chưa có VietQR, hạng/giảm%, in hoá đơn, tự huỷ JOB-04 hoặc notification online cho quầy. Draft trong memory; recovery dành cho đơn đã lưu. Deployment cần provision hai index additive mới trước writers bằng lệnh hiện có; không xoá index customer/key, đổi collection hoặc backfill legacy.

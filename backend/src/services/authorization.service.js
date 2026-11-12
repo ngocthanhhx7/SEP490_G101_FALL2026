@@ -1,3 +1,4 @@
+import { ACCOUNT_ROLES } from '../constants/account-roles.js';
 import { AppError } from '../utils/app-error.js';
 import { hasRole, isSingleRole } from '../utils/roles.js';
 
@@ -26,7 +27,7 @@ export function createAuthorizationService({
       !Array.isArray(policy.roles) ||
       policy.roles.length === 0 ||
       policy.roles.some(
-        (role) => !['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'].includes(role)
+        (role) => !ACCOUNT_ROLES.includes(role)
       ) ||
       typeof policy.authorize !== 'function'
     )

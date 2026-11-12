@@ -18,7 +18,8 @@ const actors = {
   otherAdmin: { userId: String(oid()), roles: ['ADMIN'], state: 'ACTIVE' },
   customer: { userId: String(oid()), roles: ['CUSTOMER'], state: 'ACTIVE' },
   staff: { userId: String(oid()), roles: ['STAFF'], state: 'ACTIVE' },
-  sitter: { userId: String(oid()), roles: ['PET_SITTER'], state: 'ACTIVE' }
+  sitter: { userId: String(oid()), roles: ['PET_SITTER'], state: 'ACTIVE' },
+  sale: { userId: String(oid()), roles: ['SALE_STAFF'], state: 'ACTIVE' }
 };
 const RECEIPTS = '/api/v1/admin/goods-receipts';
 const SUPPLIERS = '/api/v1/admin/suppliers';
@@ -84,7 +85,8 @@ beforeEach(async () => {
   await users.insertMany([
     { _id: new mongoose.Types.ObjectId(actors.admin.userId), displayName: 'Synthetic Recorder', roles: ['ADMIN'], state: 'ACTIVE', synthetic: false },
     { _id: new mongoose.Types.ObjectId(actors.otherAdmin.userId), displayName: 'Synthetic Other Admin', roles: ['ADMIN'], state: 'ACTIVE', synthetic: false },
-    { _id: new mongoose.Types.ObjectId(actors.staff.userId), displayName: 'Synthetic Staff', roles: ['STAFF'], state: 'ACTIVE', synthetic: false }
+    { _id: new mongoose.Types.ObjectId(actors.staff.userId), displayName: 'Synthetic Staff', roles: ['STAFF'], state: 'ACTIVE', synthetic: false },
+    { _id: new mongoose.Types.ObjectId(actors.sale.userId), displayName: 'Synthetic Sale Staff', roles: ['SALE_STAFF'], state: 'ACTIVE', synthetic: false }
   ]);
   await provisionProductCatalog({ connection });
 });
@@ -673,4 +675,14 @@ describe('reading receipts', () => {
     for (const code of ['PN-0001', 'PN-1', 'pn-0001', 'PN-00x1', 'SP-0012', '5']) await admin.get(`${RECEIPTS}/${code}`).expect(404);
     expect((await admin.get(RECEIPTS).query({ page: 2 })).status).toBe(422);
   });
+});
+
+test('Sale Staff records and reads receipts without supplier or catalog management permission', async () => {
+  const supplierId = await makeSupplier();
+  const body = { supplierId, lines: [await line('SP-0012', 2, 2)] };
+  const saved = (await saveAs('sale', body).expect(201)).body.data;
+  await api('sale').get(`${RECEIPTS}/${saved.code}`).expect(200);
+  await api('sale').get(`${RECEIPTS}/suppliers`).expect(200);
+  await api('sale').post(SUPPLIERS).send({}).expect(403);
+  await api('sale').post('/api/v1/admin/products').send({}).expect(403);
 });

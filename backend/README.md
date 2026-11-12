@@ -170,7 +170,7 @@ Trạng thái dữ liệu, nhãn hài lòng đã chốt và kế hoạch nối n
 Offline collection/quarantine, OSM audit và training có provenance nằm ở
 [scripts/ai](scripts/ai/README.md); không chạy từ Express startup.
 
-Bộ dữ liệu demo có tài khoản khách/sitter/Admin/Staff và trang quan sát thuật toán: [AI demo local](../doc/testing/ai-demo-accounts.md). Chạy tường minh `node scripts/demo-ai.js --apply`; database riêng, không gửi email/SMS thật.
+Bộ dữ liệu demo có tài khoản khách/sitter/Admin/Staff và trang quan sát thuật toán: [AI demo local](../doc/testing/ai-demo-accounts.md). Chạy tường minh `node scripts/demo-ai.js --apply`; database riêng, không gửi email/SMS thật. Thêm `--include-sale-staff` để nạp tài khoản Sale Staff tổng hợp.
 
 Matching tại src/services/sitter-matching bật bằng AI_ENABLED=true (cần auth); pricing tại src/services/pricing độc lập với AI. Xem [API, MongoDB local, seeds và cách test](../doc/api/ai-pricing-matching-v1.md). Dữ liệu giống/traits do script seeds/ai.js nạp tường minh, không tự seed khi server chạy. Node 24.22.1/npm11.19.1; local Mongo8.0.34 replica-set tại27018, không ảnh hưởng Mongo8.2 tại27017.
 
@@ -180,6 +180,6 @@ Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu
 
 ## Product sales
 
-Customer shop (catalog, cart, product orders) is off unless `PRODUCT_SALES_ENABLED=true` with `AUTH_ENABLED=true`. `npm run seed:products` remains the original nine-product development fixture. The reviewed deployment command `scripts/deployment/provision-storefront-catalog.js` adds those nine plus 20 owner-supplied legacy sample products without replacing existing records. It requires explicit catalog/database confirmation for apply, after backup. Admin order handling includes delivery, returns, pickup, payment recording and cancellation. Sale Staff role, online payment and tier discounts remain unavailable. See [product sales API](../doc/api/product-sales-v1.md) and [storefront plan](../doc/ui-ux/storefront-integration-2026-11-04.md).
+Customer shop (catalog, cart, product orders) is off unless `PRODUCT_SALES_ENABLED=true` with `AUTH_ENABLED=true`. `npm run seed:products` remains the original nine-product development fixture. The reviewed deployment command `scripts/deployment/provision-storefront-catalog.js` adds those nine plus 20 owner-supplied legacy sample products without replacing existing records. It requires explicit catalog/database confirmation for apply, after backup. Admin and Sale Staff can handle delivery, returns, pickup and payment recording. Cancellation requires Admin. Online payment and tier discounts are outside the current shop flow. See [product sales API](../doc/api/product-sales-v1.md) and [storefront plan](../doc/ui-ux/storefront-integration-2026-11-04.md).
 
 Home-care coverage is managed through Admin service areas and a versioned source registry. See [coverage contract and rollout](../doc/api/home-care-coverage.md).

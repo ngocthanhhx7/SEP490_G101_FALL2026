@@ -14,7 +14,7 @@ import { requestId, errorHandler } from '../../src/middlewares/http.js';
 
 const ROOT = '/api/v1/admin/counter-orders';
 const oid = () => new mongoose.Types.ObjectId();
-const actors = Object.fromEntries(['ADMIN', 'ADMIN2', 'CUSTOMER', 'STAFF', 'PET_SITTER'].map(role =>
+const actors = Object.fromEntries(['ADMIN', 'ADMIN2', 'CUSTOMER', 'STAFF', 'PET_SITTER', 'SALE_STAFF'].map(role =>
   [role, { userId: String(oid()), roles: [role === 'ADMIN2' ? 'ADMIN' : role], state: 'ACTIVE' }]));
 const keys = { contactLookupSecret: 'synthetic-counter-lookup-secret-0000', contactEncryptionKey: 'c'.repeat(32) };
 const crypto = createContactCrypto({ lookupSecret: keys.contactLookupSecret, encryptionKey: keys.contactEncryptionKey });
@@ -64,6 +64,18 @@ beforeEach(async () => {
   await User.create(Object.entries(actors).map(([role, actor]) => ({ _id: actor.userId, displayName: `Synthetic ${role}`, roles: actor.roles, state: 'ACTIVE' })));
 });
 afterEach(() => jest.restoreAllMocks());
+
+test('Sale Staff completes a cash sale without catalog or stock adjustment authority', async () => {
+  const p = await product();
+  const order = (await save(body(p), key(), 'SALE_STAFF').expect(201)).body.data;
+  await get(ROOT + '/' + order.id, 'SALE_STAFF').expect(200);
+  await act(order, 'record-cash', 'SALE_STAFF').expect(200);
+  await act(order, 'complete', 'SALE_STAFF').expect(200);
+  expect((await models.Product.findById(p.id)).stockOnHand).toBe(8);
+  await get('/api/v1/admin/products', 'SALE_STAFF').expect(403);
+  await get('/api/v1/admin/suppliers', 'SALE_STAFF').expect(403);
+  await call('post', '/api/v1/admin/stock-adjustments', 'SALE_STAFF').send({}).expect(403);
+});
 
 test.each(['AWAITING_PAYMENT', 'PAID', 'COMPLETED', 'CANCELLED'])('AC-28 rejects all customer and line edits after creation in %s', async status => {
   const p = await product(), commandKey = key();

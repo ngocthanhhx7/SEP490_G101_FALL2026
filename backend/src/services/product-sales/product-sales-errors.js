@@ -56,7 +56,6 @@ export function requireCustomer(actor) {
   return actor.userId;
 }
 
-// Who may do what comes from PRODUCT_PERMISSIONS (today only Admin; Sale Staff is a separate role change).
 function requirePermission(actor, allowedRoles) {
   if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles)
     || typeof actor.userId !== 'string' || !OBJECT_ID.test(actor.userId)) {
@@ -67,6 +66,7 @@ function requirePermission(actor, allowedRoles) {
 }
 
 export const requireOrderHandler = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.HANDLE_ORDERS);
+export const requireOnlineOrderCanceller = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.CANCEL_ONLINE_ORDERS);
 export const requireProductManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_PRODUCTS);
 export const requireSupplierManager = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.MANAGE_SUPPLIERS);
 export const requireCounterSeller = (actor) => requirePermission(actor, PRODUCT_PERMISSIONS.SELL_AT_COUNTER);

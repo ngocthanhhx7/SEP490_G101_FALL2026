@@ -22,6 +22,7 @@ const ROLE_LABELS = {
   CUSTOMER: 'Khách hàng',
   PET_SITTER: 'Pet sitter',
   STAFF: 'Nhân viên',
+  SALE_STAFF: 'Nhân viên bán hàng',
   ADMIN: 'Quản trị viên'
 };
 const STATE_LABELS = {
@@ -674,6 +675,7 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
                     <option value="CUSTOMER">Khách hàng</option>
                     <option value="PET_SITTER">Pet sitter</option>
                     <option value="STAFF">Nhân viên</option>
+                    <option value="SALE_STAFF">Nhân viên bán hàng</option>
                     <option value="ADMIN">Quản trị viên</option>
                   </Select>
                   <Select

@@ -211,6 +211,12 @@ const navigationByRole = {
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']
   ],
+  SALE_STAFF: [
+    ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
+    ['Đơn hàng', '/admin/product-orders', 'Bán hàng'],
+    ['Nhập hàng', '/admin/goods-receipts', 'Bán hàng'],
+    ['Tồn kho', '/admin/stock', 'Bán hàng']
+  ],
   STAFF: [
     ['Tổng quan', '/staff', 'Công việc'],
     ['Điều phối ca', '/staff/dispatch', 'Công việc'],
@@ -277,12 +283,8 @@ export function AppRoutes({
           <Route path="admin/settlements" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
           <Route path="admin/ai-models" element={<AiModelsPage />} />
-          <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
-          <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
-          <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
-          <Route path="admin/stock" element={<StockListRoute />} />
           <Route path="admin/stock-adjustments" element={<StockAdjustmentRoute />} />
           <Route path="admin/service-areas" element={<ServiceAreasRoute />} />
           <Route path="admin/services" element={<ServiceWorkspacePage />} />
@@ -304,6 +306,14 @@ export function AppRoutes({
           />
           <Route path="admin/applications" element={<Navigate replace to="/admin/sitter-applications" />} />
           <Route path="admin/applications/:applicationId" element={<SitterApplicationReviewPage />} />
+        </Route>
+      </Route>
+      <Route element={<RequireSession roles={['ADMIN', 'SALE_STAFF']} />}>
+        <Route element={<AccountWorkspace />}>
+          <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
+          <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
+          <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
+          <Route path="admin/stock" element={<StockListRoute />} />
         </Route>
       </Route>
       <Route element={<RequireSession />}>

@@ -12,7 +12,7 @@ import { createProductCartService } from '../../src/services/product-sales/produ
 import { createProductOrderService } from '../../src/services/product-sales/product-order.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
-const actors = Object.fromEntries(['ADMIN', 'CUSTOMER', 'STAFF', 'PET_SITTER'].map(role =>
+const actors = Object.fromEntries(['ADMIN', 'CUSTOMER', 'STAFF', 'PET_SITTER', 'SALE_STAFF'].map(role =>
   [role, { userId: String(oid()), state: 'ACTIVE', roles: [role] }]));
 const ROOT = '/api/v1/admin/stock-levels';
 let replica, connection, models, app;
@@ -145,4 +145,11 @@ test('history uses a bounded product-and-time index across unrelated receipt his
   const first = (await get(historyPath(p.id)).query({ limit: 3 }).expect(200)).body.data;
   expect(first.items).toHaveLength(3);
   expect(first.nextCursor).toEqual(expect.any(String));
+});
+
+test('Sale Staff reads authoritative stock and history while care Staff remains denied', async () => {
+  const p = await product('SP-0001');
+  await get(ROOT, 'SALE_STAFF').expect(200);
+  await get(historyPath(p.id), 'SALE_STAFF').expect(200);
+  await get(ROOT, 'STAFF').expect(403);
 });

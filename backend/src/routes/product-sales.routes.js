@@ -67,8 +67,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   orderRouter.post('/', csrf, orders.place);
   orderRouter.get('/:orderId', orders.read);
 
-  // Who may handle orders comes from PRODUCT_PERMISSIONS (today Admin only; a Sale Staff role is a separate change).
-  // Customer phone numbers are read through the same contact keys as sign-in (D-217); only Admin reaches this router.
+  // Order handlers read verified customer phone numbers through the same contact keys as sign-in (D-217).
   const contactCrypto = createContactCrypto({
     lookupSecret: config.auth.contactLookupSecret,
     encryptionKey: config.auth.contactEncryptionKey
@@ -86,7 +85,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   managementRouter.post('/:orderId/mark-ready', csrf, management.markReady);
   managementRouter.post('/:orderId/hand-to-customer', csrf, management.handToCustomer);
   managementRouter.post('/:orderId/record-payment', csrf, management.recordPayment);
-  managementRouter.post('/:orderId/cancel', csrf, management.cancel);
+  managementRouter.post('/:orderId/cancel', requireRoles(...PRODUCT_PERMISSIONS.CANCEL_ONLINE_ORDERS), csrf, management.cancel);
 
   // Product Management: who may use it comes from PRODUCT_PERMISSIONS.MANAGE_PRODUCTS.
   const productManagement = createProductManagementController(createProductManagementService({ connection }));

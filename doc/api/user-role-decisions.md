@@ -2,7 +2,7 @@
 
 `POST /api/v1/users/:id/role-decisions` requires an active Admin session,
 same-origin CSRF and `{ roles, reason, expectedVersion }`. Roles contains exactly
-one of CUSTOMER, PET_SITTER, STAFF and ADMIN. Empty, duplicate or mixed role arrays
+one of CUSTOMER, PET_SITTER, STAFF, SALE_STAFF or ADMIN. Empty, duplicate or mixed role arrays
 return422. The array field is retained for API compatibility. Reason is 3-1000 characters.
 Success returns `{ userId, roles, version }` with HTTP 200.
 

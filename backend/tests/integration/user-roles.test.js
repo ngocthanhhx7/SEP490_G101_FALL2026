@@ -105,3 +105,33 @@ test('a legacy multi-role record cannot authenticate or obtain a new session eve
     .rejects.toMatchObject({ code: 'FORBIDDEN' });
   expect(await identityModels(runtime.connection).AuthSession.countDocuments({ userId: target.user._id, revokedAt: null })).toBe(0);
 });
+
+test('GBR-01 Staff and Sale Staff replacement preserves version, audit and revocation', async () => {
+  await change(admin, staff, { roles: ['SALE_STAFF', 'STAFF'] }).expect(422);
+  await change(admin, staff, { roles: ['SALE_STAFF'] }).expect(200);
+  await request(runtime.server).get('/api/v1/me').set(staff.headers).expect(401);
+  const saleStaff = await User.findById(staff.user.id);
+  expect(saleStaff.toObject()).toMatchObject({ roles: ['SALE_STAFF'], version: 1, authEpoch: 1 });
+  const filtered = await request(runtime.server).get('/api/v1/users?role=SALE_STAFF').set(admin.headers).expect(200);
+  expect(JSON.stringify(filtered.body.data)).toContain(staff.user.id);
+
+  let fresh;
+  await runtime.connection.transaction(async session => { fresh = await sessions.issueInTransaction(saleStaff, session); });
+  const cookie = { Cookie: 'pwc_session=' + fresh.token };
+  await request(runtime.server).get('/api/v1/me').set(cookie).expect(200);
+  await request(runtime.server).get('/api/v1/users').set(cookie).expect(403);
+  for (const path of ['/api/v1/dashboards/staff', '/api/v1/dashboards/customer', '/api/v1/dashboards/sitter', '/api/v1/applications/me']) {
+    await request(runtime.server).get(path).set(cookie).expect(403);
+  }
+  await request(runtime.server).get('/api/v1/pet-care/catalog').set(cookie).expect(200);
+
+  await change(admin, staff, { roles: ['STAFF'], expectedVersion: 1 }).expect(200);
+  await request(runtime.server).get('/api/v1/me').set(cookie).expect(401);
+  expect((await User.findById(staff.user.id)).toObject()).toMatchObject({ roles: ['STAFF'], version: 2, authEpoch: 2 });
+  const audits = await Audit.find({ resourceId: staff.user.id }).lean();
+  expect(audits).toHaveLength(2);
+  expect(audits).toEqual(expect.arrayContaining([
+    expect.objectContaining({ previousRoles: ['STAFF'], roles: ['SALE_STAFF'], reason: 'Synthetic authorization decision' }),
+    expect.objectContaining({ previousRoles: ['SALE_STAFF'], roles: ['STAFF'], reason: 'Synthetic authorization decision' })
+  ]));
+});

@@ -8,14 +8,15 @@ a separate personnel status, not an automatic Customer role change.
 ## Storage and API compatibility
 
 Keep users._id, the physical users collection, indexes and existing roles array
-field. It contains exactly one of CUSTOMER/PET_SITTER/STAFF/ADMIN. Existing API
+field. It contains exactly one of CUSTOMER/PET_SITTER/STAFF/SALE_STAFF/ADMIN. Existing API
 envelopes and role-decision payload keys remain; a roles array with zero, two or
 duplicate roles becomes422. Native validation and Mongoose both enforce this
 constraint. Historical audit previousRoles snapshots retain their original data.
 
 Login/session and frontend route guards reject multi-role identities. ADMIN may
 still use operations authorized for STAFF under the existing permission policy;
-the stored role and displayed label remain ADMIN only. Customer self-registration
+the stored role and displayed label remain ADMIN only. The sales order guard
+explicitly admits ADMIN and SALE_STAFF. Sale Staff OTP sessions last 12 hours. Customer self-registration
 creates CUSTOMER; approval replaces it with PET_SITTER in the same contract/
 status/decision transaction and increments authEpoch. Admin role changes keep
 actor serialization, self-change rejection, target version CAS, required reason,
@@ -38,6 +39,17 @@ applications, contracts, pets, bookings, financial facts or historical audits.
 Then it installs only the reviewed role validator with collMod; DDL is not part
 of the transaction and unknown acknowledgement must be reconciled from metadata.
 No index/TTL/provider/environment policy changes are part of this migration.
+
+### Sale Staff validator upgrade
+
+With the previous strict four-role validator, inspection requires all rows to
+match that contract. The apply command upgrades the enum with `collMod` using the
+reviewed digest and journal. This path leaves users, sessions and indexes intact.
+Custom validators outside the supported contract require separate review.
+
+A restore to the previous validator stops while a `SALE_STAFF` account exists.
+Keep the current release active until those accounts are reconciled via audited
+Admin decisions, then take a fresh dry run for the restore digest.
 
 ## Verification, cutover and rollback
 
