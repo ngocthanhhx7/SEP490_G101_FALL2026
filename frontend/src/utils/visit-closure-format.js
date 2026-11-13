@@ -13,6 +13,9 @@ export const CLOSURE_ERROR_MESSAGES = {
   RESOURCE_NOT_FOUND: 'Không tìm thấy buổi. Tải lại danh sách.'
 };
 
+// Real bookings have no booking code yet, so show the end of the booking id: "…a1b2c3".
+export const formatBookingRef = row => row?.bookingCode ?? (row?.bookingId ? `…${String(row.bookingId).slice(-6)}` : 'Lịch đặt');
+
 const parts = (value, options) => Object.fromEntries(new Intl.DateTimeFormat('vi-VN', { timeZone: zone, ...options })
   .formatToParts(new Date(value)).map(part => [part.type, part.value]));
 // Assembled from parts so the separators do not depend on the browser locale data.

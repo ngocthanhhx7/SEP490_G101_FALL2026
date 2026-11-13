@@ -2,7 +2,7 @@ import { useCallback, useId, useRef, useState } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
-import { CLOSURE_ERROR_MESSAGES, CLOSURE_REASON_MAX_LENGTH, formatClosureSlot, formatClosureTime } from '../../utils/visit-closure-format.js';
+import { CLOSURE_ERROR_MESSAGES, CLOSURE_REASON_MAX_LENGTH, formatBookingRef, formatClosureSlot, formatClosureTime } from '../../utils/visit-closure-format.js';
 import './visit-closure.css';
 
 const UNCERTAIN = ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'INVALID_RESPONSE'];
@@ -50,7 +50,7 @@ export function CloseVisitDialog({ visitId, api, onClose, onClosed }) {
       ?? 'Chưa tải được buổi này. Buổi chỉ đóng được 2 giờ sau giờ kết thúc nếu chưa check-out.'}</p>}
     {data && <form id={formId} onSubmit={submit} noValidate>
       <dl className="visit-closure-dialog__facts">
-        <div><dt>Buổi</dt><dd>{`${data.bookingCode ?? 'Lịch đặt'} · ${formatClosureSlot(data.startAt, data.endAt)}`}</dd></div>
+        <div><dt>Buổi</dt><dd>{`${formatBookingRef(data)} · ${formatClosureSlot(data.startAt, data.endAt)}`}</dd></div>
         <div><dt>Người chăm sóc</dt><dd>{data.sitterName ?? 'Chưa rõ'}</dd></div>
         <div><dt>Check-in</dt><dd>{`${formatClosureTime(data.checkInAt)}, ${data.hasCheckInPhoto ? 'có ảnh check-in' : 'không có ảnh check-in'}`}</dd></div>
       </dl>

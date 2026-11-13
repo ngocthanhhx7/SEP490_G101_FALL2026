@@ -19,9 +19,9 @@ const staff = person('STAFF'), admin = person('ADMIN'), customerUser = person('C
 const key = value => `synthetic-closure-${String(value).replace(/[^A-Za-z0-9]+/g, "-")}`;
 let counter = 0;
 
-async function seedVisit({ photo = true, state = 'IN_PROGRESS', checkedOut = false, endAt = END, checkIn = true } = {}) {
+async function seedVisit({ photo = true, state = 'IN_PROGRESS', checkedOut = false, endAt = END, checkIn = true, code = true } = {}) {
   const visitId = oid(), bookingId = oid(), mediaId = (++counter).toString(16).padStart(64, 'a');
-  await col('bookings').insertOne({ _id: bookingId, customerId: customerUser._id, state: 'IN_PROGRESS', bookingCode: 'BK-0033', visitIds: [visitId] });
+  await col('bookings').insertOne({ _id: bookingId, customerId: customerUser._id, state: 'IN_PROGRESS', ...(code ? { bookingCode: 'BK-0033' } : {}), visitIds: [visitId] });
   await col('visits').insertOne({ _id: visitId, bookingId, customerId: customerUser._id, sitterId: sitterUser._id, state, version: 4,
     areaCode: 'DISTRICT_CAU_GIAY', startAt: new Date(endAt - 30 * 60000), endAt: new Date(endAt),
     ...(checkIn ? { checkInAt: new Date(endAt - 28 * 60000) } : {}), ...(checkedOut ? { checkOutAt: new Date(endAt) } : {}),
@@ -203,6 +203,15 @@ describe('needs-action list for visits not checked out', () => {
       hasCheckInPhoto: true, version: 4, serviceName: 'Dắt chó đi dạo', overdueMs: 2 * HOUR + 10 * 60000 });
     expect(result.items[2].hasCheckInPhoto).toBe(false);
     expect(result.hasMore).toBe(false);
+  });
+
+  test('a booking without a booking code is listed with a null code and its id, so the screen can show the end of the id', async () => {
+    await col('visits').deleteMany({});
+    const visitId = await seedVisit({ code: false });
+    const visit = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
+    const [item] = (await service.needsAction(actorOf(staff))).items;
+    expect(item).toMatchObject({ id: visitId, bookingCode: null, bookingId: String(visit.bookingId) });
+    expect(await service.details(actorOf(staff), visitId)).toMatchObject({ bookingCode: null, bookingId: String(visit.bookingId) });
   });
 
   test('the visit end time is the boundary: a visit ending 2 hours ago exactly is listed, one millisecond later is not', async () => {

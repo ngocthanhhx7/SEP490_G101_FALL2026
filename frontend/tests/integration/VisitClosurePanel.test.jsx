@@ -1,7 +1,7 @@
 import { beforeAll } from '@jest/globals';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { VisitClosurePanel } from '../../src/pages/staff/VisitClosurePanel.jsx';
-import { formatOverdue } from '../../src/utils/visit-closure-format.js';
+import { formatBookingRef, formatOverdue } from '../../src/utils/visit-closure-format.js';
 import { ApiError } from '../../src/services/api-client.js';
 
 beforeAll(() => {
@@ -10,7 +10,7 @@ beforeAll(() => {
 });
 
 // 06:00 – 06:30 on 04/11/2026 in Vietnam time.
-const row = { id: 'visit-1', bookingCode: 'BK-0033', startAt: '2026-11-03T23:00:00Z', endAt: '2026-11-03T23:30:00Z',
+const row = { id: 'visit-1', bookingId: '6720a1b2c3d4e5f6a7b8c9d0', bookingCode: 'BK-0033', startAt: '2026-11-03T23:00:00Z', endAt: '2026-11-03T23:30:00Z',
   customerName: 'Bùi Thanh Tâm', sitterName: 'Lê Văn Minh', overdueMs: (2 * 60 + 10) * 60000, version: 4, hasCheckInPhoto: true };
 const details = (extra = {}) => ({ data: { ...row, checkInAt: '2026-11-03T23:02:00Z', ...extra } });
 function fixture({ items = [row], photo = true } = {}) {
@@ -34,6 +34,26 @@ test('lists a visit not checked out with its reason, time late and the close act
   expect(within(table).getByText('Lê Văn Minh')).toBeInTheDocument();
   expect(within(table).getByText('04/11 · 06:00 – 06:30')).toBeInTheDocument();
 });
+
+test('a booking without a code shows the end of its id in the table and in the dialog', async () => {
+  const noCode = { ...row, bookingCode: null };
+  const api = fixture({ items: [noCode] });
+  api.closureDetails.mockResolvedValue(details({ bookingCode: null }));
+  render(<VisitClosurePanel api={api} />);
+  const table = await screen.findByRole('region', { name: 'Buổi chưa check-out' });
+  expect(within(table).getByText('…b8c9d0')).toBeInTheDocument();
+  expect(within(table).queryByText('Lịch đặt')).not.toBeInTheDocument();
+  fireEvent.click(within(table).getByRole('button', { name: 'Đóng buổi' }));
+  const modal = within(await screen.findByRole('dialog'));
+  expect(await modal.findByText('…b8c9d0 · 04/11 · 06:00 – 06:30')).toBeInTheDocument();
+});
+
+test.each([
+  [{ bookingCode: 'BK-0033', bookingId: '6720a1b2c3d4e5f6a7b8c9d0' }, 'BK-0033'],
+  [{ bookingCode: null, bookingId: '6720a1b2c3d4e5f6a7b8c9d0' }, '…b8c9d0'],
+  [{ bookingId: '6720a1b2c3d4e5f6a7b8c9d0' }, '…b8c9d0'],
+  [{ bookingCode: null }, 'Lịch đặt']
+])('formatBookingRef(%j) = %s', (input, expected) => expect(formatBookingRef(input)).toBe(expected));
 
 test('renders nothing without rows or without the closure API', async () => {
   const empty = fixture({ items: [] });

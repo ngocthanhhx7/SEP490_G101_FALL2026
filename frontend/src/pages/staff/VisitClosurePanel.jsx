@@ -3,7 +3,7 @@ import { OperationsBadge, OperationsTable } from '../../components/common/Operat
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { Button } from '../../components/ui/index.js';
 import { CloseVisitDialog } from './CloseVisitDialog.jsx';
-import { CLOSURE_REASON_LABEL, CLOSURE_SUCCESS_MESSAGE, formatClosureSlot, formatOverdue } from '../../utils/visit-closure-format.js';
+import { CLOSURE_REASON_LABEL, CLOSURE_SUCCESS_MESSAGE, formatBookingRef, formatClosureSlot, formatOverdue } from '../../utils/visit-closure-format.js';
 import './visit-closure.css';
 
 // Needs-action rows for "not checked out 2 hours after the end" (GBR-24). Hidden when the API is not wired.
@@ -19,7 +19,7 @@ export function VisitClosurePanel({ api, onChanged }) {
     {notice && <p role="status" className="visit-closure-panel__notice">{notice}</p>}
     {list.status === 'error' && <p role="alert">Chưa tải được các buổi chưa check-out. <Button variant="ghost" onClick={list.retry}>Thử lại</Button></p>}
     {!!rows.length && <OperationsTable label="Buổi chưa check-out" rows={rows} columns={[
-      { key: 'visit', label: 'Buổi', render: row => <><strong>{row.bookingCode ?? 'Lịch đặt'}</strong><small>{formatClosureSlot(row.startAt, row.endAt)}</small></> },
+      { key: 'visit', label: 'Buổi', render: row => <><strong>{formatBookingRef(row)}</strong><small>{formatClosureSlot(row.startAt, row.endAt)}</small></> },
       { key: 'customer', label: 'Khách hàng', render: row => row.customerName ?? 'Chưa có tên' },
       { key: 'reason', label: 'Lý do', render: () => <OperationsBadge tone="danger">{CLOSURE_REASON_LABEL}</OperationsBadge> },
       { key: 'time', label: 'Thời gian', render: row => <span className="visit-closure-panel__late">{formatOverdue(row.overdueMs)}</span> },
