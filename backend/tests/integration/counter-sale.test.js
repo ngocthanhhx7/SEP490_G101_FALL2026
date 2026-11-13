@@ -142,7 +142,7 @@ test('AC-27 D-268 looks up exact current verified mobile/email contacts and retu
   await contact(actors.CUSTOMER.userId, 'PHONE', '+84912345679', 'REPLACED');
   for (const value of ['0912345678', '0912 345 678', '0912.345.678', '84912345678', '+84912345678', ' SYNTHETIC@EXAMPLE.TEST ']) {
     expect((await call('post', `${ROOT}/customer-lookups`).send({ contact: value }).expect(200)).body.data)
-      .toEqual({ customer: { id: actors.CUSTOMER.userId, displayName: 'Synthetic CUSTOMER' } });
+      .toEqual({ customer: { id: actors.CUSTOMER.userId, displayName: 'Synthetic CUSTOMER', tierCode: 'MEMBER' } });
   }
   for (const value of ['0912345679', '0999999999', 'nobody@example.test'])
     expect((await call('post', `${ROOT}/customer-lookups`).send({ contact: value }).expect(200)).body.data.customer).toBeNull();
@@ -173,7 +173,7 @@ test('AC-28 GBR-35 creates an anonymous counter order with immutable prices and 
 test('AC-27 rechecks an optional selected customer before creating and keeps the selected name snapshot', async () => {
   const p = await product(); await contact(actors.CUSTOMER.userId, 'EMAIL', 'synthetic@example.test');
   const order = (await save(body(p, 1, { customerId: actors.CUSTOMER.userId })).expect(201)).body.data;
-  expect(order.customer).toEqual({ id: actors.CUSTOMER.userId, displayName: 'Synthetic CUSTOMER' });
+  expect(order.customer).toEqual({ id: actors.CUSTOMER.userId, displayName: 'Synthetic CUSTOMER', tierCode: 'MEMBER' });
   await User.updateOne({ _id: actors.CUSTOMER.userId }, { $set: { state: 'LOCKED', displayName: 'Changed' } });
   expect((await save(body(p, 1, { customerId: actors.CUSTOMER.userId })).expect(422)).body.error.code).toBe('COUNTER_CUSTOMER_UNAVAILABLE');
   expect((await get(`${ROOT}/${order.id}`).expect(200)).body.data.customer.displayName).toBe('Synthetic CUSTOMER');

@@ -6,7 +6,8 @@ describe('priceProductOrder', () => {
 
   test('adds the flat demo delivery fee for DELIVERY in integer VND', () => {
     expect(priceProductOrder({ lines, receiveMethod: 'DELIVERY' }))
-      .toEqual({ lineTotals: [500000, 100000], subtotal: 600000, shippingFee: 25000, total: 625000 });
+      .toEqual({ lineTotals: [500000, 100000], unitDiscounts: [0, 0], subtotal: 600000,
+        tierDiscount: 0, shippingFee: 25000, total: 625000 });
   });
 
   test('charges no delivery fee for PICKUP', () => {

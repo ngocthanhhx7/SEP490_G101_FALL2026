@@ -25,6 +25,8 @@ export const productSalesErrors = Object.freeze({
   exceedsAvailable: (productId, available) => new AppError(409, 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE',
     `Only ${available} left. Please lower the quantity.`, { productId, available }),
   unavailable: (productId) => new AppError(409, 'PRODUCT_UNAVAILABLE', 'This product is no longer available.', { productId }),
+  // MSG60
+  prepayRequired: () => new AppError(409, 'PRODUCT_ORDER_PREPAY_REQUIRED', 'For this order you can only pay in advance.'),
   // MSG100
   cartEmpty: () => new AppError(409, 'CART_EMPTY', 'Your cart is empty. Please choose a product first.'),
   cartFull: () => new AppError(409, 'CART_FULL', 'The cart has too many different products.'),

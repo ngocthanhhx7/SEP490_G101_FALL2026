@@ -1,11 +1,12 @@
 import { productSalesModels } from '../../models/product.model.js';
+import { createProductPricingEligibility } from './product-pricing-eligibility.service.js';
 import { PRODUCT_LIMITS, PRODUCT_DEMO_SHIPPING_FEE_VND } from '../../constants/product-fields.js';
 import { parseAddCartLine, parseSetCartLine, parseRemoveCartLine } from '../../validators/product-cart.validator.js';
-import { sellableQuantity } from './product-order-pricing.js';
+import { priceProductOrder, sellableQuantity } from './product-order-pricing.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 
-export function createProductCartService({ connection }) {
+export function createProductCartService({ connection, eligibility = createProductPricingEligibility({ connection }) }) {
   const { Product, ProductCart } = productSalesModels(connection);
   const unitOfWork = createUnitOfWork(connection);
 
@@ -34,10 +35,17 @@ export function createProductCartService({ connection }) {
         exceedsAvailable: line.quantity > available
       };
     });
-    const subtotal = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const pricing = await eligibility.read(customerId);
+    const totals = priceProductOrder({ lines: items, discountBps: pricing.discountBps, allowEmpty: true });
+    const pricedItems = items.map((item, index) => {
+      const unitDiscount = totals.unitDiscounts[index];
+      return { ...item, unitDiscount, discountedUnitPrice: item.unitPrice - unitDiscount,
+        netLineTotal: item.lineTotal - unitDiscount * item.quantity };
+    });
     // deliveryFee is informational for the checkout preview; the placed order carries the authoritative amounts.
-    return { lines: items, lineCount: items.length, subtotal, total: subtotal, deliveryFee: PRODUCT_DEMO_SHIPPING_FEE_VND,
-      hasUnavailable: items.some((item) => item.exceedsAvailable) };
+    return { lines: pricedItems, lineCount: items.length, subtotal: totals.subtotal, total: totals.total,
+      tierCode: pricing.tierCode, tierDiscount: totals.tierDiscount, prepaidOnly: pricing.prepaidOnly,
+      deliveryFee: PRODUCT_DEMO_SHIPPING_FEE_VND, hasUnavailable: items.some((item) => item.exceedsAvailable) };
   }
 
   // A hidden or missing product is treated as not found; a product with nothing sellable is out of stock (MSG98).

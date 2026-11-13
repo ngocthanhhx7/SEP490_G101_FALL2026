@@ -4,7 +4,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { useProductCart } from '../../hooks/useProductCart.js';
 import { Notice, Button, Pagination } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
-import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS } from '../../constants/product-labels.js';
+import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import { formatOrderDate, formatVnd, productMessage } from '../../utils/product-format.js';
 import '../../components/product/product-shop.css';
 
@@ -23,6 +23,8 @@ function OrderDetail({ order }) {
       {order.lines.map((line) => <div key={line.productId} className="pwc-shop-summary-row">
         <span>{line.productName} × {line.quantity}</span><strong>{formatVnd(line.lineTotal)}</strong></div>)}
       <div className="pwc-shop-summary-row"><span>Tạm tính</span><span>{formatVnd(order.subtotal)}</span></div>
+      {order.tierDiscount > 0 && <div className="pwc-shop-summary-row">
+        <span>Giảm giá hạng {PRODUCT_TIER_LABELS[order.tierCode]}</span><span>− {formatVnd(order.tierDiscount)}</span></div>}
       {order.receiveMethod === 'DELIVERY' && <div className="pwc-shop-summary-row"><span>Phí giao hàng</span><span>{formatVnd(order.shippingFee)}</span></div>}
       <div className="pwc-shop-summary-row pwc-shop-summary-total"><span>Tổng</span><strong>{formatVnd(order.total)}</strong></div>
     </div>
