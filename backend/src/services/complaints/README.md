@@ -29,6 +29,8 @@ All paths below use `/api/v1/complaints`. Writes require a session, CSRF, an `Id
 
 ## Booking Payment and JOB-03 handoff
 
+`billState` records whether the complaint is holding the bill. The booking lifecycle state is stored in `booking.state`.
+
 `app.locals.complaintBilling.readBookingComplaintHold({ bookingId, asOf, session? })` provides `hasUnfinalizedComplaints`, effective `billState`, `latestFinalAt` and approved complaint adjustment references. Pass the active MongoDB session to share a transaction. Consumers combine this result with incident finality and the authoritative bill before taking action. An open complaint persists `billState: 'ON_HOLD'` in its own case. The effective hold expires at the recorded finality time. The module leaves `booking.state`, payment deadlines and issued bills to their owners.
 
 The optional billing port is absent from runtime composition. Its transactional `read({bookingId, session})` must return the issued or expected basis before approved amounts, the total of already approved amounts for the booking including incidents, and the verified paid status. For an issued bill it also supplies its current `billTotalVnd`. The port's `applyAdjustment` must durably apply a bill credit or record a refund for accounting, idempotently by reference and in the same session. Until supplied, affected writes return `503 BILLING_SOURCE_UNAVAILABLE`, and detail/eligibility reads identify unavailable data without inventing a bill. Approval fixtures run only in tests.

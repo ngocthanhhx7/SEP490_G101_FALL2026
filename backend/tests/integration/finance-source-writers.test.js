@@ -361,6 +361,18 @@ function complaintApp(complaintService, actor) {
 const csrf = (req, key) => req.set('Origin', 'https://pwc.example.invalid')
   .set('X-CSRF-Token', 'synthetic-csrf').set('Idempotency-Key', key);
 
+test('UC-53 denies Sale Staff complaint list, detail, resolution, decision and refund proposals', async () => {
+  const api = complaintApp(complaints, { ...admin, roles: ['SALE_STAFF'] });
+  const root = '/api/v1/complaints', path = root + '/case-1';
+  for (const endpoint of [root, path, root + '/refund-proposals']) {
+    await api.get(endpoint).expect(403);
+  }
+  await csrf(api.post(path + '/resolution'), 'sale-staff-resolve')
+    .send({ expectedVersion: 0, handlingNotes: 'Notes', customerResult: 'Result' }).expect(403);
+  await csrf(api.post(path + '/decision'), 'sale-staff-decide')
+    .send({ expectedVersion: 0, customerResult: 'Final result' }).expect(403);
+});
+
 test.each([
   ['APPROVE', 24000, false], ['REDUCE', 14000, true], ['REJECT', null, false]
 ])('UC-51 fixture %s publishes the customer result and preserves role and money boundaries', async (outcome, amountVnd, paidInFull) => {
@@ -434,13 +446,18 @@ test.each([
   expect(notifications).toHaveLength(4);
   const customerLink = '/account/bookings/' + booking._id + '/complaints/new?complaint=' + opened.complaintId;
   expect(notifications.find(notification => notification.recipientId === customer.userId)?.deepLink).toBe(customerLink);
-  expect(notifications.filter(notification => notification.recipientId !== customer.userId)
-    .every(notification => notification.deepLink === null)).toBe(true);
+  const staffLink = '/staff/complaints?complaint=' + opened.complaintId;
+  const adminLink = '/admin/complaints?complaint=' + opened.complaintId;
+  expect(notifications.filter(notification => notification.recipientId === staff.userId)
+    .every(notification => notification.deepLink === staffLink)).toBe(true);
+  expect(notifications.find(notification => notification.recipientId === admin.userId)?.deepLink).toBe(adminLink);
 
   if (outcome === 'APPROVE') {
     const disputed = await csrf(customerApi.post(path + '/objections'), 'reject-result')
       .send({ expectedVersion: 2, reason: 'Synthetic objection' });
     expect(disputed.body.data.state).toBe('ESCALATED');
+    expect(await col('notifications').findOne({ eventType: 'ComplaintObjected', recipientId: admin.userId }))
+      .toMatchObject({ deepLink: adminLink });
     const final = await csrf(adminApi.post(path + '/decision'), 'final-decision')
       .send({ expectedVersion: 3, customerResult: 'Synthetic revised result', amountVnd: 10000 });
     expect(final.body.data).toMatchObject({ state: 'RESOLVED', complaint: {
