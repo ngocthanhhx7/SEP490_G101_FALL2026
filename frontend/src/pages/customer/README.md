@@ -79,3 +79,5 @@ PetRecordImport presents untrusted Gemini suggestions with excerpts, editable fi
 `CustomerBookingDetailPage.jsx` uses the shared read-only booking detail while retaining the existing checkout confirmation actions and owner-scoped transport.
 
 Submission and objection preserve body/key and freeze edits after uncertain replies. Shared detail uses operational IDs and legacy customerVisitId for complaint actions.
+
+`BookingChangeDialog` uses the Customer booking-change options on Booking Details. It offers one visit or the remaining eligible visits of the booking, shows near visits that keep their old time, and uses the same request body and key when retrying an uncertain submission. Boarding and visits below the lead-time threshold follow server eligibility. Transport is in `services/booking-change-api.js`.

@@ -1,0 +1,122 @@
+.pwc-dialog.booking-change-dialog {
+  --pwc-dialog-width: 35rem;
+  border: 0;
+  border-radius: 1.5rem;
+  padding: clamp(1.125rem, 4vw, 2rem);
+  box-shadow: 0 12px 38px rgb(22 17 38 / 13%);
+  color: #14142f;
+  font-family: var(--pwc-font-body);
+}
+
+.booking-change-dialog::backdrop { background: rgb(22 17 38 / 30%); }
+.booking-change-dialog .pwc-dialog-header h2 { font: 800 1.625rem/1.3 var(--pwc-font-body); }
+.booking-change-dialog .pwc-dialog-header > button { display: none; }
+.booking-change-dialog > p { margin: 1.125rem 0; color: var(--pwc-ink); font-weight: 600; }
+.booking-change-dialog .pwc-dialog-content { margin: 0; }
+.booking-change-dialog .pwc-dialog-footer { justify-content: flex-start; gap: .75rem; }
+.booking-change-dialog .pwc-dialog-footer .pwc-button { min-height: 3.125rem; border-radius: 2rem; }
+.booking-change-dialog .pwc-dialog-footer .pwc-button--primary { min-width: 12.5rem; }
+.booking-change-dialog .pwc-dialog-footer .pwc-button--primary:enabled {
+  border-color: #ffcd34;
+  color: #0e0e2c;
+}
+.booking-change-dialog .pwc-dialog-footer .pwc-button--primary:enabled:not(:hover) { background: #ffcd34; }
+.booking-change-dialog .pwc-dialog-footer .pwc-button--secondary { min-width: 9.375rem; border-color: #603388; color: #603388; }
+
+.booking-change-form { display: grid; gap: 1.125rem; border: 0; margin: 0; padding: 0; min-width: 0; }
+.booking-change-field { display: grid; gap: .5rem; font-size: .9375rem; font-weight: 800; min-width: 0; }
+.booking-change-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.booking-change-scope {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .25rem;
+  border: 1px solid #e4d8ed;
+  border-radius: 2rem;
+  padding: .25rem;
+  background: #f6f5f8;
+}
+.booking-change-scope button {
+  border: 1px solid transparent;
+  border-radius: inherit;
+  min-height: 2.625rem;
+  background: transparent;
+  color: var(--pwc-ink);
+  font: inherit;
+  cursor: pointer;
+}
+.booking-change-scope button[aria-pressed="true"] { border-color: var(--pwc-lavender); background: #fff; color: #603388; }
+.booking-change-field__input,
+.booking-change-field__select { position: relative; display: block; font-weight: 600; }
+.booking-change-field__input > svg,
+.booking-change-field__select > svg {
+  position: absolute;
+  inset-inline-end: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9576d3;
+  pointer-events: none;
+}
+.booking-change-field .pwc-control {
+  min-height: 3.25rem;
+  padding: .75rem 2.125rem .75rem 1.125rem;
+  border: 1px solid #e1d5eb;
+  border-radius: .875rem;
+  background: #fcfbfd;
+  color: inherit;
+  font: 600 1rem var(--pwc-font-body);
+}
+.booking-change-field select { appearance: none; text-overflow: ellipsis; }
+.booking-change-field__input input:not(:focus) { color: transparent; }
+.booking-change-field__input input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset-inline-end: .75rem;
+  opacity: 0;
+  cursor: pointer;
+}
+.booking-change-field__display {
+  position: absolute;
+  inset-inline: 1.125rem 2.125rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.booking-change-field__input:focus-within .booking-change-field__display { display: none; }
+
+.booking-change-price, .booking-change-kept {
+  background: #f1e6fa;
+  color: #492c75;
+  padding: .875rem 1rem;
+  border-radius: 1rem;
+}
+.booking-change-price { margin-top: 1.25rem; }
+.booking-change-price strong { display: block; color: #603388; }
+.booking-change-price p, .booking-change-kept ul { margin: .25rem 0 0; font-size: .875rem; }
+.booking-change-kept ul { padding-inline-start: 1.125rem; }
+.booking-change-deadline { margin: 1.125rem 0; color: var(--pwc-ink); font-size: .875rem; }
+.booking-change-error { margin: .75rem 0 0; color: var(--pwc-error); font-weight: 700; }
+.booking-change-actions { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e6dced; }
+.booking-change-actions .pwc-button {
+  margin: 0;
+  width: 100%;
+  border-radius: 2rem;
+  border-color: var(--pwc-sun);
+  background: var(--pwc-sun);
+  color: #14142f;
+}
+.booking-change-actions .pwc-button:hover { background: var(--pwc-sun-hover); }
+.booking-change-sent { padding: .75rem 1rem; border-radius: .75rem; background: var(--pwc-success-surface); color: var(--pwc-success); }
+.booking-change-visit-action { margin-top: .25rem; }
+
+@media (max-width: 480px) {
+  .booking-change-fields { grid-template-columns: minmax(0, 1fr); }
+  .booking-change-dialog .pwc-dialog-footer .pwc-button { min-width: 0; flex: 1; }
+}
+
+@media (forced-colors: active) {
+  .booking-change-field__display { display: none; }
+  .booking-change-field__input input:not(:focus) { color: FieldText; }
+}
