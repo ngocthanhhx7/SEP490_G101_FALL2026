@@ -34,3 +34,5 @@ Dispatch now separates a bounded intervention table, the Vietnam-day visit table
 Dispatch details use an opt-in wide two-column layout, compact native-radio candidate rows and a collapsible blocked group. No eligibility or invitation contract changes are made by presentation.
 
 `StaffBookingDetailPage.jsx` displays the shared read-only booking detail through the Staff/Admin booking detail API.
+
+`visit-board/` holds the Staff visit board used by `EmployeeDispatchPage.jsx`: `VisitBoard.jsx` owns the three tabs (Cần xử lý, Buổi hôm nay, Tất cả buổi), the search box and the area and reason filters; `NeedsActionTable.jsx` and `AllVisitsTable.jsx` render the two lists from `GET /employee-scheduling/visit-board`; `ContactCell.jsx` asks for a phone number only when Staff press Gọi. Closing a visit reuses `CloseVisitDialog.jsx`. The existing queue stays under "Hàng đợi tìm người của hệ thống" without the visits the board already lists and is hidden while searching or filtering. A failing board API shows an alert in the Cần xử lý area. Transport is in `services/needs-action-api.js` and labels are pure helpers in `utils/visit-board-format.js`.

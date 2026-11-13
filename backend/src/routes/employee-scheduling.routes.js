@@ -16,6 +16,12 @@ import { createAssignedCareController } from '../controllers/assigned-care.contr
 import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
 import { createVisitClosureService } from '../services/employee-scheduling/visit-closure.service.js';
 import { createVisitClosureController } from '../controllers/visit-closure.controller.js';
+import { createNeedsActionService } from '../services/employee-scheduling/needs-action.service.js';
+import { createNeedsActionController } from '../controllers/needs-action.controller.js';
+import { createVisitContactService } from '../services/employee-scheduling/visit-contact.service.js';
+import { createVisitContactController } from '../controllers/visit-contact.controller.js';
+import { createCustomerPhoneDirectory } from '../services/product-sales/customer-phone-directory.service.js';
+import { createContactCrypto } from '../services/contact-crypto.service.js';
 
 export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
@@ -58,6 +64,13 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/closable-visits', staff, closures.list);
   router.get('/visits/:id/closure', staff, closures.details);
   router.post('/visits/:id/closures', staff, csrf, closures.close);
+  // Phone numbers need the contact keys; without them the contact route answers 503 instead of failing at start-up.
+  const phones = config.auth.contactLookupSecret && config.auth.contactEncryptionKey ? createCustomerPhoneDirectory({ connection,
+    contactCrypto: createContactCrypto({ lookupSecret: config.auth.contactLookupSecret, encryptionKey: config.auth.contactEncryptionKey }) }) : null;
+  const board = createNeedsActionController(createNeedsActionService({ repository, clock, cursorSecret: config.auth.tokenSecret }));
+  const contacts = createVisitContactController(createVisitContactService({ repository, clock, phones }));
+  router.get('/visit-board', staff, board.list);
+  router.get('/visits/:id/contact', staff, rateLimit({ windowMs: 60000, limit: 30, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), contacts.read);
   router.post('/visits/:id/schedule-proposals', staff, csrf, c.propose);
   router.get('/proposals/:id', requireRoles('CUSTOMER'), c.proposal);
   router.post('/proposals/:id/confirmation', requireRoles('CUSTOMER'), csrf, c.confirmProposal);

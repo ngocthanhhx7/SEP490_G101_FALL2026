@@ -12,7 +12,7 @@ import { Button, Dialog } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
-import { VisitClosurePanel } from './VisitClosurePanel.jsx';
+import { VisitBoard } from './visit-board/VisitBoard.jsx';
 import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import '../../styles/employee-scheduling.css';
 
@@ -55,11 +55,14 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
     return result;
   }, [api]);
   const queue = useApiResource(load);
+  const [tab, setTab] = useState('needs');
+  const [board, setBoard] = useState({ ids: new Set(), filtering: false });
   const [selected, setSelected] = useState(null);
   const [proposal, setProposal] = useState(null);
   const command = useSchedulingCommand(() => queue.retry());
   const rows = queue.data?.items ?? [],
     active = rows.find((row) => row.id === selected),
+    legacyRows = rows.filter((row) => !board.ids.has(row.id)),
     today = queue.data?.today;
   const area = (code) => queue.data?.workAreas?.find((a) => a.code === code)?.label ?? code ?? '—';
   const action = (row) =>
@@ -109,21 +112,23 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
       )}
       {proposal && <p role="status">Đã gửi đề xuất lịch mới, đang chờ khách xác nhận.</p>}
       {queue.status === 'loading' && <p role="status">Đang tải ca…</p>}
+      <VisitBoard api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
+        openableIds={queue.data && new Set(rows.map((row) => row.id))} onOpenDispatch={setSelected} onChanged={queue.retry} onState={setBoard} />
       {['error', 'forbidden', 'pending'].includes(queue.status) && (
         <p role="alert">
           Chưa tải được các ca cần điều phối. <button onClick={queue.retry}>Thử lại</button>
         </p>
       )}
-      <section className="ops-section">
+      {tab === 'needs' && <section className="ops-section">
         <header>
           <div>
-            <h2>Cần xử lý</h2>
+            <h2>{typeof api.visitBoard === 'function' ? 'Hàng đợi tìm người của hệ thống' : 'Cần xử lý'}</h2>
             <p className="ops-muted">
               Ca chờ điều phối, xếp theo giờ bắt đầu. Chỉ tìm lại sau khi hệ thống chuyển ca cần hỗ trợ.
             </p>
           </div>
         </header>
-        {!!queue.data?.withdrawalRequests?.length && <div className="withdrawal-requests">
+        {!!queue.data?.withdrawalRequests?.length && <div id="withdrawal-requests" className="withdrawal-requests">
           <h3>Yêu cầu rút buổi</h3>
           <OperationsTable label="Yêu cầu rút buổi" rows={queue.data.withdrawalRequests} columns={[
             { key: 'visit', label: 'Buổi', render: row => <><strong>{row.serviceName ?? short(row.id)}</strong><small>{time(row.startAt)}</small></> },
@@ -134,10 +139,10 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           <p className="ops-muted">Người chăm sóc vẫn được phân công cho đến khi nhân viên thay người hoặc huỷ buổi.</p>
           {queue.data.withdrawalRequestsHaveMore && <p className="ops-muted">Đang hiển thị 50 yêu cầu theo giờ buổi sớm nhất.</p>}
         </div>}
-        <VisitClosurePanel api={api} onChanged={queue.retry} />
-        <OperationsTable
+        {board.filtering && <p role="status" className="ops-muted">Đang tìm hoặc lọc, hàng đợi tìm người của hệ thống tạm ẩn.</p>}
+        {!board.filtering && <OperationsTable
           label="Ca cần điều phối"
-          rows={rows}
+          rows={legacyRows}
           empty="Chưa có ca chờ điều phối."
           columns={[
             {
@@ -188,14 +193,14 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
               render: (r) => <button onClick={() => setSelected(r.id)}>{action(r)}</button>,
             },
           ]}
-        />
+        />}
         {queue.data?.queueHasMore && (
           <p className="ops-muted">
             Đang hiển thị 50 ca sớm nhất. Tải lại sau khi xử lý để xem các ca tiếp theo.
           </p>
         )}
-      </section>
-      <section className="ops-section">
+      </section>}
+      {tab === 'today' && <section className="ops-section">
         <header>
           <div>
             <h2>Buổi hôm nay</h2>
@@ -253,7 +258,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             bộ ngày.
           </p>
         )}
-      </section>
+      </section>}
       {active && (
         <Dialog
           open
