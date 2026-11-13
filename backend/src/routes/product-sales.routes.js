@@ -33,6 +33,9 @@ import { PRODUCT_PERMISSIONS } from '../constants/product-permissions.js';
 import { createCounterSaleController } from '../controllers/counter-sale.controller.js';
 import { createCounterSaleService } from '../services/product-sales/counter-sale.service.js';
 import { createCounterCatalogService } from '../services/product-sales/counter-catalog.service.js';
+import { createProductPricingEligibility } from '../services/product-sales/product-pricing-eligibility.service.js';
+import { createProductCustomerPriceController } from '../controllers/product-customer-price.controller.js';
+import { createProductCustomerPriceService } from '../services/product-sales/product-customer-price.service.js';
 
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); };
 
@@ -45,16 +48,20 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   const session = sessionService ?? createSessionService({ connection, clock,
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const csrf = requireCsrf(session), customer = requireRoles('CUSTOMER');
+  const eligibility = createProductPricingEligibility({ connection, refusalLimit: env.PRODUCT_REFUSAL_LIMIT });
 
-  const catalog = createProductCatalogController(createProductCatalogService({ connection }));
+  const catalogService = createProductCatalogService({ connection });
+  const catalog = createProductCatalogController(catalogService);
   const photos = createProductPhotoController(createProductPhotoService({ connection }));
   const catalogRouter = Router();
   catalogRouter.use((_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
   catalogRouter.get('/', catalog.list);
+  catalogRouter.get('/:productId/customer-price', noStore, requireSession(session, { clock }), customer,
+    createProductCustomerPriceController(createProductCustomerPriceService({ catalog: catalogService, eligibility })));
   catalogRouter.get('/:productId', catalog.read);
   catalogRouter.get('/:productId/photos/:digest', photos.read);
 
-  const cart = createProductCartController(createProductCartService({ connection }));
+  const cart = createProductCartController(createProductCartService({ connection, eligibility }));
   const cartRouter = Router();
   cartRouter.use(noStore, requireSession(session, { clock }), customer);
   cartRouter.get('/', cart.read);
@@ -62,7 +69,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   cartRouter.patch('/lines/:productId', csrf, cart.setLine);
   cartRouter.delete('/lines/:productId', csrf, cart.removeLine);
 
-  const orders = createProductOrderController(createProductOrderService({ connection, serviceAreas: DEMO_WORK_AREAS }));
+  const orders = createProductOrderController(createProductOrderService({ connection, serviceAreas: DEMO_WORK_AREAS, eligibility }));
   const orderRouter = Router();
   orderRouter.use(noStore, requireSession(session, { clock }), customer);
   orderRouter.get('/', orders.list);
@@ -127,8 +134,8 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   supplierRouter.post('/:supplierId/stop', csrf, supplierManagement.stop);
   supplierRouter.post('/:supplierId/resume', csrf, supplierManagement.resume);
 
-  const counter = createCounterSaleController(createCounterSaleService({ connection, clock }),
-    createCounterCatalogService({ connection, contacts: phones }));
+  const counter = createCounterSaleController(createCounterSaleService({ connection, clock, eligibility }),
+    createCounterCatalogService({ connection, contacts: phones, eligibility }));
   const counterRouter = Router();
   counterRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.SELL_AT_COUNTER));
   counterRouter.get('/products', counter.products);

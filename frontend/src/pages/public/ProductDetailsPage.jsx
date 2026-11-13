@@ -7,8 +7,9 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { Notice, Button } from '../../components/ui/index.js';
 import { ProductGallery } from '../../components/product/ProductGallery.jsx';
 import { QuantityStepper } from '../../components/product/QuantityStepper.jsx';
-import { PRODUCT_CATEGORY_LABELS, PRODUCT_PET_LABELS } from '../../constants/product-labels.js';
+import { PRODUCT_CATEGORY_LABELS, PRODUCT_PET_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import { formatVnd, productErrorText, productMessage } from '../../utils/product-format.js';
+import { hasRole } from '../../utils/role-access.js';
 import '../../components/product/product-shop.css';
 
 export function ProductDetailsPage() {
@@ -18,12 +19,22 @@ export function ProductDetailsPage() {
   const navigate = useNavigate();
   const load = useCallback(({ signal }) => api.getProduct(productId, { signal }), [api, productId]);
   const resource = useApiResource(load);
+  const customerId = session.status === 'authenticated' && hasRole(session.user, 'CUSTOMER') ? session.user.id : null;
+  const loadPrice = useCallback(async ({ signal }) => {
+    if (!customerId) return { data: null };
+    const { data } = await api.getProductCustomerPrice(productId, { signal });
+    return { data: { ...data, productId, customerId } };
+  }, [api, productId, customerId]);
+  const priceResource = useApiResource(loadPrice);
   const [fresh, setFresh] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState(null);
   useEffect(() => { setFresh(null); setQuantity(1); setFeedback(null); }, [productId]);
   const product = fresh ?? resource.data;
+  const price = priceResource.data?.customerId === customerId && priceResource.data?.productId === productId
+    && priceResource.data?.unitPrice === product?.sellingPrice ? priceResource.data : null;
+  const hasDiscount = price?.unitDiscount > 0;
 
   // A warning about the old number no longer applies once the customer changes it.
   function changeQuantity(next) {
@@ -42,6 +53,7 @@ export function ProductDetailsPage() {
       if (['PRODUCT_QUANTITY_EXCEEDS_AVAILABLE', 'PRODUCT_OUT_OF_STOCK'].includes(error.code)) {
         // Re-read the product so the message and the stepper use the current sellable quantity.
         try { const latest = await api.getProduct(product.id); setFresh(latest.data); available = latest.data.available;
+          priceResource.retry();
           setQuantity((value) => Math.max(1, Math.min(value, available))); } catch { /* keep the previous numbers */ }
       }
       setFeedback({ ok: false, text: productErrorText(error, { available }) });
@@ -62,7 +74,10 @@ export function ProductDetailsPage() {
         <h1 id="product-title">{product.name}</h1>
         <span className={`pwc-shop-badge ${product.inStock ? 'is-in' : 'is-out'}`}>{product.inStock ? 'Còn hàng' : 'Hết hàng'}</span>
         <div className="pwc-shop-detail-price">
-          <span>Giá bán</span><br /><strong className="pwc-shop-price pwc-shop-price--large">{formatVnd(product.sellingPrice)}</strong>
+          <span>{hasDiscount ? 'Giá của bạn' : 'Giá bán'}</span><br />
+          <strong className="pwc-shop-price pwc-shop-price--large">{formatVnd(hasDiscount ? price.discountedUnitPrice : product.sellingPrice)}</strong>
+          {hasDiscount && <> <del>{formatVnd(product.sellingPrice)}</del>{' '}
+            <span className="pwc-shop-badge">Giảm {price.discountBps / 100}% hạng {PRODUCT_TIER_LABELS[price.tierCode]}</span></>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem 0' }}>
           <span id="quantity-label" style={{ fontWeight: 800 }}>Số lượng</span>
@@ -84,6 +99,7 @@ export function ProductDetailsPage() {
       <p className="pwc-photo-credits"><a href="/assets/products/credits.html">Ảnh minh họa sản phẩm và nguồn ảnh</a></p>
       <p>{product.description || 'Chưa có mô tả cho sản phẩm này.'}</p>
       <dl className="pwc-shop-facts">
+        <dt>Mã sản phẩm</dt><dd>{product.code}</dd>
         <dt>Danh mục</dt><dd>{PRODUCT_CATEGORY_LABELS[product.category]}</dd>
         <dt>Dành cho</dt><dd>{PRODUCT_PET_LABELS[product.petType]}</dd>
       </dl>

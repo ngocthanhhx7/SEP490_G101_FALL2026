@@ -18,14 +18,14 @@ import { productSalesErrors, requireCounterSeller } from './product-sales-errors
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const sorted = lines => [...lines].sort((a, b) => String(a.productId).localeCompare(String(b.productId)));
 export function toCounterOrderView(doc) {
-  return { ...toOrderView(doc), channel: COUNTER_CHANNEL, tierDiscount: doc.tierDiscount,
-    customer: doc.customerId ? { id: String(doc.customerId), displayName: doc.counterCustomerName } : null,
+  return { ...toOrderView(doc), channel: COUNTER_CHANNEL,
+    customer: doc.customerId ? { id: String(doc.customerId), displayName: doc.counterCustomerName, tierCode: doc.tierCode ?? null } : null,
     createdBy: { id: String(doc.counterCreatedBy), displayName: doc.counterCreatedByName },
     cashPayment: doc.cashPayment ? { amount: doc.cashPayment.amount, receivedAt: doc.cashPayment.receivedAt,
       receivedBy: String(doc.cashPayment.receivedBy) } : null,
     completedAt: doc.completedAt ?? null, cancelledAt: doc.cancelledAt ?? null };
 }
-export function createCounterSaleService({ connection, clock = Date.now }) {
+export function createCounterSaleService({ connection, clock = Date.now, eligibility }) {
   const { Product, ProductOrder } = productSalesModels(connection);
   const User = userModel(connection), { Contact } = identityModels(connection);
   const uow = createUnitOfWork(connection), codes = createProductOrderCodeService({ connection });
@@ -82,6 +82,7 @@ export function createCounterSaleService({ connection, clock = Date.now }) {
             const verified = customer && await Contact.exists({ userId: input.customerId, state: 'VERIFIED', channel: { $in: ['PHONE', 'EMAIL'] } }).session(session);
             if (!verified) throw new AppError(422, 'COUNTER_CUSTOMER_UNAVAILABLE', 'The selected customer is no longer available');
           }
+          const pricing = await eligibility.read(customer?._id, { session });
           const lines = [];
           for (const line of sorted(input.lines)) {
             const p = await Product.findOneAndUpdate({ _id: line.productId, visible: true, deletedAt: null,
@@ -94,11 +95,15 @@ export function createCounterSaleService({ connection, clock = Date.now }) {
             }
             lines.push({ productId: p._id, productCode: p.code, productName: p.name, quantity: line.quantity, sellingPriceWhenOrdered: p.sellingPrice });
           }
-          const totals = priceProductOrder({ receiveMethod: 'COUNTER', lines: lines.map(line => ({ unitPrice: line.sellingPriceWhenOrdered, quantity: line.quantity })) });
+          const totals = priceProductOrder({ receiveMethod: 'COUNTER', discountBps: pricing.discountBps,
+            lines: lines.map(line => ({ unitPrice: line.sellingPriceWhenOrdered, quantity: line.quantity })) });
           const now = new Date(clock());
           const doc = new ProductOrder({ code, channel: COUNTER_CHANNEL, counterCreatedBy: actorId, counterCreatedByName: creator.displayName,
             ...(customer ? { customerId: customer._id, counterCustomerName: customer.displayName } : {}),
-            receiveMethod: 'COUNTER', paymentMethod: 'COUNTER_CASH', lines, subtotal: totals.subtotal, shippingFee: 0, tierDiscount: 0, total: totals.total,
+            receiveMethod: 'COUNTER', paymentMethod: 'COUNTER_CASH',
+            lines: lines.map((line, index) => ({ ...line, unitDiscount: totals.unitDiscounts[index] })),
+            subtotal: totals.subtotal, shippingFee: 0, tierDiscount: totals.tierDiscount, total: totals.total,
+            tierCode: pricing.tierCode, tierPolicyVersion: pricing.tierPolicyVersion,
             paid: false, status: 'AWAITING_PAYMENT', idempotencyKey: key, requestFingerprint: fingerprint, createdAt: now, updatedAt: now });
           await doc.validate();
           // Driver insert avoids document mutation across transaction retries; validation stays in the model.

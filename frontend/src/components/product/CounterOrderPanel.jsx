@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
 import { QuantityStepper } from './QuantityStepper.jsx';
 import { COUNTER_STATUS_LABELS, COUNTER_LIMITS } from '../../constants/counter-sale.js';
+import { PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import { formatVnd } from '../../utils/product-format.js';
 import { formatCashTime } from '../../utils/counter-sale-format.js';
 import { Notice, Button } from '../ui/index.js';
@@ -10,6 +11,7 @@ export function CounterOrderPanel({ sale }) {
   const shown = order?.lines ?? lines, totals = order ?? (previewState === 'success' ? preview : null);
   const terminal = order && ['COMPLETED', 'CANCELLED'].includes(order.status);
   const customer = order ? order.customer : sale.customer;
+  const tierLabel = PRODUCT_TIER_LABELS[totals?.tierCode ?? customer?.tierCode];
   const showCustomerLookup = !order || !customer;
   return <section className="pwc-shop-panel counter-order" aria-labelledby="counter-order-title">
     <div className="counter-order-heading"><h2 id="counter-order-title">{order ? `Đơn ${order.code}` : 'Đơn tại quầy'}</h2>
@@ -22,7 +24,7 @@ export function CounterOrderPanel({ sale }) {
       onChange={event => sale.changeContact(event.target.value)} />
       <button type="button" className="pwc-shop-outline-button" disabled={locked || sale.lookupBusy} onClick={sale.lookup}>{sale.lookupBusy ? 'Đang tìm…' : 'Tìm'}</button></div>
     {sale.lookupText && <p id="counter-contact-note" className="pwc-shop-hint" role="status">{sale.lookupText}</p>}</>}
-    {customer && <p className="counter-customer"><Check size={18} aria-hidden="true" /><span>{customer.displayName}</span></p>}
+    {customer && <p className="counter-customer"><Check size={18} aria-hidden="true" /><span>{customer.displayName}{tierLabel && ` · hạng ${tierLabel}`}</span></p>}
     {!shown.length && <p className="counter-empty pwc-shop-hint">Thêm sản phẩm để tạo đơn tại quầy.</p>}
     <div className="counter-lines">{shown.map(line => {
       const quoted = previewState === 'success' ? preview?.lines.find(item => item.productId === line.productId) : null;
@@ -38,7 +40,8 @@ export function CounterOrderPanel({ sale }) {
     {!order && previewState === 'error' && <button type="button" className="pwc-shop-link-button" onClick={sale.retry}>Tính lại tổng</button>}
     <div className="counter-totals">
       <div className="pwc-shop-summary-row"><span>Tạm tính</span><strong>{totals ? formatVnd(totals.subtotal) : '—'}</strong></div>
-      <div className="pwc-shop-summary-row" data-testid="counter-discount"><span>Giảm theo hạng</span><strong>{totals ? formatVnd(totals.tierDiscount) : '—'}</strong></div>
+      <div className="pwc-shop-summary-row" data-testid="counter-discount"><span>{tierLabel ? `Giảm giá hạng ${tierLabel}` : 'Giảm theo hạng'}</span>
+        <strong>{totals ? (totals.tierDiscount > 0 ? '− ' : '') + formatVnd(totals.tierDiscount) : '—'}</strong></div>
       <div className="pwc-shop-summary-row pwc-shop-summary-total counter-total"><span>Tổng</span><strong>{totals ? formatVnd(totals.total) : '—'}</strong></div>
     </div>
     <fieldset className="counter-payment"><legend>Cách thanh toán</legend>
