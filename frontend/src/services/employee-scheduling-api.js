@@ -1,4 +1,5 @@
 import { createVisitTravelApi } from './visit-travel-api.js';
+import { createVisitClosureApi } from './visit-closure-api.js';
 import { ApiError } from './api-client.js';
 
 export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
@@ -7,6 +8,7 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
   const mutate = (path, body, idempotencyKey, method = 'POST', signal) => request(`${root}${path}`, { method, body, idempotencyKey, signal });
   return {
     ...createVisitTravelApi(request),
+    ...createVisitClosureApi(request),
     async execution(id, { signal } = {}) {
       const result = await request(`/visits/${encodeURIComponent(id)}/execution`, { signal });
       const row = result.data;

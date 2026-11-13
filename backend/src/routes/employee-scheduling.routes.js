@@ -14,6 +14,8 @@ import { createVisitTravelController } from '../controllers/visit-travel.control
 import { createAssignedCareService } from '../services/care/assigned-care.service.js';
 import { createAssignedCareController } from '../controllers/assigned-care.controller.js';
 import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
+import { createVisitClosureService } from '../services/employee-scheduling/visit-closure.service.js';
+import { createVisitClosureController } from '../controllers/visit-closure.controller.js';
 
 export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
@@ -52,6 +54,10 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/dispatch', staff, c.queue);
   router.get('/visits/:id/candidates', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.candidates);
   router.post('/visits/:id/invitations', staff, csrf, c.invite);
+  const closures = createVisitClosureController(createVisitClosureService({ repository, clock }));
+  router.get('/closable-visits', staff, closures.list);
+  router.get('/visits/:id/closure', staff, closures.details);
+  router.post('/visits/:id/closures', staff, csrf, closures.close);
   router.post('/visits/:id/schedule-proposals', staff, csrf, c.propose);
   router.get('/proposals/:id', requireRoles('CUSTOMER'), c.proposal);
   router.post('/proposals/:id/confirmation', requireRoles('CUSTOMER'), csrf, c.confirmProposal);

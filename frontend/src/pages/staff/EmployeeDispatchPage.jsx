@@ -12,6 +12,7 @@ import { Button, Dialog } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
+import { VisitClosurePanel } from './VisitClosurePanel.jsx';
 import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import '../../styles/employee-scheduling.css';
 
@@ -133,6 +134,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           <p className="ops-muted">Người chăm sóc vẫn được phân công cho đến khi nhân viên thay người hoặc huỷ buổi.</p>
           {queue.data.withdrawalRequestsHaveMore && <p className="ops-muted">Đang hiển thị 50 yêu cầu theo giờ buổi sớm nhất.</p>}
         </div>}
+        <VisitClosurePanel api={api} onChanged={queue.retry} />
         <OperationsTable
           label="Ca cần điều phối"
           rows={rows}
