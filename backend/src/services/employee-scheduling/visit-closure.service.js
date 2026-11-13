@@ -111,15 +111,17 @@ export function createVisitClosureService({ repository, clock = Date.now }) {
             if (!closable(row, at.getTime())) fail('CLOSE_NOT_ALLOWED_YET', 'The visit can be closed 2 hours after its end', 409);
             if (row.version !== input.expectedVersion) fail('VERSION_CONFLICT', 'Visit changed', 409);
             const hasCheckInPhoto = (await checkInPhotoVisitIds([row], session)).has(String(row._id));
-            // Without a check-in photo the visit is cancelled at no charge instead. That branch waits until its fields are agreed.
-            if (!hasCheckInPhoto) fail('CLOSE_WITHOUT_PHOTO_UNAVAILABLE', 'Closing a visit without a check-in photo is not available yet', 409);
-            const closure = { byUserId: actor.userId, at, reason: input.reason, hasCheckInPhoto };
+            // With a check-in photo the visit counts as done. Without one it is cancelled at no charge and the pet sitter is not paid (GBR-24).
+            const update = hasCheckInPhoto
+              ? { state: 'STAFF_CLOSED', closedAt: at, hasCheckInPhoto, closure: { byUserId: actor.userId, at, reason: input.reason, hasCheckInPhoto } }
+              : { state: 'CANCELLED', cancelledAt: at, cancellation: { byUserId: actor.userId, at, reason: input.reason, chargeAmount: 0 } };
             const saved = await visits().findOneAndUpdate({ _id: row._id, version: row.version, state: 'IN_PROGRESS', checkOutAt: { $in: [null, undefined] } },
-              { $set: { state: 'STAFF_CLOSED', closedAt: at, hasCheckInPhoto, closure }, $inc: { version: 1 } }, { session, returnDocument: 'after' });
+              { $set: update, $inc: { version: 1 } }, { session, returnDocument: 'after' });
             if (!saved) fail('VERSION_CONFLICT', 'Visit changed', 409);
             await models.EmployeeScheduleEvent.create([{ type: 'VisitStaffClosed', actorId: actor.userId, sitterId: String(row.sitterId),
-              visitId, at, detail: { hasCheckInPhoto, version: saved.version } }], { session });
-            const result = { visitId, state: 'STAFF_CLOSED', version: saved.version, closedAt: at, hasCheckInPhoto };
+              visitId, at, detail: { outcome: update.state, hasCheckInPhoto, version: saved.version } }], { session });
+            const result = { visitId, state: update.state, version: saved.version, hasCheckInPhoto,
+              ...(hasCheckInPhoto ? { closedAt: at } : { cancelledAt: at, chargeAmount: 0 }) };
             await models.EmployeeScheduleCommand.create([{ _id: commandId, fingerprint, result, createdAt: at }], { session });
             return result;
           });

@@ -2,14 +2,12 @@ const zone = 'Asia/Ho_Chi_Minh';
 
 export const CLOSURE_REASON_LABEL = 'Chưa check-out sau 2 giờ';
 export const CLOSURE_REASON_MAX_LENGTH = 1000;
-export const CLOSURE_NO_PHOTO_MESSAGE = 'Buổi không có ảnh check-in. Tạm thời chưa đóng được, nhóm đang thống nhất cách huỷ.';
 export const CLOSURE_SUCCESS_MESSAGE = 'Đã đóng buổi.';
 export const CLOSURE_ERROR_MESSAGES = {
   VALIDATION_FAILED: 'Nhập lý do đóng buổi (tối đa 1.000 ký tự).',
   INVALID_STATE: 'Buổi không còn ở trạng thái chưa check-out. Tải lại danh sách.',
   VERSION_CONFLICT: 'Buổi vừa được cập nhật. Tải lại rồi kiểm tra trước khi đóng.',
   CLOSE_NOT_ALLOWED_YET: 'Chưa đủ 2 giờ sau giờ kết thúc để đóng buổi.',
-  CLOSE_WITHOUT_PHOTO_UNAVAILABLE: CLOSURE_NO_PHOTO_MESSAGE,
   IDEMPOTENCY_CONFLICT: 'Yêu cầu trước đã được ghi nhận với nội dung khác. Tải lại danh sách.',
   FORBIDDEN: 'Chỉ nhân viên hoặc quản trị mới đóng được buổi.',
   RESOURCE_NOT_FOUND: 'Không tìm thấy buổi. Tải lại danh sách.'

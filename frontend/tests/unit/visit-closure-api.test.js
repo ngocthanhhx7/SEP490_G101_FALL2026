@@ -23,6 +23,12 @@ describe('visit closure API client', () => {
     expect(result).toBe(closed);
   });
 
+  test('closeVisit accepts the CANCELLED response of a visit without a check-in photo', async () => {
+    const cancelled = { data: { visitId: 'visit-1', state: 'CANCELLED', version: 5, chargeAmount: 0 } };
+    const request = jest.fn().mockResolvedValue(cancelled);
+    await expect(createVisitClosureApi(request).closeVisit('visit-1', body, 'closure:key-5')).resolves.toBe(cancelled);
+  });
+
   test('closeVisit returns a 202 or pending result unchanged so the caller can retry the same key', async () => {
     const pending = { status: 202, pending: true, data: null };
     const request = jest.fn().mockResolvedValue(pending);

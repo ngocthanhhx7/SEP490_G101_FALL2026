@@ -2,7 +2,7 @@ import { useCallback, useId, useRef, useState } from 'react';
 import { CircleAlert } from 'lucide-react';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
-import { CLOSURE_ERROR_MESSAGES, CLOSURE_NO_PHOTO_MESSAGE, CLOSURE_REASON_MAX_LENGTH, formatClosureSlot, formatClosureTime } from '../../utils/visit-closure-format.js';
+import { CLOSURE_ERROR_MESSAGES, CLOSURE_REASON_MAX_LENGTH, formatClosureSlot, formatClosureTime } from '../../utils/visit-closure-format.js';
 import './visit-closure.css';
 
 const UNCERTAIN = ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'INVALID_RESPONSE'];
@@ -19,13 +19,11 @@ export function CloseVisitDialog({ visitId, api, onClose, onClosed }) {
   const details = useApiResource(load);
   const data = details.status === 'success' ? details.data : null;
   const missing = !reason.trim();
-  // Closing without a check-in photo cancels the visit; that branch is not available yet, so the button stays locked.
-  const blocked = data ? !data.hasCheckInPhoto : false;
 
   async function submit(event) {
     event.preventDefault();
     setTouched(true);
-    if (!data || blocked || busy || missing) return;
+    if (!data || busy || missing) return;
     // The key stays the same while the outcome is unknown, so a retry cannot close the visit twice.
     key.current ??= `closure:${globalThis.crypto.randomUUID()}`;
     setBusy(true); setMessage(null);
@@ -45,7 +43,7 @@ export function CloseVisitDialog({ visitId, api, onClose, onClosed }) {
   return <Dialog open title="Đóng buổi chưa check-out" onClose={onClose} dismissible={false} className="visit-closure-dialog"
     footer={<>
       <Button variant="secondary" disabled={busy} onClick={onClose}>Quay lại</Button>
-      <Button type="submit" form={formId} loading={busy} disabled={!data || blocked}>Đóng buổi</Button>
+      <Button type="submit" form={formId} loading={busy} disabled={!data}>Đóng buổi</Button>
     </>}>
     {details.status === 'loading' && <p role="status">Đang tải thông tin buổi…</p>}
     {!data && details.status !== 'loading' && <p role="alert">{CLOSURE_ERROR_MESSAGES[details.code]
@@ -59,9 +57,8 @@ export function CloseVisitDialog({ visitId, api, onClose, onClosed }) {
       <p className="visit-closure-dialog__notice"><CircleAlert size={17} aria-hidden="true" />
         <span>Buổi có ảnh check-in được tính là đã làm. Buổi không có ảnh check-in sẽ bị huỷ không tính phí và người chăm sóc không được trả công.</span>
       </p>
-      {blocked && <p role="alert" className="visit-closure-dialog__error">{CLOSURE_NO_PHOTO_MESSAGE}</p>}
       <label>Lý do <span aria-hidden="true">*</span>
-        <textarea value={reason} rows={4} maxLength={CLOSURE_REASON_MAX_LENGTH} disabled={busy || blocked}
+        <textarea value={reason} rows={4} maxLength={CLOSURE_REASON_MAX_LENGTH} disabled={busy}
           aria-required="true" aria-invalid={touched && missing ? 'true' : undefined}
           onChange={event => setReason(event.target.value)} />
       </label>

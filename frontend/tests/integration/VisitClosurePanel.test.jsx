@@ -53,24 +53,19 @@ test.each([[true, '06:02, có ảnh check-in'], [false, '06:02, không có ảnh
   expect(modal.getByText(/Buổi có ảnh check-in được tính là đã làm/)).toBeInTheDocument();
 });
 
-test('a visit without a check-in photo is blocked as soon as the dialog opens: message shown, button locked, nothing written', async () => {
+test('a visit without a check-in photo can be closed: MSG71 shown and the list reloaded', async () => {
   const api = fixture({ photo: false });
+  api.closeVisit.mockResolvedValueOnce({ data: { visitId: 'visit-1', state: 'CANCELLED', version: 5, chargeAmount: 0 } });
   render(<VisitClosurePanel api={api} />);
   const modal = await openDialog();
-  expect(await modal.findByText('Buổi không có ảnh check-in. Tạm thời chưa đóng được, nhóm đang thống nhất cách huỷ.')).toBeInTheDocument();
-  expect(modal.getByRole('button', { name: 'Đóng buổi' })).toBeDisabled();
-  expect(modal.getByLabelText(/Lý do/)).toBeDisabled();
-  fireEvent.submit(modal.getByLabelText(/Lý do/).closest('form'));
-  expect(api.closeVisit).not.toHaveBeenCalled();
-  expect(modal.queryByText(/Liên hệ quản trị/)).not.toBeInTheDocument();
-});
-
-test('a visit with a check-in photo is not blocked', async () => {
-  render(<VisitClosurePanel api={fixture()} />);
-  const modal = await openDialog();
-  await modal.findByLabelText(/Lý do/);
-  expect(modal.queryByText(/Tạm thời chưa đóng được/)).not.toBeInTheDocument();
+  expect(await modal.findByLabelText(/Lý do/)).toBeEnabled();
   expect(modal.getByRole('button', { name: 'Đóng buổi' })).toBeEnabled();
+  fireEvent.change(modal.getByLabelText(/Lý do/), { target: { value: 'Không có ảnh, đã gọi người chăm sóc.' } });
+  fireEvent.click(modal.getByRole('button', { name: 'Đóng buổi' }));
+  expect(await screen.findByText('Đã đóng buổi.')).toBeInTheDocument();
+  expect(api.closeVisit).toHaveBeenCalledWith('visit-1', { expectedVersion: 4, reason: 'Không có ảnh, đã gọi người chăm sóc.' }, expect.stringMatching(/^closure:/));
+  await waitFor(() => expect(api.closableVisits).toHaveBeenCalledTimes(2));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 test('a missing reason blocks the close and writes nothing; Quay lại closes without a change', async () => {
@@ -105,8 +100,7 @@ test('MSG71: closes once with the trimmed reason and the server version, then re
 
 test.each([
   ['VERSION_CONFLICT', 'Buổi vừa được cập nhật. Tải lại rồi kiểm tra trước khi đóng.'],
-  ['INVALID_STATE', 'Buổi không còn ở trạng thái chưa check-out. Tải lại danh sách.'],
-  ['CLOSE_WITHOUT_PHOTO_UNAVAILABLE', 'Buổi không có ảnh check-in. Tạm thời chưa đóng được, nhóm đang thống nhất cách huỷ.']
+  ['INVALID_STATE', 'Buổi không còn ở trạng thái chưa check-out. Tải lại danh sách.']
 ])('409 %s keeps the dialog open with the message', async (code, message) => {
   const api = fixture();
   api.closeVisit.mockRejectedValueOnce(new ApiError(code, 409));

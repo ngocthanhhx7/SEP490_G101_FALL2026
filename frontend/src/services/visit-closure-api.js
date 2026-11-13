@@ -9,7 +9,7 @@ export function createVisitClosureApi(request) {
     async closeVisit(id, body, key) {
       const result = await request(`${root}/visits/${encodeURIComponent(id)}/closures`, { method: 'POST', body, idempotencyKey: key });
       if (result.pending || result.status === 202) return result;
-      if (result.data?.visitId !== id || result.data?.state !== 'STAFF_CLOSED' || result.data?.version !== body.expectedVersion + 1)
+      if (result.data?.visitId !== id || !['STAFF_CLOSED', 'CANCELLED'].includes(result.data?.state) || result.data?.version !== body.expectedVersion + 1)
         throw new ApiError('INVALID_RESPONSE');
       return result;
     }

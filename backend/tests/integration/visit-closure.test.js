@@ -6,6 +6,7 @@ import { provisionEmployeeScheduling } from '../../src/services/employee-schedul
 import { employeeSchedulingModels } from '../../src/models/employee-scheduling.model.js';
 import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
 import { visitCompletion } from '../../src/services/complaints/complaint-lifecycle.js';
+import { projectEarnings } from '../../src/services/dashboards/earnings.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const END = Date.parse('2026-11-04T06:30:00Z');
@@ -105,18 +106,41 @@ describe('closing a visit that was not checked out (GBR-24)', () => {
       .rejects.toMatchObject({ status: 404 });
   });
 
-  test('without a check-in photo the cancellation branch is not available yet and nothing is written', async () => {
+  test('without a check-in photo the visit is CANCELLED at no charge with who, when and why', async () => {
     const visitId = await seedVisit({ photo: false });
-    await expect(service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: 'Không ảnh' }, key('nophoto')))
-      .rejects.toMatchObject({ status: 409, code: 'CLOSE_WITHOUT_PHOTO_UNAVAILABLE' });
-    expect((await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) })).state).toBe('IN_PROGRESS');
+    const result = await service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: '  Không ảnh, đã gọi người chăm sóc.  ' }, key('nophoto'));
+    expect(result).toMatchObject({ visitId, state: 'CANCELLED', version: 5, hasCheckInPhoto: false, chargeAmount: 0 });
+    expect(result.cancelledAt.getTime()).toBe(now);
+    const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
+    expect(saved).toMatchObject({ state: 'CANCELLED', version: 5,
+      cancellation: { byUserId: String(staff._id), reason: 'Không ảnh, đã gọi người chăm sóc.', chargeAmount: 0 } });
+    expect(saved.cancelledAt.getTime()).toBe(now);
+    expect(saved.cancellation.at.getTime()).toBe(now);
+    expect(saved.closedAt).toBeUndefined();
+    expect(saved.closure).toBeUndefined();
+    expect(saved.checkOutAt).toBeUndefined();
+    expect(await col('employeescheduleevents').findOne({ type: 'VisitStaffClosed', visitId }))
+      .toMatchObject({ actorId: String(staff._id), detail: { outcome: 'CANCELLED', hasCheckInPhoto: false, version: 5 } });
+    expect((await col('bookings').findOne({ _id: saved.bookingId })).state).toBe('IN_PROGRESS');
+  });
+
+  test('a cancelled visit is not done for complaints and earns nothing', async () => {
+    const visitId = await seedVisit({ photo: false });
+    await service.close(actorOf(admin), visitId, { expectedVersion: 4, reason: 'Không ảnh' }, key('nophoto-consumers'));
+    const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
+    const completion = visitCompletion(saved);
+    expect(completion.done).toBe(false);
+    expect(new Date(completion.at).getTime()).toBe(now);
+    const earnings = projectEarnings({ items: [{ id: visitId, visitId, sitterId: String(sitterUser._id), visitState: saved.state }] }, { userId: String(sitterUser._id) });
+    expect(earnings.items).toEqual([]);
+    expect(earnings.metrics.every(metric => metric.value === 0)).toBe(true);
   });
 
   test('an image owned by someone else or bound to another visit does not count as the check-in photo', async () => {
     const visitId = await seedVisit();
     await col('privateimages').updateMany({ careVisitId: visitId }, { $set: { ownerId: oid() } });
     await expect(service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: 'Ảnh của người khác' }, key('foreign-photo')))
-      .rejects.toMatchObject({ code: 'CLOSE_WITHOUT_PHOTO_UNAVAILABLE' });
+      .resolves.toMatchObject({ state: 'CANCELLED', hasCheckInPhoto: false, chargeAmount: 0 });
   });
 
   test('two staff closing at the same time: exactly one succeeds', async () => {
