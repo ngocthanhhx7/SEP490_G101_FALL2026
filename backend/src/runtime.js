@@ -8,6 +8,8 @@ import { startApplicationMailWorker } from './jobs/application-mail.job.js';
 import { startCustomerTierWorker } from './jobs/customer-tier.job.js';
 import { createCustomerTierService } from './services/customer-tier.service.js';
 import { createMongoCustomerTierRepository } from './services/mongo-customer-tier.repository.js';
+import { startProductPickupExpiryWorker } from './jobs/product-pickup-expiry.job.js';
+import { createProductPickupExpiryService } from './services/product-sales/product-order-management.service.js';
 import { assertRuntimeStorageProfile } from './config/storage-profile.js';
 import { referenceCatalogSource } from './models/reference-catalog-source.js';
 import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
@@ -16,7 +18,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   const config = loadConfig(env);
   const connection = await connectDatabase(config);
   const lifecycle = { draining: false };
-  let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker;
+  let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, productPickupExpiryWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
     if (config.nodeEnv === 'production') await assertRuntimeStorageProfile(connection, app.locals.compensationProfile);
@@ -33,6 +35,11 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     if (app.locals.applicationMail) applicationMailWorker = startApplicationMailWorker({ service: app.locals.applicationMail, logger });
     customerTierWorker = startCustomerTierWorker({ enabled: config.customerTierJobEnabled, createService: () =>
       createCustomerTierService({ repository: createMongoCustomerTierRepository(connection), logger }) });
+    productPickupExpiryWorker = startProductPickupExpiryWorker({
+      enabled: config.productPickupExpiryJobEnabled && env.PRODUCT_SALES_ENABLED === 'true' && config.auth.enabled,
+      createService: () => createProductPickupExpiryService({ connection, clock: appOptions.clock, logger }),
+      logger
+    });
   } catch {
     await connection.close();
     throw new Error('HTTP server failed to start');
@@ -47,6 +54,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       try { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); }
       finally {
         clearTimeout(timer);
+        await productPickupExpiryWorker?.stop();
         await customerTierWorker?.stop();
         await applicationMailWorker?.stop();
         await dispatchWorker?.stop();

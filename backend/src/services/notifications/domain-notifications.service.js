@@ -1,5 +1,10 @@
 import { digest } from '../../validators/pet-care.validator.js';
 
+const pickupDeadlineFormat = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Ho_Chi_Minh', hourCycle: 'h23', hour: '2-digit', minute: '2-digit',
+  day: '2-digit', month: '2-digit', year: 'numeric'
+});
+
 // Call inside the domain command's transaction, after its guarded state change.
 // Stable event/recipient ids make command retries safe without a second worker.
 export function createDomainNotifications({ connection, clock = Date.now }) {
@@ -18,15 +23,22 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
     return rows.map(row => ({ id: row._id, to }));
   }
   return {
-    async productOrder({ order, previous, placed = false }, session) {
+    async productOrder({ order, previous, placed = false, pickupExpired = false }, session) {
       const id = String(order._id), eventId = `product-order:${id}:${order.version ?? 0}`;
       const states = { PLACED: 'đã được tiếp nhận', READY: 'đã sẵn sàng để nhận tại cửa hàng',
         PICKED_UP: 'đã giao cho bạn', HANDED_TO_CARRIER: 'đã bàn giao cho đơn vị vận chuyển',
         DELIVERED: 'đã giao thành công', BEING_RETURNED: 'đang được hoàn về cửa hàng',
         RETURNED: 'đã được xác nhận hoàn trả', CANCELLED: 'đã hủy' };
-      const message = previous && !previous.paid && order.paid
-        ? `Đơn ${order.code} đã được ghi nhận thanh toán.`
-        : `Đơn ${order.code} ${states[order.status] ?? 'vừa được cập nhật'}.`;
+      let message = `Đơn ${order.code} ${states[order.status] ?? 'vừa được cập nhật'}.`;
+      if (pickupExpired && order.status === 'CANCELLED') {
+        message = `Đơn ${order.code} đã huỷ vì quá hạn lấy hàng.`;
+      } else if (previous && !previous.paid && order.paid) {
+        message = `Đơn ${order.code} đã được ghi nhận thanh toán.`;
+      } else if (order.status === 'READY' && previous?.status !== 'READY' && order.pickupDeadlineAt) {
+        const parts = pickupDeadlineFormat.formatToParts(order.pickupDeadlineAt);
+        const { hour, minute, day, month, year } = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+        message += ` Vui lòng đến lấy trước ${hour}:${minute} ${day}/${month}/${year}.`;
+      }
       await write(eventId, placed ? 'ProductOrderPlaced' : 'ProductOrderUpdated',
         [{ id: order.customerId, role: 'CUSTOMER', to: `/customer/product-orders?order=${id}` }],
         placed ? 'Đặt hàng thành công' : 'Cập nhật đơn mua sản phẩm', message, session);

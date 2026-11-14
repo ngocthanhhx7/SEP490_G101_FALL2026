@@ -11,6 +11,7 @@ import { productSalesModels } from '../../src/models/product.model.js';
 import { petCareModels } from '../../src/models/pet-care.model.js';
 import { userModel } from '../../src/models/user.model.js';
 import { createProductOrderManagementService } from '../../src/services/product-sales/product-order-management.service.js';
+import * as productOrderManagement from '../../src/services/product-sales/product-order-management.service.js';
 import { readProductOrderTabCounts } from '../../src/services/product-sales/product-order-tab-counts.js';
 import { identityModels } from '../../src/models/identity.model.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
@@ -81,14 +82,14 @@ const returning = async (order, carrierReason = 'Customer not at home') => {
 const returnLines = async (entries) => Promise.all(entries.map(async ([code, resellableQuantity]) => ({ productId: await idOf(code), resellableQuantity })));
 const confirmBody = async (entries, extra = {}) => ({ reason: 'CUSTOMER_REFUSED', lines: await returnLines(entries), ...extra });
 
-function salesApp({ connection, enabled = true, includeCommonDashboard = false, commonFirst = false }) {
+function salesApp({ connection, enabled = true, includeCommonDashboard = false, commonFirst = false, pickupDeadlineHours, clock = Date.now }) {
   const sessionService = { authenticate: async (req) => {
     const actor = actors[req.get('x-test-actor')];
-    return actor ? { ...actor, expiresAt: Date.now() + 60000 } : null;
+    return actor ? { ...actor, expiresAt: clock() + 60000 } : null;
   }, verifyCsrf: async (_actor, token) => token === 'synthetic-csrf' };
-  const config = { auth: { enabled: true, ...CONTACT_KEYS } };
+  const config = { auth: { enabled: true, ...CONTACT_KEYS }, pickupDeadlineHours };
   const env = { PRODUCT_SALES_ENABLED: String(enabled) };
-  const options = { config, connection, env, sessionService };
+  const options = { config, connection, env, sessionService, clock };
   const sales = productSalesRuntimeModules(options);
   const common = includeCommonDashboard ? [dashboardReadRuntimeModule(options)] : [];
   const app = express();
@@ -606,6 +607,173 @@ describe('pickup orders', () => {
     const delivery = await placeDelivery('a', 'SP-0012', 1);
     expect((await act(delivery, 'mark-ready')).body.error.code).toBe('ORDER_STATE_CONFLICT');
     expect((await act(delivery, 'record-payment')).body.error.code).toBe('ORDER_STATE_CONFLICT');
+  });
+});
+
+describe('JOB-04 pickup deadlines', () => {
+  const now = Date.parse('2026-11-14T17:05:00Z');
+  const due = new Date(now);
+  const orderDoc = (order) => models.ProductOrder.findById(order.id).lean();
+  const orderNotices = (order) => connection.db.collection('notifications').find({ eventId: { $regex: '^product-order:' + order.id + ':' } }).toArray();
+  const refusals = (order) => models.ProductCustomerRefusal.find({ orderId: order.id }).lean();
+  const expiry = () => productOrderManagement.createProductPickupExpiryService({ connection, clock: () => now });
+
+  async function readyPickup(fields = { pickupDeadlineAt: due }, productCode = 'SP-0020') {
+    const order = await placePickup('a', productCode, 1);
+    await act(order, 'mark-ready').expect(200);
+    await models.ProductOrder.collection.updateOne({ _id: new mongoose.Types.ObjectId(order.id) }, { $set: fields });
+    return order;
+  }
+
+  async function markReadyAt(order, time, pickupDeadlineHours) {
+    const app = salesApp({ connection, pickupDeadlineHours, clock: () => time });
+    const testServer = createServer(app);
+    await new Promise(resolve => testServer.listen(0, '127.0.0.1', resolve));
+    const origin = 'http://127.0.0.1:' + testServer.address().port;
+    try {
+      await request(origin).post(MANAGE + '/' + order.id + '/mark-ready').set('Origin', origin)
+        .set('x-test-actor', 'saleStaff').set('X-CSRF-Token', 'synthetic-csrf').send({}).expect(200);
+    } finally {
+      await new Promise(resolve => testServer.close(resolve));
+    }
+  }
+
+  test('AC-17 stores the configured deadline from mark ready even with JOB-04 disabled', async () => {
+    const order = await placePickup('a', 'SP-0020', 1);
+    await markReadyAt(order, now, 2);
+    expect(await orderDoc(order)).toMatchObject({ status: 'READY', pickupDeadlineAt: new Date(now + 2 * 3_600_000) });
+    expect(await product('SP-0020')).toMatchObject({ quantityHeld: 1, stockOnHand: 32 });
+  });
+
+  test('AC-17 and GBR-46 notify the exact Vietnam deadline with JOB-04 disabled', async () => {
+    const order = await placePickup('a', 'SP-0020', 1);
+    await markReadyAt(order, now - 72 * 3_600_000, 72);
+    expect(await orderNotices(order)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ eventId: 'product-order:' + order.id + ':1', role: 'CUSTOMER',
+        message: 'Đơn ' + order.code + ' đã sẵn sàng để nhận tại cửa hàng. Vui lòng đến lấy trước 00:05 15/11/2026.' })
+    ]));
+  });
+
+  test('AC-22 cancels at the exact deadline, releases only held stock and records one refusal on replay', async () => {
+    const order = await readyPickup();
+    const job = expiry();
+    expect(await job.runBatch()).toMatchObject({ cancelled: 1, failed: 0 });
+    expect(await job.runBatch()).toMatchObject({ cancelled: 0, failed: 0 });
+    expect(await orderDoc(order)).toMatchObject({ status: 'CANCELLED', version: 2, refundMarked: false });
+    expect(await product('SP-0020')).toMatchObject({ quantityHeld: 0, stockOnHand: 32 });
+    expect(await refusals(order)).toEqual([expect.objectContaining({ reason: 'NOT_COLLECTED', occurredAt: due })]);
+  });
+
+  const cancellationNotices = async (order) => (await orderNotices(order))
+    .filter((notice) => notice.eventId === 'product-order:' + order.id + ':2');
+
+  test('GBR-46 sends one expiry notice even when the job runs again', async () => {
+    const expired = await readyPickup();
+    const job = expiry();
+    await job.runBatch();
+    await job.runBatch();
+    expect(await cancellationNotices(expired)).toEqual([expect.objectContaining({
+      message: 'Đơn ' + expired.code + ' đã huỷ vì quá hạn lấy hàng.',
+      deepLink: '/customer/product-orders?order=' + expired.id
+    })]);
+  });
+
+  test('GBR-46 preserves the manual cancellation wording', async () => {
+    const manual = await readyPickup();
+    await act(manual, 'cancel').expect(200);
+    expect(await cancellationNotices(manual)).toEqual([expect.objectContaining({
+      message: 'Đơn ' + manual.code + ' đã hủy.'
+    })]);
+  });
+
+  test('JOB-04 skips future, legacy undated, paid-at-shop, delivery, counter and placed orders', async () => {
+    const future = await readyPickup({ pickupDeadlineAt: new Date(now + 1) });
+    const legacy = await readyPickup();
+    await models.ProductOrder.collection.updateOne({ _id: new mongoose.Types.ObjectId(legacy.id) }, { $unset: { pickupDeadlineAt: '' } });
+    const paid = await readyPickup({ pickupDeadlineAt: due, paid: true });
+    const delivery = await readyPickup({ pickupDeadlineAt: due, receiveMethod: 'DELIVERY' });
+    const counter = await readyPickup({ pickupDeadlineAt: due, channel: 'COUNTER' });
+    const placed = await placePickup('a', 'SP-0020', 1);
+    await models.ProductOrder.collection.updateOne({ _id: new mongoose.Types.ObjectId(placed.id) }, { $set: { pickupDeadlineAt: due } });
+    expect(await expiry().runBatch()).toMatchObject({ cancelled: 0, failed: 0 });
+    for (const order of [future, legacy, paid, delivery, counter]) {
+      expect(await orderDoc(order)).toMatchObject({ status: 'READY', version: 1 });
+      expect(await refusals(order)).toEqual([]);
+    }
+    expect(await orderDoc(placed)).toMatchObject({ status: 'PLACED' });
+    expect(await product('SP-0020')).toMatchObject({ quantityHeld: 6, stockOnHand: 32 });
+  });
+
+  test('GBR-37 marks a paid PREPAID pickup for refund and handles old online orders without channel', async () => {
+    const order = await readyPickup({ pickupDeadlineAt: new Date(now - 1), paymentMethod: 'PREPAID', paid: true });
+    await models.ProductOrder.collection.updateOne({ _id: new mongoose.Types.ObjectId(order.id) }, { $unset: { channel: '' } });
+    expect(await expiry().runBatch()).toMatchObject({ cancelled: 1, failed: 0 });
+    expect(await orderDoc(order)).toMatchObject({ status: 'CANCELLED', paid: true, refundMarked: true });
+    expect(await refusals(order)).toHaveLength(1);
+  });
+
+  test('JOB-04 processes at most 100 orders per run, starting with the oldest deadline', async () => {
+    const order = await readyPickup();
+    const { _id, code, idempotencyKey, ...fixture } = await orderDoc(order);
+    const older = Array.from({ length: 100 }, (_, index) => ({
+      ...fixture,
+      code: code + '-' + index,
+      idempotencyKey: idempotencyKey + '-' + index,
+      pickupDeadlineAt: new Date(now - 1)
+    }));
+    await models.Product.updateOne({ code: 'SP-0020' }, { $set: { stockOnHand: 101, quantityHeld: 101 } });
+    await models.ProductOrder.collection.insertMany(older);
+    const job = expiry();
+    expect(await job.runBatch()).toMatchObject({ cancelled: 100, failed: 0 });
+    expect(await models.ProductOrder.findById(_id).lean()).toMatchObject({ status: 'READY' });
+    expect(await product('SP-0020')).toMatchObject({ quantityHeld: 1, stockOnHand: 101 });
+    expect(await job.runBatch()).toMatchObject({ cancelled: 1, failed: 0 });
+    expect(await orderDoc(order)).toMatchObject({ status: 'CANCELLED' });
+  });
+
+  test.each([
+    ['record-payment', {}, 'READY', 1, 32],
+    ['hand-to-customer', { paymentMethod: 'PREPAID', paid: true }, 'PICKED_UP', 0, 31]
+  ])('GBR-35 keeps stock consistent when JOB-04 races with %s', async (action, fields, staffStatus, held, stockOnHand) => {
+    const order = await readyPickup({ pickupDeadlineAt: due, ...fields });
+    const [staff, batch] = await Promise.all([
+      api('saleStaff').post(MANAGE + '/' + order.id + '/' + action).send({}), expiry().runBatch()
+    ]);
+    expect(batch.failed).toBe(0);
+    expect(await orderDoc(order)).toMatchObject({ version: 2 });
+    if (staff.status === 200) {
+      expect(batch.cancelled).toBe(0);
+      expect(await orderDoc(order)).toMatchObject({ status: staffStatus, paid: true, refundMarked: false });
+      expect(await product('SP-0020')).toMatchObject({ quantityHeld: held, stockOnHand });
+      expect(await refusals(order)).toEqual([]);
+    } else {
+      expect(staff.status).toBe(409);
+      expect(staff.body.error.code).toBe('ORDER_STATE_CONFLICT');
+      expect(batch.cancelled).toBe(1);
+      expect(await orderDoc(order)).toMatchObject({ status: 'CANCELLED' });
+      expect(await product('SP-0020')).toMatchObject({ quantityHeld: 0, stockOnHand: 32 });
+      expect(await refusals(order)).toHaveLength(1);
+    }
+  });
+
+  test('AC-22 rolls back a DB write failure for one order and retries it on the next run', async () => {
+    const failing = await readyPickup();
+    const other = await readyPickup({ pickupDeadlineAt: due }, 'SP-0012');
+    const notificationCollection = connection.db.collection('notifications');
+    await connection.db.command({ collMod: notificationCollection.collectionName,
+      validator: { eventId: { $ne: 'product-order:' + failing.id + ':2' } } });
+    try {
+      expect(await expiry().runBatch()).toMatchObject({ cancelled: 1, failed: 1 });
+      expect(await orderDoc(failing)).toMatchObject({ status: 'READY', version: 1 });
+      expect(await product('SP-0020')).toMatchObject({ quantityHeld: 1, stockOnHand: 32 });
+      expect(await refusals(failing)).toEqual([]);
+      expect((await orderNotices(failing)).map(row => row.eventId)).not.toContain('product-order:' + failing.id + ':2');
+      expect(await orderDoc(other)).toMatchObject({ status: 'CANCELLED' });
+    } finally {
+      await connection.db.command({ collMod: notificationCollection.collectionName, validator: {} });
+    }
+    expect(await expiry().runBatch()).toMatchObject({ cancelled: 1, failed: 0 });
+    expect(await orderDoc(failing)).toMatchObject({ status: 'CANCELLED' });
   });
 });
 

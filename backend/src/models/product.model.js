@@ -134,6 +134,7 @@ export function productSalesModels(connection) {
         paid: { type: Boolean, default: false },
         trackingCode: { type: String, maxlength: 64 },
         status: { type: String, enum: [...new Set([...PRODUCT_ORDER_STATUSES, ...COUNTER_ORDER_STATUSES])], default: 'PLACED' },
+        pickupDeadlineAt: { type: Date },
         deliveredAt: { type: Date },
         // Entered when the order goes back (the carrier's own words), then the shop's reason when it confirms the return.
         carrierReturnReason: { type: String, maxlength: PRODUCT_RETURN_LIMITS.carrierReasonMax },
@@ -153,7 +154,8 @@ export function productSalesModels(connection) {
         [{ customerId: 1, idempotencyKey: 1 }, { unique: true }],
         [{ status: 1, createdAt: -1 }, {}],
         [{ counterCreatedBy: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { channel: COUNTER_CHANNEL } }],
-        [{ channel: 1, status: 1, createdAt: 1, _id: 1 }, {}]
+        [{ channel: 1, status: 1, createdAt: 1, _id: 1 }, {}],
+        [{ status: 1, receiveMethod: 1, pickupDeadlineAt: 1, _id: 1 }, {}]
       ]
     },
     // One record per refused order (the order id is unique, so a refusal is never counted twice).
