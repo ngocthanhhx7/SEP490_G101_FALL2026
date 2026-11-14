@@ -7,6 +7,7 @@ export const PRODUCT_RECEIVE_METHODS = Object.freeze(['DELIVERY', 'PICKUP']);
 // it cannot be chosen when placing an order until online payment is built.
 export const PRODUCT_PAYMENT_METHODS = Object.freeze(['COD', 'PAY_AT_SHOP', 'PREPAID']);
 export const PRODUCT_PREPAID_PAYMENT_METHODS = Object.freeze(['PREPAID']);
+export const DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS = 72;
 export const PRODUCT_ORDER_STATUSES = Object.freeze([
   'PLACED',
   'HANDED_TO_CARRIER',
@@ -47,7 +48,7 @@ export const PRODUCT_DEMO_SHIPPING_FEE_VND = 25000;
 
 // Why a delivery order came back (R3 return reasons). Only CUSTOMER_REFUSED counts as a refusal against the customer.
 export const PRODUCT_RETURN_REASONS = Object.freeze(['CUSTOMER_REFUSED', 'CARRIER_UNDELIVERABLE', 'SHOP_FAULT']);
-export const PRODUCT_REFUSAL_REASONS = Object.freeze(['REFUSED_DELIVERY']);
+export const PRODUCT_REFUSAL_REASONS = Object.freeze(['REFUSED_DELIVERY', 'NOT_COLLECTED']);
 export const PRODUCT_RETURN_LIMITS = Object.freeze({ carrierReasonMax: 300, noteMax: 500 });
 
 // Product Management (R3 UC-57): codes are SP-0001 to SP-9999, handed out by the system on the first save and never changed.

@@ -75,7 +75,9 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     encryptionKey: config.auth.contactEncryptionKey
   });
   const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
-  const management = createProductOrderManagementController(createProductOrderManagementService({ connection, phones, clock }));
+  const management = createProductOrderManagementController(createProductOrderManagementService({
+    connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours
+  }));
   const managementRouter = Router();
   managementRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_ORDERS));
   managementRouter.get('/', management.list);
