@@ -15,6 +15,7 @@ import { provisionGroomingStorage } from '../../src/services/grooming/grooming-s
 import { createGroomingShopServices } from '../../src/services/grooming/grooming-shop-services.service.js';
 import { createShopShiftSource } from '../../src/services/grooming/shop-shift-source.service.js';
 import { createGroomingSlots } from '../../src/services/grooming/grooming-slots.service.js';
+import { createGroomingDiscountHold } from '../../src/services/grooming/grooming-discount-hold.service.js';
 import { createPricingRepository } from '../../src/services/pricing/pricing.repository.js';
 import { groomingModels } from '../../src/models/grooming-appointment.model.js';
 import { payrollModels } from '../../src/models/payroll.model.js';
@@ -361,6 +362,64 @@ describe('final price', () => {
     await call('post', '/quotes').send({ pets: [{ ...good, serviceIds: [String(oid())] }] }).expect(409);
     // The cat is not supported by a dog-only service; the shop catalog has no such service, so a cat price still works.
     expect((await call('post', '/quotes').send({ pets: [pet('Muop', ['ear-eye-cleaning'])] }).expect(200)).body.data.pets[0].priceVnd).toBeGreaterThan(0);
+  });
+});
+
+describe('discount hold rule', () => {
+  const customerId = () => new mongoose.Types.ObjectId(actors.CUSTOMER.userId);
+  const refusals = count => product.ProductCustomerRefusal.collection.insertMany(Array.from({ length: count }, () => ({ customerId: customerId(), orderId: oid() })));
+  const hold = refusalLimit => createGroomingDiscountHold({ connection, refusalLimit });
+
+  test.each([undefined, ''])('an unset limit (%j) falls back to the default of two refusals', async value => {
+    await refusals(2);
+    expect(await hold(value).read(actors.CUSTOMER.userId)).toBeNull();
+    await refusals(1);
+    expect(await hold(value).read(actors.CUSTOMER.userId)).toBe('PREPAID_ONLY');
+  });
+
+  test.each([2, '-1', '1.5', 'abc', ' 3', '1e3', '9007199254740993', null])('a limit of %j is refused when the hold is created', value => {
+    expect(() => hold(value)).toThrow(new TypeError('PRODUCT_REFUSAL_LIMIT must be a non-negative safe integer'));
+  });
+
+  test('the limit is inclusive: exactly the limit still gets the discount, one more does not', async () => {
+    await refusals(3);
+    expect(await hold('3').read(actors.CUSTOMER.userId)).toBeNull();
+    expect(await hold('2').read(actors.CUSTOMER.userId)).toBe('PREPAID_ONLY');
+    expect(await hold('0').read(actors.CUSTOMER.userId)).toBe('PREPAID_ONLY');
+  });
+
+  test('a limit of zero blocks nothing until the first refusal', async () => {
+    expect(await hold('0').read(actors.CUSTOMER.userId)).toBeNull();
+    await refusals(1);
+    expect(await hold('0').read(actors.CUSTOMER.userId)).toBe('PREPAID_ONLY');
+  });
+
+  test('the largest safe integer is accepted and counts without a cap', async () => {
+    await refusals(5);
+    expect(await hold(String(Number.MAX_SAFE_INTEGER)).read(actors.CUSTOMER.userId)).toBeNull();
+  });
+
+  test('refusals of another customer are not counted', async () => {
+    await product.ProductCustomerRefusal.collection.insertMany([1, 2, 3].map(() => ({ customerId: oid(), orderId: oid() })));
+    expect(await hold('2').read(actors.CUSTOMER.userId)).toBeNull();
+  });
+
+  test('a bill is overdue by its payment state or by an overdue booking that is not paid', async () => {
+    const id = customerId();
+    expect(await hold('2').read(actors.CUSTOMER.userId)).toBeNull();
+    await db.collection('bookings').insertOne({ customerId: id, state: 'OVERDUE', paymentState: 'PAID' });
+    expect(await hold('2').read(actors.CUSTOMER.userId)).toBeNull();
+    await db.collection('bookings').insertOne({ customerId: id, state: 'OVERDUE', paymentState: 'UNPAID' });
+    expect(await hold('2').read(actors.CUSTOMER.userId)).toBe('OVERDUE');
+    await db.collection('bookings').deleteMany({});
+    await db.collection('bookings').insertOne({ customerId: oid(), paymentState: 'OVERDUE' });
+    expect(await hold('2').read(actors.CUSTOMER.userId)).toBeNull();
+  });
+
+  test('too many refusals are reported before an overdue bill', async () => {
+    await refusals(3);
+    await db.collection('bookings').insertOne({ customerId: customerId(), paymentState: 'OVERDUE' });
+    expect(await hold('2').read(actors.CUSTOMER.userId)).toBe('PREPAID_ONLY');
   });
 });
 
