@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CalendarCheck, Check, RefreshCw, Users, UserRound, Sparkles } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { hasRole } from '../../utils/role-access.js';
@@ -10,6 +10,7 @@ import { ApiError, createApiClient } from '../../services/api-client.js';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
 import { formatCatalogPrice } from '../../utils/catalog-format.js';
 import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
+import { groomingPath, homeLocations, isShopOnly } from '../../utils/shop-grooming.js';
 import { serviceVisual } from './service-visuals.js';
 import { BookingConfirmation } from './BookingCheckout.jsx';
 import './service-booking.css';
@@ -70,7 +71,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
   }, [api]);
   const setup = useApiResource(load), [step, setStep] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [petIds, setPetIds] = useState([]), [units, setUnits] = useState(1), [count, setCount] = useState(1), [starts, setStarts] = useState(['']);
-  const [location, setLocation] = useState(service.details?.locations?.[0] ?? 'HOME'), [addressId, setAddressId] = useState('');
+  const [location, setLocation] = useState(homeLocations(service)[0] ?? 'HOME'), [addressId, setAddressId] = useState('');
   const [mode, setMode] = useState('SYSTEM'), [quote, setQuote] = useState(null), [available, setAvailable] = useState(null), [selected, setSelected] = useState('');
   const [shortlists, setShortlists] = useState(null), [consent, setConsent] = useState(false), [uncertain, setUncertain] = useState(false);
   const command = useRef(null), locked = useRef(false), generation = useRef(0);
@@ -164,7 +165,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
       <fieldset className="booking-fields" disabled={busy}>
         {['tiếng', '30 phút', 'ngày', 'km'].includes(unit) && <label>{unit === 'ngày' ? 'Số ngày mỗi lượt' : unit === 'km' ? 'Khoảng cách mỗi lượt (km)' : 'Số đơn vị mỗi lượt ('+unit+')'}<input type="number" required min={unit === 'km' ? .001 : 1} max={boarding ? 60 : unit === 'km' ? 1000 : unit === 'tiếng' ? 24 : 48} step={unit === 'km' ? .001 : 1} value={units} onChange={event => { invalidate(); setUnits(event.target.value); }} /></label>}
         <label>Số buổi<input type="number" min="1" max="60" required value={count} onChange={event => { invalidate(); const value = Number(event.target.value); setCount(event.target.value); if (value >= 1 && value <= 60) setStarts(current => Array.from({ length: value }, (_, index) => current[index] ?? '')); }} /></label>
-        <label>Địa điểm<select value={location} onChange={event => { invalidate(); setLocation(event.target.value); }}>{(service.details?.locations ?? ['HOME']).map(value => <option key={value} value={value}>{locations[value]}</option>)}</select></label>
+        <label>Địa điểm<select value={location} onChange={event => { invalidate(); setLocation(event.target.value); }}>{homeLocations(service).map(value => <option key={value} value={value}>{locations[value]}</option>)}</select></label>
         {needsAddress ? <label>Địa chỉ đã xác nhận<select value={addressId} required onChange={event => { invalidate(); setAddressId(event.target.value); }}><option value="">Chọn địa chỉ</option>{addresses.map(address => <option key={address.id || address._id} value={address.id || address._id}>{address.label}</option>)}</select></label> : <p>{setup.data.options.facilityAddress ?? 'Địa chỉ cơ sở chưa được cấu hình.'}</p>}
         {starts.map((start, index) => <label key={index}>Buổi {index+1} (giờ Việt Nam)<input type="datetime-local" required value={start} onChange={event => { invalidate(); setStarts(current => current.map((value, i) => i === index ? event.target.value : value)); }} /></label>)}
       </fieldset>
@@ -208,6 +209,8 @@ export function ServiceBookingPage({ loadCatalog = loadPublicCatalog }) {
   const matching = useMemo(() => createSitterRecommendationApi({ request: createApiClient({ getCsrfToken: session.getCsrfToken }) }), [session.getCsrfToken]);
   if (catalog.status === 'loading') return <main className="pwc-page"><p role="status">Đang tải dịch vụ…</p></main>;
   if (!service) return <main className="pwc-page"><h1>Dịch vụ chưa khả dụng</h1><Link to="/services">Về danh mục</Link><button onClick={catalog.retry}>Tải lại</button></main>;
+  // After every hook. A shop-only service has no home visit to book here; `?booking=` is the confirmation of a booking just made.
+  if (isShopOnly(service) && !params.get('booking')) return <Navigate to={groomingPath(service)} replace />;
   const visual = serviceVisual(service);
   return <main className="pwc-page service-booking"><nav aria-label="Đường dẫn"><Link to="/services">Dịch vụ</Link> / <Link to={'/services/'+service.id}>{service.name}</Link> / Đặt lịch</nav>
     <header className="booking-service"><img src={visual.src} alt={visual.alt} /><div><p>Đặt dịch vụ</p><h1>{service.name}</h1><p>{formatCatalogPrice(service.price)}</p></div></header>
