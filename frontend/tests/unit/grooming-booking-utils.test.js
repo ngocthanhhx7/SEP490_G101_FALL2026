@@ -47,6 +47,9 @@ describe('the pets of the order', () => {
     expect(petKindLabel({ species: 'DOG', weightKg: 12 })).toBe('Chó · 12 kg');
     expect(petKindLabel({ species: 'CAT', weightKg: 4 })).toBe('Mèo · 4 kg');
     expect(petKindLabel({ species: 'CAT' })).toBe('Mèo');
+    expect(petKindLabel({ species: 'DOG', breedName: 'Corgi', weightKg: 12 })).toBe('Chó Corgi · 12 kg');
+    expect(petKindLabel({ species: 'DOG', breedCode: 'dog-mixed', weightKg: 12 })).toBe('Chó · 12 kg');
+    expect(petKindLabel({ species: 'CAT', breedName: '  ', weightKg: 4 })).toBe('Mèo · 4 kg');
   });
 });
 

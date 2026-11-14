@@ -8,7 +8,7 @@ import { GroomingPetsSection } from '../../components/grooming/GroomingPetsSecti
 import { GroomingQuestionsSection } from '../../components/grooming/GroomingQuestionsSection.jsx';
 import { GroomingSlotsSection } from '../../components/grooming/GroomingSlotsSection.jsx';
 import { GroomingPriceSummary } from '../../components/grooming/GroomingPriceSummary.jsx';
-import { msg65 } from '../../constants/grooming-messages.js';
+import { GROOMING_TIERS, msg65 } from '../../constants/grooming-messages.js';
 import { appointmentLabel } from '../../utils/grooming-booking.js';
 import { formatVnd } from '../../utils/product-format.js';
 import { hasRole } from '../../utils/role-access.js';
@@ -23,7 +23,7 @@ function Booked({ appointment, onAnother }) {
       <div><dt>Giờ hẹn</dt><dd>{appointmentLabel(slot.localDate, slot.startLocalTime)}</dd></div>
       {shop.address && <div><dt>Cửa hàng</dt><dd>{shop.address}</dd></div>}
       {appointment.pets.map(pet => <div key={pet.petId}><dt>{pet.name}</dt><dd>{pet.services.map(service => service.name).join(', ')} · {formatVnd(pet.finalPriceVnd)}</dd></div>)}
-      {pricing.tierDiscountVnd > 0 && <div><dt>Ưu đãi hạng</dt><dd>− {formatVnd(pricing.tierDiscountVnd)}</dd></div>}
+      {pricing.tierDiscountVnd > 0 && <div><dt>Ưu đãi hạng {GROOMING_TIERS[appointment.tier?.code] ?? ''}</dt><dd>− {formatVnd(pricing.tierDiscountVnd)}</dd></div>}
       <div className="grooming-grand"><dt>Tổng</dt><dd>{formatVnd(pricing.totalVnd)}</dd></div>
     </dl>
     <div className="grooming-actions">

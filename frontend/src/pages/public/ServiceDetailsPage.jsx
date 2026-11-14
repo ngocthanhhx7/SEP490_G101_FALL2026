@@ -103,7 +103,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
             {bookingActions(service).map((action, index) => (
               <Link
                 key={action.kind}
-                className={'pwc-button ' + (index === 0 ? 'pwc-button-primary' : 'pwc-button-secondary')}
+                className={'pwc-button ' + (index === 0 ? 'pwc-button-primary' : 'pwc-button-light')}
                 to={action.to}
               >
                 {action.label}

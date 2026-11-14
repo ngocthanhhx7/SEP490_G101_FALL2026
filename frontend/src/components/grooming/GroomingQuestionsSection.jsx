@@ -22,6 +22,6 @@ export function GroomingQuestionsSection({ pets, options, picked, hotline, onAns
         {isReferred(choice) && <p role="alert" className="grooming-inline grooming-inline-warn">{msg63(hotline)}</p>}
       </div>;
     })}
-    <p className="grooming-note">{VERY_RISKY_NOTE}</p>
+    {!rows.some(pet => isReferred(picked[pet.id])) && <p className="grooming-note">{VERY_RISKY_NOTE}</p>}
   </section>;
 }

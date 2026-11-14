@@ -111,6 +111,14 @@ test('"Đặt lịch khác" starts a new booking', async () => {
   expect(confirmButton()).toBeDisabled();
 });
 
+test('the appointment panel names the tier of the discount like the price panel', async () => {
+  const silver = { ...booked, tier: { code: 'SILVER' }, pricing: { ...booked.pricing, tierDiscountVnd: 10000, totalVnd: 190000 } };
+  await fillMilo(fixture({ book: jest.fn(async () => silver) }));
+  await waitFor(() => expect(confirmButton()).toBeEnabled());
+  fireEvent.click(confirmButton());
+  expect((await screen.findByText('Ưu đãi hạng Bạc')).closest('div')).toHaveTextContent('− 10.000 đ');
+});
+
 test('the confirm button waits for a pet, a service, both answers and a time slot', async () => {
   const api = fixture();
   show(api);
@@ -157,9 +165,10 @@ describe('MSG63: a pet that bites or scratches', () => {
     await check(/Milo/); await check(/Bơ/);
     pickServices('Milo', 'Cắt móng'); pickServices('Bơ', 'Tắm và vệ sinh thú cưng');
     answerAll(0);
+    expect(screen.getByText(/Thú rất hung dữ hoặc dễ hoảng sợ không đặt được trên web/)).toBeVisible();
     answerAll(1, 'Có');
     expect(screen.getByText('Vui lòng gọi cửa hàng để đặt lịch tắm và cắt tỉa cho thú này.')).toBeVisible();
-    expect(screen.getByText(/Thú rất hung dữ hoặc dễ hoảng sợ không đặt được trên web/)).toBeVisible();
+    expect(screen.queryByText(/Thú rất hung dữ hoặc dễ hoảng sợ không đặt được trên web/)).not.toBeInTheDocument();
     await waitFor(() => expect(api.quote).toHaveBeenLastCalledWith({ pets: [{ petId: 'milo', serviceIds: ['nail'], answers: { biteOrScratch: 'NO', skinCondition: 'NO' } }] }, expect.anything()));
     expect(api.slots).toHaveBeenLastCalledWith({ date: '2026-11-05', pets: [{ petId: 'milo', serviceIds: ['nail'] }] }, expect.anything());
     fireEvent.click(await screen.findByRole('radio', { name: '10:00' }));
@@ -272,6 +281,13 @@ describe('the page around the form', () => {
     expect(within(screen.getByRole('group', { name: 'Dịch vụ cho Milo' })).getByRole('checkbox', { name: 'Cắt tỉa lông' })).toBeChecked();
     expect(screen.queryByRole('checkbox', { name: 'Cắt tỉa lông' , checked: true })).toBeInTheDocument();
     expect(within(screen.getByRole('group', { name: 'Dịch vụ cho Mướp' })).queryByRole('checkbox', { name: 'Cắt tỉa lông' })).not.toBeInTheDocument();
+    await screen.findByRole('radio', { name: '10:00' });
+  });
+
+  test('the pet line names the breed when the pet record has a breed name, and only kind and weight when it has a code', async () => {
+    show(fixture({ pets: jest.fn(async () => [{ ...pets[0], breedName: 'Corgi' }, { ...pets[1], breedCode: 'dog-mixed' }]) }));
+    expect(await screen.findByText('Chó Corgi · 12 kg')).toBeVisible();
+    expect(screen.getByText('Chó · 4 kg')).toBeVisible();
   });
 
   test('a service the shop has paused is listed but cannot be chosen', async () => {

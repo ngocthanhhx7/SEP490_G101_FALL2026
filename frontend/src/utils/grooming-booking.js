@@ -13,7 +13,8 @@ export function windowDates(firstDate, lastDate) {
   return dates;
 }
 
-export const petKindLabel = pet => `${pet.species === 'CAT' ? 'Mèo' : 'Chó'}${Number.isFinite(pet.weightKg) ? ` · ${pet.weightKg} kg` : ''}`;
+// "Chó Corgi · 12 kg" when the pet record carries a breed name; the pet list only has `breedCode`, so then "Chó · 12 kg".
+export const petKindLabel = pet => `${pet.species === 'CAT' ? 'Mèo' : 'Chó'}${typeof pet.breedName === 'string' && pet.breedName.trim() ? ` ${pet.breedName.trim()}` : ''}${Number.isFinite(pet.weightKg) ? ` · ${pet.weightKg} kg` : ''}`;
 
 // A pet that bites or scratches ("YES") cannot be booked online (MSG63): it stays out of slots, price and booking.
 export const isReferred = choice => choice.answers.biteOrScratch === 'YES';
