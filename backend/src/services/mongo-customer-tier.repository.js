@@ -94,7 +94,7 @@ export function createMongoCustomerTierRepository(connection) {
     readOrders: (ids, session) => boundedRows(col('productorders').find({
       customerId: { $in: ids }, paid: true, status: { $nin: EXCLUDED_ORDER_STATES }
     }, { session, maxTimeMS: QUERY_MS, limit: MAX_SPEND_ROWS + 1,
-      projection: { customerId: 1, paymentMethod: 1, status: 1, total: 1, deliveredAt: 1, createdAt: 1 } })),
+      projection: { customerId: 1, paymentMethod: 1, status: 1, total: 1, deliveredAt: 1, createdAt: 1, 'cashPayment.receivedAt': 1 } })),
 
     beginRun: (run, lease, now) => fenced(lease, now, session => runs.insertOne({ ...run, status: 'COLLECTING' }, { session })),
     stage: (rows, lease, now) => fenced(lease, now, session => results.insertMany(rows, { session })),
