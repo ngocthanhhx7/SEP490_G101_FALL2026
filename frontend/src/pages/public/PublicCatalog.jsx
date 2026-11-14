@@ -3,6 +3,7 @@ import { ArrowUpRight, Clock3, MapPin, PawPrint } from 'lucide-react';
 import { formatCatalogPrice } from '../../utils/catalog-format.js';
 import { serviceVisual } from './service-visuals.js';
 import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
+import { bookingActions } from '../../utils/shop-grooming.js';
 import './service-cards.css';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
@@ -105,12 +106,11 @@ export function PublicServiceCards({ services, actionLabel = 'Xem chi tiết' })
             </div>
             <div className="pwc-service-card-bottom">
               <div className="pwc-card-price"><span>Giá dịch vụ</span><strong>{price || 'Giá chưa được công bố'}</strong></div>
-              <Link
-                className="pwc-button pwc-button-secondary"
-                to={'/booking/' + encodeURIComponent(service.id)}
-              >
-                {actionLabel === 'Xem chi tiết' ? 'Đặt dịch vụ' : actionLabel}<ArrowUpRight size={17} aria-hidden="true" />
-              </Link>
+              {bookingActions(service, actionLabel === 'Xem chi tiết' ? 'Đặt dịch vụ' : actionLabel).map(action => (
+                <Link key={action.kind} className="pwc-button pwc-button-secondary" to={action.to}>
+                  {action.label}<ArrowUpRight size={17} aria-hidden="true" />
+                </Link>
+              ))}
             </div>
           </article>
         );
