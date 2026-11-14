@@ -9,6 +9,7 @@ import {
 } from '../../utils/catalog-format.js';
 import { serviceVisual } from './service-visuals.js';
 import { ServiceFacts } from './ServiceFacts.jsx';
+import { bookingActions } from '../../utils/shop-grooming.js';
 import './service-catalog.css';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
@@ -99,12 +100,15 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
             <strong>{price || 'Giá chưa được công bố'}</strong>
           </p>
           <div className="pwc-service-detail-actions">
-            <Link
-              className="pwc-button pwc-button-primary"
-              to={'/booking/' + encodeURIComponent(service.id)}
-            >
-              Đặt dịch vụ này
-            </Link>
+            {bookingActions(service).map((action, index) => (
+              <Link
+                key={action.kind}
+                className={'pwc-button ' + (index === 0 ? 'pwc-button-primary' : 'pwc-button-secondary')}
+                to={action.to}
+              >
+                {action.label}
+              </Link>
+            ))}
             <a className="pwc-button pwc-button-light" href="#pricing">
               Xem giá dịch vụ
             </a>
