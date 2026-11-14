@@ -2,9 +2,12 @@ import { isApprovedCustomerTierPolicy } from '../config/customer-tier-policy.js'
 import { AppError } from '../utils/app-error.js';
 import { randomUUID } from 'node:crypto';
 import { CUSTOMER_TIERS } from '../models/customer-tier.model.js';
+import { COUNTER_PAYMENT_METHOD } from '../constants/counter-sale-fields.js';
 
 const VIETNAM_OFFSET_MS = 7 * 3600000;
 const PAGE_SIZE = 100;
+// Counter payment methods whose money is dated by cashPayment.receivedAt.
+const COUNTER_RECEIPT_METHODS = new Set([COUNTER_PAYMENT_METHOD]);
 const validMoney = value => Number.isSafeInteger(value) && value >= 0;
 const validDate = value => value instanceof Date && Number.isFinite(value.getTime());
 
@@ -62,6 +65,10 @@ function productSpend(orders, { from, asOf }) {
     // Creation inside the window proves inclusion without asserting it is the payment time.
     if (order.paymentMethod === 'PAY_AT_SHOP' && validDate(order.createdAt) && order.createdAt >= from) {
       recordedAt = order.createdAt;
+    }
+    // A counter sale is paid at the till; a missing receipt time is left empty so the customer keeps the tier.
+    if (COUNTER_RECEIPT_METHODS.has(order.paymentMethod) && validDate(order.cashPayment?.receivedAt)) {
+      recordedAt = order.cashPayment.receivedAt;
     }
     if (validDate(order.createdAt) && order.createdAt >= asOf) recordedAt = order.createdAt;
     return { customerId: order.customerId, amountVnd: order.total, recordedAt };
