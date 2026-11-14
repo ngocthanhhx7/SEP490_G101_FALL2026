@@ -5,8 +5,8 @@ import { groomingWindow } from '../../utils/grooming-slot-time.js';
 import { groomingQuoteInput, groomingSlotsInput } from '../../validators/grooming-booking.validator.js';
 import { fail } from '../../validators/pet-care.validator.js';
 
-// Customer-facing shop grooming reads (UC-58 steps 1 to 5): options, time slots and the final price.
-export function createGroomingService({ shopServices, slots, pricing, facilityAddress = null, hotline = null, clock = Date.now }) {
+// Customer-facing shop grooming (UC-58): the reads of steps 1 to 4 (options, time slots, final price) and the booking of step 5.
+export function createGroomingService({ shopServices, slots, pricing, booking, facilityAddress = null, hotline = null, clock = Date.now }) {
   function customerId(actor) {
     if (actor?.state !== 'ACTIVE' || !actor.roles?.includes('CUSTOMER') || actor.synthetic) fail('FORBIDDEN', 'Customer required', 403);
     return actor.userId;
@@ -23,6 +23,9 @@ export function createGroomingService({ shopServices, slots, pricing, facilityAd
       };
     },
     slots: (actor, body) => slots.list(customerId(actor), groomingSlotsInput(body)),
-    quote: (actor, body) => pricing.quote(customerId(actor), groomingQuoteInput(body))
+    quote: (actor, body) => pricing.quote(customerId(actor), groomingQuoteInput(body)),
+    book: (actor, body, idempotencyKey) => booking.book(customerId(actor), body, idempotencyKey),
+    listAppointments: (actor, query) => booking.list(customerId(actor), query),
+    readAppointment: (actor, id) => booking.read(customerId(actor), id)
   };
 }

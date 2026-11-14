@@ -23,3 +23,10 @@ export const GROOMING_QUESTIONS = Object.freeze([
   Object.freeze({ code: 'skinCondition', text: 'Có bệnh da hoặc vết thương không?',
     answers: Object.freeze([['NO', 'Không'], ['YES', 'Có']]), blocking: Object.freeze([]) })
 ]);
+
+// Booking (GBR-40): the appointment code, and which existing appointments keep a pet busy (Q6).
+export const GROOMING_CODE_PREFIX = 'GR-';
+export const GROOMING_CODE_COUNTER_ID = 'appointment-code';
+export const GROOMING_BLOCKING_APPOINTMENT_STATUSES = Object.freeze(['BOOKED', 'CHECKED_IN']);
+export const GROOMING_RELEASED_PET_STATUS = 'CANCELLED_NO_CHARGE';
+export const GROOMING_IDEMPOTENCY_KEY = /^[\x21-\x7e]{8,200}$/u;
