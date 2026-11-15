@@ -5,7 +5,7 @@ import { schedulingKey } from '../../validators/employee-scheduling.validator.js
 import { bookingChangeDecision, bookingChangeInput, bookingChangeQuery } from '../../validators/booking-change.validator.js';
 import { activeItems, createBookingChangeStore, oid, RECHECK_MS } from './booking-change-store.js';
 import { assertSchedule, BOOKING_CHANGE_STATES, buildChangeItems, changeDeadline, checkLeadTime, chooseChange,
-  futureVisit, HOUR, resultingSchedule, scheduleViolation, visitSlots } from './booking-change-policy.js';
+  futureVisit, hasOldVisitChangeLeadTime, resultingSchedule, scheduleViolation, visitSlots } from './booking-change-policy.js';
 import { assessAssignments, hasChanged, moveVisits, visitChanged } from './booking-change-assignments.js';
 
 const BATCH_SIZE = 25;
@@ -132,17 +132,20 @@ export function createBookingChangeService({ connection, repository, notificatio
         const enabled = await canChange(booking, rows, session);
         const future = enabled ? visitSlots(rows).filter(({ visit }) => futureVisit(visit, at)) : [];
         const names = await store.names(future.map(({ visit }) => visit.sitterId), session);
-        const slotNumbers = [...new Set(future.filter(({ visit }) => visit.startAt - at >= 12 * HOUR)
-          .map(({ slot }) => slot + 1))].sort((a, b) => a - b);
-        return {
-          serverNow: at, bookingId: String(booking._id), bookingCode: bookingCode(booking), slotNumbers,
-          canChangeBooking: slotNumbers.length > 0,
-          visits: future.map(({ visit, slot }) => ({
+        const visitOptions = future.map(({ visit, slot }) => {
+          const canSelect = hasOldVisitChangeLeadTime(visit, at);
+          return {
             id: String(visit._id), customerVisitId: visit.customerVisitId ?? null, slotNumber: slot + 1,
             startAt: visit.startAt, endAt: visit.endAt, sitterName: names.get(String(visit.sitterId)) ?? null,
             serviceName: visit.snapshots?.serviceName ?? null, priceVnd: bookedPrice(visit),
-            canSelect: visit.startAt - at >= 12 * HOUR, keepsOldTime: visit.startAt - at < 12 * HOUR
-          }))
+            canSelect, keepsOldTime: !canSelect
+          };
+        });
+        const slotNumbers = [...new Set(visitOptions.filter(({ canSelect }) => canSelect)
+          .map(({ slotNumber }) => slotNumber))].sort((a, b) => a - b);
+        return {
+          serverNow: at, bookingId: String(booking._id), bookingCode: bookingCode(booking), slotNumbers,
+          canChangeBooking: slotNumbers.length > 0, visits: visitOptions
         };
       });
     },
