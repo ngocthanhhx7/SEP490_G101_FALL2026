@@ -5,7 +5,7 @@ import { AppRoutes } from '../../src/routes/AppRoutes.jsx';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 
 const bookingId = 'a'.repeat(24);
-const serverNow = '2026-11-04T00:12:00.000Z';
+const serverNow = '2026-11-03T10:01:00.000Z';
 const serviceName = 'Dắt chó đi dạo';
 const sampleVisits = [
   { id: 'b'.repeat(24), slotNumber: 2, startAt: '2026-11-04T10:00:00.000Z', endAt: '2026-11-04T10:30:00.000Z',
@@ -74,7 +74,7 @@ function submitted() {
   return globalThis.fetch.mock.calls.filter(([path]) => path === submitPath).map(([, request]) => request);
 }
 
-test('UC-84 opens the selected visit, hides the near visit action and submits Vietnam time', async () => {
+test('UC-84 hides the visit action at 23 hours 59 minutes and submits another visit in Vietnam time', async () => {
   show();
   const dialog = await openSingle();
   expect(screen.queryByRole('button', { name: /Đổi giờ buổi .*04\/11\/2026/, hidden: true })).toBeNull();
@@ -90,7 +90,19 @@ test('UC-84 opens the selected visit, hides the near visit action and submits Vi
   expect(request.headers.get('Idempotency-Key')).toBeTruthy();
 });
 
-test('UC-84 whole booking identifies the unchanged visit and sends times in slot order', async () => {
+test('UC-84 shows the visit action at exactly 24 hours based on server options', async () => {
+  const [firstVisit, ...laterVisits] = sampleVisits;
+  show({ options: {
+    ...eligibleOptions, serverNow: '2026-11-03T10:00:00.000Z',
+    visits: [{ ...firstVisit, canSelect: true, keepsOldTime: false }, ...laterVisits]
+  } });
+  const button = await screen.findByRole('button', { name: /Đổi giờ buổi .*04\/11\/2026.*17:00/ });
+  fireEvent.click(button);
+  const dialog = within(await screen.findByRole('dialog', { name: 'Gửi yêu cầu đổi giờ' }));
+  expect(dialog.getByLabelText(/Buổi cần đổi/)).toHaveValue(firstVisit.id);
+});
+
+test('UC-84 whole booking shows the visit with 23 hours 59 minutes in the kept list and sends times in slot order', async () => {
   show();
   fireEvent.click(await screen.findByRole('button', { name: 'Đổi giờ cho cả lịch đặt' }));
   const dialog = within(await screen.findByRole('dialog', { name: 'Gửi yêu cầu đổi giờ' }));
@@ -113,7 +125,7 @@ test('UC-84 hides both change entry points when boarding options are unavailable
 
 test.each([
   ['MSG148', { time: '2026-11-07T00:30:00.000Z' }, 'Buổi 2 phải bắt đầu từ 07:30, khi buổi 1 kết thúc.'],
-  ['MSG54', {}, 'Gửi yêu cầu trước giờ cũ ít nhất 12 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.'],
+  ['MSG54', {}, 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.'],
   ['MSG55', {}, 'Buổi này đã được đổi giờ một lần và không thể đổi lại.'],
   ['MSG149', {}, 'Buổi này đã có yêu cầu đổi giờ đang chờ nhân viên duyệt.'],
   ['BOOKING_CHANGE_STAFF_PROPOSAL_PENDING', {}, 'Buổi này đang có đề xuất đổi giờ của nhân viên chờ bạn xác nhận.'],
