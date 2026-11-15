@@ -10,11 +10,11 @@ Các đường dẫn dưới đây có tiền tố `/api/v1`. Module dùng phiê
 | `GET /staff/booking-change-requests/:id` | Staff/Admin | Trả booking, khách, giờ gửi, hạn, giá, giờ cũ/mới và `AVAILABLE`, `BUSY`, `UNASSIGNED` hoặc `CHANGED` cho các buổi chờ. |
 | `POST /staff/booking-change-requests/:id/decision` | Staff/Admin | Gửi `action: APPROVE\|REJECT` và `expectedVersion`. Trả 200 và `MSG126` hoặc `MSG127`. |
 
-Booking đủ điều kiện thuộc `DISPATCH_PENDING`, `ASSIGNED` hoặc `IN_PROGRESS`, với kế hoạch chăm sóc đã duyệt. Booking trả trước cần biên nhận xác minh đủ tiền. Khi gửi cả lịch, buổi chưa bắt đầu còn dưới 12 giờ giữ giờ cũ và vẫn tham gia kiểm lịch. Thời lượng và giá lấy từ dữ liệu đã chốt. Trạng thái yêu cầu gồm `PENDING`, `APPROVED`, `REJECTED`, `EXPIRED` và `CLOSED`. Hạn bằng giờ sớm nhất giữa giờ cũ và mới trừ 6 giờ, tính lại khi buổi bị huỷ rời yêu cầu.
+Booking đủ điều kiện thuộc `DISPATCH_PENDING`, `ASSIGNED` hoặc `IN_PROGRESS`, với kế hoạch chăm sóc đã duyệt. Booking trả trước cần biên nhận xác minh đủ tiền. Khi gửi cả lịch, buổi chưa bắt đầu còn dưới 24 giờ giữ giờ cũ và vẫn tham gia kiểm lịch. Thời lượng và giá lấy từ dữ liệu đã chốt. Trạng thái yêu cầu gồm `PENDING`, `APPROVED`, `REJECTED`, `EXPIRED` và `CLOSED`. Hạn bằng giờ sớm nhất giữa giờ cũ và mới trừ 6 giờ, tính lại khi buổi bị huỷ rời yêu cầu.
 
 | Mã | Kết quả |
 | --- | --- |
-| `422 MSG54` | Không đạt mốc 12 giờ trước giờ cũ hoặc 24 giờ trước giờ mới. |
+| `422 MSG54` | Không đạt mốc 24 giờ trước giờ cũ hoặc 24 giờ trước giờ mới. |
 | `409 MSG55` | Buổi đã được dời qua một yêu cầu đã duyệt. |
 | `409 MSG149` | Buổi có yêu cầu đổi giờ của khách đang chờ nhân viên duyệt. |
 | `409 BOOKING_CHANGE_STAFF_PROPOSAL_PENDING` | Buổi này đang có đề xuất đổi giờ của nhân viên chờ bạn xác nhận. |
