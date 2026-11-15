@@ -1,14 +1,19 @@
 import { AppError } from '../../utils/app-error.js';
 import { schedulingDate } from '../employee-scheduling/schedule-policy.service.js';
 
-export const HOUR = 3600000;
+const HOUR = 3600000;
 const DAY = 24 * HOUR;
+const MIN_OLD_VISIT_LEAD_MS = 24 * HOUR;
 const CHANGEABLE = new Set(['SCHEDULED', 'OFFERED', 'ASSIGNED']);
 export const BOOKING_CHANGE_STATES = ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'];
-const MINIMUM_LEAD_MESSAGE = 'Gửi yêu cầu trước giờ cũ ít nhất 12 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.';
+const MINIMUM_LEAD_MESSAGE = 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.';
 
 export function futureVisit(visit, now) {
   return CHANGEABLE.has(visit.state) && !visit.checkInAt && visit.startAt > now;
+}
+
+export function hasOldVisitChangeLeadTime(visit, now) {
+  return visit.startAt - now >= MIN_OLD_VISIT_LEAD_MS;
 }
 
 export function visitSlots(visits) {
@@ -28,7 +33,7 @@ export function chooseChange(input, visits, now) {
     return { selected: [{ visit, startAt: input.startAt }], keptVisitIds: [] };
   }
   const slots = visitSlots(visits).filter(({ visit }) => futureVisit(visit, now));
-  const eligible = slots.filter(({ visit }) => visit.startAt - now >= 12 * HOUR);
+  const eligible = slots.filter(({ visit }) => hasOldVisitChangeLeadTime(visit, now));
   if (!eligible.length) throw new AppError(422, 'MSG54', MINIMUM_LEAD_MESSAGE);
   const slotOrder = [...new Set(eligible.map(({ slot }) => slot))].sort((a, b) => a - b);
   if (slotOrder.length !== input.times.length) {
@@ -42,13 +47,13 @@ export function chooseChange(input, visits, now) {
       const newDay = new Date(newFirst + offset).toISOString().slice(0, 10);
       return { visit, startAt: new Date(newDay + 'T' + input.times[slotOrder.indexOf(slot)] + ':00+07:00') };
     }),
-    keptVisitIds: slots.filter(({ visit }) => visit.startAt - now < 12 * HOUR).map(({ visit }) => String(visit._id))
+    keptVisitIds: slots.filter(({ visit }) => !hasOldVisitChangeLeadTime(visit, now)).map(({ visit }) => String(visit._id))
   };
 }
 
 export function checkLeadTime(selected, now) {
   if (selected.some(({ visit, startAt }) => !futureVisit(visit, now) ||
-    visit.startAt - now < 12 * HOUR || startAt - now < DAY)) {
+    !hasOldVisitChangeLeadTime(visit, now) || startAt - now < DAY)) {
     throw new AppError(422, 'MSG54', MINIMUM_LEAD_MESSAGE);
   }
 }

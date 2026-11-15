@@ -10,6 +10,8 @@ import { provisionEmployeeScheduling } from '../../src/services/employee-schedul
 
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
+const MINUTE = 60000;
+const LEAD_MESSAGE = 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.';
 const BASE = Date.parse('2030-01-02T00:00:00+07:00');
 const oid = () => new mongoose.Types.ObjectId();
 const iso = value => new Date(value).toISOString();
@@ -136,19 +138,63 @@ describe('UC-84 customer requests', () => {
   });
 
   test.each([
-    [12 * HOUR, DAY, 201],
-    [12 * HOUR - 60000, DAY, 422],
-    [12 * HOUR, DAY - 60000, 422]
+    [DAY, DAY + HOUR, 201],
+    [DAY + MINUTE, DAY + HOUR, 201],
+    [DAY - MINUTE, DAY + HOUR, 422],
+    [25 * HOUR, DAY, 201],
+    [25 * HOUR, DAY - MINUTE, 422]
   ])('checks the old and new minimum lead times (%d, %d)', async (oldOffset, newOffset, status) => {
     const record = await booking([BASE + oldOffset]);
     const res = await submit(record, single(record.visits[0], BASE + newOffset)).expect(status);
-    if (status === 422) expect(errorCode(res)).toBe('MSG54');
+    if (status === 422) expect(res.body.error).toMatchObject({ code: 'MSG54', message: LEAD_MESSAGE });
     else expect(res.body.data).toMatchObject({ state: 'PENDING', messageCode: 'MSG53' });
     expect((await col('visits').findOne({ _id: record.visits[0]._id })).startAt).toEqual(record.visits[0].startAt);
   });
 
+  test.each([
+    { label: '23 hours 59 minutes', lead: DAY - MINUTE, keepsOldTime: true },
+    { label: '24 hours', lead: DAY, keepsOldTime: false }
+  ])('whole booking handles a visit with $label of notice through approval', async ({ lead, keepsOldTime }) => {
+    const record = await booking([BASE + lead, BASE + 2 * DAY + 8 * HOUR]);
+    const [firstVisit, secondVisit] = record.visits;
+    const firstId = String(firstVisit._id), secondId = String(secondVisit._id);
+    const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
+    expect(options).toMatchObject({ canChangeBooking: true, slotNumbers: [1] });
+    expect(options.visits).toMatchObject([
+      { id: firstId, canSelect: !keepsOldTime, keepsOldTime },
+      { id: secondId, canSelect: true, keepsOldTime: false }
+    ]);
+
+    const change = (await submit(record, whole('2030-01-06', '08:00')).expect(201)).body.data;
+    const moved = keepsOldTime ? [secondVisit] : [firstVisit, secondVisit];
+    expect(change.keptVisitIds).toEqual(keepsOldTime ? [firstId] : []);
+    expect(change.items.map(item => item.visitId)).toEqual(moved.map(visit => String(visit._id)));
+    await decision(change).expect(200);
+
+    for (const [index, visit] of moved.entries()) {
+      const startAt = new Date(Date.parse('2030-01-06T08:00:00+07:00') + index * DAY);
+      expect(await col('visits').findOne({ _id: visit._id })).toMatchObject({ startAt, version: 1 });
+    }
+    if (keepsOldTime) {
+      expect(await col('visits').findOne({ _id: firstVisit._id })).toMatchObject({
+        startAt: firstVisit.startAt, endAt: firstVisit.endAt, version: firstVisit.version
+      });
+    }
+  });
+
+  test('whole booking cannot be changed when every upcoming visit has less than 24 hours of notice', async () => {
+    const record = await booking([BASE + DAY - MINUTE]);
+    const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
+    expect(options).toMatchObject({
+      canChangeBooking: false, slotNumbers: [], visits: [{ canSelect: false, keepsOldTime: true }]
+    });
+    const result = await submit(record, whole('2030-01-06', '08:00')).expect(422);
+    expect(result.body.error).toMatchObject({ code: 'MSG54', message: LEAD_MESSAGE });
+  });
+
   test('whole booking keeps the near visit and preserves the second slot of its day', async () => {
-    const record = await booking([BASE + 7 * HOUR, BASE + 17 * HOUR, BASE + DAY + 7 * HOUR]);
+    const record = await booking([BASE + DAY + 7 * HOUR, BASE + DAY + 17 * HOUR, BASE + 2 * DAY + 7 * HOUR]);
+    now = BASE + 16 * HOUR;
     const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
     expect(options).toMatchObject({ canChangeBooking: true, slotNumbers: [1, 2] });
     expect(options.visits[0]).toMatchObject({ canSelect: false, keepsOldTime: true });
@@ -160,10 +206,11 @@ describe('UC-84 customer requests', () => {
   });
 
   test('an evening-only change exposes slot two and still checks the unchanged schedule', async () => {
-    const record = await booking([BASE + 7 * HOUR, BASE + 17 * HOUR]);
+    const record = await booking([BASE + DAY + 7 * HOUR, BASE + DAY + 17 * HOUR]);
+    now = BASE + 16 * HOUR;
     const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
     expect(options.slotNumbers).toEqual([2]);
-    expect(errorCode(await submit(record, whole('2030-02-01', '18:00')).expect(422))).toBe('MSG20');
+    expect(errorCode(await submit(record, whole('2030-02-02', '18:00')).expect(422))).toBe('MSG20');
     const accepted = (await submit(record, whole('2030-01-03', '18:00')).expect(201)).body.data;
     expect(accepted.items[0]).toMatchObject({ visitId: String(record.visits[1]._id), newStartAt: iso(BASE + DAY + 18 * HOUR) });
   });
@@ -244,12 +291,12 @@ describe('UC-84 customer requests', () => {
 });
 
 describe('UC-85 decisions and expiry', () => {
-  test('approves once after the submit windows have passed, retains a free sitter and prices, and publishes once', async () => {
-    const record = await booking([BASE + 20 * HOUR], { assigned: true });
+  test('approves a request sent at 25 hours when 20 hours remain, retaining a free sitter and prices', async () => {
+    const record = await booking([BASE + 25 * HOUR], { assigned: true });
     await readySitter(record.serviceId, [{ weekday: 4, startLocalTime: '06:30', endLocalTime: '19:00' }]);
     const visit = record.visits[0], newStart = BASE + DAY + 8 * HOUR;
     const change = (await submit(record, single(visit, newStart)).expect(201)).body.data;
-    now = BASE + 10 * HOUR;
+    now = BASE + 5 * HOUR;
     expect((await detail(change).expect(200)).body.data.items[0].availability).toBe('AVAILABLE');
     await decision(change, 'APPROVE', owner).expect(403);
     const results = await Promise.all([decision(change), decision(change, 'APPROVE', admin)]);
@@ -296,7 +343,7 @@ describe('UC-85 decisions and expiry', () => {
 
   test('lists waiting requests in deadline order with a scoped cursor', async () => {
     const late = await booking([BASE + 2 * DAY]);
-    const early = await booking([BASE + 20 * HOUR]);
+    const early = await booking([BASE + 25 * HOUR]);
     const lateChange = (await submit(late, single(late.visits[0], BASE + 3 * DAY)).expect(201)).body.data;
     const earlyChange = (await submit(early, single(early.visits[0], BASE + DAY)).expect(201)).body.data;
     const read = query => request(app).get(staffPath).query(query).set(headers(staff));
@@ -354,7 +401,7 @@ describe('UC-85 decisions and expiry', () => {
     await decision(change, 'REJECT').expect(200);
   });
 
-  test.each([[18, 26], [30, 24]])('expires at the earlier time minus six hours (%d, %d)', async (oldHours, newHours) => {
+  test.each([[25, 26], [30, 24]])('expires at the earlier time minus six hours (%d, %d)', async (oldHours, newHours) => {
     const record = await booking([BASE + oldHours * HOUR]);
     const change = (await submit(record, single(record.visits[0], BASE + newHours * HOUR)).expect(201)).body.data;
     const due = BASE + (Math.min(oldHours, newHours) - 6) * HOUR;
@@ -373,11 +420,11 @@ describe('UC-85 decisions and expiry', () => {
   });
 
   test('removes cancelled visits, recalculates the earliest deadline and closes when none remain', async () => {
-    const record = await booking([BASE + 17 * HOUR, BASE + 2 * DAY]);
+    const record = await booking([BASE + DAY, BASE + 2 * DAY]);
     const change = (await submit(record, whole('2030-01-05', '10:00')).expect(201)).body.data;
-    expect(change.expiresAt).toBe(iso(BASE + 11 * HOUR));
+    expect(change.expiresAt).toBe(iso(BASE + DAY - 6 * HOUR));
     await col('visits').updateOne({ _id: record.visits[0]._id }, { $set: { state: 'CANCELLED' } });
-    now = BASE + 12 * HOUR;
+    now = BASE + 19 * HOUR;
     await refreshStaff();
     const current = (await detail(change).expect(200)).body.data;
     expect(current).toMatchObject({ state: 'PENDING', expiresAt: iso(BASE + 2 * DAY - 6 * HOUR) });
