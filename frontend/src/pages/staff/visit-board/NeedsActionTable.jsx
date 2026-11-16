@@ -24,7 +24,7 @@ function ActionCell({ row, api, openableIds, onAction }) {
   if (!action) return '—';
   if (action.kind === 'call') return <ContactCell row={row} label={action.label} party={action.party} api={api} />;
   // The dispatch dialog only opens for the rows the page loaded, so a visit beyond them is locked with the reason.
-  const locked = action.kind === 'dispatch' && openableIds && !openableIds.has(row.id);
+  const locked = action.kind === 'dispatch' && !api.dispatchDetails && openableIds && !openableIds.has(row.id);
   const noteId = `outside-queue-${row.id}`;
   return <>
     <button type="button" disabled={locked} aria-describedby={locked ? noteId : undefined} onClick={() => onAction(row, action)}>{action.label}</button>

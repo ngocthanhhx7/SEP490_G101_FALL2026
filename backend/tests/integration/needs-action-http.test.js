@@ -131,6 +131,82 @@ describe('Call: phone number of one visit', () => {
     await call(bare, 'get', '/visit-board?tab=all', 'staff').expect(200);
   });
 
+  test('Staff opens dispatch details beyond the first queue page with the same role and booking gates', async () => {
+    const created = [];
+    for (let index = 0; index < 56; index++) {
+      const visitId = await seedVisit({ sitter: null });
+      await col('visits').updateOne({ _id: new mongoose.Types.ObjectId(visitId) }, { $set: {
+        startAt: new Date(NOW + (index + 1) * 60000), endAt: new Date(NOW + (index + 31) * 60000)
+      } });
+      created.push(visitId);
+    }
+    const target = created.at(-1);
+    const queue = await call(app, 'get', '/dispatch', 'staff').expect(200);
+    expect(queue.body.data.items.map(row => row.id)).not.toContain(target);
+    const detail = await call(app, 'get', `/visits/${target}/dispatch`, 'staff').expect(200);
+    expect(detail.body.data).toMatchObject({ id: target, version: 1 });
+    await call(app, 'get', `/visits/${target}/dispatch`, 'customer').expect(403);
+    await call(app, 'get', `/visits/${target}/dispatch`, 'sitter').expect(403);
+    await call(app, 'get', `/visits/${target}/dispatch`, null).expect(401);
+    await call(app, 'get', `/visits/${oid()}/dispatch`, 'staff').expect(404);
+  });
+
+  test('late withdrawal review preserves assignment until an audited decision, with replay and role/CSRF guards', async () => {
+    const visitId = await seedVisit();
+    await col('visits').updateOne({ _id: new mongoose.Types.ObjectId(visitId) }, { $set: {
+      withdrawalRequest: { sitterId: users.sitter._id, assignedAt: null, reasonCode: 'SICK', at: new Date(NOW) }
+    } });
+    await call(app, 'get', `/visits/${visitId}/withdrawal-review`, 'staff').expect(200);
+    expect((await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) })).state).toBe('ASSIGNED');
+    const body = { expectedVersion: 1, decision: 'RELEASE', reason: 'Đã liên hệ xác nhận không thể tiếp tục ca.' };
+    const decide = who => call(app, 'post', `/visits/${visitId}/withdrawal-decisions`, who)
+      .set('Idempotency-Key', 'synthetic-review-late-withdrawal').send(body);
+    await decide('customer').expect(403);
+    await call(app, 'post', `/visits/${visitId}/withdrawal-decisions`, 'staff', { csrf: false })
+      .set('Idempotency-Key', 'synthetic-review-late-withdrawal').send(body).expect(403);
+    const first = await decide('staff').expect(200), replay = await decide('staff').expect(200);
+    expect(first.body.data).toEqual(replay.body.data);
+    expect(first.body.data).toMatchObject({ decision: 'RELEASE', state: 'SCHEDULED', version: 2 });
+    const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
+    expect(saved.sitterId).toBeNull();
+    expect(saved.withdrawalDispatch.sitterId).toEqual(users.sitter._id);
+    expect(saved.handoverRequired).toBe(true);
+    expect(await col('employeescheduleevents').countDocuments({ type: 'VisitWithdrawalApproved', visitId })).toBe(1);
+    expect(await col('notifications').countDocuments({ eventType: 'VisitWithdrawalApproved', 'metadata.visitId': visitId })).toBe(2);
+    await call(app, 'get', `/visits/${visitId}/withdrawal-review`, 'staff').expect(409);
+  });
+
+  test('a release still works for an employee whose account was locked after requesting withdrawal', async () => {
+    const lockedSitter = { ...person('PET_SITTER', 'Nhân viên ngưng hoạt động'), state: 'LOCKED' };
+    await col('users').insertOne(lockedSitter);
+    const visitId = await seedVisit({ sitter: lockedSitter });
+    await col('visits').updateOne({ _id: new mongoose.Types.ObjectId(visitId) }, { $set: {
+      withdrawalRequest: { sitterId: lockedSitter._id, assignedAt: null, reasonCode: 'SICK', at: new Date(NOW) }
+    } });
+    await call(app, 'post', `/visits/${visitId}/withdrawal-decisions`, 'admin')
+      .set('Idempotency-Key', 'synthetic-review-locked-withdrawal')
+      .send({ expectedVersion: 1, decision: 'RELEASE', reason: 'Đã đối chiếu ca hiện có.' }).expect(200);
+    expect((await col('users').findOne({ _id: lockedSitter._id })).state).toBe('LOCKED');
+  });
+
+  test('concurrent review decisions commit once and preserve the customer nominee and financial snapshot', async () => {
+    const visitId = await seedVisit();
+    const visit = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
+    await col('visits').updateOne({ _id: visit._id }, { $set: { requestedSitterId: users.sitter._id,
+      snapshots: { serviceName: 'Dịch vụ đã đặt', employeeServiceNetVnd: 123456 },
+      withdrawalRequest: { sitterId: users.sitter._id, assignedAt: null, reasonCode: 'SICK', at: new Date(NOW) }
+    } });
+    const results = await Promise.all(['RELEASE', 'REJECT'].map(decision =>
+      call(app, 'post', `/visits/${visitId}/withdrawal-decisions`, 'staff')
+        .set('Idempotency-Key', 'synthetic-race-withdraw-' + decision)
+        .send({ expectedVersion: 1, decision, reason: 'Đã xác minh yêu cầu.' })));
+    expect(results.map(response => response.status).sort()).toEqual([200, 409]);
+    const after = await col('visits').findOne({ _id: visit._id });
+    expect(after.requestedSitterId).toEqual(users.sitter._id);
+    expect(after.snapshots.employeeServiceNetVnd).toBe(123456);
+    expect(await col('employeescheduleevents').countDocuments({ visitId, type: { $in: ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'] } })).toBe(1);
+  });
+
   test('Call is limited to 30 requests a minute for each user', async () => {
     const visitId = await seedVisit();
     const statuses = [];

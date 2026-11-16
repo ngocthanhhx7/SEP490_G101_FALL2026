@@ -48,6 +48,17 @@ function Harness({ api, todayTotal = 7, ...props }) {
 const tabNamed = name => screen.getByRole('tab', { name });
 
 describe('tabs and counts', () => {
+  test('Needs action loads later pages and retains earlier rows', async () => {
+    const api = board({ visitBoard: jest.fn(async params => params.cursor
+      ? needsPage([{ ...rows.notCheckedIn, id: 'last-visit', bookingCode: 'BK-LAST' }], { nextCursor: null, hasMore: false })
+      : needsPage([rows.notCheckedIn], { nextCursor: 'needs-next', hasMore: true })) });
+    render(<Harness api={api} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Tải thêm buổi cần xử lý' }));
+    expect(await screen.findByText('BK-LAST')).toBeInTheDocument();
+    expect(screen.getByText(rows.notCheckedIn.bookingCode)).toBeInTheDocument();
+    expect(api.visitBoard).toHaveBeenCalledWith({ tab: 'needs-action', cursor: 'needs-next' }, expect.objectContaining({ signal: expect.anything() }));
+    expect(screen.queryByRole('button', { name: 'Tải thêm buổi cần xử lý' })).not.toBeInTheDocument();
+  });
   test('three tabs: the count of Cần xử lý comes from the API, Buổi hôm nay from the page, Tất cả buổi has none', async () => {
     render(<Harness api={board()} />);
     expect(await screen.findByRole('tab', { name: 'Cần xử lý (5)' })).toHaveAttribute('aria-selected', 'true');
@@ -303,7 +314,7 @@ describe('Tất cả buổi', () => {
     render(<Harness api={board({ visitBoard })} />);
     fireEvent.click(tabNamed('Tất cả buổi'));
     fireEvent.click(await screen.findByRole('button', { name: 'Tải thêm' }));
-    await waitFor(() => expect(visitBoard).toHaveBeenCalledWith({ tab: 'all', cursor: 'cursor-1' }));
+    await waitFor(() => expect(visitBoard).toHaveBeenCalledWith({ tab: 'all', cursor: 'cursor-1' }, expect.objectContaining({ signal: expect.anything() })));
     expect(await screen.findByText('BK-0003')).toBeInTheDocument();
     expect(screen.getByText('BK-0001')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Tải thêm' })).not.toBeInTheDocument();
@@ -372,7 +383,18 @@ describe('the dispatch page', () => {
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
   });
 
-  test('a board visit that is not among the loaded queue rows is locked, while the loaded ones open', async () => {
+  test('a visit outside the first queue page opens through its scoped detail endpoint', async () => {
+    const api = pageApi({ dispatchDetails: jest.fn(async id => ({ data: { ...legacy(id), reviewCode: 'SHIFT_START_REACHED' } })) });
+    render(<EmployeeDispatchPage api={api} />);
+    const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
+    const action = within(table.getByText('Đỗ Khánh Linh').closest('tr')).getByRole('button', { name: 'Đổi lịch với khách' });
+    expect(action).toBeEnabled();
+    fireEvent.click(action);
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(api.dispatchDetails).toHaveBeenCalledWith('v-47', expect.objectContaining({ signal: expect.anything() }));
+  });
+
+  test('legacy adapters without a detail endpoint keep their explicit queue limitation', async () => {
     const api = pageApi({ queue: jest.fn().mockResolvedValue({ data: { items: [legacy('v-42')], workAreas, today: { date: '04/11/2026', asOf: startAt, summary: { total: 7, inProgress: 1, completed: 2, late: 0 } } } }),
       sitters: jest.fn().mockResolvedValue({ data: { items: [] } }) });
     render(<EmployeeDispatchPage api={api} />);

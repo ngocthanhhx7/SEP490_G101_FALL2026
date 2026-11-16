@@ -1,5 +1,19 @@
 # Employee Scheduling
 
+`needs-action.service.js` and `visit-board-query.service.js` provide the Staff/Admin
+board with database-side filtering, exact counts and signed keyset pagination at
+a fixed reference time. Both tabs can continue beyond50/500 visits. Search does
+not truncate matching people. Reads have explicit execution deadlines; metadata
+and contact lookup stay separate. Dispatch detail is addressed by visit ID rather
+than relying on the first queue page.
+
+`withdrawal-review.service.js` handles pending late withdrawals. Staff/Admin must
+provide a reason to reject or release. A release serializes with employee/visit
+writers, preserves price and customer-directed selection, revokes stale offers,
+and returns the visit to dispatch. It also works for suspended employees without
+granting eligibility. Events, command replay and role-specific notifications use
+existing stores; no new collection or financial decision is introduced.
+
 System bookings may carry a MATCH candidate order into dispatch. Only employees
 passing current authoritative eligibility are ordered by that advice; directed
 bookings retain the chosen employee. If that employee withdraws early, declines, expires or becomes ineligible, Staff may propose a replacement, but no alternative invitation is sent until the owning customer explicitly confirms. Previewing alternatives does not grant invitation permission.

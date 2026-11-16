@@ -1,5 +1,11 @@
 # Staff Workspace
 
+The visit board paginates Needs action and All through `useVisitBoardPages`;
+filter changes abort stale continuation requests. Selected dispatch visits are
+loaded by ID, including rows outside the legacy queue page. Late withdrawal
+review is available from the board, legacy request list and notification link;
+the dialog freezes uncertain commands and reuses their original key on retry.
+
 `ComplaintManagementPage` (WBS-050) presents the UC-53 list and selected case for
 Staff and Admin. `ComplaintManagementForms.jsx` submits resolution or final
 decision commands with expected versions. Evidence uses the scoped private

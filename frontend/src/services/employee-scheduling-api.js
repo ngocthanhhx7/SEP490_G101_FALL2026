@@ -64,6 +64,26 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     acknowledgeCare: (id, version, key) => mutate(`/visits/${encodeURIComponent(id)}/care/acknowledgements`, { version }, key),
     accessNotes: id => get(`/visits/${encodeURIComponent(id)}/access-notes`),
     queue: ({ signal } = {}) => get('/dispatch', signal),
+    async withdrawalReview(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/withdrawal-review`, signal);
+      if (result.pending) return result;
+      if (result.data?.visitId !== id || !Number.isSafeInteger(result.data.version)
+        || !Number.isFinite(Date.parse(result.data.startAt)) || !Number.isFinite(Date.parse(result.data.endAt))) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async decideWithdrawal(id, body, key) {
+      const result = await mutate(`/visits/${encodeURIComponent(id)}/withdrawal-decisions`, body, key);
+      if (result.pending || result.status === 202) return result;
+      if (result.data?.visitId !== id || result.data.version !== body.expectedVersion + 1 || result.data.decision !== body.decision)
+        throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async dispatchDetails(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/dispatch`, signal);
+      if (result.pending) return result;
+      if (result.data?.id !== id || !Number.isSafeInteger(result.data.version)) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     candidates: (id, query, { signal } = {}) => get(`/visits/${encodeURIComponent(id)}/candidates?${new globalThis.URLSearchParams(query)}`, signal),
     plans: ({ signal } = {}) => get('/care-plans', signal),
     respond: (id, decision, expectedVersion, key) => mutate(`/offers/${encodeURIComponent(id)}/${decision}`, { expectedVersion }, key),

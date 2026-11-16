@@ -132,15 +132,26 @@ describe('Needs action reasons (R3 10.1.1)', () => {
     expect((await list({ search: 'thanh tâm' })).items[0].bookingId).toBe(a.bookingId);
   });
 
-  test('a reason that reaches the read limit is counted as "at least" and flagged', async () => {
+  test('all 501 visits in the same reason and area remain reachable with exact counts', async () => {
     const bookingId = oid();
     await col('bookings').insertOne({ _id: bookingId, customerId: customerUser._id, state: 'DISPATCH_PENDING', carePlanState: 'APPROVED', paymentMode: 'POSTPAY' });
     await col('visits').insertMany(Array.from({ length: 501 }, (_, index) => ({ _id: oid(), bookingId, customerId: customerUser._id, sitterId: null, state: 'SCHEDULED',
       version: 0, areaCode: 'DISTRICT_CAU_GIAY', startAt: new Date(NOW + HOUR + index * MIN), endAt: new Date(NOW + 2 * HOUR + index * MIN), snapshots: { serviceName: 'x' } })));
     const result = await list();
-    expect(result.counts).toEqual({ needsAction: 500, needsActionLimited: true });
+    expect(result.counts).toEqual({ needsAction: 501, needsActionLimited: false });
     expect(result.items).toHaveLength(50);
     expect(result.hasMore).toBe(true);
+    const seen = [...result.items.map(row => row.id)];
+    let cursor = result.nextCursor;
+    now += MIN;
+    while (cursor) {
+      const next = await list({ cursor });
+      expect(+next.asOf).toBe(NOW);
+      seen.push(...next.items.map(row => row.id));
+      cursor = next.nextCursor;
+    }
+    expect(seen).toHaveLength(501);
+    expect(new Set(seen).size).toBe(501);
   });
 
   test('only Staff and Admin can read; every other role gets 403', async () => {
@@ -217,10 +228,13 @@ describe('All visits', () => {
     expect(await ids({ reason: 'NO_SITTER_24H', search: 'lê văn' })).toEqual([]);
   });
 
-  test('more than 20 people matching a name limits the search and says so', async () => {
-    await col('users').insertMany(Array.from({ length: 21 }, (_, index) => person('CUSTOMER', `Trùng Tên ${index}`)));
+  test('search does not silently discard people after the twentieth matching name', async () => {
+    const people = Array.from({ length: 21 }, (_, index) => person('CUSTOMER', `Trùng Tên ${index}`));
+    await col('users').insertMany(people);
+    for (const customer of people) await seed({ customer, start: NOW + HOUR });
     const result = await list({ tab: 'all', search: 'Trùng Tên' });
-    expect(result.limited).toBe(true);
+    expect(result.limited).toBe(false);
+    expect(result.items).toHaveLength(21);
   });
 
   test('a missing cursor secret does not stop the module: lists work, and only a second page answers 503', async () => {

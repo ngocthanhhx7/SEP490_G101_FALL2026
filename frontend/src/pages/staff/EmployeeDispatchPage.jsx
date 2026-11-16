@@ -44,7 +44,7 @@ const reviewLabel = (code) =>
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialWithdrawalId }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const load = useCallback(async ({ signal }) => {
@@ -58,10 +58,14 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
   const [tab, setTab] = useState('needs');
   const [board, setBoard] = useState({ ids: new Set(), filtering: false });
   const [selected, setSelected] = useState(null);
+  const [withdrawalToReview, setWithdrawalToReview] = useState(null);
+  const loadSelected = useCallback(({ signal }) => selected && api.dispatchDetails
+    ? api.dispatchDetails(selected, { signal }) : Promise.resolve({ data: null }), [api, selected]);
+  const selectedDetails = useApiResource(loadSelected);
   const [proposal, setProposal] = useState(null);
   const command = useSchedulingCommand(() => queue.retry());
   const rows = queue.data?.items ?? [],
-    active = rows.find((row) => row.id === selected),
+    active = selectedDetails.data?.id === selected ? selectedDetails.data : rows.find((row) => row.id === selected),
     legacyRows = rows.filter((row) => !board.ids.has(row.id)),
     today = queue.data?.today;
   const area = (code) => queue.data?.workAreas?.find((a) => a.code === code)?.label ?? code ?? '—';
@@ -105,6 +109,11 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
         }
       />
       {!active && command.message && <p role="status">{command.message}</p>}
+      {selected && !active && selectedDetails.status === 'loading' && <p role="status">Đang tải chi tiết ca…</p>}
+      {selected && !active && ['error', 'forbidden', 'pending'].includes(selectedDetails.status) && <p role="alert">
+        Chưa tải được ca này. <button onClick={selectedDetails.retry}>Thử lại</button>{' '}
+        <button onClick={() => setSelected(null)}>Đóng</button>
+      </p>}
       {!active && command.pending && (
         <Button disabled={command.busy} onClick={command.retry}>
           Kiểm tra lại yêu cầu
@@ -113,7 +122,8 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
       {proposal && <p role="status">Đã gửi đề xuất lịch mới, đang chờ khách xác nhận.</p>}
       {queue.status === 'loading' && <p role="status">Đang tải ca…</p>}
       <VisitBoard api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
-        openableIds={queue.data && new Set(rows.map((row) => row.id))} onOpenDispatch={setSelected} onChanged={queue.retry} onState={setBoard} />
+        openableIds={queue.data && new Set(rows.map((row) => row.id))} onOpenDispatch={setSelected} onChanged={queue.retry} onState={setBoard}
+        initialWithdrawalId={initialWithdrawalId} requestedWithdrawalId={withdrawalToReview} onWithdrawalDismiss={() => setWithdrawalToReview(null)} refreshKey={queue.data} />
       {['error', 'forbidden', 'pending'].includes(queue.status) && (
         <p role="alert">
           Chưa tải được các ca cần điều phối. <button onClick={queue.retry}>Thử lại</button>
@@ -134,7 +144,9 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
             { key: 'visit', label: 'Buổi', render: row => <><strong>{row.serviceName ?? short(row.id)}</strong><small>{time(row.startAt)}</small></> },
             { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? short(row.sitterId) },
             { key: 'reason', label: 'Lý do', render: row => <>{VISIT_WITHDRAWAL_REASON_LABELS[row.reasonCode] ?? '—'}
-              {row.note && <small>{row.note}</small>}</> }
+              {row.note && <small>{row.note}</small>}</> },
+            { key: 'action', label: 'Thao tác', render: row => api.withdrawalReview
+              ? <button onClick={() => setWithdrawalToReview(row.id)}>Xử lý yêu cầu rút</button> : 'Liên hệ điều phối để xử lý' }
           ]} />
           <p className="ops-muted">Người chăm sóc vẫn được phân công cho đến khi nhân viên thay người hoặc huỷ buổi.</p>
           {queue.data.withdrawalRequestsHaveMore && <p className="ops-muted">Đang hiển thị 50 yêu cầu theo giờ buổi sớm nhất.</p>}

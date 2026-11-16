@@ -22,7 +22,7 @@ export function visitBoardQuery(query = {}) {
   }
   if (query.areaCode !== undefined && !/^[A-Z0-9_]{1,64}$/u.test(query.areaCode)) fail('VALIDATION_FAILED', 'Invalid service area');
   if (query.reason !== undefined && !NEEDS_ACTION_REASONS.includes(query.reason)) fail('VALIDATION_FAILED', 'Unsupported reason');
-  if (query.cursor !== undefined && (tab !== 'all' || query.cursor.length > 512)) fail('VALIDATION_FAILED', 'Invalid cursor');
+  if (query.cursor !== undefined && (!query.cursor.length || query.cursor.length > 512)) fail('VALIDATION_FAILED', 'Invalid cursor');
   return { tab, ...(search ? { search } : {}), ...(query.areaCode ? { areaCode: query.areaCode } : {}),
     ...(query.reason ? { reason: query.reason } : {}), ...(query.cursor ? { cursor: query.cursor } : {}) };
 }
