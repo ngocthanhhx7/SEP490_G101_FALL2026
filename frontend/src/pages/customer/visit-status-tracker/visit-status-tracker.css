@@ -1,0 +1,48 @@
+.visit-tracker {
+  --tracker-ink: #0e0e2c;
+  --tracker-plum: #59328a;
+  --tracker-muted: #492f77;
+  --tracker-border: #e6d9ef;
+  color: var(--tracker-ink);
+  font-family: var(--pwc-font-body);
+  max-width: 73.5rem;
+  margin-inline: auto;
+  padding-block: 1.5rem 3rem;
+}
+.visit-tracker-back { display: inline-flex; align-items: center; gap: .5rem; color: var(--tracker-muted); font-weight: 800; }
+.visit-tracker-heading { margin-block: 1.4rem; }
+.visit-tracker-heading > div { display: flex; gap: .85rem; align-items: center; flex-wrap: wrap; }
+.visit-tracker .visit-tracker-heading h1 { margin: 0; font: 400 clamp(1.875rem, 3.4vw, 2.5rem)/1.15 var(--pwc-font-display); color: var(--tracker-ink); }
+.visit-tracker-heading p { margin: .65rem 0 0; color: var(--tracker-muted); font-weight: 650; }
+.visit-tracker-status { border-radius: 2rem; background: #e7efff; color: #174692; padding: .28rem .75rem; font-size: .875rem; font-weight: 800; }
+.visit-tracker-status[data-status="REPORT_READY"] { background: #e7f6ee; color: #176244; }
+.visit-tracker-status[data-status="FINDING_SITTER"] { background: #fff2d4; color: #815200; }
+.visit-tracker-status[data-status="CANCELLED"] { background: #f2ecf5; color: var(--tracker-muted); }
+.visit-tracker-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr); align-items: start; gap: 1.5rem; }
+.visit-tracker-stack { display: grid; gap: 1.5rem; min-width: 0; }
+.visit-tracker-panel { border: 1px solid var(--tracker-border); border-radius: 1.5rem; background: white; padding: clamp(1rem, 3vw, 2rem); box-shadow: 0 12px 18px rgb(30 22 44 / 4%); }
+.visit-tracker-panel h2 { margin: 0 0 1rem; color: var(--tracker-ink); font-size: 1.375rem; font-weight: 850; }
+.visit-tracker-panel p:last-child { margin-bottom: 0; }
+.visit-tracker-steps, .visit-tracker-updates { list-style: none; margin: 0; padding: 0; }
+.visit-tracker-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; text-align: center; }
+.visit-tracker-steps li { display: grid; justify-items: center; gap: .35rem; color: #695982; }
+.visit-tracker-steps li[data-reached="true"] { color: var(--tracker-ink); }
+.visit-tracker-steps time { color: var(--tracker-muted); font-size: .875rem; }
+.visit-tracker-step-mark { display: grid; place-items: center; width: 2.5rem; height: 2.5rem; border-radius: 50%; border: 2px solid #cebce3; font-weight: 850; }
+.visit-tracker-steps li[data-reached="true"] .visit-tracker-step-mark { background: var(--tracker-plum); border-color: var(--tracker-plum); color: white; }
+.visit-tracker-steps li[aria-current="step"] .visit-tracker-step-mark { background: #ffcd34; border-color: #ffcd34; color: var(--tracker-ink); }
+.visit-tracker-note { margin-top: 1.5rem; border-radius: .875rem; background: #fff2d4; padding: .75rem 1rem; color: var(--tracker-muted); font-size: .875rem; }
+.visit-tracker-updates li, .visit-tracker-facts div { display: grid; grid-template-columns: minmax(6.5rem, 27%) 1fr; gap: .75rem; }
+.visit-tracker-updates li { padding: .875rem 0; border-bottom: 1px solid var(--tracker-border); }
+.visit-tracker-updates time, .visit-tracker-facts dt { color: var(--tracker-plum); font-weight: 800; }
+.visit-tracker-facts { margin: 0; display: grid; gap: .9rem; }
+.visit-tracker-facts dd { margin: 0; overflow-wrap: anywhere; }
+.visit-tracker-person { display: flex; align-items: center; gap: .9rem; }
+.visit-tracker-person > span { flex: 0 0 3.5rem; height: 3.5rem; display: grid; place-items: center; background: #f1e5fc; border-radius: 50%; color: var(--tracker-plum); font-weight: 850; }
+.visit-tracker-person strong { font-size: 1.125rem; }
+.visit-tracker-person p { color: var(--tracker-muted); font-size: .9rem; margin: .2rem 0 0; }
+@media (max-width: 840px) { .visit-tracker-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) {
+  .visit-tracker-steps { grid-template-columns: minmax(0, 1fr); text-align: start; }
+  .visit-tracker-steps li { grid-template-columns: 2.5rem minmax(0, 1fr) auto; align-items: center; justify-items: start; gap: .6rem; }
+}

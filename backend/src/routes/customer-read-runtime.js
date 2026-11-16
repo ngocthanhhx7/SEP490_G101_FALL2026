@@ -10,6 +10,7 @@ import { createReviewService } from '../services/reviews/review.service.js';
 import { createReviewRouter } from './review.routes.js';
 import { createBookingDetailsController } from '../controllers/booking-details.controller.js';
 import { createBookingDetailsService } from '../services/booking-proposals/booking-details.service.js';
+import { createVisitTrackerRouter } from './visit-tracker.routes.js';
 
 export function customerReadRuntime({ config, connection, sessionService, env, clock }) {
   const router = Router();
@@ -22,6 +23,7 @@ export function customerReadRuntime({ config, connection, sessionService, env, c
     router.get('/staff/bookings/:id',
       (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); },
       requireSession(sessionService, { clock }), requireRoles('STAFF', 'ADMIN'), details.readStaff);
+    router.use(createVisitTrackerRouter({ connection, sessionService, clock }));
   }
   const notifications = createNotificationService({ repository: createMongoNotificationRepository({ connection,
     cursorSecret: config.auth.tokenSecret, clock }), clock });

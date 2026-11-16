@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useProductCart } from '../../hooks/useProductCart.js';
 import { Notice, Button } from '../../components/ui/index.js';
-import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS } from '../../constants/product-labels.js';
+import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import { formatVnd, isUncertainOutcome, productErrorText, productMessage } from '../../utils/product-format.js';
 import '../../components/product/product-shop.css';
 
@@ -20,19 +20,21 @@ export function ProductCheckoutPage() {
   const [addressId, setAddressId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [prepaidOnlyResponse, setPrepaidOnlyResponse] = useState(false);
   const command = useRef(null), locked = useRef(false);
   useEffect(() => { refresh().catch(() => {}); }, [refresh]);
 
   const paymentMethod = PAYMENT_BY_RECEIVE[receiveMethod];
   const delivery = receiveMethod === 'DELIVERY';
   const shippingFee = delivery && cart ? cart.deliveryFee : 0;
+  const prepaidOnly = prepaidOnlyResponse || cart?.prepaidOnly === true;
   const addressOptions = addresses.data ?? [];
   const idOf = (address) => String(address.id ?? address._id);
   // A single saved address leaves nothing to choose, so it is preselected; with several the customer must pick one.
   const chosenAddressId = addressId || (addressOptions.length === 1 ? idOf(addressOptions[0]) : '');
 
   async function submit() {
-    if (locked.current) return;
+    if (locked.current || prepaidOnly) return;
     if (!cart || cart.lineCount === 0) { setError(productMessage('MSG100')); return; }
     if (delivery && !chosenAddressId) { setError(productMessage('MSG101')); return; }
     const body = { receiveMethod, paymentMethod, ...(delivery ? { addressId: chosenAddressId } : {}) };
@@ -47,7 +49,10 @@ export function ProductCheckoutPage() {
       window.dispatchEvent(new window.Event('pwc:notifications-changed'));
       navigate('/customer/product-orders', { state: { placed: order.code } });
     } catch (failure) {
-      if (isUncertainOutcome(failure)) {
+      if (failure.code === 'PRODUCT_ORDER_PREPAY_REQUIRED') {
+        setPrepaidOnlyResponse(true);
+        await refresh().then(() => setPrepaidOnlyResponse(false)).catch(() => {});
+      } else if (isUncertainOutcome(failure)) {
         setError('Chưa nhận được xác nhận đơn hàng. Hãy kiểm tra mục Đơn hàng của tôi trước khi đặt lại.');
       } else {
         let available;
@@ -91,7 +96,8 @@ export function ProductCheckoutPage() {
         </div>
         <div className="pwc-shop-panel">
           <h2>Cách thanh toán</h2>
-          <div className="pwc-shop-option is-selected"><strong>{PRODUCT_PAYMENT_LABELS[paymentMethod].title}</strong><small>{PRODUCT_PAYMENT_LABELS[paymentMethod].hint}</small></div>
+          {prepaidOnly ? <p role="status">{productMessage('MSG60')}</p>
+            : <div className="pwc-shop-option is-selected"><strong>{PRODUCT_PAYMENT_LABELS[paymentMethod].title}</strong><small>{PRODUCT_PAYMENT_LABELS[paymentMethod].hint}</small></div>}
         </div>
       </div>
       <aside className="pwc-shop-panel" aria-label="Đơn hàng của bạn">
@@ -99,10 +105,12 @@ export function ProductCheckoutPage() {
         {cart.lines.map((line) => <div key={line.productId} className="pwc-shop-summary-row">
           <span>{line.name} × {line.quantity}</span><strong>{formatVnd(line.lineTotal)}</strong></div>)}
         <div className="pwc-shop-summary-row" style={{ borderTop: '1px solid var(--shop-border)', marginTop: '.5rem' }}><span>Tạm tính</span><span>{formatVnd(cart.subtotal)}</span></div>
+        {cart.tierDiscount > 0 && <div className="pwc-shop-summary-row">
+          <span>Giảm giá hạng {PRODUCT_TIER_LABELS[cart.tierCode]}</span><span>− {formatVnd(cart.tierDiscount)}</span></div>}
         {delivery && <div className="pwc-shop-summary-row"><span>Phí giao hàng</span><span>{formatVnd(shippingFee)}</span></div>}
-        <div className="pwc-shop-summary-row pwc-shop-summary-total"><span>Tổng</span><strong>{formatVnd(cart.subtotal + shippingFee)}</strong></div>
-        {error && <p className="pwc-shop-alert pwc-shop-alert--error" role="alert">{error}</p>}
-        <button type="button" className="pwc-shop-primary-button" disabled={busy || cart.hasUnavailable} onClick={submit}>{busy ? 'Đang đặt hàng…' : 'Đặt hàng'}</button>
+        <div className="pwc-shop-summary-row pwc-shop-summary-total"><span>Tổng</span><strong>{formatVnd(cart.total + shippingFee)}</strong></div>
+        {!prepaidOnly && error && <p className="pwc-shop-alert pwc-shop-alert--error" role="alert">{error}</p>}
+        <button type="button" className="pwc-shop-primary-button" disabled={prepaidOnly || busy || cart.hasUnavailable} onClick={submit}>{busy ? 'Đang đặt hàng…' : 'Đặt hàng'}</button>
         <p className="pwc-shop-lead" style={{ marginTop: '.75rem' }}>Khi bạn đặt hàng, số lượng được giữ cho bạn.</p>
       </aside>
     </div>
