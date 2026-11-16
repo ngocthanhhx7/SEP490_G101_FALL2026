@@ -1,5 +1,11 @@
 # Employee Scheduling
 
+Availability windows may explicitly register `workLocation: SHOP`; legacy/omitted
+location remains HOME. `grooming-occupancy.service.js` reads bounded native shop
+reservations without registering optional models while Grooming is disabled.
+Window removal, HOME assignment, capability reduction and contract changes share
+employee guards and preserve already reserved shop work. See the
+[Grooming reservation contract](../../../../doc/api/grooming-reservations.md).
 `needs-action.service.js` and `visit-board-query.service.js` provide the Staff/Admin
 board with database-side filtering, exact counts and signed keyset pagination at
 a fixed reference time. Both tabs can continue beyond50/500 visits. Search does

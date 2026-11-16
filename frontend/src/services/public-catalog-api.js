@@ -96,6 +96,7 @@ function normalizeService(service) {
 
   return Object.freeze({
     id: service.id,
+    ...(typeof service.groomingBookingEnabled === 'boolean' ? { groomingBookingEnabled: service.groomingBookingEnabled } : {}),
     ...(typeof service.code === 'string' ? { code: service.code } : {}),
     ...(details ? { details } : {}),
     name: service.name.trim(),
