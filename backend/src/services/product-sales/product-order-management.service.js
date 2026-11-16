@@ -1,7 +1,7 @@
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
-import { PRODUCT_ORDER_TAB_STATUSES, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
+import { DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS, PRODUCT_ORDER_TAB_STATUSES, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
 import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
 import {
   parseManagementListQuery, parseHandToCarrier, parseNoBody, parseMarkReturning, parseConfirmReturned
@@ -14,6 +14,8 @@ import { productSalesErrors, requireOnlineOrderCanceller, requireOrderHandler } 
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NAME_MATCH_LIMIT = 100;
+const PICKUP_EXPIRY_BATCH_SIZE = 100;
+const HOUR_MS = 3_600_000;
 // Oldest first where staff work through a queue; newest first elsewhere.
 const OLDEST_FIRST_TABS = new Set(['PREPARE', 'AWAITING_PICKUP']);
 
@@ -50,18 +52,108 @@ function returnedLines(order, input) {
   });
 }
 
+function createOrderTransition({ connection, Product, ProductOrder, clock }) {
+  const unitOfWork = createUnitOfWork(connection);
+  const notifications = createDomainNotifications({ connection, clock });
+
+  // One guarded status change plus its stock effect, all in one transaction.
+  // The update only matches the status and version that were read, so two writers cannot both apply a change.
+  // `effects` runs after the status change, in the same transaction, for writes that must stand or fall with it.
+  return (id, { allowed, check, changes, stock, effects, expiryFilter, pickupExpired = false }) => {
+    const filter = { _id: id, channel: { $ne: COUNTER_CHANNEL }, ...expiryFilter };
+    return unitOfWork.run(async (session) => {
+      const order = await ProductOrder.findOne(filter).session(session).lean();
+      if (!order) {
+        if (expiryFilter) return null;
+        throw productSalesErrors.notFound();
+      }
+      if (allowed && !allowed(order)) throw productSalesErrors.orderStateConflict(order.status);
+      check?.(order);
+      const result = await ProductOrder.findOneAndUpdate(
+        { ...filter, status: order.status, version: order.version },
+        { $set: changes(order), $inc: { version: 1 } },
+        { returnDocument: 'after', session }).lean();
+      if (!result) {
+        if (expiryFilter) return null;
+        throw productSalesErrors.orderStateConflict(order.status);
+      }
+      if (stock) {
+        const leaves = stock === 'LEAVE';
+        for (const line of order.lines) {
+          const applied = await Product.updateOne(
+            { _id: line.productId, quantityHeld: { $gte: line.quantity }, ...(leaves ? { stockOnHand: { $gte: line.quantity } } : {}) },
+            { $inc: { quantityHeld: -line.quantity, ...(leaves ? { stockOnHand: -line.quantity } : {}), version: 1 } },
+            { session });
+          if (applied.modifiedCount !== 1) throw productSalesErrors.orderStockMismatch(String(id));
+        }
+      }
+      await effects?.(order, session);
+      await notifications.productOrder({ order: result, previous: order, pickupExpired }, session);
+      return result;
+    });
+  };
+}
+
+// The scheduler is the only caller. Recheck eligibility and the version selected by the batch inside
+// the transaction so a concurrent payment, handover or another worker wins at most once.
+export function createProductPickupExpiryService({ connection, clock = Date.now, logger = () => {} }) {
+  const { Product, ProductOrder, ProductCustomerRefusal } = productSalesModels(connection);
+  const updateOrder = createOrderTransition({ connection, Product, ProductOrder, clock });
+
+  return Object.freeze({
+    async runBatch() {
+      const cutoff = new Date(clock());
+      const filter = {
+        status: 'READY',
+        receiveMethod: 'PICKUP',
+        channel: { $ne: COUNTER_CHANNEL },
+        pickupDeadlineAt: { $lte: cutoff },
+        $nor: [{ paymentMethod: 'PAY_AT_SHOP', paid: true }]
+      };
+      const candidates = await ProductOrder.find(filter).select('_id version')
+        .sort({ pickupDeadlineAt: 1, _id: 1 }).limit(PICKUP_EXPIRY_BATCH_SIZE).lean();
+      const summary = { cancelled: 0, failed: 0 };
+      for (const candidate of candidates) {
+        try {
+          const updated = await updateOrder(candidate._id, {
+            expiryFilter: { ...filter, version: candidate.version },
+            changes: (order) => ({
+              status: 'CANCELLED',
+              cancelledAt: cutoff,
+              ...(PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid ? { refundMarked: true } : {})
+            }),
+            stock: 'RELEASE',
+            pickupExpired: true,
+            effects: async (order, session) => {
+              await ProductCustomerRefusal.create([{
+                customerId: order.customerId, orderId: order._id, reason: 'NOT_COLLECTED', occurredAt: cutoff
+              }], { session });
+            }
+          });
+          if (updated) summary.cancelled += 1;
+        } catch {
+          summary.failed += 1;
+          logger({ event: 'product_pickup_expiry_order_failed', orderId: String(candidate._id) });
+        }
+      }
+      return summary;
+    }
+  });
+}
+
 // Order handling (R3 Order Management) for whoever PRODUCT_PERMISSIONS allows. Stock follows GBR-35:
 // goods leaving the shop release the hold and reduce the real stock; cancelling only releases the hold;
 // a confirmed return puts back only what can be sold again.
 // phones is the customer phone directory; it is injected by route composition.
-export function createProductOrderManagementService({ connection, phones, clock = Date.now }) {
+export function createProductOrderManagementService({
+  connection, phones, clock = Date.now, pickupDeadlineHours = DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS
+}) {
   if (typeof phones?.userIdsByPhone !== 'function' || typeof phones?.phonesOf !== 'function') {
     throw new TypeError('A customer phone directory is required');
   }
   const { Product, ProductOrder, ProductCustomerRefusal } = productSalesModels(connection);
   const User = userModel(connection);
-  const unitOfWork = createUnitOfWork(connection);
-  const notifications = createDomainNotifications({ connection, clock });
+  const updateOrder = createOrderTransition({ connection, Product, ProductOrder, clock });
 
   // Name and phone of each customer, by user id.
   async function customerDetails(customerIds) {
@@ -76,37 +168,10 @@ export function createProductOrderManagementService({ connection, phones, clock 
     return toAdminOrderView(doc, (await customerDetails([doc.customerId])).get(String(doc.customerId)));
   }
 
-  // One guarded status change plus its stock effect, all in one transaction.
-  // The update only matches the status and version that were read, so two admins cannot both apply a change.
-  // `effects` runs after the status change, in the same transaction, for writes that must stand or fall with it.
-  async function transition(actor, orderId, { allowed, check, changes, stock, effects }) {
+  async function transition(actor, orderId, options) {
     requireOrderHandler(actor);
     const id = parseObjectId(orderId, 'orderId');
-    const updated = await unitOfWork.run(async (session) => {
-      const order = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).session(session).lean();
-      if (!order) throw productSalesErrors.notFound();
-      if (!allowed(order)) throw productSalesErrors.orderStateConflict(order.status);
-      check?.(order);
-      const result = await ProductOrder.findOneAndUpdate(
-        { _id: id, channel: { $ne: COUNTER_CHANNEL }, status: order.status, version: order.version },
-        { $set: changes(order), $inc: { version: 1 } },
-        { returnDocument: 'after', session }).lean();
-      if (!result) throw productSalesErrors.orderStateConflict(order.status);
-      if (stock) {
-        const leaves = stock === 'LEAVE';
-        for (const line of order.lines) {
-          const applied = await Product.updateOne(
-            { _id: line.productId, quantityHeld: { $gte: line.quantity }, ...(leaves ? { stockOnHand: { $gte: line.quantity } } : {}) },
-            { $inc: { quantityHeld: -line.quantity, ...(leaves ? { stockOnHand: -line.quantity } : {}), version: 1 } },
-            { session });
-          if (applied.modifiedCount !== 1) throw productSalesErrors.orderStockMismatch(String(id));
-        }
-      }
-      await effects?.(order, session);
-      await notifications.productOrder({ order: result, previous: order }, session);
-      return result;
-    });
-    return viewOf(updated);
+    return viewOf(await updateOrder(id, options));
   }
 
   return Object.freeze({
@@ -153,12 +218,13 @@ export function createProductOrderManagementService({ connection, phones, clock 
         stock: 'LEAVE'
       });
     },
-    // Pickup orders: PLACED -> READY. Stock is untouched; the hold stays until the customer collects.
+    // Pickup orders: PLACED -> READY. The deadline is fixed at this action and stock stays held.
     markReady(actor, orderId, body) {
       parseNoBody(body);
+      const pickupDeadlineAt = new Date(new Date(clock()).getTime() + pickupDeadlineHours * HOUR_MS);
       return transition(actor, orderId, {
         allowed: (order) => order.receiveMethod === 'PICKUP' && order.status === 'PLACED',
-        changes: () => ({ status: 'READY' })
+        changes: () => ({ status: 'READY', pickupDeadlineAt })
       });
     },
     // Pickup orders: READY -> PICKED_UP, only when paid in full (MSG105). Goods leave the shop.
