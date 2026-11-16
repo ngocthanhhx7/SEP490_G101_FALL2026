@@ -2,6 +2,7 @@
 import { Types } from 'mongoose';
 import { VISIT_WITHDRAWAL_REASONS } from '../../constants/visit-withdrawal.js';
 import { fail } from '../../validators/pet-care.validator.js';
+import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 
 const EARLY_WINDOW_MS = 12 * 60 * 60 * 1000;
 const oid = value => new Types.ObjectId(value);
@@ -14,6 +15,7 @@ export function hasPendingWithdrawal(visit) {
 
 export function createVisitWithdrawalService({ repository, clock, runCommand, requeue }) {
   const { col, models, employeeGuard } = repository;
+  const notifications = createSchedulingNotifications({ col, clock });
   const visits = col('visits');
   function optionsFor(visit, now) {
     return { visitId: String(visit._id), startAt: visit.startAt, version: visit.version,
@@ -70,6 +72,8 @@ export function createVisitWithdrawalService({ repository, clock, runCommand, re
           type: early ? 'VisitWithdrawn' : 'VisitWithdrawalRequested', actorId: actor.userId,
           sitterId: actor.userId, visitId, at, detail: details
         }], { session });
+        await notifications.publish({ type: early ? 'VisitWithdrawn' : 'VisitWithdrawalRequested',
+          sitterId: actor.userId, visitId, detail: { version: visit.version + 1 } }, session);
         return { visitId, mode, startAt: visit.startAt, version: visit.version + 1 };
       });
 
