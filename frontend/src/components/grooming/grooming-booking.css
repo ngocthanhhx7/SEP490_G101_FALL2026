@@ -4,6 +4,7 @@
 .pwc-page.grooming-page .grooming-lead { color: var(--pwc-ink-muted); margin: .5rem 0 2rem; }
 .grooming-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 23rem); gap: 1.5rem; align-items: start; }
 .grooming-steps { display: grid; gap: 1.25rem; min-width: 0; }
+fieldset.grooming-steps { border: 0; padding: 0; margin: 0; }
 .grooming-card { background: var(--pwc-surface); border: 1px solid #e2d9f0; border-radius: var(--pwc-radius-panel); padding: 1.5rem; box-sizing: border-box; min-width: 0; }
 .pwc-page .grooming-card h2 { font: 800 1.35rem/1.3 var(--pwc-font-body); color: var(--pwc-ink); margin: 0 0 .4rem; }
 .pwc-page .grooming-card h3 { font: 800 1.05rem/1.4 var(--pwc-font-body); color: var(--pwc-ink); margin: 1.25rem 0 .5rem; }

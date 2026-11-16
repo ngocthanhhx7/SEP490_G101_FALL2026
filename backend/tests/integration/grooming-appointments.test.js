@@ -293,6 +293,9 @@ describe('authoritative employee reservations', () => {
     await db.collection('aisitterprofiles').updateOne({ userId: employeeId }, { $set: { species: ['DOG'], maxWeightKg: 5 } });
     await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(409);
     await db.collection('aisitterprofiles').updateOne({ userId: employeeId }, { $set: { maxWeightKg: 150 } });
+    await db.collection('aisitterprofiles').updateOne({ userId: employeeId }, { $unset: { maxWeightKg: '' } });
+    await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(409);
+    await db.collection('aisitterprofiles').updateOne({ userId: employeeId }, { $set: { maxWeightKg: 150 } });
     await repository.models.Pet.collection.updateOne({ _id: pets.Milo._id }, { $set: { traits: ['SYNTHETIC_SPECIAL_CARE'] } });
     await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(409);
     expect(await APPOINTMENTS().countDocuments()).toBe(0);

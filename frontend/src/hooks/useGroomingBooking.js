@@ -22,6 +22,7 @@ export function useGroomingBooking({ api, serviceId }) {
   const [slots, setSlots] = useState(blank), [quote, setQuote] = useState(blank);
   const [slotRevision, setSlotRevision] = useState(0), [quoteRevision, setQuoteRevision] = useState(0);
   const [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [booked, setBooked] = useState(null);
+  const [pending, setPending] = useState(false);
   const command = useRef(null), locked = useRef(false);
 
   useEffect(() => { if (options && !date) setDate(options.window.firstDate); }, [options, date]);
@@ -51,7 +52,7 @@ export function useGroomingBooking({ api, serviceId }) {
 
   const selectedSlot = slots.status === 'success' ? slots.items.find(item => item.startAt === time && item.state === 'AVAILABLE') ?? null : null;
   const priceReady = quote.status === 'success' && quote.key === quoteKey;
-  const canConfirm = ready && priceReady && Boolean(selectedSlot) && !busy;
+  const canConfirm = !busy && (pending || ready && priceReady && Boolean(selectedSlot));
 
   function changed() { setNotice(''); command.current = null; }
   const togglePet = pet => { changed(); setPicked(current => {
@@ -66,19 +67,20 @@ export function useGroomingBooking({ api, serviceId }) {
   const answer = (petId, code, value) => { changed(); setPicked(current => ({ ...current,
     [petId]: { ...current[petId], answers: { ...current[petId].answers, [code]: value } } })); };
   const chooseDate = value => { changed(); setDate(value); setTime(''); };
-  const chooseTime = value => { setNotice(''); setTime(value); };
+  const chooseTime = value => { if (busy || pending) return; setNotice(''); setTime(value); };
 
   async function confirm() {
     if (locked.current || !canConfirm) return;
-    const body = { startAt: selectedSlot.startAt, pets: quotePets(picked), expectedTotalVnd: quote.data.totalVnd };
+    const body = pending ? command.current.body : { startAt: selectedSlot.startAt, pets: quotePets(picked), expectedTotalVnd: quote.data.totalVnd };
     // The same key is reused for an unchanged request, so a retry after an uncertain reply can never book twice.
     const fingerprint = JSON.stringify(body);
-    if (command.current?.fingerprint !== fingerprint) command.current = { fingerprint, key: `grooming:${globalThis.crypto.randomUUID()}` };
+    if (command.current?.fingerprint !== fingerprint) command.current = { fingerprint, body, key: `grooming:${globalThis.crypto.randomUUID()}` };
     locked.current = true; setBusy(true); setNotice('');
     try {
       setBooked(await api.book(body, command.current.key));
-      command.current = null;
+      command.current = null; setPending(false);
     } catch (error) {
+      setPending(false);
       if (error.code === 'GROOMING_SLOT_TAKEN') {
         command.current = null; setNotice(MSG64); setTime(''); setSlotRevision(value => value + 1);
       } else if (error.code === 'GROOMING_PRICE_CHANGED' || error.code === 'GROOMING_PET_ALREADY_BOOKED') {
@@ -87,14 +89,14 @@ export function useGroomingBooking({ api, serviceId }) {
       } else if (error.code === 'GROOMING_PET_REFERRAL_REQUIRED' && error.details?.petId && picked[error.details.petId]) {
         command.current = null; answer(error.details.petId, 'biteOrScratch', 'YES');
       } else if (isUncertainOutcome(error)) {
-        setNotice(UNCERTAIN);
+        setPending(true); setNotice(UNCERTAIN);
       } else {
         command.current = null; setNotice(apiErrorFeedback(error, 'Chưa đặt được lịch. Vui lòng thử lại.'));
       }
     } finally { locked.current = false; setBusy(false); }
   }
 
-  return { setup, options, pets, picked, date, time, slots, quote, priceReady, selectedSlot, canConfirm, notice, busy, booked,
+  return { setup, options, pets, picked, date, time, slots, quote, priceReady, selectedSlot, canConfirm, notice, busy, pending, booked,
     togglePet, toggleService, answer, chooseDate, chooseTime, confirm,
     reloadSlots: () => setSlotRevision(value => value + 1), reloadQuote: () => setQuoteRevision(value => value + 1) };
 }

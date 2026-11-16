@@ -48,8 +48,9 @@ export function createShopShiftSource({ connection, clock = Date.now }) {
       if (!active.has(id) || !enabled.has(id) || availabilityBySitter.get(id)?.state !== 'ACTIVE') return false;
       const cap = capability.get(id), requested = requirement.serviceIds ?? serviceIds, pet = requirement.pet;
       if (!cap || requested.some(service => !cap.serviceIds?.some(value => String(value) === String(service)))) return false;
-      if (pet && (!cap.species?.includes(pet.species) || !Number.isFinite(pet.weightKg) || pet.weightKg > cap.maxWeightKg
-        || !(cap.maxPets >= 1) || !Array.isArray(pet.traits) || pet.traits.some(trait => !cap.allowedTraits?.includes(trait)))) return false;
+      if (pet && (!cap.species?.includes(pet.species) || !Number.isFinite(pet.weightKg) || !Number.isFinite(cap.maxWeightKg) || pet.weightKg > cap.maxWeightKg
+        || !Number.isSafeInteger(cap.maxPets) || cap.maxPets < 1 || !Array.isArray(cap.allowedTraits)
+        || !Array.isArray(pet.traits) || pet.traits.some(trait => !cap.allowedTraits.includes(trait)))) return false;
       const history = contractsBySitter.get(id) ?? [], contract = history.find(row => row.effectiveAt <= start);
       if (!contract || contract.employmentType !== 'FULL_TIME' || !contract.verifiedBy || !(contract.signedAt instanceof Date)
         || contract.signedAt > now || contract.endsAt && contract.endsAt < end || history.some(row => row.effectiveAt > start && row.effectiveAt < end)) return false;

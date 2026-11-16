@@ -251,18 +251,19 @@ describe('errors when confirming', () => {
     expect(book.mock.calls[0][0]).toEqual(book.mock.calls[1][0]);
   });
 
-  test('a changed request after an uncertain reply uses a new key', async () => {
+  test('an uncertain reply freezes the request until the same key is reconciled', async () => {
     const book = jest.fn().mockRejectedValueOnce(new ApiError('TIMEOUT')).mockResolvedValueOnce(booked);
     const api = fixture({ book });
     await fillMilo(api);
     await waitFor(() => expect(confirmButton()).toBeEnabled());
     fireEvent.click(confirmButton());
     await within(summary()).findByText(/Chưa nhận được xác nhận lịch hẹn/);
+    expect(screen.getByRole('radio', { name: '08:00' })).toBeDisabled();
     fireEvent.click(screen.getByRole('radio', { name: '08:00' }));
     await waitFor(() => expect(confirmButton()).toBeEnabled());
     fireEvent.click(confirmButton());
     await screen.findByRole('heading', { name: 'Lịch hẹn GR-0001' });
-    expect(book.mock.calls[0][1]).not.toBe(book.mock.calls[1][1]);
+    expect(book.mock.calls[0]).toEqual(book.mock.calls[1]);
   });
 });
 
