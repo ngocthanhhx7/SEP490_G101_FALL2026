@@ -12,6 +12,7 @@ import { edgeKey, cachedMatrix } from '../sitter-matching/routing.service.js';
 import { matchingModels } from '../../models/sitter-matching.model.js';
 import { SCHEDULE_RULES } from '../sitter-matching/scheduling.service.js';
 import { createCalendarReader } from './calendar-read.service.js';
+import { groomingOccupancy } from './grooming-occupancy.service.js';
 
 const oid = value => new Types.ObjectId(value), DAY = 86400000;
 const ACTIVE_VISITS = ['ASSIGNED', 'IN_PROGRESS'];
@@ -73,7 +74,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     const rows = await col('visits').find({ sitterId: oid(sitterId), state: { $in: ACTIVE_VISITS }, endAt: { $gt: from } }, { session })
       .sort({ startAt: 1 }).limit(201).toArray();
     if (rows.length > 200) fail('CONFIRMED_VISIT_CONFLICT', 'Staff review required for a large schedule', 409);
-    return rows;
+    return rows.concat(await groomingOccupancy({ connection, sitterIds: [sitterId], from, session }));
   }
   const commandId = (sitterId, key, kind = 'availability') => digest([sitterId, kind, key]);
   const availabilityRepository = {
@@ -101,7 +102,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     getRegistrationContract: sitterId => registrationContract(sitterId, null, false),
     assignmentRepository: { async findConflicts({ sitterId, workingWindows, effectiveFrom, transaction }) {
       const rows = await assignments(sitterId, new Date(`${effectiveFrom}T00:00:00+07:00`), transaction);
-      const items = rows.filter(row => !windowsCover(workingWindows, row.startAt, row.endAt));
+      const items = rows.filter(row => !windowsCover(workingWindows, row.startAt, row.endAt, row.workLocation ?? 'HOME'));
       return { items: items.slice(0, 50), hasMore: items.length > 50 };
     } } });
   const areas = createSitterWorkAreasService({ listCoverageAreas: () => getCoverageAreas({ all: true }), getSitterAvailability: find,
@@ -117,7 +118,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       if (catalog) await catalog.lock(session);
       const allAreas = await getCoverageAreas({ all: true, session });
       if (areas.some(code => !allAreas.some(row => row.code === code && (row.enabled !== false || current.areas.includes(code))))) fail('WORK_AREA_CLOSED', 'Area closed for registration', 409);
-      if (rows.some(row => !workAreaKeys(row.areaCode, allAreas).some(code => areas.includes(code)))) fail('CONFIRMED_VISIT_CONFLICT', 'Staff must review assigned work before removing its area', 409);
+      if (rows.some(row => row.workLocation !== 'SHOP' && !workAreaKeys(row.areaCode, allAreas).some(code => areas.includes(code)))) fail('CONFIRMED_VISIT_CONFLICT', 'Staff must review assigned work before removing its area', 409);
       const result = await models.EmployeeAvailability.findOneAndUpdate({ _id: sitterId, version: expectedVersion },
         { $set: { areas }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
       await models.EmployeeScheduleCommand.create([{ _id: key, fingerprint, result, createdAt: new Date(clock()) }], { session });
@@ -160,6 +161,7 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
     const rows = await col('visits').find({ sitterId: oid(sitterId), state: { $in: [...ACTIVE_VISITS, 'COMPLETED'] },
       startAt: { $lt: new Date(until.getTime() + DAY) }, endAt: { $gt: new Date(week.getTime() - DAY) } }, { session }).limit(201).toArray();
     if (rows.length > 200) fail('SHIFT_REVIEW_REQUIRED', 'Staff schedule review required', 409);
+    rows.push(...await groomingOccupancy({ connection, sitterIds: [sitterId], from: new Date(week.getTime() - DAY), to: new Date(until.getTime() + DAY), session }));
     if (rows.some(row => row.startAt < end && row.endAt > start)) fail('SLOT_UNAVAILABLE', 'Employee already has work in this slot', 409);
     const samePlace = (a, b) => a.location === 'FACILITY' && b.location === 'FACILITY'
       ? a.snapshots?.serviceAddress === b.snapshots?.serviceAddress

@@ -20,6 +20,7 @@ import { ContactPage } from '../pages/public/ContactPage.jsx';
 import { ServiceAreasPage } from '../pages/public/ServiceAreasPage.jsx';
 import { ServiceDetailsPage } from '../pages/public/ServiceDetailsPage.jsx';
 import { ServiceListPage } from '../pages/public/ServiceListPage.jsx';
+import { GroomingBookingPage } from '../pages/customer/GroomingBookingPage.jsx';
 import { ServiceBookingPage } from '../pages/public/ServiceBookingPage.jsx';
 import { SignInPage } from '../pages/public/SignInPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
@@ -146,8 +147,9 @@ function EmployeeScheduleRoute({ view }) {
     privateImages: createPrivateImageApi({ getCsrfToken })
   }), [getCsrfToken]);
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
-  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined} />;
-  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} />;
+  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined}
+    initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
+  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} initialVisitId={params.get('visitId') || undefined} />;
   if (view === 'proposal') return <DirectedBookingProposalPage key={user?.id} api={api} />;
   return <SitterAvailabilityPage key={user?.id} api={api} />;
 }
@@ -399,6 +401,7 @@ export function AppRoutes({
         <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
         <Route element={<RequireSession roles={['CUSTOMER']} />}>
           <Route path="booking/:serviceId" element={<ServiceBookingPage />} />
+          <Route path="grooming-booking" element={<GroomingBookingPage />} />
         </Route>
         <Route path="products" element={<ProductListPage />} />
         <Route path="products/:productId" element={<ProductDetailsPage />} />

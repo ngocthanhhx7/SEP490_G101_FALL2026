@@ -201,6 +201,7 @@ export function createServiceCatalogService({
   PolicyVersion,
   priceProvider,
   catalogSettings,
+  groomingBookingEnabled,
   clock = Date.now
 }) {
   if (
@@ -516,6 +517,7 @@ export function createServiceCatalogService({
         : await priceProvider.getActivePrice(version.serviceId.toString(), at);
       if (!price) continue;
       services.push({
+        ...(typeof groomingBookingEnabled === 'boolean' ? { groomingBookingEnabled } : {}),
         id: version.serviceId.toString(),
         code: codes.get(version.serviceId.toString()),
         version: version.version,

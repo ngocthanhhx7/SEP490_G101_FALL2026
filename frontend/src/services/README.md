@@ -81,3 +81,5 @@ pet-record-import-api.js handles consented same-origin JPEG/PNG/PDF transport; A
 from `/dashboards/sale-staff` through the shared API client.
 
 `booking-details-api.js` reads Staff/Admin booking details. Customer detail retains the service basket checkout transport.
+
+`grooming-booking-api.js` is the transport for the shop grooming routes under `/api/v1/grooming` (options, slots, quotes, booking) and the customer's pets. It checks reply shapes, treats a `202` as an uncertain outcome, sends the booking `Idempotency-Key` and CSRF token, and keeps the server's error sentence and details on the thrown `ApiError` (`serverMessage`, `details`) for the page to show.
