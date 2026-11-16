@@ -6,7 +6,8 @@ import { provisionEmployeeScheduling } from '../../src/services/employee-schedul
 import { employeeSchedulingModels } from '../../src/models/employee-scheduling.model.js';
 import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
 import { visitCompletion } from '../../src/services/complaints/complaint-lifecycle.js';
-import { projectEarnings } from '../../src/services/dashboards/earnings.service.js';
+import { payrollModels } from '../../src/models/payroll.model.js';
+import { createCommissionSources } from '../../src/services/payroll/commission-source.service.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const END = Date.parse('2026-11-04T06:30:00Z');
@@ -21,11 +22,11 @@ let counter = 0;
 
 async function seedVisit({ photo = true, state = 'IN_PROGRESS', checkedOut = false, endAt = END, checkIn = true, code = true } = {}) {
   const visitId = oid(), bookingId = oid(), mediaId = (++counter).toString(16).padStart(64, 'a');
-  await col('bookings').insertOne({ _id: bookingId, customerId: customerUser._id, state: 'IN_PROGRESS', ...(code ? { bookingCode: 'BK-0033' } : {}), visitIds: [visitId] });
+  await col('bookings').insertOne({ _id: bookingId, customerId: customerUser._id, version: 0, state: 'IN_PROGRESS', ...(code ? { bookingCode: 'BK-0033' } : {}), visitIds: [visitId] });
   await col('visits').insertOne({ _id: visitId, bookingId, customerId: customerUser._id, sitterId: sitterUser._id, state, version: 4,
     areaCode: 'DISTRICT_CAU_GIAY', startAt: new Date(endAt - 30 * 60000), endAt: new Date(endAt),
     ...(checkIn ? { checkInAt: new Date(endAt - 28 * 60000) } : {}), ...(checkedOut ? { checkOutAt: new Date(endAt) } : {}),
-    evidenceRefs: photo ? [{ kind: 'CHECK_IN', mediaId }] : [], snapshots: { serviceName: 'Dắt chó đi dạo' } });
+    evidenceRefs: photo ? [{ kind: 'CHECK_IN', mediaId }] : [], snapshots: { serviceName: 'Dắt chó đi dạo', employeeServiceNetVnd: 100000 } });
   if (photo) await col('privateimages').insertOne({ _id: mediaId, state: 'READY', careKind: 'CHECK_IN', ownerId: sitterUser._id, careVisitId: String(visitId) });
   return String(visitId);
 }
@@ -34,6 +35,7 @@ beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_visit_closure' }).asPromise();
   await provisionEmployeeScheduling(connection);
+  for (const model of Object.values(payrollModels(connection))) { await model.createCollection(); await model.createIndexes(); }
   await col('users').insertMany([staff, admin, customerUser, sitterUser]);
   const repository = { models: employeeSchedulingModels(connection), col, uow: createUnitOfWork(connection) };
   service = createVisitClosureService({ repository, clock: () => now });
@@ -56,14 +58,15 @@ describe('closing a visit that was not checked out (GBR-24)', () => {
       .toMatchObject({ actorId: String(staff._id), sitterId: String(sitterUser._id) });
   });
 
-  test('the closed visit counts as done for the complaint module and keeps the booking untouched', async () => {
+  test('closure keeps complaints available and finishes the parent operationally without pretending service is financially verified', async () => {
     const visitId = await seedVisit();
     await service.close(actorOf(admin), visitId, { expectedVersion: 4, reason: 'Đã gọi người chăm sóc.' }, key('complaint'));
     const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
     const completion = visitCompletion(saved);
     expect(completion.done).toBe(true);
     expect(new Date(completion.at).getTime()).toBe(now);
-    expect((await col('bookings').findOne({ _id: saved.bookingId })).state).toBe('IN_PROGRESS');
+    expect(await col('bookings').findOne({ _id: saved.bookingId })).toMatchObject({ state: 'CLOSED', completionReviewState: 'PENDING' });
+    expect(await col('payrollservicecredits').countDocuments({ bookingId: saved.bookingId })).toBe(0);
   });
 
   test.each([
@@ -106,41 +109,37 @@ describe('closing a visit that was not checked out (GBR-24)', () => {
       .rejects.toMatchObject({ status: 404 });
   });
 
-  test('without a check-in photo the visit is CANCELLED at no charge with who, when and why', async () => {
+  test('missing check-in photo still requires factual review, without inventing cancellation, zero charges or zero wages', async () => {
     const visitId = await seedVisit({ photo: false });
     const result = await service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: '  Không ảnh, đã gọi người chăm sóc.  ' }, key('nophoto'));
-    expect(result).toMatchObject({ visitId, state: 'CANCELLED', version: 5, hasCheckInPhoto: false, chargeAmount: 0 });
-    expect(result.cancelledAt.getTime()).toBe(now);
+    expect(result).toMatchObject({ visitId, state: 'STAFF_CLOSED', version: 5, hasCheckInPhoto: false, reviewState: 'PENDING' });
+    expect(result.chargeAmount).toBeUndefined();
     const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
-    expect(saved).toMatchObject({ state: 'CANCELLED', version: 5,
-      cancellation: { byUserId: String(staff._id), reason: 'Không ảnh, đã gọi người chăm sóc.', chargeAmount: 0 } });
-    expect(saved.cancelledAt.getTime()).toBe(now);
-    expect(saved.cancellation.at.getTime()).toBe(now);
-    expect(saved.closedAt).toBeUndefined();
-    expect(saved.closure).toBeUndefined();
+    expect(saved).toMatchObject({ state: 'STAFF_CLOSED', version: 5,
+      closure: { byUserId: String(staff._id), reason: 'Không ảnh, đã gọi người chăm sóc.', hasCheckInPhoto: false } });
+    expect(saved.cancellation).toBeUndefined();
+    expect(saved.closedAt.getTime()).toBe(now);
     expect(saved.checkOutAt).toBeUndefined();
     expect(await col('employeescheduleevents').findOne({ type: 'VisitStaffClosed', visitId }))
-      .toMatchObject({ actorId: String(staff._id), detail: { outcome: 'CANCELLED', hasCheckInPhoto: false, version: 5 } });
-    expect((await col('bookings').findOne({ _id: saved.bookingId })).state).toBe('IN_PROGRESS');
+      .toMatchObject({ actorId: String(staff._id), detail: { outcome: 'STAFF_CLOSED', hasCheckInPhoto: false, version: 5 } });
+    expect((await col('bookings').findOne({ _id: saved.bookingId })).state).toBe('CLOSED');
   });
 
-  test('a cancelled visit is not done for complaints and earns nothing', async () => {
+  test('unverified closure without a photo creates no payable credit', async () => {
     const visitId = await seedVisit({ photo: false });
     await service.close(actorOf(admin), visitId, { expectedVersion: 4, reason: 'Không ảnh' }, key('nophoto-consumers'));
     const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
     const completion = visitCompletion(saved);
     expect(completion.done).toBe(false);
     expect(new Date(completion.at).getTime()).toBe(now);
-    const earnings = projectEarnings({ items: [{ id: visitId, visitId, sitterId: String(sitterUser._id), visitState: saved.state }] }, { userId: String(sitterUser._id) });
-    expect(earnings.items).toEqual([]);
-    expect(earnings.metrics.every(metric => metric.value === 0)).toBe(true);
+    expect(await col('payrollservicecredits').countDocuments({ bookingId: saved.bookingId })).toBe(0);
   });
 
   test('an image owned by someone else or bound to another visit does not count as the check-in photo', async () => {
     const visitId = await seedVisit();
     await col('privateimages').updateMany({ careVisitId: visitId }, { $set: { ownerId: oid() } });
     await expect(service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: 'Ảnh của người khác' }, key('foreign-photo')))
-      .resolves.toMatchObject({ state: 'CANCELLED', hasCheckInPhoto: false, chargeAmount: 0 });
+      .resolves.toMatchObject({ state: 'STAFF_CLOSED', hasCheckInPhoto: false, reviewState: 'PENDING' });
   });
 
   test('two staff closing at the same time: exactly one succeeds', async () => {
@@ -190,6 +189,76 @@ describe('closing a visit that was not checked out (GBR-24)', () => {
   });
 });
 
+describe('Admin factual verification and payroll integration', () => {
+  const body = extra => ({ expectedVersion: 5, reason: 'Đối chiếu khách và báo cáo', outcome: 'SERVICE_PERFORMED',
+    evidenceReference: 'synthetic-review-record-001', actualEndedAt: new Date(END + 5 * 60000).toISOString(), reportsComplete: false, ...extra });
+  async function closed() {
+    const visitId = await seedVisit({ photo: false });
+    await service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: 'Chờ đối chiếu' }, key(`verify-close-${visitId}`));
+    return visitId;
+  }
+  test('only Admin verifies actual end; retry produces one immutable credit and no fake checkout', async () => {
+    const visitId = await closed(), input = body();
+    await expect(service.verify(actorOf(staff), visitId, input, key('verify-role'))).rejects.toMatchObject({ status: 403 });
+    const first = await service.verify(actorOf(admin), visitId, input, key('verify-once'));
+    expect(first).toMatchObject({ visitId, state: 'STAFF_CLOSED', version: 6, reviewState: 'VERIFIED' });
+    expect(await service.verify(actorOf(admin), visitId, input, key('verify-once'))).toEqual(first);
+    const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
+    expect(saved.checkOutAt).toBeUndefined(); expect(saved.completedAt).toBeUndefined();
+    expect(saved.closureVerification).toMatchObject({ byUserId: String(admin._id), reportsComplete: false });
+    expect(visitCompletion(saved).done).toBe(true);
+    const credits = await col('payrollservicecredits').find({ visitId: saved._id }).toArray();
+    expect(credits).toHaveLength(1);
+    expect(credits[0]).toMatchObject({ serviceNetVnd: 100000, careMinutes: 33, reportsComplete: false, sourceVersion: 6 });
+    expect(+credits[0].completedAt).toBe(END + 5 * 60000);
+    expect(await col('bookings').findOne({ _id: saved.bookingId })).toMatchObject({ state: 'CLOSED', completionReviewState: 'VERIFIED' });
+    expect((await service.needsAction(actorOf(admin))).items.some(row => row.id === visitId)).toBe(false);
+    await expect(service.verify(actorOf(admin), visitId, body({ reportsComplete: true }), key('verify-once')))
+      .rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
+  });
+  test('no service is a factual conclusion, never a fabricated free charge or refund', async () => {
+    const visitId = await closed();
+    const input = { expectedVersion: 5, reason: 'Khách xác nhận không thực hiện', outcome: 'NO_SERVICE', evidenceReference: 'synthetic-customer-call' };
+    await service.verify(actorOf(admin), visitId, input, key('verify-no-service'));
+    const saved = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) });
+    expect(saved.state).toBe('STAFF_CLOSED'); expect(saved.cancellation).toBeUndefined();
+    expect(saved.completionAttention.code).toBe('FINANCIAL_RECONCILIATION_REQUIRED');
+    expect(visitCompletion(saved).done).toBe(false);
+    expect(await col('payrollservicecredits').countDocuments({ visitId: saved._id })).toBe(0);
+    expect(await col('refunds').countDocuments({ bookingId: saved.bookingId })).toBe(0);
+  });
+  test.each([
+    { actualEndedAt: new Date(END - HOUR).toISOString() }, { actualEndedAt: new Date(END + 4 * HOUR).toISOString() },
+    { evidenceReference: ' ' }, { reportsComplete: undefined }
+  ])('rejects invalid actual facts without releasing a credit: %j', async extra => {
+    const visitId = await closed();
+    await expect(service.verify(actorOf(admin), visitId, body(extra), key(`verify-invalid-${visitId}`))).rejects.toMatchObject({ status: 422 });
+    expect((await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) })).version).toBe(5);
+  });
+  test('conflicting concurrent conclusions commit exactly one outcome', async () => {
+    const visitId = await closed();
+    const results = await Promise.allSettled([
+      service.verify(actorOf(admin), visitId, body(), key('verify-race-yes')),
+      service.verify(actorOf(admin), visitId, { expectedVersion: 5, reason: 'Không thực hiện', outcome: 'NO_SERVICE', evidenceReference: 'synthetic-race' }, key('verify-race-no'))
+    ]);
+    expect(results.filter(row => row.status === 'fulfilled')).toHaveLength(1);
+    expect(await col('employeescheduleevents').countDocuments({ type: 'VisitClosureVerified', visitId })).toBe(1);
+  });
+  test('mixed completed/no-service booking holds commission for financial reconciliation', async () => {
+    const visitId = await closed();
+    const row = await col('visits').findOne({ _id: new mongoose.Types.ObjectId(visitId) }), sibling = { ...row, _id: oid(), state: 'COMPLETED',
+      completedAt: new Date(END), checkOutAt: new Date(END) };
+    delete sibling.closure; delete sibling.completionAttention;
+    await col('visits').insertOne(sibling);
+    await col('bookings').updateOne({ _id: row.bookingId }, { $push: { visitIds: sibling._id }, $set: { state: 'IN_PROGRESS' } });
+    await service.verify(actorOf(admin), visitId, { expectedVersion: 5, reason: 'Không có dịch vụ', outcome: 'NO_SERVICE', evidenceReference: 'synthetic-mixed' }, key('verify-mixed'));
+    expect(await col('bookings').findOne({ _id: row.bookingId })).toMatchObject({ state: 'CLOSED', completionReviewState: 'FINANCIAL_RECONCILIATION_REQUIRED' });
+    expect(await col('payrollservicecredits').countDocuments({ visitId: sibling._id })).toBe(1);
+    const held = await createCommissionSources({ connection }).heldBookings([{ bookingId: row.bookingId }]);
+    expect(held.has(String(row.bookingId))).toBe(true);
+  });
+});
+
 describe('needs-action list for visits not checked out', () => {
   test('lists only checked-in visits 2 hours past their end, oldest first, with the dialog fields', async () => {
     await col('visits').deleteMany({});
@@ -222,10 +291,10 @@ describe('needs-action list for visits not checked out', () => {
     expect(ids).not.toContain(later);
   });
 
-  test('a closed visit leaves the list', async () => {
+  test('a closed visit stays visible as pending verification instead of disappearing', async () => {
     await col('visits').deleteMany({});
     const visitId = await seedVisit();
     await service.close(actorOf(staff), visitId, { expectedVersion: 4, reason: 'Đóng' }, key('leave-list'));
-    expect((await service.needsAction(actorOf(staff))).items).toEqual([]);
+    expect((await service.needsAction(actorOf(staff))).items).toEqual([expect.objectContaining({ id: visitId, reasonCode: 'COMPLETION_VERIFICATION_PENDING' })]);
   });
 });

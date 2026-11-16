@@ -44,7 +44,7 @@ const reviewLabel = (code) =>
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialClosureId, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const load = useCallback(async ({ signal }) => {
@@ -134,7 +134,7 @@ export function EmployeeDispatchPage({ api, selectedSitter }) {
           <p className="ops-muted">Người chăm sóc vẫn được phân công cho đến khi nhân viên thay người hoặc huỷ buổi.</p>
           {queue.data.withdrawalRequestsHaveMore && <p className="ops-muted">Đang hiển thị 50 yêu cầu theo giờ buổi sớm nhất.</p>}
         </div>}
-        <VisitClosurePanel api={api} onChanged={queue.retry} />
+        <VisitClosurePanel api={api} onChanged={queue.retry} initialVisitId={initialClosureId} canVerify={canVerifyClosure} />
         <OperationsTable
           label="Ca cần điều phối"
           rows={rows}

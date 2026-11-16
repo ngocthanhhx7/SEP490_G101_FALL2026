@@ -13,7 +13,7 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
       const result = await request(`/visits/${encodeURIComponent(id)}/execution`, { signal });
       const row = result.data;
       if (row?.visitId !== id || !Number.isSafeInteger(row.version) || row.version < 0 ||
-        !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'].includes(row.state) || !Number.isFinite(Date.parse(row.startAt)) || !Number.isFinite(Date.parse(row.endAt)) || !Array.isArray(row.checklist) ||
+        !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED'].includes(row.state) || !Number.isFinite(Date.parse(row.startAt)) || !Number.isFinite(Date.parse(row.endAt)) || !Array.isArray(row.checklist) ||
         row.checklistItemIds !== null && (!Array.isArray(row.checklistItemIds) || row.checklistItemIds.some(item => typeof item !== 'string'))) {
         throw new ApiError('INVALID_RESPONSE');
       }

@@ -1,0 +1,3 @@
+export const VISIT_ENDING_SOON_MS = 5 * 60 * 1000;
+export const VISIT_CHECK_OUT_REMINDER_MS = 15 * 60 * 1000;
+export const VISIT_COMPLETION_REVIEW_MS = 2 * 60 * 60 * 1000;

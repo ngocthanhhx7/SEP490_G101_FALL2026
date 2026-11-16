@@ -17,7 +17,7 @@ const col = name => connection.db.collection(name);
 
 async function seedVisit() {
   const visitId = oid(), bookingId = oid(), mediaId = (++counter).toString(16).padStart(64, 'b');
-  await col('bookings').insertOne({ _id: bookingId, customerId: users.customer._id, state: 'IN_PROGRESS', bookingCode: 'BK-0033', visitIds: [visitId] });
+  await col('bookings').insertOne({ _id: bookingId, customerId: users.customer._id, version: 0, state: 'IN_PROGRESS', bookingCode: 'BK-0033', visitIds: [visitId] });
   await col('visits').insertOne({ _id: visitId, bookingId, customerId: users.customer._id, sitterId: users.sitter._id, state: 'IN_PROGRESS', version: 4,
     areaCode: 'DISTRICT_CAU_GIAY', startAt: new Date(END - 30 * 60000), endAt: new Date(END), checkInAt: new Date(END - 28 * 60000),
     evidenceRefs: [{ kind: 'CHECK_IN', mediaId }], snapshots: { serviceName: 'Dắt chó đi dạo' } });
