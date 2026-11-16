@@ -26,6 +26,8 @@ export function reasonsOfVisit(row, now) {
   if (row.state === 'ASSIGNED' && !row.checkInAt && hasPendingWithdrawal(row)) out.push(reasonOf('WITHDRAWAL_UNDER_12H', start - now));
   if (row.state === 'IN_PROGRESS' && row.checkInAt instanceof Date && !row.checkOutAt && now >= end + CHECK_OUT_GRACE_MS)
     out.push(lateReason('NOT_CHECKED_OUT_2H', now - end));
+  if (row.state === 'STAFF_CLOSED' && ['COMPLETION_VERIFICATION_PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED'].includes(row.completionAttention?.code))
+    out.push(lateReason(row.completionAttention.code, Math.max(0, now - end)));
   return out.sort(compareReasons);
 }
 

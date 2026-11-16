@@ -4,7 +4,9 @@ export const REASON_LABELS = {
   NO_SITTER_24H: 'Chưa có người 24 giờ trước',
   NOT_CHECKED_IN_30M: 'Chưa check-in sau 30 phút',
   WITHDRAWAL_UNDER_12H: 'Rút buổi dưới 12 giờ',
-  NOT_CHECKED_OUT_2H: 'Chưa check-out sau 2 giờ'
+  NOT_CHECKED_OUT_2H: 'Cần xác minh kết thúc',
+  COMPLETION_VERIFICATION_PENDING: 'Chờ quản trị xác minh',
+  FINANCIAL_RECONCILIATION_REQUIRED: 'Cần đối soát phí dịch vụ'
 };
 export const VISIT_STATE_LABELS = {
   SCHEDULED: 'Chờ phân công', ASSIGNED: 'Đã nhận', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã xong', CANCELLED: 'Đã hủy', STAFF_CLOSED: 'Đã đóng'
@@ -38,5 +40,6 @@ export function actionFor(row) {
   if (code === 'NOT_CHECKED_IN_30M') return { kind: 'call', label: 'Gọi người chăm sóc', party: 'sitter' };
   if (code === 'WITHDRAWAL_UNDER_12H') return { kind: 'withdrawal', label: 'Xem yêu cầu rút' };
   if (code === 'NOT_CHECKED_OUT_2H') return { kind: 'close', label: 'Đóng buổi' };
+  if (['COMPLETION_VERIFICATION_PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED'].includes(code)) return { kind: 'close', label: 'Đối chiếu buổi' };
   return null;
 }

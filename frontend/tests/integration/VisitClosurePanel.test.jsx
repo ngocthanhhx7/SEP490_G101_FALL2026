@@ -70,12 +70,12 @@ test.each([[true, '06:02, có ảnh check-in'], [false, '06:02, không có ảnh
   expect(await modal.findByText('BK-0033 · 04/11 · 06:00 – 06:30')).toBeInTheDocument();
   expect(modal.getByText('Lê Văn Minh')).toBeInTheDocument();
   expect(modal.getByText(text)).toBeInTheDocument();
-  expect(modal.getByText(/Buổi có ảnh check-in được tính là đã làm/)).toBeInTheDocument();
+  expect(modal.getByText(/Đóng buổi để chuyển sang chờ quản trị đối chiếu/)).toBeInTheDocument();
 });
 
 test('a visit without a check-in photo can be closed: MSG71 shown and the list reloaded', async () => {
   const api = fixture({ photo: false });
-  api.closeVisit.mockResolvedValueOnce({ data: { visitId: 'visit-1', state: 'CANCELLED', version: 5, chargeAmount: 0 } });
+  api.closeVisit.mockResolvedValueOnce({ data: { visitId: 'visit-1', state: 'STAFF_CLOSED', version: 5, reviewState: 'PENDING' } });
   render(<VisitClosurePanel api={api} />);
   const modal = await openDialog();
   expect(await modal.findByLabelText(/Lý do/)).toBeEnabled();
@@ -83,7 +83,7 @@ test('a visit without a check-in photo can be closed: MSG71 shown and the list r
   fireEvent.change(modal.getByLabelText(/Lý do/), { target: { value: 'Không có ảnh, đã gọi người chăm sóc.' } });
   fireEvent.click(modal.getByRole('button', { name: 'Đóng buổi' }));
   expect(await screen.findByText('Đã đóng buổi.')).toBeInTheDocument();
-  expect(api.closeVisit).toHaveBeenCalledWith('visit-1', { expectedVersion: 4, reason: 'Không có ảnh, đã gọi người chăm sóc.' }, expect.stringMatching(/^closure:/));
+  expect(api.closeVisit).toHaveBeenCalledWith('visit-1', { expectedVersion: 4, reason: 'Không có ảnh, đã gọi người chăm sóc.' }, expect.stringMatching(/^schedule:/));
   await waitFor(() => expect(api.closableVisits).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
@@ -113,14 +113,14 @@ test('MSG71: closes once with the trimmed reason and the server version, then re
   fireEvent.click(submit);
   expect(await screen.findByText('Đã đóng buổi.')).toBeInTheDocument();
   expect(api.closeVisit).toHaveBeenCalledTimes(1);
-  expect(api.closeVisit).toHaveBeenCalledWith('visit-1', { expectedVersion: 4, reason: 'Đã gọi xác nhận lúc 08:40.' }, expect.stringMatching(/^closure:/));
+  expect(api.closeVisit).toHaveBeenCalledWith('visit-1', { expectedVersion: 4, reason: 'Đã gọi xác nhận lúc 08:40.' }, expect.stringMatching(/^schedule:/));
   await waitFor(() => expect(api.closableVisits).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
 });
 
 test.each([
-  ['VERSION_CONFLICT', 'Buổi vừa được cập nhật. Tải lại rồi kiểm tra trước khi đóng.'],
-  ['INVALID_STATE', 'Buổi không còn ở trạng thái chưa check-out. Tải lại danh sách.']
+  ['VERSION_CONFLICT', 'Dữ liệu đã thay đổi. Hãy tải lại.'],
+  ['INVALID_STATE', 'Trạng thái hoặc thời gian ca không còn phù hợp. Tải lại tiến độ để kiểm tra.']
 ])('409 %s keeps the dialog open with the message', async (code, message) => {
   const api = fixture();
   api.closeVisit.mockRejectedValueOnce(new ApiError(code, 409));
@@ -140,8 +140,8 @@ test('after a lost response the retry reuses the same Idempotency-Key', async ()
   const modal = await openDialog();
   fireEvent.change(await modal.findByLabelText(/Lý do/), { target: { value: 'Mất kết nối' } });
   fireEvent.click(modal.getByRole('button', { name: 'Đóng buổi' }));
-  expect(await screen.findByText('Chưa nhận được xác nhận. Gửi lại cùng yêu cầu để kiểm tra.')).toBeInTheDocument();
-  fireEvent.click(modal.getByRole('button', { name: 'Đóng buổi' }));
+  expect(await screen.findByText('Chưa nhận được xác nhận. Kiểm tra lại cùng yêu cầu.')).toBeInTheDocument();
+  fireEvent.click(modal.getByRole('button', { name: 'Kiểm tra lại yêu cầu' }));
   expect(await screen.findByText('Đã đóng buổi.')).toBeInTheDocument();
   const keys = api.closeVisit.mock.calls.map(call => call[2]);
   expect(keys).toHaveLength(2);
@@ -152,4 +152,40 @@ test('formatOverdue reads hours and minutes since the visit ended', () => {
   expect(formatOverdue(130 * 60000)).toBe('Trễ 2 giờ 10 phút');
   expect(formatOverdue(120 * 60000)).toBe('Trễ 2 giờ');
   expect(formatOverdue(35 * 60000)).toBe('Trễ 35 phút');
+});
+
+test('Admin must enter actual end and evidence; Vietnam time converts explicitly and uncertain retry freezes the facts', async () => {
+  const api = fixture();
+  api.closureDetails.mockResolvedValue(details({ state: 'STAFF_CLOSED', version: 5, closure: { reason: 'Quên check-out' }, verification: null }));
+  api.verifyClosure = jest.fn().mockRejectedValueOnce(new ApiError('NETWORK_ERROR')).mockResolvedValue({ data: { visitId: 'visit-1', state: 'STAFF_CLOSED', version: 6 } });
+  render(<VisitClosurePanel api={api} canVerify />);
+  const modal = await openDialog();
+  const actualEnd = await modal.findByLabelText('Giờ kết thúc thực tế (giờ Việt Nam)');
+  expect(actualEnd).toHaveValue('');
+  fireEvent.click(modal.getByRole('button', { name: 'Xác minh bằng chứng' }));
+  expect(api.verifyClosure).not.toHaveBeenCalled();
+  fireEvent.change(modal.getByLabelText(/Lý do/), { target: { value: 'Khách xác nhận giờ thực tế' } });
+  fireEvent.change(modal.getByLabelText('Tham chiếu bằng chứng đã kiểm tra'), { target: { value: 'synthetic-call-001' } });
+  fireEvent.change(actualEnd, { target: { value: '2026-11-04T06:37' } });
+  fireEvent.click(modal.getByRole('button', { name: 'Xác minh bằng chứng' }));
+  await modal.findByText('Chưa nhận được xác nhận. Kiểm tra lại cùng yêu cầu.');
+  expect(actualEnd).toBeDisabled();
+  fireEvent.click(modal.getByRole('button', { name: 'Kiểm tra lại yêu cầu' }));
+  await screen.findByText('Đã đóng buổi.');
+  expect(api.verifyClosure).toHaveBeenCalledWith('visit-1', {
+    expectedVersion: 5, reason: 'Khách xác nhận giờ thực tế', outcome: 'SERVICE_PERFORMED', evidenceReference: 'synthetic-call-001',
+    actualEndedAt: '2026-11-03T23:37:00.000Z', reportsComplete: false
+  }, expect.any(String));
+  expect(api.verifyClosure.mock.calls[0]).toEqual(api.verifyClosure.mock.calls[1]);
+});
+
+test('Staff can inspect pending closure but cannot see the Admin verification form', async () => {
+  const id = '6720a1b2c3d4e5f6a7b8c9d0', api = fixture({ items: [] });
+  api.closureDetails.mockResolvedValue(details({ id, state: 'STAFF_CLOSED', version: 5 }));
+  render(<VisitClosurePanel api={api} initialVisitId={id} />);
+  const modal = within(await screen.findByRole('dialog'));
+  await modal.findByText(/Buổi đang chờ quản trị xác minh/);
+  expect(api.closureDetails).toHaveBeenCalledWith(id, expect.objectContaining({ signal: expect.anything() }));
+  expect(modal.queryByRole('button', { name: 'Xác minh bằng chứng' })).not.toBeInTheDocument();
+  expect(modal.queryByRole('button', { name: 'Đóng buổi' })).not.toBeInTheDocument();
 });

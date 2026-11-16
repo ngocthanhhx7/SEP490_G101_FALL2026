@@ -32,7 +32,7 @@ function Tab({ id, tab, onTab, children }) {
 // The "Buổi hôm nay" tab is the existing section of the page; the page decides what to show for it.
 // openableIds: ids of the visits whose dispatch dialog the page can open; without it every visit counts as openable.
 export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openableIds, onOpenDispatch, onChanged, onState,
-  initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey }) {
+  initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey, initialClosureId, canVerifyClosure = false }) {
   const hasBoard = typeof api.visitBoard === 'function';
   const [text, setText] = useState('');
   const [areaCode, setAreaCode] = useState('');
@@ -46,6 +46,7 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
   const filtering = Object.keys(filters).length > 0;
   const [notice, setNotice] = useState(null);
   const [closing, setClosing] = useState(null);
+  useEffect(() => { if (/^[a-f0-9]{24}$/i.test(initialClosureId ?? '')) setClosing(initialClosureId); }, [initialClosureId]);
   const [withdrawal, setWithdrawal] = useState(null);
   useEffect(() => {
     if (/^[a-f0-9]{24}$/i.test(initialWithdrawalId ?? '')) setWithdrawal(initialWithdrawalId);
@@ -103,7 +104,7 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
     {hasBoard && tab === 'needs' && pages.moreStatus === 'error' && <p role="alert">Chưa tải thêm được các buổi. Bạn có thể thử lại.</p>}
     {hasBoard && tab === 'needs' && pages.next && <Button variant="secondary" loading={pages.moreStatus === 'loading'} onClick={pages.loadMore}>Tải thêm buổi cần xử lý</Button>}
     {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={filters} workAreas={workAreas} />}
-    {closing && <CloseVisitDialog visitId={closing} api={api} onClose={() => setClosing(null)} onClosed={afterClosed} />}
+    {closing && <CloseVisitDialog key={closing} visitId={closing} api={api} canVerify={canVerifyClosure} onClose={() => setClosing(null)} onClosed={afterClosed} />}
     {withdrawal && api.withdrawalReview && <WithdrawalReviewDialog visitId={withdrawal} api={api} onClose={() => {
       setWithdrawal(null); onWithdrawalDismiss?.();
     }} onDone={() => {

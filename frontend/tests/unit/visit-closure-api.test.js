@@ -23,10 +23,10 @@ describe('visit closure API client', () => {
     expect(result).toBe(closed);
   });
 
-  test('closeVisit accepts the CANCELLED response of a visit without a check-in photo', async () => {
+  test('closeVisit rejects obsolete automatic cancellation without factual verification', async () => {
     const cancelled = { data: { visitId: 'visit-1', state: 'CANCELLED', version: 5, chargeAmount: 0 } };
     const request = jest.fn().mockResolvedValue(cancelled);
-    await expect(createVisitClosureApi(request).closeVisit('visit-1', body, 'closure:key-5')).resolves.toBe(cancelled);
+    await expect(createVisitClosureApi(request).closeVisit('visit-1', body, 'closure:key-5')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   });
 
   test('closeVisit returns a 202 or pending result unchanged so the caller can retry the same key', async () => {

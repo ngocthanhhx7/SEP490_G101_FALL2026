@@ -48,6 +48,18 @@ beforeEach(async () => {
 });
 
 describe('Needs action reasons (R3 10.1.1)', () => {
+  test('Staff-closed visits remain actionable until verification and financial reconciliation are resolved', async () => {
+    const pending = await seed({ state: 'STAFF_CLOSED', sitter: sitterUser, start: NOW - 4 * HOUR, checkIn: true });
+    const financial = await seed({ state: 'STAFF_CLOSED', sitter: sitterUser, start: NOW - 3 * HOUR, checkIn: true });
+    await col('visits').updateOne({ _id: new mongoose.Types.ObjectId(pending.visitId) }, { $set: { completionAttention: { code: 'COMPLETION_VERIFICATION_PENDING' } } });
+    await col('visits').updateOne({ _id: new mongoose.Types.ObjectId(financial.visitId) }, { $set: { completionAttention: { code: 'FINANCIAL_RECONCILIATION_REQUIRED' } } });
+    expect((await list()).items.map(item => [item.id, codesOf(item)])).toEqual([
+      [pending.visitId, ['COMPLETION_VERIFICATION_PENDING']], [financial.visitId, ['FINANCIAL_RECONCILIATION_REQUIRED']]
+    ]);
+    expect((await list({ reason: 'FINANCIAL_RECONCILIATION_REQUIRED' })).items.map(item => item.id)).toEqual([financial.visitId]);
+    await col('visits').updateOne({ _id: new mongoose.Types.ObjectId(pending.visitId) }, { $set: { completionAttention: { code: 'VERIFIED' } } });
+    expect((await list()).counts.needsAction).toBe(1);
+  });
   test('every reason with a data source lists its visit, most urgent first: late, then the least time left', async () => {
     const r1 = await seed({ start: NOW + 3 * DAY, review: 'NO_ELIGIBLE_SITTER' });
     const r2 = await seed({ start: NOW + 19 * HOUR });

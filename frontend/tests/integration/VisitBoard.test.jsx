@@ -157,7 +157,7 @@ describe('search and filters', () => {
     render(<Harness api={board()} />);
     await screen.findByRole('region', { name: 'Buổi cần xử lý' });
     expect(within(screen.getByLabelText('Lý do')).getAllByRole('option').map(option => option.textContent)).toEqual([
-      'Tất cả lý do', 'Hết người để mời', 'Chưa có người 24 giờ trước', 'Chưa check-in sau 30 phút', 'Rút buổi dưới 12 giờ', 'Chưa check-out sau 2 giờ']);
+      'Tất cả lý do', 'Hết người để mời', 'Chưa có người 24 giờ trước', 'Chưa check-in sau 30 phút', 'Rút buổi dưới 12 giờ', 'Cần xác minh kết thúc', 'Chờ quản trị xác minh', 'Cần đối soát phí dịch vụ']);
     expect(within(screen.getByLabelText('Khu vực phục vụ')).getAllByRole('option').map(option => option.textContent)).toEqual(['Tất cả khu vực phục vụ', 'Cầu Giấy', 'Đống Đa']);
   });
 
@@ -221,7 +221,7 @@ describe('actions', () => {
     fireEvent.change(await modal.findByLabelText(/Lý do/), { target: { value: 'Đã gọi xác nhận lúc 08:40.' } });
     fireEvent.click(modal.getByRole('button', { name: 'Đóng buổi' }));
     expect(await screen.findByText('Đã đóng buổi.')).toBeInTheDocument();
-    expect(api.closeVisit).toHaveBeenCalledWith('v-33', { expectedVersion: 1, reason: 'Đã gọi xác nhận lúc 08:40.' }, expect.stringMatching(/^closure:/));
+    expect(api.closeVisit).toHaveBeenCalledWith('v-33', { expectedVersion: 1, reason: 'Đã gọi xác nhận lúc 08:40.' }, expect.stringMatching(/^schedule:/));
     expect(onChanged).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(api.visitBoard.mock.calls.filter(([params]) => params.tab === 'needs-action').length).toBeGreaterThanOrEqual(2));
   });

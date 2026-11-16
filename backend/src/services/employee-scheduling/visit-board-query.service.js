@@ -2,7 +2,7 @@ import { NEEDS_ACTION_REASONS } from '../../validators/needs-action.validator.js
 
 export const VISIT_BOARD_FIELDS = { _id: 1, bookingId: 1, customerId: 1, sitterId: 1, state: 1, version: 1,
   startAt: 1, endAt: 1, areaCode: 1, checkInAt: 1, checkOutAt: 1, assignedAt: 1, withdrawalRequest: 1,
-  'dispatchReview.code': 1, 'snapshots.serviceName': 1 };
+  'dispatchReview.code': 1, 'snapshots.serviceName': 1, 'completionAttention.code': 1 };
 const MINUTE = 60000, HOUR = 60 * MINUTE;
 const and = (...conditions) => ({ $and: conditions });
 const eq = (left, right) => ({ $eq: [left, right] });
@@ -20,7 +20,8 @@ function candidateFilter(now) {
     { state: 'ASSIGNED', checkInAt: null, $or: [
       { startAt: { $lte: new Date(now - 30 * MINUTE) } }, { 'withdrawalRequest.sitterId': { $exists: true } }
     ] },
-    { state: 'IN_PROGRESS', checkInAt: { $type: 'date' }, checkOutAt: null, endAt: { $lte: new Date(now - 2 * HOUR) } }
+    { state: 'IN_PROGRESS', checkInAt: { $type: 'date' }, checkOutAt: null, endAt: { $lte: new Date(now - 2 * HOUR) } },
+    { state: 'STAFF_CLOSED', 'completionAttention.code': { $in: ['COMPLETION_VERIFICATION_PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED'] } }
   ] };
 }
 
@@ -45,9 +46,11 @@ export function visitReasonStages(now) {
       branch(and(assigned, { $lte: ['$startAt', new Date(now - 30 * MINUTE)] }), 'NOT_CHECKED_IN_30M'),
       branch(and(assigned, pendingWithdrawal), 'WITHDRAWAL_UNDER_12H'),
       branch(and(eq('$state', 'IN_PROGRESS'), eq({ $type: '$checkInAt' }, 'date'), missing('$checkOutAt'),
-        { $lte: ['$endAt', new Date(now - 2 * HOUR)] }), 'NOT_CHECKED_OUT_2H')
+        { $lte: ['$endAt', new Date(now - 2 * HOUR)] }), 'NOT_CHECKED_OUT_2H'),
+      branch(and(eq('$state', 'STAFF_CLOSED'), eq('$completionAttention.code', 'COMPLETION_VERIFICATION_PENDING')), 'COMPLETION_VERIFICATION_PENDING'),
+      branch(and(eq('$state', 'STAFF_CLOSED'), eq('$completionAttention.code', 'FINANCIAL_RECONCILIATION_REQUIRED')), 'FINANCIAL_RECONCILIATION_REQUIRED')
     ] } } },
-    { $set: { __at: { $cond: [eq('$state', 'IN_PROGRESS'), '$endAt', '$startAt'] },
+    { $set: { __at: { $cond: [{ $in: ['$state', ['IN_PROGRESS', 'STAFF_CLOSED']] }, '$endAt', '$startAt'] },
       __order: { $indexOfArray: [NEEDS_ACTION_REASONS, { $arrayElemAt: ['$__codes', 0] }] } } }
   ];
 }
@@ -76,7 +79,7 @@ export function visitBoardPageStages({ query, now, position, oid, limit }) {
   const needs = query.tab === 'needs-action', direction = needs || !query.search ? 1 : -1;
   const initial = { startAt: { $type: 'date' }, endAt: { $type: 'date' }, state: { $ne: 'SUPERSEDED' },
     ...(query.areaCode ? { areaCode: query.areaCode } : {}), ...(needs || query.reason ? candidateFilter(now) : {}) };
-  if (needs) initial.state = { $in: ['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS'] };
+  if (needs) initial.state = { $in: ['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'STAFF_CLOSED'] };
   else if (!query.search) {
     const local = new Date(now + 7 * HOUR).toISOString().slice(0, 10);
     initial.startAt.$gte = new Date(`${local}T00:00:00+07:00`);

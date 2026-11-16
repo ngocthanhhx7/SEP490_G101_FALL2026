@@ -7,6 +7,7 @@ export function createVisitClosureController(service) {
   return {
     list: async (req, res) => send(req, res, await service.needsAction(req.auth)),
     details: async (req, res) => send(req, res, await service.details(req.auth, id(req.params.id))),
-    close: async (req, res) => send(req, res, await service.close(req.auth, id(req.params.id), req.body, req.get('idempotency-key')))
+    close: async (req, res) => send(req, res, await service.close(req.auth, id(req.params.id), req.body, req.get('idempotency-key'))),
+    verify: async (req, res) => send(req, res, await service.verify(req.auth, id(req.params.id), req.body, req.get('idempotency-key')))
   };
 }

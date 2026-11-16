@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { createEmployeeSchedulingController } from '../controllers/employee-scheduling.controller.js';
 import { createEmployeeScheduleRepository } from '../services/employee-scheduling/employee-schedule.repository.js';
 import { createEmployeeDispatchService } from '../services/employee-scheduling/employee-dispatch.service.js';
+import { createVisitCompletionMonitor } from '../services/employee-scheduling/visit-completion-monitor.service.js';
 import { createBookingCarePlanService } from '../services/booking-proposals/booking-care-plan.service.js';
 import { createEmployeeScheduleProposalService } from '../services/employee-scheduling/schedule-proposal.service.js';
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
@@ -78,6 +79,8 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   const contacts = createVisitContactController(createVisitContactService({ repository, clock, phones }));
   router.get('/visit-board', staff, rateLimit({ windowMs: 60000, limit: 120, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), board.list);
   router.get('/visits/:id/contact', staff, rateLimit({ windowMs: 60000, limit: 30, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), contacts.read);
+
+  router.post('/visits/:id/closure-verifications', requireRoles('ADMIN'), csrf, closures.verify);
   router.post('/visits/:id/schedule-proposals', staff, csrf, c.propose);
   router.get('/proposals/:id', requireRoles('CUSTOMER'), c.proposal);
   router.post('/proposals/:id/confirmation', requireRoles('CUSTOMER'), csrf, c.confirmProposal);
@@ -95,5 +98,6 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
     router.put('/visits/:id/travel/location', sitter, csrf, writes, t.locate);
     router.post('/visits/:id/travel/eta', csrf, eta, t.eta);
   }
-  return { name: 'employee-scheduling', mount: '/api/v1/employee-scheduling', router, repository, dispatch, carePlans, proposals };
+  return { name: 'employee-scheduling', mount: '/api/v1/employee-scheduling', router, repository, dispatch, carePlans, proposals,
+    completionMonitor: createVisitCompletionMonitor({ repository, clock }) };
 }

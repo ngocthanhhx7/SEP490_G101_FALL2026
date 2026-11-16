@@ -32,13 +32,13 @@ const states = {
 };
 const title = row => `${row.serviceName || 'Ca chăm sóc'}${row.pets?.length ? ' cho ' + row.pets.map(pet => pet.name).filter(Boolean).join(', ') : ''}`;
 export function EmployeeInvitationsPage({
-  api
+  api, initialVisitId
 }) {
   const [offerPages, setOfferPages] = useState([]),
     [assignmentPages, setAssignmentPages] = useState([]),
     [historyPages, setHistoryPages] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false),
-    [selected, setSelected] = useState(null),
+    [selected, setSelected] = useState(/^[a-f0-9]{24}$/i.test(initialVisitId ?? '') ? { kind: 'linked' } : null),
     [withdrawalVisit, setWithdrawalVisit] = useState(null),
     [withdrawalResult, setWithdrawalResult] = useState(null);
   const offerCursor = offerPages.at(-1),
@@ -71,6 +71,9 @@ export function EmployeeInvitationsPage({
   const resource = useApiResource(load),
     assignments = useApiResource(assignmentsLoad),
     history = useApiResource(historyLoad);
+  const linkedLoad = useCallback(({ signal }) => /^[a-f0-9]{24}$/i.test(initialVisitId ?? '')
+    ? api.execution(initialVisitId, { signal }) : Promise.resolve({ data: null }), [api, initialVisitId]);
+  const linked = useApiResource(linkedLoad);
   const command = useSchedulingCommand(() => {
     resource.retry();
     assignments.retry();
@@ -116,8 +119,11 @@ export function EmployeeInvitationsPage({
     render: row => <OperationsBadge>{row.state === 'PENDING' && !row.canRespond ? 'Hết hạn' : states[row.state] ?? 'Đang cập nhật'}</OperationsBadge>
   }];
   const offerRows = (resource.data?.items ?? []).filter(row => row.state === 'PENDING');
-  const active = (selected && (selected.kind === 'assignment' ? assignments.data?.items : selected.kind === 'history' ? history.data?.items : resource.data?.items)?.find(row => row.id === selected.row.id)) ?? selected?.row;
+  const active = selected?.kind === 'linked' ? linked.data ? { ...linked.data, id: linked.data.visitId } : null
+    : (selected && (selected.kind === 'assignment' ? assignments.data?.items : selected.kind === 'history' ? history.data?.items : resource.data?.items)?.find(row => row.id === selected.row.id)) ?? selected?.row;
   return <section className="employee-scheduling employee-invitations">
+    {selected?.kind === 'linked' && linked.status === 'loading' && <p role="status">Đang mở buổi từ thông báo…</p>}
+    {selected?.kind === 'linked' && ['error', 'forbidden'].includes(linked.status) && <p role="alert">Không thể mở buổi từ thông báo. <Button onClick={linked.retry}>Thử lại</Button></p>}
     <header><div><h1>Lời mời và ca chăm sóc</h1><p>Phản hồi lời mời, theo dõi ca đã nhận và mở chi tiết khi cần thực hiện.</p></div><Button variant="ghost" aria-label="Tải lại lời mời" onClick={() => {
         resource.retry();
         assignments.retry();
@@ -163,7 +169,7 @@ export function EmployeeInvitationsPage({
     </details>
     <Dialog open={Boolean(active)} title={active ? title(active) : 'Chi tiết ca chăm sóc'} onClose={() => setSelected(null)} className="employee-assignment-dialog" dismissible={!locked}>
       {active && <><p>{time(active.startAt)} – {time(active.endAt)}</p><p>{states[active.state] ?? 'Đang cập nhật'} · {active.areaLabel ?? active.areaCode}</p>
-        {selected.kind === 'assignment' ? <>{active.serviceAddress && <p>{active.serviceAddress}</p>}{googleMapsDirections(active.serviceAddress) && <a href={googleMapsDirections(active.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
+        {['assignment', 'linked'].includes(selected.kind) ? <>{active.serviceAddress && <p>{active.serviceAddress}</p>}{googleMapsDirections(active.serviceAddress) && <a href={googleMapsDirections(active.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
           <VisitTravel api={api} visitId={active.id} employee startAt={active.startAt} endAt={active.endAt} />
           {['ASSIGNED', 'IN_PROGRESS'].includes(active.state) && <AssignedCare api={api} visitId={active.id} />}
           {api.execution && <VisitExecution key={active.id} api={api} visitId={active.id} onChanged={assignments.retry} />}
