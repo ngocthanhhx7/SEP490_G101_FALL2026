@@ -19,6 +19,7 @@ import { employeeSchedulingModels } from '../../src/models/employee-scheduling.m
 import { productSalesModels } from '../../src/models/product.model.js';
 import { serviceModel } from '../../src/models/service.model.js';
 import { groomingLocalDate } from '../../src/utils/grooming-slot-time.js';
+import { createEmployeeScheduleRepository } from '../../src/services/employee-scheduling/employee-schedule.repository.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const ADDRESS = 'Cửa hàng Paw World, 25 Láng Hạ, Đống Đa';
@@ -30,7 +31,7 @@ const addDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) + days 
 const NOW = at(TODAY, '08:00').getTime();
 const SHOP_CODES = ['pet-bathing', 'hair-trimming', 'nail-trimming', 'ear-eye-cleaning', 'coat-brushing'];
 const WINDOWS = [1, 2, 3, 4, 5, 6, 7].flatMap(weekday => [
-  { weekday, startLocalTime: '08:00', endLocalTime: '12:00' }, { weekday, startLocalTime: '14:00', endLocalTime: '17:00' }
+  { weekday, startLocalTime: '08:00', endLocalTime: '12:00', workLocation: 'SHOP' }, { weekday, startLocalTime: '14:00', endLocalTime: '17:00', workLocation: 'SHOP' }
 ]);
 const actors = Object.fromEntries(['CUSTOMER', 'CUSTOMER2', 'CUSTOMER3', 'CUSTOMER4', 'STAFF', 'PET_SITTER', 'ADMIN'].map(role =>
   [role, { userId: String(oid()), roles: [role.startsWith('CUSTOMER') ? 'CUSTOMER' : role], state: 'ACTIVE' }]));
@@ -55,7 +56,7 @@ async function sitter({ type = 'FULL_TIME', codes = SHOP_CODES, windows = WINDOW
     weeklyMinutes: 2400, signedAt, effectiveAt, ...(endsAt ? { endsAt } : {}), contractReference: 'SYNTHETIC-FIXTURE', workplaceRegion: 1,
     workplaceReference: 'Synthetic shop', ...(verified ? { verifiedBy: oid() } : { verifiedBy: oid() }), recordedAt: new Date(NOW - 30 * DAY) });
   if (!verified) await payroll.EmploymentContract.collection.updateOne({ employeeId: _id }, { $unset: { verifiedBy: '' } });
-  await db.collection('aisitterprofiles').insertOne({ userId: _id, serviceIds: codes.map(code => services[code]), active: capabilityActive, dayOffDates: [] });
+  await db.collection('aisitterprofiles').insertOne({ userId: _id, serviceIds: codes.map(code => services[code]), active: capabilityActive, dayOffDates: [], species: ['DOG', 'CAT'], maxWeightKg: 150, maxPets: 1, allowedTraits: [] });
   await scheduling.EmployeeAvailability.create({ _id: String(_id), zone: 'Asia/Ho_Chi_Minh', workingWindows: windows, areas: [], dayOffDates: dayOff, state: 'ACTIVE', version: 1, effectiveFrom: '2000-01-01' });
   await scheduling.EmployeeAvailabilityRevision.create({ sitterId: String(_id), effectiveFrom: '2000-01-01', version: 1, workingWindows: windows });
   return _id;
@@ -112,9 +113,9 @@ beforeEach(async () => {
 const START = at(TODAY, '09:00').toISOString();
 const startOf = (time, date = TODAY) => at(date, time).toISOString();
 const keyOf = (time, date = TODAY) => `${date}T${time}+07:00`;
-const SLOTS = () => groomingModels(connection).GroomingSlot;
+const NO_SLOT_STORE = () => db.collection('groomingslots');
 const APPOINTMENTS = () => groomingModels(connection).GroomingAppointment;
-const held = async time => (await SLOTS().findById(keyOf(time)).lean())?.held;
+const held = async time => { const docs = await APPOINTMENTS().find({ status: 'BOOKED' }).lean(); const count = docs.flatMap(doc => doc.pets).filter(pet => pet.reservedSitterId && pet.status !== 'CANCELLED_NO_CHARGE' && pet.slotKeys.includes(keyOf(time))).length; return count || undefined; };
 const petOf = (role, name, species = 'DOG', weightKg = 12) => repository.models.Pet.create({ ownerId: actors[role].userId, name, species,
   breedCode: species === 'DOG' ? 'dog-mixed' : 'cat-mixed', weightKg, traits: [], careNeedsConfirmed: true });
 const row = (petDoc, codes, answers = {}) => ({ petId: String(petDoc._id), serviceIds: codes.map(sid), answers: { biteOrScratch: 'NO', skinCondition: 'NO', ...answers } });
@@ -129,7 +130,8 @@ const bookFor = (rows, { startAt = START, role = 'CUSTOMER', key } = {}) => {
 };
 const seed = async ({ code, status = 'BOOKED', petStatus = 'BOOKED', petDoc = pets.Milo, times = ['10:00'], more = {} }) => APPOINTMENTS().create({
   code, customerId: oid(), slot: { startAt: at(TODAY, times[0]), endAt: at(TODAY, '12:00'), localDate: TODAY, startLocalTime: times[0] }, status,
-  pets: [{ petId: petDoc._id, petSnapshot: { name: petDoc.name, species: 'DOG', breedCode: 'dog-mixed', weightKg: 12, petVersion: 0 }, status: petStatus,
+  requestReceipt: { key: String(oid()), fingerprint: 'synthetic', result: {} },
+  pets: [{ reservedSitterId: oid(), petId: petDoc._id, petSnapshot: { name: petDoc.name, species: 'DOG', breedCode: 'dog-mixed', weightKg: 12, petVersion: 0 }, status: petStatus,
     services: [{ serviceId: oid(), name: 'Tắm và vệ sinh thú cưng', durationMinutes: 60, priceVnd: 110000 }],
     answers: { biteOrScratch: 'NO', skinCondition: 'NO' }, finalPriceVnd: 110000, durationMinutes: 60 * times.length, slotKeys: times.map(time => keyOf(time)) }],
   tier: { code: null, discountBps: 0, discountBlockedReason: null }, pricing: { subtotalVnd: 110000, tierDiscountVnd: 0, totalVnd: 110000, currency: 'VND' },
@@ -160,7 +162,7 @@ describe('access and input', () => {
       { ...good, pets: [] }, { ...good, pets: [rows[0], rows[0]] }, { startAt: good.startAt, pets: rows }];
     for (const body of bad) await book(body).expect(422);
     expect(await APPOINTMENTS().countDocuments()).toBe(0);
-    expect(await SLOTS().countDocuments()).toBe(0);
+    expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
   });
 
   test('refuses a slot that is too soon or outside the seven-day window and accepts the boundaries', async () => {
@@ -189,7 +191,7 @@ describe('access and input', () => {
     const response = await book(payload([row(pets.Bo, ['pet-bathing'], { biteOrScratch: 'YES' })], 100000)).expect(422);
     expect(response.body.error).toMatchObject({ code: 'GROOMING_PET_REFERRAL_REQUIRED', petName: 'Bơ' });
     expect(await APPOINTMENTS().countDocuments()).toBe(0);
-    expect(await SLOTS().countDocuments()).toBe(0);
+    expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
   });
 
   test('needs the shop address', async () => {
@@ -260,7 +262,7 @@ describe('booking', () => {
     expect(response.body.error).toMatchObject({ code: 'GROOMING_PRICE_CHANGED', message: 'Giá vừa thay đổi. Vui lòng xem lại giá cuối trước khi xác nhận.',
       expectedTotalVnd: 99000, totalVnd: 110000 });
     expect(await APPOINTMENTS().countDocuments()).toBe(0);
-    expect(await SLOTS().countDocuments()).toBe(0);
+    expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
   });
 
   test('a slot with no sitter on shift is refused as taken', async () => {
@@ -268,6 +270,56 @@ describe('booking', () => {
     const response = await bookFor([row(pets.Milo, ['pet-bathing'])], { startAt: startOf('13:00') }).expect(409);
     expect(response.body.error).toMatchObject({ code: 'GROOMING_SLOT_TAKEN', startAt: startOf('13:00') });
     expect(await APPOINTMENTS().countDocuments()).toBe(0);
+  });
+});
+
+describe('authoritative employee reservations', () => {
+  test('generic legacy HOME availability does not imply a shop shift', async () => {
+    await sitter({ windows: WINDOWS.map(({ workLocation: _location, ...window }) => window) });
+    expect(await slotsOf(TODAY, { petId: String(pets.Milo._id), serviceIds: [sid('pet-bathing')] })).toEqual([]);
+    const response = await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(409);
+    expect(response.body.error.code).toBe('GROOMING_SLOT_TAKEN');
+  });
+  test('different pets may use distinct employees with different service capabilities', async () => {
+    const bathing = await sitter({ codes: ['pet-bathing'] }), nails = await sitter({ codes: ['nail-trimming'] });
+    const response = await bookFor([row(pets.Milo, ['pet-bathing']), row(pets.Bo, ['nail-trimming'])]).expect(201);
+    const saved = await APPOINTMENTS().findById(response.body.data.id).lean();
+    expect(saved.pets.map(pet => String(pet.reservedSitterId))).toEqual([String(bathing), String(nails)]);
+  });
+  test('capability species, weight and traits are authoritative for each pet', async () => {
+    const employeeId = await sitter();
+    await db.collection('aisitterprofiles').updateOne({ userId: employeeId }, { $set: { species: ['CAT'] } });
+    await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(409);
+    await db.collection('aisitterprofiles').updateOne({ userId: employeeId }, { $set: { species: ['DOG'], maxWeightKg: 5 } });
+    await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(409);
+    await db.collection('aisitterprofiles').updateOne({ userId: employeeId }, { $set: { maxWeightKg: 150 } });
+    await repository.models.Pet.collection.updateOne({ _id: pets.Milo._id }, { $set: { traits: ['SYNTHETIC_SPECIAL_CARE'] } });
+    await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(409);
+    expect(await APPOINTMENTS().countDocuments()).toBe(0);
+  });
+  test('booking and removing a SHOP window serialize through the same employee guard', async () => {
+    const employeeId = await sitter(), employee = createEmployeeScheduleRepository({ connection, clock: () => NOW, coverageAreas: [] });
+    const input = payload([row(pets.Milo, ['pet-bathing'])], await totalOf([row(pets.Milo, ['pet-bathing'])]));
+    const [reservation, update] = await Promise.allSettled([
+      book(input).then(response => { if (response.status !== 201) throw new Error(response.body.error.code); return response; }),
+      employee.availability.updateMine({ actor: { userId: String(employeeId), roles: ['PET_SITTER'], state: 'ACTIVE' }, command: {
+        expectedVersion: 1, idempotencyKey: 'synthetic-remove-shop-window', zone: 'Asia/Ho_Chi_Minh', effectiveFrom: TODAY,
+        workingWindows: WINDOWS.map(({ workLocation: _location, ...window }) => window)
+      } })
+    ]);
+    expect([reservation, update].filter(result => result.status === 'fulfilled')).toHaveLength(1);
+    if (reservation.status === 'fulfilled') {
+      expect(update.reason.code).toBe('CONFIRMED_VISIT_CONFLICT');
+      expect((await scheduling.EmployeeAvailability.findById(String(employeeId)).lean()).version).toBe(1);
+    } else expect(await APPOINTMENTS().countDocuments()).toBe(0);
+  });
+  test('concurrent bookings of the same pet cannot reserve two different employees', async () => {
+    await sitter(); await sitter();
+    const rows = [row(pets.Milo, ['pet-bathing'])];
+    const responses = await Promise.all([bookFor(rows), bookFor(rows)]);
+    expect(responses.map(response => response.status).sort()).toEqual([201, 409]);
+    expect(responses.find(response => response.status === 409).body.error.code).toBe('GROOMING_PET_ALREADY_BOOKED');
+    expect(await APPOINTMENTS().countDocuments()).toBe(1);
   });
 });
 
@@ -282,7 +334,7 @@ describe('slot holding', () => {
     expect([a, b].find(response => response.status === 409).body.error).toMatchObject({ code: 'GROOMING_SLOT_TAKEN' });
     expect(await held('09:00')).toBe(1);
     expect(await APPOINTMENTS().countDocuments()).toBe(1);
-    expect(await groomingModels(connection).GroomingCommand.countDocuments()).toBe(1);
+    expect(await APPOINTMENTS().countDocuments({ 'requestReceipt.key': { $exists: true } })).toBe(1);
   });
 
   test('four customers racing for two places on a slot with no record yet: exactly two succeed', async () => {
@@ -302,28 +354,31 @@ describe('slot holding', () => {
     await sitter();
     const response = await bookFor([row(pets.Milo, ['pet-bathing']), row(pets.Bo, ['pet-bathing'])]).expect(409);
     expect(response.body.error.code).toBe('GROOMING_SLOT_TAKEN');
-    expect(await SLOTS().countDocuments()).toBe(0);
+    expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
     expect(await APPOINTMENTS().countDocuments()).toBe(0);
-    expect(await groomingModels(connection).GroomingCounter.countDocuments()).toBe(0);
+    // Sequence gaps are allowed; a failed reservation still creates no appointment.
+    expect(await APPOINTMENTS().countDocuments()).toBe(0);
     await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(201);
   });
 
   test('more pets than the capacity only in a later hour of a long plan is refused', async () => {
     await sitter(); await sitter();
     await bookFor([row(pets.Milo, ['pet-bathing', 'hair-trimming']), row(pets.Bo, ['nail-trimming'])]).expect(201);
-    await SLOTS().updateOne({ _id: keyOf('10:00') }, { $set: { held: 2 } });
+    const other = await petOf('CUSTOMER2', 'Other pet');
+    await bookFor([row(other, ['pet-bathing'])], { startAt: startOf('10:00'), role: 'CUSTOMER2' }).expect(201);
     const response = await bookFor([row(pets.Muop, ['pet-bathing', 'nail-trimming'])], { startAt: startOf('10:00') }).expect(409);
     expect(response.body.error.code).toBe('GROOMING_SLOT_TAKEN');
   });
 
   test('a slot that is full in a later hour leaves no place held in the earlier hours of the same appointment', async () => {
     await sitter();
-    await SLOTS().create({ _id: keyOf('11:00'), held: 1 });
+    await bookFor([row(pets.Bo, ['pet-bathing'])], { startAt: startOf('11:00') }).expect(201);
     const response = await bookFor([row(pets.Milo, ['pet-bathing', 'hair-trimming'])]).expect(409);
     expect(response.body.error.code).toBe('GROOMING_SLOT_TAKEN');
-    expect((await SLOTS().find().lean()).map(doc => [doc._id, doc.held])).toEqual([[keyOf('11:00'), 1]]);
-    expect(await APPOINTMENTS().countDocuments()).toBe(0);
-    expect(await groomingModels(connection).GroomingCommand.countDocuments()).toBe(0);
+    expect(await held('09:00')).toBeUndefined();
+    expect(await held('11:00')).toBe(1);
+    expect(await APPOINTMENTS().countDocuments()).toBe(1);
+    expect(await APPOINTMENTS().countDocuments({ 'requestReceipt.key': { $exists: true } })).toBe(1);
   });
 
   test('a slot kept full by another appointment is shown as FULL and cannot be booked', async () => {
@@ -391,7 +446,7 @@ describe('a pet cannot have two overlapping appointments (Q6)', () => {
         expect(response.body.error).toMatchObject({ code: 'GROOMING_PET_ALREADY_BOOKED', petId: String(pets.Milo._id), petName: 'Milo',
           message: 'Milo đã có lịch tại cửa hàng vào giờ này. Vui lòng chọn giờ khác.' });
         expect(await APPOINTMENTS().countDocuments()).toBe(1);
-        expect(await SLOTS().countDocuments()).toBe(0);
+        expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
       } else {
         expect(response.status).toBe(201);
       }
@@ -435,7 +490,7 @@ describe('a pet cannot have two overlapping appointments (Q6)', () => {
     const response = await bookFor([row(pets.Milo, ['pet-bathing']), row(pets.Bo, ['pet-bathing'])]);
     expect(response.status).toBe(409);
     expect(response.body.error).toMatchObject({ code: 'GROOMING_PET_ALREADY_BOOKED', petName: 'Bơ' });
-    expect(await SLOTS().countDocuments()).toBe(0);
+    expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
   });
 
   test('the same pet booked twice at the same moment with two keys gets one appointment', async () => {

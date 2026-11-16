@@ -9,6 +9,7 @@ import { provisionReferenceCatalogStorage } from './reference-catalog-storage.se
 import { assertEmbeddedPresentationModels } from '../models/service-presentation.model.js';
 import { assertSingleAccountRoleStorage } from './single-account-role.service.js';
 import { provisionCustomerTierStorage } from './customer-tier-storage.service.js';
+import { provisionGroomingStorage } from './grooming/grooming-storage.service.js';
 
 // Called by the deployment command after runtime modules register their models.
 // Additive only: incompatible indexes/data must stop deployment for review.
@@ -22,6 +23,7 @@ export async function provisionDeploymentStorage({ connection, env = {} }) {
   }
   if (env.FINANCE_SOURCES_ENABLED === 'true') await provisionFinanceSources(connection, { legacyTasks: storageProfile(env) === 'LEGACY_PARTNER' });
   if (env.EMPLOYEE_SCHEDULING_ENABLED === 'true') { await provisionEmployeeScheduling(connection); await provisionServiceAreaStorage(connection); }
+  if (env.GROOMING_BOOKING_ENABLED === 'true') await provisionGroomingStorage(connection);
   for (const model of Object.values(connection.models)) {
     if (model.collection.name === 'reference_catalog') continue;
     await model.createCollection();

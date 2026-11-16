@@ -11,7 +11,7 @@ const options = { strict: 'throw', bufferCommands: false, versionKey: false };
 
 // Collection names are explicit: renaming a model must never create an empty replacement collection.
 export const GROOMING_COLLECTIONS = Object.freeze({
-  appointments: 'groomingappointments', slots: 'groomingslots', commands: 'groomingcommands', counters: 'groomingcounters'
+  appointments: 'groomingappointments', counters: 'groomingcounters'
 });
 
 // One document per appointment; Grooming Pet (I.3) is embedded so one pet can change through arrayFilters
@@ -26,7 +26,7 @@ function appointmentSchema() {
   }, embedded);
   const snapshot = new Schema({
     name: { type: String, required: true, maxlength: 100 }, species: { type: String, enum: ['DOG', 'CAT'], required: true },
-    breedCode: { type: String, maxlength: 80 }, weightKg: { type: Number, min: 0 }, petVersion: count
+    breedCode: { type: String, maxlength: 80 }, weightKg: { type: Number, min: 0 }, petVersion: count, traits: [String]
   }, embedded);
   // A "very risky" biting answer is never stored: that pet cannot be booked online.
   const answers = new Schema({
@@ -38,6 +38,7 @@ function appointmentSchema() {
     services: { type: [service], required: true }, answers: { type: answers, required: true },
     finalPriceVnd: { ...money, required: true }, durationMinutes: { ...count, required: true },
     slotKeys: { type: [String], required: true },
+    reservedSitterId: { type: oid, required: true },
     status: { type: String, enum: GROOMING_PET_STATUSES, default: 'BOOKED', required: true },
     surchargeVnd: money, surchargeConsent: Boolean,
     checkInPhotos: [new Schema({ storageRef: { type: String, maxlength: 300 } }, embedded)],
@@ -67,6 +68,8 @@ function appointmentSchema() {
     tier: { type: tier, required: true }, pricing: { type: pricing, required: true },
     shop: { type: new Schema({ address: { type: String, required: true, maxlength: 500 } }, embedded), required: true },
     bookedAt: { type: Date, required: true },
+    requestReceipt: { type: new Schema({ key: { type: String, required: true }, fingerprint: { type: String, required: true },
+      result: { type: Schema.Types.Mixed, required: true } }, embedded), required: true, select: false },
     version: { ...count, default: 0 },
     checkIn: new Schema({ at: Date, byStaffId: oid }, embedded),
     noShow: new Schema({ at: Date, byStaffId: oid }, embedded),
@@ -77,6 +80,8 @@ function appointmentSchema() {
     closedAt: Date, handedBackAt: Date
   }, options);
   schema.index({ code: 1 }, { unique: true });
+  schema.index({ 'requestReceipt.key': 1 }, { unique: true });
+  schema.index({ 'pets.reservedSitterId': 1, status: 1, 'slot.endAt': 1 });
   schema.index({ customerId: 1, 'slot.startAt': -1 });
   schema.index({ 'slot.localDate': 1, status: 1, 'slot.startAt': 1 });
   schema.index({ 'pets.petId': 1, 'slot.startAt': 1 });
@@ -87,11 +92,6 @@ export function groomingModels(connection) {
   const define = (name, schema, collection) => connection.models[name] ?? connection.model(name, schema, collection);
   return {
     GroomingAppointment: define('GroomingAppointment', appointmentSchema(), GROOMING_COLLECTIONS.appointments),
-    // One document per one-hour slot, keyed like 2026-11-05T10:00+07:00. Capacity is never stored here.
-    GroomingSlot: define('GroomingSlot', new Schema({ _id: String, held: { ...count, required: true }, updatedAt: Date }, options), GROOMING_COLLECTIONS.slots),
-    GroomingCommand: define('GroomingCommand', new Schema({
-      _id: String, fingerprint: { type: String, required: true }, result: Schema.Types.Mixed, createdAt: { type: Date, required: true }
-    }, options), GROOMING_COLLECTIONS.commands),
     GroomingCounter: define('GroomingCounter', new Schema({ _id: String, value: { ...count, required: true } }, options), GROOMING_COLLECTIONS.counters)
   };
 }

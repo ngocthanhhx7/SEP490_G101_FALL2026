@@ -19,6 +19,7 @@ export const groomingPath = service => '/grooming-booking?serviceId=' + encodeUR
 export function bookingActions(service, homeLabel = 'Đặt dịch vụ này') {
   const home = { kind: 'HOME', to: '/booking/' + encodeURIComponent(service.id), label: homeLabel };
   if (!isShopGrooming(service)) return [home];
+  if (service.groomingBookingEnabled === false) return homeLocations(service).length ? [{ ...home, label: 'Đặt tại nhà' }] : [];
   const shop = { kind: 'SHOP', to: groomingPath(service), label: SHOP_LABEL };
   return homeLocations(service).length ? [shop, { ...home, label: 'Đặt tại nhà' }] : [shop];
 }

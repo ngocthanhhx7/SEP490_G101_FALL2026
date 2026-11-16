@@ -17,6 +17,7 @@ export function serviceCatalogModule({
   connection,
   priceProvider,
   catalogSettings,
+  env = {},
   sessionService: suppliedSessionService,
   clock = Date.now
 } = {}) {
@@ -35,6 +36,7 @@ export function serviceCatalogModule({
     PolicyVersion: servicePolicyVersionModel(connection),
     priceProvider,
     catalogSettings,
+    groomingBookingEnabled: env.GROOMING_BOOKING_ENABLED === 'true' && config.auth?.enabled === true,
     clock
   });
   const router = Router();

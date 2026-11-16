@@ -5,6 +5,7 @@ import { calculateQuote } from '../pricing/pricing-calculation.service.js';
 import { GROOMING_BLOCKING_BITE_ANSWER } from '../../constants/grooming.js';
 import { AppError } from '../../utils/app-error.js';
 import { fail } from '../../validators/pet-care.validator.js';
+import { createProductPricingEligibility } from '../product-sales/product-pricing-eligibility.service.js';
 
 const SPECIES = { DOG: 'chó', CAT: 'mèo' };
 
@@ -31,27 +32,20 @@ const discountOf = (subtotalVnd, bps) => Number(BigInt(subtotalVnd) * BigInt(bps
 
 // Price of every pet at booking time (GBR-40): approved pricing policy by pet size, one pet and one service at a time,
 // with order-level adjustments off and no care traits (surcharges for a different pet are agreed at check-in).
-export function createGroomingPricing({ connection, clock = Date.now, shopServices, tierService, discountHold, hotline = null }) {
+export function createGroomingPricing({ connection, clock = Date.now, shopServices, refusalLimit, hotline = null }) {
   const { Pet } = petCareModels(connection);
   const repository = createPricingRepository(connection, clock);
+  const eligibility = createProductPricingEligibility({ connection, refusalLimit });
 
-  async function readTier(customerId) {
-    let code = null, discountBps = 0, blockedReason = null;
-    try {
-      const read = await tierService.read(customerId);
-      if (read) ({ tier: code, discountBps } = read);
-    } catch (error) {
-      if (error?.code !== 'CUSTOMER_TIER_POLICY_UNAPPROVED') throw error;
-      blockedReason = 'POLICY_UNAPPROVED';
-    }
-    if (!blockedReason && discountBps > 0) blockedReason = await discountHold.read(customerId);
-    return { code, discountBps: blockedReason ? 0 : discountBps, blockedReason };
+  async function readTier(customerId, session) {
+    const result = await eligibility.read(customerId, { session, includeReason: true });
+    return { code: result.tierCode, discountBps: result.discountBps, blockedReason: result.discountBlockedReason, policyVersion: result.tierPolicyVersion };
   }
 
-  async function price(customerId, input) {
-    const shop = await shopServices.resolve(input.pets.flatMap(row => row.serviceIds));
+  async function price(customerId, input, { session = null } = {}) {
+    const shop = await shopServices.resolve(input.pets.flatMap(row => row.serviceIds), { session });
     const ids = input.pets.map(row => new Types.ObjectId(row.petId));
-    const pets = await Pet.find({ _id: { $in: ids }, ownerId: customerId, state: 'ACTIVE' }).lean();
+    const pets = await Pet.find({ _id: { $in: ids }, ownerId: customerId, state: 'ACTIVE' }).session(session).lean();
     if (pets.length !== ids.length) fail('RESOURCE_NOT_FOUND', 'Owned pet unavailable', 404);
     const priced = [];
     for (const row of input.pets) {
@@ -65,7 +59,7 @@ export function createGroomingPricing({ connection, clock = Date.now, shopServic
     for (const { pet, row } of priced) {
       const lines = [];
       for (const serviceId of row.serviceIds) {
-        const context = await repository.context(customerId, { serviceId, petIds: [row.petId] });
+        const context = await repository.context(customerId, { serviceId, petIds: [row.petId] }, { session });
         const service = shop.get(serviceId);
         const quote = calculateQuote({ baseAmountVnd: context.price.amountVnd, priceVersion: context.price.version, policy: context.policy,
           pets: [{ ...context.pets[0], traits: [] }], durationMinutes: service.durationMinutes, visitCount: 1, deferOrderAdjustments: true });
@@ -77,7 +71,7 @@ export function createGroomingPricing({ connection, clock = Date.now, shopServic
     }
     const subtotalVnd = results.reduce((sum, row) => sum + row.priceVnd, 0);
     if (!Number.isSafeInteger(subtotalVnd)) fail('PRICE_OVERFLOW', 'Price exceeds supported range');
-    const tier = await readTier(customerId);
+    const tier = await readTier(customerId, session);
     const tierDiscountVnd = discountOf(subtotalVnd, tier.discountBps);
     return { pets: results, subtotalVnd, tier, tierDiscountVnd, totalVnd: subtotalVnd - tierDiscountVnd };
   }

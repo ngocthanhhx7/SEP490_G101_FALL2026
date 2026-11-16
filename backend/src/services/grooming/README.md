@@ -1,20 +1,42 @@
-# Shop grooming booking services (UC-58)
+# Shop grooming booking (UC-58)
 
-Customer-side booking of bathing and grooming at the shop: the reads (options, time slots, final price), the booking itself and the customer's own appointments. Mounted at `/api/v1/grooming` by `routes/grooming.routes.js` only when `GROOMING_BOOKING_ENABLED=true` (needs authentication and storage from `provisionGroomingStorage`).
+Customer reads options, slots and deterministic quotes, books an appointment and
+reads their own appointments. The runtime is explicitly gated by
+`GROOMING_BOOKING_ENABLED=true`, authentication, configured shop address and
+provisioned storage. Public catalog DTOs expose the runtime capability; the
+frontend hides shop booking actions while disabled, retaining eligible home care.
 
 | File | Responsibility |
 | --- | --- |
-| `grooming.service.js` | Customer check and the three reads: options, time slots, final price. |
-| `grooming-shop-services.service.js` | Which services are shop services: `presentation.locations` has `FACILITY` and the category is Vệ sinh or Làm đẹp. A service without an active version, published policy, price or `APPROVED` pricing policy is `bookable: false`. |
-| `shop-shift-source.service.js` | **Temporary** source of shop shifts (GBR-45). One place decides who is on shift: verified `FULL_TIME` contract, active capability for every chosen service, working hours cover the slot, no day off, no assigned or running home visit. Replace this file when Shift Schedule exists. |
-| `grooming-slots.service.js` | One-hour slots for a day. No sitter on shift: not listed. Sitters but not enough free places: `FULL`. Each pet takes one place in every slot it needs; its services run one after another; pets run at the same time. Free places = sitters on shift − `groomingslots.held`. |
-| `grooming-pricing.service.js` | Price per pet and service from the `APPROVED` pricing policy by pet size, one pet at a time, no combo, no order-level step and no care traits (surcharges for a different pet are agreed at check-in). Tier discount is rounded down to a whole dong. |
-| `grooming-discount-hold.service.js` | GBR-42 block: an overdue bill or too many refusals keeps the tier but gives no discount. Copies the product checkout rule (PR #358); replace it with that module once merged. |
-| `grooming-booking.service.js` | Booking and reading appointments. Price and capacity are recomputed; every needed slot is held in one transaction (conditional `$inc` on `groomingslots.held`, never an upsert-based "full"); a repeated `Idempotency-Key` returns the saved appointment; a pet cannot have two overlapping appointments (only `BOOKED` and `CHECKED_IN` appointments block, and a pet in `CANCELLED_NO_CHARGE` does not). The customer view hides check-in, work, staff and payment fields. |
-| `grooming-appointment-code.service.js` | Next `GR-0001` code from `groomingcounters`, taken outside the booking transaction (a failed booking may leave a gap). |
-| `grooming-storage.service.js` | Creates the four collections and indexes. Run before enabling the flag. |
-| `grooming-demo-seed.service.js` | Demo-only: two full-time shop sitters (`scripts/seeds/grooming-demo.js`, development database only). |
+| `grooming.service.js` | Customer authorization and API orchestration. |
+| `grooming-shop-services.service.js` | Current FACILITY services in Vệ sinh/Làm đẹp with active version, published policy, price and approved pricing policy. |
+| `shop-shift-source.service.js` | Explicit employee-registered SHOP windows, current verified FULL_TIME contract, service/species/weight/trait capability, leave, home/shop/block occupancy and ordinary day/week hours. Legacy windows mean HOME. Bounded roster reads fail explicitly on overflow. |
+| `grooming-reservation.service.js` | Distinct employee matching for simultaneous pets, each employee eligible for that pet's complete duration and selected services. Counts per hour alone are insufficient. |
+| `grooming-slots.service.js` | Preview hourly start times using the same matching; partial-duration availability cannot create an impossible booking. Final booking rechecks everything. |
+| `grooming-pricing.service.js` | Current approved per-pet/per-service prices in the booking transaction, integer VND and floor tier discount. Common product checkout eligibility supplies approved tier version and holds. No AI pricing or invented surcharge/tax. |
+| `grooming-discount-hold.service.js` | Compatibility adapter to common checkout eligibility; no copied financial rule. |
+| `grooming-booking.service.js` | Transactional price/ownership recheck, pet guard, shared employee guards and embedded reservation/receipt. Owner-scoped reads hide staff identities, receipts, care evidence and payment internals. |
+| `grooming-appointment-code.service.js` | Independent GR sequence; failed transactions may leave harmless gaps. |
+| `grooming-storage.service.js` | Explicit additive provisioning of appointments and counters only; runtime does not create indexes. |
+| `grooming-demo-seed.service.js` | Development-only synthetic shop fixtures, never production employment evidence. |
 
-The model is `models/grooming-appointment.model.js`: `groomingappointments` (Grooming Appointment with Grooming Pets embedded), `groomingslots` (places held per slot), `groomingcommands` (idempotency), `groomingcounters` (appointment code). Booking writes the appointment up to `BOOKED`; check-in, work, payment, cancellation and release of held places belong to later use cases.
+Only two new collections are justified: `groomingappointments` owns at most ten
+embedded pets, each reserved employee and a single immutable idempotency receipt;
+`groomingcounters` owns the independent appointment sequence. An hourly held count
+would duplicate these reservations, and a separate one-to-one command would
+duplicate the bounded receipt. Unique code and receipt-key indexes protect replay.
+Existing employee/pet guards serialize competing home/shop work, window removal,
+capability reduction and contract changes. Source collection names are preserved;
+there is no live drop or destructive migration. See the
+[storage and rollout contract](../../../../doc/api/grooming-reservations.md).
 
-A pet whose bite answer is `YES` is never priced or stored: the API answers `422 GROOMING_PET_REFERRAL_REQUIRED` (MSG63) with the pet and the optional hotline from `GROOMING_SHOP_HOTLINE`.
+Without authoritative shop coordinates/travel evidence, an employee with a home
+visit on the same local day is excluded from shop reservations. This is an explicit
+travel-verification gate; the system does not assume zero travel or invent a point.
+
+UC-58 ends at BOOKED. Shop check-in, service execution, staff cancellation/release
+and payment require their respective use cases and must recheck reserved employee
+eligibility. This change does not claim these future actions are operational.
+Released pets and terminal appointments cease occupying time through the canonical
+appointment states; no second counter must be repaired. The initial receipt remains
+unchanged for an old command replay even if the appointment later evolves.

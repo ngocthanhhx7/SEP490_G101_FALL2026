@@ -13,7 +13,7 @@ const DAY = 86400000;
 const sitters = [['sitter-1', 'Nguyễn Đức Anh (Demo cửa hàng)'], ['sitter-2', 'Phạm Quang Minh (Demo cửa hàng)']];
 // Shop shifts: every day 08:00-12:00 and 14:00-17:00.
 const workingWindows = [1, 2, 3, 4, 5, 6, 7].flatMap(weekday => [
-  { weekday, startLocalTime: '08:00', endLocalTime: '12:00' }, { weekday, startLocalTime: '14:00', endLocalTime: '17:00' }
+  { weekday, startLocalTime: '08:00', endLocalTime: '12:00', workLocation: 'SHOP' }, { weekday, startLocalTime: '14:00', endLocalTime: '17:00', workLocation: 'SHOP' }
 ]);
 
 export async function provisionGroomingDemo({ connection, clock = Date.now }) {

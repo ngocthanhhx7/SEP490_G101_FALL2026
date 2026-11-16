@@ -26,18 +26,18 @@ export function createGroomingShopServices({ connection, clock = Date.now }) {
   const Service = serviceModel(connection), Version = serviceVersionModel(connection), Policy = servicePolicyVersionModel(connection);
   const Price = servicePriceVersionModel(connection), Setting = systemSettingVersionModel(connection), { PricingPolicy } = pricingModels(connection);
 
-  async function list() {
+  async function list({ session = null } = {}) {
     const now = new Date(clock());
     const services = await Service.find({ 'presentation.locations': 'FACILITY', 'presentation.category': { $in: GROOMING_CATEGORIES } })
-      .select('code presentation').sort({ code: 1 }).limit(50).lean();
+      .select('code presentation').sort({ code: 1 }).limit(50).session(session).lean();
     if (!services.length) return [];
     const ids = services.map(row => row._id);
     const [versions, policies, prices, pricing, setting] = await Promise.all([
-      Version.find({ serviceId: { $in: ids }, effectiveAt: { $lte: now } }).lean(),
-      Policy.find({ serviceId: { $in: ids }, effectiveAt: { $lte: now } }).lean(),
-      Price.find({ serviceId: { $in: ids }, effectiveAt: { $lte: now } }).lean(),
-      PricingPolicy.find({ serviceId: { $in: ids }, status: 'APPROVED', approvedAt: { $lte: now, $ne: null }, effectiveAt: { $lte: now } }).lean(),
-      Setting.findOne({ key: 'SERVICE_CATALOG_VISIBLE', effectiveAt: { $lte: now } }).sort({ effectiveAt: -1 }).lean()
+      Version.find({ serviceId: { $in: ids }, effectiveAt: { $lte: now } }).session(session).lean(),
+      Policy.find({ serviceId: { $in: ids }, effectiveAt: { $lte: now } }).session(session).lean(),
+      Price.find({ serviceId: { $in: ids }, effectiveAt: { $lte: now } }).session(session).lean(),
+      PricingPolicy.find({ serviceId: { $in: ids }, status: 'APPROVED', approvedAt: { $lte: now, $ne: null }, effectiveAt: { $lte: now } }).session(session).lean(),
+      Setting.findOne({ key: 'SERVICE_CATALOG_VISIBLE', effectiveAt: { $lte: now } }).sort({ effectiveAt: -1 }).session(session).lean()
     ]);
     const version = newest(versions), policy = newest(policies), price = newest(prices), approved = newest(pricing, true);
     return services.map(service => {
@@ -54,8 +54,8 @@ export function createGroomingShopServices({ connection, clock = Date.now }) {
   return {
     list,
     // Resolves chosen service ids to bookable shop services, or fails; the list is the only definition of "shop service".
-    async resolve(serviceIds) {
-      const shop = new Map((await list()).map(row => [row.id, row]));
+    async resolve(serviceIds, options = {}) {
+      const shop = new Map((await list(options)).map(row => [row.id, row]));
       const rows = [...new Set(serviceIds)].map(value => shop.get(String(new Types.ObjectId(value))));
       if (rows.some(row => !row?.bookable || !row.durationMinutes)) fail('SERVICE_UNAVAILABLE', 'Shop service unavailable', 409);
       return new Map(rows.map(row => [row.id, row]));

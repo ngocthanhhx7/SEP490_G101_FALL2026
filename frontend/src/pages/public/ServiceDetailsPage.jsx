@@ -9,7 +9,7 @@ import {
 } from '../../utils/catalog-format.js';
 import { serviceVisual } from './service-visuals.js';
 import { ServiceFacts } from './ServiceFacts.jsx';
-import { bookingActions } from '../../utils/shop-grooming.js';
+import { bookingActions, isShopGrooming } from '../../utils/shop-grooming.js';
 import './service-catalog.css';
 
 const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
@@ -100,6 +100,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
             <strong>{price || 'Giá chưa được công bố'}</strong>
           </p>
           <div className="pwc-service-detail-actions">
+            {service.groomingBookingEnabled === false && isShopGrooming(service) && <p>Đặt lịch chăm sóc tại cửa hàng chưa mở.</p>}
             {bookingActions(service).map((action, index) => (
               <Link
                 key={action.kind}

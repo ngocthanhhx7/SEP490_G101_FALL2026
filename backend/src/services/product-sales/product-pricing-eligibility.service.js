@@ -43,7 +43,7 @@ export function createProductPricingEligibility({ connection, refusalLimit = pro
     return refusals > limit;
   }
 
-  async function read(customerId, { session } = {}) {
+  async function read(customerId, { session, includeReason = false } = {}) {
     if (!customerId) return guest;
     const id = new Types.ObjectId(customerId);
     const db = connection.db;
@@ -61,12 +61,20 @@ export function createProductPricingEligibility({ connection, refusalLimit = pro
       customerId: id,
       $or: [{ paymentState: 'OVERDUE' }, { state: 'OVERDUE', paymentState: { $ne: 'PAID' } }]
     }, { ...options, projection: { _id: 1 } });
-    return { tierCode, ...rate, discountBps: prepaidOnly || overdue ? 0 : rate.discountBps, prepaidOnly };
+    return { tierCode, ...rate, discountBps: prepaidOnly || overdue ? 0 : rate.discountBps, prepaidOnly,
+      ...(includeReason ? { discountBlockedReason: !rate.tierPolicyVersion ? 'POLICY_UNAPPROVED' : prepaidOnly ? 'PREPAID_ONLY' : overdue ? 'OVERDUE' : null } : {}) };
   }
 
   return Object.freeze({
     read,
     requiresPrepayment,
+    async readDiscountHold(customerId, { session } = {}) {
+      if (await requiresPrepayment(customerId, { session })) return 'PREPAID_ONLY';
+      const overdue = await connection.db.collection('bookings').findOne({ customerId: new Types.ObjectId(String(customerId)),
+        $or: [{ paymentState: 'OVERDUE' }, { state: 'OVERDUE', paymentState: { $ne: 'PAID' } }]
+      }, { session, maxTimeMS, projection: { _id: 1 } });
+      return overdue ? 'OVERDUE' : null;
+    },
     async readCounterCustomer(customerId) {
       if (!customerId) return guest;
       const customer = await User.exists({ _id: customerId, state: 'ACTIVE', roles: 'CUSTOMER' }).maxTimeMS(maxTimeMS);

@@ -8,9 +8,6 @@ import { createGroomingSlots } from '../services/grooming/grooming-slots.service
 import { createGroomingPricing } from '../services/grooming/grooming-pricing.service.js';
 import { createGroomingBooking } from '../services/grooming/grooming-booking.service.js';
 import { createGroomingAppointmentCode } from '../services/grooming/grooming-appointment-code.service.js';
-import { createGroomingDiscountHold } from '../services/grooming/grooming-discount-hold.service.js';
-import { createCustomerTierService } from '../services/customer-tier.service.js';
-import { createMongoCustomerTierRepository } from '../services/mongo-customer-tier.repository.js';
 import { createSessionService } from '../services/session.service.js';
 import { requireSession, requireRoles, requireCsrf } from '../middlewares/session.js';
 
@@ -21,8 +18,7 @@ export function groomingRuntimeModule({ config, connection, env = {}, clock = Da
   const shopServices = createGroomingShopServices({ connection, clock });
   const shiftSource = createShopShiftSource({ connection, clock });
   const pricing = createGroomingPricing({ connection, clock, shopServices, hotline: env.GROOMING_SHOP_HOTLINE?.trim() || null,
-    tierService: createCustomerTierService({ repository: createMongoCustomerTierRepository(connection), clock }),
-    discountHold: createGroomingDiscountHold({ connection, refusalLimit: env.PRODUCT_REFUSAL_LIMIT }) });
+    refusalLimit: env.PRODUCT_REFUSAL_LIMIT });
   const service = createGroomingService({
     shopServices, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, hotline: env.GROOMING_SHOP_HOTLINE, pricing,
     slots: createGroomingSlots({ connection, clock, shopServices, shiftSource }),

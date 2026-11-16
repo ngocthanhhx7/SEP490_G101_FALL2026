@@ -12,19 +12,19 @@ export function createPetCareContext(connection, clock = Date.now) {
     ServicePolicy = servicePolicyVersionModel(connection),
     Setting = systemSettingVersionModel(connection);
   return {
-    async context(ownerId, input) {
+    async context(ownerId, input, { session = null } = {}) {
       const now = new Date(clock()),
         serviceId = new Types.ObjectId(input.serviceId);
       const [service, version, pets, address, clinic] = await Promise.all([
-        Service.findById(serviceId).lean(),
+        Service.findById(serviceId).session(session).lean(),
         ServiceVersion.findOne({ serviceId, effectiveAt: { $lte: now } })
           .sort({ effectiveAt: -1 })
-          .lean(),
+          .session(session).lean(),
         models.Pet.find({
           _id: { $in: input.petIds },
           ownerId,
           state: 'ACTIVE'
-        }).lean(),
+        }).session(session).lean(),
         input.addressId
           ? models.CustomerAddress.findOne({
               _id: input.addressId,
@@ -32,7 +32,7 @@ export function createPetCareContext(connection, clock = Date.now) {
               state: 'ACTIVE'
             })
               .select('+point')
-              .lean()
+              .session(session).lean()
           : null,
         input.clinicAddressId
           ? models.CustomerAddress.findOne({
@@ -41,19 +41,19 @@ export function createPetCareContext(connection, clock = Date.now) {
               state: 'ACTIVE'
             })
               .select('+point')
-              .lean()
+              .session(session).lean()
           : null
       ]);
       const [servicePolicy, catalog] = await Promise.all([
         ServicePolicy.findOne({ serviceId, effectiveAt: { $lte: now } })
           .sort({ effectiveAt: -1 })
-          .lean(),
+          .session(session).lean(),
         Setting.findOne({
           key: 'SERVICE_CATALOG_VISIBLE',
           effectiveAt: { $lte: now }
         })
           .sort({ effectiveAt: -1 })
-          .lean()
+          .session(session).lean()
       ]);
       if (servicePolicy?.state !== 'PUBLISHED' || catalog?.enabled !== true)
         fail(
@@ -74,7 +74,7 @@ export function createPetCareContext(connection, clock = Date.now) {
       const breeds = await models.PetBreed.find({
         code: { $in: pets.map((p) => p.breedCode) },
         active: true
-      }).lean();
+      }).session(session).lean();
       if (
         pets.some(
           (p) =>

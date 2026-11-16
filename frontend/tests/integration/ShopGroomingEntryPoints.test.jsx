@@ -39,6 +39,15 @@ function renderAt(path) {
 }
 
 describe('Service Details', () => {
+  test('a disabled shop feature shows availability honestly and does not send customers to an unavailable endpoint', async () => {
+    const loadDisabled = () => Promise.resolve({ data: { available: true, services: services.map(service => ({ ...service, groomingBookingEnabled: false })) } });
+    render(<MemoryRouter initialEntries={['/services/bath-1']}><Routes>
+      <Route path="/services/:serviceId" element={<ServiceDetailsPage loadCatalog={loadDisabled} />} />
+    </Routes></MemoryRouter>);
+    await screen.findByRole('heading', { name: 'Tắm và vệ sinh thú cưng' });
+    expect(screen.getByText('Đặt lịch chăm sóc tại cửa hàng chưa mở.')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Đặt lịch tại cửa hàng' })).not.toBeInTheDocument();
+  });
   test('a shop-only service (Tắm) has the shop button alone', async () => {
     renderAt('/services/bath-1');
     expect(await screen.findByRole('heading', { name: 'Tắm và vệ sinh thú cưng' })).toBeVisible();

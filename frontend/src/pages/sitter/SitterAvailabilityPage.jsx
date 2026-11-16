@@ -88,8 +88,8 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
   const currentVersion = Number.isSafeInteger(resource.data?.expectedVersion) ? resource.data.expectedVersion : 0;
   const pendingAcknowledgement = commandStatus?.state === 'pending';
   const fieldsDisabled = saving || pendingAcknowledgement;
-  const normalizedWindows = useMemo(() => windows.map(({ weekday, startLocalTime, endLocalTime }) => ({
-    weekday: Number(weekday), startLocalTime, endLocalTime
+  const normalizedWindows = useMemo(() => windows.map(({ weekday, startLocalTime, endLocalTime, workLocation }) => ({
+    weekday: Number(weekday), startLocalTime, endLocalTime, ...(workLocation === 'SHOP' ? { workLocation } : {})
   })), [windows]);
 
   function changeWindow(rowId, field, value) {
@@ -232,6 +232,10 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
             </Select>
             <Input label="Bắt đầu" type="time" value={window.startLocalTime}
               onChange={event => changeWindow(window.rowId, 'startLocalTime', event.target.value)} required disabled={fieldsDisabled} />
+            <Select label="Nơi làm việc" value={window.workLocation ?? 'HOME'}
+              onChange={event => changeWindow(window.rowId, 'workLocation', event.target.value)} disabled={fieldsDisabled}>
+              <option value="HOME">Chăm sóc tại nhà khách</option><option value="SHOP">Tại cửa hàng</option>
+            </Select>
             <Input label="Kết thúc" type="time" value={window.endLocalTime}
               onChange={event => changeWindow(window.rowId, 'endLocalTime', event.target.value)} required disabled={fieldsDisabled} />
             <Button variant="ghost" className="sitter-availability__remove" aria-label={`Xóa khung giờ ${index + 1}`}

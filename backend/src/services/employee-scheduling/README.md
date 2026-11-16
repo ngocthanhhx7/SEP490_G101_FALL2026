@@ -1,5 +1,12 @@
 # Employee Scheduling
 
+Availability windows may explicitly register `workLocation: SHOP`; legacy/omitted
+location remains HOME. `grooming-occupancy.service.js` reads bounded native shop
+reservations without registering optional models while Grooming is disabled.
+Window removal, HOME assignment, capability reduction and contract changes share
+employee guards and preserve already reserved shop work. See the
+[Grooming reservation contract](../../../../doc/api/grooming-reservations.md).
+
 System bookings may carry a MATCH candidate order into dispatch. Only employees
 passing current authoritative eligibility are ordered by that advice; directed
 bookings retain the chosen employee. If that employee withdraws early, declines, expires or becomes ineligible, Staff may propose a replacement, but no alternative invitation is sent until the owning customer explicitly confirms. Previewing alternatives does not grant invitation permission.
