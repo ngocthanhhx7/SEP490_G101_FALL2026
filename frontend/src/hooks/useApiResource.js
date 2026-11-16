@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // load must be stable (module export or useCallback). Keep private data in memory.
 export function useApiResource(load) {
   const [state, setState] = useState({ status: 'loading' });
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
+  const retry = useCallback(() => setRevision(value => value + 1), []);
   useEffect(() => {
     const current = ++generation.current;
     const controller = new AbortController();
@@ -21,5 +22,5 @@ export function useApiResource(load) {
     });
     return () => controller.abort();
   }, [load, revision]);
-  return { ...state, retry: () => setRevision((value) => value + 1) };
+  return { ...state, retry };
 }

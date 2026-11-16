@@ -8,14 +8,14 @@ import { DirectedBookingProposalPage } from '../../src/pages/customer/DirectedBo
 import { StaffTravelMonitor } from '../../src/pages/staff/StaffTravelMonitor.jsx';
 
 afterEach(cleanup);
-// The dispatch page also asks for the Staff close-visit list; answer it here so these tests keep checking the travel requests only.
-const withoutClosures = request => (path, ...rest) => (path.endsWith('/closable-visits') ? Promise.resolve({ data: { items: [] } }) : request(path, ...rest));
+// The dispatch page also asks for the Staff visit board; answer it here so these tests keep checking the travel requests only.
+const withoutClosures = request => (path, ...rest) => (/\/(closable-visits|visit-board)(\?|$)/.test(path) ? Promise.resolve({ data: { items: [], counts: { needsAction: 0 } } }) : request(path, ...rest));
 test.each([false, undefined])('dispatch omits travel requests when travel capability is %s', async visitTravelEnabled => {
   const request = jest.fn().mockResolvedValue({ data: { items: [], visitTravelEnabled } });
   render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(withoutClosures(request))} />);
   await waitFor(() => expect(screen.queryByText('Đang tải ca…')).not.toBeInTheDocument());
 
-  expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Hàng đợi tìm người của hệ thống' })).toBeVisible();
   expect(screen.queryByRole('heading', { name: 'Ca đang đến điểm chăm sóc' })).not.toBeInTheDocument();
   expect(screen.queryByText('Chưa tải được các ca di chuyển.')).not.toBeInTheDocument();
   expect(request.mock.calls.map(([path]) => path)).toEqual(['/employee-scheduling/dispatch']);
@@ -51,7 +51,7 @@ test.each([['HTTP 500', { status: 500 }], ['network', new Error('Offline')]])(
     render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(withoutClosures(request))} />);
 
     expect(await screen.findByText('Chưa tải được các ca di chuyển.')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Hàng đợi tìm người của hệ thống' })).toBeVisible();
   }
 );
 

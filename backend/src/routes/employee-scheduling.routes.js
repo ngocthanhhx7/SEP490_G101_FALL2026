@@ -17,6 +17,14 @@ import { createAssignedCareController } from '../controllers/assigned-care.contr
 import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
 import { createVisitClosureService } from '../services/employee-scheduling/visit-closure.service.js';
 import { createVisitClosureController } from '../controllers/visit-closure.controller.js';
+import { createNeedsActionService } from '../services/employee-scheduling/needs-action.service.js';
+import { createNeedsActionController } from '../controllers/needs-action.controller.js';
+import { createVisitContactService } from '../services/employee-scheduling/visit-contact.service.js';
+import { createVisitContactController } from '../controllers/visit-contact.controller.js';
+import { createCustomerPhoneDirectory } from '../services/product-sales/customer-phone-directory.service.js';
+import { createContactCrypto } from '../services/contact-crypto.service.js';
+import { createWithdrawalReviewService } from '../services/employee-scheduling/withdrawal-review.service.js';
+import { createWithdrawalReviewController } from '../controllers/withdrawal-review.controller.js';
 
 export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
@@ -53,12 +61,25 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.post('/offers/:id/acceptances', sitter, csrf, c.accept);
   router.post('/offers/:id/declines', sitter, csrf, c.decline);
   router.get('/dispatch', staff, c.queue);
+  router.get('/visits/:id/dispatch', staff, c.dispatchDetails);
+  const withdrawalReview = createWithdrawalReviewController(createWithdrawalReviewService({ repository, clock,
+    requeue: env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' ? dispatch.requeueWithdrawal : undefined }));
+  router.get('/visits/:id/withdrawal-review', staff, withdrawalReview.details);
+  router.post('/visits/:id/withdrawal-decisions', staff, csrf, withdrawalReview.decide);
   router.get('/visits/:id/candidates', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.candidates);
   router.post('/visits/:id/invitations', staff, csrf, c.invite);
   const closures = createVisitClosureController(createVisitClosureService({ repository, clock }));
   router.get('/closable-visits', staff, closures.list);
   router.get('/visits/:id/closure', staff, closures.details);
   router.post('/visits/:id/closures', staff, csrf, closures.close);
+  // Phone numbers need the contact keys; without them the contact route answers 503 instead of failing at start-up.
+  const phones = config.auth.contactLookupSecret && config.auth.contactEncryptionKey ? createCustomerPhoneDirectory({ connection,
+    contactCrypto: createContactCrypto({ lookupSecret: config.auth.contactLookupSecret, encryptionKey: config.auth.contactEncryptionKey }) }) : null;
+  const board = createNeedsActionController(createNeedsActionService({ repository, clock, cursorSecret: config.auth.tokenSecret }));
+  const contacts = createVisitContactController(createVisitContactService({ repository, clock, phones }));
+  router.get('/visit-board', staff, rateLimit({ windowMs: 60000, limit: 120, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), board.list);
+  router.get('/visits/:id/contact', staff, rateLimit({ windowMs: 60000, limit: 30, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), contacts.read);
+
   router.post('/visits/:id/closure-verifications', requireRoles('ADMIN'), csrf, closures.verify);
   router.post('/visits/:id/schedule-proposals', staff, csrf, c.propose);
   router.get('/proposals/:id', requireRoles('CUSTOMER'), c.proposal);

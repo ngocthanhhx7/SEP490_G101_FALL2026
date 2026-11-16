@@ -1,5 +1,19 @@
 # Employee Scheduling
 
+`needs-action.service.js` and `visit-board-query.service.js` provide the Staff/Admin
+board with database-side filtering, exact counts and signed keyset pagination at
+a fixed reference time. Both tabs can continue beyond50/500 visits. Search does
+not truncate matching people. Reads have explicit execution deadlines; metadata
+and contact lookup stay separate. Dispatch detail is addressed by visit ID rather
+than relying on the first queue page.
+
+`withdrawal-review.service.js` handles pending late withdrawals. Staff/Admin must
+provide a reason to reject or release. A release serializes with employee/visit
+writers, preserves price and customer-directed selection, revokes stale offers,
+and returns the visit to dispatch. It also works for suspended employees without
+granting eligibility. Events, command replay and role-specific notifications use
+existing stores; no new collection or financial decision is introduced.
+
 `visit-completion-monitor.service.js` sends restart-safe ending/overdue reminders
 and escalates missing checkout to Staff/Admin. `visit-closure.service.js` separates
 operational close from Admin verification of actual service evidence. The shared
@@ -93,3 +107,5 @@ latest version with existing indexes; no guard or scheduling writes move here.
 Current-time MANUAL previews use the same eligibility as explicit manual invitations, expose bounded Staff-only per-person blocking reasons and sort by weekly workload. Automatic/alternative-time previews still require daily-origin route evidence. `sitter-origin.service.js` owns employee-only day-origin declarations with shared capability CAS, employee guards and audited idempotency. See [onboarding design](../../../../doc/testing/dispatch-onboarding-2026-11-09.md).
 
 Verified signed upcoming contracts allow work-area and explicitly verified capability preparation before their start date. Availability uses a contract-covered effective date; invitation/assignment continues to check contractAt against the actual visit and cannot start early. No contract dates or capability attestations are inferred.
+
+`needs-action.service.js` builds the Staff Needs action and All visits lists (R3 10.1.1) as a read-only projection. Five reasons have a data source today: no sitter left to offer, no sitter 24 hours before the start, not checked in 30 minutes after the start, a late withdrawal under 12 hours, and not checked out 2 hours after the end. Each reason is one bounded query (at most 500 rows) and a visit appears once with every reason it has; the most urgent reason leads. Counts ignore search and filters. All visits start at 00:00 Vietnam time today in time order; searching also covers past visits, newest first, with bounded people and id lookups and a signed cursor. Nothing here writes, assigns or changes eligibility. `visit-contact.service.js` returns one visit party's verified phone number only for Staff/Admin when they press Call, reads it through the customer phone directory and records a `VisitContactViewed` event without the number. Lists never contain phone numbers.
