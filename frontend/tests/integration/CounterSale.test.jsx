@@ -11,7 +11,8 @@ const page = data => ({ data, meta: { page: { page: 1, limit: 20, total: data.le
 function api(over = {}) {
   return { products: jest.fn().mockResolvedValue(page([p, { ...p, id: 'p2', code: 'SP-0002', name: 'Dây dắt', available: 0 }])),
     openOrders: jest.fn().mockResolvedValue(page([])), lookup: jest.fn().mockResolvedValue({ customer: { id: 'c1', displayName: 'Khách tổng hợp' } }),
-    preview: jest.fn().mockImplementation(async body => ({ lines: body.lines.map(l => ({ ...line, quantity: l.quantity })), subtotal: 333000, tierDiscount: 0, total: body.lines.length ? 333000 : 0 })),
+    preview: jest.fn().mockImplementation(async body => ({ lines: body.lines.map(l => ({ ...line, quantity: l.quantity })),
+      customerId: body.customerId ?? null, subtotal: 333000, tierDiscount: 0, total: body.lines.length ? 333000 : 0 })),
     create: jest.fn().mockResolvedValue(order()), read: jest.fn().mockResolvedValue(order()),
     recordCash: jest.fn().mockResolvedValue(order({ status: 'PAID', paid: true, cashPayment: { amount: 125000, receivedAt: '2026-11-08T03:20:00Z' } })),
     complete: jest.fn().mockResolvedValue(order({ status: 'COMPLETED', paid: true })),
@@ -73,6 +74,7 @@ test('AC-27 finds only a customer name and clears it as soon as the contact chan
   expect(await screen.findByText('Khách tổng hợp')).toBeVisible();
   fireEvent.change(screen.getByLabelText('Số điện thoại hoặc email của khách (không bắt buộc)'), { target: { value: 'other@example.test' } });
   expect(screen.queryByText('Khách tổng hợp')).not.toBeInTheDocument();
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Tạo đơn' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Tạo đơn' }));
   await waitFor(() => expect(service.create).toHaveBeenCalledWith({ lines: [{ productId: 'p1', quantity: 1 }] }, expect.any(String)));
 });
@@ -162,6 +164,7 @@ test('clears an ineligible selected customer after server recheck and allows fin
   const service = await draft(api({ create: jest.fn().mockRejectedValue(new ApiError('COUNTER_CUSTOMER_UNAVAILABLE', 422)) }));
   fireEvent.change(screen.getByLabelText('Số điện thoại hoặc email của khách (không bắt buộc)'), { target: { value: '0912345678' } });
   fireEvent.click(screen.getByRole('button', { name: 'Tìm' })); await screen.findByText('Khách tổng hợp');
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Tạo đơn' })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: 'Tạo đơn' }));
   await screen.findByText('Khách đã chọn không còn khả dụng. Vui lòng tìm lại hoặc bán không gắn khách.');
   expect(screen.queryByText('Khách tổng hợp')).not.toBeInTheDocument();

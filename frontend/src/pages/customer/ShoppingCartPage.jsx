@@ -6,6 +6,7 @@ import { Notice, Button } from '../../components/ui/index.js';
 import { ProductPhoto } from '../../components/product/ProductPhoto.jsx';
 import { QuantityStepper } from '../../components/product/QuantityStepper.jsx';
 import { formatVnd, productErrorText, productMessage } from '../../utils/product-format.js';
+import { PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import '../../components/product/product-shop.css';
 
 export function ShoppingCartPage() {
@@ -42,15 +43,16 @@ export function ShoppingCartPage() {
           <thead><tr><th>Sản phẩm</th><th>Đơn giá</th><th>Số lượng</th><th>Thành tiền</th><th><span className="pwc-visually-hidden">Xoá</span></th></tr></thead>
           <tbody>{cart.lines.map((line) => <tr key={line.productId}>
             <td><div className="pwc-shop-line"><ProductPhoto product={line} size="thumb" />
-              <div><Link to={`/products/${encodeURIComponent(line.productId)}`}>{line.name}</Link><br /><small>{line.code} · {formatVnd(line.unitPrice)}</small>
+              <div><Link to={`/products/${encodeURIComponent(line.productId)}`}>{line.name}</Link><br /><small>{line.code}</small>
                 {!line.purchasable && <><br /><small className="pwc-shop-alert--error">Sản phẩm không còn được bán.</small></>}
                 {line.purchasable && line.exceedsAvailable && <><br /><small className="pwc-shop-alert--error">{productMessage('MSG58', { n: line.available })}</small></>}
               </div></div></td>
-            <td>{formatVnd(line.unitPrice)}</td>
+            <td><strong>{formatVnd(line.discountedUnitPrice ?? line.unitPrice)}</strong>
+              {line.unitDiscount > 0 && <><br /><small><del>{formatVnd(line.unitPrice)}</del></small></>}</td>
             <td><QuantityStepper value={line.quantity} max={line.available} label={`Số lượng ${line.name}`}
               disabled={busyId === line.productId || !line.purchasable}
               onChange={(next) => run(line.productId, () => setLine(line.productId, next))} /></td>
-            <td><strong className="pwc-shop-price">{formatVnd(line.lineTotal)}</strong></td>
+            <td><strong className="pwc-shop-price">{formatVnd(line.netLineTotal ?? line.lineTotal)}</strong></td>
             <td><button type="button" className="pwc-shop-danger-button" aria-label={`Xoá ${line.name} khỏi giỏ hàng`}
               disabled={busyId === line.productId} onClick={() => run(line.productId, () => removeLine(line.productId))}><Trash2 aria-hidden="true" size={18} /></button></td>
           </tr>)}</tbody>
@@ -59,6 +61,8 @@ export function ShoppingCartPage() {
       <aside className="pwc-shop-panel pwc-shop-summary" aria-label="Tóm tắt giỏ hàng">
         <h2>Tóm tắt giỏ hàng</h2>
         <div className="pwc-shop-summary-row"><span>Tạm tính</span><span>{formatVnd(cart.subtotal)}</span></div>
+        {cart.tierDiscount > 0 && <div className="pwc-shop-summary-row">
+          <span>Giảm giá hạng {PRODUCT_TIER_LABELS[cart.tierCode]}</span><span>− {formatVnd(cart.tierDiscount)}</span></div>}
         <div className="pwc-shop-summary-row pwc-shop-summary-total"><span>Tổng</span><strong>{formatVnd(cart.total)}</strong></div>
         <p className="pwc-shop-note"><Info aria-hidden="true" size={16} /> Phí giao hàng được tính ở bước thanh toán, theo khu vực phục vụ của địa chỉ nhận hàng.</p>
         {cart.hasUnavailable

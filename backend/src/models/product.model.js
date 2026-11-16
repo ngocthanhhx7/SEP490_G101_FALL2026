@@ -1,4 +1,5 @@
 import { oid, integer, registerModels, sub } from './model-definitions.js';
+import { CUSTOMER_TIERS } from './customer-tier.model.js';
 import {
   PRODUCT_CATEGORIES,
   PRODUCT_PET_TYPES,
@@ -25,6 +26,7 @@ const orderLine = sub({
   quantity: { ...integer(1, 99), required: true },
   // Price at the moment of ordering; later price changes never touch placed orders (GBR-35).
   sellingPriceWhenOrdered: { ...integer(), required: true },
+  unitDiscount: { ...integer(), default: 0 },
   // Set when a returned order is confirmed: how many of this line go back on sale (0 to quantity).
   resellableQuantity: { ...integer(0, 99) }
 });
@@ -124,6 +126,8 @@ export function productSalesModels(connection) {
         completedAt: { type: Date },
         cancelledAt: { type: Date },
         tierDiscount: { ...integer(), default: 0 },
+        tierCode: { type: String, enum: [...CUSTOMER_TIERS, null], default: null },
+        tierPolicyVersion: { ...integer(1), default: null, validate: value => value === null || Number.isSafeInteger(value) },
         lines: { type: [orderLine], required: true },
         receiveMethod: { type: String, enum: [...PRODUCT_RECEIVE_METHODS, COUNTER_RECEIVE_METHOD], required: true },
         deliveryAddress: { type: deliveryAddress },
