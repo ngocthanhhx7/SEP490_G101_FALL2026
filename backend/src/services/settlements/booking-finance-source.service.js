@@ -10,6 +10,7 @@ import { assertFinanceSourceStorage } from './source-provisioning.js';
 import { recordEmployeeServiceCompletion } from '../payroll/completion-payroll-source.service.js';
 import { assertPayrollStorage } from '../payroll/payroll-storage.service.js';
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
+import { finalizeExceptionalBooking } from '../employee-scheduling/booking-terminal.service.js';
 
 const CHECK_IN_EARLY_MS = 30 * 60 * 1000, CHECK_OUT_GRACE_MS = 2 * 60 * 60 * 1000;
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -96,7 +97,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       || booking.visitIds.length < 1 || booking.visitIds.length > 60
       || new Set(booking.visitIds.map(String)).size !== booking.visitIds.length
       || !booking.visitIds.some(id => String(id) === visitId)
-      || !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', ...(booking?.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? ['DISPATCH_PENDING'] : [])].includes(booking.state)) fail(409, 'INVALID_STATE');
+      || !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'CLOSED', ...(booking?.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? ['DISPATCH_PENDING'] : [])].includes(booking.state)) fail(409, 'INVALID_STATE');
     if (booking.originalVisitCount > 1 && booking.paymentMode !== 'PREPAY') fail(409, 'PREPAYMENT_REQUIRED');
     return { visit, booking };
   }
@@ -116,7 +117,12 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
   async function completeWholeBooking(booking, session) {
     const visits = await col('visits').find({ bookingId: booking._id, _id: { $in: booking.visitIds } }, { session }).limit(61).toArray();
     const count = compensationModel === 'EMPLOYEE' && booking.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? booking.careVisitCount : booking.originalVisitCount;
-    if (visits.length !== count || visits.some(row => row.state !== 'COMPLETED')) return;
+    if (visits.length !== count) return;
+    if (visits.some(row => row.state !== 'COMPLETED')) {
+      if (compensationModel === 'EMPLOYEE' && visits.every(row => ['COMPLETED', 'CANCELLED', 'STAFF_CLOSED'].includes(row.state)))
+        await finalizeExceptionalBooking({ connection, col, bookingId: booking._id, session, at: now() });
+      return;
+    }
     const completed = await touch(booking, session, { state: 'COMPLETED', completedAt: now() });
     if (compensationModel === 'EMPLOYEE') {
       await recordEmployeeServiceCompletion({ connection, visits, session });
@@ -247,6 +253,8 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       return unitOfWork.run(async session => {
         const { visit } = await visitContext(current, visitId, session);
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
+          serviceName: visit.snapshots?.serviceName ?? null, completionAttention: visit.completionAttention?.code ?? null,
+          closureOutcome: visit.closureVerification?.outcome ?? null,
           serverNow: now(), checkInOpensAt: new Date(+visit.startAt - CHECK_IN_EARLY_MS),
           checkInClosesAt: visit.endAt, checkOutClosesAt: new Date(+visit.endAt + CHECK_OUT_GRACE_MS),
           checklistItems: (visit.snapshots?.checklistItemIds ?? []).slice(0, 100).map(itemId => ({ itemId,

@@ -107,6 +107,7 @@ export function createApp({
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
+  app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });

@@ -15,8 +15,11 @@ export function createCommissionSources({ connection }) {
     const refunds = await connection.collection('refunds').find({ bookingId: { $in: ids },
       state: { $in: ['PROPOSED', 'APPROVED', 'TRANSFER_PENDING', 'FAILED'] } },
     { session, projection: { bookingId: 1 }, maxTimeMS: 5000 }).limit(2001).toArray();
+    const unverified = await connection.collection('bookings').find({ _id: { $in: ids },
+      completionReviewState: { $in: ['PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED'] } },
+    { session, projection: { _id: 1 }, maxTimeMS: 5000 }).limit(ids.length).toArray();
     if (cases.length > 2000 || refunds.length > 2000) fail('PAYROLL_REVIEW_REQUIRED', 'Case/refund sources exceed review budget', 409);
-    return new Set([...cases, ...refunds].map(row => String(row.bookingId)));
+    return new Set([...cases, ...refunds].map(row => String(row.bookingId)).concat(unverified.map(row => String(row._id))));
   }
   return {
     heldBookings,

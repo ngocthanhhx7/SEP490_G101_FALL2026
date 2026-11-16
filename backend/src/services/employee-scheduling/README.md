@@ -6,6 +6,13 @@ reservations without registering optional models while Grooming is disabled.
 Window removal, HOME assignment, capability reduction and contract changes share
 employee guards and preserve already reserved shop work. See the
 [Grooming reservation contract](../../../../doc/api/grooming-reservations.md).
+`visit-completion-monitor.service.js` sends restart-safe ending/overdue reminders
+and escalates missing checkout to Staff/Admin. `visit-closure.service.js` separates
+operational close from Admin verification of actual service evidence. The shared
+`booking-terminal.service.js` serializes parent completion with normal checkout;
+it never invents checkout timestamps, free charges or refunds. Verified actual
+facts feed the existing payroll source and reconciliation holds.
+See [completion review contract](../../../../doc/api/visit-completion-review.md).
 
 System bookings may carry a MATCH candidate order into dispatch. Only employees
 passing current authoritative eligibility are ordered by that advice; directed

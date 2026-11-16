@@ -4,6 +4,7 @@ import { AppError } from '../../utils/app-error.js';
 export const schedulingSourceIndexes = [
   ['visits', { sitterId: 1, state: 1, startAt: 1, endAt: 1 }],
   ['visits', { state: 1, startAt: 1, _id: 1 }],
+  ['visits', { state: 1, endAt: 1, _id: 1 }],
   ['visits', { startAt: 1, _id: 1 }],
   ['bookings', { carePlanState: 1, createdAt: 1, _id: 1 }]
 ];

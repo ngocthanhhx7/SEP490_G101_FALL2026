@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { createEmployeeSchedulingController } from '../controllers/employee-scheduling.controller.js';
 import { createEmployeeScheduleRepository } from '../services/employee-scheduling/employee-schedule.repository.js';
 import { createEmployeeDispatchService } from '../services/employee-scheduling/employee-dispatch.service.js';
+import { createVisitCompletionMonitor } from '../services/employee-scheduling/visit-completion-monitor.service.js';
 import { createBookingCarePlanService } from '../services/booking-proposals/booking-care-plan.service.js';
 import { createEmployeeScheduleProposalService } from '../services/employee-scheduling/schedule-proposal.service.js';
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
@@ -14,6 +15,8 @@ import { createVisitTravelController } from '../controllers/visit-travel.control
 import { createAssignedCareService } from '../services/care/assigned-care.service.js';
 import { createAssignedCareController } from '../controllers/assigned-care.controller.js';
 import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
+import { createVisitClosureService } from '../services/employee-scheduling/visit-closure.service.js';
+import { createVisitClosureController } from '../controllers/visit-closure.controller.js';
 
 export function employeeSchedulingRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, coverageAreas }) {
   if (env.EMPLOYEE_SCHEDULING_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_SCHEDULING_ENABLED)) throw new TypeError('Invalid EMPLOYEE_SCHEDULING_ENABLED');
@@ -52,6 +55,11 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/dispatch', staff, c.queue);
   router.get('/visits/:id/candidates', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.candidates);
   router.post('/visits/:id/invitations', staff, csrf, c.invite);
+  const closures = createVisitClosureController(createVisitClosureService({ repository, clock }));
+  router.get('/closable-visits', staff, closures.list);
+  router.get('/visits/:id/closure', staff, closures.details);
+  router.post('/visits/:id/closures', staff, csrf, closures.close);
+  router.post('/visits/:id/closure-verifications', requireRoles('ADMIN'), csrf, closures.verify);
   router.post('/visits/:id/schedule-proposals', staff, csrf, c.propose);
   router.get('/proposals/:id', requireRoles('CUSTOMER'), c.proposal);
   router.post('/proposals/:id/confirmation', requireRoles('CUSTOMER'), csrf, c.confirmProposal);
@@ -69,5 +77,6 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
     router.put('/visits/:id/travel/location', sitter, csrf, writes, t.locate);
     router.post('/visits/:id/travel/eta', csrf, eta, t.eta);
   }
-  return { name: 'employee-scheduling', mount: '/api/v1/employee-scheduling', router, repository, dispatch, carePlans, proposals };
+  return { name: 'employee-scheduling', mount: '/api/v1/employee-scheduling', router, repository, dispatch, carePlans, proposals,
+    completionMonitor: createVisitCompletionMonitor({ repository, clock }) };
 }
