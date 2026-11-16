@@ -1,9 +1,9 @@
 # Staff Workspace
 
-`ComplaintManagementPage` (WBS-050) lists role-scoped complaints and records
-Staff review/resolution commands with expected versions. It never exposes
-Customer-private media as a public URL and leaves final closure to the Admin
-decision endpoint. P34 owns route registration and the live session/API wiring.
+`ComplaintManagementPage` (WBS-050) presents the UC-53 list and selected case for
+Staff and Admin. `ComplaintManagementForms.jsx` submits resolution or final
+decision commands with expected versions. Evidence uses the scoped private
+image endpoint. The Admin form is available for escalated cases.
 
 `SitterManagementPage.jsx` presents the UC-74 Staff directory and the existing
 Admin operational list. Staff list metrics use a rolling 30-day window, with
