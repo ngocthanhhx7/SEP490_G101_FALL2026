@@ -3,7 +3,9 @@ import mongoose from 'mongoose';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import { provisionCustomerTierStorage } from '../../src/services/customer-tier-storage.service.js';
 import { createMongoCustomerTierRepository } from '../../src/services/mongo-customer-tier.repository.js';
-import { createCustomerTierService } from '../../src/services/customer-tier.service.js';
+import { createCustomerTierService, customerTierWindow } from '../../src/services/customer-tier.service.js';
+import { COUNTER_PAYMENT_METHOD } from '../../src/constants/counter-sale-fields.js';
+import { CUSTOMER_TIER_COLLECTIONS } from '../../src/models/customer-tier.model.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const at = new Date('2026-11-10T19:00:00Z');
@@ -164,4 +166,66 @@ test('unapproved policy cannot expose discounts or change tiers, and stale stage
       .rejects.toMatchObject({ code: 'CUSTOMER_TIER_POLICY_UNAPPROVED' });
     await repository.releaseLease(next);
   } finally { await collection.updateOne({ _id: 'current' }, { $set: { state: 'APPROVED', version: policy.version } }); }
+});
+
+// JOB-05 step 1 and GBR-42: a counter sale counts when the customer was found. Its payment time is cashPayment.receivedAt.
+const dayAt = days => at.getTime() + days * 86400000;
+const minutesBefore = (date, minutes) => new Date(date.getTime() - minutes * 60000);
+function counterOrder(customerId, { receivedAt, createdAt = minutesBefore(receivedAt ?? during, 1), total = policy.thresholds.SILVER, ...fields } = {}) {
+  return db.collection('productorders').insertOne({
+    customerId, channel: 'COUNTER', receiveMethod: 'COUNTER', paymentMethod: COUNTER_PAYMENT_METHOD,
+    status: 'PAID', paid: true, total, createdAt,
+    ...(receivedAt ? { cashPayment: { amount: total, receivedAt, receivedBy: oid() } } : {}), ...fields
+  });
+}
+const heldRows = (runDay, customerId) => db.collection(CUSTOMER_TIER_COLLECTIONS.results).findOne({ runId: runDay, customerId });
+
+test('JOB-05 GBR-42: a paid counter sale counts from cashPayment.receivedAt inside [from, asOf)', async () => {
+  const clock = () => dayAt(7);
+  const { from, asOf } = customerTierWindow(new Date(clock()));
+  const { SILVER: S, GOLD: G } = policy.thresholds;
+  const [paid, completed, atFrom, below, before, atAsOf] = await Promise.all(Array.from({ length: 6 }, () => customer()));
+  await db.collection('customer_tiers').insertMany([below, before, atAsOf].map(_id => ({ _id, tier: 'SILVER', asOf: old })));
+  await Promise.all([
+    counterOrder(paid, { receivedAt: minutesBefore(asOf, 60) }),
+    counterOrder(completed, { receivedAt: minutesBefore(asOf, 60), status: 'COMPLETED', completedAt: minutesBefore(asOf, 59) }),
+    counterOrder(atFrom, { receivedAt: from, createdAt: minutesBefore(from, 5) }),
+    counterOrder(below, { receivedAt: minutesBefore(asOf, 60), total: S - 1 }),
+    counterOrder(before, { receivedAt: minutesBefore(from, 0.001), total: G }),
+    counterOrder(atAsOf, { receivedAt: asOf, total: G })
+  ]);
+  const job = service({ clock });
+  const result = await job.run();
+  expect(result).toMatchObject({ status: 'COMPLETED' });
+  const cases = { paid, completed, atFrom, below, before, atAsOf };
+  const tiers = Object.fromEntries(await Promise.all(Object.entries(cases).map(async ([name, id]) => [name, (await job.read(id)).tier])));
+  expect(tiers).toEqual({ paid: 'SILVER', completed: 'SILVER', atFrom: 'SILVER', below: 'MEMBER', before: 'MEMBER', atAsOf: 'MEMBER' });
+  const held = await Promise.all(Object.values(cases).map(async id => (await heldRows(result.day, id)).held));
+  expect(held).toEqual(Array(6).fill(false));
+});
+
+test('JOB-05 GBR-42: a paid counter sale without cashPayment.receivedAt keeps the tier and is not dated from createdAt', async () => {
+  const baseline = await service({ clock: () => dayAt(8) }).run();
+  const id = await customer();
+  await db.collection('customer_tiers').insertOne({ _id: id, tier: 'SILVER', asOf: old });
+  await counterOrder(id, { total: policy.thresholds.GOLD, createdAt: new Date(dayAt(9) - 3600000) });
+  const job = service({ clock: () => dayAt(9) });
+  const result = await job.run();
+  expect(result.held).toBe(baseline.held + 1);
+  expect(await heldRows(result.day, id)).toMatchObject({ tier: 'SILVER', held: true, incomplete: true, totalVnd: 0 });
+  expect(await job.read(id)).toMatchObject({ tier: 'SILVER' });
+});
+
+test('JOB-05 GBR-42: an unpaid counter sale and a counter sale without a customer are not counted', async () => {
+  const clock = () => dayAt(10);
+  const { asOf } = customerTierWindow(new Date(clock()));
+  const unpaid = await customer();
+  await db.collection('customer_tiers').insertOne({ _id: unpaid, tier: 'SILVER', asOf: old });
+  await counterOrder(unpaid, { status: 'AWAITING_PAYMENT', paid: false, total: policy.thresholds.GOLD, createdAt: minutesBefore(asOf, 30) });
+  await counterOrder(undefined, { receivedAt: minutesBefore(asOf, 60), total: policy.thresholds.GOLD });
+  const job = service({ clock });
+  const result = await job.run();
+  expect(result).toMatchObject({ status: 'COMPLETED' });
+  expect(await heldRows(result.day, unpaid)).toMatchObject({ tier: 'MEMBER', held: false, totalVnd: 0 });
+  expect(await job.read(unpaid)).toMatchObject({ tier: 'MEMBER' });
 });

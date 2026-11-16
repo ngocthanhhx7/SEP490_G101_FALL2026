@@ -63,7 +63,7 @@ export function createComplaintApi({ request, fetchImpl, getCsrfToken, onUnautho
     async list(input = {}) {
       state(input.state); category(input.category); if (input.visitId) id(input.visitId, 'visitId');
       const params = new globalThis.URLSearchParams();
-      for (const field of ['visitId', 'state', 'category', 'limit', 'cursor']) if (input[field] !== undefined && input[field] !== '') params.set(field, String(input[field]));
+      for (const field of ['visitId', 'state', 'category', 'limit', 'cursor', 'q', 'sort']) if (input[field] !== undefined && input[field] !== '') params.set(field, String(input[field]));
       const result = await send(`/complaints${params.toString() ? `?${params}` : ''}`, { signal: input.signal });
       if (result?.pending) return result;
       if (!result?.data || !Array.isArray(result.data.items) || result.data.items.some(item => item.kind !== 'COMPLAINT' || !STATES.has(item.state))) throw new ApiError('INVALID_RESPONSE', result?.status || 0);
@@ -74,9 +74,28 @@ export function createComplaintApi({ request, fetchImpl, getCsrfToken, onUnautho
       return complaintView(await send(`/complaints/${complaintId}`, { signal: typeof input === 'object' ? input.signal : undefined }), complaintId);
     },
     async review(input = {}) { const complaintId = id(input.complaintId, 'complaintId'); text(input.summary ?? input.resolution, 'summary'); return complaintView(await command(`/complaints/${complaintId}/review`, input, ['expectedVersion', 'summary', 'resolution', 'actionsTaken', 'followUp', 'staffNotes', 'financialHold'], true), complaintId); },
-    async resolve(input = {}) { const complaintId = id(input.complaintId, 'complaintId'); text(input.summary ?? input.resolution, 'summary'); return complaintView(await command(`/complaints/${complaintId}/resolution`, input, ['expectedVersion', 'summary', 'resolution', 'actionsTaken', 'followUp', 'staffNotes', 'financialHold'], true), complaintId); },
+    async resolve(input = {}) {
+      const complaintId = id(input.complaintId, 'complaintId');
+      if (input.customerResult !== undefined) {
+        text(input.customerResult, 'customerResult');
+        text(input.handlingNotes, 'handlingNotes', false, 8000);
+      } else text(input.summary ?? input.resolution, 'summary');
+      const result = await command(`/complaints/${complaintId}/resolution`, input, [
+        'expectedVersion', 'handlingNotes', 'customerResult', 'proposal',
+        'summary', 'resolution', 'actionsTaken', 'followUp', 'staffNotes', 'financialHold'
+      ], true);
+      return complaintView(result, complaintId);
+    },
     async disagree(input = {}) { const complaintId = id(input.complaintId, 'complaintId'); text(input.reason ?? input.message, 'reason'); return complaintView(await command(`/complaints/${complaintId}/objections`, input, ['expectedVersion', 'reason', 'message', 'evidenceRefs'], true), complaintId); },
-    async decide(input = {}) { const complaintId = id(input.complaintId, 'complaintId'); text(input.summary ?? input.decision, 'summary'); return complaintView(await command(`/complaints/${complaintId}/decision`, input, ['expectedVersion', 'summary', 'decision', 'actionsTaken', 'financialHold', 'financialDecision'], true), complaintId); }
+    async decide(input = {}) {
+      const complaintId = id(input.complaintId, 'complaintId');
+      if (input.customerResult !== undefined) text(input.customerResult, 'customerResult');
+      else text(input.summary ?? input.decision, 'summary');
+      const result = await command(`/complaints/${complaintId}/decision`, input, [
+        'expectedVersion', 'customerResult', 'amountVnd', 'summary', 'decision', 'actionsTaken', 'financialHold', 'financialDecision'
+      ], true);
+      return complaintView(result, complaintId);
+    }
   };
   api.create = api.submit; api.createComplaint = api.submit; api.object = api.disagree; api.finalize = api.decide;
   return Object.freeze(api);

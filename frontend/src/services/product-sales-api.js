@@ -17,7 +17,9 @@ function checkProduct(row) {
 }
 function checkCart(cart) {
   if (!cart || !Array.isArray(cart.lines) || !money(cart.lineCount) || !money(cart.subtotal) || !money(cart.total)
-    || !money(cart.deliveryFee) || typeof cart.hasUnavailable !== 'boolean') invalid();
+    || !money(cart.deliveryFee) || typeof cart.hasUnavailable !== 'boolean'
+    || (cart.tierDiscount !== undefined && (!money(cart.tierDiscount) || cart.total !== cart.subtotal - cart.tierDiscount))
+    || (cart.prepaidOnly !== undefined && typeof cart.prepaidOnly !== 'boolean')) invalid();
   for (const line of cart.lines) {
     if (!text(line.productId) || !money(line.unitPrice) || !money(line.quantity) || !money(line.lineTotal)
       || !money(line.available) || typeof line.purchasable !== 'boolean' || typeof line.exceedsAvailable !== 'boolean') invalid();
@@ -27,7 +29,9 @@ function checkCart(cart) {
 function checkOrder(order) {
   if (!order || !text(order.id) || !text(order.code) || !RECEIVE_METHODS.includes(order.receiveMethod)
     || !PAYMENT_METHODS.includes(order.paymentMethod) || typeof order.paid !== 'boolean' || !text(order.status)
-    || !Array.isArray(order.lines) || !money(order.subtotal) || !money(order.shippingFee) || !money(order.total)) invalid();
+    || !Array.isArray(order.lines) || !money(order.subtotal) || !money(order.shippingFee) || !money(order.total)
+    || (order.tierDiscount !== undefined && (!money(order.tierDiscount) || order.tierDiscount > order.subtotal
+      || order.total !== order.subtotal - order.tierDiscount + order.shippingFee))) invalid();
   return order;
 }
 function notPending(response) {
@@ -60,6 +64,14 @@ export function createProductSalesApi(options) {
       const response = await request(`/products/${id(productId)}`, { signal });
       checkProduct(response.data);
       if (typeof response.data.description !== 'string') invalid();
+      return response;
+    },
+    async getProductCustomerPrice(productId, { signal } = {}) {
+      const response = await request(`/products/${id(productId)}/customer-price`, { signal });
+      const price = response.data;
+      if (!price || !money(price.unitPrice) || !money(price.unitDiscount) || !money(price.discountedUnitPrice)
+        || price.discountedUnitPrice !== price.unitPrice - price.unitDiscount || !money(price.discountBps)
+        || price.discountBps > 10000 || !['MEMBER', 'SILVER', 'GOLD'].includes(price.tierCode)) invalid();
       return response;
     },
     async getCart({ signal } = {}) {

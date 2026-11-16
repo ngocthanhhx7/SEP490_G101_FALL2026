@@ -21,17 +21,20 @@ export function useCounterSale({ api, orderId, selectOrder }) {
     }).catch(error => { if (!controller.signal.aborted) { setReadState(error.status === 403 ? 'forbidden' : 'error'); setNotice({ kind: 'error', text: productErrorText(error) }); } });
     return () => controller.abort();
   }, [api, orderId, readRevision]);
+  const customerId = customer?.id;
   useEffect(() => {
     if (orderId) return;
     const controller = new AbortController();
     setPreviewState('loading');
-    api.preview({ lines: payloadLines(lines) }, { signal: controller.signal }).then(value => {
+    api.preview({ lines: payloadLines(lines), ...(customerId ? { customerId } : {}) }, { signal: controller.signal }).then(value => {
       if (!controller.signal.aborted) { setPreview(value); setPreviewState('success'); }
     }).catch(error => {
       if (!controller.signal.aborted) { setPreviewState('error'); setNotice({ kind: 'error', text: productErrorText(error, { available: error.available }) }); }
     });
     return () => controller.abort();
-  }, [api, lines, orderId, revision]);
+  }, [api, lines, orderId, revision, customerId]);
+  const currentPreviewState = previewState === 'success' && (preview?.customerId ?? null) !== (customerId ?? null)
+    ? 'loading' : previewState;
   const locked = busy || uncertain || Boolean(orderId);
   const errorText = useCallback(error => productErrorText(error, { available: error.available }), []);
   function limit(line) {
@@ -66,7 +69,7 @@ export function useCounterSale({ api, orderId, selectOrder }) {
     } finally { if (mounted.current && current === lookupGeneration.current) setLookupBusy(false); }
   }
   async function create() {
-    if (lock.current || lookupBusy || (!command.current && (!lines.length || previewState !== 'success' || orderId))) return;
+    if (lock.current || lookupBusy || (!command.current && (!lines.length || currentPreviewState !== 'success' || orderId))) return;
     lock.current = true; setBusy(true); setNotice(null);
     lookupGeneration.current++; lookupController.current?.abort();
     if (!command.current) command.current = { body: { lines: payloadLines(lines), ...(customer ? { customerId: customer.id } : {}) }, key: globalThis.crypto.randomUUID() };
@@ -98,6 +101,6 @@ export function useCounterSale({ api, orderId, selectOrder }) {
     lookupGeneration.current++; lookupController.current?.abort(); setLookupBusy(false);
     setLines([]); setPreview(null); setContact(''); setCustomer(null); setLookupText(''); setOrder(null); selectOrder(null);
   }
-  return { lines, preview, previewState, order: orderId && order?.id === orderId ? order : null, readState, revision, contact, customer, lookupText, lookupBusy, busy, uncertain, notice, locked,
+  return { lines, preview, previewState: currentPreviewState, order: orderId && order?.id === orderId ? order : null, readState, revision, contact, customer, lookupText, lookupBusy, busy, uncertain, notice, locked,
     add, change, remove, limit, changeContact, lookup, create, act, newDraft, retry: () => { setRevision(v => v + 1); setReadRevision(v => v + 1); } };
 }
