@@ -30,4 +30,6 @@ Sale Staff uses its own menu and lands on `/sale-staff/dashboard` after sign-in.
 Order Management tab links (`/admin/product-orders?tab=...`) remain valid login return paths.
 `/staff/bookings/:bookingId` uses the existing Staff/Admin account workspace and opens read-only booking details.
 
+`/staff/complaints` and `/admin/complaints` mount Complaint Management in the respective workspaces. Their session guards exclude Sale Staff. The optional `complaint` query parameter selects a case directly.
+
 Admin and Sale Staff also share `/admin/counter-sale`, `/admin/goods-receipts` and `/admin/stock`; product/supplier management and stock adjustments remain Admin-only.

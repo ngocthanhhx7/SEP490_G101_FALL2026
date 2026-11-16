@@ -9,7 +9,7 @@ import { priceProductOrder, sellableQuantity } from './product-order-pricing.js'
 import { productSalesErrors, requireCounterSeller } from './product-sales-errors.js';
 
 const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-export function createCounterCatalogService({ connection, contacts }) {
+export function createCounterCatalogService({ connection, contacts, eligibility }) {
   const { Product } = productSalesModels(connection);
   const User = userModel(connection);
   return Object.freeze({
@@ -34,8 +34,10 @@ export function createCounterCatalogService({ connection, contacts }) {
         lines.push({ productId: String(p._id), productCode: p.code, productName: p.name,
           quantity: line.quantity, unitPrice: p.sellingPrice, available });
       }
-      const totals = lines.length ? priceProductOrder({ lines, receiveMethod: 'COUNTER' }) : { subtotal: 0, shippingFee: 0, total: 0, lineTotals: [] };
-      return { subtotal: totals.subtotal, shippingFee: totals.shippingFee, total: totals.total, tierDiscount: 0,
+      const pricing = await eligibility.readCounterCustomer(input.customerId);
+      const totals = priceProductOrder({ lines, receiveMethod: 'COUNTER', discountBps: pricing.discountBps, allowEmpty: true });
+      return { subtotal: totals.subtotal, shippingFee: totals.shippingFee, total: totals.total,
+        tierDiscount: totals.tierDiscount, tierCode: pricing.tierCode, customerId: input.customerId ?? null,
         lines: lines.map((line, i) => ({ ...line, lineTotal: totals.lineTotals[i] })) };
     },
     async lookup(actor, body) {
@@ -46,7 +48,9 @@ export function createCounterCatalogService({ connection, contacts }) {
       if (!canonical) throw new AppError(422, 'VALIDATION_FAILED', 'Invalid contact', { fields: { contact: email ? 'EMAIL' : 'PHONE' } });
       const ids = await (email ? contacts.userIdsByEmail(canonical) : contacts.userIdsByPhone(canonical));
       const user = await User.findOne({ _id: { $in: ids }, state: 'ACTIVE', roles: 'CUSTOMER' }).select('displayName').lean();
-      return { customer: user ? { id: String(user._id), displayName: user.displayName } : null };
+      if (!user) return { customer: null };
+      const { tierCode } = await eligibility.readCounterCustomer(user._id);
+      return { customer: { id: String(user._id), displayName: user.displayName, tierCode } };
     }
   });
 }

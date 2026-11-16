@@ -22,8 +22,9 @@ export function parseCounterCreate(body) {
     ...(body.customerId === undefined ? {} : { customerId: parseObjectId(body.customerId, 'customerId').toLowerCase() }) };
 }
 export function parseCounterPreview(body) {
-  requireOnlyKeys(body, ['lines'], ['lines']);
-  return { lines: parseLines(body.lines, true) };
+  requireOnlyKeys(body, ['lines', 'customerId'], ['lines']);
+  return { lines: parseLines(body.lines, true),
+    ...(body.customerId === undefined ? {} : { customerId: parseObjectId(body.customerId, 'customerId').toLowerCase() }) };
 }
 export function parseCounterPage(query = {}) {
   if (Object.keys(query).some(key => !PAGE_QUERY_KEYS.includes(key))) throw invalid({ query: 'INVALID' });
