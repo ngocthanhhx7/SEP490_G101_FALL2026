@@ -146,8 +146,9 @@ function EmployeeScheduleRoute({ view }) {
     privateImages: createPrivateImageApi({ getCsrfToken })
   }), [getCsrfToken]);
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
-  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined} />;
-  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} />;
+  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined}
+    initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
+  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} initialVisitId={params.get('visitId') || undefined} />;
   if (view === 'proposal') return <DirectedBookingProposalPage key={user?.id} api={api} />;
   return <SitterAvailabilityPage key={user?.id} api={api} />;
 }
