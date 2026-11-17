@@ -21,12 +21,9 @@ const isDemo = user => Boolean(user.fixtureKey);
 const STAFF_BATCH_SIZE = 100;
 const METRIC_WINDOW_MS = 30 * 86400000;
 const LATE_THRESHOLD_MS = 5 * 60000;
+const WITHDRAWAL_EVENTS_COLLECTION = 'employeescheduleevents';
+const WITHDRAWAL_EVENT_TYPES = ['VisitWithdrawn', 'VisitWithdrawalRequested'];
 const sitterNames = new Intl.Collator('vi', { sensitivity: 'base' });
-
-function readWithdrawalCounts() {
-  // Until UC-82 events are connected, the count is unknown for every sitter.
-  return null;
-}
 
 function phoneSearch(term) {
   const compact = term.replace(/[\s().-]/g, '');
@@ -143,9 +140,10 @@ export function createSitterManagementService({ connection, cursorSecret, contac
   }
 
   async function staffMetrics(rows, sources, from, asOf, session) {
-    const ratings = new Map(), late = new Map();
+    const ratings = new Map(), late = new Map(), withdrawals = new Map();
     for (let offset = 0; offset < rows.length; offset += STAFF_BATCH_SIZE) {
-      const ids = rows.slice(offset, offset + STAFF_BATCH_SIZE).flatMap(user => [user._id, id(user._id)]);
+      const batch = rows.slice(offset, offset + STAFF_BATCH_SIZE);
+      const ids = batch.flatMap(user => [user._id, id(user._id)]);
       if (sources.has('reviews')) {
         const published = await aggregate('reviews', [{ $match: {
           sitterId: { $in: ids }, direction: 'CUSTOMER_TO_SITTER', state: 'PUBLISHED'
@@ -166,8 +164,20 @@ export function createSitterManagementService({ connection, cursorSecret, contac
         } } } }], session);
         for (const record of checkedIn) late.set(record._id, record.count);
       }
+      if (sources.has(WITHDRAWAL_EVENTS_COLLECTION)) {
+        const withdrawn = await aggregate(WITHDRAWAL_EVENTS_COLLECTION, [
+          { $match: {
+            type: { $in: WITHDRAWAL_EVENT_TYPES },
+            sitterId: { $in: batch.map(user => id(user._id)) },
+            at: { $gte: from, $lte: asOf }
+          } },
+          { $group: { _id: { sitterId: '$sitterId', visitId: '$visitId' } } },
+          { $group: { _id: '$_id.sitterId', count: { $sum: 1 } } }
+        ], session);
+        for (const record of withdrawn) withdrawals.set(record._id, record.count);
+      }
     }
-    return { ratings, late };
+    return { ratings, late, withdrawals };
   }
 
   async function staffWorkingHours(page, asOf, session) {
@@ -186,11 +196,13 @@ export function createSitterManagementService({ connection, cursorSecret, contac
     const position = query.cursor ? staffCursors.decode(query.cursor, scope) : null;
     const asOf = position ? new Date(position.asOf) : now;
     const from = new Date(+asOf - METRIC_WINDOW_MS);
-    const registered = await connection.db.listCollections({ name: { $in: ['reviews', 'visits'] } }, { nameOnly: true }).toArray();
+    const registered = await connection.db.listCollections(
+      { name: { $in: ['reviews', 'visits', WITHDRAWAL_EVENTS_COLLECTION] } }, { nameOnly: true }
+    ).toArray();
     const sources = new Set(registered.map(collection => collection.name));
+    const withdrawalsAvailable = sources.has(WITHDRAWAL_EVENTS_COLLECTION);
     return snapshot(async session => {
-      const withdrawals = readWithdrawalCounts();
-      if (query.sort === 'withdrawals' && !withdrawals)
+      if (query.sort === 'withdrawals' && !withdrawalsAvailable)
         throw new AppError(422, 'VALIDATION_FAILED', 'Withdrawal sorting is unavailable');
       const tabCounts = { all: 0, partTime: 0, fullTime: 0 };
       const key = item => ({ value: item[query.sort], name: item.displayName, id: item.id });
@@ -205,12 +217,12 @@ export function createSitterManagementService({ connection, cursorSecret, contac
           && (!query.profileState || user.profileState === query.profileState)
           && (query.source === 'ALL' || isDemo(user) === (query.source === 'DEMO')));
         const matching = await matchingStaff(filtered, query.search, session);
-        const { ratings, late } = await staffMetrics(matching, sources, from, asOf, session);
+        const { ratings, late, withdrawals } = await staffMetrics(matching, sources, from, asOf, session);
         total += matching.length;
         for (const user of matching) {
           const item = { ...row(user), code: codeFor(user), rating: ratings.get(id(user._id)) ?? null,
             lateCheckIns: sources.has('visits') ? late.get(id(user._id)) ?? 0 : null,
-            withdrawals: withdrawals ? withdrawals.get(id(user._id)) ?? 0 : null };
+            withdrawals: withdrawalsAvailable ? withdrawals.get(id(user._id)) ?? 0 : null };
           if (!position || compareStaffPosition(key(item), position) > 0) best.push(item);
         }
         best.sort((a, b) => compareStaffPosition(key(a), key(b)));
@@ -234,7 +246,7 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       const hours = await staffWorkingHours(page, asOf, session);
       return {
         items: page.map(item => ({ ...item, workingWindows: hours.get(item.id) ?? [], shift: null, approvedLeave: null })),
-        total, asOf: asOf.toISOString(), areas: await createServiceAreaCatalog(connection).list({ session }), withdrawalsAvailable: withdrawals !== null,
+        total, asOf: asOf.toISOString(), areas: await createServiceAreaCatalog(connection).list({ session }), withdrawalsAvailable,
         tabCounts,
         nextCursor: best.length > page.length
           ? staffCursors.encode({ ...key(page.at(-1)), asOf: asOf.toISOString() }, scope) : null

@@ -1,0 +1,17 @@
+.visit-board { margin-bottom: var(--pwc-space-4); }
+.visit-board__tabs { display: flex; gap: var(--pwc-space-2); flex-wrap: wrap; border-bottom: 1px solid var(--pwc-border); }
+.visit-board__tabs button {
+  padding: var(--pwc-space-2) var(--pwc-space-4); border: 0; border-bottom: 3px solid transparent;
+  background: transparent; color: var(--pwc-ink); font: inherit; font-weight: 600; cursor: pointer;
+}
+.visit-board__tabs button.is-active { border-bottom-color: var(--pwc-primary, #6b4ea0); color: var(--pwc-primary, #6b4ea0); }
+.visit-board__late { color: var(--pwc-error); font-weight: 700; }
+.visit-board__others { display: block; margin-top: 0.25rem; }
+.visit-board__notice {
+  padding: var(--pwc-space-3); border-radius: var(--pwc-radius-control);
+  background: var(--pwc-success-surface); color: var(--pwc-success);
+}
+.visit-board__error { color: var(--pwc-error); }
+.visit-board__phone { font-weight: 700; white-space: nowrap; }
+.visit-board__filters input[type="search"] { flex: 1 1 22rem; min-width: 14rem; max-width: 32rem; }
+.visit-board__locked { display: block; margin-top: 0.25rem; max-width: 16rem; color: var(--pwc-ink-muted, inherit); }

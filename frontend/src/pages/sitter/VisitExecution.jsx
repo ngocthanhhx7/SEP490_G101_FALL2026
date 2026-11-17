@@ -9,7 +9,7 @@ import { VisitEvidencePreview } from '../../components/common/VisitEvidencePrevi
 
 const date = value => new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' });
 const labels = { 'service-scope': 'Thực hiện nội dung dịch vụ', 'pet-condition': 'Kiểm tra tình trạng thú cưng' };
-const states = { ASSIGNED: 'Đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn thành' };
+const states = { ASSIGNED: 'Đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn thành', STAFF_CLOSED: 'Buổi đã được điều phối đóng', CANCELLED: 'Buổi đã hủy' };
 export function VisitExecution({ api, visitId, onChanged }) {
   const active = useRef(visitId), upload = useRef(null), input = useRef(null);
   useEffect(() => { active.current = visitId; upload.current = null; setFile(null); setItems({}); return () => { active.current = null; }; }, [visitId]);
@@ -60,6 +60,9 @@ export function VisitExecution({ api, visitId, onChanged }) {
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
     <h4>{states[row.state] ?? 'Cần kiểm tra trạng thái ca'}</h4>
+    {row.completionAttention === 'COMPLETION_REVIEW_REQUIRED' && <p role="alert">Cần xác minh kết thúc. Buổi đã quá hạn check-out; điều phối và quản trị đã được thông báo để hỗ trợ.</p>}
+    {row.completionAttention === 'COMPLETION_VERIFICATION_PENDING' && <p role="status">Đang chờ quản trị đối chiếu bằng chứng và giờ kết thúc thực tế.</p>}
+    {row.closureOutcome && <p role="status">Kết quả đối chiếu: {row.closureOutcome === 'SERVICE_PERFORMED' ? 'Đã xác minh dịch vụ thực hiện' : 'Không thực hiện dịch vụ, cần đối soát tài chính'}.</p>}
     <Button variant="ghost" disabled={locked} onClick={resource.retry}>Tải lại tiến độ</Button>
     {row.checkInAt && <p>Check-in: {new Date(row.checkInAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}
     {row.checkOutAt && <p>Check-out: {new Date(row.checkOutAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>}

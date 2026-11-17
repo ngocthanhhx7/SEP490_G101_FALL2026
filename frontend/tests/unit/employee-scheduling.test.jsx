@@ -8,12 +8,14 @@ import { DirectedBookingProposalPage } from '../../src/pages/customer/DirectedBo
 import { StaffTravelMonitor } from '../../src/pages/staff/StaffTravelMonitor.jsx';
 
 afterEach(cleanup);
+// The dispatch page also asks for the Staff visit board; answer it here so these tests keep checking the travel requests only.
+const withoutClosures = request => (path, ...rest) => (/\/(closable-visits|visit-board)(\?|$)/.test(path) ? Promise.resolve({ data: { items: [], counts: { needsAction: 0 } } }) : request(path, ...rest));
 test.each([false, undefined])('dispatch omits travel requests when travel capability is %s', async visitTravelEnabled => {
   const request = jest.fn().mockResolvedValue({ data: { items: [], visitTravelEnabled } });
-  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(withoutClosures(request))} />);
   await waitFor(() => expect(screen.queryByText('Đang tải ca…')).not.toBeInTheDocument());
 
-  expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Hàng đợi tìm người của hệ thống' })).toBeVisible();
   expect(screen.queryByRole('heading', { name: 'Ca đang đến điểm chăm sóc' })).not.toBeInTheDocument();
   expect(screen.queryByText('Chưa tải được các ca di chuyển.')).not.toBeInTheDocument();
   expect(request.mock.calls.map(([path]) => path)).toEqual(['/employee-scheduling/dispatch']);
@@ -25,7 +27,7 @@ test('dispatch loads travel rows when travel capability is enabled', async () =>
     .mockResolvedValueOnce({ data: { items: [{ id: 'visit', serviceName: 'Synthetic travel row',
       startAt: '2026-11-03T02:00:00Z', endAt: '2026-11-03T03:00:00Z' }] } })
     .mockResolvedValue({ data: { items: [], visitTravelEnabled: true } });
-  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+  render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(withoutClosures(request))} />);
 
   expect(await screen.findByText('Synthetic travel row')).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Ca đang đến điểm chăm sóc' })).toBeVisible();
@@ -46,10 +48,10 @@ test.each([['HTTP 500', { status: 500 }], ['network', new Error('Offline')]])(
     const request = jest.fn()
       .mockResolvedValueOnce({ data: { items: [], visitTravelEnabled: true } })
       .mockRejectedValueOnce(error);
-    render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(request)} />);
+    render(<EmployeeDispatchPage api={createEmployeeSchedulingApi(withoutClosures(request))} />);
 
     expect(await screen.findByText('Chưa tải được các ca di chuyển.')).toBeVisible();
-    expect(screen.getByRole('heading', { name: 'Cần xử lý' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Hàng đợi tìm người của hệ thống' })).toBeVisible();
   }
 );
 

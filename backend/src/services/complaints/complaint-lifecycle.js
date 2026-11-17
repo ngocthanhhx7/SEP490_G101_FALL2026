@@ -37,7 +37,8 @@ export function holdQueries(asOf) {
 export function visitCompletion(visit) {
   if (visit.state === 'COMPLETED') return { done: true, at: instant(visit.completedAt ?? visit.checkOutAt) };
   if (visit.state === 'STAFF_CLOSED') {
-    return { done: visit.hasCheckInPhoto === true, at: instant(visit.closedAt ?? visit.staffClosedAt) };
+    return { done: visit.closureVerification ? visit.closureVerification.outcome === 'SERVICE_PERFORMED' : visit.hasCheckInPhoto === true,
+      at: instant(visit.closedAt ?? visit.staffClosedAt) };
   }
   if (visit.state === 'CANCELLED') return { done: false, at: instant(visit.cancelledAt ?? visit.canceledAt) };
   return null;

@@ -225,7 +225,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
   const withdrawals = createVisitWithdrawalService({ repository, clock,
     runCommand: (actor, payload, key, execute) => command(actor, 'visit-withdrawal', payload, key, execute),
     requeue: autoDispatchWithdrawals ? requeueWithdrawal : undefined });
-  const service = { offers, withdrawals, readContext: readyVisit,
+  const service = { offers, withdrawals, readContext: readyVisit, requeueWithdrawal,
     requeueVisit: autoDispatchWithdrawals ? requeueWithdrawal : undefined,
     async previewCandidates(actor, visitId, input) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
@@ -251,14 +251,23 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         return { items: [], diagnostics: error.details.diagnostics, areaCode, startAt, endAt: revised.endAt };
       }
     },
-    async queue(actor) {
+    async details(actor, visitId) {
+      id(visitId);
+      const result = await service.queue(actor, { visitId });
+      if (!result.items.length) fail('RESOURCE_NOT_FOUND', 'Dispatch visit unavailable', 404);
+      return result.items[0];
+    },
+    async queue(actor, { visitId } = {}) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
-      const [rows, today, withdrawalQueue] = await Promise.all([queueRows(51), workspace.read(), withdrawals.staffRequests()]);
+      const [rows, today, withdrawalQueue] = await Promise.all([
+        queueRows(visitId ? 1 : 51, false, false, visitId), visitId ? null : workspace.read(), visitId ? {} : withdrawals.staffRequests()
+      ]);
       const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,directedSitter(r)]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
       const name=id=>people.find(p=>String(p._id)===String(id))?.displayName??null;
       return { ...withdrawalQueue, today, queueHasMore: rows.length>50, workAreas: await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas)), items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(directedSitter(row)), version: row.version, startAt: row.startAt,
-        endAt: row.endAt, serviceName: row.snapshots.serviceName, petNames: (row.snapshots.pets ?? []).map(pet => pet.name).filter(name => typeof name === 'string').slice(0,10), areaCode: row.areaCode, reviewCode: row.dispatchReview?.code,
-        dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
+        endAt: row.endAt, serviceName: row.snapshots.serviceName, petNames: (row.snapshots.pets ?? []).map(pet => pet.name).filter(name => typeof name === 'string').slice(0,10), areaCode: row.areaCode,
+        reviewCode: row.startAt <= new Date(clock()) ? 'SHIFT_START_REACHED' : row.dispatchReview?.code,
+        dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview || row.startAt <= new Date(clock()) ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,
         pendingInvitationCount: row.pendingInvitationCount,
         diagnostics: row.dispatchReview?.diagnostics, location: row.location, boarding: row.snapshots.boarding === true,
@@ -357,9 +366,9 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
     }
   }
 
-  async function queueRows(limit, actionable = false, overdue = false) {
+  async function queueRows(limit, actionable = false, overdue = false, visitId) {
     return col('visits').aggregate([
-      { $match: { state: 'SCHEDULED', ...(actionable ? { startAt: { [overdue ? '$lte' : '$gt']: new Date(clock()) },
+      { $match: { state: 'SCHEDULED', ...(visitId ? { _id: oid(visitId) } : actionable ? { startAt: { [overdue ? '$lte' : '$gt']: new Date(clock()) },
         ...(overdue ? { 'dispatchReview.code': { $ne: 'SHIFT_START_REACHED' } } : {}) }
         : { $or: [{ startAt: { $gt: new Date(clock()) } }, { dispatchReview: { $exists: true } }] }) } },
       { $sort: { startAt: 1, _id: 1 } },

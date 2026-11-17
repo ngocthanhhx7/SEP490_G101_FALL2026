@@ -1,13 +1,21 @@
 # Staff Workspace
 
-`ComplaintManagementPage` (WBS-050) lists role-scoped complaints and records
-Staff review/resolution commands with expected versions. It never exposes
-Customer-private media as a public URL and leaves final closure to the Admin
-decision endpoint. P34 owns route registration and the live session/API wiring.
+The visit board paginates Needs action and All through `useVisitBoardPages`;
+filter changes abort stale continuation requests. Selected dispatch visits are
+loaded by ID, including rows outside the legacy queue page. Late withdrawal
+review is available from the board, legacy request list and notification link;
+the dialog freezes uncertain commands and reuses their original key on retry.
+
+`ComplaintManagementPage` (WBS-050) presents the UC-53 list and selected case for
+Staff and Admin. `ComplaintManagementForms.jsx` submits resolution or final
+decision commands with expected versions. Evidence uses the scoped private
+image endpoint. The Admin form is available for escalated cases.
 
 `SitterManagementPage.jsx` presents the UC-74 Staff directory and the existing
-Admin operational list. Staff list metrics use a rolling 30-day window, with
-the report period controlled separately. `SitterManagementDetailPage.jsx` presents application
+Admin operational list. The Staff withdrawal column counts distinct visits
+withdrawn or requested for withdrawal in the last 30 days. The API enables
+withdrawal sorting when the scheduling event collection is available. The
+report period is controlled separately. `SitterManagementDetailPage.jsx` presents application
 summary, public profile, capabilities, current contract terms, registered schedule,
 paged work history and Admin management history. Shared transport and DTO validation
 live in `services/sitter-management-api.js`; pure labels live in
@@ -34,3 +42,5 @@ Dispatch now separates a bounded intervention table, the Vietnam-day visit table
 Dispatch details use an opt-in wide two-column layout, compact native-radio candidate rows and a collapsible blocked group. No eligibility or invitation contract changes are made by presentation.
 
 `StaffBookingDetailPage.jsx` displays the shared read-only booking detail through the Staff/Admin booking detail API.
+
+`visit-board/` holds the Staff visit board used by `EmployeeDispatchPage.jsx`: `VisitBoard.jsx` owns the three tabs (Cần xử lý, Buổi hôm nay, Tất cả buổi), the search box and the area and reason filters; `NeedsActionTable.jsx` and `AllVisitsTable.jsx` render the two lists from `GET /employee-scheduling/visit-board`; `ContactCell.jsx` asks for a phone number only when Staff press Gọi. Closing a visit reuses `CloseVisitDialog.jsx`. The existing queue stays under "Hàng đợi tìm người của hệ thống" without the visits the board already lists and is hidden while searching or filtering. A failing board API shows an alert in the Cần xử lý area. Transport is in `services/needs-action-api.js` and labels are pure helpers in `utils/visit-board-format.js`.

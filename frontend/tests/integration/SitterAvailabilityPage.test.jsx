@@ -9,6 +9,18 @@ function buildApi({ data = currentAvailability, saveAvailability = jest.fn(async
 }
 
 describe('SitterAvailabilityPage', () => {
+  test('the employee explicitly selects SHOP; old windows remain HOME and are not silently converted', async () => {
+    const api = buildApi();
+    render(<SitterAvailabilityPage api={api} now={new Date('2026-11-16T03:00:00Z')} />);
+    const location = await screen.findByLabelText('Nơi làm việc');
+    expect(location).toHaveValue('HOME');
+    fireEvent.change(location, { target: { value: 'SHOP' } });
+    const form = location.closest('form');
+    fireEvent.submit(form);
+    await waitFor(() => expect(api.saveAvailability).toHaveBeenCalledWith(expect.objectContaining({
+      workingWindows: [{ weekday: 1, startLocalTime: '09:00', endLocalTime: '12:00', workLocation: 'SHOP' }]
+    })));
+  });
   test('shows the Sitter schedule in the canonical local timezone', async () => {
     render(<SitterAvailabilityPage api={buildApi()} />);
     expect(await screen.findByRole('heading', { name: 'Giờ có thể nhận việc' })).toBeInTheDocument();
@@ -99,7 +111,7 @@ describe('SitterAvailabilityPage', () => {
       .mockRejectedValueOnce({ code: 'TIMEOUT' })
       .mockResolvedValueOnce({ expectedVersion: 5, status: 200 }) });
     render(<SitterAvailabilityPage api={api} createOperationKey={() => 'stable-operation-key'} />);
-    await screen.findByRole('combobox');
+    await screen.findByRole('combobox', { name: 'Ngày trong tuần' });
     fireEvent.click(screen.getByRole('button', { name: /l.*u l.*ch/i }));
     expect(await screen.findByRole('button', { name: /ki.*m tra y.*u c.*u/i })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: /ki.*m tra y.*u c.*u/i }));
