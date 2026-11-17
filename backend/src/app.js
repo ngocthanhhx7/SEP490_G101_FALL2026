@@ -36,6 +36,7 @@ import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.ro
 import { bookingChangeRuntimeModule } from './routes/booking-change.routes.js';
 import { mapsRuntimeModule } from './routes/maps.routes.js';
 import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
+import { groomingRuntimeModule } from './routes/grooming.routes.js';
 import { customerReadRuntime } from './routes/customer-read-runtime.js';
 import { storageProfile, assertProfileModels } from './config/storage-profile.js';
 import { selectReferenceCatalogSource, assertReferenceCatalogModels } from './models/reference-catalog-source.js';
@@ -113,9 +114,11 @@ export function createApp({
     : null;
   if (bookingChange) auth.router.use(bookingChange.router);
   app.locals.bookingChange = bookingChange?.service ?? null;
+  app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
+  const grooming = groomingRuntimeModule({ ...context, sessionService: auth?.sessionService });
   if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED !== undefined && !['true', 'false'].includes(env.EMPLOYEE_DISPATCH_AGENT_ENABLED)) throw new TypeError('Invalid EMPLOYEE_DISPATCH_AGENT_ENABLED');
   if (env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' && !employeeScheduling) throw new TypeError('Employee dispatch agent requires employee scheduling');
   app.locals.employeeDispatch = env.EMPLOYEE_DISPATCH_AGENT_ENABLED === 'true' ? employeeScheduling.dispatch : null;
@@ -166,6 +169,7 @@ export function createApp({
     ...(employeeScheduling ? [employeeScheduling] : []),
     ...(maps ? [maps] : []),
     ...productSales,
+    ...(grooming ? [grooming] : []),
     ...(settlement ? [settlement] : []),
     ...(dashboards && !auth ? [dashboards] : []),
     ...(adminSettlement ? [adminSettlement] : []),

@@ -3,11 +3,11 @@ import { normalizeWorkingWindows, localDateTimeToUtc } from '../sitter-availabil
 const DAY = 86400000;
 export const workAreaKeys = (code, catalog) => [code, ...catalog.filter(row => row.code === code && row.parentCode).map(row => row.parentCode)];
 export const schedulingDate = value => new Date(new Date(value).getTime() + 7 * 3600000).toISOString().slice(0, 10);
-export function windowsCover(windows, startAt, endAt) {
+export function windowsCover(windows, startAt, endAt, workLocation = 'HOME') {
   const start = new Date(startAt).getTime(), end = new Date(endAt).getTime();
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > DAY) return false;
   const local = new Date(`${schedulingDate(startAt)}T00:00:00Z`);
-  const normalized = normalizeWorkingWindows(windows ?? []);
+  const normalized = normalizeWorkingWindows(windows ?? []).filter(row => (row.workLocation ?? 'HOME') === workLocation);
   const intervals = [];
   for (const offset of [-1, 0, 1]) {
     const date = new Date(local.getTime() + offset * DAY), day = date.toISOString().slice(0, 10);
@@ -37,6 +37,7 @@ export const occupiedMinutes = (rows, start, end) => rows.reduce((sum, row) => s
 export function matchingWindows(windows) {
   const result = [], minute = value => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
   for (const row of normalizeWorkingWindows(windows)) {
+    if (row.workLocation === 'SHOP') continue;
     const startMinute = minute(row.startLocalTime), endMinute = minute(row.endLocalTime), weekday = row.weekday % 7;
     if (endMinute > startMinute) result.push({ weekday, startMinute, endMinute });
     else {

@@ -1,4 +1,6 @@
 import { createVisitTravelApi } from './visit-travel-api.js';
+import { createVisitClosureApi } from './visit-closure-api.js';
+import { createNeedsActionApi } from './needs-action-api.js';
 import { ApiError } from './api-client.js';
 
 export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
@@ -7,11 +9,13 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
   const mutate = (path, body, idempotencyKey, method = 'POST', signal) => request(`${root}${path}`, { method, body, idempotencyKey, signal });
   return {
     ...createVisitTravelApi(request),
+    ...createVisitClosureApi(request),
+    ...createNeedsActionApi(request),
     async execution(id, { signal } = {}) {
       const result = await request(`/visits/${encodeURIComponent(id)}/execution`, { signal });
       const row = result.data;
       if (row?.visitId !== id || !Number.isSafeInteger(row.version) || row.version < 0 ||
-        !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED'].includes(row.state) || !Number.isFinite(Date.parse(row.startAt)) || !Number.isFinite(Date.parse(row.endAt)) || !Array.isArray(row.checklist) ||
+        !['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED'].includes(row.state) || !Number.isFinite(Date.parse(row.startAt)) || !Number.isFinite(Date.parse(row.endAt)) || !Array.isArray(row.checklist) ||
         row.checklistItemIds !== null && (!Array.isArray(row.checklistItemIds) || row.checklistItemIds.some(item => typeof item !== 'string'))) {
         throw new ApiError('INVALID_RESPONSE');
       }
@@ -60,6 +64,26 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     acknowledgeCare: (id, version, key) => mutate(`/visits/${encodeURIComponent(id)}/care/acknowledgements`, { version }, key),
     accessNotes: id => get(`/visits/${encodeURIComponent(id)}/access-notes`),
     queue: ({ signal } = {}) => get('/dispatch', signal),
+    async withdrawalReview(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/withdrawal-review`, signal);
+      if (result.pending) return result;
+      if (result.data?.visitId !== id || !Number.isSafeInteger(result.data.version)
+        || !Number.isFinite(Date.parse(result.data.startAt)) || !Number.isFinite(Date.parse(result.data.endAt))) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async decideWithdrawal(id, body, key) {
+      const result = await mutate(`/visits/${encodeURIComponent(id)}/withdrawal-decisions`, body, key);
+      if (result.pending || result.status === 202) return result;
+      if (result.data?.visitId !== id || result.data.version !== body.expectedVersion + 1 || result.data.decision !== body.decision)
+        throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async dispatchDetails(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/dispatch`, signal);
+      if (result.pending) return result;
+      if (result.data?.id !== id || !Number.isSafeInteger(result.data.version)) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     candidates: (id, query, { signal } = {}) => get(`/visits/${encodeURIComponent(id)}/candidates?${new globalThis.URLSearchParams(query)}`, signal),
     plans: ({ signal } = {}) => get('/care-plans', signal),
     respond: (id, decision, expectedVersion, key) => mutate(`/offers/${encodeURIComponent(id)}/${decision}`, { expectedVersion }, key),

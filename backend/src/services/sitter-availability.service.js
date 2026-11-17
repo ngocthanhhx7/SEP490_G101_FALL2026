@@ -74,9 +74,11 @@ export function normalizeWorkingWindows(windows) {
       || typeof window.endLocalTime !== 'string' || !TIME_PATTERN.test(window.endLocalTime)) {
       throw invalid('Each interval needs a weekday and valid local start and end times');
     }
+    if (window.workLocation !== undefined && !['HOME', 'SHOP'].includes(window.workLocation)) throw invalid('Invalid work location');
     if (window.startLocalTime === window.endLocalTime) throw invalid('An interval cannot have zero duration');
     return Object.freeze({ weekday: window.weekday,
-      startLocalTime: window.startLocalTime, endLocalTime: window.endLocalTime });
+      startLocalTime: window.startLocalTime, endLocalTime: window.endLocalTime,
+      ...(window.workLocation === 'SHOP' ? { workLocation: 'SHOP' } : {}) });
   }).sort((left, right) => left.weekday - right.weekday
     || left.startLocalTime.localeCompare(right.startLocalTime));
 

@@ -9,15 +9,18 @@ import { startApplicationMailWorker } from './jobs/application-mail.job.js';
 import { startCustomerTierWorker } from './jobs/customer-tier.job.js';
 import { createCustomerTierService } from './services/customer-tier.service.js';
 import { createMongoCustomerTierRepository } from './services/mongo-customer-tier.repository.js';
+import { startProductPickupExpiryWorker } from './jobs/product-pickup-expiry.job.js';
+import { createProductPickupExpiryService } from './services/product-sales/product-order-management.service.js';
 import { assertRuntimeStorageProfile } from './config/storage-profile.js';
 import { referenceCatalogSource } from './models/reference-catalog-source.js';
 import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
+import { startVisitCompletionMonitor } from './jobs/visit-completion-monitor.job.js';
 
 export async function startRuntime({ env = process.env, logger = () => {}, ...appOptions } = {}) {
   const config = loadConfig(env);
   const connection = await connectDatabase(config);
   const lifecycle = { draining: false };
-  let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, bookingChangeWorker;
+  let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, productPickupExpiryWorker, completionMonitor, bookingChangeWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
     if (config.nodeEnv === 'production') await assertRuntimeStorageProfile(connection, app.locals.compensationProfile);
@@ -31,10 +34,16 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     });
     if (app.locals.financeSources && app.locals.compensationProfile === 'LEGACY_PARTNER') accrualWorker = startEarningAccrualWorker({ service: app.locals.financeSources, logger });
     if (app.locals.employeeDispatch) dispatchWorker = startEmployeeDispatchWorker({ service: app.locals.employeeDispatch, logger });
+    if (app.locals.visitCompletionMonitor) completionMonitor = startVisitCompletionMonitor({ service: app.locals.visitCompletionMonitor, logger });
     if (app.locals.bookingChange) bookingChangeWorker = startBookingChangeWorker({ service: app.locals.bookingChange, logger });
     if (app.locals.applicationMail) applicationMailWorker = startApplicationMailWorker({ service: app.locals.applicationMail, logger });
     customerTierWorker = startCustomerTierWorker({ enabled: config.customerTierJobEnabled, createService: () =>
       createCustomerTierService({ repository: createMongoCustomerTierRepository(connection), logger }) });
+    productPickupExpiryWorker = startProductPickupExpiryWorker({
+      enabled: config.productPickupExpiryJobEnabled && env.PRODUCT_SALES_ENABLED === 'true' && config.auth.enabled,
+      createService: () => createProductPickupExpiryService({ connection, clock: appOptions.clock, logger }),
+      logger
+    });
   } catch {
     await connection.close();
     throw new Error('HTTP server failed to start');
@@ -49,6 +58,8 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       try { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); }
       finally {
         clearTimeout(timer);
+        await productPickupExpiryWorker?.stop();
+        await completionMonitor?.stop();
         await customerTierWorker?.stop();
         await applicationMailWorker?.stop();
         await bookingChangeWorker?.stop();

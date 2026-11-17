@@ -4,6 +4,27 @@ import { createComplaintApi } from '../../src/services/complaint-api.js';
 const complaint = { id: 'case-1', kind: 'COMPLAINT', visitId: 'visit-1', state: 'OPEN', version: 0, evidenceRefs: [{ mediaId: 'media-1' }] };
 const envelope = { data: { complaint }, meta: { schemaVersion: 1 } };
 
+test('UC-53 sends management search and uses the R3 resolution and decision DTOs', async () => {
+  const request = jest.fn()
+    .mockResolvedValueOnce({ data: { items: [complaint], counts: { OPEN: 1, ESCALATED: 0, RESOLVED: 0 } } })
+    .mockResolvedValue(envelope);
+  const api = createComplaintApi({ request, createIdempotencyKey: () => 'complaint-key-1' });
+  await api.list({ state: 'OPEN', q: 'BK-0042', sort: 'oldest', cursor: 'page-2' });
+  const [url, query] = request.mock.calls[0][0].split('?');
+  expect(url).toBe('/complaints');
+  expect(Object.fromEntries(new globalThis.URLSearchParams(query))).toEqual({
+    state: 'OPEN', q: 'BK-0042', sort: 'oldest', cursor: 'page-2'
+  });
+  const proposal = { amountVnd: 45000, reason: 'Synthetic evidence', evidenceRefs: ['a'.repeat(64)] };
+  await api.resolve({ complaintId: 'case-1', expectedVersion: 1, handlingNotes: 'Notes',
+    customerResult: 'Result', proposal, idempotencyKey: 'complaint-resolution' });
+  expect(request.mock.calls[1]).toEqual(['/complaints/case-1/resolution', { method: 'POST',
+    body: { expectedVersion: 1, handlingNotes: 'Notes', customerResult: 'Result', proposal }, idempotencyKey: 'complaint-resolution' }]);
+  await api.decide({ complaintId: 'case-1', expectedVersion: 2, customerResult: 'Final', amountVnd: 0 });
+  expect(request.mock.calls[2]).toEqual(['/complaints/case-1/decision', { method: 'POST',
+    body: { expectedVersion: 2, customerResult: 'Final', amountVnd: 0 }, idempotencyKey: 'complaint-key-1' }]);
+});
+
 test('submits complaint through the scoped endpoint and rejects public media links', async () => {
   const request = jest.fn().mockResolvedValue(envelope); const api = createComplaintApi({ request, createIdempotencyKey: () => 'complaint-key-1' });
   await expect(api.submit({ visitId: 'visit-1', expectedVersion: 4, category: 'PET_SAFETY', summary: 'An toàn', description: 'Nội dung' })).resolves.toEqual(envelope);

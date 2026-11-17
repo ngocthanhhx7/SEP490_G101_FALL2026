@@ -39,7 +39,7 @@ Delivery needs `addressId` of one of the caller's active addresses inside the se
 | `GET /api/v1/admin/product-orders` | Orders for the Order Management screen. Query: `tab` (`PREPARE` = `PLACED`, `AWAITING_PICKUP` = `READY`, `IN_TRANSIT` = `HANDED_TO_CARRIER`, `RETURNING` = `BEING_RETURNED`, `ALL`), `search` (order code prefix, part of the customer name case-insensitively, or the customer's whole phone number as `0912345678`, `0912 345 678`, `84912345678` or `+84912345678`; a part of a number matches nothing), `limit` (1-50). Response: `{ items, counts }`, `counts` holding the size of every tab. `PREPARE` and `AWAITING_PICKUP` list oldest first, the others newest first. Each item is the Customer order DTO plus `customer: { id, displayName, phone }` (`phone` is the customer's verified number as `0912345678`, or `null`) and `updatedAt`. The order management DTO includes the phone for Admin and Sale Staff. Order management items also carry `deliveredAt`, `carrierReturnReason`, `returnReason`, `returnNote`, `returnedAt` and `refundMarked` (all `null`/`false` until set) and `resellableQuantity` on each line (`null` until the return is confirmed); none of these is in the Customer DTO |
 | `GET /api/v1/admin/product-orders/:orderId` | One order, any customer |
 | `POST .../:orderId/hand-to-carrier` | Delivery order `PLACED` to `HANDED_TO_CARRIER`. Body `{ trackingCode }` (3-64 of letters, digits, `.`, `_`, `-`; trimmed). Missing or blank is `422 TRACKING_CODE_REQUIRED` (MSG103) |
-| `POST .../:orderId/mark-ready` | Pickup order `PLACED` to `READY`. No stock change |
+| `POST .../:orderId/mark-ready` | Pickup order `PLACED` to `READY`, stores the pickup deadline from this action and notifies the customer of it in-app. No stock change |
 | `POST .../:orderId/record-payment` | Pickup order in `PLACED` or `READY`, not yet paid: sets `paid` (money taken at the shop) |
 | `POST .../:orderId/hand-to-customer` | Pickup order `READY` to `PICKED_UP`. An unpaid order is `409 ORDER_NOT_PAID` (MSG105) |
 | `POST .../:orderId/mark-delivered` | Delivery order `HANDED_TO_CARRIER` to `DELIVERED`, sets `deliveredAt`. A cash-on-delivery order becomes `paid`; an advance payment (`PREPAID`) is left as it was. No stock change |
@@ -51,7 +51,7 @@ Any other combination of receive method and status is `409 ORDER_STATE_CONFLICT`
 
 Phone numbers are stored encrypted with a keyed lookup hash (the same contact keys as sign-in), so the search is an exact match on the whole number and the number is decrypted for the order management response. The backend needs `CONTACT_LOOKUP_SECRET` and `CONTACT_ENCRYPTION_KEY`, which authentication already requires.
 
-Not built: the COD refusal limit (the refusal records it will count already exist), the expiry job, placing an advance-payment order (`PREPAID` exists in the vocabulary only) and refunds themselves.
+JOB-04 cancels ready pickup orders at or after their stored deadline when the worker is enabled. It skips orders without a deadline and paid `PAY_AT_SHOP` orders. Cancellation releases held stock, records one `NOT_COLLECTED` refusal and notifies the customer in-app. A paid `PREPAID` pickup is marked for refund. The COD refusal limit, expiry of unpaid advance payments, placement of advance-payment orders and refunds themselves are outside the current shop flow.
 
 ## Sale Staff Dashboard (UC-94)
 

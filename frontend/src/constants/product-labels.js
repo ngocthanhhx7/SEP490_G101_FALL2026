@@ -1,4 +1,5 @@
 // Vietnamese labels for the customer product shop. Codes mirror the backend product-sales vocabulary.
+export const PRODUCT_TIER_LABELS = Object.freeze({ MEMBER: 'Thành viên', SILVER: 'Bạc', GOLD: 'Vàng' });
 export const PRODUCT_CATEGORY_LABELS = Object.freeze({ FOOD: 'Thức ăn', ACCESSORY: 'Phụ kiện' });
 export const PRODUCT_PET_LABELS = Object.freeze({ DOG: 'Chó', CAT: 'Mèo' });
 export const PRODUCT_RECEIVE_LABELS = Object.freeze({ DELIVERY: 'Giao tận nơi', PICKUP: 'Nhận tại cửa hàng' });
