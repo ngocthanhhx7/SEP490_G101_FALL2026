@@ -10,7 +10,9 @@ function checkLines(lines) {
     || !Number.isSafeInteger(line.quantity) || line.quantity < 1 || line.quantity > 99 || !count(line.unitPrice) || !count(line.lineTotal)) invalid();
 }
 function checkTotals(data) {
-  if (!data || !['subtotal', 'tierDiscount', 'total'].every(field => count(data[field])) || data.tierDiscount !== 0) invalid();
+  if (!data || !['subtotal', 'tierDiscount', 'total'].every(field => count(data[field])) || data.tierDiscount > data.subtotal
+    || data.total !== data.subtotal - data.tierDiscount
+    || (data.tierCode !== null && data.tierCode !== undefined && !['MEMBER', 'SILVER', 'GOLD'].includes(data.tierCode))) invalid();
   checkLines(data.lines); return data;
 }
 function checkOrder(data) {

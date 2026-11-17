@@ -3,6 +3,7 @@ import { createServiceAreaManagementApi } from '../services/service-area-managem
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
+import { VisitStatusTrackerPage } from '../pages/customer/visit-status-tracker/VisitStatusTrackerPage.jsx';
 import { ComplaintSubmitPage } from '../pages/customer/ComplaintSubmitPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
 import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
@@ -19,6 +20,7 @@ import { ContactPage } from '../pages/public/ContactPage.jsx';
 import { ServiceAreasPage } from '../pages/public/ServiceAreasPage.jsx';
 import { ServiceDetailsPage } from '../pages/public/ServiceDetailsPage.jsx';
 import { ServiceListPage } from '../pages/public/ServiceListPage.jsx';
+import { GroomingBookingPage } from '../pages/customer/GroomingBookingPage.jsx';
 import { ServiceBookingPage } from '../pages/public/ServiceBookingPage.jsx';
 import { SignInPage } from '../pages/public/SignInPage.jsx';
 import { AdminUsersPage } from '../pages/admin/AdminUsersPage.jsx';
@@ -58,6 +60,7 @@ import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api
 import { SitterWorkAreasPanel } from '../pages/sitter/SitterWorkAreasPanel.jsx';
 import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
 import { StaffBookingDetailPage } from '../pages/staff/StaffBookingDetailPage.jsx';
+import { ComplaintManagementPage } from '../pages/staff/ComplaintManagementPage.jsx';
 import { EmployeeInvitationsPage } from '../pages/sitter/EmployeeInvitationsPage.jsx';
 import { DirectedBookingProposalPage } from '../pages/customer/DirectedBookingProposalPage.jsx';
 import { ProductListPage } from '../pages/public/ProductListPage.jsx';
@@ -144,8 +147,9 @@ function EmployeeScheduleRoute({ view }) {
     privateImages: createPrivateImageApi({ getCsrfToken })
   }), [getCsrfToken]);
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
-  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined} />;
-  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} />;
+  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined}
+    initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
+  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} initialVisitId={params.get('visitId') || undefined} />;
   if (view === 'proposal') return <DirectedBookingProposalPage key={user?.id} api={api} />;
   return <SitterAvailabilityPage key={user?.id} api={api} />;
 }
@@ -169,6 +173,7 @@ const navigationByRole = {
   ADMIN: [
     ['Tổng quan', '/admin/dashboard', 'Công việc'],
     ['Điều phối ca', '/staff/dispatch', 'Công việc'],
+    ['Khiếu nại', '/admin/complaints', 'Công việc'],
     ['Người chăm sóc', '/admin/sitters', 'Nhân sự & hồ sơ'],
     ['Người dùng', '/admin/users', 'Nhân sự & hồ sơ'],
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
@@ -223,6 +228,7 @@ const navigationByRole = {
   STAFF: [
     ['Tổng quan', '/staff', 'Công việc'],
     ['Điều phối ca', '/staff/dispatch', 'Công việc'],
+    ['Khiếu nại', '/staff/complaints', 'Công việc'],
     ['Người chăm sóc', '/staff/sitters', 'Nhân sự & hồ sơ'],
     ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
@@ -280,6 +286,7 @@ export function AppRoutes({
         <Route element={<Workspace role="ADMIN" />}>
           <Route path="admin/users" element={<AdminUsersPage embedded />} />
           <Route path="admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="admin/complaints" element={<ComplaintManagementPage />} />
           <Route path="admin/settlement-history" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/sitters" element={<SitterManagementRoute />} />
           <Route path="admin/sitters/:userId" element={<SitterManagementRoute detail />} />
@@ -348,6 +355,7 @@ export function AppRoutes({
           <Route path="account/bookings" element={<CustomerBookingsPage />} />
           <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
+          <Route path="account/bookings/:bookingId/visits/:visitId" element={<VisitStatusTrackerPage />} />
           <Route path="account/bookings/:bookingId/complaints/new" element={<ComplaintSubmitPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
           <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
@@ -373,6 +381,7 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['STAFF']} />}>
         <Route element={<Workspace role="STAFF" />}>
           <Route path="staff" element={<StaffDashboardPage />} />
+          <Route path="staff/complaints" element={<ComplaintManagementPage />} />
           <Route path="staff/sitters" element={<SitterManagementRoute />} />
           <Route path="staff/sitters/:userId" element={<SitterManagementRoute detail />} />
         </Route>
@@ -392,6 +401,7 @@ export function AppRoutes({
         <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
         <Route element={<RequireSession roles={['CUSTOMER']} />}>
           <Route path="booking/:serviceId" element={<ServiceBookingPage />} />
+          <Route path="grooming-booking" element={<GroomingBookingPage />} />
         </Route>
         <Route path="products" element={<ProductListPage />} />
         <Route path="products/:productId" element={<ProductDetailsPage />} />

@@ -23,6 +23,7 @@ export function createEmployeeSchedulingController({ repository, dispatch, careP
     withdraw: async (req, res) => send(req, res, await dispatch.withdrawals.submit(req.auth, id(req.params.id),
       withdrawalInput(req.body), req.get('idempotency-key'))),
     queue: async (req, res) => send(req, res, { ...await dispatch.queue(req.auth), visitTravelEnabled }),
+    dispatchDetails: async (req, res) => send(req, res, await dispatch.details(req.auth, id(req.params.id))),
     candidates: async (req, res) => send(req, res, await dispatch.previewCandidates(req.auth, req.params.id, req.query)),
     invite: async (req, res) => send(req, res, await dispatch.invite(req.auth, req.params.id, req.body, req.get('idempotency-key'))),
     plans: async (req, res) => send(req, res, await carePlans.list(req.auth)),

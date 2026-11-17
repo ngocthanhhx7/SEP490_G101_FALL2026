@@ -1,4 +1,5 @@
 import { createPayrollDraftService } from './payroll-draft.service.js';
+import { groomingOccupancy } from '../employee-scheduling/grooming-occupancy.service.js';
 import { createHash } from 'node:crypto';
 import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
@@ -122,6 +123,10 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         const prior = await models.EmploymentContract.findOne({ employeeId: input.employeeId }).sort({ version: -1 }).session(session).lean();
         if ((prior?.version ?? 0) !== input.expectedVersion) fail('VERSION_CONFLICT', 'Contract changed', 409);
         if (prior && input.effectiveAt <= prior.effectiveAt) fail('VALIDATION_FAILED', 'Contract versions must progress in time');
+        const shopReservations = await groomingOccupancy({ connection, sitterIds: [input.employeeId], from: input.effectiveAt, session });
+        if (shopReservations.some(row => input.employmentType !== 'FULL_TIME' || input.endsAt && row.endAt > input.endsAt
+          || prior && input.weeklyMinutes < prior.weeklyMinutes))
+          fail('CONFIRMED_VISIT_CONFLICT', 'Review reserved shop appointments before reducing contract coverage', 409);
         const { expectedVersion, ...fields } = input;
         const [record] = await models.EmploymentContract.create([{ ...fields, version: expectedVersion + 1, verifiedBy: actor.userId, recordedAt: now() }], { session });
         await event(actor, input.employeeId, record._id, 'CONTRACT_RECORDED', 'Admin verified signed contract', session);

@@ -15,8 +15,8 @@ export function createPricingRepository(connection, clock = Date.now) {
   return {
     models,
     connection,
-    async context(ownerId, input) {
-      const base = await context.context(ownerId, input),
+    async context(ownerId, input, { session = null } = {}) {
+      const base = await context.context(ownerId, input, { session }),
         now = new Date(clock());
       const [price, policy] = await Promise.all([
         Price.findOne({
@@ -24,7 +24,7 @@ export function createPricingRepository(connection, clock = Date.now) {
           effectiveAt: { $lte: now }
         })
           .sort({ effectiveAt: -1, version: -1 })
-          .lean(),
+          .session(session).lean(),
         models.PricingPolicy.findOne({
           serviceId: base.service._id,
           status: 'APPROVED',
@@ -32,7 +32,7 @@ export function createPricingRepository(connection, clock = Date.now) {
           effectiveAt: { $lte: now }
         })
           .sort({ version: -1 })
-          .lean()
+          .session(session).lean()
       ]);
       if (!price) fail('SERVICE_UNAVAILABLE', 'Service price unavailable', 409);
       if (!policy || (!policy.approvedBy && !policy.approvalSource))

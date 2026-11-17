@@ -4,6 +4,7 @@ import { createEmployeeScheduleRepository } from './employee-scheduling/employee
 import { sitterCapabilityInput } from '../validators/sitter-capability.validator.js';
 import { digest, id, fail } from '../validators/pet-care.validator.js';
 import { hasRole } from '../utils/roles.js';
+import { groomingOccupancy } from './employee-scheduling/grooming-occupancy.service.js';
 
 // Capability verification never changes self-registered shifts, leave, origins or reviews.
 export function createSitterCapabilityService({ connection, clock = Date.now }) {
@@ -33,6 +34,11 @@ export function createSitterCapabilityService({ connection, clock = Date.now }) 
         if ((current?.version ?? 0) !== input.expectedVersion) fail('VERSION_CONFLICT', 'Reload capability', 409);
         const patch = { serviceIds, species: input.species, allowedTraits: input.allowedTraits, maxPets: input.maxPets,
           maxWeightKg: input.maxWeightKg, active: input.active, changedBy: new Types.ObjectId(actor.userId), version: input.expectedVersion + 1 };
+        const reserved = await groomingOccupancy({ connection, sitterIds: [userId], from: new Date(clock()), session });
+        if (reserved.some(row => !patch.active || patch.maxPets < 1 || row.snapshots.serviceIds.some(id => !input.serviceIds.includes(id))
+          || row.snapshots.pets.some(pet => !pet || !patch.species.includes(pet.species) || pet.weightKg > patch.maxWeightKg
+            || pet.traits?.some(trait => !patch.allowedTraits.includes(trait)))))
+          fail('CONFIRMED_VISIT_CONFLICT', 'Resolve reserved shop appointments before reducing employee capabilities', 409);
         if (current) {
           const changed = await col('aisitterprofiles').updateOne({ _id: current._id, ...(current.version === undefined ? { version: { $exists: false } } : { version: current.version }) }, { $set: patch }, { session });
           if (!changed.matchedCount) fail('VERSION_CONFLICT', 'Reload capability', 409);
