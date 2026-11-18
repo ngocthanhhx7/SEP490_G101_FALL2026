@@ -99,6 +99,7 @@ function normalizeService(service) {
     ...(typeof service.groomingBookingEnabled === 'boolean' ? { groomingBookingEnabled: service.groomingBookingEnabled } : {}),
     ...(typeof service.code === 'string' ? { code: service.code } : {}),
     ...(details ? { details } : {}),
+    ...(service.careWorkflow ? { careWorkflow: normalizeCareWorkflow(service.careWorkflow) } : {}),
     name: service.name.trim(),
     description: service.description.trim(),
     scope: service.scope.trim(),
@@ -115,6 +116,18 @@ function normalizeService(service) {
       effectiveAt: policy.effectiveAt
     })
   });
+}
+
+function normalizeCareWorkflow(value) {
+  if (!Array.isArray(value.steps) || value.steps.length > 24) invalidResponse();
+  return { steps: value.steps.map(step => {
+    if (!step || !['CHECK_IN', 'EXECUTION', 'CHECK_OUT'].includes(step.phase) ||
+      !nonEmptyString(step.title) || step.title.length > 120 ||
+      typeof step.instructions !== 'string' || step.instructions.length > 2000 ||
+      !Array.isArray(step.species) || !Array.isArray(step.locations)) invalidResponse();
+    return { phase: step.phase, title: step.title, instructions: step.instructions,
+      species: step.species, locations: step.locations };
+  }) };
 }
 
 export function normalizePublicCatalog(data) {
@@ -169,8 +182,9 @@ function normalizeServiceAreas(data) {
   });
 }
 
-export async function loadPublicCatalog({ signal } = {}) {
-  const response = await requestCatalog('/services', { signal });
+export async function loadPublicCatalog({ signal, workflowFor } = {}) {
+  const query = /^[a-f0-9]{24}$/.test(workflowFor ?? '') ? '?workflowFor=' + workflowFor : '';
+  const response = await requestCatalog('/services' + query, { signal });
   if (response.pending) return response;
   return { ...response, data: normalizePublicCatalog(response.data) };
 }

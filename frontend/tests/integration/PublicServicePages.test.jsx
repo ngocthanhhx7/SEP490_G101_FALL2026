@@ -15,6 +15,9 @@ const services = [
     description: 'Đồng hành cùng chó ngoài trời.',
     scope: 'Theo lịch đã xác nhận.',
     species: ['DOG'],
+    careWorkflow: { steps: [{ phase: 'EXECUTION', title: 'Kiểm tra dây dắt',
+      instructions: 'Dùng dây vừa vặn. Nguồn: https://www.gov.uk/example',
+      species: ['DOG'], locations: ['OUTDOOR'] }] },
     price: { amountVnd: 50000, currency: 'VND', unitLabel: 'mỗi lượt' },
     policy: {
       version: 1,
@@ -46,6 +49,15 @@ const services = [
   }
 ];
 const catalog = { available: true, services };
+
+test('service details show its published care steps and source separately from booking', async () => {
+  renderAt('/services/dog-walk-1');
+  const workflow = await screen.findByRole('region', { name: 'Quy trình chăm sóc của dịch vụ' });
+  fireEvent.click(within(workflow).getByText('Kiểm tra dây dắt'));
+  expect(within(workflow).getByText('Chó · Ngoài trời')).toBeVisible();
+  expect(within(workflow).getByRole('link', { name: 'www.gov.uk' })).toHaveAttribute('href', 'https://www.gov.uk/example');
+  expect(screen.getByRole('heading', { name: 'Các bước đặt lịch và theo dõi' })).toBeVisible();
+});
 
 function renderAt(path) {
   return render(

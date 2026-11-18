@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { createCatalogChange } from '../models/catalog-change-provenance.model.js';
 import { catalogVersionRecord } from '../utils/catalog-version-record.js';
 import { AppError } from '../utils/app-error.js';
+import { workflowHash } from './care/workflow-snapshot.service.js';
 
 const SERVICE_FIELDS = ['name', 'description', 'scope', 'species', 'state'];
 const SPECIES = new Set(['DOG', 'CAT']);
@@ -442,7 +443,9 @@ export function createServiceCatalogService({
     return output;
   }
 
-  async function publicList({ at = new Date(clock()) } = {}) {
+  async function publicList({ at = new Date(clock()), workflowFor } = {}) {
+    if (workflowFor !== undefined && (typeof workflowFor !== 'string' || !/^[a-f0-9]{24}$/.test(workflowFor)))
+      invalid('Invalid service workflow selection');
     if (!(await catalogSettings.isEnabledAt(at)))
       return { available: false, services: [] };
     const serviceDetails = await Service.find({}).select('code presentation').limit(1001).lean();
@@ -536,6 +539,18 @@ export function createServiceCatalogService({
         },
         price: validatePrice(price)
       });
+    }
+    const selected = services.find(service => service.id === workflowFor);
+    if (selected) {
+      const parent = await Service.findById(selected.id).select('workflowPublished').maxTimeMS(2000).lean();
+      const published = parent?.workflowPublished;
+      if (Array.isArray(published?.definition?.steps) && workflowHash(published.definition) === published.hash) {
+        const steps = published.definition.steps.filter(step => step.customerVisible === true).map(step => ({
+          phase: step.phase, title: step.title, instructions: step.instructions,
+          species: step.species, locations: step.locations
+        }));
+        if (steps.length) selected.careWorkflow = { steps };
+      }
     }
     return {
       available: true,

@@ -6,6 +6,7 @@ import { createApp } from '../../src/app.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { provisionInitialCatalog } from '../../src/services/initial-catalog-provisioning.service.js';
 import { provisionServiceDetails } from '../../src/services/service-details-provisioning.service.js';
+import { workflowHash } from '../../src/services/care/workflow-snapshot.service.js';
 let replica, connection, app;
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
@@ -19,11 +20,20 @@ test('default runtime serves the real catalog with visibility, effective policy 
   const effectiveAt = new Date(Date.now() - 60000);
   await connection.models.SystemSettingVersion.create({ key: 'SERVICE_CATALOG_VISIBLE', version: 1, enabled: true,
     effectiveAt, changedBy: actor, reason: 'Synthetic test setting', recordedAt: effectiveAt });
-  const service = await connection.models.Service.create({ code: 'synthetic-walk', createdBy: actor, createdAt: effectiveAt });
+  const visibleStep = { phase: 'EXECUTION', title: 'Check the leash', instructions: 'Use a fitted leash.',
+    species: ['DOG'], locations: ['OUTDOOR'] };
+  const definition = { steps: [
+    { ...visibleStep, customerVisible: true, photoSlots: [{ title: 'Internal evidence' }] },
+    { ...visibleStep, title: 'Internal handover', customerVisible: false }
+  ] };
+  const service = await connection.models.Service.create({ code: 'synthetic-walk', createdBy: actor, createdAt: effectiveAt,
+    workflowDraft: { steps: [{ title: 'Unpublished draft' }] },
+    workflowPublished: { definition, hash: workflowHash(definition), actorId: actor } });
   await connection.models.ServiceVersion.create({ serviceId: service._id, version: 1, name: 'Synthetic dog walk',
     description: 'Synthetic care description', scope: 'Synthetic scope', species: ['DOG'], state: 'ACTIVE',
     effectiveAt, changedBy: actor, reason: 'Synthetic publish', recordedAt: effectiveAt });
-  await request(app).get('/api/v1/services').expect(200).expect(({ body }) => expect(body.data.services).toEqual([]));
+  await request(app).get('/api/v1/services').query({ workflowFor: String(service._id) }).expect(200)
+    .expect(({ body }) => expect(body.data.services).toEqual([]));
   await connection.models.ServicePolicyVersion.create({ serviceId: service._id, version: 1, state: 'PUBLISHED',
     title: 'Synthetic policy', body: 'Synthetic policy content', effectiveAt, changedBy: actor, reason: 'Synthetic policy', recordedAt: effectiveAt });
   await connection.models.ServicePriceVersion.create({ serviceId: service._id, version: 1, amountVnd: 50000,
@@ -31,7 +41,10 @@ test('default runtime serves the real catalog with visibility, effective policy 
   await request(app).get('/api/v1/services').expect(200).expect(({ body }) => {
     expect(body.data.available).toBe(true); expect(body.data.services).toHaveLength(1);
     expect(body.data.services[0]).toMatchObject({ id: service._id.toString(), name: 'Synthetic dog walk', price: { amountVnd: 50000 } });
+    expect(body.data.services[0]).not.toHaveProperty('careWorkflow');
   });
+  await request(app).get('/api/v1/services').query({ workflowFor: String(service._id) }).expect(200)
+    .expect(({ body }) => expect(body.data.services[0].careWorkflow).toEqual({ steps: [visibleStep] }));
   await request(app).get('/api/v1/services/admin').expect(404);
 });
 test('provisions the three real offerings once with migration provenance and preserves later price edits', async () => {
