@@ -45,7 +45,7 @@ const reviewLabel = (code) =>
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const [bookingChangesRevision, setBookingChangesRevision] = useState(0);
@@ -126,7 +126,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWithdrawalId,
       )}
       {proposal && <p role="status">Đã gửi đề xuất lịch mới, đang chờ khách xác nhận.</p>}
       {queue.status === 'loading' && <p role="status">Đang tải ca…</p>}
-      <VisitBoard api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
+      <VisitBoard initialWorkflowId={initialWorkflowId} api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
         openableIds={queue.data && new Set(rows.map((row) => row.id))} onOpenDispatch={setSelected} onChanged={queue.retry} onState={setBoard}
         initialWithdrawalId={initialWithdrawalId} initialClosureId={initialClosureId} canVerifyClosure={canVerifyClosure} requestedWithdrawalId={withdrawalToReview} onWithdrawalDismiss={() => setWithdrawalToReview(null)} refreshKey={queue.data} />
       {['error', 'forbidden', 'pending'].includes(queue.status) && (

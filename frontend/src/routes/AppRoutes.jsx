@@ -1,3 +1,7 @@
+import { IncidentReportPage } from '../pages/incidents/IncidentReportPage.jsx';
+import { IncidentDetailsPage } from '../pages/incidents/IncidentDetailsPage.jsx';
+import { IncidentListPage } from '../pages/incidents/IncidentListPage.jsx';
+import { createIncidentApi } from '../services/incident-api.js';
 import { ServiceAreasPage as AdminServiceAreasPage } from '../pages/admin/ServiceAreasPage.jsx';
 import { createServiceAreaManagementApi } from '../services/service-area-management-api.js';
 import { useMemo } from 'react';
@@ -11,7 +15,7 @@ import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx'
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
-import { Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useSearchParams, useParams } from 'react-router-dom';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
 import { HomePage } from '../pages/public/HomePage.jsx';
@@ -140,6 +144,15 @@ function SitterManagementRoute({ detail = false }) {
   return detail ? <SitterManagementDetailPage key={user?.id} api={api} payrollApi={payrollApi} /> : <SitterManagementPage key={user?.id} api={api} />;
 }
 
+function IncidentRoute({ view }) {
+  const params = useParams();
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createIncidentApi({ request: createApiClient({ getCsrfToken }) }), [getCsrfToken]);
+  if (view === 'report') return <IncidentReportPage key={`${user?.id}:${params.visitId}`} api={api} />;
+  if (view === 'detail') return <IncidentDetailsPage key={`${user?.id}:${params.caseId}`} api={api} />;
+  return <IncidentListPage key={user?.id} api={api} />;
+}
+
 function EmployeeScheduleRoute({ view }) {
   const [params] = useSearchParams();
   const { getCsrfToken, user } = useSession();
@@ -148,7 +161,7 @@ function EmployeeScheduleRoute({ view }) {
   }), [getCsrfToken]);
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
   if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined}
-    initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
+    initialWorkflowId={params.get('workflowId') || undefined} initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
   if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} initialVisitId={params.get('visitId') || undefined} />;
   if (view === 'proposal') return <DirectedBookingProposalPage key={user?.id} api={api} />;
   return <SitterAvailabilityPage key={user?.id} api={api} />;
@@ -391,6 +404,13 @@ export function AppRoutes({
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
           <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
           <Route path="staff/bookings/:bookingId" element={<StaffBookingDetailPage />} />
+        </Route>
+      </Route>
+      <Route element={<RequireSession roles={['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN']} />}>
+        <Route element={<AccountWorkspace />}>
+          <Route path="visits/:visitId/incidents/new" element={<IncidentRoute view="report" />} />
+          <Route path="cases/:caseId" element={<IncidentRoute view="detail" />} />
+          <Route path="incidents" element={<IncidentRoute view="list" />} />
         </Route>
       </Route>
       <Route element={<PublicSiteLayout />}>

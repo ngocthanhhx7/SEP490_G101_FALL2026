@@ -1,19 +1,31 @@
 import { Types } from 'mongoose';
+import { workflowTasks } from './workflow-snapshot.service.js';
 
-// Grants a customer access only to immutable evidence bound to their own booked visit.
-// Unbound uploads, applicant documents and other customers' bookings remain private.
+// Legacy media keeps its existing customer scope. Workflow media additionally
+// follows immutable task visibility, current assignment and historical uploader.
 export function createVisitEvidenceAccess({ connection }) {
   const col = name => connection.db.collection(name);
   return async ({ actor, image }) => {
-    if (actor?.state !== 'ACTIVE' || !actor.roles?.includes('CUSTOMER') || !Types.ObjectId.isValid(actor.userId)
-      || !Types.ObjectId.isValid(image.careVisitId) || !['CHECK_IN', 'CHECK_OUT'].includes(image.careKind)) return false;
+    if (actor?.state !== 'ACTIVE' || actor.synthetic || !Types.ObjectId.isValid(actor.userId) || !Types.ObjectId.isValid(image.careVisitId)) return false;
+    const workflow = typeof image.careKind === 'string' && image.careKind.startsWith('WF:');
+    if (!workflow && (!actor.roles?.includes('CUSTOMER') || !['CHECK_IN', 'CHECK_OUT'].includes(image.careKind))) return false;
     const binding = await col('caremediabindings').findOne({ _id: image._id, visitId: image.careVisitId,
       ownerId: String(image.ownerId), kind: image.careKind, contentDigest: image.contentDigest }, { maxTimeMS: 2000 });
     if (!binding) return false;
-    const visit = await col('visits').findOne({ _id: new Types.ObjectId(image.careVisitId), sitterId: image.ownerId,
-      evidenceRefs: { $elemMatch: { mediaId: image._id, kind: image.careKind } } }, { projection: { bookingId: 1 }, maxTimeMS: 2000 });
+    const visit = await col('visits').findOne({ _id: new Types.ObjectId(image.careVisitId), ...(workflow ? {} : { evidenceRefs: { $elemMatch: { mediaId: image._id, kind: image.careKind } } }) },
+    { projection: { bookingId: 1, sitterId: 1, state: 1, location: 1, snapshots: 1, workflowResults: 1, handoverRequired: 1, handoverAccepted: 1 }, maxTimeMS: 2000 });
     if (!visit) return false;
-    return Boolean(await col('bookings').findOne({ _id: visit.bookingId, customerId: new Types.ObjectId(actor.userId), visitIds: visit._id },
-      { projection: { _id: 1 }, maxTimeMS: 2000 }));
+    let task;
+    if (workflow) {
+      const result = visit.workflowResults?.find(row => row.evidence?.some(photo => photo.mediaId === image._id && photo.kind === image.careKind && photo.uploadedBy === String(image.ownerId) && photo.contentDigest === image.contentDigest));
+      task = result && workflowTasks(visit.snapshots?.workflow, visit.snapshots?.pets, visit.location).find(row => row.taskKey === result.taskKey);
+      if (!task) return false;
+    }
+    const booking = await col('bookings').findOne({ _id: visit.bookingId, visitIds: visit._id }, { projection: { customerId: 1, state: 1 }, maxTimeMS: 2000 });
+    if (!booking) return false;
+    if (workflow && actor.roles?.some(role => ['ADMIN', 'STAFF'].includes(role))) return true;
+    if (workflow && actor.roles?.includes('PET_SITTER') && String(visit.sitterId) === actor.userId && ['ASSIGNED', 'IN_PROGRESS'].includes(visit.state)
+      && (!visit.handoverRequired || visit.handoverAccepted === true)) return true;
+    return Boolean(actor.roles?.includes('CUSTOMER') && String(booking.customerId) === actor.userId && (!workflow || task.step.customerVisible));
   };
 }

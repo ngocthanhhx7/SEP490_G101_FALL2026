@@ -1,5 +1,12 @@
 # Backend — Paw World Care
 
+Các SOP hiện hành và căn cứ theo từng dịch vụ ở [care workflow sources](../doc/care-workflow-sources.md).
+`src/constants/service-workflow-drafts.js` chứa 15 mẫu và URL nguồn theo bước;
+`services/care/catalog-workflows.service.js` lập kế hoạch/publish qua domain service,
+không ghi đè nội dung Admin. Operator `scripts/deployment/provision-workflows.js`
+mặc định dry-run; chỉ apply với plan hash, Admin hiện hữu và gate release/backup/restore.
+Không có startup seed, collection nguồn riêng hoặc backfill lượt cũ.
+
 Counter Sale (UC-68) dùng `/api/v1/admin/counter-orders`, chỉ Admin với session/CSRF hiện có. Hằng/giới hạn ở `src/constants/counter-sale-fields.js`, input ở `src/validators/counter-sale.validator.js`; route chỉ ghép controller và services. Xem [hợp đồng API](../doc/api/product-sales-v1.md#counter-sale-uc-68). Test gồm `tests/integration/counter-sale.test.js` và `tests/unit/counter-sale-validator.test.js`. Không cần biến môi trường hoặc provider mới.
 Stock List (UC-71) adds read-only Admin stock/history endpoints composed in
 `src/routes/product-sales.routes.js`. `src/constants/product-permissions.js` owns
@@ -183,3 +190,5 @@ Runtime đã mount sitter-applications khi auth bật. Nộp hồ sơ yêu cầu
 Customer shop (catalog, cart, product orders) is off unless `PRODUCT_SALES_ENABLED=true` with `AUTH_ENABLED=true`. `npm run seed:products` remains the original nine-product development fixture. The reviewed deployment command `scripts/deployment/provision-storefront-catalog.js` adds those nine plus 20 owner-supplied legacy sample products without replacing existing records. It requires explicit catalog/database confirmation for apply, after backup. Admin and Sale Staff can handle delivery, returns, pickup and payment recording. Cancellation requires Admin. Online payment and tier discounts are outside the current shop flow. See [product sales API](../doc/api/product-sales-v1.md) and [storefront plan](../doc/ui-ux/storefront-integration-2026-11-04.md).
 
 Home-care coverage is managed through Admin service areas and a versioned source registry. See [coverage contract and rollout](../doc/api/home-care-coverage.md).
+
+Service Workflow extends Services, checkout snapshots, Sitter execution, private media, Customer reports and Staff monitoring. Read [API](../doc/api/service-workflows.md) and [storage plan](../doc/database/service-workflow-plan.md). Development history provisioning and 13 DRAFT seed proposals are explicit; no production migration/publication occurs at startup.

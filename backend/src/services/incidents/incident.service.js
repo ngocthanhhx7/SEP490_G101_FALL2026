@@ -832,7 +832,8 @@ export function createIncidentService({
     const hash = payloadHash({
       caseId: id,
       expectedVersion: expected,
-      resolution
+      // Server receipt time is not client intent; retries must keep the same hash.
+      resolution: Object.fromEntries(Object.entries(resolution).filter(([key]) => key !== 'recordedAt'))
     });
     return transaction(
       actor,

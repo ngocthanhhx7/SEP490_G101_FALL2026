@@ -1,4 +1,10 @@
 import { Router } from 'express';
+import { createIncidentRouter } from './incident.routes.js';
+import { createIncidentService } from '../services/incidents/incident.service.js';
+import { createMongoIncidentRepository } from '../services/incidents/mongo-incident.repository.js';
+import { createServiceWorkflowRouter } from './service-workflow.routes.js';
+import { createServiceWorkflowService } from '../services/care/service-workflow.service.js';
+import { createVisitWorkflowService } from '../services/care/visit-workflow.service.js';
 import { requireSession, requireCsrf, requireRoles } from '../middlewares/session.js';
 import { createSessionService } from '../services/session.service.js';
 import { createBookingFinanceSourceService } from '../services/settlements/booking-finance-source.service.js';
@@ -29,6 +35,10 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
     repository: createMongoPaymentWebhookRepository({ connection, finance: service }), clock: () => new Date(clock()) }) : null;
   const controller = createFinanceSourceController({ service, webhook });
   const router = Router();
+  const incidents = createIncidentService({ repository: createMongoIncidentRepository({ connection, finance: service, clock, compensationModel }), clock });
+  router.use(createIncidentRouter({ service: incidents, sessionPort: session, clock }));
+  router.use(createServiceWorkflowRouter({ templates: createServiceWorkflowService({ connection, clock }),
+    execution: createVisitWorkflowService({ connection, clock }), sessionService: session, clock }));
   const r2 = loadR2Config(env);
   const images = r2 && ports?.privateMedia ? createPrivateImageService({ connection, media: ports.privateMedia,
     secret: config.auth.tokenSecret, maxImagesPerUser: r2.maxImagesPerUser }) : null;

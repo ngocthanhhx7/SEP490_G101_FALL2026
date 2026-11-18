@@ -1,5 +1,6 @@
 // Reasons of the Needs action list (R3 10.1.1). The API sends the code; the words live here.
 export const REASON_LABELS = {
+  WORKFLOW_BLOCKED: 'Nhiệm vụ hoặc sự cố cần xử lý',
   NO_SITTER_TO_OFFER: 'Hết người để mời',
   NO_SITTER_24H: 'Chưa có người 24 giờ trước',
   NOT_CHECKED_IN_30M: 'Chưa check-in sau 30 phút',
@@ -34,6 +35,7 @@ export const formatPhone = phone => (/^\d{10}$/u.test(phone) ? `${phone.slice(0,
 // What the action cell offers for the most urgent reason of a row.
 export function actionFor(row) {
   const code = row.reasons?.[0]?.code;
+  if (row.reasons?.some(reason => reason.code === 'WORKFLOW_BLOCKED')) return { kind: 'workflow', label: 'Xử lý bước chăm sóc' };
   if (code === 'NO_SITTER_TO_OFFER' || code === 'NO_SITTER_24H') {
     return row.reviewCode === 'SHIFT_START_REACHED' ? { kind: 'dispatch', label: 'Đổi lịch với khách' } : { kind: 'dispatch', label: 'Giao người' };
   }

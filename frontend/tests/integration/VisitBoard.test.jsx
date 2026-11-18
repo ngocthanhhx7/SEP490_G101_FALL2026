@@ -157,7 +157,7 @@ describe('search and filters', () => {
     render(<Harness api={board()} />);
     await screen.findByRole('region', { name: 'Buổi cần xử lý' });
     expect(within(screen.getByLabelText('Lý do')).getAllByRole('option').map(option => option.textContent)).toEqual([
-      'Tất cả lý do', 'Hết người để mời', 'Chưa có người 24 giờ trước', 'Chưa check-in sau 30 phút', 'Rút buổi dưới 12 giờ', 'Cần xác minh kết thúc', 'Chờ quản trị xác minh', 'Cần đối soát phí dịch vụ']);
+      'Tất cả lý do', 'Nhiệm vụ hoặc sự cố cần xử lý', 'Hết người để mời', 'Chưa có người 24 giờ trước', 'Chưa check-in sau 30 phút', 'Rút buổi dưới 12 giờ', 'Cần xác minh kết thúc', 'Chờ quản trị xác minh', 'Cần đối soát phí dịch vụ']);
     expect(within(screen.getByLabelText('Khu vực phục vụ')).getAllByRole('option').map(option => option.textContent)).toEqual(['Tất cả khu vực phục vụ', 'Cầu Giấy', 'Đống Đa']);
   });
 

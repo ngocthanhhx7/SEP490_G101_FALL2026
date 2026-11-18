@@ -1,3 +1,4 @@
+import { VisitWorkflowReview } from '../../../components/common/VisitWorkflowReview.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../../components/ui/index.js';
 import { useVisitBoardPages } from '../../../hooks/useVisitBoardPages.js';
@@ -32,7 +33,8 @@ function Tab({ id, tab, onTab, children }) {
 // The "Buổi hôm nay" tab is the existing section of the page; the page decides what to show for it.
 // openableIds: ids of the visits whose dispatch dialog the page can open; without it every visit counts as openable.
 export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openableIds, onOpenDispatch, onChanged, onState,
-  initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey, initialClosureId, canVerifyClosure = false }) {
+  initialWorkflowId, initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey, initialClosureId, canVerifyClosure = false }) {
+  const [workflowId,setWorkflowId]=useState(initialWorkflowId??null);
   const hasBoard = typeof api.visitBoard === 'function';
   const [text, setText] = useState('');
   const [areaCode, setAreaCode] = useState('');
@@ -73,6 +75,7 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
   function onAction(row, action) {
     setNotice(null);
     if (action.kind === 'dispatch') onOpenDispatch?.(row.id);
+    else if (action.kind === 'workflow') setWorkflowId(row.id);
     else if (action.kind === 'close') setClosing(row.id);
     else if (action.kind === 'withdrawal') {
       if (api.withdrawalReview) setWithdrawal(row.id);
@@ -103,7 +106,8 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
     {hasBoard && tab === 'needs' && <NeedsActionTable list={needs} rows={needsRows} filtering={filtering} api={api} openableIds={openableIds} onAction={onAction} />}
     {hasBoard && tab === 'needs' && pages.moreStatus === 'error' && <p role="alert">Chưa tải thêm được các buổi. Bạn có thể thử lại.</p>}
     {hasBoard && tab === 'needs' && pages.next && <Button variant="secondary" loading={pages.moreStatus === 'loading'} onClick={pages.loadMore}>Tải thêm buổi cần xử lý</Button>}
-    {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={filters} workAreas={workAreas} />}
+    {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={filters} workAreas={workAreas} onWorkflow={setWorkflowId} />}
+    {workflowId && api.visitWorkflow && <VisitWorkflowReview visitId={workflowId} api={api} onClose={()=>setWorkflowId(null)} onChanged={()=>{needs.retry();onChanged?.();}} />}
     {closing && <CloseVisitDialog key={closing} visitId={closing} api={api} canVerify={canVerifyClosure} onClose={() => setClosing(null)} onClosed={afterClosed} />}
     {withdrawal && api.withdrawalReview && <WithdrawalReviewDialog visitId={withdrawal} api={api} onClose={() => {
       setWithdrawal(null); onWithdrawalDismiss?.();

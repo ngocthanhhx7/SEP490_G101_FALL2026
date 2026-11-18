@@ -1,3 +1,4 @@
+import { VisitWorkflowExecution } from './VisitWorkflowExecution.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, Check, LogIn, LogOut } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -39,7 +40,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
     let mediaId = upload.current?.file === file ? upload.current.mediaId : null;
     command.execute(async key => {
       if (!mediaId) {
-        const uploaded = await api.uploadEvidence(selectedFile, uploadKey);
+        const uploaded = await api.uploadEvidence(selectedFile, uploadKey, visitId);
         if (!/^[a-f0-9]{64}$/i.test(uploaded?.id ?? '') || uploaded.state !== 'READY') throw new Error('Upload acknowledgement missing');
         mediaId = uploaded.id; upload.current = { file: selectedFile, mediaId };
       }
@@ -55,10 +56,14 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const complete = Array.isArray(required) && required.every(id => {
     const item = current(id); return item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim();
   });
-  const savedChecklist = Array.isArray(required) && required.every(id => row.checklist?.some(item =>
+  const versioned = row.workflow?.mode === 'VERSIONED';
+  const phaseComplete = phase => row.workflow?.tasks.filter(task => task.step.phase === phase).every(task => !['BLOCKED','NEEDS_REVIEW'].includes(task.status) && (!task.step.required || task.status === 'COMPLETED' || task.status === 'SKIPPED' && task.step.canSkip) && task.step.photoSlots.every(slot => task.evidence.filter(photo => photo.photoSlotId === slot.photoSlotId).length >= slot.minPhotos));
+  const workflowReady = !versioned || (row.state === 'ASSIGNED' ? phaseComplete('CHECK_IN') : ['CHECK_IN','EXECUTION','CHECK_OUT'].every(phaseComplete));
+  const savedChecklist = versioned || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
+    {row.workflow?.mode === 'LEGACY' && <p>Ca legacy chưa có workflow snapshot; sử dụng checklist đã lưu của ca.</p>}
     <h4>{states[row.state] ?? 'Cần kiểm tra trạng thái ca'}</h4>
     {row.completionAttention === 'COMPLETION_REVIEW_REQUIRED' && <p role="alert">Cần xác minh kết thúc. Buổi đã quá hạn check-out; điều phối và quản trị đã được thông báo để hỗ trợ.</p>}
     {row.completionAttention === 'COMPLETION_VERIFICATION_PENDING' && <p role="status">Đang chờ quản trị đối chiếu bằng chứng và giờ kết thúc thực tế.</p>}
@@ -73,7 +78,8 @@ export function VisitExecution({ api, visitId, onChanged }) {
     {row.evidence?.length > 0 && <div className="visit-evidence-gallery" aria-label="Ảnh bằng chứng đã lưu">{row.evidence.map(item => <VisitEvidencePreview key={item.kind + item.mediaId} mediaId={item.mediaId} read={api.readEvidence} label={item.kind === 'CHECK_IN' ? 'Ảnh check-in đã lưu' : 'Ảnh check-out đã lưu'} />)}</div>}
     {command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại thao tác ca</Button>}
-    {row.state === 'IN_PROGRESS' && <fieldset disabled={locked}><legend>Nội dung chăm sóc</legend>
+    {versioned && <VisitWorkflowExecution row={row} api={api} visitId={visitId} onSaved={() => { resource.retry(); onChanged?.(); }} locked={locked || early || expired} />}
+    {!versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked}><legend>Nội dung chăm sóc</legend>
       {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : required.map(id => {
         const item = current(id);
         return <div key={id}><label>{label(id)}<select aria-label={label(id)} value={item.status}
@@ -99,7 +105,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
       {fileError && <p role="alert">{fileError}</p>}
       {file && <VisitEvidencePreview file={file} label="Ảnh bằng chứng đã chọn" onRemove={clearFile} disabled={locked} onInvalid={setFileError} />}
       {!api.uploadEvidence && <p role="alert">Chưa có kết nối tải ảnh bằng chứng.</p>}
-      <Button disabled={locked || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !savedChecklist}
+      <Button disabled={locked || !workflowReady || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !savedChecklist}
         onClick={() => evidence(row.state === 'ASSIGNED' ? 'check-ins' : 'check-outs')}>
         {row.state === 'ASSIGNED' ? <LogIn size={18} /> : <LogOut size={18} />}{row.state === 'ASSIGNED' ? 'Check-in bắt đầu ca' : 'Check-out hoàn tất ca'}
       </Button>

@@ -28,6 +28,7 @@ export function reasonsOfVisit(row, now) {
     out.push(lateReason('NOT_CHECKED_OUT_2H', now - end));
   if (row.state === 'STAFF_CLOSED' && ['COMPLETION_VERIFICATION_PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED'].includes(row.completionAttention?.code))
     out.push(lateReason(row.completionAttention.code, Math.max(0, now - end)));
+  if (['ASSIGNED','IN_PROGRESS'].includes(row.state) && (row.workflowProgress?.blocked || row.incidentOpen)) out.push(lateReason('WORKFLOW_BLOCKED', Math.max(0, now - new Date(row.workflowProgress?.updatedAt ?? row.startAt).getTime())));
   return out.sort(compareReasons);
 }
 
@@ -49,7 +50,7 @@ export function createNeedsActionService({ repository, clock = Date.now, cursorS
     const names = new Map(users.map(row => [String(row._id), row.displayName]));
     const codes = new Map(bookings.map(row => [String(row._id), row.bookingCode ?? row.code ?? null]));
     return rows.map(row => ({ id: String(row._id), bookingId: String(row.bookingId), bookingCode: codes.get(String(row.bookingId)) ?? null,
-      version: row.version, serviceName: row.snapshots?.serviceName ?? null, startAt: row.startAt, endAt: row.endAt,
+      ...(row.workflowProgress ? { workflowProgress: row.workflowProgress } : {}), version: row.version, serviceName: row.snapshots?.serviceName ?? null, startAt: row.startAt, endAt: row.endAt,
       areaCode: row.areaCode ?? null, state: row.state, customerName: names.get(String(row.customerId)) ?? null,
       sitterId: row.sitterId ? String(row.sitterId) : null, sitterName: names.get(String(row.sitterId)) ?? null,
       reviewCode: row.dispatchReview?.code ?? null, ...(needs ? { reasons: reasonsOfVisit(row, now) } : {}) }));

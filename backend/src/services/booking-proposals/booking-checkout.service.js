@@ -20,6 +20,7 @@ import { createUnitOfWork } from '../unit-of-work.service.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
 import { checkoutVisitMoney, CHECKOUT_POLICY_VERSION, PREPAY_WINDOW_MS } from './checkout-snapshot.service.js';
 import { assertMatchSelection } from './match-selection.service.js';
+import { captureServiceWorkflow } from '../care/workflow-snapshot.service.js';
 import { boardingCarePlan } from './boarding-care-plan.service.js';
 import { createBookingDetailsService } from './booking-details.service.js';
 
@@ -155,6 +156,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               }
             }
             if (typeof serviceAddress !== 'string' || !serviceAddress.trim()) fail('FACILITY_ADDRESS_REQUIRED', 'Facility address must be configured', 409);
+            const workflow = await captureServiceWorkflow(connection, oid(selection.serviceId), pets.map(p => ({ id: String(p._id), name: p.name, species: p.species })), row.location, session);
             const boarding = pricing.billingMode === 'PER_DAY';
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
             const matchReference = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
@@ -164,7 +166,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               bookingMode: row.bookingMode ?? (row.requestedSitterId ? 'DIRECT' : 'SYSTEM'),
               ...(row.matchId ? { recommendationRef: { matchId: row.matchId, selectedAt: at, advisory: true, ...matchReference } } : {}),
               location: row.location, ...(row.addressId ? { addressId: oid(row.addressId) } : {}), startAt: row.startAt, endAt,
-              evidenceRefs: [], snapshots: { ...amounts[index], boarding, serviceName: version.name, serviceAddress, ...(point ? { point } : {}),
+              evidenceRefs: [], snapshots: { ...amounts[index], ...(workflow ? { workflow } : {}), boarding, serviceName: version.name, serviceAddress, ...(point ? { point } : {}),
                 serviceScope: version.scope, checklistItemIds: ['service-scope', 'pet-condition'],
                 checklistItems: [{ itemId: 'service-scope', label: version.scope }, { itemId: 'pet-condition', label: 'Ghi nhận tình trạng thú cưng sau chăm sóc' }],
                 serviceVersion: version.version, servicePolicyVersion: policy.version, priceVersion: price.version, pricingPolicyVersion: pricing.version,

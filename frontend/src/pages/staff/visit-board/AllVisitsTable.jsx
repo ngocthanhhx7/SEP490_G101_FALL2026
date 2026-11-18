@@ -5,7 +5,7 @@ import { formatBookingRef, formatClosureDay, formatClosureTime } from '../../../
 import { VISIT_STATE_LABELS } from '../../../utils/visit-board-format.js';
 
 // "All visits": from 00:00 today in time order, or the newest first including past visits while searching.
-export function AllVisitsTable({ api, filters, workAreas }) {
+export function AllVisitsTable({ api, filters, workAreas, onWorkflow }) {
   const { first, items, next, moreStatus, loadMore } = useVisitBoardPages(api, 'all', filters);
   const areaOf = code => workAreas.find(area => area.code === code)?.label ?? code ?? '—';
 
@@ -25,6 +25,7 @@ export function AllVisitsTable({ api, filters, workAreas }) {
         { key: 'service', label: 'Dịch vụ', render: row => row.serviceName ?? '—' },
         { key: 'area', label: 'Khu vực', render: row => areaOf(row.areaCode) },
         { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? '—' },
+        ...(api.visitWorkflow ? [{ key: 'workflow', label: 'Chăm sóc', render: row => <Button variant="ghost" onClick={()=>onWorkflow?.(row.id)}>Xem quy trình</Button> }] : []),
         { key: 'state', label: 'Trạng thái', render: row => VISIT_STATE_LABELS[row.state] ?? row.state }
       ]} />
     {moreStatus === 'error' && <p role="alert" className="visit-board__error">Chưa tải thêm được. Thử lại.</p>}

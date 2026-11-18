@@ -30,7 +30,7 @@ function createImageProcessingGate(limit) {
 }
 
 export function createPrivateImageService({ connection, media, secret, maxImagesPerUser = 20,
-  maxConcurrentDecoders = MAX_IMAGE_PROCESSING, imageModels = privateImageModels(connection), storagePrefix = 'private-images', authorizeEvidenceRead }) {
+  maxConcurrentDecoders = MAX_IMAGE_PROCESSING, imageModels = privateImageModels(connection), storagePrefix = 'private-images', authorizeEvidenceRead, authorizeVisitUpload }) {
   if (!['private-images', 'applicant-documents'].includes(storagePrefix)) throw new TypeError('Invalid private image namespace');
   const { PrivateImage, PrivateImageQuota } = imageModels;
   if (!Number.isInteger(maxConcurrentDecoders) || maxConcurrentDecoders < 1 || maxConcurrentDecoders > 4) {
@@ -41,18 +41,22 @@ export function createPrivateImageService({ connection, media, secret, maxImages
     imageProcessing = createImageProcessingGate(maxConcurrentDecoders);
     processingByConnection.set(connection, imageProcessing);
   }
-  async function upload({ actor, body, contentType, idempotencyKey }) {
+  async function upload({ actor, body, contentType, idempotencyKey, visitId }) {
     if (!Types.ObjectId.isValid(actor?.userId)) throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
     if (typeof idempotencyKey !== 'string' || !/^[A-Za-z0-9_-]{16,128}$/.test(idempotencyKey)) throw invalid();
     if (!Buffer.isBuffer(body) || !body.length || body.length > MAX_IMAGE_BYTES
       || !['image/png', 'image/jpeg'].includes(contentType)) throw invalid();
     const ownerId = new Types.ObjectId(actor.userId);
-    const id = createHmac('sha256', secret).update(`${storagePrefix === 'private-images' ? 'private-image-v1' : 'applicant-document-v1'}\0${ownerId}\0${idempotencyKey}`).digest('hex');
+    if (visitId !== undefined && (!authorizeVisitUpload || !/^[a-f0-9]{24}$/.test(visitId))) throw invalid();
+    const namespace = visitId ? `care-visit-image-v1:${visitId}` :
+      storagePrefix === 'private-images' ? 'private-image-v1' : 'applicant-document-v1';
+    const id = createHmac('sha256', secret).update(`${namespace}\0${ownerId}\0${idempotencyKey}`).digest('hex');
     const inputDigest = digest(Buffer.concat([Buffer.from(`${contentType}\0`), body]));
     const storageRef = `${storagePrefix}/${id}`;
     let record = await PrivateImage.findById(id).select('+inputDigest').lean();
     if (record && record.inputDigest !== inputDigest) throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'Upload key was already used');
     if (record?.state === 'READY') return { id, state: 'READY', replayed: true };
+    if (visitId) await authorizeVisitUpload({ actor, visitId });
     const image = await imageProcessing.run(async () => {
       try {
         // Decode full pixels and re-encode; signature/MIME checks alone are not validation.
@@ -78,6 +82,11 @@ export function createPrivateImageService({ connection, media, secret, maxImages
           await connection.transaction(async session => {
             const existing = await PrivateImage.findById(id).select('+inputDigest').session(session).lean();
             if (existing) { record = existing; return; }
+            if (visitId) {
+              await authorizeVisitUpload({ actor, visitId, session, reserve: true });
+              [record] = await PrivateImage.create([{ _id: id, ownerId, inputDigest, storageRef, uploadVisitId: visitId, state: 'PENDING' }], { session });
+              return;
+            }
             const quota = await PrivateImageQuota.findById(ownerId).session(session).lean();
             if ((quota?.count ?? 0) >= maxImagesPerUser) throw new AppError(429, 'MEDIA_QUOTA_EXCEEDED', 'Private image limit reached');
             if (quota) await PrivateImageQuota.updateOne({ _id: ownerId }, { $inc: { count: 1 } }, { session });

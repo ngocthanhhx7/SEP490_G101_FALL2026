@@ -52,3 +52,5 @@ Customer AvatarMenu distinguishes Đơn chăm sóc from Đơn mua sản phẩm a
 `VisitEvidencePreview` renders local or authenticated private image blobs with a dialog, abort and URL cleanup. `BookingVisitReport` shows the owning customer saved care checklist, real check-in/out times and evidence per visit; the customer page supplies its read port. These components do not create public media URLs or infer completion/payment.
 
 `CareProgressSteps` renders provided service/visit stages without inventing timestamps or financial state. Booking and sitter pages supply the current stage from saved operational state.
+
+CareWorkflowReport renders authorized server projections and private evidence. VisitWorkflowReview composes Staff blocked-task retry and incident links inside the existing Visit Board.
