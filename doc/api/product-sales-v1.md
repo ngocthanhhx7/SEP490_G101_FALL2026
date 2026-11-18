@@ -28,6 +28,8 @@ All responses use the common `{ data, meta }` envelope; errors use `{ error: { c
 
 Delivery needs `addressId` of one of the caller's active addresses inside the served areas (`DEMO_WORK_AREAS`) and `paymentMethod: COD`. Pickup takes no address and `paymentMethod: PAY_AT_SHOP`. Any other pairing is a 422.
 
+Customers whose recorded refusals exceed `PRODUCT_REFUSAL_LIMIT` (default `2`) cannot place new online orders while advance-payment ordering is unavailable, because both `COD` and `PAY_AT_SHOP` return `409 PRODUCT_ORDER_PREPAY_REQUIRED` (MSG60 at checkout).
+
 `deliveryFee` in the cart is informational for the checkout preview. The placed order carries the authoritative `subtotal`, `shippingFee` and `total`, and the price of each line at the time of ordering.
 
 ## Order handling (Admin and Sale Staff)
@@ -51,7 +53,7 @@ Any other combination of receive method and status is `409 ORDER_STATE_CONFLICT`
 
 Phone numbers are stored encrypted with a keyed lookup hash (the same contact keys as sign-in), so the search is an exact match on the whole number and the number is decrypted for the order management response. The backend needs `CONTACT_LOOKUP_SECRET` and `CONTACT_ENCRYPTION_KEY`, which authentication already requires.
 
-JOB-04 cancels ready pickup orders at or after their stored deadline when the worker is enabled. It skips orders without a deadline and paid `PAY_AT_SHOP` orders. Cancellation releases held stock, records one `NOT_COLLECTED` refusal and notifies the customer in-app. A paid `PREPAID` pickup is marked for refund. The COD refusal limit, expiry of unpaid advance payments, placement of advance-payment orders and refunds themselves are outside the current shop flow.
+JOB-04 cancels ready pickup orders at or after their stored deadline when the worker is enabled. It skips orders without a deadline and paid `PAY_AT_SHOP` orders. Cancellation releases held stock, records one `NOT_COLLECTED` refusal and notifies the customer in-app. A paid `PREPAID` pickup is marked for refund. Expiry of unpaid advance payments, placement of advance-payment orders and refunds themselves are outside the current shop flow.
 
 ## Sale Staff Dashboard (UC-94)
 
@@ -231,6 +233,7 @@ Replaying the same `Idempotency-Key` with the same body returns the original ord
 | `PRODUCT_QUANTITY_EXCEEDS_AVAILABLE` (`available`) | 409 | MSG58 |
 | `PRODUCT_OUT_OF_STOCK` | 409 | MSG98 |
 | `CART_EMPTY` | 409 | MSG100 |
+| `PRODUCT_ORDER_PREPAY_REQUIRED` | 409 | MSG60 |
 | `ADDRESS_REQUIRED` | 422 | MSG101 |
 | `ADDRESS_OUT_OF_SERVICE_AREA` | 422 | MSG18 |
 | `TRACKING_CODE_REQUIRED` | 422 | MSG103 |
@@ -365,7 +368,7 @@ Mọi endpoint dưới `/api/v1/admin/counter-orders` cần session ACTIVE và q
 
 Tìm khớp đủ mobile Việt Nam bằng normalizer hiện có (0/84/+84 và dấu phân cách, tối đa 32 ký tự); email trim/lowercase. Chỉ Contact VERIFIED, User ACTIVE có CUSTOMER. Không thấy là null/MSG110, vẫn bán ẩn danh. Kiểm lại khách lúc tạo, không còn khả dụng trả 422 COUNTER_CUSTOMER_UNAVAILABLE. Không phản chiếu contact vào log/DTO.
 
-Đơn dùng collection/mã DH chung, channel/receiveMethod COUNTER, paymentMethod COUNTER_CASH, customer có thể null và tên được snapshot, tierDiscount/shippingFee=0. DTO thêm createdBy, cashPayment hoặc null, completedAt/cancelledAt; không trả key/fingerprint. Backend tính integer VND, không nhận giá/total/status. UI khoá dòng/khách sau create; muốn sửa thì huỷ đơn chưa trả rồi tạo mới.
+Đơn dùng collection/mã DH chung, channel/receiveMethod COUNTER, paymentMethod COUNTER_CASH, customer có thể null và tên được snapshot. `shippingFee` bằng 0. `tierDiscount` tính theo chính sách hạng đã duyệt. Mức giảm bằng 0 khi đơn không gắn khách, chính sách chưa duyệt, khách vượt giới hạn từ chối hoặc có lịch đặt quá hạn. DTO thêm createdBy, cashPayment hoặc null, completedAt/cancelledAt; không trả key/fingerprint. Backend tính integer VND, không nhận giá/total/status. UI khoá dòng/khách sau create; muốn sửa thì huỷ đơn chưa trả rồi tạo mới.
 
 Create dùng actor-scoped key nội bộ `counter/<sha256>`, unique index counterCreatedBy/idempotencyKey riêng channel; fingerprint gồm actor/khách/lines đã sort. Cùng nội dung/key trả cùng đơn, đổi quantity/khách trả 409 IDEMPOTENCY_CONFLICT. Key raw online không chứa `/`, tránh trùng namespace. DH cấp atomic ngoài transaction, có thể có khoảng trống.
 
