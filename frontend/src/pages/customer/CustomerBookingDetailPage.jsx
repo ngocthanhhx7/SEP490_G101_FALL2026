@@ -87,14 +87,17 @@ function CustomerBookingDetail({ bookingId }) {
       {changeSent && <p className="booking-change-sent" role="status">{bookingChangeSent}</p>}
       <ComplaintListAction resource={eligibility} bookingId={bookingId} />
     </>,
-    columnLabel: changeable.length > 0 ? 'Thao tác' : undefined,
+    columnLabel: 'Thao tác',
     forVisit: row => {
       const visit = changeable.find(item => item.id === row.id || item.customerVisitId === row.id);
+      const canTrack = booking?.details && booking.state !== 'CANCELLED' && row.state !== 'CANCELLED'
+        && typeof row.id === 'string' && /^[0-9a-f]{24}$/i.test(row.id);
       return <>
-        <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
+        {canTrack && <Link to={`/account/bookings/${bookingId}/visits/${row.id}`}>Theo dõi buổi</Link>}
         {visit && <Button variant="ghost" className="booking-change-visit-action"
           aria-label={'Đổi giờ buổi ' + bookingChangeVisitLabel(visit)}
           onClick={() => openBookingChange(visit.id)}>Đổi giờ</Button>}
+        <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
       </>;
     }
   };
