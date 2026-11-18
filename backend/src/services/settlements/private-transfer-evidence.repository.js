@@ -14,7 +14,8 @@ export function createPrivateTransferEvidenceRepository({ connection }) {
         || !Number.isSafeInteger(image.byteLength) || image.byteLength < 1 || image.byteLength > 5 * 1024 * 1024
         || !['image/png', 'image/jpeg'].includes(image.contentType)) return null;
       const claimed = await connection.collection('privateimages').updateOne({ _id: image._id, state: 'READY',
-        careVisitId: { $exists: false }, $or: [{ transferEvidenceRequestId: { $exists: false } }, { transferEvidenceRequestId: requestId }] },
+        careVisitId: { $exists: false }, uploadVisitId: { $exists: false },
+        $or: [{ transferEvidenceRequestId: { $exists: false } }, { transferEvidenceRequestId: requestId }] },
       { $set: { transferEvidenceRequestId: requestId } }, { session });
       if (!claimed.matchedCount) return null;
       return { mediaId: image._id, uploadedAt: image.updatedAt };

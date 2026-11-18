@@ -26,7 +26,7 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
       return result;
     },
     readEvidence: privateImages ? (id, options) => privateImages.read(id, options) : undefined,
-    uploadEvidence: privateImages ? (file, key) => privateImages.upload(file, { idempotencyKey: key }) : undefined,
+    uploadEvidence: privateImages ? (file, key, visitId) => privateImages.upload(file, { idempotencyKey: key, visitId }) : undefined,
     async executeVisit(id, action, body, key) {
       if (!['check-ins', 'checklists', 'check-outs'].includes(action)) throw new ApiError('INVALID_API_PATH');
       const result = await request(`/visits/${encodeURIComponent(id)}/${action}`, {

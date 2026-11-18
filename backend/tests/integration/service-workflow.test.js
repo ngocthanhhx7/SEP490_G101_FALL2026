@@ -27,6 +27,9 @@ import { createIncidentRouter } from '../../src/routes/incident.routes.js';
 import { boardingCarePlan } from '../../src/services/booking-proposals/boarding-care-plan.service.js';
 import { serviceWorkflowDrafts } from '../../src/constants/service-workflow-drafts.js';
 import { planCatalogWorkflows, applyCatalogWorkflows } from '../../src/services/care/catalog-workflows.service.js';
+import { createVisitEvidenceQuota } from '../../src/services/care/visit-evidence-quota.service.js';
+import { createPrivateImageService } from '../../src/services/private-image.service.js';
+import sharp from 'sharp';
 import { validateWorkflow } from '../../src/validators/service-workflow.validator.js';
 import { reasonsOfVisit } from '../../src/services/employee-scheduling/needs-action.service.js';
 import { visitNeedsCountStages } from '../../src/services/employee-scheduling/visit-board-query.service.js';
@@ -589,6 +592,35 @@ test('history index explains bounded equality/sort without collection scan or in
   expect(JSON.stringify(plan.queryPlanner.winningPlan)).not.toContain('COLLSCAN');
   expect(JSON.stringify(plan.queryPlanner.winningPlan)).not.toContain('"stage":"SORT"');
   expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(21);
+});
+
+test('visit upload has independent stage budgets and consumes one reservation through provider retry', async () => {
+  await fixture({ twoPets: true });
+  const body = await sharp({ create: { width: 2, height: 2, channels: 3, background: 'red' } }).png().toBuffer();
+  let unavailable = true;
+  const service = createPrivateImageService({
+    connection, secret: 'synthetic', maxImagesPerUser: 1,
+    authorizeVisitUpload: createVisitEvidenceQuota({ connection, clock: () => +at }),
+    media: { upload: async () => { if (unavailable) throw new Error('unavailable'); } }
+  });
+  const upload = (index, actor = sitter) => service.upload({
+    actor, body, contentType: 'image/png', visitId: String(visitId),
+    idempotencyKey: `synthetic-image-${index}`
+  });
+  await expect(upload(0, customer)).rejects.toMatchObject({ status: 404 });
+  await expect(upload(0)).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
+  unavailable = false;
+  const ready = await upload(0);
+  expect(await upload(0)).toMatchObject({ id: ready.id, replayed: true });
+  const arrivals = await Promise.allSettled([upload(1), upload(2)]);
+  expect(arrivals.filter(result => result.status === 'fulfilled')).toHaveLength(1);
+  expect(arrivals.find(result => result.status === 'rejected').reason.code).toBe('VISIT_MEDIA_QUOTA_EXCEEDED');
+  await col('visits').updateOne({ _id: visitId }, { $set: { state: 'IN_PROGRESS' } });
+  for (let i = 3; i < 9; i += 1) await upload(i);
+  await expect(upload(9)).rejects.toMatchObject({ code: 'VISIT_MEDIA_QUOTA_EXCEEDED' });
+  expect((await col('visits').findOne({ _id: visitId })).evidenceUploadCounts).toEqual({ arrival: 2, care: 6 });
+  expect(await col('privateimagequotas').countDocuments()).toBe(0);
+  expect((await col('privateimages').findOne({ _id: ready.id })).uploadVisitId).toBe(String(visitId));
 });
 
 test('incident HTTP/persistence follows existing contract, gates care and retains financial hold until explicit Admin closure', async () => {

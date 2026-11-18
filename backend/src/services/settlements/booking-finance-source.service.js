@@ -107,7 +107,8 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
   async function bindMedia(mediaId, visit, current, kind, session) {
     if (typeof mediaId !== 'string' || !/^[a-f0-9]{64}$/.test(mediaId)) fail(422, 'VALIDATION_FAILED');
     const image = await col('privateimages').findOne({ _id: mediaId, ownerId: oid(current.userId), state: 'READY' }, { session });
-    if (!image || !/^[a-f0-9]{64}$/.test(image.contentDigest ?? '') || !Number.isSafeInteger(image.byteLength)
+    if (!image || (image.uploadVisitId !== undefined && image.uploadVisitId !== String(visit._id))
+      || !/^[a-f0-9]{64}$/.test(image.contentDigest ?? '') || !Number.isSafeInteger(image.byteLength)
       || image.byteLength < 1 || image.byteLength > 5 * 1024 * 1024) fail(409, 'EVIDENCE_NOT_READY');
     if (await storage.CareMediaBinding.exists({ _id: mediaId }).session(session)) fail(409, 'EVIDENCE_ALREADY_USED');
     await storage.CareMediaBinding.create([{ _id: mediaId, visitId: String(visit._id), kind,

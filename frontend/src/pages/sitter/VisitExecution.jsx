@@ -40,7 +40,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
     let mediaId = upload.current?.file === file ? upload.current.mediaId : null;
     command.execute(async key => {
       if (!mediaId) {
-        const uploaded = await api.uploadEvidence(selectedFile, uploadKey);
+        const uploaded = await api.uploadEvidence(selectedFile, uploadKey, visitId);
         if (!/^[a-f0-9]{64}$/i.test(uploaded?.id ?? '') || uploaded.state !== 'READY') throw new Error('Upload acknowledgement missing');
         mediaId = uploaded.id; upload.current = { file: selectedFile, mediaId };
       }

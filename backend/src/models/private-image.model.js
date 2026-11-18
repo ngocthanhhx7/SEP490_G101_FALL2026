@@ -5,6 +5,7 @@ function ownedImageModels(connection, imageName, quotaName) {
     _id: { type: String }, ownerId: { type: Schema.Types.ObjectId, required: true },
     inputDigest: { type: String, required: true, select: false },
     storageRef: { type: String, required: true, select: false },
+    uploadVisitId: String,
     contentType: { type: String, enum: ['image/png', 'image/jpeg'] },
     contentDigest: { type: String, select: false }, byteLength: Number,
     state: { type: String, enum: ['PENDING', 'READY'], required: true }

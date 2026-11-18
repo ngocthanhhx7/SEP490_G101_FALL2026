@@ -50,3 +50,18 @@ Operator chỉ thêm SOP cho service có code khớp và chưa có workflow; kh�
 draft/current của Admin. Thực hiện dry-run, backup/restore cô lập, kiểm tra hash,
 publish bằng Admin hiện hữu qua domain service và lưu revision/audit/idempotency.
 Nếu có code ngoài danh mục, phải đánh giá riêng, không gắn SOP theo tên gần giống.
+
+Ảnh chăm sóc có hạn mức theo lượt, dựa trên snapshot và số thú cưng áp dụng.
+Hạn mức mỗi giai đoạn bằng tổng số ảnh tối đa của các vị trí trong snapshot,
+cộng một ảnh check-in hoặc check-out và một lượt tải dự phòng. Thực hiện và
+bàn giao dùng chung giai đoạn sau check-in. Mẫu hiện hành có tối đa hai ảnh
+mỗi thú cưng ở mỗi giai đoạn, nên một lượt có một thú cưng được tải tối đa
+4 + 4 ảnh, trong đó bắt buộc 2 + 2 ảnh. Lượt không có snapshot được tải
+tối đa 2 + 2 ảnh. Chạy lại cùng idempotency key không tốn lượt mới.
+
+Hệ thống giữ bộ đếm trong `visits`, lưu mã lượt trên ảnh mới trong
+`privateimages` và chỉ cho người được phân công tải trong cửa sổ của lượt.
+Ảnh đã tính hạn mức lượt chỉ gắn được vào chính lượt đó. Ảnh riêng tư
+thông thường tiếp tục dùng quota tài khoản. Bộ đếm tính cả lượt tải đã
+đặt chỗ mà chưa gắn ảnh. Khi hết lượt dự phòng, sitter liên hệ điều phối.
+Không thêm index, collection hoặc yêu cầu backfill cho hạn mức.
