@@ -28,6 +28,12 @@ có nghĩa tác giả nguồn đã phê duyệt SOP của PWC.
 
 ## Kiểm soát PWC và dữ liệu
 
+Lưu trú còn đối chiếu mục 9 (kiểm soát bệnh, hồ sơ vaccine, cách ly, vệ sinh)
+và 10 (khẩn cấp) của hai hướng dẫn DEFRA. Bước tiếp nhận yêu cầu hồ sơ/tiêu chí
+đã được cơ sở phê duyệt; sitter không tự chứng nhận vaccine hoặc nhập danh sách
+vaccine, hạn hai tuần hay giấy phép England làm quy định tại Việt Nam. Thiếu hồ sơ,
+khu cách ly hoặc kế hoạch khẩn cấp phải chặn và báo người phụ trách/bác sĩ.
+
 Ảnh đầu/cuối, idempotency, thời gian server, thứ tự bước, check-in/out và báo cáo
 là kiểm soát vận hành PWC, không phải yêu cầu do tất cả nguồn trên quy định.
 Khi nguy hiểm, ưu tiên giữ an toàn/liên hệ thú y; đánh dấu BLOCKED và dùng luồng

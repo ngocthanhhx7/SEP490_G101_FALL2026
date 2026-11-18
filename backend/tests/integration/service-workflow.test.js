@@ -507,6 +507,9 @@ test('HTTP session, role, CSRF and body boundaries protect template/task endpoin
 });
 test('all 15 current catalog SOPs preserve provenance and boarding captures per shift', async () => {
   expect(serviceWorkflowDrafts).toHaveLength(15);
+  const boarding = serviceWorkflowDrafts.find((item) => item.code === 'pet-boarding').definition;
+  expect(boarding.steps.find((item) => item.stepId === 'boarding-admission').phase).toBe('CHECK_IN');
+  expect(boarding.steps.some((item) => item.stepId === 'boarding-hygiene' && item.safetyCritical)).toBe(true);
   for (const item of serviceWorkflowDrafts)
     expect(validateWorkflow(item.definition, { publishing: true }).steps.length).toBeGreaterThan(2);
   await fixture();

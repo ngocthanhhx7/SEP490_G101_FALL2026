@@ -197,7 +197,22 @@ const activities = {
       ['observation']
     )
   ],
-  'pet-boarding': daily,
+  'pet-boarding': [
+    task(
+      'boarding-admission',
+      'Đối chiếu hồ sơ tiếp nhận và kế hoạch khi có bệnh',
+      'Đọc hồ sơ tiếp nhận đã được cơ sở phê duyệt, thông tin tiêm chủng/kiểm soát ký sinh và liên hệ bác sĩ ngoài giờ. Không tự chứng nhận vaccine hoặc nhập lịch vaccine England thành quy định Việt Nam. Thiếu tiêu chí tiếp nhận/hồ sơ hoặc nghi bệnh truyền nhiễm: chặn, tách an toàn và liên hệ điều phối/bác sĩ; không cho vào khu chung. Ca sau kiểm tra bàn giao và thay đổi từ ca trước.',
+      ['boardingDog', 'boardingCat'],
+      { phase: 'CHECK_IN' }
+    ),
+    ...daily,
+    task(
+      'boarding-hygiene',
+      'Vệ sinh, cách ly và sẵn sàng khẩn cấp',
+      'Theo quy trình vệ sinh của cơ sở và nhãn sản phẩm an toàn đúng loài: tách thú cưng khỏi hóa chất, vệ sinh/khử khuẩn dụng cụ và để khô trước dùng lại; thu chất thải riêng. Nghi truyền nhiễm dùng khu/dụng cụ riêng và hỏi bác sĩ, không tự điều trị. Kiểm tra lối thoát, kế hoạch thoát/đám cháy và người tiếp nhận khẩn cấp; thiếu điều kiện an toàn thì chặn và báo ngay.',
+      ['boardingDog', 'boardingCat']
+    )
+  ],
   'home-care': daily,
   'dog-walking': [
     task(
