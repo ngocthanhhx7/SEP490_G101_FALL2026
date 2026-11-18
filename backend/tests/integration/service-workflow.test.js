@@ -749,3 +749,16 @@ test('incident resolution retry remains idempotent when the server clock advance
   expect(await incidents.resolve(body)).toEqual(first);
   expect((await col('cases').findOne({ _id: new mongoose.Types.ObjectId(reported.id) })).version).toBe(1);
 });
+
+test('Incident adapter registers only the selected compensation profile stores', async () => {
+  for (const compensationModel of ['EMPLOYEE', 'LEGACY_PARTNER']) {
+    const isolated = mongoose.createConnection();
+    try {
+      createMongoIncidentRepository({ connection: isolated, finance: {}, compensationModel });
+      if (compensationModel === 'EMPLOYEE') expect(isolated.models.Earning).toBeUndefined();
+      else expect(isolated.models.PayrollServiceCredit).toBeUndefined();
+    } finally {
+      await isolated.close();
+    }
+  }
+});

@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { createUnitOfWork } from '../unit-of-work.service.js';
+import { createBookingFinancialHolds } from '../settlements/booking-financial-holds.service.js';
 import { createEmployeeBookingHolds } from '../payroll/employee-booking-hold.service.js';
 import { workflowHash } from '../care/workflow-snapshot.service.js';
 import { AppError } from '../../utils/app-error.js';
@@ -20,10 +21,19 @@ const view = (row) =>
     sitterId: row.sitterId ? String(row.sitterId) : null,
     financialHold: row.financialHold ? { state: 'PENDING_REVIEW', reference: String(row._id) } : null
   };
-export function createMongoIncidentRepository({ connection, finance, clock = Date.now }) {
+export function createMongoIncidentRepository({
+  connection,
+  finance,
+  clock = Date.now,
+  compensationModel = 'EMPLOYEE'
+}) {
+  if (!['EMPLOYEE', 'LEGACY_PARTNER'].includes(compensationModel)) throw new TypeError('Invalid compensation model');
   const col = (name) => connection.db.collection(name),
     uow = createUnitOfWork(connection),
-    holds = createEmployeeBookingHolds({ connection, finance });
+    holds =
+      compensationModel === 'EMPLOYEE'
+        ? createEmployeeBookingHolds({ connection, finance })
+        : createBookingFinancialHolds({ connection, finance });
   async function loadVisit(actor, visitId, session) {
     const row = await col('visits').findOne({ _id: oid(visitId) }, { session, maxTimeMS: 2000 });
     const booking =
@@ -147,6 +157,7 @@ export function createMongoIncidentRepository({ connection, finance, clock = Dat
                 booking: visit.booking,
                 actorId: actor.userId,
                 reference: caseId,
+                release: resolution.state === 'CLOSED',
                 lockType: 'CASE',
                 session
               });
