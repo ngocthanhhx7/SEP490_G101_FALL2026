@@ -60,6 +60,9 @@ Public service pages display category/location/duration and local photographs, w
 location, species and search filters. `ServiceBasket.jsx` lets signed-in Customers request
 server-priced baskets for owned pets; editing clears stale estimates. Transport lives in
 `services/service-basket-api.js`; source/license metadata lives with the service assets.
+Service details render published customer-visible care steps by phase in
+`pages/public/ServiceCareWorkflow.jsx`. The catalog adapter requests these steps
+only for the selected detail page.
 
 ## Responsibilities
 

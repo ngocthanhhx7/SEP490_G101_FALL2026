@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogEmpty, CatalogState } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
@@ -9,6 +9,7 @@ import {
 } from '../../utils/catalog-format.js';
 import { serviceVisual } from './service-visuals.js';
 import { ServiceFacts } from './ServiceFacts.jsx';
+import { ServiceCareWorkflow } from './ServiceCareWorkflow.jsx';
 import { bookingActions, isShopGrooming } from '../../utils/shop-grooming.js';
 import './service-catalog.css';
 
@@ -17,7 +18,8 @@ const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
 export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
   const { serviceId } = useParams();
   const [section, setSection] = useState('scope');
-  const catalog = useApiResource(loadCatalog);
+  const loadDetails = useCallback(({ signal }) => loadCatalog({ signal, workflowFor: serviceId }), [loadCatalog, serviceId]);
+  const catalog = useApiResource(loadDetails);
   const service = catalog.data?.services?.find((item) => item.id === serviceId);
 
   if (catalog.status !== 'success') {
@@ -214,11 +216,13 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
         </article>
       </section>
 
+      {service.careWorkflow && <ServiceCareWorkflow workflow={service.careWorkflow} />}
+
       <section
         className="pwc-service-process"
         aria-labelledby="pwc-service-process-title"
       >
-        <h2 id="pwc-service-process-title">Các bước chăm sóc cùng PawWorld</h2>
+        <h2 id="pwc-service-process-title">Các bước đặt lịch và theo dõi</h2>
         <ol>
           {[
             ['Chọn dịch vụ', 'Xem thông tin và nhu cầu của bé.'],

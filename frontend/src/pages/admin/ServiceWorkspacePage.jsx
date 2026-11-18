@@ -169,7 +169,8 @@ export function ServiceWorkspacePage({ apiRequest }) {
         {dialog.mode === 'workflow' && <ServiceWorkflowBuilder service={dialog.service} request={request} />}
         {dialog.mode === 'policy' && <PolicyEditor service={dialog.service} request={request} onSaved={saved} />}
         {dialog.mode === 'detail' && <div className="workspace-form"><h3>{dialog.service.name}</h3><p>{dialog.service.description}</p><h4>Phạm vi chăm sóc</h4><p>{dialog.service.scope}</p>
-          <h4>{dialog.service.policy?.title ?? 'Chưa xuất bản chính sách'}</h4><p>{dialog.service.policy?.body}</p><p>Giá hiệu lực: {money(dialog.service.price?.amountVnd)}</p></div>}
+          <h4>{dialog.service.policy?.title ?? 'Chưa xuất bản chính sách'}</h4><p>{dialog.service.policy?.body}</p><p>Giá hiệu lực: {money(dialog.service.price?.amountVnd)}</p>
+          <Button variant="secondary" onClick={() => open('workflow', dialog.service)}>Xem quy trình chăm sóc</Button></div>}
       </div>}
     </Dialog>
   </div>;

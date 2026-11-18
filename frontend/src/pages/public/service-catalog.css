@@ -54,6 +54,14 @@
 .pwc-service-pricing article { border: 2px solid #bfc4f2; border-radius: 24px; padding: 32px; background: white; width: min(100%,440px); margin: auto; text-align: center; }
 .pwc-service-pricing strong { display: block; background: #f0dbff; padding: 20px; border-radius: 12px; color: #2c0050; font-size: 24px; }
 .pwc-service-process { padding: 16px 0 64px; }
+.pwc-service-care-workflow { padding: 16px 0 48px; }
+.pwc-service-care-workflow > h2 { text-align: center; margin-bottom: 24px; }
+.pwc-service-care-workflow > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 16px; }
+.pwc-service-care-workflow article { min-width: 0; padding: 20px; background: #fff; border: 1px solid #e5deeb; border-radius: 16px; }
+.pwc-service-care-workflow ol { padding-left: 1.4rem; }
+.pwc-service-care-workflow ol > li + li { margin-top: 10px; }
+.pwc-service-care-workflow summary { cursor: pointer; font-weight: 700; }
+.pwc-service-care-workflow details p, .pwc-service-care-workflow details a { overflow-wrap: anywhere; }
 .pwc-service-process ol { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); list-style: none; padding: 24px 0 0; gap: 24px; text-align: center; }
 .pwc-service-process li > span { display: grid; place-items: center; width: 44px; height: 44px; background: #ffcd34; border-radius: 50%; margin: auto auto 16px; font-weight: 800; }
 .pwc-service-process h3 { font-size: 17px; }
