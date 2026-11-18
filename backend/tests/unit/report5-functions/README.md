@@ -1496,3 +1496,16 @@ Cách chạy từng file: lấy tên file ở bảng danh mục đầu tài li�
 `npm run test:unit -- --runTestsByPath tests/unit/report5-functions/<tên-file>.test.js --verbose`
 từ thư mục `backend`.
 Ở lần chạy ngày 16/11, 5 file có Failed trả exit code 1.
+
+## Các hàm chăm sóc, danh mục và tác vụ nền — 18/11/2026
+
+Đợt tiếp theo bổ sung 65 mục: **58 file test độc lập, 182 ca** và **7 file
+ghi chú phạm vi SRS**, không có test rỗng. Chạy trên main `8c53c0c` với Node.js
+24.21.0: **166 Passed, 16 Failed, 0 skipped**. Backend lint và architecture
+check đạt. Đây là kết quả riêng của đợt mới, không thay thế kết quả lịch sử
+755 ca ngày 17/11 ở trên. Chưa sửa logic runtime.
+
+Xem [từng Sheet Name, lệnh chạy và giới hạn SRS](commands-care-catalog-jobs.md).
+Các file có ca Failed sẽ trả exit code 1. Mã defect trong sheet là mã theo dõi
+báo cáo; chưa phải issue hoặc xác nhận lỗi production. Không suy ra độ phủ
+toàn hệ thống từ các fixture có repository/provider giả.
