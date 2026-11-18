@@ -33,6 +33,7 @@ import { financeSourceRuntime } from './routes/finance-source-runtime.js';
 import { payrollRuntimeModule } from './routes/employee-payroll.routes.js';
 import { bookingCheckoutRuntimeModule } from './routes/booking-checkout.routes.js';
 import { employeeSchedulingRuntimeModule } from './routes/employee-scheduling.routes.js';
+import { bookingChangeRuntimeModule } from './routes/booking-change.routes.js';
 import { mapsRuntimeModule } from './routes/maps.routes.js';
 import { productSalesRuntimeModules } from './routes/product-sales.routes.js';
 import { groomingRuntimeModule } from './routes/grooming.routes.js';
@@ -107,6 +108,12 @@ export function createApp({
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
+  const bookingChange = auth && checkout && employeeScheduling
+    ? bookingChangeRuntimeModule({ ...context, sessionService: auth.sessionService,
+      repository: employeeScheduling.repository, requeue: employeeScheduling.dispatch.requeueVisit })
+    : null;
+  if (bookingChange) auth.router.use(bookingChange.router);
+  app.locals.bookingChange = bookingChange?.service ?? null;
   app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);

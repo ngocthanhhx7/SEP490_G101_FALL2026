@@ -803,6 +803,16 @@ test.each([
   expect(response.body.data).toMatchObject({ visitId: String(row._id), mode, version: 0 });
 });
 
+test('UC-82 GBR-21 allows the sitter to withdraw directly at exactly 12 hours', async () => {
+  const sitter = await employee(), row = await assignedForWithdrawal(sitter, '2026-10-30T15:00:00Z');
+  const result = await sendWithdrawal(row, sitter, {
+    expectedVersion: 0, expectedMode: 'EARLY', reasonCode: 'ILLNESS'
+  }, 'withdraw-at-twelve-hours').expect(200);
+  expect(result.body.data).toMatchObject({ mode: 'EARLY', version: 1 });
+  const stored = await connection.collection('visits').findOne({ _id: row._id });
+  expect(stored).toMatchObject({ state: 'SCHEDULED', sitterId: null, handoverRequired: true });
+});
+
 test('UC-82 GBR-21 MSG56 scopes requests, stores a late request once and preserves the assignment', async () => {
   const sitter = await employee(), other = await employee(), row = await assignedForWithdrawal(sitter, '2026-10-30T11:00:00Z');
   const input = { expectedVersion: 0, expectedMode: 'LATE', reasonCode: 'ILLNESS', note: 'Synthetic note' };
