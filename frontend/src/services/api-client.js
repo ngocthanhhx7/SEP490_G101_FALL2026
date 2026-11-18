@@ -9,6 +9,8 @@ export class ApiError extends Error {
     this.fields = details.fields;
     this.available = Number.isSafeInteger(details.available) && details.available >= 0 ? details.available : undefined;
     this.productId = /^[a-f\d]{24}$/i.test(details.productId ?? '') ? details.productId : undefined;
+    this.time = typeof details.time === 'string' && Number.isFinite(Date.parse(details.time)) ? details.time : undefined;
+    this.pet = typeof details.pet === 'string' && details.pet.length <= 120 ? details.pet : undefined;
     // Per-line reasons from a 422 on a list of lines, by line number from 0: { 0: { quantityReceived: 'INVALID' } }.
     this.lineFields = details.lineFields;
     this.decisionIds = details.decisionIds;
@@ -77,6 +79,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
           fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
           available: envelope?.error?.available, productId: envelope?.error?.productId,
+          time: envelope?.error?.time, pet: envelope?.error?.pet,
           retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
           correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         });
