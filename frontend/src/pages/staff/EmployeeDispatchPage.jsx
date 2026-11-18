@@ -13,6 +13,7 @@ import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPa
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import { VisitBoard } from './visit-board/VisitBoard.jsx';
+import { StaffBookingChangeRequests } from './booking-change/StaffBookingChangeRequests.jsx';
 import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import '../../styles/employee-scheduling.css';
 
@@ -47,6 +48,7 @@ const reviewLabel = (code) =>
 export function EmployeeDispatchPage({ api, selectedSitter, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
+  const [bookingChangesRevision, setBookingChangesRevision] = useState(0);
   const load = useCallback(async ({ signal }) => {
     const result = await api.queue({ signal });
     if (!signal.aborted && !result.pending) {
@@ -84,7 +86,10 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWithdrawalId,
           <h1>Điều phối ca chăm sóc</h1>
           <p className="ops-muted">Theo dõi buổi chăm sóc và xử lý các ca cần hỗ trợ.</p>
         </div>
-        <Button variant="secondary" aria-label="Tải lại lịch điều phối" onClick={queue.retry}>
+        <Button variant="secondary" aria-label="Tải lại lịch điều phối" onClick={() => {
+          queue.retry();
+          setBookingChangesRevision(revision => revision + 1);
+        }}>
           <RefreshCw size={18} />
           Tải lại
         </Button>
@@ -138,6 +143,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWithdrawalId,
             </p>
           </div>
         </header>
+        <StaffBookingChangeRequests refreshRevision={bookingChangesRevision} onDecision={queue.retry} />
         {!!queue.data?.withdrawalRequests?.length && <div id="withdrawal-requests" className="withdrawal-requests">
           <h3>Yêu cầu rút buổi</h3>
           <OperationsTable label="Yêu cầu rút buổi" rows={queue.data.withdrawalRequests} columns={[

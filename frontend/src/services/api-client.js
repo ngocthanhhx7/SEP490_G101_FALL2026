@@ -5,6 +5,8 @@ export class ApiError extends Error {
     this.code = code;
     this.status = status;
     this.fieldErrors = details.fieldErrors;
+    this.reasonCode = typeof details.reasonCode === 'string' ? details.reasonCode : undefined;
+    this.state = typeof details.state === 'string' ? details.state : undefined;
     // Per-field reasons from a 422, e.g. { name: 'REQUIRED', sellingPrice: 'WHOLE_NUMBER' }.
     this.fields = details.fields;
     this.available = Number.isSafeInteger(details.available) && details.available >= 0 ? details.available : undefined;
@@ -78,6 +80,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       if (!response.ok) {
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
           fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
+          reasonCode: envelope?.error?.reasonCode, state: envelope?.error?.state,
           available: envelope?.error?.available, productId: envelope?.error?.productId,
           time: envelope?.error?.time, pet: envelope?.error?.pet,
           retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
