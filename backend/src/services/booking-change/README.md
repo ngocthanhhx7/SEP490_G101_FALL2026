@@ -6,4 +6,6 @@ Module sở hữu UC-84/85, giao dịch xử lý yêu cầu, khóa theo buổi, 
 
 Khi khách gửi yêu cầu, giờ cũ và giờ mới đều phải cách thời điểm gửi ít nhất 24 giờ. Lúc duyệt, Staff không kiểm lại mốc này.
 
-Khi vận hành thử, dùng Mongo replica set đã provision booking, scheduling, notification và bốn collection mới. Chạy `node --env-file-if-exists=.env scripts/migrations/booking-change-storage.js` từ backend để xem dry run. `--apply` tạo collection và index trên cơ sở dữ liệu phát triển `*_dev`. Job quét và gửi lại thông báo theo lô. Lời mời tự động phụ thuộc `EMPLOYEE_DISPATCH_AGENT_ENABLED` và quy tắc điều phối hiện có.
+Chỉ thêm `bookingchangerequests`; xem [đánh giá lưu trữ và rollout](../../../../doc/database/booking-change-storage.md). `pendingVisitIds` cùng unique index chỉ áp dụng cho `PENDING` giữ một yêu cầu chờ mỗi buổi. Command dùng namespace riêng trong `employeeschedulecommands` hiện có. Thông báo in-app ghi vào `notifications` trong cùng transaction với quyết định hoặc hết hạn; không cần collection claim, command hay outbox mới.
+
+Khi vận hành thử, dùng Mongo replica set đã provision booking, scheduling và notification. Chạy `node --env-file-if-exists=.env scripts/migrations/booking-change-storage.js` từ backend để xem dry run. `--apply` tạo collection request và index trên cơ sở dữ liệu phát triển `*_dev`. Job quét hạn theo lô. Lời mời tự động phụ thuộc `EMPLOYEE_DISPATCH_AGENT_ENABLED` và quy tắc điều phối hiện có.

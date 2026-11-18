@@ -2,7 +2,7 @@ import { loadConfig } from '../../src/config/environment.js';
 import { connectDatabase } from '../../src/config/database.js';
 import { provisionBookingChanges } from '../../src/services/booking-change/booking-change-store.js';
 
-if (!process.argv.includes('--apply')) console.log('DRY_RUN: booking change collections and indexes');
+if (!process.argv.includes('--apply')) console.log('DRY_RUN: one bookingchangerequests collection and its indexes; no existing data changes');
 else {
   let connection;
   try {
