@@ -1,5 +1,14 @@
 # Deployment tools
 
+`provision-workflows.js` dry-runs the 15 sourced care SOPs. After reviewed main,
+fresh backup and isolated restore/rehearsal, apply requires `WORKFLOW_PLAN_HASH`
+from that dry-run, explicit existing `WORKFLOW_ADMIN_ID`, and
+`WORKFLOW_RELEASE_APPROVED=2026-11-18`. It adds only immutable workflow history
+storage, then uses Admin domain commands to save/publish eligible empty workflows;
+existing Admin content conflicts fail closed. Retry resumes matching saved drafts
+or leaves matching publications unchanged. Keep the plan/result in private operator
+evidence. Never run at startup. See [sources](../../../doc/care-workflow-sources.md).
+
 Production operator steps: [EC2 environment guide](../../../doc/deployment/ec2-environment-guide.md).
 
 Reference catalog candidate: `ensure-indexes.js`, `provision-demo-catalog.js`

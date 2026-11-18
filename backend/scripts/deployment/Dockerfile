@@ -7,6 +7,7 @@ COPY src ./src
 COPY data ./data
 COPY scripts/deployment/provision-service-areas.js ./scripts/deployment/provision-service-areas.js
 COPY scripts/deployment/ensure-indexes.js ./scripts/deployment/ensure-indexes.js
+COPY scripts/deployment/provision-workflows.js ./scripts/deployment/provision-workflows.js
 COPY scripts/deployment/provision-demo-catalog.js ./scripts/deployment/provision-demo-catalog.js
 COPY scripts/deployment/provision-storefront-catalog.js ./scripts/deployment/provision-storefront-catalog.js
 COPY scripts/migrations/leash-handling-policy.js ./scripts/migrations/leash-handling-policy.js

@@ -10,6 +10,7 @@ import { createVisitWorkflowService } from '../../src/services/care/visit-workfl
 import {
   captureServiceWorkflow,
   workflowHash,
+  workflowTasks,
   assertWorkflowGate
 } from '../../src/services/care/workflow-snapshot.service.js';
 import { serviceWorkflowVersionModel } from '../../src/models/service-workflow-version.model.js';
@@ -25,6 +26,7 @@ import { createMongoIncidentRepository } from '../../src/services/incidents/mong
 import { createIncidentRouter } from '../../src/routes/incident.routes.js';
 import { boardingCarePlan } from '../../src/services/booking-proposals/boarding-care-plan.service.js';
 import { serviceWorkflowDrafts } from '../../src/constants/service-workflow-drafts.js';
+import { planCatalogWorkflows, applyCatalogWorkflows } from '../../src/services/care/catalog-workflows.service.js';
 import { validateWorkflow } from '../../src/validators/service-workflow.validator.js';
 import { reasonsOfVisit } from '../../src/services/employee-scheduling/needs-action.service.js';
 import { visitNeedsCountStages } from '../../src/services/employee-scheduling/visit-board-query.service.js';
@@ -503,8 +505,8 @@ test('HTTP session, role, CSRF and body boundaries protect template/task endpoin
   expect(response.status).toBe(200);
   expect(response.body.data.revision).toBe(1);
 });
-test('all 13 actual catalog examples are editable development drafts and boarding captures per shift', async () => {
-  expect(serviceWorkflowDrafts).toHaveLength(13);
+test('all 15 current catalog SOPs preserve provenance and boarding captures per shift', async () => {
+  expect(serviceWorkflowDrafts).toHaveLength(15);
   for (const item of serviceWorkflowDrafts)
     expect(validateWorkflow(item.definition, { publishing: true }).steps.length).toBeGreaterThan(2);
   await fixture();
@@ -515,6 +517,64 @@ test('all 13 actual catalog examples are editable development drafts and boardin
   const shifts = boardingCarePlan({ checkoutSnapshot: { customerVisits: [visit] } }, 480);
   expect(shifts).toHaveLength(3);
   expect(shifts.every((shift) => shift.snapshots.workflow.hash === visit.snapshots.workflow.hash)).toBe(true);
+});
+
+test('catalog operator publishes all current codes without new stores, repeats safely and rejects Admin conflicts', async () => {
+  for (const item of serviceWorkflowDrafts.filter((item) => item.code !== 'home-care'))
+    await col('services').insertOne({ code: item.code });
+  const beforeCollections = (await connection.db.listCollections({}, { nameOnly: true }).toArray())
+    .map((row) => row.name)
+    .sort();
+  let plan = await planCatalogWorkflows(connection);
+  expect(plan.entries.every((item) => item.state === 'NEW')).toBe(true);
+  await expect(
+    applyCatalogWorkflows(connection, { adminId: customer.userId, expectedPlanHash: plan.hash })
+  ).rejects.toThrow('Admin');
+  await expect(applyCatalogWorkflows(connection, { adminId: admin.userId, expectedPlanHash: 'stale' })).rejects.toThrow(
+    'plan changed'
+  );
+  plan = await applyCatalogWorkflows(connection, { adminId: admin.userId, expectedPlanHash: plan.hash });
+  expect(plan.entries.every((item) => item.state === 'CURRENT')).toBe(true);
+  expect(await col('serviceworkflowversions').countDocuments()).toBe(15);
+  await applyCatalogWorkflows(connection, { adminId: admin.userId, expectedPlanHash: plan.hash });
+  expect(await col('serviceworkflowversions').countDocuments()).toBe(15);
+  expect((await connection.db.listCollections({}, { nameOnly: true }).toArray()).map((row) => row.name).sort()).toEqual(
+    beforeCollections
+  );
+  const snapshot = await captureServiceWorkflow(
+    connection,
+    serviceId,
+    [{ id: String(petIds[0]), name: 'Cat', species: 'CAT' }],
+    'HOME'
+  );
+  const tasks = workflowTasks(snapshot, [{ id: String(petIds[0]), name: 'Cat', species: 'CAT' }], 'HOME');
+  expect(tasks.some((row) => row.step.stepId === 'dog-environment')).toBe(false);
+  expect(tasks.some((row) => row.step.stepId === 'cat-environment')).toBe(true);
+  expect(tasks.every((row) => row.step.instructions.includes('https://'))).toBe(true);
+  await col('services').updateOne(
+    { _id: serviceId },
+    { $set: { workflowPublished: null, workflowRevision: 3, workflowDraft: definition } }
+  );
+  plan = await planCatalogWorkflows(connection);
+  await expect(
+    applyCatalogWorkflows(connection, { adminId: admin.userId, expectedPlanHash: plan.hash })
+  ).rejects.toThrow('conflicts');
+  expect((await col('services').findOne({ _id: serviceId })).workflowDraft).toEqual(definition);
+});
+
+test('operator resumes its saved draft after interruption without duplicating history', async () => {
+  const item = serviceWorkflowDrafts.find((row) => row.code === 'home-care');
+  await templates.mutate(
+    admin,
+    String(serviceId),
+    'DRAFT',
+    { expectedVersion: 0, definition: item.definition },
+    'operator-interruption'
+  );
+  const plan = await planCatalogWorkflows(connection);
+  expect(plan.entries.find((row) => row.code === item.code).state).toBe('RESUME_PUBLICATION');
+  await applyCatalogWorkflows(connection, { adminId: admin.userId, expectedPlanHash: plan.hash });
+  expect(await col('serviceworkflowversions').countDocuments()).toBe(1);
 });
 test('history index explains bounded equality/sort without collection scan or in-memory sort', async () => {
   await publish();
