@@ -7,10 +7,13 @@ import { Button, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createComplaintApi } from '../../services/complaint-api.js';
+import { createBookingChangeApi } from '../../services/booking-change-api.js';
 import { createServiceBasketApi } from '../../services/service-basket-api.js';
 import { complaintDeadline, complaintSubmitPath, complaintVisitStart, visitLabel } from '../../utils/complaint-presentation.js';
 import { BookingConfirmation } from '../public/BookingCheckout.jsx';
 import { BookingDetailsContent } from '../../components/common/BookingDetailsContent.jsx';
+import { BookingChangeDialog } from './BookingChangeDialog.jsx';
+import { bookingChangeSent, bookingChangeVisitLabel } from '../../utils/booking-change-format.js';
 import './customer-bookings.css';
 
 function ComplaintListAction({ resource, bookingId }) {
@@ -62,10 +65,38 @@ function CustomerBookingDetail({ bookingId }) {
     }
     return rows;
   }, [eligibility.data]);
+  const changeApi = useMemo(() => createBookingChangeApi({ getCsrfToken }), [getCsrfToken]);
+  const changeOptions = useApiResource(useCallback(({ signal }) => booking?.details
+    ? changeApi.options(bookingId, { signal }) : Promise.resolve({ data: null }), [booking, bookingId, changeApi]));
+  const [changeDialog, setChangeDialog] = useState(null);
+  const [changeSent, setChangeSent] = useState(false);
+  const options = changeOptions.status === 'success' ? changeOptions.data : null;
+  const changeable = options?.visits.filter(visit => visit.canSelect) ?? [];
+  function openBookingChange(visitId) {
+    setChangeSent(false);
+    setChangeDialog({ booking, options, initialVisitId: visitId });
+  }
+
   const visitActions = {
     reportForVisit: visit => <BookingVisitReport visit={visit} readEvidence={images.read} />,
-    beforeList: <ComplaintListAction resource={eligibility} bookingId={bookingId} />,
-    forVisit: row => <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
+    booking: options?.canChangeBooking && changeable.length > 0 && <section className="booking-change-actions">
+      <h3>Thao tác</h3>
+      <Button aria-label="Đổi giờ cho cả lịch đặt" onClick={() => openBookingChange()}>Đổi giờ</Button>
+    </section>,
+    beforeList: <>
+      {changeSent && <p className="booking-change-sent" role="status">{bookingChangeSent}</p>}
+      <ComplaintListAction resource={eligibility} bookingId={bookingId} />
+    </>,
+    columnLabel: changeable.length > 0 ? 'Thao tác' : undefined,
+    forVisit: row => {
+      const visit = changeable.find(item => item.id === row.id || item.customerVisitId === row.id);
+      return <>
+        <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
+        {visit && <Button variant="ghost" className="booking-change-visit-action"
+          aria-label={'Đổi giờ buổi ' + bookingChangeVisitLabel(visit)}
+          onClick={() => openBookingChange(visit.id)}>Đổi giờ</Button>}
+      </>;
+    }
   };
   const overdue = booking?.state === 'OVERDUE';
   const deadline = overdue ? complaintDeadline(booking.paymentDeadlineAt) : null;
@@ -78,6 +109,12 @@ function CustomerBookingDetail({ bookingId }) {
     <div className={overdue ? 'customer-booking-detail__confirmation--overdue' : undefined}>
       <BookingConfirmation bookingId={bookingId} api={api} Details={BookingDetailsContent} visitActions={visitActions} />
     </div>
+    {changeDialog && <BookingChangeDialog {...changeDialog} api={changeApi}
+      onClose={() => setChangeDialog(null)} onSent={() => {
+        setChangeDialog(null);
+        setChangeSent(true);
+        changeOptions.retry();
+      }} />}
   </section>;
 }
 

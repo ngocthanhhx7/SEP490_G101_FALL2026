@@ -85,13 +85,14 @@ export function BookingDetailsContent({ booking, visitActions }) {
           {postpay && <Row label="Hoá đơn">Chưa có dữ liệu</Row>}
         </dl>
         {postpay && <p className="booking-details__note">Bạn trả tiền sau khi chăm sóc xong. Hoá đơn được gửi khi buổi cuối kết thúc, hạn trả là 48 giờ sau khi hoá đơn được chốt.</p>}
+        {visitActions?.booking}
       </section>
       <section className="booking-details__card booking-details__visits">
         <h3>Các buổi chăm sóc ({visits.length})</h3>
         {visitActions?.beforeList}
         {visits.length > 0 ? <div className="booking-details__table" tabIndex={0} role="region" aria-label="Bảng các buổi chăm sóc">
           <table aria-label="Các buổi chăm sóc">
-            <thead><tr>{['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo', ...(visitActions ? ['Khiếu nại'] : [])].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+            <thead><tr>{['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo', ...(visitActions ? [visitActions.columnLabel ?? 'Khiếu nại'] : [])].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
             <tbody>{visits.map(visit => <tr key={visit.id}>
               <td><time dateTime={visit.startAt ?? undefined} title={date(visit.startAt)}>
                 {visitDay(visit.startAt)}

@@ -7,6 +7,7 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { createApiClient } from '../../services/api-client.js';
 import { readStaffBooking } from '../../services/booking-details-api.js';
 import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
+import { StaffBookingChangeRequests } from './booking-change/StaffBookingChangeRequests.jsx';
 
 export function StaffBookingDetailPage() {
   const { bookingId } = useParams();
@@ -21,6 +22,7 @@ function StaffBookingDetail({ bookingId }) {
   return <section>
     <Link to="/staff/dispatch">Quay lại Điều phối ca</Link>
     <h1>Chi tiết lịch đặt</h1>
+    <StaffBookingChangeRequests bookingId={bookingId} enabled={resource.status === 'success'} onDecision={resource.retry} />
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải lịch đặt" />}
     {resource.status === 'success' && <BookingDetailsContent booking={resource.data} />}
     {!['loading', 'success'].includes(resource.status) && <Notice state={resource.status} title="Chưa tải được lịch đặt">
