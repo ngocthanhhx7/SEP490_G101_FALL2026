@@ -28,9 +28,9 @@ function requestView(change) {
   };
 }
 
-export function createBookingChangeService({ connection, repository, notifications, cursorSecret, requeue, clock = Date.now }) {
+export function createBookingChangeService({ connection, repository, cursorSecret, requeue, clock = Date.now }) {
   const store = createBookingChangeStore(connection);
-  const { col, bookings, visits, requests, claims, commands, notices } = store;
+  const { col, bookings, visits, requests, commands } = store;
   const cursor = createScopedCursor({ secret: cursorSecret, namespace: 'booking-change-queue-v1', clock });
   const { uow } = repository;
   const now = () => new Date(clock());
@@ -80,21 +80,6 @@ export function createBookingChangeService({ connection, repository, notificatio
     return null;
   }
 
-  async function publishNotices(requestId) {
-    const pending = await notices.find({ deliveredAt: null, nextAttemptAt: { $lte: now() },
-      ...(requestId ? { requestId } : {}) }).sort({ nextAttemptAt: 1, _id: 1 }).limit(BATCH_SIZE).toArray();
-    for (const notice of pending) {
-      try {
-        await notifications.publish({ eventId: notice._id, eventType: notice.eventType, title: notice.title,
-          message: notice.message, recipients: notice.recipients, deepLink: notice.deepLink });
-        await notices.updateOne({ _id: notice._id, deliveredAt: null }, { $set: { deliveredAt: now() } });
-      } catch {
-        await notices.updateOne({ _id: notice._id, deliveredAt: null },
-          { $set: { nextAttemptAt: new Date(clock() + RECHECK_MS) } });
-      }
-    }
-  }
-
   async function replay(commandId, fingerprint, session) {
     const prior = await commands.findOne({ _id: commandId }, { session });
     if (prior && prior.fingerprint !== fingerprint)
@@ -105,9 +90,8 @@ export function createBookingChangeService({ connection, repository, notificatio
   async function recordDecision(change, action, actorId, oldVisits, at, session) {
     const approved = action === 'APPROVE';
     const updated = await store.savePending(change, {
-      state: approved ? 'APPROVED' : 'REJECTED', resolvedAt: at, resolvedBy: actorId
+      state: approved ? 'APPROVED' : 'REJECTED', pendingVisitIds: [], resolvedAt: at, resolvedBy: actorId
     }, session);
-    await store.releaseClaims(change, null, session);
     const event = approved ? 'BookingChangeApproved' : 'BookingChangeRejected';
     const title = approved ? 'Yêu cầu đổi giờ đã được duyệt' : 'Yêu cầu đổi giờ đã bị từ chối';
     const message = approved ? 'Lịch đặt đã được cập nhật giờ mới.' : 'Lịch đặt giữ giờ cũ.';
@@ -171,15 +155,14 @@ export function createBookingChangeService({ connection, repository, notificatio
         if (selected.some(({ visit }) => visit.bookingChangeRequestId))
           throw new AppError(409, 'MSG55', 'Buổi này đã được đổi giờ một lần và không thể đổi lại.');
         const movedIds = selected.map(({ visit }) => String(visit._id));
-        const locks = await claims.find({ _id: { $in: movedIds } }, { session }).toArray();
-        const pending = await requests.find({ _id: { $in: locks.map(lock => lock.requestId) }, state: 'PENDING' }, { session }).toArray();
+        const pending = await requests.find({ state: 'PENDING', pendingVisitIds: { $in: movedIds } }, { session }).toArray();
         for (const request of pending) await store.reconcile(request, at, session);
         const staffProposal = await repository.models.EmployeeScheduleProposal.findOne({
           visitId: { $in: movedIds }, state: 'PENDING_CUSTOMER_CONFIRMATION', expiresAt: { $gt: at }
         }).session(session).select('_id').lean();
         if (staffProposal) throw new AppError(409, 'BOOKING_CHANGE_STAFF_PROPOSAL_PENDING',
           'Buổi này đang có đề xuất đổi giờ của nhân viên chờ bạn xác nhận.');
-        const pendingClaim = await claims.findOne({ _id: { $in: movedIds } }, { session });
+        const pendingClaim = await requests.findOne({ state: 'PENDING', pendingVisitIds: { $in: movedIds } }, { session });
         if (pendingClaim) throw new AppError(409, 'MSG149', 'Buổi này đã có yêu cầu đổi giờ đang chờ nhân viên duyệt.');
         const items = buildChangeItems(selected);
         const resulting = resultingSchedule(rows, items);
@@ -187,13 +170,12 @@ export function createBookingChangeService({ connection, repository, notificatio
         assertSchedule(await checkPetOverlap(resulting, movedIds, session, { writeGuard: false }), false);
         const change = {
           _id: oid(), bookingId: booking._id, customerId: booking.customerId, scope: input.scope,
-          state: 'PENDING', version: 0, items, keptVisitIds, removedVisitIds: [], sentAt: at,
+          state: 'PENDING', version: 0, items, pendingVisitIds: movedIds, keptVisitIds, removedVisitIds: [], sentAt: at,
           expiresAt: changeDeadline(items), recheckAt: at
         };
         await requests.insertOne(change, { session });
-        await claims.insertMany(movedIds.map(visitId => ({ _id: visitId, requestId: change._id })), { session });
         const result = requestView(change);
-        await commands.insertOne({ _id: commandId, fingerprint, result }, { session });
+        await commands.insertOne({ _id: commandId, fingerprint, result, createdAt: at }, { session });
         return result;
       });
     },
@@ -292,10 +274,9 @@ export function createBookingChangeService({ connection, repository, notificatio
           if (!touched.matchedCount) throw visitChanged();
         }
         const result = await recordDecision(change, input.action, actor.userId, oldVisits, at, session);
-        await commands.insertOne({ _id: commandId, fingerprint, result }, { session });
+        await commands.insertOne({ _id: commandId, fingerprint, result, createdAt: at }, { session });
         return { result, requeues };
       });
-      await publishNotices(oid(changeKey)).catch(() => {});
       if (outcome.state) throw new AppError(409, 'BOOKING_CHANGE_NOT_PENDING', 'Yêu cầu đã được xử lý hoặc đã hết hạn.', { state: outcome.state });
       if (outcome.conflict) throw new AppError(409, 'VERSION_CONFLICT', 'Yêu cầu đã thay đổi. Vui lòng tải lại.');
       for (const { visitId, version } of outcome.requeues) await requeue?.(visitId, version);
@@ -317,7 +298,6 @@ export function createBookingChangeService({ connection, repository, notificatio
             { $set: { recheckAt: new Date(+checkedAt + RECHECK_MS) } }, { session });
         });
       }
-      await publishNotices();
       return { processed: due.length };
     }
   };

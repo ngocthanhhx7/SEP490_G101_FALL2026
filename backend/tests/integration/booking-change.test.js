@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
 import request from 'supertest';
@@ -62,8 +62,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   now = BASE;
   command = 0;
-  for (const name of ['bookingchangerequests', 'bookingchangevisitclaims', 'bookingchangecommands',
-    'bookingchangenotices', 'notifications', 'notificationevents', 'employeescheduleproposals',
+  for (const name of ['bookingchangerequests', 'employeeschedulecommands', 'notifications', 'notificationevents', 'employeescheduleproposals',
     'employeevisitoffers', 'bookings', 'visits', 'pets', 'employmentcontracts', 'employeeavailabilities',
     'employeeavailabilityrevisions', 'aisitterprofiles']) await col(name).deleteMany({});
 });
@@ -127,6 +126,54 @@ const detail = change => request(app).get(staffPath + '/' + change.id).set(heade
 const errorCode = response => response.body.error.code;
 
 describe('UC-84 customer requests', () => {
+  test('provisions one new collection and uses an indexed unique pending-visit claim', async () => {
+    const names = (await connection.db.listCollections({}, { nameOnly: true }).toArray()).map(row => row.name);
+    expect(names.filter(name => name.startsWith('bookingchange'))).toEqual(['bookingchangerequests']);
+    const record = await booking([BASE + DAY]);
+    const change = (await submit(record, single(record.visits[0], BASE + 2 * DAY)).expect(201)).body.data;
+    const saved = await col('bookingchangerequests').findOne({ _id: new mongoose.Types.ObjectId(change.id) });
+    expect(saved.pendingVisitIds).toEqual([String(record.visits[0]._id)]);
+    await expect(col('bookingchangerequests').insertOne({ ...saved, _id: oid() })).rejects.toMatchObject({ code: 11000 });
+    const plan = await col('bookingchangerequests').find({ state: 'PENDING', pendingVisitIds: { $in: saved.pendingVisitIds } })
+      .limit(1).explain('executionStats');
+    expect(JSON.stringify(plan.queryPlanner.winningPlan)).toContain('pendingVisitIds_1');
+    await decision(change, 'REJECT').expect(200);
+    expect(await col('bookingchangerequests').findOne({ _id: saved._id })).toMatchObject({ pendingVisitIds: [] });
+    await submit(record, single(record.visits[0], BASE + 3 * DAY)).expect(201);
+  });
+
+  test('serializes concurrent submissions without a separate claim collection', async () => {
+    const record = await booking([BASE + DAY]);
+    const responses = await Promise.all([
+      submit(record, single(record.visits[0], BASE + 2 * DAY), owner, 'concurrent-change-one'),
+      submit(record, single(record.visits[0], BASE + 3 * DAY), owner, 'concurrent-change-two')
+    ]);
+    expect(responses.map(response => response.status).sort()).toEqual([201, 409]);
+    expect(responses.find(response => response.status === 409).body.error.code).toBe('MSG149');
+    expect(await col('bookingchangerequests').countDocuments({ state: 'PENDING' })).toBe(1);
+  });
+
+  test('rolls back decision, visit, claim and shared command when notification persistence fails', async () => {
+    const record = await booking([BASE + DAY]);
+    const change = (await submit(record, single(record.visits[0], BASE + 2 * DAY)).expect(201)).body.data;
+    const prototype = Object.getPrototypeOf(col('notifications'));
+    const original = prototype.updateOne;
+    const failure = jest.spyOn(prototype, 'updateOne').mockImplementation(function (...args) {
+      if (this.collectionName === 'notifications') throw new Error('synthetic notification storage failure');
+      return original.apply(this, args);
+    });
+    try { await decision(change, 'APPROVE', staff, 'notification-atomic-retry').expect(500); }
+    finally { failure.mockRestore(); }
+    expect(await col('bookingchangerequests').findOne({ _id: new mongoose.Types.ObjectId(change.id) }))
+      .toMatchObject({ state: 'PENDING', pendingVisitIds: [String(record.visits[0]._id)] });
+    expect(await col('visits').findOne({ _id: record.visits[0]._id })).toMatchObject({ startAt: record.visits[0].startAt, version: 0 });
+    expect(await col('employeeschedulecommands').countDocuments({})).toBe(1);
+    expect(await col('notifications').countDocuments({})).toBe(0);
+    const result = await decision(change, 'APPROVE', staff, 'notification-atomic-retry').expect(200);
+    expect((await decision(change, 'APPROVE', staff, 'notification-atomic-retry').expect(200)).body.data).toEqual(result.body.data);
+    expect(await col('notifications').countDocuments({ eventType: 'BookingChangeApproved' })).toBe(1);
+  });
+
   test('requires owner session and CSRF, and rejects non-customer callers', async () => {
     const record = await booking([BASE + DAY]);
     const payload = single(record.visits[0], BASE + 2 * DAY);
