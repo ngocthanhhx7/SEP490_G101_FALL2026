@@ -33,7 +33,7 @@ function TaskForm({ row, task, api, visitId, onSaved, locked }) {
     let mediaId = uploaded.current?.file === selected ? uploaded.current.mediaId : null;
     command.execute(async (key) => {
       if (selected && !mediaId) {
-        const result = await api.uploadEvidence(selected, uploadKey);
+        const result = await api.uploadEvidence(selected, uploadKey, visitId);
         if (result?.state !== 'READY' || !/^[a-f0-9]{64}$/.test(result.id ?? ''))
           throw new Error('Upload acknowledgement missing');
         mediaId = result.id;

@@ -277,6 +277,7 @@ export function createVisitWorkflowService({ connection, clock = Date.now }) {
           );
           if (
             !image ||
+            (image.uploadVisitId !== undefined && image.uploadVisitId !== visitId) ||
             !['image/jpeg', 'image/png'].includes(image.contentType) ||
             !/^[a-f0-9]{64}$/.test(image.contentDigest ?? '') ||
             !Number.isSafeInteger(image.byteLength) ||

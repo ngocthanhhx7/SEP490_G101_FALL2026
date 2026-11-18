@@ -13,6 +13,7 @@ const errors = {
   WORKFLOW_WINDOW_CLOSED: 'Ngoài thời gian được phép ghi nhận ca.',
   CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED: 'Cần đọc và xác nhận hướng dẫn chăm sóc trước.',
   IMAGE_DIMENSIONS_EXCEEDED: 'Ảnh vượt 4 megapixel. Giảm kích thước ảnh trước khi gửi.',
+  VISIT_MEDIA_QUOTA_EXCEEDED: 'Đã dùng hết lượt tải ảnh của giai đoạn này. Liên hệ điều phối nếu còn thiếu bằng chứng.',
   IMAGE_PROCESSING_BUSY: 'Hệ thống đang xử lý ảnh. Vui lòng thử lại sau ít phút.',
   HANDOVER_REQUIRED: 'Cần xác nhận bàn giao ca trước khi check-in. Liên hệ điều phối.',
   PREPAYMENT_REQUIRED: 'Chưa có đủ thanh toán trả trước đã xác minh. Liên hệ điều phối.',

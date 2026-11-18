@@ -11,7 +11,8 @@ export function createPrivateImageController({ service } = {}) {
         actor: req.auth,
         body: req.body,
         contentType: req.get('content-type')?.split(';')[0],
-        idempotencyKey: req.get('idempotency-key')
+        idempotencyKey: req.get('idempotency-key'),
+        visitId: req.get('x-care-visit-id')
       });
       res.status(data.replayed ? 200 : 201).json({ data, meta: metadata(req) });
     },

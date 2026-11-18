@@ -1,4 +1,5 @@
 import { createVisitEvidenceAccess } from '../services/care/visit-evidence-access.service.js';
+import { createVisitEvidenceQuota } from '../services/care/visit-evidence-quota.service.js';
 import express, { Router } from 'express';
 import { requireSession, requireCsrf } from '../middlewares/session.js';
 import { createSessionService } from '../services/session.service.js';
@@ -13,9 +14,10 @@ const admissionByConnection = new WeakMap();
 
 export function privateImageModule({ connection, media, secret, maxImagesPerUser,
   requireAuthenticated, csrf, maxInFlight = 4, imageModels, storagePrefix = 'private-images',
-  name = 'private-images', mount = '/api/v1/private-images' }) {
+  name = 'private-images', mount = '/api/v1/private-images', clock = Date.now }) {
   const service = createPrivateImageService({ connection, media, secret, maxImagesPerUser, imageModels, storagePrefix,
-    authorizeEvidenceRead: storagePrefix === 'private-images' ? createVisitEvidenceAccess({ connection }) : undefined });
+    authorizeEvidenceRead: storagePrefix === 'private-images' ? createVisitEvidenceAccess({ connection }) : undefined,
+    authorizeVisitUpload: storagePrefix === 'private-images' ? createVisitEvidenceQuota({ connection, clock }) : undefined });
   const controller = createPrivateImageController({ service });
   const router = Router();
   let admission = admissionByConnection.get(connection);
@@ -129,7 +131,7 @@ export function privateImageRuntimeModule({ config, connection, ports, env, cloc
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   return privateImageModule({ connection, media: ports.privateMedia, secret: config.auth.tokenSecret,
     maxImagesPerUser: r2.maxImagesPerUser, requireAuthenticated: requireSession(session, { clock }),
-    csrf: requireCsrf(session) });
+    csrf: requireCsrf(session), clock });
 }
 
 export function applicantDocumentRuntimeModule({ config, connection, ports, env, clock = Date.now }) {

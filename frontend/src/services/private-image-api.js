@@ -37,7 +37,7 @@ export function createPrivateImageApi({ fetchImpl = fetchFromCurrentRuntime, get
     throw new TypeError('Private image API dependencies are invalid');
   }
 
-  async function request(path, { method = 'GET', body, contentType, idempotencyKey, signal, consume } = {}) {
+  async function request(path, { method = 'GET', body, contentType, idempotencyKey, visitId, signal, consume } = {}) {
     const controller = new AbortController();
     let response;
     let interrupted = false;
@@ -71,6 +71,7 @@ export function createPrivateImageApi({ fetchImpl = fetchFromCurrentRuntime, get
         if (!csrfToken) throw new ApiError('CSRF_NOT_READY');
         headers['X-CSRF-Token'] = csrfToken;
         headers['Idempotency-Key'] = idempotencyKey;
+        if (visitId !== undefined) headers['X-Care-Visit-Id'] = visitId;
       }
       response = await Promise.race([fetchImpl(`/api/v1${path}`, {
         method, headers, credentials: 'same-origin', cache: 'no-store', redirect: 'error', body,
@@ -91,11 +92,11 @@ export function createPrivateImageApi({ fetchImpl = fetchFromCurrentRuntime, get
   }
 
   return Object.freeze({
-    async upload(file, { signal, idempotencyKey } = {}) {
+    async upload(file, { signal, idempotencyKey, visitId } = {}) {
       validateFile(file);
       validateKey(idempotencyKey);
       const { response, payload } = await request('/private-images', {
-        method: 'POST', body: file, contentType: file.type, idempotencyKey, signal,
+        method: 'POST', body: file, contentType: file.type, idempotencyKey, visitId, signal,
         consume: async result => {
           try { return await result.json(); } catch { return null; }
         }
