@@ -28,6 +28,8 @@ function checkAppointment(data) {
 // booking needs the server sentence and details (pet name, new total, hotline), so each call reads them from the error
 // response it already received: `serverMessage` and `details` are added to the thrown ApiError.
 export function createGroomingBookingApi({ getCsrfToken = () => null, fetchImpl = (...args) => globalThis.fetch(...args) } = {}) {
+  // Keep session handling on the required pet and booking requests.
+  const requestCatalog = createApiClient({ fetchImpl, onUnauthorized: () => {} });
   async function call(path, options) {
     let envelope = null;
     const request = createApiClient({ getCsrfToken, fetchImpl: async (url, init) => {
@@ -49,9 +51,17 @@ export function createGroomingBookingApi({ getCsrfToken = () => null, fetchImpl 
   return {
     async options({ signal } = {}) { return checkOptions((await call('/grooming/options', { signal })).data); },
     async pets({ signal } = {}) {
-      const data = (await call('/pet-care/pets', { signal })).data;
+      const [{ data }, catalog] = await Promise.all([
+        call('/pet-care/pets', { signal }),
+        requestCatalog('/pet-care/catalog', { signal }).catch(() => null)
+      ]);
       if (!Array.isArray(data) || data.some(row => !text(row?.id ?? row?._id) || !text(row.name) || !['DOG', 'CAT'].includes(row.species))) invalid();
-      return data.map(row => ({ ...row, id: row.id ?? row._id }));
+      const breeds = !catalog?.pending && Array.isArray(catalog?.data?.breeds) ? catalog.data.breeds : [];
+      return data.map(row => {
+        const breed = breeds.find(entry => text(entry?.code) && entry.code === row.breedCode &&
+          (entry.species === undefined || entry.species === row.species) && typeof entry.name === 'string' && entry.name.trim());
+        return { ...row, id: row.id ?? row._id, ...(breed ? { breedName: breed.name.trim() } : {}) };
+      });
     },
     async slots(body, { signal } = {}) { return checkSlots((await call('/grooming/slots', { method: 'POST', body, signal })).data); },
     async quote(body, { signal } = {}) { return checkQuote((await call('/grooming/quotes', { method: 'POST', body, signal })).data); },
