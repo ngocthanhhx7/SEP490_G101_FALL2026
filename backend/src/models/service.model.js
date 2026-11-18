@@ -9,6 +9,7 @@ export function serviceModel(connection) {
     presentationFields[field] = { type: presentationFields[field], default: undefined, validate: values => values.length <= 50 };
   }
   const schema = new Schema({
+    workflowCheckoutGuard: { type: Number, min: 0 }, workflowRevision: { type: Number, min: 0 }, workflowDraft: Schema.Types.Mixed, workflowPublished: Schema.Types.Mixed,
     code: { type: String, required: true, minlength: 2, maxlength: 48, match: /^[a-z0-9]+(?:-[a-z0-9]+)*$/ },
     createdBy: { type: Schema.Types.ObjectId, required: true },
     createdAt: { type: Date, required: true },

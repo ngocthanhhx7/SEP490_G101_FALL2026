@@ -147,7 +147,7 @@ test('execution read exposes timing and bound evidence while excluding private n
   const service = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()) });
   const result = await service.readVisit(sitter, String(row._id));
   expect(result).toMatchObject({ visitId: String(row._id), state: 'ASSIGNED', version: 0, checklistItemIds: ['service-scope', 'pet-condition'] });
-  expect(Object.keys(result).sort()).toEqual(['visitId', 'state', 'version', 'startAt', 'endAt', 'checkInAt', 'checkOutAt', 'checklistItemIds', 'checklist', 'serverNow', 'checkInOpensAt', 'checkInClosesAt', 'checkOutClosesAt', 'checklistItems', 'evidence', 'serviceName', 'completionAttention', 'closureOutcome'].sort());
+  expect(Object.keys(result).sort()).toEqual(['visitId', 'state', 'version', 'startAt', 'endAt', 'checkInAt', 'checkOutAt', 'checklistItemIds', 'checklist', 'serverNow', 'checkInOpensAt', 'checkInClosesAt', 'checkOutClosesAt', 'checklistItems', 'evidence', 'serviceName', 'completionAttention', 'closureOutcome', 'workflow'].sort());
   await expect(service.readVisit(other, String(row._id))).rejects.toMatchObject({ status: 404 });
   await expect(service.readVisit(customer, String(row._id))).rejects.toMatchObject({ status: 403 });
   const runtime = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } }, env: { FINANCE_SOURCES_ENABLED: 'true' }, clock,

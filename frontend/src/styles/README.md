@@ -11,3 +11,5 @@ Shared resets, tokens and site-wide styles belong here. `public-site.css` suppli
 table scrolling and responsive forms.
 
 `operations-workspace.css` styles the shared administrative report cards, responsive tables and detail dialogs used by dispatch, public profile moderation, payroll and settlement review. Table overflow stays within its labelled scroll region.
+
+care-workflow.css supplies shared responsive builder/execution/report styles and keyboard focus, preserving existing theme tokens.

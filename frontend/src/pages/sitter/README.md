@@ -43,3 +43,5 @@ Staff private notes; no Sitter complaint creation or Staff command is exposed.
 `SitterWorkAreasPanel` preserves historical registrations beyond the old 20-code reader limit; active wards and retained closed choices use province/search filters and bounded pages. Only database-enabled areas can be newly registered.
 
 The invitation workspace uses compact tables for pending offers, assignments and lazy-loaded invitation history. Only assignment details mount private care, evidence previews and execution controls. A server-synchronized clock disables early/expired evidence submission before upload. The shared photo preview supports selected files, authenticated bound images, zoom-dialog viewing, cancellation and blob cleanup.
+
+`VisitWorkflowExecution.jsx` renders immutable server tasks with a direct selector, per-Pet slot counts, private photo capture/preview/retry, server-persisted notes/values and explicit blocked escalation. VisitExecution keeps its existing arrival/departure commands and legacy checklist.

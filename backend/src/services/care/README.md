@@ -28,3 +28,5 @@ adapter must return them only to the assigned sitter in the server-authorized
 window and after a required handover.
 
 `visit-evidence-access.service.js` permits the owning Customer to read a private photo only when the media binding, visit evidence reference, image owner/digest/kind and booking ownership agree. Existing image-owner access remains; unbound uploads, applicant documents and other Customers/Admin/Staff receive no new access. All lookups use existing primary IDs and bounded timeouts.
+
+Service Workflow owns bounded Service draft/publication and immutable per-Visit tasks. `service-workflow.service.js` handles Admin publication/history; `workflow-snapshot.service.js` captures and projects immutable definitions; `visit-workflow.service.js` owns CAS task writes, named-slot binding, phase gates and reasoned Staff retry. It reuses employee commands/events and care media; only immutable version history has its own store. See [API](../../../../doc/api/service-workflows.md) and [storage plan](../../../../doc/database/service-workflow-plan.md).

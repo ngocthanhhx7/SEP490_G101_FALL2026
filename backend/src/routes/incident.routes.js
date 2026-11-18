@@ -23,7 +23,8 @@ function ensure(service) {
 export function createIncidentRouter({
   service,
   sessionPort,
-  allowedOrigins
+  allowedOrigins,
+  clock = Date.now
 } = {}) {
   ensure(service);
   const router = Router();
@@ -35,7 +36,7 @@ export function createIncidentRouter({
     res.vary('Cookie');
     next();
   });
-  router.use(requireSession(sessionPort));
+  const auth = requireSession(sessionPort, { clock });
   router.param('caseId', (req, _res, next, value) =>
     ID.test(value)
       ? next()
@@ -53,44 +54,52 @@ export function createIncidentRouter({
 
   router.post(
     '/incidents',
+    auth,
     involved,
     csrf,
     createIncidentController({ service }).createIncidents
   );
   router.post(
     '/visits/:visitId/incidents',
+    auth,
     involved,
     csrf,
     createIncidentController({ service }).createVisitsByVisitIdIncidents
   );
   router.get(
     '/incidents',
+    auth,
     read,
     createIncidentController({ service }).getIncidents
   );
   router.get(
     '/visits/:visitId/incidents',
+    auth,
     read,
     createIncidentController({ service }).getVisitsByVisitIdIncidents
   );
   router.get(
     '/incidents/:incidentId',
+    auth,
     read,
     createIncidentController({ service }).getIncidentsByIncidentId
   );
   router.get(
     '/cases/:caseId',
+    auth,
     read,
     createIncidentController({ service }).getCasesByCaseId
   );
   router.post(
     '/cases/:caseId/resolutions',
+    auth,
     operational,
     csrf,
     createIncidentController({ service }).createCasesByCaseIdResolutions
   );
   router.post(
     '/incidents/:incidentId/resolutions',
+    auth,
     operational,
     csrf,
     createIncidentController({ service }).createIncidentsByIncidentIdResolutions

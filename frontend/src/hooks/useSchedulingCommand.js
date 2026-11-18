@@ -1,6 +1,17 @@
 import { useRef, useState } from 'react';
 
 const errors = {
+  INCIDENT_REVIEW_REQUIRED: 'Cần xử lý sự cố đang mở trước khi tiếp tục nhiệm vụ hoặc kết thúc ca.',
+  WORKFLOW_INCOMPLETE: 'Còn thiếu nhiệm vụ hoặc vị trí ảnh bắt buộc. Chọn bước chưa hoàn tất để bổ sung.',
+  WORKFLOW_ORDER_REQUIRED: 'Cần hoàn tất bước bắt buộc trước đó trong cùng giai đoạn.',
+  WORKFLOW_TASK_LOCKED: 'Nhiệm vụ đã khóa; bước bị chặn cần điều phối cho phép thử lại.',
+  WORKFLOW_BRANCH_INCOMPLETE: 'Mỗi nhánh loài/địa điểm phải có bước bắt buộc ở cả ba giai đoạn.',
+  WORKFLOW_STORAGE_NOT_READY: 'Chưa cấp phát storage quy trình đã được rà soát.',
+  WORKFLOW_INVALID: 'Kiểm tra thứ tự giai đoạn, mã bước và cấu hình ảnh/trường dữ liệu.',
+  WORKFLOW_UNSAFE_SKIP: 'Bước an toàn hoặc tiếp nhận/bàn giao không được phép bỏ qua.',
+  WORKFLOW_SKIP_FORBIDDEN: 'Bước này không được bỏ qua theo quy trình.',
+  WORKFLOW_WINDOW_CLOSED: 'Ngoài thời gian được phép ghi nhận ca.',
+  CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED: 'Cần đọc và xác nhận hướng dẫn chăm sóc trước.',
   IMAGE_DIMENSIONS_EXCEEDED: 'Ảnh vượt 4 megapixel. Giảm kích thước ảnh trước khi gửi.',
   IMAGE_PROCESSING_BUSY: 'Hệ thống đang xử lý ảnh. Vui lòng thử lại sau ít phút.',
   HANDOVER_REQUIRED: 'Cần xác nhận bàn giao ca trước khi check-in. Liên hệ điều phối.',

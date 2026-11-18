@@ -484,3 +484,20 @@ describe('UC-85 decisions and expiry', () => {
     expect(await col('notifications').countDocuments({})).toBe(0);
   });
 });
+
+
+test('approved rescheduling preserves workflow definition, per-pet progress and prior evidence references', async () => {
+  const { serviceWorkflowDrafts } = await import('../../src/constants/service-workflow-drafts.js');
+  const { workflowHash } = await import('../../src/services/care/workflow-snapshot.service.js');
+  const record = await booking([BASE + DAY + 9 * HOUR]);
+  const definition = serviceWorkflowDrafts.find(item => item.code === 'home-care').definition;
+  const workflow = { revision: 2, definition, hash: workflowHash(definition), publishedAt: new Date(BASE - DAY) };
+  const results = [{ taskKey: `arrival:${record.petId}`, status: 'IN_PROGRESS', note: 'Existing synthetic care observation', evidence: [{ mediaId: 'a'.repeat(64), photoSlotId: 'condition', uploadedBy: sitter.user.id }] }];
+  await col('visits').updateOne({ _id: record.visits[0]._id }, { $set: { 'snapshots.workflow': workflow, workflowResults: results } });
+  const change = (await submit(record, single(record.visits[0], BASE + 2 * DAY + 10 * HOUR)).expect(201)).body.data;
+  await decision(change).expect(200);
+  const saved = await col('visits').findOne({ _id: record.visits[0]._id });
+  expect(saved.startAt).toEqual(new Date(BASE + 2 * DAY + 10 * HOUR));
+  expect(saved.snapshots.workflow).toEqual(workflow);
+  expect(saved.workflowResults).toEqual(results);
+});

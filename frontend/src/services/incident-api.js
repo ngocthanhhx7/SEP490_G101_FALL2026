@@ -41,7 +41,7 @@ export function createIncidentApi({ request, fetchImpl, getCsrfToken, onUnauthor
       for (const field of ['expectedVersion', 'severity', 'urgency', 'category', 'type', 'observedAt', 'immediateAction', 'contactPreference', 'evidenceRefs', 'photoRefs', 'timeline', 'petId']) {
         if (input[field] !== undefined) body[field] = input[field];
       }
-      const result = await send('/incidents', { method: 'POST', body, idempotencyKey: key(createIdempotencyKey) });
+      const result = await send('/incidents', { method: 'POST', body, idempotencyKey: key(() => input.idempotencyKey ?? createIdempotencyKey()) });
       if (result?.pending) return result;
       const incident = result?.data?.incident || result?.data?.case;
       if (!incident || incident.kind !== 'INCIDENT' || incident.visitId !== visitId || !STATES.has(incident.state)) throw new ApiError('INVALID_RESPONSE', result?.status || 0);
@@ -72,7 +72,7 @@ export function createIncidentApi({ request, fetchImpl, getCsrfToken, onUnauthor
       for (const field of ['actionsTaken', 'customerContacted', 'veterinaryContacted', 'followUp', 'staffNotes', 'financialDecision']) {
         if (input[field] !== undefined) body[field] = input[field];
       }
-      const result = await send(`/cases/${caseId}/resolutions`, { method: 'POST', body, expectedVersion: input.expectedVersion, idempotencyKey: key(createIdempotencyKey) });
+      const result = await send(`/cases/${caseId}/resolutions`, { method: 'POST', body, expectedVersion: input.expectedVersion, idempotencyKey: key(() => input.idempotencyKey ?? createIdempotencyKey()) });
       return view(result, caseId);
     }
   };
