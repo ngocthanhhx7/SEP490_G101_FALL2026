@@ -51,6 +51,15 @@ describe('the pets of the order', () => {
     expect(petKindLabel({ species: 'DOG', breedCode: 'dog-mixed', weightKg: 12 })).toBe('Chó · 12 kg');
     expect(petKindLabel({ species: 'CAT', breedName: '  ', weightKg: 4 })).toBe('Mèo · 4 kg');
   });
+
+  test.each([
+    ['CAT', 'Mèo nhà lông ngắn', 4, 'Mèo nhà lông ngắn · 4 kg'],
+    ['DOG', 'Chó lai / chưa xác định', 4, 'Chó lai / chưa xác định · 4 kg'],
+    ['CAT', 'MÈO Anh lông ngắn', 4, 'MÈO Anh lông ngắn · 4 kg'],
+    ['DOG', 'Corgi', 12, 'Chó Corgi · 12 kg'],
+  ])('UC-58 formats the %s breed %s with its species once', (species, breedName, weightKg, expected) => {
+    expect(petKindLabel({ species, breedName, weightKg })).toBe(expected);
+  });
 });
 
 describe('messages', () => {

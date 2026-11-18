@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { GroomingBookingPage } from '../../src/pages/customer/GroomingBookingPage.jsx';
 import { ApiError } from '../../src/services/api-client.js';
+import { createGroomingBookingApi } from '../../src/services/grooming-booking-api.js';
 
 const customer = { resolve: async () => ({ status: 'authenticated', user: { id: 'synthetic-customer', roles: ['CUSTOMER'] } }) };
 const guest = { resolve: async () => ({ status: 'guest' }) };
@@ -61,6 +62,22 @@ async function fillMilo(api, api2 = api) {
   answerAll(0);
   fireEvent.click(await screen.findByRole('radio', { name: '10:00' }));
 }
+
+test('UC-58 shows Chó Corgi · 12 kg on Milo’s pet card using the breed catalog', async () => {
+  const dataByUrl = {
+    '/api/v1/grooming/options': makeOptions(),
+    '/api/v1/pet-care/pets': [{ ...pets[0], breedCode: 'dog-corgi' }],
+    '/api/v1/pet-care/catalog': { breeds: [{ code: 'dog-corgi', name: 'Corgi', species: 'DOG' }], traits: [], workAreas: [] }
+  };
+  const fetchImpl = jest.fn(async url => {
+    if (!(url in dataByUrl)) throw new Error('Unexpected request ' + url);
+    return { ok: true, status: 200, headers: new Headers(), json: async () => ({ data: dataByUrl[url], meta: { schemaVersion: 1 } }) };
+  });
+
+  show(createGroomingBookingApi({ fetchImpl }));
+  expect(await screen.findByRole('checkbox', { name: /Milo/ })).toBeVisible();
+  expect(screen.getByText('Chó Corgi · 12 kg')).toBeVisible();
+});
 
 test('shows the three steps and the final price panel, then books and shows MSG65 with the appointment', async () => {
   const api = fixture({ quote: jest.fn(async body => quoteFor(body, 25000, 'SILVER')) });
