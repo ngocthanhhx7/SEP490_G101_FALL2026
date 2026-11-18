@@ -6,6 +6,8 @@ Các SOP hiện hành và căn cứ theo từng dịch vụ ở [care workflow s
 không ghi đè nội dung Admin. Operator `scripts/deployment/provision-workflows.js`
 mặc định dry-run; chỉ apply với plan hash, Admin hiện hữu và gate release/backup/restore.
 Không có startup seed, collection nguồn riêng hoặc backfill lượt cũ.
+`GET /api/v1/services?workflowFor=<id>` trả các bước cho khách xem của phiên bản
+đang công bố nếu dịch vụ xuất hiện trong danh mục. Truy vấn thêm dùng `services._id`.
 
 Counter Sale (UC-68) dùng `/api/v1/admin/counter-orders`, chỉ Admin với session/CSRF hiện có. Hằng/giới hạn ở `src/constants/counter-sale-fields.js`, input ở `src/validators/counter-sale.validator.js`; route chỉ ghép controller và services. Xem [hợp đồng API](../doc/api/product-sales-v1.md#counter-sale-uc-68). Test gồm `tests/integration/counter-sale.test.js` và `tests/unit/counter-sale-validator.test.js`. Không cần biến môi trường hoặc provider mới.
 Stock List (UC-71) adds read-only Admin stock/history endpoints composed in

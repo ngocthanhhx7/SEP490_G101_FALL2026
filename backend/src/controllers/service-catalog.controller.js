@@ -6,7 +6,7 @@ function respond(res, req, status, data) {
 export function createServiceCatalogController({ service } = {}) {
   return {
     getRoot: async (req, res) =>
-      respond(res, req, 200, await service.publicList()),
+      respond(res, req, 200, await service.publicList({ workflowFor: req.query.workflowFor })),
     getAdmin: async (req, res) =>
       respond(
         res,
