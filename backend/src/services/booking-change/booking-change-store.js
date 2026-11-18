@@ -2,6 +2,9 @@ import { Types } from 'mongoose';
 import { bookingChangeModels } from '../../models/booking-change.model.js';
 import { AppError } from '../../utils/app-error.js';
 import { changeDeadline } from './booking-change-policy.js';
+import { digest } from '../../validators/pet-care.validator.js';
+import { employeeSchedulingModels } from '../../models/employee-scheduling.model.js';
+import { notificationModels } from '../../models/notification.model.js';
 
 export const oid = value => new Types.ObjectId(value);
 export const RECHECK_MS = 60000;
@@ -23,14 +26,13 @@ export function createBookingChangeStore(connection) {
   const model = bookingChangeModels(connection);
   const col = name => connection.db.collection(name);
   const requests = col(model.BookingChangeRequest.collection.name);
-  const claims = col(model.BookingChangeVisitClaim.collection.name);
-  const commands = col(model.BookingChangeCommand.collection.name);
-  const notices = col(model.BookingChangeNotice.collection.name);
+  const commands = col(employeeSchedulingModels(connection).EmployeeScheduleCommand.collection.name);
+  const notifications = col(notificationModels(connection).Notification.collection.name);
   const bookings = col('bookings');
   const visits = col('visits');
 
   async function assertStorage() {
-    const names = Object.values(model).map(item => item.collection.name);
+    const names = [...Object.values(model).map(item => item.collection.name), commands.collectionName, notifications.collectionName];
     const existing = await connection.db.listCollections({ name: { $in: names } }, { nameOnly: true }).toArray();
     if (existing.length !== names.length)
       throw new AppError(503, 'BOOKING_CHANGE_STORAGE_NOT_READY', 'Provision booking change storage first.');
@@ -67,15 +69,17 @@ export function createBookingChangeStore(connection) {
     return current;
   }
 
-  async function releaseClaims(change, ids, session) {
-    await claims.deleteMany({ requestId: change._id, ...(ids ? { _id: { $in: ids } } : {}) }, { session });
-  }
-
+  // In-app delivery is local persistence, so commit it with the decision.
+  // Deterministic IDs and the shared transaction replace a separate outbox.
   async function queueNotice(change, eventType, recipients, title, message, now, session, deepLink) {
-    await notices.insertOne({
-      _id: String(change._id) + ':' + eventType + ':' + recipients[0].role, requestId: change._id,
-      eventType, recipients, title, message, deepLink, nextAttemptAt: now, deliveredAt: null
-    }, { session });
+    const eventId = String(change._id) + ':' + eventType;
+    for (const recipient of recipients) {
+      const _id = digest([eventId, recipient.recipientId, recipient.role]);
+      await notifications.updateOne({ _id }, { $setOnInsert: {
+        eventId, recipientId: recipient.recipientId, role: recipient.role, eventType,
+        title, message, channel: 'IN_APP', deepLink, createdAt: now, readAt: null
+      } }, { upsert: true, session });
+    }
   }
 
   async function reconcile(change, now, session) {
@@ -96,10 +100,9 @@ export function createBookingChangeStore(connection) {
     const state = remaining.length === 0 ? 'CLOSED' : expiresAt <= now ? 'EXPIRED' : 'PENDING';
     if (!removed.length && state === 'PENDING') return change;
     const updated = await savePending(change, {
-      state, expiresAt, removedVisitIds: [...(change.removedVisitIds ?? []), ...removed],
+      state, expiresAt, pendingVisitIds: state === 'PENDING' ? remaining.map(item => item.visitId) : [], removedVisitIds: [...(change.removedVisitIds ?? []), ...removed],
       recheckAt: new Date(+now + RECHECK_MS), ...(state === 'PENDING' ? {} : { resolvedAt: now })
     }, session);
-    await releaseClaims(change, state === 'PENDING' ? removed : null, session);
     if (state === 'EXPIRED') await queueNotice(change, 'BookingChangeExpired',
       [{ recipientId: String(change.customerId), role: 'CUSTOMER' }],
       'Yêu cầu đổi giờ đã hết hạn', 'Yêu cầu đổi giờ đã hết hạn. Lịch giữ giờ cũ.', now, session,
@@ -107,6 +110,6 @@ export function createBookingChangeStore(connection) {
     return updated;
   }
 
-  return { col, bookings, visits, requests, claims, commands, notices, assertStorage, readBooking, readVisits,
-    names, savePending, releaseClaims, queueNotice, reconcile };
+  return { col, bookings, visits, requests, commands, assertStorage, readBooking, readVisits,
+    names, savePending, queueNotice, reconcile };
 }
