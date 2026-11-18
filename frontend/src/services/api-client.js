@@ -5,6 +5,7 @@ export class ApiError extends Error {
     this.code = code;
     this.status = status;
     this.fieldErrors = details.fieldErrors;
+    this.missingTasks = Array.isArray(details.missingTasks) ? details.missingTasks.filter(item => typeof item?.taskKey === 'string' && item.taskKey.length <= 70 && Array.isArray(item.reasons)).slice(0, 240) : undefined;
     // Per-field reasons from a 422, e.g. { name: 'REQUIRED', sellingPrice: 'WHOLE_NUMBER' }.
     this.fields = details.fields;
     this.available = Number.isSafeInteger(details.available) && details.available >= 0 ? details.available : undefined;
@@ -75,7 +76,7 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       }); }
       if (!response.ok) {
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
-          fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
+          missingTasks: envelope?.error?.missingTasks, fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
           available: envelope?.error?.available, productId: envelope?.error?.productId,
           retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
           correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),

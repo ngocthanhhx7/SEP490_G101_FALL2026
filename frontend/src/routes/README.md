@@ -33,3 +33,5 @@ Order Management tab links (`/admin/product-orders?tab=...`) remain valid login 
 `/staff/complaints` and `/admin/complaints` mount Complaint Management in the respective workspaces. Their session guards exclude Sale Staff. The optional `complaint` query parameter selects a case directly.
 
 Admin and Sale Staff also share `/admin/counter-sale`, `/admin/goods-receipts` and `/admin/stock`; product/supplier management and stock adjustments remain Admin-only.
+
+Incident report/list/detail routes compose account-scoped adapters with current CSRF. Care workflow monitoring stays in the existing Staff dispatch board; workflowId opens the task review dialog.

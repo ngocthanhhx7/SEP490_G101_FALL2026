@@ -347,3 +347,32 @@ test('owned detail exposes saved pet names and assigned sitter name without cont
   expect(JSON.stringify(detail)).not.toContain('privateAccessNotes');
   await expect(checkout.read(other, saved.id)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
 });
+
+
+test('checkout captures published workflow and later publication cannot rewrite booked care shifts', async () => {
+  const { createServiceWorkflowService } = await import('../../src/services/care/service-workflow.service.js');
+  const { serviceWorkflowVersionModel } = await import('../../src/models/service-workflow-version.model.js');
+  const { serviceWorkflowDrafts } = await import('../../src/constants/service-workflow-drafts.js');
+  const model = serviceWorkflowVersionModel(connection); await model.createCollection(); await model.createIndexes();
+  const administrator = { userId: String(oid()), state: 'ACTIVE', roles: ['ADMIN'] };
+  await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(administrator.userId), state: 'ACTIVE', roles: ['ADMIN'] });
+  const service = services.find(row => row.code === 'home-care'), templates = createServiceWorkflowService({ connection, clock: () => +at });
+  const definition = serviceWorkflowDrafts.find(row => row.code === 'home-care').definition;
+  try {
+    await templates.mutate(administrator, String(service._id), 'DRAFT', { expectedVersion: 0, definition }, 'checkout-workflow-v1-draft');
+    await templates.mutate(administrator, String(service._id), 'PUBLISH', { expectedVersion: 1 }, 'checkout-workflow-v1-publish');
+    const first = await checkout.confirm(owner, input(await quote('home-care', 1)), 'workflow-checkout-first');
+    const booked = await connection.collection('visits').findOne({ bookingId: new mongoose.Types.ObjectId(first.id) });
+    expect(booked.snapshots.workflow.definition.title).toBe(definition.title);
+    await templates.mutate(administrator, String(service._id), 'DRAFT', { expectedVersion: 2, definition: { ...definition, title: 'Care V2' } }, 'checkout-workflow-v2-draft');
+    await templates.mutate(administrator, String(service._id), 'PUBLISH', { expectedVersion: 3 }, 'checkout-workflow-v2-publish');
+    const q2 = await quote('home-care', 1), body2 = input(q2); body2.visits[0].startAt = new Date(Date.parse(body2.visits[0].startAt) + 3 * 3600000).toISOString();
+    const second = await checkout.confirm(owner, body2, 'workflow-checkout-second');
+    expect((await connection.collection('visits').findOne({ bookingId: new mongoose.Types.ObjectId(second.id) })).snapshots.workflow.definition.title).toBe('Care V2');
+    expect((await connection.collection('visits').findOne({ _id: booked._id })).snapshots.workflow).toEqual(booked.snapshots.workflow);
+    const detail = await checkout.read(owner, first.id);
+    expect(detail.details.visits[0].workflow.mode).toBe('VERSIONED');
+  } finally {
+    await connection.collection('services').updateOne({ _id: service._id }, { $unset: { workflowDraft: '', workflowPublished: '', workflowRevision: '' } });
+  }
+});

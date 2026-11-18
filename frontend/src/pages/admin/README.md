@@ -98,3 +98,5 @@ AI Models includes a separate bounded source-readiness audit. It does not train 
 
 `CounterSalePage.jsx` ghép Tra sản phẩm, Đơn tại quầy và Đơn chưa xong; URL `?order=<id>` mở lại đơn trên máy khác. `counter-sale.css` dùng token sẵn có, không đổi theme. Sau tạo khoá dòng/khách; unpaid có thu tiền/huỷ, paid có hoàn tất, terminal có tạo đơn mới. UI chỉ hiện totals/audit tiền backend trả.
 `ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.
+
+`ServiceWorkflowBuilder.jsx` extends the existing Services contextual dialog with draft steps, keyboard ordering, phase/scope/applicability, named photo slots, structured fields, preview, validation/publication/retirement and paginated immutable history. Transport lives in service-workflow-api; uncertain writes retain the same operation.

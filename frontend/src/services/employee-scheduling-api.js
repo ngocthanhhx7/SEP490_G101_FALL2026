@@ -1,3 +1,4 @@
+import { createServiceWorkflowApi } from './service-workflow-api.js';
 import { createVisitTravelApi } from './visit-travel-api.js';
 import { createVisitClosureApi } from './visit-closure-api.js';
 import { createNeedsActionApi } from './needs-action-api.js';
@@ -8,6 +9,9 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
   const get = (path, signal) => request(`${root}${path}`, { signal });
   const mutate = (path, body, idempotencyKey, method = 'POST', signal) => request(`${root}${path}`, { method, body, idempotencyKey, signal });
   return {
+    saveWorkflowTask: createServiceWorkflowApi(request).saveTask,
+    visitWorkflow: createServiceWorkflowApi(request).visit,
+    reviewWorkflow: createServiceWorkflowApi(request).review,
     ...createVisitTravelApi(request),
     ...createVisitClosureApi(request),
     ...createNeedsActionApi(request),

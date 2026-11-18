@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { assertWorkflowGate, workflowProjection } from '../care/workflow-snapshot.service.js';
+import { createVisitWorkflowService } from '../care/visit-workflow.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/app-error.js';
 import { financeSourceModels } from '../../models/finance-source.model.js';
@@ -24,6 +26,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
   if (!['EMPLOYEE', 'LEGACY_PARTNER'].includes(compensationModel)) throw new TypeError('Invalid compensation model');
   const storage = financeSourceModels(connection, { legacyTasks: compensationModel === 'LEGACY_PARTNER' });
   const unitOfWork = createUnitOfWork(connection);
+  const workflow = createVisitWorkflowService({ connection, clock: () => +now() });
   // Register legacy earning/settlement storage only for its explicit producer.
   // Deployment provisions every registered model, even when no rows are written.
   const accrual = compensationModel === 'LEGACY_PARTNER'
@@ -168,11 +171,14 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             if (paid.receiptMoney?.currency !== 'VND' || !Number.isSafeInteger(paid.receiptMoney?.amountVnd)
               || BigInt(paid.receiptMoney.amountVnd) !== expected || !(paid.verifiedAt instanceof Date)) fail(409, 'PREPAYMENT_REQUIRED');
           }
+          assertWorkflowGate(visit, ['CHECK_IN']);
+          await workflow.verifyEvidence(visit, session);
           await bindMedia(mediaId, visit, current, operation, session);
           fields = { state: 'IN_PROGRESS', checkInAt: at };
         } else {
           if (visit.state !== 'IN_PROGRESS' || !(visit.checkInAt instanceof Date)) fail(409, 'INVALID_STATE');
           if (operation === 'CHECKLIST') {
+            if (visit.snapshots?.workflow) fail(409, 'WORKFLOW_TASKS_REQUIRED');
             const required = visit.snapshots?.checklistItemIds;
             if (!Array.isArray(required) || required.length > 100 || new Set(required).size !== required.length
               || !Array.isArray(items) || items.length !== required.length
@@ -185,9 +191,11 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             if (!(visit.endAt instanceof Date) || at.getTime() > visit.endAt.getTime() + CHECK_OUT_GRACE_MS
               || at < visit.checkInAt) fail(409, 'CHECK_OUT_DEADLINE_PASSED');
             const required = visit.snapshots?.checklistItemIds;
-            if (!Array.isArray(required) || !Array.isArray(visit.checklist) || required.length !== visit.checklist.length
+            assertWorkflowGate(visit, ['CHECK_IN', 'EXECUTION', 'CHECK_OUT']);
+            await workflow.verifyEvidence(visit, session);
+            if (!visit.snapshots?.workflow && (!Array.isArray(required) || !Array.isArray(visit.checklist) || required.length !== visit.checklist.length
               || required.some(id => !visit.checklist.some(row => row.itemId === id && ['DONE', 'SKIPPED'].includes(row.status)
-                && (row.status !== 'SKIPPED' || row.reason?.trim())))) fail(409, 'CHECKLIST_REQUIRED');
+                && (row.status !== 'SKIPPED' || row.reason?.trim()))))) fail(409, 'CHECKLIST_REQUIRED');
             await bindMedia(mediaId, visit, current, operation, session);
             fields = { state: 'COMPLETED', checkOutAt: at, completedAt: at };
           }
@@ -252,7 +260,9 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       actor(current, 'PET_SITTER');
       return unitOfWork.run(async session => {
         const { visit } = await visitContext(current, visitId, session);
+        if (visit.snapshots?.workflow && visit.handoverRequired && visit.handoverAccepted !== true) fail(409, 'HANDOVER_REQUIRED');
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
+          workflow: workflowProjection(visit),
           serviceName: visit.snapshots?.serviceName ?? null, completionAttention: visit.completionAttention?.code ?? null,
           closureOutcome: visit.closureVerification?.outcome ?? null,
           serverNow: now(), checkInOpensAt: new Date(+visit.startAt - CHECK_IN_EARLY_MS),

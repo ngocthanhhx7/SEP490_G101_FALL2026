@@ -1,0 +1,71 @@
+.care-workflow {
+  min-width: 0;
+  display: grid;
+  gap: 1rem;
+}
+.care-workflow label {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+}
+.care-workflow input:not([type='checkbox']),
+.care-workflow select,
+.care-workflow textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.5rem;
+  font: inherit;
+}
+.care-workflow-card {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.8rem;
+  display: grid;
+  gap: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.care-workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 0.75rem;
+}
+.care-workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.care-workflow-actions label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.care-workflow fieldset {
+  min-width: 0;
+  max-width: 100%;
+  display: grid;
+  gap: 0.75rem;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: 0.6rem;
+}
+.care-workflow progress {
+  width: 100%;
+  accent-color: var(--color-primary, #127c70);
+}
+.care-workflow :focus-visible {
+  outline: 3px solid var(--color-primary, #127c70);
+  outline-offset: 3px;
+}
+@media (max-width: 480px) {
+  .care-workflow-card {
+    padding: 0.65rem;
+  }
+  .care-workflow-actions > button {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+}

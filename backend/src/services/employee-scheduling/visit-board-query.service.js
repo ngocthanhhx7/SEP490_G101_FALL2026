@@ -2,7 +2,7 @@ import { NEEDS_ACTION_REASONS } from '../../validators/needs-action.validator.js
 
 export const VISIT_BOARD_FIELDS = { _id: 1, bookingId: 1, customerId: 1, sitterId: 1, state: 1, version: 1,
   startAt: 1, endAt: 1, areaCode: 1, checkInAt: 1, checkOutAt: 1, assignedAt: 1, withdrawalRequest: 1,
-  'dispatchReview.code': 1, 'snapshots.serviceName': 1, 'completionAttention.code': 1 };
+  incidentOpen: 1, workflowProgress: 1, 'dispatchReview.code': 1, 'snapshots.serviceName': 1, 'completionAttention.code': 1 };
 const MINUTE = 60000, HOUR = 60 * MINUTE;
 const and = (...conditions) => ({ $and: conditions });
 const eq = (left, right) => ({ $eq: [left, right] });
@@ -13,6 +13,7 @@ const regex = text => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 
 function candidateFilter(now) {
   return { $or: [
+    { state: { $in: ['ASSIGNED', 'IN_PROGRESS'] }, $or: [{ 'workflowProgress.blocked': true }, { incidentOpen: true }] },
     { state: 'SCHEDULED', sitterId: null, $or: [
       { startAt: { $lte: new Date(now + 24 * HOUR) } },
       { 'dispatchReview.code': { $exists: true, $nin: [null, '', 'SHIFT_START_REACHED'] } }
@@ -40,6 +41,7 @@ export function visitReasonStages(now) {
       pipeline: [{ $project: { carePlanState: 1, state: 1, paymentMode: 1, paymentState: 1, bookingCode: 1, code: 1 } }] } },
     { $set: { __booking: { $first: '$__booking' } } },
     { $set: { __codes: { $concatArrays: [
+      branch(and({ $in: ['$state', ['ASSIGNED', 'IN_PROGRESS']] }, { $or: [eq('$workflowProgress.blocked', true), eq('$incidentOpen', true)] }), 'WORKFLOW_BLOCKED'),
       branch(and(noSitter, { $ne: [{ $ifNull: ['$dispatchReview.code', null] }, null] },
         { $not: [{ $in: ['$dispatchReview.code', ['', 'SHIFT_START_REACHED']] }] }), 'NO_SITTER_TO_OFFER'),
       branch(and(noSitter, { $lte: ['$startAt', new Date(now + 24 * HOUR)] }), 'NO_SITTER_24H'),

@@ -1,3 +1,4 @@
+import { ServiceWorkflowBuilder } from './ServiceWorkflowBuilder.jsx';
 import { Pagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useMemo, useState } from 'react';
 import { Plus, RefreshCw, Pencil, Eye, Archive, CircleDollarSign, Percent, FileText } from 'lucide-react';
@@ -134,7 +135,7 @@ export function ServiceWorkspacePage({ apiRequest }) {
   const pages = Math.max(1, Math.ceil(filtered.length / size)), current = Math.min(page, pages);
   const open = (mode, service = null) => { setDialog({ mode, service }); setSuccess(false); };
   const close = () => setDialog(null), saved = () => { close(); setSuccess(true); setAnalyticsRevision(value => value + 1); resource.retry(); };
-  const titles = { create: 'Tạo dịch vụ', edit: 'Chỉnh sửa dịch vụ', archive: 'Lưu trữ dịch vụ', detail: 'Chi tiết dịch vụ', price: 'Giá dịch vụ', combo: 'Ưu đãi nhiều buổi', policy: 'Chính sách dịch vụ' };
+  const titles = { workflow: 'Quy trình thực hiện', create: 'Tạo dịch vụ', edit: 'Chỉnh sửa dịch vụ', archive: 'Lưu trữ dịch vụ', detail: 'Chi tiết dịch vụ', price: 'Giá dịch vụ', combo: 'Ưu đãi nhiều buổi', policy: 'Chính sách dịch vụ' };
   return <div className="workspace-page">
     <header className="workspace-page-heading"><div><h1>Dịch vụ và giá</h1><p>Danh mục chăm sóc, giá áp dụng và ưu đãi nhiều buổi.</p></div>
       <div className="workspace-heading-actions"><Button variant="secondary" onClick={resource.retry}><RefreshCw size={17} />Tải lại</Button><Button onClick={() => open('create')}><Plus size={18} />Tạo dịch vụ</Button></div></header>
@@ -153,7 +154,7 @@ export function ServiceWorkspacePage({ apiRequest }) {
             <td><strong>{row.name}</strong><small>{row.code}</small></td><td>{row.species.map(value => value === 'DOG' ? 'Chó' : 'Mèo').join(', ')}</td>
             <td><strong>{money(row.price?.amountVnd)}</strong><small>{row.price?.unitLabel}</small></td><td><span className={'workspace-status workspace-status--' + row.state}>{states[row.state]}</span></td>
             <td>v{row.version}<small>{date(row.effectiveAt)}</small></td><td><RowActionMenu label={'Thao tác ' + row.name}
-              actions={[[ 'detail', Eye, 'Xem chi tiết'], ['edit', Pencil, 'Chỉnh sửa'], ['price', CircleDollarSign, 'Cập nhật giá'], ['combo', Percent, 'Ưu đãi nhiều buổi'], ['policy', FileText, 'Chính sách'], ['archive', Archive, 'Lưu trữ']].map(([mode, icon, label]) =>
+              actions={[[ 'detail', Eye, 'Xem chi tiết'], ['edit', Pencil, 'Chỉnh sửa'], ['price', CircleDollarSign, 'Cập nhật giá'], ['combo', Percent, 'Ưu đãi nhiều buổi'], ['policy', FileText, 'Chính sách'], ['workflow', FileText, 'Quy trình thực hiện'], ['archive', Archive, 'Lưu trữ']].map(([mode, icon, label]) =>
                 ({ label, icon, disabled: mode === 'archive' && row.state === 'ARCHIVED', onClick: () => open(mode, row) }))} /></td></tr>)}
             {!filtered.length && <tr><td colSpan={6} className="workspace-empty">Không có dịch vụ phù hợp</td></tr>}
           </tbody></table></div>
@@ -165,6 +166,7 @@ export function ServiceWorkspacePage({ apiRequest }) {
       {dialog && <div key={dialog.mode + (dialog.service?.id ?? 'new')}>
         {['create', 'edit', 'archive'].includes(dialog.mode) && <ServiceEditor service={dialog.service} mode={dialog.mode} request={request} onSaved={saved} onClose={close} />}
         {['price', 'combo'].includes(dialog.mode) && <VersionEditor service={dialog.service} mode={dialog.mode} request={request} onSaved={saved} />}
+        {dialog.mode === 'workflow' && <ServiceWorkflowBuilder service={dialog.service} request={request} />}
         {dialog.mode === 'policy' && <PolicyEditor service={dialog.service} request={request} onSaved={saved} />}
         {dialog.mode === 'detail' && <div className="workspace-form"><h3>{dialog.service.name}</h3><p>{dialog.service.description}</p><h4>Phạm vi chăm sóc</h4><p>{dialog.service.scope}</p>
           <h4>{dialog.service.policy?.title ?? 'Chưa xuất bản chính sách'}</h4><p>{dialog.service.policy?.body}</p><p>Giá hiệu lực: {money(dialog.service.price?.amountVnd)}</p></div>}

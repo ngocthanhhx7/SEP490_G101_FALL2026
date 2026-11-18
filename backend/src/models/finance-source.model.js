@@ -13,7 +13,7 @@ export function financeSourceModels(connection, { legacyTasks = false } = {}) {
     lastCode: String, updatedAt: { type: Date, required: true } }, options);
   task.index({ state: 1, nextAttemptAt: 1 });
   const binding = new Schema({ _id: String, visitId: { type: String, required: true },
-    kind: { type: String, enum: ['CHECK_IN', 'CHECK_OUT'], required: true }, ownerId: String,
+    kind: { type: String, required: true, validate: value => ['CHECK_IN', 'CHECK_OUT'].includes(value) || /^WF:[a-z][a-z0-9-]{0,39}:(visit|[a-f0-9]{24}):[a-z][a-z0-9-]{0,39}:[0-2]$/.test(value) }, ownerId: String,
     contentDigest: String, createdAt: { type: Date, required: true } }, options);
   binding.index({ visitId: 1, kind: 1 }, { unique: true });
   return {

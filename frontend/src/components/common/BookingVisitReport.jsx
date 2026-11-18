@@ -1,3 +1,4 @@
+import { CareWorkflowReport } from './CareWorkflowReport.jsx';
 import { useState } from 'react';
 import { Button, Dialog } from '../ui/index.js';
 import { VisitEvidencePreview } from './VisitEvidencePreview.jsx';
@@ -12,6 +13,7 @@ export function BookingVisitReport({ visit, readEvidence }) {
         <p>Người chăm sóc: {visit.sitterName ?? 'Chưa phân công'}</p>
         <dl><dt>Check-in thực tế</dt><dd>{date(visit.checkInAt)}</dd><dt>Check-out thực tế</dt><dd>{date(visit.checkOutAt)}</dd></dl>
         <h3>Nội dung chăm sóc đã ghi nhận</h3>
+        {visit.workflow && <CareWorkflowReport workflow={visit.workflow} readEvidence={readEvidence} />}
         {visit.checklist?.length ? <ul>{visit.checklist.map(item => <li key={item.itemId}>
           <strong>{item.label}</strong><p>{item.status === 'DONE' ? 'Đã thực hiện' : item.status === 'SKIPPED' ? 'Không thực hiện' : 'Chưa ghi nhận'}{item.reason ? ` · ${item.reason}` : ''}</p>
         </li>)}</ul> : <p>Người chăm sóc chưa lưu checklist cho buổi này.</p>}

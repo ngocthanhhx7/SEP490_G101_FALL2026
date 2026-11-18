@@ -27,3 +27,5 @@ values are reflected. Existing 422 codes and domain guards remain authoritative.
 `counter-sale.validator.js` chặn field lạ, sản phẩm lặp, quantity ngoài 1–99, quá 30 dòng, search quá 100, contact quá 254 ký tự. Preview cho phép draft rỗng; create cần ít nhất một dòng. Chuẩn hoá/tra liên hệ và kiểm Customer còn hoạt động thuộc service.
 
 `sitter-capability.validator.js` bounds verified skill DTOs; `sitter-origin.validator.js` checks an employee day pin and same-day future interval. Authorization, contracts and concurrency stay in services.
+
+`service-workflow.validator.js` bounds step/slot/field definitions, rejects unknown client fields, enforces publish branch coverage and prohibits unsafe skip rules. Applicability uses only enumerated values.
