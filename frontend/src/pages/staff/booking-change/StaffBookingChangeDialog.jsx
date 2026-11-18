@@ -31,7 +31,7 @@ function SitterAvailability({ items }) {
     <p>{items.length === 1 && items[0].availability === 'AVAILABLE' && items[0].sitterName
       ? 'Nếu duyệt, ' + items[0].sitterName + ' giữ buổi ở giờ mới.'
       : 'Nếu duyệt, người chăm sóc rảnh giữ buổi ở giờ mới.'}
-      {' '}Người chăm sóc bận giờ mới thì buổi được mời người khác.</p>
+      {' '}Nếu cần người thay, buổi được đưa về điều phối. Lịch chỉ định cần khách xác nhận trước khi mời người thay.</p>
   </section>;
 }
 
