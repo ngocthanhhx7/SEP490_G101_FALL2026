@@ -1,6 +1,6 @@
 # Service workflow: audit and additive storage plan
 
-Baseline: develop `692c2521e0e693451c4b0180f274b98ee068efe4`, main/live `8c53c0c2a4f896f287ddac50d943760a430371b2`. Read-only EC2 inspection on 18 November 2026: readiness 200, green 3001, 85 collections, 15 services, 5 visits, zero workflow snapshots. Existing indexes inspected on services, serviceversions, visits, privateimages, caremediabindings and scheduling command/event stores. No production mutation.
+Baseline: develop `692c2521e0e693451c4b0180f274b98ee068efe4`, main/live `8c53c0c2a4f896f287ddac50d943760a430371b2`. Read-only EC2 inspection on 18 November 2026: readiness 200, green 3001, 85 collections, 15 services, 5 visits, zero workflow snapshots. Existing indexes inspected on services, serviceversions, visits, privateimages, caremediabindings and scheduling command/event stores. No production mutation. Implementation was subsequently integrated with reviewed develop `d76e5e548c3c6094c4e5f22081c4cc02dab57b39` (booking changes); rescheduling preserves workflow snapshots/results and serializes on the same Visit version.
 
 | Capability         | Baseline source                                                         | Gap / integration                                                                     |
 | ------------------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |

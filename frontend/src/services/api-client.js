@@ -81,7 +81,6 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       if (!response.ok) {
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
           missingTasks: envelope?.error?.missingTasks, fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
-          fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
           reasonCode: envelope?.error?.reasonCode, state: envelope?.error?.state,
           available: envelope?.error?.available, productId: envelope?.error?.productId,
           time: envelope?.error?.time, pet: envelope?.error?.pet,

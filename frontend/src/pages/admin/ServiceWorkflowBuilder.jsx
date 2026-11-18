@@ -26,6 +26,7 @@ export function ServiceWorkflowBuilder({ service, request }) {
   const api = useMemo(() => createServiceWorkflowApi(request), [request]);
   const load = useCallback((options) => api.read(service.id, options), [api, service.id]),
     resource = useApiResource(load);
+  const [historyError, setHistoryError] = useState(false);
   const [editing, setEditing] = useState(null),
     [preview, setPreview] = useState(false),
     [history, setHistory] = useState(null);
@@ -445,6 +446,7 @@ export function ServiceWorkflowBuilder({ service, request }) {
         </ol>
       )}
       <h4>Lịch sử xuất bản</h4>
+      {historyError && <p role="alert">Chưa tải được lịch sử. Thử lại trang phiên bản cũ hơn.</p>}
       {(history?.history ?? row.history).map((item) => (
         <article key={item.revision}>
           <p>
@@ -459,13 +461,18 @@ export function ServiceWorkflowBuilder({ service, request }) {
           </Button>
         </article>
       ))}
-      {(history?.nextCursor ?? row.nextCursor) && (
+      {(history ?? row).nextCursor && (
         <Button
           variant="ghost"
           disabled={locked}
           onClick={async () => {
-            const result = await api.read(service.id, {}, history?.nextCursor ?? row.nextCursor);
-            setHistory(result.data);
+            try {
+              const result = await api.read(service.id, {}, (history ?? row).nextCursor);
+              setHistory(result.data);
+              setHistoryError(false);
+            } catch {
+              setHistoryError(true);
+            }
           }}
         >
           Xem phiên bản cũ hơn

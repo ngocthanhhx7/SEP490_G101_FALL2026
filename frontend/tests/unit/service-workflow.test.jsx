@@ -69,12 +69,10 @@ test('builder saves configurable draft, keyboard order and published history cop
       { ...step, stepId: 'second', title: 'Bước hai' }
     ]
   };
-  const request = jest
-    .fn()
-    .mockResolvedValue({
-      status: 200,
-      data: { serviceId, revision: 0, draft: definition, published: null, history: [], nextCursor: null }
-    });
+  const request = jest.fn().mockResolvedValue({
+    status: 200,
+    data: { serviceId, revision: 0, draft: definition, published: null, history: [], nextCursor: null }
+  });
   render(<ServiceWorkflowBuilder service={{ id: serviceId, name: 'Dịch vụ' }} request={request} />);
   fireEvent.click(await screen.findByRole('button', { name: 'Đưa bước 2 lên' }));
   expect(screen.getByLabelText('Tên bước 1')).toHaveValue('Bước hai');
@@ -140,11 +138,9 @@ test('report renders only the authorized projected tasks and legacy is explicit'
 });
 test('staff review sends reason/current version and never fabricates completion', async () => {
   const api = {
-    visitWorkflow: jest
-      .fn()
-      .mockResolvedValue({
-        data: { ...workflow, version: 4, state: 'IN_PROGRESS', tasks: [{ ...task, status: 'BLOCKED' }] }
-      }),
+    visitWorkflow: jest.fn().mockResolvedValue({
+      data: { ...workflow, version: 4, state: 'IN_PROGRESS', tasks: [{ ...task, status: 'BLOCKED' }] }
+    }),
     reviewWorkflow: jest.fn().mockResolvedValue({ data: { visitId, version: 5, state: 'IN_PROGRESS' } })
   };
   render(<VisitWorkflowReview visitId={visitId} api={api} onClose={() => {}} />);
@@ -169,4 +165,29 @@ test('transport rejects incomplete acknowledgement instead of reporting saved pr
   await expect(api.template(serviceId, 'publications', { expectedVersion: 2 }, 'operation-key')).rejects.toMatchObject({
     code: 'INVALID_RESPONSE'
   });
+});
+
+test('version history stops on the final page instead of reusing the first cursor', async () => {
+  const definition = { title: 'History workflow', steps: [] };
+  const request = jest
+    .fn()
+    .mockResolvedValueOnce({
+      status: 200,
+      data: { serviceId, revision: 22, draft: definition, published: null, history: [], nextCursor: '3' }
+    })
+    .mockResolvedValueOnce({
+      status: 200,
+      data: {
+        serviceId,
+        revision: 22,
+        draft: definition,
+        published: null,
+        history: [{ revision: 2, action: 'PUBLISHED', definition }],
+        nextCursor: null
+      }
+    });
+  render(<ServiceWorkflowBuilder service={{ id: serviceId, name: 'Dịch vụ' }} request={request} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Xem phiên bản cũ hơn' }));
+  await screen.findByRole('button', { name: 'Sao chép phiên bản 2 thành bản nháp' });
+  expect(screen.queryByRole('button', { name: 'Xem phiên bản cũ hơn' })).not.toBeInTheDocument();
 });
