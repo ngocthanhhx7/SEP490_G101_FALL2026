@@ -1,40 +1,39 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarDays, PawPrint, ShoppingBag, UserRound } from 'lucide-react';
-import { useSession } from '../../contexts/SessionContext.jsx';
-import './phone-home.css';
+import { ArrowDownToLine, ChevronRight, FileText, LifeBuoy, LogIn, MapPin, ShoppingBag } from 'lucide-react';
+import { useInstallGuideOffer } from '../../hooks/useWebAppInstall.js';
+import { MobileServiceChoices } from './MobileServiceChoices.jsx';
 
-export function PhoneHomePage() {
-  const { status } = useSession();
-  const signedIn = status === 'authenticated';
+export function PhoneHomePage({ loadCatalog }) {
+  const showInstallGuide = useInstallGuideOffer();
 
-  return <section className="pwc-phone-home" aria-labelledby="pwc-phone-home-title">
-    <div className="pwc-phone-home__hero">
-      <div>
-        <h1 id="pwc-phone-home-title">Bé cần chăm sóc gì?</h1>
-        <p>Chọn dịch vụ và đặt lịch cho bé.</p>
-        <Link to="/services" className="pwc-phone-home__primary">Chọn dịch vụ <ArrowRight size={17} aria-hidden="true" /></Link>
-      </div>
-      <img src="/assets/figma-public/home-Image656.webp" alt="" fetchPriority="high" />
+  return <div className="pwc-phone-home">
+    <MobileServiceChoices as="h1" loadCatalog={loadCatalog} />
+
+    <div className="pwc-phone-home__secondary">
+      <Link className="pwc-phone-home__row" to="/service-areas">
+        <MapPin size={20} aria-hidden="true" />
+        <span>Kiểm tra khu vực phục vụ</span>
+        <ChevronRight size={18} aria-hidden="true" />
+      </Link>
+      <p className="pwc-phone-home__resume">
+        <span>Đã có lịch hẹn?</span>
+        <Link className="pwc-phone-home__button pwc-phone-home__button--resume" to="/sign-in" state={{ from: '/account/bookings' }}>
+          <LogIn size={17} aria-hidden="true" /> Đăng nhập để theo dõi
+        </Link>
+      </p>
+      <Link className="pwc-phone-home__row" to="/products">
+        <ShoppingBag size={20} aria-hidden="true" />
+        <span><strong>Đồ dùng cho bé</strong><small>Thức ăn và phụ kiện</small></span>
+        <ChevronRight size={18} aria-hidden="true" />
+      </Link>
     </div>
 
-    <section className="pwc-phone-home__section" aria-labelledby="pwc-phone-shortcuts-title">
-      <h2 id="pwc-phone-shortcuts-title">Truy cập nhanh</h2>
-      <div className="pwc-phone-home__shortcuts">
-        {signedIn ? <>
-          <Link to="/account/bookings"><CalendarDays aria-hidden="true" /> Lịch của tôi</Link>
-          <Link to="/account/pets"><PawPrint aria-hidden="true" /> Thú cưng</Link>
-        </> : <>
-          <Link to="/sign-in"><UserRound aria-hidden="true" /> Đăng nhập</Link>
-          <Link to="/register"><PawPrint aria-hidden="true" /> Tạo tài khoản</Link>
-        </>}
-        <Link to="/products"><ShoppingBag aria-hidden="true" /> Cửa hàng</Link>
-      </div>
-    </section>
-
     <nav className="pwc-phone-home__support" aria-label="Hỗ trợ và chính sách">
-      <Link to="/contact">Hỗ trợ</Link>
-      <Link to="/policies">Chính sách</Link>
-      <Link to="/install">Cài ứng dụng</Link>
+      <Link className="pwc-phone-home__button" to="/contact"><LifeBuoy size={17} aria-hidden="true" /> Hỗ trợ</Link>
+      <Link className="pwc-phone-home__button" to="/policies"><FileText size={17} aria-hidden="true" /> Chính sách</Link>
+      {showInstallGuide && <Link className="pwc-phone-home__button" to="/install">
+        <ArrowDownToLine size={17} aria-hidden="true" /> Cài ứng dụng
+      </Link>}
     </nav>
-  </section>;
+  </div>;
 }

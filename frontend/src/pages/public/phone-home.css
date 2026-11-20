@@ -1,53 +1,94 @@
+.pwc-phone-app:is([data-route="M31"], [data-route="M04"]) { --pwc-tab-height: max(62px, 3.875rem); }
+
+/* The phone shell supplies the viewport height and bottom tab clearance. */
+.pwc-phone-app[data-route="M31"] > .pwc-public-root { min-height: 0; background: transparent; }
+
 .pwc-phone-home {
   display: grid;
-  gap: 1.3rem;
+  gap: 1rem;
   max-width: 36rem;
   margin-inline: auto;
-  padding: 1rem max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
+  padding: 1rem 1rem 1.5rem;
   color: #2c0050;
 }
-.pwc-phone-home__hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 39%;
-  gap: .5rem;
-  align-items: center;
-  min-height: 11.5rem;
-  padding: 1rem;
-  border-radius: 1.4rem;
-  background: #f1e4ff;
+
+.pwc-phone-services { min-width: 0; }
+.pwc-phone-services > :is(h1, h2) {
+  margin: 0 0 .75rem;
+  font: 850 1.4rem/1.25 var(--pwc-font-body);
+  overflow-wrap: anywhere;
 }
-.pwc-phone-home__hero h1 { margin: 0; font: 850 clamp(1.3rem, 5.7vw, 2.1rem)/1.14 var(--pwc-font-body); }
-.pwc-phone-home__hero p { margin: .5rem 0 .8rem; font-size: .9rem; }
-.pwc-phone-home__hero img { width: 100%; aspect-ratio: .9; object-fit: cover; border-radius: 1.15rem; }
-.pwc-phone-home__primary {
+
+.pwc-phone-services__list { display: grid; gap: .55rem; list-style: none; margin: 0; padding: 0; }
+.pwc-phone-services__card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .65rem;
+  padding: .55rem;
+  border: 1px solid #e8dcee;
+  border-radius: .9rem;
+  background: #fff;
+  color: #2c0050;
+  text-decoration: none;
+}
+.pwc-phone-services__card img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: .65rem;
+  background: #f1e6fa;
+}
+.pwc-phone-services__copy { display: grid; gap: .15rem; line-height: 1.25; overflow-wrap: anywhere; }
+.pwc-phone-services__copy strong { font-size: 1rem; font-weight: 850; text-wrap: balance; }
+.pwc-phone-services__copy > span { font-size: .875rem; color: #60476f; }
+.pwc-phone-services__copy b { font-size: .9rem; color: #532679; }
+.pwc-phone-services__card > svg, .pwc-phone-home__row > svg:last-child { color: #70458b; }
+
+.pwc-phone-home__row {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  min-height: 48px;
+  padding: .6rem .7rem;
+  border-radius: .75rem;
+  background: #f3e9fa;
+  color: #2c0050;
+  font-weight: 750;
+  line-height: 1.3;
+  text-decoration: none;
+}
+.pwc-phone-home__row > :last-child { margin-inline-start: auto; flex-shrink: 0; }
+.pwc-phone-home__row > svg { flex-shrink: 0; }
+.pwc-phone-home__row small { display: block; margin-top: .15rem; color: #60476f; font-size: .875rem; font-weight: 400; }
+.pwc-phone-home__all { margin-top: .45rem; background: transparent; padding-inline: .2rem; }
+.pwc-phone-home__secondary { display: grid; gap: .6rem; }
+.pwc-phone-home__resume {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .35rem .65rem;
+  margin: 0;
+  padding-inline: .2rem;
+  font-size: .9rem;
+}
+.pwc-phone-home__support { display: flex; flex-wrap: wrap; gap: .5rem; }
+.pwc-phone-home .pwc-phone-home__button {
   display: inline-flex;
   align-items: center;
-  gap: .3rem;
-  min-height: 44px;
-  padding-inline: .7rem;
-  border-radius: .85rem;
-  background: #ffce3a;
-  color: #2c0050;
-  font-weight: 850;
-  font-size: .82rem;
-  text-decoration: none;
-}
-.pwc-phone-home__section h2 { margin: 0 0 .65rem; font-size: 1.13rem; }
-.pwc-phone-home__shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
-.pwc-phone-home__shortcuts a {
-  display: grid;
-  justify-items: center;
-  align-content: center;
   gap: .4rem;
-  min-height: 78px;
-  padding: .3rem;
-  border: 1px solid #eee5f5;
-  border-radius: 1rem;
+  min-height: 48px;
+  max-width: 100%;
+  padding: .45rem .75rem;
+  border: 1px solid #d9c8e7;
+  border-radius: 999px;
   background: #fff;
-  color: #42175f;
+  color: #532679;
+  font-size: .875rem;
   font-weight: 800;
-  font-size: .77rem;
+  line-height: 1.25;
   text-decoration: none;
-  text-align: center;
 }
-.pwc-phone-home__support { display: flex; gap: 1.2rem; font-size: .86rem; }
+.pwc-phone-home .pwc-phone-home__button--resume { background: #f3e9fa; color: #3f1461; }
+.pwc-phone-home__button > svg { flex: none; }
