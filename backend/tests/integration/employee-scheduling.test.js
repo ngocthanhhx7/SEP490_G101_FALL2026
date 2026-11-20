@@ -26,6 +26,8 @@ import { financeSourceRuntime } from '../../src/routes/finance-source-runtime.js
 import sharp from 'sharp';
 import { privateImageModule } from '../../src/routes/private-image.routes.js';
 import { privateImageModels } from '../../src/models/private-image.model.js';
+import { createPrivateImageService } from '../../src/services/private-image.service.js';
+import { createTrainingDatasetExporter } from '../../src/services/ai-training/dataset-export.service.js';
 import { requireSession, requireCsrf } from '../../src/middlewares/session.js';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 
@@ -694,9 +696,11 @@ test('failed automatic dispatch persists bounded reasons and never broadens a ci
 });
 
 
-test('operational AI captures real decision features for a newcomer without inventing a rating or changing eligibility', async () => {
+test('ranked HOME assignment produces one exportable observation only after completed care and customer rating', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-10-31T02:00:00Z', requestedSitterId: sitter.userId });
-  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { location: 'HOME' } });
+  await connection.collection('visits').updateOne({ _id: row._id }, {
+    $set: { location: 'HOME', 'snapshots.checklistItemIds': ['pet-condition'] }
+  });
   const { matchingModels } = await import('../../src/models/sitter-matching.model.js');
   const matching = matchingModels(connection);
   await matching.SitterRankingPolicy.create({ version: 1, status: 'APPROVED', effectiveAt: new Date('2026-01-01'), approvedAt: new Date('2026-01-01'),
@@ -713,6 +717,59 @@ test('operational AI captures real decision features for a newcomer without inve
   expect(assigned.assignedFeatureSnapshot.features).toEqual(offer.featureSnapshot.features);
   expect(assigned.assignedFeatureSnapshot.sitterId).toBe(sitter.userId);
   expect(await matching.SitterVisitOutcome.countDocuments({ sitterId: new mongoose.Types.ObjectId(sitter.userId) })).toBe(0);
+
+  let at = row.startAt.getTime();
+  const replayClock = () => at;
+  const exporter = createTrainingDatasetExporter({ connection, clock: replayClock });
+  const exportOptions = { key: 'isolated-replay-example-pseudonym-key' };
+  const before = await exporter.collect(exportOptions);
+  const finance = createBookingFinanceSourceService({ connection, clock: () => new Date(at) });
+  const stored = new Map();
+  const images = createPrivateImageService({ connection, secret: 'isolated-replay-example-media-key', media: {
+    upload: async image => stored.set(image.storageRef, image),
+    read: async ({ storageRef }) => stored.get(storageRef)
+  } });
+  for (const model of Object.values(privateImageModels(connection))) { await model.createCollection(); await model.createIndexes(); }
+  const bytes = await sharp({ create: { width: 4, height: 4, channels: 3, background: '#33885f' } }).png().toBuffer();
+  const upload = async suffix => (await images.upload({
+    actor: sitter, body: bytes, contentType: 'image/png', idempotencyKey: `demo-replay-image-${suffix}`
+  })).id;
+  const visitId = String(row._id);
+  const input = { actor: sitter, visitId };
+  const started = await finance.checkIn({
+    ...input, expectedVersion: assigned.version, mediaId: await upload('arrival'), idempotencyKey: 'demo-replay-arrival'
+  });
+  const checklist = await finance.updateChecklist({
+    ...input, expectedVersion: started.version, items: [{ itemId: 'pet-condition', status: 'DONE' }],
+    idempotencyKey: 'demo-replay-checklist'
+  });
+  at = row.endAt.getTime();
+  const completed = await finance.checkOut({
+    ...input, expectedVersion: checklist.version, mediaId: await upload('departure'), idempotencyKey: 'demo-replay-departure'
+  });
+  expect(stored.size).toBe(2);
+  expect(completed.state).toBe('COMPLETED');
+  expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('COMPLETED');
+  expect((await exporter.collect(exportOptions)).summary.eligibleRows).toBe(before.summary.eligibleRows);
+
+  at += 60000;
+  reviewNow = at;
+  const rate = () => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
+    .set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+    .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'demo-replay-customer-rating')
+    .send({ rating: 4, expectedVersion: completed.version }).expect(201);
+  const accepted = await rate();
+  expect((await rate()).body.data).toEqual(accepted.body.data);
+  const after = await exporter.collect(exportOptions);
+  const priorIds = new Set(before.rows.map(item => item.observationId));
+  const newRows = after.rows.filter(item => !priorIds.has(item.observationId));
+  expect(after.summary.eligibleRows).toBe(before.summary.eligibleRows + 1);
+  expect(after.summary.bookingGroups).toBe(before.summary.bookingGroups + 1);
+  expect(newRows).toEqual([expect.objectContaining({
+    features: assigned.assignedFeatureSnapshot.features, rating: 4, targetScore: 75,
+    decisionAt: new Date(clock()).toISOString(), occurredAt: new Date(at).toISOString()
+  })]);
+  expect(after.summary.readyForTraining).toBe(false);
 });
 
 test('operational advice may reorder the complete eligible set but cannot add or remove employees', async () => {

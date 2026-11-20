@@ -29,3 +29,22 @@ test('uncertain model review freezes the selected version and retries the identi
   expect(api.reviewModel.mock.calls[0]).toEqual(api.reviewModel.mock.calls[1]);
   expect(await screen.findByText('Model synthetic-draft-v1')).toBeInTheDocument();
 });
+
+test('runs server-side model demo when requested and renders both rankings apart from current rules', async () => {
+  const model = { version: 'demo-v1', source: 'SIMULATION_ONLY', trainingRows: 372, testRows: 93,
+    testMae: 25.63, trainingBaselineMae: 28.59, constantMae: 24.19, weights: { travel: 0 } };
+  const api = { status: jest.fn().mockResolvedValue({ data: status() }),
+    runDemo: jest.fn().mockResolvedValue({ data: {
+      model, candidates: [{ id: 'A', score: 78.1, rank: 1 }, { id: 'B', score: 71.9, rank: 2 }],
+      baseline: { policyVersion: 1, candidates: [{ id: 'B', score: 66.8, rank: 1 }, { id: 'A', score: 55.3, rank: 2 }] }
+    } }), importModel: jest.fn(), reviewModel: jest.fn() };
+  render(<AiModelsPage api={api} />);
+  const button = await screen.findByRole('button', { name: 'Chạy model thử nghiệm' });
+  expect(api.runDemo).not.toHaveBeenCalled();
+  fireEvent.click(button);
+  expect(await screen.findByRole('table', { name: 'Điểm và thứ hạng theo từng bộ trọng số' })).toBeInTheDocument();
+  expect(screen.getByRole('rowheader', { name: 'A' }).closest('tr')).toHaveTextContent('A78,1155,32');
+  expect(screen.getByText('Bộ quy tắc giải thích được')).toBeInTheDocument();
+  expect(api.importModel).not.toHaveBeenCalled();
+  expect(api.reviewModel).not.toHaveBeenCalled();
+});

@@ -35,3 +35,8 @@ self-declared model. HTTP composition stays in the existing AI routes/controller
 See [offline tools](../../../scripts/ai/README.md) for export/train/import steps.
 
 Customer-facing recommendation requests reject Customers with an owned COMPLETED care visit. This does not change the operational invitation ranker or its authoritative eligibility gates. The owner’s products, uncompleted visits and other owners’ visits do not establish completed care history.
+
+`model-demo.service.js` compares the fitted simulation weights with the current
+approved policy using the same scorer and two fixed candidate profiles. It reads
+the existing policy. The demonstration has no writes and does not participate in
+operational matching or model approval.
