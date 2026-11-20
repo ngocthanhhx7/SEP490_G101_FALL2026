@@ -7,7 +7,7 @@ const customer = [['Hồ sơ của tôi', '/account/profile'], ['Địa chỉ', 
   ['Cửa hàng', '/products'], ['Đơn mua hàng', '/customer/product-orders'], ['Giỏ hàng', '/customer/cart'],
   ['Hồ sơ ứng tuyển', '/sitter/application-status'], ['Hỗ trợ', '/contact']];
 const sitter = [['Hồ sơ Pet Sitter', '/sitter/profile'], ['Hồ sơ công khai', '/sitter/public-profile'],
-  ['Khu vực làm việc', '/sitter/work-areas'], ['Giờ nhận việc', '/sitter/availability'], ['Sự cố', '/incidents']];
+  ['Khu vực làm việc', '/sitter/work-areas'], ['Giờ nhận việc', '/sitter/availability'], ['Sự cố', '/incidents'], ['Hỗ trợ', '/contact']];
 
 export function MobileAccountHub({ role, user, logout }) {
   const [busy, setBusy] = useState(false);

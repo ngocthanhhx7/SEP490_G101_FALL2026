@@ -4,13 +4,15 @@ Các đường dẫn dưới đây có tiền tố `/api/v1`. Module dùng phiê
 
 | Lệnh | Quyền | Input và kết quả |
 | --- | --- | --- |
-| `GET /bookings/:bookingId/change-options` | Chủ booking | Trả `serverNow`, `canChangeBooking`, `slotNumbers` và buổi tương lai có `canSelect`, `keepsOldTime`, giờ, người chăm sóc, giá đã lưu. Lịch lưu trú và lịch chưa đủ điều kiện trả `canChangeBooking: false`. |
+| `GET /bookings/:bookingId/change-options` | Chủ booking | Trả `serverNow`, `canChangeBooking`, `slotNumbers` và buổi tương lai có `canSelect`, `keepsOldTime`, `pendingChange`, giờ, người chăm sóc, giá đã lưu. `unavailableReason` giải thích khi lịch chưa đủ điều kiện. |
 | `POST /bookings/:bookingId/change-requests` | Chủ booking | Một buổi gửi `scope: VISIT`, `visitId` và `startAt` có múi giờ. Cả lịch gửi `scope: BOOKING`, `firstDay` theo `YYYY-MM-DD` và `times` theo thứ tự `slotNumbers` với giờ Việt Nam `HH:mm`. Trả 201 và `MSG53`. |
 | `GET /staff/booking-change-requests` | Staff/Admin | Danh sách chờ theo hạn, lọc tùy chọn `bookingId`, `limit` tối đa 50 và `cursor`. `nextCursor` đi tiếp qua dữ liệu đang được đối chiếu hạn. |
 | `GET /staff/booking-change-requests/:id` | Staff/Admin | Trả booking, khách, giờ gửi, hạn, giá, giờ cũ/mới và `AVAILABLE`, `BUSY`, `UNASSIGNED` hoặc `CHANGED` cho các buổi chờ. |
 | `POST /staff/booking-change-requests/:id/decision` | Staff/Admin | Gửi `action: APPROVE\|REJECT` và `expectedVersion`. Trả 200 và `MSG126` hoặc `MSG127`. |
 
 Booking đủ điều kiện thuộc `DISPATCH_PENDING`, `ASSIGNED` hoặc `IN_PROGRESS`, với kế hoạch chăm sóc đã duyệt. Booking trả trước cần biên nhận xác minh đủ tiền. Khi gửi cả lịch, buổi chưa bắt đầu còn dưới 24 giờ giữ giờ cũ và vẫn tham gia kiểm lịch. Thời lượng và giá lấy từ dữ liệu đã chốt. Trạng thái yêu cầu gồm `PENDING`, `APPROVED`, `REJECTED`, `EXPIRED` và `CLOSED`. Hạn bằng giờ sớm nhất giữa giờ cũ và mới trừ 6 giờ, tính lại khi buổi bị huỷ rời yêu cầu.
+
+`unavailableReason` là `BOOKING_STATE`, `CARE_PLAN`, `BOARDING`, `PAYMENT`, `NO_REMAINING_VISIT`, `LEAD_TIME` hoặc `null`. `pendingChange` phản ánh yêu cầu còn hạn đang chờ duyệt cho buổi. API gửi yêu cầu vẫn xác minh lại quyền, trạng thái và lịch.
 
 | Mã | Kết quả |
 | --- | --- |

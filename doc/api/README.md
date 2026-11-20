@@ -11,3 +11,9 @@ Thư mục chứa hợp đồng REST, DTO/events, quyền và lỗi để review
 - [Employee scheduling, checkout and dispatch](employee-scheduling-checkout.md).
 - [Google Maps / Goong setup](../deployment/google-goong-maps.md).
 - [Product sales API v1: catalog, cart and Customer product orders](product-sales-v1.md).
+
+## Đọc chính sách
+
+- `GET /api/v1/public/public-policies` trả các phiên bản hiện hành có đủ dấu vết phê duyệt. Danh sách rỗng trả 200. Khi kho chính sách không khả dụng vì thiếu kết nối cấu hình, API trả 503.
+- `GET /api/v1/public/public-policies/:slug/:version` trả bản đã đến ngày hiệu lực và có dấu vết phê duyệt, kể cả bản đã lưu trữ. `archived` và `currentVersionId` mô tả quan hệ với bản hiện hành. Phiên bản nháp, chưa đến ngày hiệu lực hoặc không tồn tại trả 404 `POLICY_VERSION_NOT_FOUND`.
+- `GET /api/v1/checkout/bookings/:bookingId` giữ kiểm tra quyền chủ lịch. `details.servicePolicies` chứa phiên bản, tiêu đề, nội dung và số buổi theo bản chụp lúc chấp thuận. Lịch cũ thiếu bản chụp trả mảng rỗng.

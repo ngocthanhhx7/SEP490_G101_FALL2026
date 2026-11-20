@@ -39,7 +39,7 @@ test('default registration cannot accept unpublished policies or send registrati
   expect(screen.getByRole('button', { name: 'Đăng ký', exact: true })).toBeDisabled();
   fireEvent.submit(screen.getByRole('button', { name: 'Đăng ký', exact: true }).closest('form'));
   expect(screen.getByRole('alert')).toHaveTextContent('Chính sách chưa sẵn sàng');
-  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms/draft-v1');
+  expect(screen.getByRole('link', { name: 'Điều khoản sử dụng tài khoản' })).toHaveAttribute('href', '/policies/terms');
 });
 
 test.each(['/admin/services', '/admin/service-prices', '/admin/system-settings', '/admin/sitter-applications',

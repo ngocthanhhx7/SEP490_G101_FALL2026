@@ -233,7 +233,7 @@ describe('UC-84 customer requests', () => {
     const record = await booking([BASE + DAY - MINUTE]);
     const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
     expect(options).toMatchObject({
-      canChangeBooking: false, slotNumbers: [], visits: [{ canSelect: false, keepsOldTime: true }]
+      canChangeBooking: false, unavailableReason: 'LEAD_TIME', slotNumbers: [], visits: [{ canSelect: false, keepsOldTime: true }]
     });
     const result = await submit(record, whole('2030-01-06', '08:00')).expect(422);
     expect(result.body.error).toMatchObject({ code: 'MSG54', message: LEAD_MESSAGE });
@@ -274,6 +274,11 @@ describe('UC-84 customer requests', () => {
     const record = await booking([BASE + DAY, BASE + 2 * DAY]);
     const payload = single(record.visits[0], BASE + 3 * DAY), key = 'replay-same-booking-change';
     const first = (await submit(record, payload, owner, key).expect(201)).body.data;
+    const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
+    expect(options.visits).toMatchObject([
+      { id: String(record.visits[0]._id), pendingChange: true },
+      { id: String(record.visits[1]._id), pendingChange: false }
+    ]);
     const replay = (await submit(record, payload, owner, key).expect(201)).body.data;
     expect(replay).toEqual(first);
     expect(errorCode(await submit(record, whole('2030-01-06', '09:00')).expect(409))).toBe('MSG149');

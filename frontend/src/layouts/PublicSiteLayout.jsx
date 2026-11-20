@@ -28,7 +28,9 @@ export function PublicSiteLayout() {
     main.current?.focus({ preventScroll: true });
   }, [location.pathname, location.hash]);
 
-  if (location.pathname !== '/sign-in' && session.status === 'authenticated' && primaryRole(session.user) && primaryRole(session.user) !== 'CUSTOMER') {
+  const role = primaryRole(session.user);
+  const sitterHelp = role === 'PET_SITTER' && /^\/(?:contact|policies(?:\/[^/]+){0,2})\/?$/.test(location.pathname);
+  if (location.pathname !== '/sign-in' && !sitterHelp && session.status === 'authenticated' && primaryRole(session.user) && primaryRole(session.user) !== 'CUSTOMER') {
     return <Navigate to={roleLanding(session.user)} replace />;
   }
   return (
