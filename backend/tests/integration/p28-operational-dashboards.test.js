@@ -82,3 +82,44 @@ test('missing source stays pending, malformed owned source fails, role is checke
   try { expect(await service.read({ actor: customer })).toMatchObject({ pending: true }); }
   finally { await connection.db.createCollection('bookings'); }
 });
+
+test('mobile next action and paged agenda keep an ongoing overnight visit and show only safe snapshots', async () => {
+  const active = oid();
+  await insert('visits', { _id: active, bookingId, sitterId: new mongoose.Types.ObjectId(sitter.userId),
+    state: 'IN_PROGRESS', startAt: new Date('2026-10-28T16:30:00Z'), endAt: new Date('2026-10-29T16:00:00Z'),
+    snapshots: { serviceName: 'Chăm sóc tại nhà', pets: [{ name: 'Demo', careProfile: { entry: 'private' } }] },
+    privateAccessNotes: 'private-entry-note' });
+  const customerService = createCustomerDashboardService({ repository });
+  const home = await customerService.read({ actor: customer, query: { group: 'next', limit: '1' } });
+  expect(home.data.items).toEqual([expect.objectContaining({
+    id: String(active), bookingId: String(bookingId), serviceName: 'Chăm sóc tại nhà', petNames: ['Demo']
+  })]);
+  expect(JSON.stringify(home)).not.toContain('private');
+  const sitterService = createSitterDashboardService({ repository });
+  const schedule = await sitterService.read({ actor: sitter, query: { group: 'agenda', from: '2026-10-29', to: '2026-10-30', limit: '1' } });
+  expect(schedule.data.items[0].id).toBe(String(active));
+  const more = await sitterService.read({ actor: sitter, query: {
+    group: 'agenda', from: '2026-10-29', to: '2026-10-30', limit: '1', cursor: schedule.data.nextCursor
+  } });
+  expect(more.data.items[0].id).toBe(String(visitId));
+  await expect(sitterService.read({ actor: sitter, query: {
+    group: 'history', from: '2026-10-29', to: '2026-10-30', limit: '1', cursor: schedule.data.nextCursor
+  } })).rejects.toMatchObject({ status: 422 });
+});
+
+test('upcoming cursor keeps its original cutoff when a visit starts between page requests', async () => {
+  let clock = now.getTime();
+  const repository = createMongoOperationalDashboardRepository({ connection,
+    cursorSecret: 'synthetic-dashboard-cursor-secret-01', clock: () => clock });
+  const upcoming = oid();
+  const owner = new mongoose.Types.ObjectId(sitter.userId);
+  await insert('visits', { bookingId, sitterId: owner, state: 'ASSIGNED', startAt: new Date(clock + 1000) });
+  await insert('visits', { _id: upcoming, bookingId, sitterId: owner, state: 'ASSIGNED', startAt: new Date(clock + 2000) });
+  const service = createSitterDashboardService({ repository });
+  const query = { group: 'upcoming', limit: '1' };
+  const first = await service.read({ actor: sitter, query });
+  clock += 3000;
+  const second = await service.read({ actor: sitter, query: { ...query, cursor: first.data.nextCursor } });
+  expect(second.data.asOf).toBe(first.data.asOf);
+  expect(second.data.items[0]).toMatchObject({ id: String(upcoming) });
+});

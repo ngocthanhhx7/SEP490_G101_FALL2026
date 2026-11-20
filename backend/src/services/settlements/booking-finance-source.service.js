@@ -210,7 +210,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         if (operation === 'CHECK_OUT') await completeWholeBooking(updatedBooking, session);
         await event(`Visit${operation}`, updatedBooking, current.userId, `${visitId}:${saved.version}`, session);
         await createDomainNotifications({ connection, clock: () => now().getTime() }).visit({ visitId, version: saved.version,
-          customerId: booking.customerId, operation }, session);
+          customerId: booking.customerId, bookingId: String(booking._id), operation }, session);
         return { visitId, state: saved.state, version: saved.version };
       } });
   }
@@ -257,6 +257,16 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
     return results;
   }
   return Object.freeze({
+    async readAssignedVisitSummary(current, visitId) {
+      actor(current, 'PET_SITTER');
+      return unitOfWork.run(async session => {
+        const { visit } = await visitContext(current, visitId, session);
+        const address = visit.snapshots?.serviceAddress;
+        const canSeeAddress = ['ASSIGNED', 'IN_PROGRESS'].includes(visit.state) && typeof address === 'string';
+        return { visitId, state: visit.state, startAt: visit.startAt, endAt: visit.endAt,
+          serviceName: visit.snapshots?.serviceName ?? null, serviceAddress: canSeeAddress ? address.slice(0, 500) : null };
+      });
+    },
     async readVisit(current, visitId) {
       actor(current, 'PET_SITTER');
       return unitOfWork.run(async session => {

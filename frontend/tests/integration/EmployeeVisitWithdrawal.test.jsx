@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 
 import { beforeAll } from '@jest/globals';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
@@ -30,7 +31,7 @@ async function openWithdrawal() {
 
 test('UC-82 requires a reason and Quay lại closes without writing', async () => {
   const api = fixture();
-  render(<EmployeeInvitationsPage api={api} />);
+  render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
   const modal = await openWithdrawal();
   const submit = await modal.findByRole('button', { name: 'Rút khỏi buổi' });
   expect(submit).toBeDisabled();
@@ -44,7 +45,7 @@ test.each([
   ['LATE', 'Gửi cho nhân viên', 'Buổi này bắt đầu sau chưa đầy 12 giờ. Yêu cầu của bạn đã được gửi cho nhân viên.']
 ])('UC-82 MSG56 MSG57 displays the server outcome for %s and submits once', async (mode, label, message) => {
   const api = fixture(mode);
-  render(<EmployeeInvitationsPage api={api} />);
+  render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
   const modal = await openWithdrawal();
   fireEvent.change(await modal.findByLabelText(/Lý do/), { target: { value: 'ILLNESS' } });
   const submit = modal.getByRole('button', { name: label });
@@ -70,7 +71,7 @@ test('UC-82 keeps the selected reason and requires confirmation again when the s
   const api = fixture('LATE');
   api.withdrawalOptions.mockResolvedValueOnce(await fixture('EARLY').withdrawalOptions());
   api.withdraw.mockRejectedValueOnce({ status: 409, code: 'WITHDRAWAL_MODE_CHANGED' });
-  render(<EmployeeInvitationsPage api={api} />);
+  render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
   const modal = await openWithdrawal();
   fireEvent.change(await modal.findByLabelText(/Lý do/), { target: { value: 'ILLNESS' } });
   fireEvent.change(modal.getByLabelText('Ghi chú thêm'), { target: { value: 'Cần người thay' } });

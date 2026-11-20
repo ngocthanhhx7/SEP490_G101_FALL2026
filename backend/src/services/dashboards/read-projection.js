@@ -17,10 +17,14 @@ export function authorize(actor, roles) {
     || !Number.isFinite(actor.expiresAt) || actor.expiresAt <= Date.now()) fail(401, 'UNAUTHENTICATED');
   if (!roles.some(role => hasRole(actor.roles, role))) fail(403, 'FORBIDDEN');
 }
-export function filters(query = {}) {
+export function filters(query = {}, visitGroups = false) {
   if (!query || typeof query !== 'object' || Array.isArray(query)
-    || Object.keys(query).some(key => !['from', 'to', 'cursor', 'limit', 'search'].includes(key))) fail(422, 'VALIDATION_FAILED');
+    || Object.keys(query).some(key => !['from', 'to', 'cursor', 'limit', 'search', ...(visitGroups ? ['group'] : [])].includes(key))) fail(422, 'VALIDATION_FAILED');
   const result = { limit: 20 };
+  if (query.group !== undefined) {
+    if (!['upcoming', 'ongoing', 'history', 'next', 'agenda'].includes(query.group)) fail(422, 'VALIDATION_FAILED');
+    result.group = query.group;
+  }
   if (query.limit !== undefined) {
     if (!/^[1-9][0-9]?$/.test(String(query.limit)) || Number(query.limit) > 50) fail(422, 'VALIDATION_FAILED');
     result.limit = Number(query.limit);
@@ -51,7 +55,7 @@ export function date(value) {
 export function createProjectionReader({ kind, roles, repository, project, financial = false }) {
   return Object.freeze({ async read({ actor, query, targetId } = {}) {
     authorize(actor, roles);
-    const normalized = filters(query);
+    const normalized = filters(query, ['customer-dashboard', 'sitter-dashboard'].includes(kind));
     if (targetId !== undefined && !ID.test(targetId)) fail(422, 'VALIDATION_FAILED');
     // Identity and scope are derived from the authenticated session, never query parameters.
     const scope = { kind, userId: actor.userId, targetId: targetId ?? actor.userId };
@@ -77,7 +81,13 @@ export function visitRows(snapshot, scope, ownerField) {
   return snapshot.items.map(row => {
     if (!ID.test(row.id ?? '') || !text(row.state, 64) || !row.state
       || (ownerField && row[ownerField] !== scope.userId)) fail(503, 'INVALID_PROJECTION');
-    return { id: row.id, state: row.state, startsAt: date(row.startsAt) };
+    return { id: row.id, state: row.state, startsAt: date(row.startsAt),
+      ...(ownerField && row.bookingId && ID.test(row.bookingId) ? { bookingId: row.bookingId } : {}),
+      ...(ownerField && row.endsAt ? { endsAt: date(row.endsAt) } : {}),
+      ...(ownerField && text(row.serviceName, 250) ? { serviceName: row.serviceName } : {}),
+      ...(ownerField && text(row.sitterName, 160) ? { sitterName: row.sitterName } : {}),
+      ...(ownerField && Array.isArray(row.petNames) ? { petNames: row.petNames.filter(name => text(name, 100)).slice(0, 30) } : {}),
+      ...(ownerField && row.overdue === true ? { overdue: true } : {}) };
   });
 }
 export function metrics(snapshot, names) {

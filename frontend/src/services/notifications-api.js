@@ -7,6 +7,9 @@ export function createNotificationsApi({ request } = {}) {
       if (cursor) params.set('cursor', cursor);
       return request(`/notifications?${params.toString()}`, { signal });
     },
+    resolveIntent(notificationId, { signal } = {}) {
+      return request(`/notifications/${id(notificationId)}/intent`, { signal });
+    },
     markRead(notificationId, idempotencyKey) {
       return request(`/notifications/${id(notificationId)}/read-receipts`, { method: 'POST', idempotencyKey });
     },

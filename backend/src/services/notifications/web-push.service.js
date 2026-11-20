@@ -74,16 +74,21 @@ export function createWebPushService({ connection, config, sessionPort, clock = 
       return;
     }
     const since = new Date(Math.max(+device.since, now - maximumAge));
-    const latest = await Notification.findOne({
+    const recent = await Notification.find({
       recipientId: actor.userId, readAt: null, role: { $in: [null, ...user.roles] },
       createdAt: { $gt: since, $lte: new Date(now - deliveryDelay) }
-    }).sort({ createdAt: -1, _id: -1 }).select('_id createdAt').lean();
+    }).sort({ createdAt: -1, _id: -1 }).limit(2).select('_id createdAt deepLink').lean();
+    const [latest] = recent;
     const update = { 'webPush.nextAt': new Date(clock() + minute) };
     if (latest && await AuthSession.exists(claimed)) {
       try {
         validateWebPushSubscription(device);
-        // A lock-screen alert has no names, message, links or object identifiers.
-        await send({ endpoint: device.endpoint, keys: device.keys }, '{}', {
+        // A single actionable notification may carry its opaque receipt ID.
+        // Grouped alerts and older general links always open the inbox.
+        const actionable = /^(?:\/account\/bookings\/[a-f0-9]{24}(?:\/visits\/[a-f0-9]{24})?|\/sitter\/(?:visits\/|invitations\?offerId=)[a-f0-9]{24})$/;
+        const intent = recent.length === 1 && /^[a-f0-9]{64}$/.test(latest._id) && actionable.test(latest.deepLink ?? '')
+          ? { notificationId: latest._id } : {};
+        await send({ endpoint: device.endpoint, keys: device.keys }, JSON.stringify(intent), {
           vapidDetails: { subject: config.contact, publicKey: config.publicKey, privateKey: config.privateKey },
           TTL: 15 * 60, urgency: 'normal', topic: 'pwc-notifications', timeout: 4000
         });

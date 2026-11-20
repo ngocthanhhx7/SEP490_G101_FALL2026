@@ -1,6 +1,7 @@
 import { sitterApplicationApi } from '../../services/sitter-application-api.js';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { loginDestination } from '../../utils/role-access.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { otpFeedback } from '../../utils/otp-feedback.js';
@@ -31,6 +32,7 @@ export function SignInPage() {
   const session = useSession();
   const navigate = useNavigate();
   const location = useLocation();
+  const mobile = usePhoneApp();
   const [channel, setChannel] = useState(CHANNELS.EMAIL);
   const [contact, setContact] = useState('');
   const [maskedContact, setMaskedContact] = useState('');
@@ -62,11 +64,13 @@ export function SignInPage() {
   useEffect(() => {
     if(session.status!=='authenticated')return;
     let active=true;
-    (async()=>{let destination=loginDestination(session.user,location.state?.from);
-      if(session.user.roles.includes('CUSTOMER')&&!session.user.roles.some(r=>['ADMIN','STAFF','PET_SITTER'].includes(r))){try{const result=await sitterApplicationApi.getMine();if(result.data.application)destination='/sitter/application-status';}catch{/* Keep normal navigation when the profile service is unavailable. */}}
+     (async()=>{const from=location.state?.from;
+      let destination=loginDestination(session.user,from,{mobile});
+      const resume=typeof from==='string' && destination===from;
+      if(!resume&&session.user.roles.includes('CUSTOMER')&&!session.user.roles.some(r=>['ADMIN','STAFF','PET_SITTER'].includes(r))){try{const result=await sitterApplicationApi.getMine();if(result.data.application)destination='/sitter/application-status';}catch{/* Keep normal navigation when the profile service is unavailable. */}}
       if(active)navigate(destination,{replace:true});
     })();return()=>{active=false;};
-  }, [session.status, session.user, navigate, location.state]);
+  }, [session.status, session.user, navigate, location.state, mobile]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;

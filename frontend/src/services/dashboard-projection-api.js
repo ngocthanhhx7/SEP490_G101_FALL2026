@@ -26,7 +26,7 @@ export function createProjectionApi({ path, kind, request, target = false }) {
     return client(...args);
   };
   return Object.freeze({ async read({ signal, targetId, ...query } = {}) {
-    if (Object.keys(query).some(key => !['from', 'to', 'search', 'cursor', 'limit'].includes(key))
+    if (Object.keys(query).some(key => !['from', 'to', 'search', 'cursor', 'limit', 'group'].includes(key))
       || Object.values(query).some(value => typeof value !== 'string' && typeof value !== 'number')) throw new ApiError('INVALID_FILTER', 422);
     if (target && !identifier(targetId)) throw new ApiError('INVALID_RESOURCE_ID', 422);
     const params = new globalThis.URLSearchParams();

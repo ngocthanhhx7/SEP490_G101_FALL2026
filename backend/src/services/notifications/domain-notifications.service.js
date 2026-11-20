@@ -48,7 +48,7 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
     async payment({ eventId, booking, reconciliation }, session) {
       const type = reconciliation ? 'PaymentReconciliationRequired' : 'PaymentVerified';
       const recipients = reconciliation ? await operators(['ADMIN', 'STAFF'], '/staff/dispatch', session)
-        : [{ id: booking?.customerId, to: '/account/bookings' }];
+        : [{ id: booking?.customerId, to: booking?._id ? '/account/bookings/' + String(booking._id) : '/account/bookings' }];
       await write(eventId, type, recipients,
         reconciliation ? 'Thanh toán cần đối soát' : 'Đã xác nhận thanh toán',
         reconciliation ? 'Có giao dịch cần nhân viên kiểm tra và đối soát.' : 'Thanh toán cho đơn chăm sóc đã được xác thực. Bạn có thể theo dõi đơn trong tài khoản.', session);
@@ -97,11 +97,13 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         'Hàng nhập bị từ chối',
         `Phiếu nhập ${code}: từ chối ${quantity} ${productName}. Lý do: ${reason}.`, session);
     },
-    async visit({ visitId, version, customerId, operation }, session) {
+    async visit({ visitId, version, customerId, bookingId, operation }, session) {
       const labels = { CHECK_IN: ['Đã bắt đầu chăm sóc', 'Người chăm sóc đã ghi nhận bắt đầu buổi chăm sóc.'],
         CHECK_OUT: ['Đã hoàn thành buổi chăm sóc', 'Người chăm sóc đã ghi nhận hoàn thành. Bạn có thể xem chi tiết trong đơn chăm sóc.'] };
       if (!labels[operation]) return;
-      await write(`visit:${visitId}:${version}`, `Visit${operation}`, [{ id: customerId, to: '/account/bookings' }], ...labels[operation], session);
+      const to = /^[a-f0-9]{24}$/.test(bookingId ?? '') && /^[a-f0-9]{24}$/.test(visitId ?? '')
+        ? '/account/bookings/' + bookingId + '/visits/' + visitId : '/account/bookings';
+      await write(`visit:${visitId}:${version}`, `Visit${operation}`, [{ id: customerId, to }], ...labels[operation], session);
     }
   };
 }

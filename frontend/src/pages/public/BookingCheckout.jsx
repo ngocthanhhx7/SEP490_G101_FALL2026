@@ -21,7 +21,7 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   COMMAND_PENDING: 'Yêu cầu đang được xử lý.', INVALID_STATE: 'Đơn không còn ở trạng thái có thể thanh toán.',
   VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[error.code] || apiErrorFeedback(error, 'Chưa xác nhận được thao tác. Vui lòng thử lại.');
 
-export function BookingCheckoutForm({ quote, services, api, onConfirmed, recommendation }) {
+export function BookingCheckoutForm({ quote, services, api, onConfirmed, recommendation, onEditQuote }) {
   const addresses = useApiResource(api.addresses), options = useApiResource(api.checkoutOptions), [busy, setBusy] = useState(false), [error, setError] = useState(null), [uncertain, setUncertain] = useState(false);
   const command = useRef(null), locked = useRef(false);
   const visits = quote.items.flatMap((item, itemIndex) => Array.from({ length: item.visitCount }, (_, index) => ({ itemIndex, index,
@@ -71,6 +71,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     </fieldset>
     {error && <p role="alert">{error}</p>}
     {options.status === 'error' && <p role="alert">Đặt lịch hiện chưa khả dụng. <button type="button" onClick={options.retry}>Thử lại</button></p>}
+    {onEditQuote && <button type="button" disabled={busy || uncertain} onClick={onEditQuote}>Quay lại báo giá</button>}
     <button type="submit" disabled={busy || options.status !== 'success'}><CalendarCheck size={18} />{busy ? 'Đang xác nhận…' : uncertain ? 'Xác nhận lại' : 'Xác nhận đặt dịch vụ'}</button>
   </form>;
 }

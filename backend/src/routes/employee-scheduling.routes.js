@@ -51,6 +51,7 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/work-areas', sitter, c.areas);
   router.put('/work-areas', sitter, csrf, c.saveAreas);
   router.get('/offers', sitter, c.offers);
+  router.get('/offers/:id', sitter, c.offer);
   router.get('/assignments', sitter, c.assignments);
   router.get('/visits/:id/withdrawal-options', sitter, c.withdrawalOptions);
   router.post('/visits/:id/withdrawals', sitter, csrf, c.withdraw);

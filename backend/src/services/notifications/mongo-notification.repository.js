@@ -1,3 +1,4 @@
+import { Types } from 'mongoose';
 import { notificationModels } from '../../models/notification.model.js';
 import { createScopedCursor } from '../../utils/scoped-cursor.js';
 import { digest, fail } from '../../validators/pet-care.validator.js';
@@ -7,6 +8,37 @@ export function createMongoNotificationRepository({ connection, cursorSecret, cl
   const cursor = createScopedCursor({ secret: cursorSecret, namespace: 'notifications-v1', clock });
   const scope = ({ recipientId, roles }) => ({ recipientId, $or: [{ role: null }, { role: { $in: roles } }] });
   return {
+    async resolve({ recipientId, roles, notificationId }) {
+      const row = await Notification.findOne({ _id: notificationId, ...scope({ recipientId, roles }) })
+        .select('deepLink').lean();
+      if (!row) return null;
+      if (!/^[a-f0-9]{24}$/i.test(recipientId)) return { to: null };
+      const booking = /^\/account\/bookings\/([a-f0-9]{24})(?:\/visits\/([a-f0-9]{24}))?$/.exec(row.deepLink);
+      const offer = /^\/sitter\/invitations\?offerId=([a-f0-9]{24})$/.exec(row.deepLink);
+      const assigned = /^\/sitter\/visits\/([a-f0-9]{24})$/.exec(row.deepLink);
+      const db = connection.db;
+      const projection = { projection: { _id: 1 }, maxTimeMS: 2000 };
+      const owner = new Types.ObjectId(recipientId);
+      if (booking && roles.includes('CUSTOMER')) {
+        const bookingId = new Types.ObjectId(booking[1]);
+        const allowed = await db.collection('bookings').findOne({ _id: bookingId, customerId: owner }, projection);
+        if (!allowed) return { to: null };
+        if (!booking[2]) return { to: '/account/bookings/' + booking[1] };
+        const visit = await db.collection('visits').findOne({ _id: new Types.ObjectId(booking[2]), bookingId,
+          state: { $ne: 'SUPERSEDED' } }, projection);
+        return { to: visit ? '/account/bookings/' + booking[1] + '/visits/' + booking[2] : null };
+      }
+      if (offer && roles.includes('PET_SITTER')) {
+        const allowed = await db.collection('employeevisitoffers').findOne({ _id: new Types.ObjectId(offer[1]), sitterId: recipientId }, projection);
+        return { to: allowed ? '/sitter/invitations?offerId=' + offer[1] : null };
+      }
+      if (assigned && roles.includes('PET_SITTER')) {
+        const visit = await db.collection('visits').findOne({ _id: new Types.ObjectId(assigned[1]), sitterId: owner,
+          state: { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED'] } }, projection);
+        return { to: visit ? '/sitter/visits/' + assigned[1] : null };
+      }
+      return { to: null };
+    },
     async list({ recipientId, roles, unreadOnly, limit, cursor: token }) {
       const registered = await connection.db.listCollections({ name: Notification.collection.name }, { nameOnly: true }).toArray();
       if (!registered.length) fail('NOTIFICATION_STORAGE_NOT_READY', 'Provision notification storage first', 503);

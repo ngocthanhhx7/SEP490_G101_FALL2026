@@ -235,7 +235,7 @@ export function CustomerAddressesPage({ addressAdapter: suppliedAdapter }) {
     </Notice>}
 
     <Dialog open={['create', 'edit'].includes(dialog?.type)} onClose={() => setDialog(null)}
-      title={dialog?.type === 'edit' ? 'Sửa địa chỉ' : 'Thêm địa chỉ'}
+      title={dialog?.type === 'edit' ? 'Sửa địa chỉ' : 'Thêm địa chỉ'} className="mobile-flow-dialog"
       description="Địa chỉ và ghi chú được kiểm tra lại ở máy chủ." dismissible={!actionPending}>
       <form className="customer-address-form" onSubmit={saveAddress}>
         <Input label="Tên gợi nhớ" value={draft.label} autoComplete="off" maxLength={60} required

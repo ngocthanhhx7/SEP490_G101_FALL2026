@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useState } from 'react';
 import { Check, RefreshCw, X } from 'lucide-react';
@@ -32,13 +33,14 @@ const states = {
 };
 const title = row => `${row.serviceName || 'Ca chăm sóc'}${row.pets?.length ? ' cho ' + row.pets.map(pet => pet.name).filter(Boolean).join(', ') : ''}`;
 export function EmployeeInvitationsPage({
-  api, initialVisitId
+  api, initialVisitId, initialOfferId, onCloseOffer
 }) {
   const [offerPages, setOfferPages] = useState([]),
     [assignmentPages, setAssignmentPages] = useState([]),
     [historyPages, setHistoryPages] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false),
-    [selected, setSelected] = useState(/^[a-f0-9]{24}$/i.test(initialVisitId ?? '') ? { kind: 'linked' } : null),
+    [selected, setSelected] = useState(initialOfferId ? { kind: 'linkedOffer' }
+      : /^[a-f0-9]{24}$/i.test(initialVisitId ?? '') ? { kind: 'linked' } : null),
     [withdrawalVisit, setWithdrawalVisit] = useState(null),
     [withdrawalResult, setWithdrawalResult] = useState(null);
   const offerCursor = offerPages.at(-1),
@@ -74,10 +76,14 @@ export function EmployeeInvitationsPage({
   const linkedLoad = useCallback(({ signal }) => /^[a-f0-9]{24}$/i.test(initialVisitId ?? '')
     ? api.execution(initialVisitId, { signal }) : Promise.resolve({ data: null }), [api, initialVisitId]);
   const linked = useApiResource(linkedLoad);
+  const offerLoad = useCallback(({ signal }) => /^[a-f0-9]{24}$/i.test(initialOfferId ?? '') && api.offer
+    ? api.offer(initialOfferId, { signal }) : Promise.resolve({ data: null }), [api, initialOfferId]);
+  const linkedOffer = useApiResource(offerLoad);
   const command = useSchedulingCommand(() => {
     resource.retry();
     assignments.retry();
     if (historyOpen) history.retry();
+    if (initialOfferId) linkedOffer.retry();
   });
   const locked = command.busy || command.pending;
   async function acceptOffer(row, key) {
@@ -119,11 +125,14 @@ export function EmployeeInvitationsPage({
     render: row => <OperationsBadge>{row.state === 'PENDING' && !row.canRespond ? 'Hết hạn' : states[row.state] ?? 'Đang cập nhật'}</OperationsBadge>
   }];
   const offerRows = (resource.data?.items ?? []).filter(row => row.state === 'PENDING');
-  const active = selected?.kind === 'linked' ? linked.data ? { ...linked.data, id: linked.data.visitId } : null
+  const active = selected?.kind === 'linkedOffer' ? linkedOffer.data ?? null : selected?.kind === 'linked' ? linked.data ? { ...linked.data, id: linked.data.visitId } : null
     : (selected && (selected.kind === 'assignment' ? assignments.data?.items : selected.kind === 'history' ? history.data?.items : resource.data?.items)?.find(row => row.id === selected.row.id)) ?? selected?.row;
   return <section className="employee-scheduling employee-invitations">
     {selected?.kind === 'linked' && linked.status === 'loading' && <p role="status">Đang mở buổi từ thông báo…</p>}
     {selected?.kind === 'linked' && ['error', 'forbidden'].includes(linked.status) && <p role="alert">Không thể mở buổi từ thông báo. <Button onClick={linked.retry}>Thử lại</Button></p>}
+    {selected?.kind === 'linkedOffer' && linkedOffer.status === 'loading' && <p role="status">Đang tải lời mời…</p>}
+    {selected?.kind === 'linkedOffer' && ['error','forbidden','empty'].includes(linkedOffer.status) &&
+      <p role="alert">Không tìm được lời mời này. <Button onClick={linkedOffer.retry}>Thử lại</Button> <Button onClick={onCloseOffer}>Xem danh sách</Button></p>}
     <header><div><h1>Lời mời và ca chăm sóc</h1><p>Phản hồi lời mời, theo dõi ca đã nhận và mở chi tiết khi cần thực hiện.</p></div><Button variant="ghost" aria-label="Tải lại lời mời" onClick={() => {
         resource.retry();
         assignments.retry();
@@ -144,14 +153,11 @@ export function EmployeeInvitationsPage({
         })}>Xem chi tiết</Button>{offerActions(row)}</>
     }]} />
     {pager(resource, offerPages, setOfferPages, 'lời mời')}
-    <h2>Ca đã nhận</h2>{withdrawalResult && <p role="status">{withdrawalResult}</p>}{assignments.status === 'loading' && <p role="status">Đang tải ca đã nhận…</p>}{['error', 'forbidden'].includes(assignments.status) && <p role="alert">Chưa tải được ca đã nhận.</p>}
+    <h2>Ca đã nhận</h2><Link to="/sitter/schedule">Xem lịch ca làm</Link>{withdrawalResult && <p role="status">{withdrawalResult}</p>}{assignments.status === 'loading' && <p role="status">Đang tải ca đã nhận…</p>}{['error', 'forbidden'].includes(assignments.status) && <p role="alert">Chưa tải được ca đã nhận.</p>}
     <OperationsTable label="Ca đã nhận" rows={assignments.data?.items ?? []} empty="Chưa có ca đã nhận." columns={[...baseColumns, {
       key: 'actions',
       label: 'Thao tác',
-      render: row => <div className="employee-scheduling__actions"><Button variant="secondary" onClick={() => setSelected({
-          kind: 'assignment',
-          row
-        })}>Xem chi tiết</Button>{row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
+      render: row => <div className="employee-scheduling__actions"><Link to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>{row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
           setWithdrawalResult(null);
           setWithdrawalVisit(row.id);
         }}>Rút khỏi buổi</Button>}</div>
@@ -167,7 +173,7 @@ export function EmployeeInvitationsPage({
           })}>Xem chi tiết</Button>
         }]} />{pager(history, historyPages, setHistoryPages, 'lịch sử')}</>}
     </details>
-    <Dialog open={Boolean(active)} title={active ? title(active) : 'Chi tiết ca chăm sóc'} onClose={() => setSelected(null)} className="employee-assignment-dialog" dismissible={!locked}>
+    <Dialog open={Boolean(active)} title={active ? title(active) : 'Chi tiết ca chăm sóc'} onClose={() => { if (selected?.kind === 'linkedOffer') onCloseOffer?.(); setSelected(null); }} className="employee-assignment-dialog" dismissible={!locked}>
       {active && <><p>{time(active.startAt)} – {time(active.endAt)}</p><p>{states[active.state] ?? 'Đang cập nhật'} · {active.areaLabel ?? active.areaCode}</p>
         {['assignment', 'linked'].includes(selected.kind) ? <>{active.serviceAddress && <p>{active.serviceAddress}</p>}{googleMapsDirections(active.serviceAddress) && <a href={googleMapsDirections(active.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
           <VisitTravel api={api} visitId={active.id} employee startAt={active.startAt} endAt={active.endAt} />
