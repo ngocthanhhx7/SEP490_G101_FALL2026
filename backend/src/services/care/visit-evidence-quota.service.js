@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { digest } from '../../validators/pet-care.validator.js';
 import { workflowHash, workflowTasks } from './workflow-snapshot.service.js';
 import { workflowFail } from '../../validators/service-workflow.validator.js';
 
@@ -27,7 +28,7 @@ export function createVisitEvidenceQuota({ connection, clock = Date.now }) {
     const snapshot = visit.snapshots?.workflow;
     if (snapshot && (snapshot.hash !== workflowHash(snapshot.definition) ||
       !visit.snapshots.care || visit.careAcknowledgement?.sitterId !== actor.userId ||
-      visit.careAcknowledgement?.version !== workflowHash(visit.snapshots.care)))
+      visit.careAcknowledgement?.version !== digest(visit.snapshots.care)))
       workflowFail('CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED', 'Acknowledge current care instructions first', 409);
     if (!reserve) return;
 

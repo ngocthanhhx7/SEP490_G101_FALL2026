@@ -7,9 +7,11 @@ import express from 'express';
 import request from 'supertest';
 import { createServiceWorkflowService } from '../../src/services/care/service-workflow.service.js';
 import { createVisitWorkflowService } from '../../src/services/care/visit-workflow.service.js';
+import { createAssignedCareService } from '../../src/services/care/assigned-care.service.js';
+import { createEmployeeScheduleRepository } from '../../src/services/employee-scheduling/employee-schedule.repository.js';
+import { digest } from '../../src/validators/pet-care.validator.js';
 import {
   captureServiceWorkflow,
-  workflowHash,
   workflowTasks,
   assertWorkflowGate
 } from '../../src/services/care/workflow-snapshot.service.js';
@@ -177,7 +179,7 @@ async function fixture({ twoPets = false, legacy = false, state = 'ASSIGNED' } =
     startAt: at,
     endAt: new Date(+at + 3600000),
     evidenceRefs: [],
-    careAcknowledgement: { sitterId: sitter.userId, version: workflowHash(care) },
+    careAcknowledgement: { sitterId: sitter.userId, version: digest(care) },
     snapshots: {
       pets,
       care,
@@ -596,6 +598,9 @@ test('history index explains bounded equality/sort without collection scan or in
 
 test('visit upload has independent stage budgets and consumes one reservation through provider retry', async () => {
   await fixture({ twoPets: true });
+  await col('visits').updateOne({ _id: visitId }, { $unset: { careAcknowledgement: 1 } });
+  const clock = () => +at;
+  const care = createAssignedCareService({ repository: createEmployeeScheduleRepository({ connection, clock }), clock });
   const body = await sharp({ create: { width: 2, height: 2, channels: 3, background: 'red' } }).png().toBuffer();
   let unavailable = true;
   const service = createPrivateImageService({
@@ -608,6 +613,13 @@ test('visit upload has independent stage budgets and consumes one reservation th
     idempotencyKey: `synthetic-image-${index}`
   });
   await expect(upload(0, customer)).rejects.toMatchObject({ status: 404 });
+  await expect(upload(0)).rejects.toMatchObject({ code: 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED' });
+  const visit = String(visitId);
+  const task = { taskKey: taskKey('arrival'), expectedVersion: 0, status: 'COMPLETED', note: 'Checked arrival' };
+  await expect(execution.task(sitter, visit, task, 'arrive-without-ack')).rejects.toMatchObject({ code: 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED' });
+  const { version } = await care.get(sitter, visit);
+  await care.acknowledge(sitter, visit, { version }, 'acknowledge-for-workflow');
+  await expect(execution.task(sitter, visit, task, 'arrive-after-ack')).resolves.toMatchObject({ version: 1 });
   await expect(upload(0)).rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
   unavailable = false;
   const ready = await upload(0);
@@ -743,7 +755,7 @@ test('reassigned sitter acknowledges handover and keeps former uploader evidence
         sitterId: new mongoose.Types.ObjectId(next.userId),
         handoverRequired: true,
         handoverAccepted: true,
-        careAcknowledgement: { sitterId: next.userId, version: workflowHash(original.snapshots.care) }
+        careAcknowledgement: { sitterId: next.userId, version: digest(original.snapshots.care) }
       },
       $inc: { version: 1 }
     }
