@@ -187,11 +187,15 @@
 .pwc-phone-app .customer-profile-grid { grid-template-columns: minmax(0, 1fr); }
 .pwc-phone-app .customer-profile-form,
 .pwc-phone-app .customer-profile-form[data-structured] { grid-template-columns: minmax(0, 1fr); }
-.pwc-phone-app .customer-profile-form > .pwc-button { justify-self: stretch; }
+.pwc-phone-app .customer-profile-form > .pwc-button { justify-self: stretch; min-height: 44px; }
 .pwc-phone-app .customer-profile-heading:has(.workspace-sr-only) { padding: 0; margin: 0; border: 0; }
 .pwc-phone-app [data-duplicate-title] { position: absolute; width: 1px; height: 1px; padding: 0; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .pwc-phone-app .pwc-phone-content .pwc-customer-account__main { border: 0; border-radius: 0; background: transparent; }
-.pwc-phone-app .customer-profile-card { padding: 1rem; border: 1px solid #e7deed; border-radius: 1rem; background: #fff; }
+.pwc-phone-app .customer-profile-card { gap: 1.125rem; }
+.pwc-phone-app .customer-profile-form { gap: .75rem; }
+.pwc-phone-app .customer-profile-form .pwc-field { gap: .35rem; color: var(--pwc-compact-ink); }
+.pwc-phone-app .customer-profile-form .pwc-control { min-height: 44px; border-color: #ded7e5; border-radius: .625rem; background: #fff; }
+.pwc-phone-app .customer-profile-form .pwc-control:focus-visible { outline: 2px solid var(--pwc-compact-accent); outline-offset: 1px; }
 .pwc-phone-app .customer-profile-form > p:first-child { margin-block-start: 0; overflow-wrap: anywhere; }
 .pwc-phone-app .pwc-phone-content :is(.pwc-page, .pwc-shop, .customer-care, .customer-bookings, .notifications-page, .incident-page, .pwc-phone-home) {
   min-width: 0;

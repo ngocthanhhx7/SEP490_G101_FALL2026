@@ -126,7 +126,7 @@ export function CustomerProfilePage({ apiRequest }) {
         {!structured && <div className="customer-profile-card-heading">
           <h2 id="profile-details-title">Thông tin cá nhân</h2>
         </div>}
-        <AvatarEditor fallback={profile.data.displayName?.[0] ?? 'PW'} onSaved={profile.retry} onBusyChange={setAvatarBusy} />
+        <AvatarEditor personal fallback={profile.data.displayName?.trim().split(/\s+/).slice(-2).map(part => Array.from(part)[0]).join('').toLocaleUpperCase('vi') || 'PW'} onSaved={profile.retry} onBusyChange={setAvatarBusy} />
         <form className="customer-profile-form" data-structured={structured || undefined} onSubmit={submit}>
           {structured ? <>
             {!profile.data.givenName && <p>Tên hiển thị hiện tại: <strong>{profile.data.displayName}</strong></p>}
