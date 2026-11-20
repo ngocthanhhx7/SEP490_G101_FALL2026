@@ -169,3 +169,23 @@ Customers browse `/products`, add items to a cart and check out as delivery (pai
 Counter Sale (UC-68) ở `/admin/counter-sale`, nhóm Bán hàng, chỉ Admin. `src/hooks/useCounterSale.js` giữ draft trong memory, huỷ preview cũ, chống double submit và giữ cùng key/body khi kết quả tạo chưa rõ. `src/constants/counter-sale.js` chứa nhãn/giới hạn. Không lưu liên hệ vào browser storage. Test UI ở `tests/integration/CounterSale.test.jsx`, transport/format ở `tests/unit/counter-sale-*.test.js`; test online giữ nguyên assertions.
 
 Services includes the Admin workflow builder. Assigned Sitter executes immutable per-Visit/Pet tasks and named photo slots; reports and Staff dispatch reuse role-filtered projections. Incident routes use current session/CSRF and stable operation retries. See [workflow API](../doc/api/service-workflows.md).
+
+## PWA
+
+Trang công khai `/install` hướng dẫn cài qua Safari trên iPhone/iPad và Chrome
+trên Android. Menu mobile và footer dẫn tới trang này. Nút cài trực tiếp chỉ
+hiện khi trình duyệt cấp sự kiện cài đặt; manifest mở trang chủ ở chế độ
+standalone và luồng điều hướng hiện tại quyết định trang theo vai trò.
+
+`src/hooks/useWebAppInstall.js` giữ sự kiện cài đặt từ lúc bootstrap.
+`src/components/common/WebAppStatus.jsx` hiển thị mất mạng và bản cập nhật chờ
+kích hoạt. Bản build production đăng ký `public/pwc-sw.js`. Worker chỉ lưu
+`public/pwa/offline.html`, một trang công khai dùng khi điều hướng thất bại vì
+mạng. API, dữ liệu phiên và giao dịch vẫn đi qua luồng trực tuyến hiện có.
+Tăng phiên bản cache trong worker khi thay đổi nội dung trang offline.
+
+Khi nghiệm thu HTTPS, kiểm tra manifest trả JSON, worker trả JavaScript và
+fallback trả HTML. Cài trên Safari iPhone/iPad và Chrome Android thật, mở từ
+icon, kiểm tra điều hướng sau đăng nhập và thử mất mạng rồi kết nối lại. Khi
+worker có bản mới, kiểm tra trang đang mở chỉ tải lại sau khi chính tab đó chọn
+cập nhật. Đối chiếu Cache Storage chỉ chứa trang fallback tĩnh.

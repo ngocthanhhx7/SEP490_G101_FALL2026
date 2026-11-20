@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#fffaf1" />
+  <title>Mất kết nối · Paw World Care</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #fffaf1; color: #302219; font: 1rem/1.55 system-ui, sans-serif; }
+    main { max-width: 29rem; padding: 2rem; }
+    h1 { line-height: 1.15; }
+    form { margin-top: 1.5rem; }
+    button { background: #873600; color: #fff; border: 0; border-radius: 999px; padding: .85rem 1.25rem; font: inherit; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <main>
+    <p>Paw World Care</p>
+    <h1>Bạn đang mất kết nối</h1>
+    <p>Kết nối lại Internet để xem thông tin mới nhất hoặc tiếp tục thao tác. Nếu vừa gửi yêu cầu, hãy kiểm tra trạng thái khi có mạng trước khi thử lại.</p>
+    <form method="get"><button type="submit">Thử lại</button></form>
+  </main>
+  <script>document.querySelector('form').addEventListener('submit', function (event) { event.preventDefault(); location.reload(); });</script>
+</body>
+</html>
