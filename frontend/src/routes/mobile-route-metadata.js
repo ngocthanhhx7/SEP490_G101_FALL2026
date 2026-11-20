@@ -32,7 +32,7 @@ const metadata = [
   ["M28","/cases/:caseId","Chi tiết sự cố","account","detail",["CUSTOMER","PET_SITTER"]],
   ["M29","/incidents","Sự cố","account","detail",["CUSTOMER","PET_SITTER"]],
   ["M30","/install","Cài ứng dụng","account","task",["GUEST","CUSTOMER","PET_SITTER"]],
-  ["M31","/","Khám phá","home","root",["GUEST","CUSTOMER"]],
+  ["M31","/","Trang chủ","home","root",["GUEST","CUSTOMER"]],
   ["M32","/about","Về chúng tôi","account","detail",["GUEST","CUSTOMER"]],
   ["M33","/contact","Hỗ trợ","account","detail",["GUEST","CUSTOMER"]],
   ["M34","/services","Dịch vụ","services","root",["GUEST","CUSTOMER"]],

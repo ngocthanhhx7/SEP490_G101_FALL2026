@@ -69,6 +69,8 @@
 .pwc-phone-app:has(:is(input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"]), textarea, [contenteditable="true"]):focus) .pwc-phone-tabs { display: none; }
 
 .pwc-mobile-header { display: flex; align-items: center; gap: .4rem; position: sticky; top: 0; z-index: 25; min-height: 56px; padding: env(safe-area-inset-top) max(.65rem, env(safe-area-inset-right)) 0 max(.65rem, env(safe-area-inset-left)); background: white; border-bottom: 1px solid #eee6f3; color: #2c0050; }
+.pwc-mobile-header > .pwc-site-brandmark { min-width: 0; font-size: 1.1rem; white-space: normal; overflow-wrap: anywhere; }
+.pwc-mobile-header .pwc-site-brandmark__icon { width: 26px; height: 26px; flex: none; }
 .pwc-mobile-header > strong { padding-inline: .35rem; overflow-wrap: anywhere; }
 .pwc-mobile-header a { min-width: 48px; min-height: 48px; display: grid; place-items: center; color: inherit; }
 .pwc-mobile-header__bell { margin-inline-start: auto; position: relative; }
