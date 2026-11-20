@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { createUnitOfWork } from '../unit-of-work.service.js';
+import { digest } from '../../validators/pet-care.validator.js';
 import {
   validateWorkflowTask,
   workflowKey,
@@ -50,7 +51,7 @@ export function createVisitWorkflowService({ connection, clock = Date.now }) {
       if (
         !care ||
         visit.careAcknowledgement?.sitterId !== actor.userId ||
-        visit.careAcknowledgement?.version !== workflowHash(care)
+        visit.careAcknowledgement?.version !== digest(care)
       )
         workflowFail('CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED', 'Acknowledge current care instructions first', 409);
       const user = await col('users').updateOne(
