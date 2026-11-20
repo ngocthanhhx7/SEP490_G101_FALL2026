@@ -3,7 +3,6 @@ import { createAiRepository } from './matching.repository.js';
 import { scoreSitter } from './scoring.service.js';
 import { cachedMatrix } from './routing.service.js';
 import { planInsertion, requiredPoints, localDay } from './scheduling.service.js';
-import { digest, weights } from '../../validators/pet-care.validator.js';
 
 // Advisory only: incomplete advice never removes an authoritative eligible
 // employee or changes payment, eligibility or assignment state.
@@ -14,16 +13,7 @@ export function createOperationalRanker({ connection, routingProvider, clock = D
     const context = { service: { _id: new Types.ObjectId(visit.serviceId) }, pets: visit.pets.map(pet => ({ ...pet, _id: pet.id })),
       address: { areaCode: visit.areaCode, point: visit.point } };
     const slot = { start: new Date(visit.startAt).getTime(), end: new Date(visit.endAt).getTime(), localDate: localDay(visit.startAt) };
-    const { policy, model } = await repository.ranking();
-    let rankingWeights = policy.weights, modelVersion = null;
-    if (model) {
-      try {
-        weights(model.weights);
-        const value = { version: model.version, weights: model.weights, trainingRows: model.trainingRows, testMae: model.testMae,
-          baselineMae: model.baselineMae, testGroups: model.testGroups, trainedUntil: new Date(model.trainedUntil).toISOString() };
-        if (digest(value) === model.sha256 && model.testMae < model.baselineMae) { rankingWeights = model.weights; modelVersion = model.version; }
-      } catch { /* Keep the approved rule policy. */ }
-    }
+    const { policy } = await repository.ranking();
     const data = await repository.candidates(context, slot), scores = new Map();
     const profiles = data.profiles.filter(profile => sitterIds.includes(String(profile.userId)));
     let next = 0;
@@ -40,7 +30,7 @@ export function createOperationalRanker({ connection, routingProvider, clock = D
           const plan = await planInsertion({ profile, blocks, slot, address: context.address, matrix });
           if (!plan.eligible) continue;
           const statistics = await repository.statistics(profile, context, data.statisticsSnapshot);
-          scores.set(sitterId, scoreSitter({ ...statistics, extraTravelMinutes: plan.extraTravelMinutes, busyMinutes: plan.busyMinutes, weights: rankingWeights }));
+          scores.set(sitterId, scoreSitter({ ...statistics, extraTravelMinutes: plan.extraTravelMinutes, busyMinutes: plan.busyMinutes, weights: policy.weights }));
         } catch (error) {
           if (signal?.aborted) throw error;
           if (!['ROUTING_UNAVAILABLE', 'ROUTING_LIMIT', 'STATISTICS_LIMIT', 'STATISTICS_INVALID'].includes(error.code)) throw error;
@@ -56,6 +46,6 @@ export function createOperationalRanker({ connection, routingProvider, clock = D
     return { sitterIds: ranked, scoresBySitterId, featureSnapshot: { version: 'PWC_MATCH_FEATURES_V1', decisionAt,
       slotStartAt: new Date(visit.startAt).toISOString(), slotEndAt: new Date(visit.endAt).toISOString(),
       featuresAsOf: Object.fromEntries(['fit', 'travel', 'quality', 'reliability', 'workload'].map(key => [key, decisionAt])),
-      candidates: [...scores].map(([sitterId, score]) => ({ sitterId, features: score.features })), policyVersion: policy.version, modelVersion } };
+      candidates: [...scores].map(([sitterId, score]) => ({ sitterId, features: score.features })), policyVersion: policy.version, modelVersion: null } };
   };
 }

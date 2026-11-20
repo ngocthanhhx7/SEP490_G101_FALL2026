@@ -18,7 +18,7 @@ Schemas live in `../../models/sitter-matching.model.js`; HTTP adapters in contro
 
 See [API guide](../../../../doc/api/ai-pricing-matching-v1.md) and [package rules](../../../../doc/source-code-management/package-architecture.md).
 
-`operational-ranker.service.js` adapts the same policy/model, features and routing
+`operational-ranker.service.js` adapts the same policy, features and routing
 for the dispatch worker. It reorders only the exact authoritative eligible set;
 missing advice or its three-second budget preserves deterministic ordering. This
 operational invitation path permits newcomers without fabricating prior reviews;
@@ -27,16 +27,6 @@ the private offer and copied to the visit only after authoritative acceptance.
 They do not contain names, addresses or pet descriptions. Boarding/special care
 continues through its existing operational feasibility checks.
 
-`model-registry.service.js` owns Admin status, immutable DRAFT artifact/evidence
-imports and audited versioned APPROVE/RETIRE commands. Approval is serialized and
-retires older active versions atomically. Raw artifacts/evidence are excluded
-from ordinary model reads. The legacy model write endpoint cannot activate a
-self-declared model. HTTP composition stays in the existing AI routes/controller.
-See [offline tools](../../../scripts/ai/README.md) for export/train/import steps.
+The matching runtime reads only the approved ranking policy. Admin can view its version and weights. Legacy model records are retained for research and rollback investigation.
 
 Customer-facing recommendation requests reject Customers with an owned COMPLETED care visit. This does not change the operational invitation ranker or its authoritative eligibility gates. The owner’s products, uncompleted visits and other owners’ visits do not establish completed care history.
-
-`model-demo.service.js` compares the fitted simulation weights with the current
-approved policy using the same scorer and two fixed candidate profiles. It reads
-the existing policy. The demonstration has no writes and does not participate in
-operational matching or model approval.

@@ -32,7 +32,7 @@ Composition roots (`app.js`, `runtime.js`, `routes/*runtime*`, `routes/auth.modu
 
 Public APIs are `/api/v1/pricing/quotes`, `/api/v1/pet-care/*` and `/api/v1/ai/recommendations`. `AI_ENABLED` controls matching only. Quote and matching snapshots have separate kind/owner/expiry checks. Renamed Mongoose model names retain existing collection names; never silently create an empty replacement collection or delete old data.
 
-Python training tools live under `backend/scripts/ai/`, outside runtime source. Grouped temporal splitting does not itself prove feature availability at prediction time. Record point-in-time provenance before using real training data; never report fixture metrics as production evidence.
+Runtime reads the approved fixed-weight sitter policy. Archived experiment results must retain point-in-time provenance and may only be reported as evidence for their test population.
 
 ## Checks and releases
 

@@ -81,11 +81,7 @@ is allowed and moves the stock; the page shows its answer and reloads after a co
 
 `GoodsReceiptPage` is the `/admin/goods-receipts` screen (menu group "Cửa hàng", item "Nhập hàng"): the form for a new receipt (supplier, the day and the recorder as read-only, one row per product with Số nhận, Nhận vào kho, the rejected quantity worked out and the reason, the totals) beside "Phiếu nhập gần đây". The form checks MSG113, MSG119 and MSG120 before it sends; the backend checks again, and decides the code, the day, the recorder and the stock. `?receipt=PN-0012` (the link of a MSG122 notice) opens that receipt read only. The draft is kept while a receipt is open. The page keeps one `Idempotency-Key` while the form is unchanged, so saving again after a lost answer cannot make a second receipt (D-218). The products are searched with `components/product/ProductPicker.jsx`'s `ProductSearch`, through the goods receipt API.
 
-`AiModelsPage.jsx` at `/admin/ai-models` reads the current AI source, model history
-and unqualified source counts. It imports trainer DRAFT/evidence pairs and submits
-versioned model review decisions through `services/ai-model-api.js`. It never
-trains, fabricates ratings or claims aggregate counts satisfy verified data gates.
-Unknown write acknowledgements lock edited inputs and retain the same body/key.
+`SitterRankingPolicyPage.jsx` shows the active sitter ranking weights at `/admin/sitter-ranking`. The former Admin URL redirects here.
 
 SitterApplicationReviewPage embeds contract preparation/printing/signature
 verification before final approval. EmployeePayrollAdminPage defaults to a named
@@ -100,6 +96,3 @@ AI Models includes a separate bounded source-readiness audit. It does not train 
 `ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.
 
 `ServiceWorkflowBuilder.jsx` extends the existing Services contextual dialog with draft steps, keyboard ordering, phase/scope/applicability, named photo slots, structured fields, preview, validation/publication/retirement and paginated immutable history. Transport lives in service-workflow-api; uncertain writes retain the same operation.
-
-`AiModelsPage.jsx` shows ranking status and model review controls. Its demo panel
-can request a server-side ranking of two mock sitters and compare both results.

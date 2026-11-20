@@ -5,8 +5,7 @@ import {
   instant,
   number,
   point,
-  weights,
-  digest
+  weights
 } from '../../validators/pet-care.validator.js';
 import { localDay } from './scheduling.service.js';
 
@@ -317,59 +316,10 @@ export function createAiManagement({ repository, clock = Date.now }) {
       });
       return { id: String(doc._id), source: 'ADMIN_VERIFIED_IMPORT' };
     },
-    async model(actor, body) {
-      exact(
-        body,
-        [
-          'version',
-          'weights',
-          'trainingRows',
-          'testMae',
-          'baselineMae',
-          'testGroups',
-          'trainedUntil',
-          'state'
-        ],
-        [
-          'version',
-          'weights',
-          'trainingRows',
-          'testMae',
-          'baselineMae',
-          'testGroups',
-          'trainedUntil',
-          'state'
-        ]
-      );
-      text(body.version, 80);
-      weights(body.weights);
-      number(body.trainingRows, 100, 100000000, true);
-      number(body.testGroups, 10, 10000000, true);
-      number(body.testMae, 0, 100);
-      number(body.baselineMae, 0, 100);
-      if (
-        instant(body.trainedUntil) > clock() ||
-        !['DRAFT', 'APPROVED'].includes(body.state)
-      )
-        fail('VALIDATION_FAILED', 'Invalid model');
-      if (body.state === 'APPROVED' && body.testMae >= body.baselineMae)
-        fail(
-          'MODEL_NOT_IMPROVED',
-          'Model must beat baseline on held-out groups',
-          409
-        );
-      if (body.state === 'APPROVED') fail('MODEL_REVIEW_REQUIRED', 'Import original artifact/evidence and record a source review before activation', 409);
-      const { state, ...content } = body;
-      content.trainedUntil = new Date(body.trainedUntil).toISOString();
-      const sha256 = digest(content);
-      const doc = await models.SitterRankModel.create({
-        ...content,
-        state,
-        sha256,
-        approvedBy: state === 'APPROVED' ? actor.userId : null,
-        approvedAt: state === 'APPROVED' ? new Date(clock()) : null
-      });
-      return { id: String(doc._id), state: doc.state, sha256 };
+    async rankingStatus(actor) {
+      if (actor?.state !== 'ACTIVE' || !actor.roles?.includes('ADMIN')) fail('FORBIDDEN', 'Admin required', 403);
+      const { policy } = await repository.ranking();
+      return { rankingSource: 'EXPLAINABLE_RULES', policyVersion: policy.version, policyWeights: policy.weights };
     }
   };
 }

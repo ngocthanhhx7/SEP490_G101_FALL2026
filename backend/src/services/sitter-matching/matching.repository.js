@@ -261,14 +261,7 @@ export function createAiRepository(connection, clock = Date.now, { employeeSched
         .lean();
       if (!policy || (!policy.approvedBy && !policy.approvalSource))
         fail('RANKING_POLICY_UNAVAILABLE', 'Approve ranking policy first', 409);
-      const model = await models.SitterRankModel.findOne({
-        state: 'APPROVED',
-        approvedAt: { $lte: now, $ne: null },
-        trainedUntil: { $lte: now }
-      })
-        .sort({ approvedAt: -1 })
-        .lean();
-      return { policy, model };
+      return { policy };
     }
   };
 }

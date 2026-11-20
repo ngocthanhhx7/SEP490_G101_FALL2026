@@ -172,27 +172,12 @@ Một quote một dịch vụ theo P01. Cơ sở giá là duration units × số
 
 Ranking có công thức và giải thích đầy đủ tại [bộ quy tắc](../requirements/pwc-sitter-matching-scheduling-rules-v1.md). Triển khai 5 thành phần 30/25/20/15/10, lấy species ít kinh nghiệm nhất cho lượt nhiều loài, kinh nghiệm/rating180 ngày, reliability90 ngày, history cùng pet. New sitter public rating null, prior nội bộ; không zero-rating giả. Tối đa 6h phục vụ/8h bận, nghỉ30 phút sau tối đa4h liên tục; bàn giao15, buffer đường max(10,20% ETA), chặng<=45 phút. Lịch cố định, không tự reschedule. Recommender không thực thi quota offer người mới vì quota cần transaction offer P24, không sửa thứ tự để tuyên bố quota đã chạy.
 
-Shortlist default5, cho phép5–20; chỉ người đủ gate/score>=60. Mỗi candidate có breakdown, confidence, plan phút tăng/bận, ranking source/policy/model. Nếu thiếu5 báo shortfall/exclusions aggregate, không lộ danh tính người bị loại. Employee dispatch sử dụng gợi ý này và có nhánh sắp xếp theo eligibility/tuyến đường cho nhân viên mới. Mục tiêu là 5 lời mời đồng thời, bù khi có người từ chối; ca chỉ gán cho người đầu tiên chấp nhận thành công. Các lời mời còn lại bị thu hồi. Không tạo 5 assignment; SMS/email là gate riêng. Xem [luồng điều phối](employee-scheduling-checkout.md).
+Luồng khách hàng trả mặc định 5 gợi ý, cho phép yêu cầu 5–20. Ứng viên phải đủ điều kiện và đạt ít nhất 60 điểm. Phản hồi có điểm thành phần, độ tin cậy, thời gian di chuyển tăng thêm, thời lượng bận và phiên bản chính sách. Luồng điều phối kiểm tra tập ứng viên đủ điều kiện và có thứ tự dự phòng riêng. Xem [luồng điều phối](employee-scheduling-checkout.md).
 
-## 9. Huấn luyện lại model
+## 9. Thử nghiệm model đã kết thúc
 
-Khác HouseBuddy huấn luyện trên synthetic labels của heuristic: PawWorld cung cấp additive model học từ kết quả đã xác minh, Python standard library, không cần cài ML runtime vào Express, không tải pickle. Mỗi feature normalized0–1; trọng số không âm và tổng100; từng đóng góp giải thích trực tiếp. Không có đủ dữ liệu thật thì giữ EXPLAINABLE_RULES, không tuyên bố đã train thành công trên dữ liệu khách thật.
-
-Nhãn được người dùng chốt ngày 30/10/2026 là điểm hài lòng đã xác minh,
-`VERIFIED_CUSTOMER_SATISFACTION_V1`: `(rating - 1) * 25`. JSONL v1 mỗi dòng chỉ cho phép:
-
-```json
-{"groupId":"opaque_booking_group_001","observationId":"opaque_review_001","decisionAt":"2026-10-01T00:00:00Z","occurredAt":"2026-10-03T00:00:00Z","featuresAsOf":{"fit":"2026-10-01T00:00:00Z","travel":"2026-10-01T00:00:00Z","quality":"2026-10-01T00:00:00Z","reliability":"2026-10-01T00:00:00Z","workload":"2026-10-01T00:00:00Z"},"features":{"fit":0.7,"travel":0.8,"quality":0.9,"reliability":0.95,"workload":0.6},"rating":4,"targetScore":75,"labelVersion":"VERIFIED_CUSTOMER_SATISFACTION_V1","verified":true}
-```
-
-Rating phải xuất phát từ nguồn Customer đã xác minh sau booking hoàn tất; không lấy heuristic score làm nhãn. Observation ID trùng bị từ chối; mọi feature phải sẵn sàng trước hoặc tại decisionAt và outcome phải có sau decisionAt. Không tự thêm provenance cho legacy rows. Không email/địa chỉ/coordinates/CCCD trong dataset. >=200 observations, >=50 nhóm booking; chronological group split80/20, chỉ giữ training outcomes đã có trước quyết định sớm nhất trong test, loại nhóm băng qua cutoff; train>=100, test>=10 nhóm. File tối đa50MB. [Báo cáo và kế hoạch data](../testing/ai-real-data-2026-10-30.md) phân biệt dữ liệu đã tải với dữ liệu đủ điều kiện train.
-
-```powershell
-python scripts/ai/train_model.py storage/ai/verified-outcomes.jsonl --version pwc-rank-v1 --output storage/ai/model-v1.json
-python -m unittest discover -s tests/python -p test_train_model.py
-```
-
-Output DRAFT, không tự activate. POST /admin/models với output và state APPROVED sau review. Gate backend: MAE test < baseline MAE, đủ nhóm/rows, weights hợp lệ, thời gian không tương lai; hash canonical kiểm tra trước inference. Đây là thông số Admin công bố, không bằng chứng tự xác minh dataset. Model lỗi gate fallback quy tắc; model không thay eligibility, route feasibility hay price policy. Trước dùng production cần benchmark/shadow thật, provenance dataset và rollback version.
+Hệ thống sử dụng chính sách trọng số đã duyệt. Báo cáo thử nghiệm được lưu riêng;
+không có luồng huấn luyện, nạp hay phê duyệt model trong ứng dụng.
 
 ## 10. Tests và giới hạn
 
@@ -200,7 +185,6 @@ Output DRAFT, không tự activate. POST /admin/models với output và state AP
 npm run lint
 npm test
 npm test -- --runTestsByPath tests/unit/ai.test.js tests/integration/ai.test.js
-python -m unittest discover -s tests/python -p test_train_model.py
 ```
 
 Integration tests tạo MongoDB8.0 replica set riêng và fake routing nội bộ, không đụng database .env; cover cookie/CSRF/ownership, quote policy/roundtrip, shortlist5, thiếu người, đình chỉ/trùng lịch, expiry, rules. Python tests dùng dữ liệu tổng hợp chỉ trong kiểm thử để chứng minh split/train, không publish model đó.
@@ -217,44 +201,8 @@ OSRM Hà Nội đã có runtime EC2; [kiểm tra ngày 30/10/2026](../testing/ai
 - Không tuyên bố đã chạy model huấn luyện dữ liệu thật hoặc đã gửi lời mời sitter thực tế; integration test có6 sitter tổng hợp trong database tách biệt.
 
 
-## Model lifecycle integration — 04/11/2026
+## Admin ranking policy
 
-Admin-only session endpoints under `/api/v1/ai` (all private/no-store):
-
-| Method/path | Purpose |
-| --- | --- |
-| GET `/admin/status` | Active source/model, latest 20 versions, rule weights and unqualified data counts |
-| POST `/admin/model-imports` | `{artifactJson, evidence}`: exact trainer bytes/evidence, immutable DRAFT import |
-| POST `/admin/models/:modelId/reviews` | `{expectedVersion, action, reason, reviewReference}` with `Idempotency-Key`; APPROVE or RETIRE |
-
-Writes require CSRF. Repeating an identical version/import returns the stored
-model; different bytes/evidence conflict. Review commands use actor-scoped
-idempotency, current Admin authorization and optimistic version checks. Activation
-serializes concurrent approvals, retires older active versions and records review
-references. Legacy POST `/admin/models` can save DRAFT but rejects direct APPROVED
-with `MODEL_REVIEW_REQUIRED`. A draft without its original artifact/evidence must
-be reconciled through a new immutable version. Approval checks holdout improvement
-and hashes; an operator still has to verify original sources/evaluation honestly.
-
-`/admin/ai-models` exposes this lifecycle. The worker now wires advisory ranking
-when AI is enabled, preserving its complete authoritative eligible set and
-fallback ordering when advice is unavailable. Selected offer features are private
-and become the accepted visit snapshot. Customer checkout retains matching
-features before TTL expiry. Old visits without point-in-time features are not
-backfilled. See [export/train workflow](../../backend/scripts/ai/README.md).
-
-### Admin model demonstration
-
-GET `/api/v1/ai/admin/model-demo` runs the sitter scorer for two fixed synthetic
-profiles with the current approved policy and a versioned simulation model.
-The response includes both rankings, the model's provenance and the recorded
-holdout errors. It requires an Admin session and has no business writes.
-
-The simulation model was fitted on 372 training observations from an isolated
-replay of Paw World Care HOME bookings. Another 93 bookings were held out by
-time. All 465 samples passed the export contract inside the isolated database.
-The simulation ratings were generated independently of the model inputs.
-The model's held-out MAE was 25.63, the original rules had 28.59, and a fixed
-four-star prediction had 24.19. The current policy used in each live demo is
-read when the request runs. The historical MAE comparison stays tied to the
-weights used during evaluation.
+GET `/api/v1/ai/admin/status` requires an Admin session and reports the approved
+policy version and its five weights. Operational and customer ranking both
+use this policy.

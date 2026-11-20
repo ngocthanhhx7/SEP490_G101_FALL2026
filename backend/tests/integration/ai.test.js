@@ -1,5 +1,5 @@
 import { applyCareTraitDecision } from '../../src/services/pricing/care-trait-policy.service.js';
-import { createHash } from 'node:crypto';
+import { digest } from '../../src/validators/pet-care.validator.js';
 import { pricingRuntimeModule } from '../../src/routes/pricing.routes.js';
 import { petCareRuntimeModule } from '../../src/routes/pet-care.routes.js';
 import { servicePolicyVersionModel } from '../../src/models/service-policy-version.model.js';
@@ -656,77 +656,38 @@ test('changed pricing policy caps and special care readiness fail closed', async
       expect(response.body.error.fieldErrors.petTraits).toContain('not-priced-yet');
     });
 });
-test('approved additive model is used only after hash and holdout checks, invalid model falls back', async () => {
-  const payload = {
-    version: 'synthetic-model-v1',
-    weights: {
-      fit: 30,
-      travel: 25,
-      quality: 20,
-      reliability: 15,
-      workload: 10
-    },
-    trainingRows: 200,
-    testMae: 1,
-    baselineMae: 2,
-    testGroups: 10,
-    trainedUntil: new Date(clockNow - 60000).toISOString(),
-    state: 'APPROVED'
-  };
-  await request(app)
-    .post('/api/v1/ai/admin/models')
-    .set(await authFor(admin))
-    .send({ ...payload, testMae: 3 })
-    .expect(409);
-  await request(app).post('/api/v1/ai/admin/models').set(await authFor(admin)).send(payload).expect(409);
-  const artifactJson = JSON.stringify({ ...payload, state: 'DRAFT' });
-  const evidence = { labelVersion: 'VERIFIED_CUSTOMER_SATISFACTION_V1', datasetSha256: 'a'.repeat(64),
-    artifactSha256: createHash('sha256').update(artifactJson).digest('hex'), trainingRows: 200, testRows: 50, testGroups: 10, purgedRows: 0,
-    latestTrainingOutcome: new Date(clockNow - 2 * 86400000).toISOString(), earliestTestDecision: new Date(clockNow - 86400000).toISOString(),
-    sourceVerification: 'OPERATOR_ATTESTED_REQUIRES_INDEPENDENT_REVIEW', state: 'DRAFT' };
-  await request(app).get('/api/v1/ai/admin/status').set(await authFor(customer)).expect(403);
-  const draft = await request(app).post('/api/v1/ai/admin/model-imports').set(await authFor(admin)).send({ artifactJson, evidence }).expect(201);
-  expect(draft.body.data.state).toBe('DRAFT');
-  const repeated = await request(app).post('/api/v1/ai/admin/model-imports').set(await authFor(admin)).send({ artifactJson, evidence }).expect(201);
-  expect(repeated.body.data.id).toBe(draft.body.data.id);
-  await request(app).post('/api/v1/ai/admin/model-imports').set(await authFor(admin)).send({ artifactJson: artifactJson+' ', evidence }).expect(409);
-  const body = { expectedVersion: 0, action: 'APPROVE', reason: 'Synthetic isolated source review', reviewReference: 'synthetic-test-only-evidence' };
-  const reviewHeaders = { ...await authFor(admin), 'Idempotency-Key': 'synthetic-model-review-001' };
-  await request(app).post(`/api/v1/ai/admin/models/${draft.body.data.id}/reviews`).set(reviewHeaders).send(body).expect(200);
-  await request(app).post(`/api/v1/ai/admin/models/${draft.body.data.id}/reviews`).set(reviewHeaders).send(body).expect(200);
-  await request(app).post(`/api/v1/ai/admin/models/${draft.body.data.id}/reviews`).set(reviewHeaders).send({ ...body, action: 'RETIRE' }).expect(409);
-  expect(await models.SitterRankModelReview.countDocuments({ action: { $exists: true } })).toBe(1);
-  const status = await request(app).get('/api/v1/ai/admin/status').set(await authFor(admin)).expect(200);
-  expect(status.body.data.activeModel.version).toBe(payload.version);
+test('approved policy is the only ranking source and archived models cannot be activated over HTTP', async () => {
   const headers = await authFor(customer);
-  let result = await request(app)
-    .post('/api/v1/ai/recommendations')
-    .set(headers)
-    .send(matchBody())
-    .expect(201);
-  expect(result.body.data.rankingSource).toBe('APPROVED_ADDITIVE_MODEL');
-  const reviewUrl = `/api/v1/ai/admin/models/${draft.body.data.id}/reviews`, adminHeaders = await authFor(admin);
-  await request(app).post(reviewUrl).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-model-retire-002' })
-    .send({ ...body, expectedVersion: 1, action: 'RETIRE' }).expect(200);
-  const retired = await request(app).get('/api/v1/ai/admin/status').set(adminHeaders).expect(200);
-  expect(retired.body.data.rankingSource).toBe('EXPLAINABLE_RULES');
-  await request(app).post(reviewUrl).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-stale-review-003' })
-    .send({ ...body, expectedVersion: 1 }).expect(409);
-  await request(app).post(reviewUrl).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-model-rollback-004' })
-    .send({ ...body, expectedVersion: 2 }).expect(200);
-  expect((await models.SitterRankModel.findById(draft.body.data.id).select('+artifactJson').lean()).artifactJson).toBe(artifactJson);
+  const original = await request(app).post('/api/v1/ai/recommendations').set(headers).send(matchBody()).expect(201);
+  const archive = { version: 'archived-model', weights: { fit: 0, travel: 0, quality: 100, reliability: 0, workload: 0 },
+    trainingRows: 200, testMae: 1, baselineMae: 2, testGroups: 10, trainedUntil: new Date(clockNow - 60000).toISOString() };
+  const row = await models.SitterRankModel.create({
+    ...archive, state: 'APPROVED', sha256: digest(archive), approvedBy: String(admin._id), approvedAt: new Date(clockNow - 1000)
+  });
+  const recommendations = await request(app).post('/api/v1/ai/recommendations').set(headers).send(matchBody()).expect(201);
+  expect(recommendations.body.data).toMatchObject({ rankingSource: 'EXPLAINABLE_RULES', modelVersion: null, policyVersion: 1,
+    candidates: original.body.data.candidates });
 
-  await models.SitterRankModel.updateOne(
-    { version: payload.version },
-    { $set: { sha256: 'tampered' } }
-  );
-  result = await request(app)
-    .post('/api/v1/ai/recommendations')
-    .set(headers)
-    .send(matchBody())
-    .expect(201);
-  expect(result.body.data.rankingSource).toBe('EXPLAINABLE_RULES');
-  expect(result.body.data.fallbackReason).toBe('MODEL_VALIDATION_FAILED');
+  const historicalMatchId = original.body.data.matchId;
+  await models.DecisionSnapshot.updateOne({ _id: historicalMatchId }, { $set: {
+    'snapshot.result.rankingSource': 'APPROVED_ADDITIVE_MODEL', 'snapshot.result.modelVersion': archive.version
+  } });
+  const saved = await request(app).get('/api/v1/ai/decisions/' + historicalMatchId).set(headers).expect(200);
+  expect(saved.body.data).toMatchObject({ rankingSource: 'APPROVED_ADDITIVE_MODEL', modelVersion: archive.version });
+
+  const path = '/api/v1/ai/admin';
+  const adminHeaders = await authFor(admin);
+  await request(app).get(path + '/status').expect(401);
+  await request(app).get(path + '/status').set(headers).expect(403);
+  const status = await request(app).get(path + '/status').set(adminHeaders).expect(200);
+  expect(status.headers['cache-control']).toBe('private, no-store');
+  expect(status.body.data).toEqual({ rankingSource: 'EXPLAINABLE_RULES', policyVersion: 1, policyWeights: DEFAULT_WEIGHTS });
+  await request(app).get(path + '/model-demo').set(adminHeaders).expect(404);
+  await request(app).get(path + '/training-readiness').set(adminHeaders).expect(404);
+  for (const route of ['/models', '/model-imports', '/models/' + row._id + '/reviews']) {
+    await request(app).post(path + route).set(adminHeaders).send({}).expect(404);
+  }
+  expect(await models.SitterRankModel.findById(row._id).lean()).toMatchObject({ state: 'APPROVED', version: archive.version });
 });
 test.each([
   ['repeated pet IDs', { petIds: ['abcdef012345abcdef012345', 'abcdef012345abcdef012345'] }],
@@ -833,21 +794,6 @@ test('a slow routing lookup cannot save a ready snapshot after the lead-time win
   );
 });
 
-test('training readiness is private, Admin-only and read-only with bounded audit rate', async () => {
-  await request(app).get('/api/v1/ai/admin/training-readiness').expect(401);
-  await request(app).get('/api/v1/ai/admin/training-readiness').set(await authFor(customer)).expect(403);
-  const headers=await authFor(admin), before=await models.SitterVisitOutcome.countDocuments();
-  for(let i=0;i<3;i++) {
-    const result=await request(app).get('/api/v1/ai/admin/training-readiness').set(headers).expect(200);
-    expect(result.headers['cache-control']).toContain('no-store');
-    expect(result.body.data).toMatchObject({eligibleRows:0,readyForTraining:false,automaticTraining:false,missingObservations:200,scanLimit:500});
-    expect(result.body.data).not.toHaveProperty('rows');
-  }
-  await request(app).get('/api/v1/ai/admin/training-readiness').set(headers).expect(429);
-  expect(await models.SitterVisitOutcome.countDocuments()).toBe(before);
-});
-
-
 test('owned booking quote recovers after approved care-trait policy migration; unknown traits remain blocked', async()=>{
  const headers=await authFor(customer);
  const baseline=await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(201);
@@ -859,19 +805,4 @@ test('owned booking quote recovers after approved care-trait policy migration; u
  expect(result.body.data.totalVnd).toBe(baseline.body.data.totalVnd);
  await models.Pet.updateOne({_id:petId},{$push:{traits:'unapproved-new-trait'}});
  await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(409);
-});
-
-test('model demonstration scores two sample candidates as Admin without saving a model or a decision', async () => {
-  const path = '/api/v1/ai/admin/model-demo';
-  await request(app).get(path).expect(401);
-  await request(app).get(path).set(await authFor(customer)).expect(403);
-  const response = await request(app).get(path).set(await authFor(admin)).expect(200);
-  expect(response.headers['cache-control']).toBe('private, no-store');
-  expect(response.body.data).toMatchObject({
-    model: { source: 'SIMULATION_ONLY', trainingRows: 372, testRows: 93 },
-    baseline: { policyVersion: 1, candidates: [{ id: 'B', score: 66.8, rank: 1 }, { id: 'A', score: 55.3, rank: 2 }] },
-    candidates: [{ id: 'A', score: 78.1, rank: 1 }, { id: 'B', score: 71.9, rank: 2 }]
-  });
-  const registry = await request(app).get('/api/v1/ai/admin/status').set(await authFor(admin)).expect(200);
-  expect(registry.body.data).toMatchObject({ activeModel: null, totalModels: 0, rankingSource: 'EXPLAINABLE_RULES' });
 });

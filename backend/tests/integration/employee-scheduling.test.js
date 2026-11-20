@@ -1,3 +1,4 @@
+import { digest } from '../../src/validators/pet-care.validator.js';
 import { createSitterCapabilityService } from '../../src/services/sitter-capability.service.js';
 import { createOperationalRanker } from '../../src/services/sitter-matching/operational-ranker.service.js';
 import { beforeAll, afterAll, test, expect } from '@jest/globals';
@@ -27,7 +28,6 @@ import sharp from 'sharp';
 import { privateImageModule } from '../../src/routes/private-image.routes.js';
 import { privateImageModels } from '../../src/models/private-image.model.js';
 import { createPrivateImageService } from '../../src/services/private-image.service.js';
-import { createTrainingDatasetExporter } from '../../src/services/ai-training/dataset-export.service.js';
 import { requireSession, requireCsrf } from '../../src/middlewares/session.js';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 
@@ -696,7 +696,7 @@ test('failed automatic dispatch persists bounded reasons and never broadens a ci
 });
 
 
-test('ranked HOME assignment produces one exportable observation only after completed care and customer rating', async () => {
+test('ranked HOME assignment retains its policy snapshot and records one verified customer rating after completed care', async () => {
   const sitter = await employee(), row = await visit({ start: '2026-10-31T02:00:00Z', requestedSitterId: sitter.userId });
   await connection.collection('visits').updateOne({ _id: row._id }, {
     $set: { location: 'HOME', 'snapshots.checklistItemIds': ['pet-condition'] }
@@ -705,12 +705,15 @@ test('ranked HOME assignment produces one exportable observation only after comp
   const matching = matchingModels(connection);
   await matching.SitterRankingPolicy.create({ version: 1, status: 'APPROVED', effectiveAt: new Date('2026-01-01'), approvedAt: new Date('2026-01-01'),
     approvalSource: 'SYNTHETIC_ISOLATED_POLICY', reason: 'Synthetic operational scoring test', weights: { fit: 30, travel: 25, quality: 20, reliability: 15, workload: 10 } });
+  const archived = { version: 'archived-dispatch-model', weights: { fit: 100, travel: 0, quality: 0, reliability: 0, workload: 0 },
+    trainingRows: 200, testMae: 1, baselineMae: 2, testGroups: 10, trainedUntil: new Date(0).toISOString() };
+  await matching.SitterRankModel.create({ ...archived, state: 'APPROVED', sha256: digest(archived), approvedAt: new Date(1000) });
   const routingProvider = { validatePoints: () => {}, cacheTtlMs: 0, matrix: async points => ({ map: new Map(points.flatMap(a => points.map(b => [edgeKey(a, b), 0]))), recordedAt: new Date(clock()), source: 'SYNTHETIC_TEST_ROUTE' }) };
   const dispatch = createEmployeeDispatchService({ repository: module.repository, clock,
     ranker: createOperationalRanker({ connection, routingProvider, clock }) });
   await dispatch.runBatch({ limit: 20 });
   const offer = await module.repository.models.EmployeeVisitOffer.findOne({ visitId: row._id }).select('+featureSnapshot').lean();
-  expect(offer.featureSnapshot).toMatchObject({ version: 'PWC_MATCH_FEATURES_V1', sitterId: sitter.userId, features: { fit: 0 }, modelVersion: null });
+  expect(offer.featureSnapshot).toMatchObject({ version: 'PWC_MATCH_FEATURES_V1', sitterId: sitter.userId, features: { fit: 0 }, policyVersion: 1, modelVersion: null });
   expect(JSON.stringify(await dispatch.offers.detail(sitter, String(offer._id)))).not.toContain('featureSnapshot');
   await dispatch.offers.accept(sitter, String(offer._id), 0, 'accept-captured-operational-offer');
   const assigned = await connection.collection('visits').findOne({ _id: row._id });
@@ -719,10 +722,6 @@ test('ranked HOME assignment produces one exportable observation only after comp
   expect(await matching.SitterVisitOutcome.countDocuments({ sitterId: new mongoose.Types.ObjectId(sitter.userId) })).toBe(0);
 
   let at = row.startAt.getTime();
-  const replayClock = () => at;
-  const exporter = createTrainingDatasetExporter({ connection, clock: replayClock });
-  const exportOptions = { key: 'isolated-replay-example-pseudonym-key' };
-  const before = await exporter.collect(exportOptions);
   const finance = createBookingFinanceSourceService({ connection, clock: () => new Date(at) });
   const stored = new Map();
   const images = createPrivateImageService({ connection, secret: 'isolated-replay-example-media-key', media: {
@@ -750,7 +749,7 @@ test('ranked HOME assignment produces one exportable observation only after comp
   expect(stored.size).toBe(2);
   expect(completed.state).toBe('COMPLETED');
   expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('COMPLETED');
-  expect((await exporter.collect(exportOptions)).summary.eligibleRows).toBe(before.summary.eligibleRows);
+  expect(await matching.SitterVisitOutcome.countDocuments({ visitId: row._id })).toBe(0);
 
   at += 60000;
   reviewNow = at;
@@ -760,16 +759,10 @@ test('ranked HOME assignment produces one exportable observation only after comp
     .send({ rating: 4, expectedVersion: completed.version }).expect(201);
   const accepted = await rate();
   expect((await rate()).body.data).toEqual(accepted.body.data);
-  const after = await exporter.collect(exportOptions);
-  const priorIds = new Set(before.rows.map(item => item.observationId));
-  const newRows = after.rows.filter(item => !priorIds.has(item.observationId));
-  expect(after.summary.eligibleRows).toBe(before.summary.eligibleRows + 1);
-  expect(after.summary.bookingGroups).toBe(before.summary.bookingGroups + 1);
-  expect(newRows).toEqual([expect.objectContaining({
-    features: assigned.assignedFeatureSnapshot.features, rating: 4, targetScore: 75,
-    decisionAt: new Date(clock()).toISOString(), occurredAt: new Date(at).toISOString()
-  })]);
-  expect(after.summary.readyForTraining).toBe(false);
+  const outcomes = await matching.SitterVisitOutcome.find({ visitId: row._id }).select('+provenance').lean();
+  expect(outcomes).toHaveLength(1);
+  expect(outcomes[0]).toMatchObject({ rating: 4, occurredAt: new Date(at),
+    provenance: { labelVersion: 'VERIFIED_CUSTOMER_SATISFACTION_V1' } });
 });
 
 test('operational advice may reorder the complete eligible set but cannot add or remove employees', async () => {
