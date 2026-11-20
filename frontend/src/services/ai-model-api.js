@@ -10,6 +10,17 @@ export function createAiModelApi(request) {
     return result;
   }
   return {
+    async runDemo() {
+      const result = await request('/ai/admin/model-demo');
+      const { data } = result;
+      const validCandidates = rows => Array.isArray(rows) && rows.length > 0 &&
+        rows.every((row, i) => typeof row.id === 'string' && row.rank === i + 1 && Number.isFinite(row.score)) &&
+        new Set(rows.map(row => row.id)).size === rows.length;
+      if (data?.model?.source !== 'SIMULATION_ONLY' || !validCandidates(data.candidates) ||
+        !validCandidates(data.baseline?.candidates) || data.candidates.length !== data.baseline.candidates.length ||
+        data.candidates.some(row => !data.baseline.candidates.some(other => other.id === row.id))) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     async trainingReadiness({ signal } = {}) {
       const result = await request('/ai/admin/training-readiness', { signal });
       const data = result.data;

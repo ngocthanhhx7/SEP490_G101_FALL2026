@@ -860,3 +860,18 @@ test('owned booking quote recovers after approved care-trait policy migration; u
  await models.Pet.updateOne({_id:petId},{$push:{traits:'unapproved-new-trait'}});
  await request(app).post('/api/v1/pricing/quotes').set(headers).send(quoteBody()).expect(409);
 });
+
+test('model demonstration scores two sample candidates as Admin without saving a model or a decision', async () => {
+  const path = '/api/v1/ai/admin/model-demo';
+  await request(app).get(path).expect(401);
+  await request(app).get(path).set(await authFor(customer)).expect(403);
+  const response = await request(app).get(path).set(await authFor(admin)).expect(200);
+  expect(response.headers['cache-control']).toBe('private, no-store');
+  expect(response.body.data).toMatchObject({
+    model: { source: 'SIMULATION_ONLY', trainingRows: 372, testRows: 93 },
+    baseline: { policyVersion: 1, candidates: [{ id: 'B', score: 66.8, rank: 1 }, { id: 'A', score: 55.3, rank: 2 }] },
+    candidates: [{ id: 'A', score: 78.1, rank: 1 }, { id: 'B', score: 71.9, rank: 2 }]
+  });
+  const registry = await request(app).get('/api/v1/ai/admin/status').set(await authFor(admin)).expect(200);
+  expect(registry.body.data).toMatchObject({ activeModel: null, totalModels: 0, rankingSource: 'EXPLAINABLE_RULES' });
+});

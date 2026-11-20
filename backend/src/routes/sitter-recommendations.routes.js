@@ -13,6 +13,7 @@ import { createAiController } from '../controllers/sitter-recommendations.contro
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
 import { createModelRegistry } from '../services/sitter-matching/model-registry.service.js';
 import { createTrainingReadinessService } from '../services/ai-training/training-readiness.service.js';
+import { createSitterModelDemo } from '../services/sitter-matching/model-demo.service.js';
 export function aiRuntimeModule({
   config,
   connection,
@@ -36,7 +37,7 @@ export function aiRuntimeModule({
     clock
   });
   const management = createAiManagement({ repository, clock }),
-    c = createAiController({ service, management, registry: createModelRegistry({ repository, clock }), training: createTrainingReadinessService({ connection, clock }) });
+    c = createAiController({ service, management, registry: createModelRegistry({ repository, clock }), training: createTrainingReadinessService({ connection, clock }), runModelDemo: createSitterModelDemo({ repository }) });
   const router = Router();
   router.use((_req, res, next) => {
     res.set('Cache-Control', 'private, no-store');
@@ -59,6 +60,8 @@ export function aiRuntimeModule({
   router.get('/admin/status', admin, c.status);
   const auditRate = rateLimit({ windowMs: 60000, limit: 3, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth.userId });
   router.get('/admin/training-readiness', admin, auditRate, c.trainingReadiness);
+  const demoRate = rateLimit({ windowMs: 60000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth.userId });
+  router.get('/admin/model-demo', admin, demoRate, c.modelDemo);
   router.post('/admin/model-imports', admin, csrf, c.importModel);
   router.post('/admin/models/:modelId/reviews', admin, csrf, c.reviewModel);
   return { name: 'ai', mount: '/api/v1/ai', router };

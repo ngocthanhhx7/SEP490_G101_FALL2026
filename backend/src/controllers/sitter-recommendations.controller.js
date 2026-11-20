@@ -1,6 +1,6 @@
 import { AppError } from '../utils/app-error.js';
 import { metadata } from '../utils/app-error.js';
-export function createAiController({ service, management, registry, training }) {
+export function createAiController({ service, management, registry, training, runModelDemo }) {
   const send = (req, res, status, data) =>
     res.status(status).json({ data, meta: metadata(req) });
   const invoke = (status, handler) => async (req, res) => {
@@ -35,6 +35,7 @@ export function createAiController({ service, management, registry, training }) 
     model: invoke(201, (req) => management.model(req.auth, req.body)),
     status: invoke(200, req => registry.status(req.auth)),
     trainingReadiness: invoke(200, req => training.read(req.auth)),
+    modelDemo: invoke(200, () => runModelDemo()),
     importModel: invoke(201, req => registry.importArtifact(req.auth, req.body)),
     reviewModel: invoke(200, req => registry.review(req.auth, req.params.modelId, req.body, req.get('idempotency-key')))
   };
