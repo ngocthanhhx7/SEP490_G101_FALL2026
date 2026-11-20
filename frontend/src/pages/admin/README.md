@@ -100,3 +100,6 @@ AI Models includes a separate bounded source-readiness audit. It does not train 
 `ServiceAreasPage` configures global home-care coverage with province/child paging, explicit selection/reason/confirmation and uncertain-result replay. It does not activate every child when a province is selected.
 
 `ServiceWorkflowBuilder.jsx` extends the existing Services contextual dialog with draft steps, keyboard ordering, phase/scope/applicability, named photo slots, structured fields, preview, validation/publication/retirement and paginated immutable history. Transport lives in service-workflow-api; uncertain writes retain the same operation.
+
+`AiModelsPage.jsx` shows ranking status and model review controls. Its demo panel
+can request a server-side ranking of two mock sitters and compare both results.

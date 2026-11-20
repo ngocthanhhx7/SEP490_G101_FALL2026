@@ -242,3 +242,19 @@ fallback ordering when advice is unavailable. Selected offer features are privat
 and become the accepted visit snapshot. Customer checkout retains matching
 features before TTL expiry. Old visits without point-in-time features are not
 backfilled. See [export/train workflow](../../backend/scripts/ai/README.md).
+
+### Admin model demonstration
+
+GET `/api/v1/ai/admin/model-demo` runs the sitter scorer for two fixed synthetic
+profiles with the current approved policy and a versioned simulation model.
+The response includes both rankings, the model's provenance and the recorded
+holdout errors. It requires an Admin session and has no business writes.
+
+The simulation model was fitted on 372 training observations from an isolated
+replay of Paw World Care HOME bookings. Another 93 bookings were held out by
+time. All 465 samples passed the export contract inside the isolated database.
+The simulation ratings were generated independently of the model inputs.
+The model's held-out MAE was 25.63, the original rules had 28.59, and a fixed
+four-star prediction had 24.19. The current policy used in each live demo is
+read when the request runs. The historical MAE comparison stays tied to the
+weights used during evaluation.
