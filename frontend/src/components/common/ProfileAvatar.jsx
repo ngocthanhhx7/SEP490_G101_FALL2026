@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Camera, ImagePlus, RotateCw, Trash2 } from 'lucide-react';
+import { Camera, RotateCw, Trash2 } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { avatarApi, avatarPath, AVATAR_CHANGED, createAvatarApi } from '../../services/avatar-api.js';
 import { prepareAvatarImage } from '../../services/avatar-image.js';
@@ -100,12 +100,11 @@ function AvatarEditorContent({ petId, label, fallback, api, onSaved, onBusyChang
   const disabled = busy || preparing || uncertain;
   return <section className="pwc-avatar-editor" aria-label={label}>
     <div className="pwc-avatar-editor__preview">{preview ? <img src={preview} alt={`Xem trước ${label.toLowerCase()}`} /> : <ProfileAvatar petId={petId} label={label} fallback={fallback} api={api} onImageError={meta?.present ? imageError : undefined} />}
-      <Camera size={19} aria-hidden="true" className="pwc-avatar-editor__camera" />
     </div>
     <div className="pwc-avatar-editor__content"><h2>{label}</h2><p>Chọn ảnh JPG hoặc PNG, tối đa 10 MB. Ảnh được cắt vuông ở giữa và thu gọn trước khi lưu.</p>
       <p className="pwc-avatar-editor__privacy">Ảnh được bảo vệ theo tài khoản; không có đường dẫn công khai.</p>
       <input className="pwc-avatar-editor__input" id={fileId} ref={input} type="file" tabIndex={-1} accept="image/jpeg,image/png" disabled={disabled || !meta} onChange={event => choose(event.target.files?.[0])} aria-label="Chọn hoặc thay ảnh" />
-      <div className="pwc-avatar-editor__actions"><Button variant="secondary" disabled={disabled || !meta} onClick={() => input.current?.click()}><ImagePlus size={17} />{meta?.present ? 'Đổi ảnh' : 'Chọn ảnh'}</Button>
+      <div className="pwc-avatar-editor__actions"><Button variant="secondary" disabled={disabled || !meta} onClick={() => input.current?.click()}><Camera size={17} aria-hidden="true" />{meta?.present ? 'Đổi ảnh' : 'Chọn ảnh'}</Button>
         {selected && !uncertain && <><Button disabled={disabled || conflict} onClick={() => save()}>Lưu ảnh</Button><Button variant="ghost" disabled={disabled} onClick={clear}>Hủy chọn</Button></>}
         {!selected && meta?.present && <Button variant="ghost" disabled={disabled} onClick={() => setDeleting(true)}><Trash2 size={16} />Xóa ảnh</Button>}
         <Button variant="ghost" disabled={busy || preparing} onClick={reload}><RotateCw size={16} />Tải lại ảnh</Button>

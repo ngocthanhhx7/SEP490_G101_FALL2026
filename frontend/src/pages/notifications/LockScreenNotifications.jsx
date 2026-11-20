@@ -67,7 +67,7 @@ export function LockScreenNotifications({ api }) {
 
   return <section className="notification-device" aria-labelledby="notification-device-title">
     <div>
-      <h2 id="notification-device-title"><BellRing size={18} aria-hidden="true" /> Thông báo màn hình khóa</h2>
+      <h2 id="notification-device-title"><BellRing size={18} aria-hidden="true" /> Thông báo trên thiết bị</h2>
       <p>{!supported ? 'Trên iPhone/iPad, hãy cài ứng dụng rồi mở từ biểu tượng trên màn hình chính.'
         : status?.enabled === false ? 'Thông báo thiết bị đang tạm thời chưa khả dụng.'
         : blocked ? 'Mở cài đặt thiết bị để cấp quyền cho Paw World Care.'

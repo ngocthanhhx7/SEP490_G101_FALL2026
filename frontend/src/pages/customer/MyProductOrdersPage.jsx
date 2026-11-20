@@ -51,7 +51,7 @@ export function MyProductOrdersPage() {
   const selected = orders.find((order) => order.id === selectedId) ?? (requestedOrder.data?.id === requested ? requestedOrder.data : null) ?? (!requested ? orders[0] : null);
 
   if (compact && requested) return <section className="pwc-shop" aria-labelledby="orders-title">
-    <h1 id="orders-title">Chi tiết đơn mua</h1>
+    <h1 id="orders-title" data-duplicate-title>Chi tiết đơn mua</h1>
     <Link to={listUrl}>Về đơn mua hàng</Link>
     {selected?.id === requested ? <OrderDetail order={selected} /> : requestedOrder.status === 'loading'
       ? <Notice state="loading" title="Đang tải chi tiết đơn…" />
@@ -59,14 +59,16 @@ export function MyProductOrdersPage() {
   </section>;
 
   return <section className="pwc-shop" aria-labelledby="orders-title">
-    <h1 id="orders-title">Đơn mua sản phẩm</h1>
+    <h1 id="orders-title" data-duplicate-title>Đơn mua sản phẩm</h1>
     <p className="pwc-shop-lead">Các đơn mua sản phẩm của bạn. Chọn một đơn để xem chi tiết.</p>
     {placed && <p className="pwc-shop-alert pwc-shop-alert--ok" role="status">{productMessage('MSG59', { code: placed })}</p>}
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải đơn hàng…" />}
     {resource.status === 'error' && <Notice state="error" title="Chưa tải được đơn hàng"
       action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>} />}
     {resource.status === 'empty' && !requested && <Notice state="empty" title={productMessage('MSG102')}
-      action={<Link className="pwc-shop-outline-button" to="/products">Xem sản phẩm</Link>} />}
+      action={<Link className="pwc-compact-cta" to="/products">Khám phá cửa hàng</Link>}>
+      Bạn có thể theo dõi đơn sản phẩm tại đây sau khi đặt hàng.
+    </Notice>}
     {compact && resource.status === 'success' && <ul className="pwc-mobile-rows">
       {orders.map(order => <li key={order.id}>
         <strong>{order.code}</strong> <OrderStatusBadge status={order.status} />
@@ -92,7 +94,7 @@ export function MyProductOrdersPage() {
       {selected && <OrderDetail order={selected} />}
     </div>}
     {requested && requestedOrder.status === 'error' && <Notice state="error" title="Chưa mở được đơn hàng từ thông báo" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}
-    {resource.meta?.page && <Pagination {...resource.meta.page} itemLabel="đơn hàng" onPageChange={next => {
+    {resource.meta?.page && (page > 1 || orders.length > 0) && <Pagination {...resource.meta.page} itemLabel="đơn hàng" onPageChange={next => {
       if (compact) setParams(next > 1 ? { page: String(next) } : {});
       else setDesktopPage(next);
       setSelectedId(null);

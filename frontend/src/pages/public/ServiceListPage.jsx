@@ -80,7 +80,7 @@ export function ServiceListPage({ loadCatalog = loadPublicCatalog }) {
         aria-labelledby="pwc-service-list-title"
       >
         <p className="pwc-eyebrow">Chăm chút từng ngày</p>
-        <h1 id="pwc-service-list-title">Dịch vụ PawWorld Care</h1>
+        <h1 id="pwc-service-list-title" data-duplicate-title>Dịch vụ PawWorld Care</h1>
         <p className="pwc-lead">
           Chăm sóc, làm đẹp, lưu trú và vận động dành cho chó, mèo.
         </p>

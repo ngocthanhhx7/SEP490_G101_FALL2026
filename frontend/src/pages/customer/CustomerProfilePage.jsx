@@ -127,9 +127,9 @@ export function CustomerProfilePage({ apiRequest }) {
           <h2 id="profile-details-title">Thông tin cá nhân</h2>
         </div>}
         <AvatarEditor fallback={profile.data.displayName?.[0] ?? 'PW'} onSaved={profile.retry} onBusyChange={setAvatarBusy} />
-        <form className="customer-profile-form" onSubmit={submit}>
+        <form className="customer-profile-form" data-structured={structured || undefined} onSubmit={submit}>
           {structured ? <>
-            <p>Tên hiển thị hiện tại: <strong>{profile.data.displayName}</strong></p>
+            {!profile.data.givenName && <p>Tên hiển thị hiện tại: <strong>{profile.data.displayName}</strong></p>}
             <Input label="Họ và tên đệm" value={family} onChange={event => editPersonal('familyAndMiddleName', event.target.value)}
               autoComplete="family-name" maxLength={100} />
             <Input label="Tên" value={given} onChange={event => editPersonal('givenName', event.target.value)}
@@ -144,6 +144,7 @@ export function CustomerProfilePage({ apiRequest }) {
                 <option value="OTHER">Khác</option><option value="UNDISCLOSED">Không muốn chia sẻ</option>
               </select>
             </label>
+            <p className="customer-profile-hint">Ngày sinh và giới tính không bắt buộc.</p>
           </> : <Input label="Họ và tên" value={displayName} onChange={event => {
             setDraft(event.target.value === profile.data.displayName ? null : { value: event.target.value, version: profile.data.version });
             setSaveError('');

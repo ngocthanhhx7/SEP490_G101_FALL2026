@@ -1,12 +1,17 @@
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
-import { HeartHandshake, Utensils, ShoppingBag, PackageCheck } from 'lucide-react';
+import { ArrowRight, HeartHandshake, MapPin, Utensils, ShoppingBag, PackageCheck } from 'lucide-react';
 import { HomeProductPreview } from '../../components/product/HomeProductPreview.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogState, CatalogEmpty, PublicServiceCards } from './PublicCatalog.jsx';
 import { loadPublicCatalog } from '../../services/public-catalog-api.js';
 
 const a = '/assets/figma-public/';
+const homeShortcuts = [
+  [HeartHandshake, 'Dịch vụ chăm sóc', 'Tìm dịch vụ phù hợp cho bé', '/services'],
+  [ShoppingBag, 'Cửa hàng', 'Thức ăn và đồ dùng mỗi ngày', '/products'],
+  [MapPin, 'Vùng phục vụ', 'Xem các khu vực Paw phục vụ', '/service-areas']
+];
 const illustrations = [
   {
     image: 'home-Image659.webp',
@@ -109,8 +114,7 @@ export function HomePage({ loadCatalog = loadPublicCatalog, productApi }) {
         <div className="pwc-design-hero">
           <div className="pwc-design-hero-copy">
             <h1 id="pwc-home-title">
-              <span>Chăm pet tận nhà,</span>{' '}
-              <span>pet khỏe sen vui.</span>
+              Chăm pet tận nhà, theo lịch của bạn
             </h1>
             <p>
               Đặt lịch chăm sóc tại nhà, dắt chó đi dạo và mua đồ dùng cho bé.
@@ -135,18 +139,18 @@ export function HomePage({ loadCatalog = loadPublicCatalog, productApi }) {
                 fetchPriority="high"
               />
             </div>
-            <figcaption>
-              <span>
-                <img src={a + 'home-Container3.svg'} alt="" />
-              </span>
-              <div>
-                <strong>Uy tín</strong>
-                <small>Linh hoạt theo thời gian của bạn</small>
-              </div>
-            </figcaption>
           </figure>
         </div>
       </section>
+      <nav className="pwc-home-shortcuts" aria-label="Khám phá Paw World Care">
+        {homeShortcuts.map(([Icon, title, description, href]) => (
+          <Link key={href} to={href}>
+            <Icon size={22} aria-hidden="true" />
+            <span><strong>{title}</strong><small>{description}</small></span>
+            <ArrowRight size={18} aria-hidden="true" />
+          </Link>
+        ))}
+      </nav>
       <section
         className="pwc-design-benefits pwc-design-section"
         aria-labelledby="pwc-benefits-title"

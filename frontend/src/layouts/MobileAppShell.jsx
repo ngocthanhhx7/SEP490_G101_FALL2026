@@ -1,13 +1,13 @@
 import { Link, useLocation, useNavigationType } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Bell, CalendarDays, ClipboardList, House, PawPrint, ShoppingBag, UserRound, Wallet } from 'lucide-react';
+import { ArrowLeft, Bell, CalendarDays, ClipboardList, HeartHandshake, House, PawPrint, ShoppingBag, UserRound, Wallet } from 'lucide-react';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { useSession } from '../contexts/SessionContext.jsx';
 import { SiteBrandMark } from '../components/ui/SiteBrandMark.jsx';
 import { primaryRole } from '../utils/role-access.js';
 import './phone-app-shell.css';
 
-const service = ['services', 'Dịch vụ', '/services', PawPrint];
+const service = ['services', 'Dịch vụ', '/services', HeartHandshake];
 const account = ['account', 'Tài khoản', '/account', UserRound];
 const guest = [['home', 'Trang chủ', '/', House], service,
   ['shop', 'Cửa hàng', '/products', ShoppingBag], ['account', 'Tài khoản', '/sign-in', UserRound]];
@@ -93,7 +93,7 @@ export function MobileAppShell({ route, children, lookupRoute }) {
   return <div className={enabled ? 'pwc-phone-app' : 'pwc-phone-app-pass-through'} data-tabs={showTabs || undefined} data-route={route?.id} data-keyboard={keyboard || undefined}>
     {enabled && <header className="pwc-mobile-header">
       {route.kind !== 'root' && <Link to={back} replace aria-label="Quay lại"><ArrowLeft aria-hidden="true" /></Link>}
-      {route.id === 'M31' || route.id === 'M04' ? <SiteBrandMark /> : <strong>{route.title}</strong>}
+      {route.id === 'M31' || route.id === 'M04' ? <SiteBrandMark /> : <strong>{orderDetail ? 'Chi tiết đơn mua' : route.id === 'M10' && orderQuery.get('view') === 'orders' ? 'Đơn chăm sóc' : route.title}</strong>}
       {role && route.id !== 'M03' && <Link className="pwc-mobile-header__bell" to="/account/notifications"
         state={{ mobileTab: active, mobileBack: pathname + search }} aria-label={count ? `Thông báo, ${count} chưa đọc` : 'Thông báo'}>
         <Bell aria-hidden="true" />{count > 0 && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}

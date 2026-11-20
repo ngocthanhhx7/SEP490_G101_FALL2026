@@ -184,7 +184,7 @@ export function NotificationsPage({ api }) {
     <main className="notifications-page" aria-labelledby="notifications-title">
       <header className="notifications-page__header">
         <div>
-          <h1 id="notifications-title"><Bell size={23} aria-hidden="true" /> Thông báo</h1>
+          <h1 id="notifications-title" data-duplicate-title><Bell size={23} aria-hidden="true" /> Thông báo</h1>
         </div>
         <div className="notifications-page__actions">
           {hasUnread && typeof api?.markAllRead === 'function' && (
