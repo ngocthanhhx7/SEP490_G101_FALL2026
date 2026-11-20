@@ -144,7 +144,10 @@
  .pwc-public-root .pwc-public-footer-inner { width: calc(100% - 80px); }
  .pwc-design-service-card strong { font-size: 20px; }
 }
+.pwc-public-navigation .pwc-mobile-install-link { display: none; }
+
 @media (max-width: 1000px) {
+ .pwc-public-navigation .pwc-mobile-install-link { display: inline-flex; align-items: center; min-height: 44px; }
  .pwc-public-root .pwc-menu-toggle { display: inline-flex; order: 3; }
  .pwc-public-root .pwc-public-navigation { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; background: white; padding: 20px; box-shadow: 0 12px 18px #0001; }
  .pwc-public-root .pwc-public-navigation.is-open { display: flex; }

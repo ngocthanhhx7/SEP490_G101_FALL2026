@@ -1,0 +1,124 @@
+.pwc-install {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: clamp(1rem, 4vw, 3rem) clamp(1rem, 5vw, 4.5rem);
+  background: #fff8ed;
+  color: #332318;
+  font-family: Nunito, system-ui, sans-serif;
+}
+.pwc-install-back,
+.pwc-install-grid { max-width: 72rem; margin-inline: auto; }
+.pwc-install-back {
+  display: flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  gap: .5rem;
+  margin-inline-start: max(0px, calc((100% - 72rem) / 2));
+  margin-bottom: .8rem;
+  color: #773800;
+  font-weight: 800;
+}
+.pwc-install-grid {
+  display: grid;
+  grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+  gap: clamp(.75rem, 3vw, 2rem);
+  align-items: start;
+}
+.pwc-install-hero,
+.pwc-install-guide {
+  padding: clamp(1rem, 4vw, 2.5rem);
+  border: 1px solid #edd8bf;
+  border-radius: 1.5rem;
+  min-width: 0;
+  background: #fff;
+}
+.pwc-install-hero { background: #ffebd0; }
+.pwc-install-icon { border-radius: 1rem; }
+.pwc-install h1 { margin: .85rem 0 .45rem; font: 900 clamp(1.65rem, 4vw, 3.25rem)/1.08 Nunito, system-ui, sans-serif; }
+.pwc-install h2 { margin: 0 0 1rem; font-size: clamp(1.35rem, 3vw, 1.8rem); line-height: 1.2; }
+.pwc-install p { margin: .35rem 0 0; }
+.pwc-install-photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.65;
+  object-fit: cover;
+  border-radius: 1rem;
+  margin-top: 1.25rem;
+}
+.pwc-install-platform {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .25rem;
+  padding: .25rem;
+  background: #f9efe4;
+  border-radius: .85rem;
+}
+.pwc-install-platform button {
+  min-height: 44px;
+  border: 0;
+  border-radius: .65rem;
+  background: transparent;
+  color: #572b0d;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pwc-install-platform [aria-pressed="true"] { background: #fff; box-shadow: 0 1px 4px #57320d2b; }
+.pwc-install-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: .5rem;
+  margin-top: 1rem;
+  border: 0;
+  border-radius: .75rem;
+  padding: .5rem 1rem;
+  background: #843800;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pwc-install-steps { list-style: none; margin: 1.2rem 0; padding: 0; counter-reset: install-step; }
+.pwc-install-steps li {
+  display: grid;
+  grid-template-columns: 2.65rem minmax(0, 1fr);
+  gap: .75rem;
+  padding-block: .65rem;
+  counter-increment: install-step;
+}
+.pwc-install-steps strong::before { content: counter(install-step) ". "; }
+.pwc-install-step-icon {
+  display: grid;
+  height: 2.65rem;
+  place-items: center;
+  border-radius: .7rem;
+  background: #fff0d8;
+  color: #843800;
+}
+.pwc-install-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  padding: .75rem;
+  border-radius: .75rem;
+  background: #f9f3eb;
+  font-size: .9rem;
+}
+.pwc-install-tip svg { flex: 0 0 1.1rem; }
+.pwc-install-tip p { margin: 0; }
+.pwc-install-continue {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: .35rem;
+  color: #773800;
+  font-weight: 800;
+  text-decoration: underline;
+}
+@media (max-width: 47rem) {
+  .pwc-install-grid { grid-template-columns: minmax(0, 1fr); }
+  .pwc-install-photo { display: none; }
+  .pwc-install-icon { width: 44px; height: 44px; }
+}

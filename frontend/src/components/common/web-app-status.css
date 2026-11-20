@@ -1,0 +1,22 @@
+.pwc-web-app-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem 1rem;
+  margin: 0;
+  padding: max(.625rem, env(safe-area-inset-top)) 1rem .625rem;
+  background: #fff1d6;
+  color: #572b0d;
+  font-size: .9rem;
+}
+.pwc-web-app-status button {
+  min-height: 44px;
+  padding: .25rem .85rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
