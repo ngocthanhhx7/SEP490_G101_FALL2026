@@ -16,6 +16,7 @@ import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
 import { Navigate, Route, Routes, useSearchParams, useParams } from 'react-router-dom';
+import { InstallAppPage } from '../pages/public/InstallAppPage.jsx';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
 import { HomePage } from '../pages/public/HomePage.jsx';
@@ -414,6 +415,7 @@ export function AppRoutes({
           <Route path="incidents" element={<IncidentRoute view="list" />} />
         </Route>
       </Route>
+      <Route path="install" element={<InstallAppPage />} />
       <Route element={<PublicSiteLayout />}>
         <Route index element={<HomePage />} />
         <Route path="about" element={<AboutPage />} />

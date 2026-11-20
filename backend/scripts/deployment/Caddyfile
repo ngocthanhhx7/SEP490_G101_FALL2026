@@ -9,6 +9,13 @@
             header_up X-Forwarded-For {client_ip}
         }
     }
+    @pwaFiles path /manifest.webmanifest /pwc-sw.js /pwa/*
+    handle @pwaFiles {
+        root * /srv/frontend
+        header Cache-Control "no-cache"
+        header /manifest.webmanifest Content-Type application/manifest+json
+        file_server
+    }
     handle {
         root * /srv/frontend
         try_files {path} /index.html

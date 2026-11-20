@@ -55,6 +55,7 @@ export function PublicHeader({ notificationTo } = {}) {
       >
         {links.map(([label, to]) => <Link key={label} to={to} onClick={closeMenu}
           aria-current={location.pathname === to && !location.hash ? 'page' : undefined}>{label}</Link>)}
+        <Link className="pwc-mobile-install-link" to="/install" onClick={closeMenu}>Cài ứng dụng</Link>
       </nav>
       <div className="pwc-header-actions">
         {<Link className="pwc-cart-link" to="/customer/cart"

@@ -28,6 +28,7 @@ export function PublicFooter() {
         <h2>HỖ TRỢ</h2>
         <Link to="/">Trang chủ</Link><Link to="/about">Về chúng tôi</Link>
         <Link to="/products">Sản phẩm</Link><Link to="/contact">Liên hệ</Link>
+        <Link to="/install">Cài ứng dụng</Link>
       </nav>
       <nav className="pwc-footer-column pwc-footer-policies" aria-label="Trang chính sách">
         <h2>CHÍNH SÁCH</h2>
