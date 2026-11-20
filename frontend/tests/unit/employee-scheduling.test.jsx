@@ -75,7 +75,7 @@ const fixture = () => ({
 });
 
 test('employee sees scoped invitations and explicitly accepts their version', async () => {
-  const api = fixture(); render(<EmployeeInvitationsPage api={api} />);
+  const api = fixture(); render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Nhận việc' }));
   await waitFor(() => expect(api.respond).toHaveBeenCalledWith('offer', 'acceptances', 2, expect.stringMatching(/^schedule:/)));
   await waitFor(() => expect(api.offers.mock.calls.length).toBeGreaterThan(1));
@@ -84,7 +84,7 @@ test('employee sees scoped invitations and explicitly accepts their version', as
 test('employee can page through invitation history and return without changing assignment pagination', async () => {
   const api = fixture();
   api.offers.mockResolvedValueOnce({ data: { items: [], nextCursor: 'next-offer' } }).mockResolvedValue({ data: { items: [], nextCursor: null } });
-  render(<EmployeeInvitationsPage api={api} />);
+  render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
   const next = await screen.findByRole('button', { name: 'Trang lời mời sau' });
   await waitFor(() => expect(next).toBeEnabled()); fireEvent.click(next);
   await waitFor(() => expect(api.offers).toHaveBeenLastCalledWith(expect.objectContaining({ cursor: 'next-offer' })));
@@ -94,7 +94,7 @@ test('employee can page through invitation history and return without changing a
 });
 
 test('uncertain invitation response freezes other commands and repeats exactly the same operation', async () => {
-  const api = fixture(); api.respond.mockRejectedValueOnce({ code: 'TIMEOUT' }); render(<EmployeeInvitationsPage api={api} />);
+  const api = fixture(); api.respond.mockRejectedValueOnce({ code: 'TIMEOUT' }); render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Nhận việc' }));
   fireEvent.click(await screen.findByRole('button', { name: 'Kiểm tra lại yêu cầu' }));
   await waitFor(() => expect(api.respond).toHaveBeenCalledTimes(2));
@@ -173,7 +173,7 @@ beforeAll(() => {
 test('GBR-13 tells a sitter that a concurrent acceptance took the visit and refreshes their offers', async () => {
   const api = fixture();
   api.respond.mockRejectedValueOnce({ status: 409, code: 'VISIT_ALREADY_ASSIGNED' });
-  render(<EmployeeInvitationsPage api={api} />);
+  render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Nhận việc' }));
   expect(await screen.findByText('Buổi đã có người nhận.')).toBeInTheDocument();
   await waitFor(() => expect(api.offers.mock.calls.length).toBeGreaterThan(1));

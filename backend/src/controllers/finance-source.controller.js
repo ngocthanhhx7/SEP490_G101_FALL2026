@@ -10,6 +10,11 @@ export function createFinanceSourceController({ service, webhook }) {
     res.status(200).json({ data, meta: metadata(req) });
   };
   return Object.freeze({
+    assignedVisitSummary: async (req, res) => {
+      const data = await service.readAssignedVisitSummary(req.auth, req.params.id);
+      res.set('Cache-Control', 'private, no-store'); res.vary('Cookie');
+      res.status(200).json({ data, meta: metadata(req) });
+    },
     execution: async (req, res) => {
       const data = await service.readVisit(req.auth, req.params.id);
       res.status(200).json({ data, meta: metadata(req) });

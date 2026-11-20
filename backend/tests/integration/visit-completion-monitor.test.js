@@ -45,7 +45,7 @@ test('reminds at minus 5 minutes, plus 15 minutes and plus 2 hours, with correct
   expect(notices).toEqual(expect.arrayContaining([
     expect.objectContaining({ recipientId: String(staff), role: 'STAFF', deepLink: `/staff/dispatch?closureId=${visit._id}` }),
     expect.objectContaining({ recipientId: String(admin), role: 'ADMIN', deepLink: `/admin/dispatch?closureId=${visit._id}` }),
-    expect.objectContaining({ recipientId: String(sitter), deepLink: `/sitter/invitations?visitId=${visit._id}` })
+    expect.objectContaining({ recipientId: String(sitter), deepLink: `/sitter/visits/${visit._id}` })
   ]));
   expect(await col('notifications').countDocuments({ recipientId: String(locked) })).toBe(0);
 });

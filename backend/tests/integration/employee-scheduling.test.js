@@ -77,6 +77,23 @@ test.each([undefined, 'false', 'true'])('dispatch reports travel capability for 
     .expect(flag === 'true' ? 200 : 404);
 });
 
+test('reads only the exact invitation owned by the signed-in sitter', async () => {
+  const assigned = await employee(), other = await employee();
+  const visitId = oid(), declined = oid(), pending = oid();
+  const offer = { visitId, sitterId: assigned.userId, deadline: new Date(clock() + 60000), version: 1,
+    offeredAt: new Date(clock()), serviceName: 'Chăm sóc thử', areaCode: 'TEST-AREA',
+    startAt: new Date(clock() + 3600000), endAt: new Date(clock() + 7200000) };
+  await connection.collection('employeevisitoffers').insertMany([
+    { ...offer, _id: declined, state: 'DECLINED' }, { ...offer, _id: pending, state: 'PENDING' }
+  ]);
+  const url = '/api/v1/employee-scheduling/offers/' + declined;
+  const result = await request(app).get(url).set('x-test-actor', assigned.userId).expect(200);
+  expect(result.body.data).toMatchObject({ id: String(declined), visitId: String(visitId), state: 'DECLINED', canRespond: false });
+  await request(app).get(url).set('x-test-actor', other.userId).expect(404);
+  await request(app).get('/api/v1/employee-scheduling/offers/' + visitId).set('x-test-actor', assigned.userId).expect(404);
+  await request(app).get(url).set('x-test-actor', customer.userId).expect(403);
+});
+
 test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
   const otherCustomer = actor('CUSTOMER');
   const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });
@@ -111,6 +128,11 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect(historyOffers.items.some(offer=>offer.state==='ACCEPTED')).toBe(true);
   expect(historyOffers.items.every(offer=>offer.state!=='PENDING')).toBe(true);
   const endpoint = `/api/v1/visits/${row._id}`;
+  const summary = await request(server).get(endpoint + '/assigned-summary').set(headers(sitter, 'synthetic-summary')).expect(200);
+  expect(summary.body.data).toMatchObject({ visitId: String(row._id), state: 'ASSIGNED', serviceAddress: 'Synthetic private facility' });
+  expect(summary.headers['cache-control']).toBe('private, no-store');
+  expect(Object.keys(summary.body.data).sort()).toEqual(['endAt', 'serviceAddress', 'serviceName', 'startAt', 'state', 'visitId']);
+  await request(server).get(endpoint + '/assigned-summary').set(headers(customer, 'synthetic-summary-denied')).expect(403);
   let current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   const upload = async key => (await request(server).post(images.mount).set(headers(sitter, key)).set('Content-Type', 'image/png').send(bytes).expect(201)).body.data.id;
   const mediaIn = await upload('synthetic-private-care-in');

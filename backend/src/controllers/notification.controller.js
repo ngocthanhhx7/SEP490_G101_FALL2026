@@ -5,8 +5,10 @@ function response(res, req, status, data) {
   return res.status(status).json({ data, meta: metadata(req) });
 }
 
-export function createNotificationController({ service } = {}) {
+export function createNotificationController({ service, webPush } = {}) {
   return {
+    getIntent: async (req, res) => response(res, req, 200,
+      await service.resolveIntent({ actor: req.auth, notificationId: req.params.notificationId })),
     getRoot: async (req, res) =>
       response(
         res,
@@ -53,16 +55,19 @@ export function createNotificationController({ service } = {}) {
           idempotencyKey: req.get('idempotency-key')
         })
       ),
+    getPushStatus: async (req, res) => response(res, req, 200, await webPush.status(req.auth)),
+    deleteSubscriptions: async (req, res) => response(res, req, 200, await webPush.unsubscribe(req.auth)),
     createSubscriptions: async (req, res) =>
       response(
         res,
         req,
         201,
-        await service.registerPushSubscription({
-          actor: req.auth,
-          subscription: body(req, ['subscription']).subscription,
-          idempotencyKey: req.get('idempotency-key')
-        })
+        webPush ? await webPush.subscribe(req.auth, body(req, ['subscription']).subscription)
+          : await service.registerPushSubscription({
+            actor: req.auth,
+            subscription: body(req, ['subscription']).subscription,
+            idempotencyKey: req.get('idempotency-key')
+          })
       )
   };
 }

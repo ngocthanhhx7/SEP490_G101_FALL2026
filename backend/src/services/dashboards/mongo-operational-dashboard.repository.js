@@ -13,37 +13,41 @@ const invalid = () => { throw new AppError(503, 'INVALID_PROJECTION', 'Invalid o
 // Native domain collections follow P01's _id/ObjectId and startAt mapping.
 // Collection absence means integration pending; no synthetic model is created.
 export function createMongoOperationalDashboardRepository({ connection, cursorSecret, clock = Date.now }) {
-  const codec = createScopedCursor({ secret: cursorSecret, namespace: 'operational-dashboard-v1' });
+  const codec = createScopedCursor({ secret: cursorSecret, namespace: 'operational-dashboard-v1', clock });
   return Object.freeze({ async readSnapshot({ scope, query }) {
     const required = dependencies[scope?.kind];
     if (!required || !Types.ObjectId.isValid(scope.userId) || scope.targetId !== scope.userId) return { ready: false };
     if (query.search) throw new AppError(422, 'VALIDATION_FAILED', 'Operational search is not supported');
     const existing = await connection.db.listCollections({ name: { $in: required } }, { nameOnly: true }).toArray();
     if (required.some(name => !existing.some(row => row.name === name))) return { ready: false };
-    const context = { scope, from: query.from ?? null, to: query.to ?? null, limit: query.limit };
+    const context = { scope, from: query.from ?? null, to: query.to ?? null, limit: query.limit, ...(query.group && { group: query.group }) };
     const timeRange = {};
     if (query.from) timeRange.$gte = new Date(`${query.from}T00:00:00+07:00`);
     if (query.to) timeRange.$lt = new Date(new Date(`${query.to}T00:00:00+07:00`).getTime() + 86400000);
-    const period = Object.keys(timeRange).length ? { startAt: timeRange } : {};
+    const period = query.group === 'agenda' && timeRange.$gte && timeRange.$lt ? {
+      $or: [{ startAt: timeRange }, { startAt: { $lt: timeRange.$gte }, endAt: { $gt: timeRange.$gte } }]
+    } : Object.keys(timeRange).length ? { startAt: timeRange } : {};
     const userId = new Types.ObjectId(scope.userId);
     let position;
     if (query.cursor) {
       position = codec.decode(query.cursor, context);
-      if (!Types.ObjectId.isValid(position.id) || !Number.isFinite(Date.parse(position.startAt))) {
+      if (!Types.ObjectId.isValid(position.id) || !Number.isFinite(Date.parse(position.startAt))
+        || (query.group && !Number.isFinite(Date.parse(position.asOf)))) {
         throw new AppError(422, 'VALIDATION_FAILED', 'Invalid dashboard cursor');
       }
     }
     return connection.transaction(async session => {
-      const asOf = new Date(clock());
-      const pipeline = [{ $match: period }];
-      if (scope.kind === 'customer-dashboard') pipeline.push(
-        { $lookup: { from: 'bookings', localField: 'bookingId', foreignField: '_id', as: 'booking' } },
-        { $match: { 'booking.customerId': userId } });
-      if (scope.kind === 'sitter-dashboard') pipeline.push({ $match: { sitterId: userId } });
+      const asOf = new Date(position?.asOf ?? clock());
+      const visitFilter = { ...period, ...(scope.kind === 'sitter-dashboard' && { sitterId: userId }) };
+      const ownerJoin = scope.kind === 'customer-dashboard' ? [
+        { $lookup: { from: 'bookings', localField: 'bookingId', foreignField: '_id', as: 'ownerBooking',
+          pipeline: [{ $match: { customerId: userId } }, { $project: { _id: 1 } }] } },
+        { $match: { 'ownerBooking.0': { $exists: true } } }
+      ] : [];
       const visits = connection.db.collection('visits');
       const options = { session, maxTimeMS: 5000, allowDiskUse: false };
       const countVisits = async filter => {
-        const rows = await visits.aggregate([...pipeline, { $match: filter }, { $count: 'count' }], options).toArray();
+        const rows = await visits.aggregate([{ $match: visitFilter }, { $match: filter }, ...ownerJoin, { $count: 'count' }], options).toArray();
         return rows[0]?.count ?? 0;
       };
       const metrics = {};
@@ -76,19 +80,50 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
         metrics.pendingApplications = await connection.db.collection('sitterapplications')
           .countDocuments({ state: { $in: ['PENDING', 'UNDER_REVIEW', 'INTERVIEW'] }, ...applicationRange }, options);
       }
-      const paging = position ? [{ $match: { $or: [{ startAt: { $gt: new Date(position.startAt) } },
-        { startAt: new Date(position.startAt), _id: { $gt: new Types.ObjectId(position.id) } }] } }] : [];
-      const rows = await visits.aggregate([...pipeline, ...paging, { $sort: { startAt: 1, _id: 1 } }, { $limit: query.limit + 1 },
-        { $project: { _id: 1, state: 1, startAt: 1, sitterId: 1 } }], options).toArray();
+      const open = ['SCHEDULED', 'ASSIGNED'];
+      const groups = {
+        agenda: {},
+        upcoming: { state: { $in: open }, startAt: { $gte: asOf } },
+        ongoing: { $or: [{ state: 'IN_PROGRESS' }, { state: { $in: open }, startAt: { $lt: asOf } }] },
+        history: { state: { $in: ['COMPLETED', 'STAFF_CLOSED', 'CANCELLED', 'SUPERSEDED'] } },
+        next: { state: { $in: [...open, 'IN_PROGRESS'] } }
+      };
+      const groupFilter = query.group ? [{ $match: groups[query.group] }] : [];
+      const descending = query.group === 'history';
+      const comparison = descending ? '$lt' : '$gt';
+      const direction = descending ? -1 : 1;
+      const paging = position ? [{ $match: { $or: [{ startAt: { [comparison]: new Date(position.startAt) } },
+        { startAt: new Date(position.startAt), _id: { [comparison]: new Types.ObjectId(position.id) } }] } }] : [];
+      const priority = query.group === 'next' ? [{ $set: { _activePriority: { $cond: [{ $eq: ['$state', 'IN_PROGRESS'] }, 0, 1] } } }] : [];
+      if (query.group === 'next' && position) throw new AppError(422, 'VALIDATION_FAILED', 'Next action is not pageable');
+      const rows = await visits.aggregate([{ $match: visitFilter }, ...groupFilter, ...paging, ...ownerJoin, ...priority,
+        { $sort: { ...(priority.length && { _activePriority: 1 }), startAt: direction, _id: direction } },
+        { $limit: query.group === 'next' ? 1 : query.limit + 1 },
+        { $project: { _id: 1, state: 1, startAt: 1, endAt: 1, bookingId: 1, sitterId: 1, 'snapshots.serviceName': 1, 'snapshots.pets.name': 1 } }], options).toArray();
       const page = rows.slice(0, query.limit);
       if (page.some(row => !['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED', 'SUPERSEDED'].includes(row.state)
         || !(row.startAt instanceof Date) || !Number.isFinite(row.startAt.getTime()))) invalid();
+      const sitterIds = query.group && scope.kind === 'customer-dashboard'
+        ? [...new Set(page.map(row => String(row.sitterId)).filter(id => /^[a-f0-9]{24}$/.test(id)))] : [];
+      const sitterNames = sitterIds.length ? new Map((await connection.db.collection('users').find(
+        { _id: { $in: sitterIds.map(id => new Types.ObjectId(id)) } },
+        { session, projection: { displayName: 1 }, maxTimeMS: 2000 }
+      ).toArray()).map(row => [String(row._id), row.displayName])) : new Map();
       const last = page.at(-1);
       return { ready: true, scope, metrics, asOf: asOf.toISOString(), sourceVersion: `p01-operational/v1/${asOf.toISOString()}`,
         items: page.map(row => ({ id: String(row._id), state: row.state, startsAt: row.startAt.toISOString(),
+          ...(query.group ? {
+            ...(row.bookingId && { bookingId: String(row.bookingId) }),
+            ...(row.endAt instanceof Date && { endsAt: row.endAt.toISOString() }),
+            serviceName: row.snapshots?.serviceName,
+            sitterName: sitterNames.get(String(row.sitterId)),
+            petNames: Array.isArray(row.snapshots?.pets) ? row.snapshots.pets.map(pet => pet?.name) : [],
+            overdue: open.includes(row.state) && row.startAt < asOf
+          } : {}),
           ...(scope.kind === 'customer-dashboard' ? { customerId: scope.userId } : {}),
           ...(scope.kind === 'sitter-dashboard' ? { sitterId: String(row.sitterId) } : {}) })),
-        nextCursor: rows.length > query.limit ? codec.encode({ id: String(last._id), startAt: last.startAt.toISOString() }, context) : null };
+        nextCursor: rows.length > query.limit ? codec.encode({ id: String(last._id), startAt: last.startAt.toISOString(),
+          ...(query.group && { asOf: asOf.toISOString() }) }, context) : null };
     }, { readConcern: { level: 'snapshot' }, readPreference: 'primary' });
   } });
 }

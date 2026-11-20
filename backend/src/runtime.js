@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { loadConfig } from './config/environment.js';
 import { connectDatabase } from './config/database.js';
 import { createApp } from './app.js';
+import { startWebPushWorker } from './jobs/web-push.job.js';
 import { startEarningAccrualWorker } from './jobs/earning-accrual.job.js';
 import { startEmployeeDispatchWorker } from './jobs/employee-dispatch.job.js';
 import { startBookingChangeWorker } from './jobs/booking-change.job.js';
@@ -20,6 +21,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   const config = loadConfig(env);
   const connection = await connectDatabase(config);
   const lifecycle = { draining: false };
+  let webPushWorker;
   let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, productPickupExpiryWorker, completionMonitor, bookingChangeWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
@@ -35,6 +37,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     if (app.locals.financeSources && app.locals.compensationProfile === 'LEGACY_PARTNER') accrualWorker = startEarningAccrualWorker({ service: app.locals.financeSources, logger });
     if (app.locals.employeeDispatch) dispatchWorker = startEmployeeDispatchWorker({ service: app.locals.employeeDispatch, logger });
     if (app.locals.visitCompletionMonitor) completionMonitor = startVisitCompletionMonitor({ service: app.locals.visitCompletionMonitor, logger });
+    if (app.locals.webPush) webPushWorker = startWebPushWorker({ service: app.locals.webPush, logger });
     if (app.locals.bookingChange) bookingChangeWorker = startBookingChangeWorker({ service: app.locals.bookingChange, logger });
     if (app.locals.applicationMail) applicationMailWorker = startApplicationMailWorker({ service: app.locals.applicationMail, logger });
     customerTierWorker = startCustomerTierWorker({ enabled: config.customerTierJobEnabled, createService: () =>
@@ -58,6 +61,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       try { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); }
       finally {
         clearTimeout(timer);
+        await webPushWorker?.stop();
         await productPickupExpiryWorker?.stop();
         await completionMonitor?.stop();
         await customerTierWorker?.stop();

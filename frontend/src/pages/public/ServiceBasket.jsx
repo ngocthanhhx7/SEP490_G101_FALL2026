@@ -1,17 +1,22 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Trash2, Calculator } from 'lucide-react';
+import { Button, Dialog } from '../../components/ui/index.js';
+import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { createServiceBasketApi } from '../../services/service-basket-api.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { BookingCheckoutForm, BookingConfirmation } from './BookingCheckout.jsx';
 
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-function CustomerBasket({ services, session }) {
+function CustomerBasket({ services, session, compact }) {
   const api = useMemo(() => createServiceBasketApi({ getCsrfToken: session.getCsrfToken }), [session.getCsrfToken]);
   const pets = useApiResource(api.pets);
   const [, setParams] = useSearchParams();
   const nextId = useRef(1), requestId = useRef(0);
+  const checkoutHeading = useRef(null);
+  const [checkout, setCheckout] = useState(false);
+  useEffect(() => { if (checkout) checkoutHeading.current?.focus(); }, [checkout]);
   const [rows, setRows] = useState([]), [result, setResult] = useState(null), [status, setStatus] = useState('idle');
   useEffect(() => () => { requestId.current++; }, []);
   const edit = (key, patch) => { requestId.current++; setRows(old => old.map(row => row.key === key ? { ...row, ...patch } : row)); setResult(null); setStatus('idle'); };
@@ -33,7 +38,7 @@ function CustomerBasket({ services, session }) {
   if (pets.status === 'loading') return <p role="status">Đang tải hồ sơ thú cưng…</p>;
   if (pets.status === 'empty') return <p><Link to="/account/pets">Thêm hồ sơ thú cưng</Link></p>;
   if (pets.status !== 'success') return <div><p role="alert">Chưa tải được hồ sơ thú cưng.</p><button type="button" onClick={pets.retry}>Thử lại</button></div>;
-  return <><BookingConfirmation api={api} /><form onSubmit={submit} className="pwc-service-basket">
+  return <><BookingConfirmation api={api} /><form onSubmit={submit} className="pwc-service-basket" hidden={compact && checkout}>
     {rows.map((row, index) => {
       const service = services.find(s => s.id === row.serviceId), unit = service?.price.unitLabel;
       return <div className="pwc-basket-row" key={row.key}>
@@ -57,17 +62,28 @@ function CustomerBasket({ services, session }) {
       ['Tiền dịch vụ', result.baseVnd], ['Phụ phí đặc điểm', result.surchargeVnd], ['Giảm combo', -result.discountVnd], ['Phí bậc giá', result.orderFeeVnd], ['Tổng dự kiến', result.totalVnd]
     ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
       <p>{result.paymentMode === 'PREPAY' ? 'Thanh toán trước khi thực hiện.' : 'Thanh toán sau khi hoàn tất.'} Báo giá có hiệu lực đến {new Date(result.expiresAt).toLocaleTimeString('vi-VN')}.</p>
+      {compact && result.items?.length > 0 && <Button type="button" onClick={() => setCheckout(true)}>Chọn lịch cho các buổi</Button>}
     </div>}
-  </form>{result?.items?.length > 0 && <BookingCheckoutForm key={result.quoteId} quote={result} services={services} api={api} onConfirmed={booking => {
-    setParams(current => { const next = new globalThis.URLSearchParams(current); next.set('booking', booking.id); return next; }); setResult(null); setRows([]);
-  }} />}</>;
+  </form>{result?.items?.length > 0 && <div hidden={compact && !checkout}>
+    {compact && <h3 tabIndex={-1} ref={checkoutHeading}>Xếp lịch chăm sóc</h3>}
+    <BookingCheckoutForm key={result.quoteId} quote={result} services={services} api={api}
+      onEditQuote={compact ? () => setCheckout(false) : undefined} onConfirmed={booking => {
+    setParams(current => { const next = new globalThis.URLSearchParams(current); next.set('booking', booking.id); return next; }); setResult(null); setRows([]); setCheckout(false);
+  }} /></div>}</>;
 }
 export function ServiceBasket({ services }) {
   const session = useSession();
+  const compact = usePhoneApp();
+  const [open, setOpen] = useState(false);
   if (!services.length) return null;
   return <section className="pwc-service-basket-section" aria-labelledby="basket-title"><h2 id="basket-title">Dịch vụ bạn chọn</h2>
     {session.status === 'authenticated' && session.user?.roles?.includes('CUSTOMER')
-      ? <CustomerBasket key={session.user.id} services={services} session={session} />
+      ? compact ? <>
+        <Button onClick={() => setOpen(true)}>Mở giỏ dịch vụ</Button>
+        <Dialog open={open} onClose={() => setOpen(false)} title="Giỏ dịch vụ" className="mobile-flow-dialog">
+          <CustomerBasket key={session.user.id} services={services} session={session} compact />
+        </Dialog>
+      </> : <CustomerBasket key={session.user.id} services={services} session={session} />
       : <Link to="/sign-in">Đăng nhập để chọn thú cưng và xem báo giá</Link>}
   </section>;
 }

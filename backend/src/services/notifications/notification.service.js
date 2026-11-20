@@ -235,7 +235,16 @@ export function createNotificationService({ repository, clock = Date.now, pageSi
     return Object.freeze({ status: result?.status === 'ALREADY_EXISTS' ? 'ALREADY_EXISTS' : 'SUBSCRIBED' });
   }
 
-  return Object.freeze({ list, markRead, markAllRead, publish, updatePreferences, registerPushSubscription });
+  async function resolveIntent({ actor, notificationId }) {
+    const scope = actorScope(actor);
+    if (!/^[a-f0-9]{64}$/.test(notificationId ?? '')) invalid('notificationId is invalid');
+    if (typeof repository.resolve !== 'function') throw new AppError(503, 'NOTIFICATION_UNAVAILABLE', 'Notifications are temporarily unavailable');
+    const result = await repository.resolve({ ...scope, notificationId });
+    if (!result) throw new AppError(404, 'NOT_FOUND', 'Notification unavailable');
+    return result;
+  }
+
+  return Object.freeze({ list, markRead, markAllRead, publish, updatePreferences, registerPushSubscription, resolveIntent });
 }
 
 export { actorScope, normalizeNotification, safeDeepLink };

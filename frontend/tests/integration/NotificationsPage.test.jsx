@@ -1,3 +1,4 @@
+import { notificationTarget } from '../../src/utils/notifications.js';
 ﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, jest, test } from '@jest/globals';
 import { MemoryRouter } from 'react-router-dom';
@@ -162,4 +163,9 @@ describe('NotificationsPage mark all as read (UC-88)', () => {
     await waitFor(() => expect(markAllRead).toHaveBeenCalledTimes(3));
     expect(markAllRead.mock.calls[2][0]).not.toBe(firstKey);
   });
+});
+
+test('keeps the assigned visit link from an existing sitter notice', () => {
+  const deepLink = '/sitter/invitations?visitId=' + 'e'.repeat(24);
+  expect(notificationTarget({ id: 'a'.repeat(64), deepLink })).toBe(deepLink);
 });

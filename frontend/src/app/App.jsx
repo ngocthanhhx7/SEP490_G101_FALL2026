@@ -1,4 +1,9 @@
-import { SessionProvider } from '../contexts/SessionContext.jsx';
+import { MobileAppShell } from '../layouts/MobileAppShell.jsx';
+import { mobileRoute } from '../routes/mobile-route-metadata.js';
+import { primaryRole } from '../utils/role-access.js';
+import { useLocation } from 'react-router-dom';
+import { SessionProvider, useSession } from '../contexts/SessionContext.jsx';
+import { usePhoneApp } from '../hooks/usePhoneApp.js';
 import { NotificationProvider } from '../contexts/NotificationContext.jsx';
 import { NotificationToast } from '../components/common/NotificationToast.jsx';
 import { AppRoutes } from '../routes/AppRoutes.jsx';
@@ -16,19 +21,28 @@ export function App({
 }) {
   return (
     <AppErrorBoundary>
-      <SessionProvider adapter={sessionAdapter}>
+      <SessionProvider adapter={sessionAdapter} foreground>
         <NotificationProvider>
-        <ProductCartProvider>
-        <PublicPolicyProvider
-          policies={registrationPolicies}
-          loadPolicies={loadPublicPolicies}
-        >
-          <AppRoutes publicPolicyRouteElements={publicPolicyRouteElements} />
-        </PublicPolicyProvider>
-        </ProductCartProvider>
+          <ProductCartProvider>
+            <PublicPolicyProvider policies={registrationPolicies} loadPolicies={loadPublicPolicies}>
+              <AppNavigation publicPolicyRouteElements={publicPolicyRouteElements} />
+            </PublicPolicyProvider>
+          </ProductCartProvider>
           <NotificationToast />
         </NotificationProvider>
       </SessionProvider>
     </AppErrorBoundary>
   );
+}
+
+function AppNavigation({ publicPolicyRouteElements }) {
+  const compact = usePhoneApp();
+  const { pathname } = useLocation();
+  const { user } = useSession();
+  const role = primaryRole(user);
+  const route = compact ? mobileRoute(pathname, role) : null;
+  const identity = user ? user.id + ":" + role : "guest";
+  return <MobileAppShell key={identity} route={route}>
+    <AppRoutes publicPolicyRouteElements={publicPolicyRouteElements} phoneApp={Boolean(route)} />
+  </MobileAppShell>;
 }

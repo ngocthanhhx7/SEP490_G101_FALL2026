@@ -20,3 +20,8 @@ removes both domain changes and notifications. Account-wide messages use null
 role and remain recipient scoped. No private financial detail is copied into
 notification text. Preferences, email/SMS and web-push delivery remain separate
 provider gates and are not established by the in-app centre.
+
+
+When Web Push is enabled, the worker polls bounded, recipient-scoped unread
+projections for opt-in sessions. It sends a generic device alert and leaves
+notification details in the authenticated notification centre.

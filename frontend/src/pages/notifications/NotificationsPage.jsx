@@ -1,8 +1,10 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Notice } from '../../components/ui/index.js';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Bell, Check, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
+import { LockScreenNotifications } from './LockScreenNotifications.jsx';
+import { notificationTarget } from '../../utils/notifications.js';
 import './notifications.css';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('vi-VN', {
@@ -53,7 +55,7 @@ function NotificationCard({ item, onRead, busy }) {
       className={`notification-card${item.readAt ? '' : ' notification-card--unread'}`}
     >
       {item.deepLink ? (
-        <Link className="notification-card__link" to={item.deepLink} onClick={() => { if (!item.readAt) onRead(item.id); }}>
+        <Link className="notification-card__link" to={notificationTarget(item)} onClick={() => { if (!item.readAt) onRead(item.id); }}>
           {content}
         </Link>
       ) : (
@@ -69,6 +71,23 @@ function NotificationCard({ item, onRead, busy }) {
 }
 
 export function NotificationsPage({ api }) {
+  const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
+  const intentId = params.get('open');
+  const validIntent = intentId && /^[a-f0-9]{64}$/.test(intentId);
+  const resolveIntent = useCallback(async ({ signal }) => {
+    if (!validIntent || !api?.resolveIntent) return { data: null };
+    const response = await api.resolveIntent(intentId, { signal });
+    return { ...response, data: { ...response.data, id: intentId } };
+  }, [api, validIntent, intentId]);
+  const intent = useApiResource(resolveIntent);
+  useEffect(() => {
+    const to = intent.data?.to;
+    if (intent.status === 'success' && intent.data?.id === intentId
+      && /^(?:\/account\/bookings\/[a-f0-9]{24}(?:\/visits\/[a-f0-9]{24})?|\/sitter\/(?:visits\/|invitations\?offerId=)[a-f0-9]{24})$/.test(to ?? '')) {
+      navigate(to, { replace: true });
+    }
+  }, [intent.status, intent.data, intentId, navigate]);
   const [cursor, setCursor] = useState(null);
   const [rows, setRows] = useState([]);
   const [busyId, setBusyId] = useState(null);
@@ -178,6 +197,18 @@ export function NotificationsPage({ api }) {
           </Button>
         </div>
       </header>
+      {intentId && <div role="status">
+        {!validIntent || intent.status === 'empty' || intent.status === 'success'
+          ? 'Nếu thông báo không còn đích chi tiết, bạn vẫn có thể xem trong hộp thư.'
+          : intent.status === 'loading' ? 'Đang mở thông báo…' : 'Chưa mở được thông báo.'}
+        {(intent.status === 'error' || intent.status === 'pending') && <Button onClick={intent.retry}>Thử lại liên kết</Button>}
+        <Button onClick={() => setParams(previous => {
+          const updated = new globalThis.URLSearchParams(previous);
+          updated.delete('open');
+          return updated;
+        }, { replace: true })}>Về hộp thư</Button>
+      </div>}
+      <LockScreenNotifications api={api} />
       <div className="workspace-tabs" role="group" aria-label="Lọc thông báo">{[[false, 'Tất cả'], [true, 'Chưa đọc']].map(([value, label]) =>
         <button key={label} type="button" aria-pressed={unreadOnly === value} onClick={() => { setCursor(null); setRows([]); setUnreadOnly(value); }}>{label}</button>)}
         <span className="notification-unread-count">{unreadCount ?? '—'} chưa đọc</span></div>

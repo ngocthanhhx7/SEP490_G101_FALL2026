@@ -50,6 +50,7 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
   router.use('/complaints', createComplaintRouter({ service: complaints, sessionService: session, clock }));
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
   const auth = requireSession(session, { clock }), csrf = requireCsrf(session), sitter = requireRoles('PET_SITTER');
+  router.get('/visits/:id/assigned-summary', auth, sitter, controller.assignedVisitSummary);
   router.get('/visits/:id/execution', auth, sitter, controller.execution);
   router.post('/visits/:id/check-ins', auth, sitter, csrf, controller.checkIn);
   router.patch('/visits/:id/checklists', auth, sitter, csrf, controller.checklist);

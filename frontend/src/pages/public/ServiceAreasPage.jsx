@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { CatalogEmpty, CatalogState } from './PublicCatalog.jsx';
@@ -7,12 +8,17 @@ import {
 } from '../../services/public-catalog-api.js';
 import { formatPolicyDate } from '../../utils/catalog-format.js';
 
+const normalize = value => (value ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase();
+
 export function ServiceAreasPage({
   loadAreas = loadPublicServiceAreas,
   loadCatalog = loadPublicCatalog
 }) {
   const areas = useApiResource(loadAreas);
   const catalog = useApiResource(loadCatalog);
+  const [search, setSearch] = useState('');
+  const query = normalize(search.trim());
+  const matches = areas.data?.areas?.filter(area => normalize([area.name, area.description].filter(Boolean).join(' ')).includes(query)) ?? [];
 
   return (
     <div className="pwc-page pwc-service-areas-page">
@@ -43,16 +49,19 @@ export function ServiceAreasPage({
             title="Thông tin khu vực đang được cập nhật"
             body="Vui lòng quay lại sau để xem phạm vi phục vụ hiện hành."
           />
-        ) : areas.data.areas.length > 0 ? (
-          <ul className="pwc-area-list">
-            {areas.data.areas.map((area) => (
+        ) : areas.data.areas.length > 0 ? (<>
+          <label className="pwc-area-search">Tìm khu vực
+            <input type="search" className="pwc-control" value={search} maxLength={120} onChange={event => setSearch(event.target.value)} />
+          </label>
+          {matches.length ? <ul className="pwc-area-list">
+            {matches.map((area) => (
               <li className="pwc-area-card" key={area.id}>
                 <h3>{area.name}</h3>
                 {area.description && <p>{area.description}</p>}
               </li>
             ))}
-          </ul>
-        ) : (
+          </ul> : <p role="status">Chưa tìm thấy khu vực khớp với từ khóa.</p>}
+        </>) : (
           <CatalogEmpty
             title="Chưa có khu vực được công bố"
             body="Khu vực phục vụ sẽ hiển thị khi có thông tin hiện hành."

@@ -5,6 +5,7 @@ import { requireCsrf, requireSession } from '../middlewares/session.js';
 export function createNotificationRouter({
   service,
   sessionPort,
+  webPush,
   allowedOrigins,
   clock
 } = {}) {
@@ -24,6 +25,9 @@ export function createNotificationRouter({
   router.use(requireSession(sessionPort, { clock }));
   const csrf = requireCsrf(sessionPort, { allowedOrigins });
   router.get('/', createNotificationController({ service }).getRoot);
+  if (typeof service.resolveIntent === 'function') {
+    router.get('/:notificationId/intent', createNotificationController({ service }).getIntent);
+  }
   router.post(
     '/:notificationId/read-receipts',
     csrf,
@@ -43,7 +47,12 @@ export function createNotificationRouter({
       createNotificationController({ service }).updatePreferences
     );
   }
-  if (typeof service.registerPushSubscription === 'function') {
+  if (webPush) {
+    const controller = createNotificationController({ service, webPush });
+    router.get('/push', controller.getPushStatus);
+    router.post('/subscriptions', csrf, controller.createSubscriptions);
+    router.delete('/subscriptions', csrf, controller.deleteSubscriptions);
+  } else if (typeof service.registerPushSubscription === 'function') {
     router.post(
       '/subscriptions',
       csrf,

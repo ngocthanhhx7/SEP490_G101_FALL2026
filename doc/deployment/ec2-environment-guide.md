@@ -139,3 +139,20 @@ provisioning owns creation. `LEGACY_PARTNER` is a compatibility profile requirin
 its legacy stores and unresolved-policy gates; it must not be used to bypass employee
 commission holds. Switching profile needs its own checked release/data plan. The
 employee rollout uses the default and does not overwrite the existing `.env`.
+
+## Web Push của PWA
+
+Đặt `WEB_PUSH_ENABLED=false` khi triển khai mã lần đầu. Khi kiểm tra hạ tầng
+và bản khôi phục đã đạt, chuẩn bị cặp khóa VAPID P-256 cố định và
+`WEB_PUSH_CONTACT` dạng địa chỉ `mailto:`. Chỉ khóa public đi tới trình duyệt.
+Cấu hình nằm trong .env dùng chung của EC2. Giữ cặp khóa khi đổi release vì
+trình duyệt gắn đăng ký thiết bị với khóa public đã dùng.
+
+Nghiệm thu bằng tài khoản thử. Trên iPhone/iPad 16.4+, mở bằng biểu tượng đã
+cài, đăng nhập, vào Thông báo và nhấn Bật thông báo. Trên Android dùng Chrome
+và cấp quyền tương ứng. Kiểm tra khi khóa máy và app không mở, nội dung trên
+màn hình khóa chỉ có lời nhắc chung, chạm mở trang Thông báo, rồi kiểm tra lại
+sau khi tắt thiết bị trong app. Quyền hiển thị trên màn hình khóa và chế độ
+Tập trung do hệ điều hành quản lý.
+
+Xem [kế hoạch lưu đăng ký và rollback](../database/pwa-web-push.md).

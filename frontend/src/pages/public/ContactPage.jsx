@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Button, Dialog } from '../../components/ui/index.js';
+import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { sendContactMessage } from '../../services/contact-api.js';
 import './contact.css';
 
@@ -16,6 +18,8 @@ const empty = { name: '', phone: '', email: '', topic: 'BOOKING', message: '', c
 function normalize(value) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').toLowerCase(); }
 
 export function ContactPage({ send = sendContactMessage }) {
+  const compact = usePhoneApp();
+  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [form, setForm] = useState(empty);
@@ -41,6 +45,21 @@ export function ContactPage({ send = sendContactMessage }) {
           : 'Chưa thể gửi email. Vui lòng thử lại sau; nội dung của bạn vẫn được giữ trong form.');
     } finally { setBusy(false); }
   }
+  const messageForm = <form onSubmit={submit} className="pwc-contact-form" aria-label="Gửi lời nhắn">
+    {!compact && <><p className="pwc-contact-eyebrow">ĐỂ LẠI LỜI NHẮN</p>
+      <h2>Chúng mình có thể<br />giúp gì cho bạn?</h2></>}
+    <label>Họ và tên<input name="name" autoComplete="name" placeholder="Tên của bạn" required minLength={2} maxLength={80} value={form.name} onChange={change} /></label>
+    <div className="pwc-contact-form-pair"><label>Số điện thoại (không bắt buộc)<input name="phone" type="tel" autoComplete="tel" maxLength={20} pattern="[+0-9 ()-]{8,20}" placeholder="Số điện thoại liên hệ" value={form.phone} onChange={change} /></label>
+    <label>Email phản hồi<input name="email" type="email" autoComplete="email" placeholder="ban@email.com" required maxLength={254} value={form.email} onChange={change} /></label></div>
+    <label>Chủ đề<select name="topic" value={form.topic} onChange={change}>{topics.map(([key, label]) => <option key={key} value={key}>{label}</option>)}<option value="OTHER">Liên hệ khác</option></select></label>
+    <label>Nội dung<textarea name="message" rows={6} required minLength={10} maxLength={3000} value={form.message} onChange={change} placeholder="Bạn cần chúng mình hỗ trợ điều gì?" /></label>
+    <p className="pwc-contact-form-hint">Từ 10 đến 3.000 ký tự. Vui lòng không gửi lại trong khi đang xử lý.</p>
+    <label className="pwc-contact-consent"><input name="consent" type="checkbox" required checked={form.consent} onChange={change} />
+      <span>Tôi đồng ý để Paw World Care sử dụng thông tin đã cung cấp nhằm liên hệ và phản hồi yêu cầu này.</span></label>
+    <button className="pwc-design-button" type="submit" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi lời nhắn'}</button>
+    <p className="pwc-contact-form-hint">Yêu cầu chỉ được báo tiếp nhận khi máy chủ email xác nhận. Thông tin không được lưu trong trình duyệt.</p>
+    {notice && <p role={failed ? 'alert' : 'status'}>{notice}</p>}
+  </form>;
   return <div className="pwc-contact-page">
     <section className="pwc-contact-hero" aria-labelledby="pwc-contact-heading">
       <img src="/assets/figma-public/home-Frame2147225474.svg" alt="" />
@@ -71,22 +90,15 @@ export function ContactPage({ send = sendContactMessage }) {
         <p>Không gửi mật khẩu, mã OTP, thông tin thẻ hoặc dữ liệu nhạy cảm. Form này dành cho câu hỏi và góp ý, không thay thế thao tác đặt hay hủy lịch.</p>
         <Link to="/policies/privacy">Xem chính sách bảo mật</Link>
       </div>
-      <form onSubmit={submit} className="pwc-contact-form" aria-label="Gửi lời nhắn">
-        <p className="pwc-contact-eyebrow">ĐỂ LẠI LỜI NHẮN</p>
-        <h2>Chúng mình có thể<br />giúp gì cho bạn?</h2>
-        <p>Cứ kể điều bạn cần — chúng mình sẽ phản hồi qua thông tin bạn để lại.</p>
-        <label>Họ và tên<input name="name" autoComplete="name" placeholder="Tên của bạn" required minLength={2} maxLength={80} value={form.name} onChange={change} /></label>
-        <div className="pwc-contact-form-pair"><label>Số điện thoại (không bắt buộc)<input name="phone" type="tel" autoComplete="tel" maxLength={20} pattern="[+0-9 ()-]{8,20}" placeholder="Số điện thoại liên hệ" value={form.phone} onChange={change} /></label>
-        <label>Email phản hồi<input name="email" type="email" autoComplete="email" placeholder="ban@email.com" required maxLength={254} value={form.email} onChange={change} /></label></div>
-        <label>Chủ đề<select name="topic" value={form.topic} onChange={change}>{topics.map(([key, label]) => <option key={key} value={key}>{label}</option>)}<option value="OTHER">Liên hệ khác</option></select></label>
-        <label>Nội dung<textarea name="message" rows={6} required minLength={10} maxLength={3000} value={form.message} onChange={change} placeholder="Bạn cần chúng mình hỗ trợ điều gì?" /></label>
-        <p className="pwc-contact-form-hint">Từ 10 đến 3.000 ký tự. Vui lòng không gửi lại trong khi đang xử lý.</p>
-        <label className="pwc-contact-consent"><input name="consent" type="checkbox" required checked={form.consent} onChange={change} />
-          <span>Tôi đồng ý để Paw World Care sử dụng thông tin đã cung cấp nhằm liên hệ và phản hồi yêu cầu này.</span></label>
-        <button className="pwc-design-button" type="submit" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi lời nhắn'}</button>
-        <p className="pwc-contact-form-hint">Yêu cầu chỉ được báo tiếp nhận khi máy chủ email xác nhận. Thông tin không được lưu trong trình duyệt.</p>
-        {notice && <p role={failed ? 'alert' : 'status'}>{notice}</p>}
-      </form>
+      {compact ? <>
+        <Button onClick={() => {
+          if (category) setForm(current => current.message || current.name || current.email || current.phone
+            ? current : { ...current, topic: category });
+          setOpen(true);
+        }}>Viết lời nhắn</Button>
+        <Dialog open={open} onClose={() => setOpen(false)} title="Gửi lời nhắn"
+          className="mobile-flow-dialog" dismissible={!busy}>{messageForm}</Dialog>
+      </> : messageForm}
     </section>
   </div>;
 }
