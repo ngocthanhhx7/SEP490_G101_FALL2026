@@ -1,4 +1,4 @@
-﻿export function createNotificationsApi({ request } = {}) {
+export function createNotificationsApi({ request } = {}) {
   if (typeof request !== 'function') throw new TypeError('A request function is required');
   const id = value => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(value) ? value : (() => { throw new TypeError('Invalid notification id'); })();
   return Object.freeze({
@@ -16,6 +16,12 @@
     updatePreferences(preferences, idempotencyKey) {
       return request('/notifications/preferences', { method: 'PATCH', body: { preferences }, idempotencyKey });
     },
+    pushStatus({ signal } = {}) {
+      return request('/notifications/push', { signal });
+    },
+    unsubscribe() {
+      return request('/notifications/subscriptions', { method: 'DELETE' });
+    },
     subscribe(subscription, idempotencyKey) {
       return request('/notifications/subscriptions', { method: 'POST', body: { subscription }, idempotencyKey });
     }
@@ -32,5 +38,22 @@ export function createWebPushAdapter({ windowRef = globalThis, navigatorRef = gl
       const permission = await windowRef.Notification.requestPermission();
       return Object.freeze({ status: permission === 'granted' ? 'GRANTED' : permission === 'denied' ? 'DENIED' : 'DEFAULT' });
     }
+  });
+}
+
+
+export async function activePushRegistration(workers) {
+  const registration = await workers.getRegistration();
+  if (!registration?.active || registration.waiting) return null;
+  const channel = new globalThis.MessageChannel();
+  return new Promise(resolve => {
+    const timer = setTimeout(() => finish(null), 1500);
+    function finish(result) {
+      clearTimeout(timer);
+      channel.port1.close();
+      resolve(result);
+    }
+    channel.port1.onmessage = event => finish(event.data === 'PWC_PUSH_READY' ? registration : null);
+    registration.active.postMessage('PWC_PUSH_READY', [channel.port2]);
   });
 }

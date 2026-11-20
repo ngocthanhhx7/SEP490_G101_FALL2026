@@ -87,7 +87,9 @@ export function createApp({
   const petCare = petCareRuntimeModule(context);
   const auth = authenticationModule({ ...context, logger });
   if (auth && typeof connection?.model === 'function') {
-    auth.router.use(customerReadRuntime({ ...context, sessionService: auth.sessionService }).router);
+    const customerRead = customerReadRuntime({ ...context, sessionService: auth.sessionService });
+    auth.router.use(customerRead.router);
+    app.locals.webPush = customerRead.webPush;
   }
   const financeSources = financeSourceRuntime(context);
   if (auth && financeSources) auth.router.use(financeSources.router);

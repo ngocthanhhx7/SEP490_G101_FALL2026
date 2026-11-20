@@ -1,7 +1,7 @@
 import { SiteBrandMark } from '../ui/SiteBrandMark.jsx';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShoppingCart } from 'lucide-react';
+import { Menu, ShoppingCart, X } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useOptionalProductCart } from '../../contexts/ProductCartContext.jsx';
 import { AvatarMenu } from '../common/AvatarMenu.jsx';
@@ -26,6 +26,7 @@ export function PublicHeader({ notificationTo } = {}) {
   const location = useLocation();
   const navigate = useNavigate();
   const role = primaryRole(session.user);
+  const signedIn = session.status === 'authenticated';
   const productCart = useOptionalProductCart();
   useEffect(() => { setMenuOpen(false); setSearchOpen(false); }, [location.key]);
   useEffect(() => { if (searchOpen) searchInput.current?.focus(); }, [searchOpen]);
@@ -42,11 +43,12 @@ export function PublicHeader({ notificationTo } = {}) {
       <button
         className="pwc-menu-toggle"
         type="button"
+        aria-label={menuOpen ? 'Đóng menu' : 'Mở menu'}
         aria-expanded={menuOpen}
         aria-controls="pwc-public-navigation"
         onClick={() => setMenuOpen((open) => !open)}
       >
-        {menuOpen ? 'Đóng menu' : 'Mở menu'}
+        {menuOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
       </button>
       <nav
         className={'pwc-public-navigation' + (menuOpen ? ' is-open' : '')}
@@ -56,15 +58,19 @@ export function PublicHeader({ notificationTo } = {}) {
         {links.map(([label, to]) => <Link key={label} to={to} onClick={closeMenu}
           aria-current={location.pathname === to && !location.hash ? 'page' : undefined}>{label}</Link>)}
         <Link className="pwc-mobile-install-link" to="/install" onClick={closeMenu}>Cài ứng dụng</Link>
+        {menuOpen && !signedIn && <div className="pwc-mobile-auth">
+          <Link className="pwc-auth-login" to="/sign-in" onClick={closeMenu}>Đăng nhập</Link>
+          <Link className="pwc-auth-register" to="/register" onClick={closeMenu}>Đăng ký</Link>
+        </div>}
       </nav>
-      <div className="pwc-header-actions">
+      <div className={signedIn ? "pwc-header-actions pwc-header-actions--signed-in" : "pwc-header-actions"}>
         {<Link className="pwc-cart-link" to="/customer/cart"
           aria-label={productCart.lineCount ? `Giỏ hàng, ${productCart.lineCount} sản phẩm` : 'Giỏ hàng'}>
           <ShoppingCart aria-hidden="true" size={20} />
           {productCart.lineCount > 0 && <span className="pwc-cart-link-badge" aria-hidden="true">{productCart.lineCount}</span>}
         </Link>}
-        {session.status === 'authenticated' && <NotificationBell to={notificationTo} />}
-        {session.status === 'authenticated'
+        {signedIn && <NotificationBell to={notificationTo} />}
+        {signedIn
           ? <AvatarMenu user={session.user} role={role} iconOnly customerNavigation={role === 'CUSTOMER'}
               notificationTo="/account/notifications"
               onLogout={async () => { await session.logout(); navigate('/', { replace: true }); }} />

@@ -1,3 +1,4 @@
+import { webPushConfig } from './web-push.js';
 import { loadEsmsConfig } from './esms.js';
 import { loadSmtpConfig } from './smtp.js';
 import { isMailbox } from '../utils/mailbox.js';
@@ -116,6 +117,7 @@ export function loadConfig(env = process.env) {
   try { routingBounds = parseRoutingBounds(env.AI_ROUTING_BOUNDS); }
   catch { invalid.push('AI_ROUTING_BOUNDS'); }
   const result = {
+    webPush: webPushConfig(env, authEnabled, invalid),
     customerTierJobEnabled: env.CUSTOMER_TIER_JOB_ENABLED === 'true',
     productPickupExpiryJobEnabled: env.PRODUCT_PICKUP_EXPIRY_JOB_ENABLED === 'true',
     pickupDeadlineHours: integer('PRODUCT_PICKUP_DEADLINE_HOURS', DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS, 1,
