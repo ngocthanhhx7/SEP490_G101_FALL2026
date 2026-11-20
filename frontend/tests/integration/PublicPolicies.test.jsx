@@ -82,10 +82,14 @@ test.each([
 
 test.each(['/policies/missing', '/policies/terms/v1'])(
   'unknown policy route %s returns an in-app not-found state',
-  (path) => {
+  async (path) => {
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = jest.fn().mockResolvedValue({ status: 404, json: async () => ({ error: { code: 'POLICY_VERSION_NOT_FOUND' } }) });
     renderPolicyPath(path);
+    const heading = await screen.findByRole('heading', { name: 'Không tìm thấy phiên bản này' });
+    globalThis.fetch = previousFetch;
     expect(
-      screen.getByRole('heading', { name: 'Không tìm thấy phiên bản này' })
+      heading
     ).toBeVisible();
     expect(
       screen.getByRole('link', { name: 'Xem danh sách chính sách' })
@@ -137,61 +141,62 @@ test('approved article displays purpose, version, effective date and matching co
   expect(
     screen.getByText('Fixture chỉ dùng để kiểm tra giao diện.')
   ).toBeVisible();
+  fireEvent.click(screen.getByText('Thông tin phiên bản'));
   expect(screen.getByText('1.0')).toBeVisible();
   expect(screen.getByText('01/11/2026')).toBeVisible();
   expect(
     screen.getByRole('link', { name: /mở liên kết phiên bản/i })
   ).toHaveAttribute('href', '/policies/approved-example/v1');
   expect(
-    screen.getByRole('complementary', { name: 'Mục lục bài viết' })
+    screen.getByRole('navigation', { name: 'Mục lục bài viết' })
   ).toBeVisible();
   expect(
     screen.getByRole('heading', { name: 'Điều khoản ví dụ', level: 2 })
   ).toBeVisible();
 });
 
-test('registration context links point to explicit unpublished draft placeholders', () => {
+test('registration context links point to current published paths without draft placeholders', () => {
   render(
     <MemoryRouter>
       <PolicyContextLinks context="registration" />
     </MemoryRouter>
   );
   expect(
-    screen.getByRole('link', { name: 'Điều khoản dịch vụ' })
-  ).toHaveAttribute('href', '/policies/terms/draft-v1');
+    screen.getByRole('link', { name: 'Điều khoản sử dụng tài khoản' })
+  ).toHaveAttribute('href', '/policies/terms');
   expect(
     screen.getByRole('link', { name: 'Chính sách quyền riêng tư' })
-  ).toHaveAttribute('href', '/policies/privacy/draft-v1');
+  ).toHaveAttribute('href', '/policies/privacy');
   expect(
     screen.getByRole('link', { name: 'Chính sách OTP và liên hệ' })
-  ).toHaveAttribute('href', '/policies/contact-verification/draft-v1');
+  ).toHaveAttribute('href', '/policies/contact-verification');
 });
 
 test.each([
   [
     'booking',
     [
-      '/policies/booking/draft-v1',
-      '/policies/payments/draft-v1',
-      '/policies/cancellations-refunds/draft-v1',
-      '/policies/service-areas/draft-v1'
+      '/policies/booking',
+      '/policies/payments',
+      '/policies/cancellations-refunds',
+      '/policies/service-areas'
     ]
   ],
   [
     'account',
     [
-      '/policies/privacy/draft-v1',
-      '/policies/terms/draft-v1',
-      '/policies/contact-verification/draft-v1'
+      '/policies/privacy',
+      '/policies/terms',
+      '/policies/contact-verification'
     ]
   ],
   [
     'sitterApplication',
     [
-      '/policies/terms/draft-v1',
-      '/policies/privacy/draft-v1',
-      '/policies/sitter-onboarding/draft-v1',
-      '/policies/contact-verification/draft-v1'
+      '/policies/terms',
+      '/policies/privacy',
+      '/policies/sitter-onboarding',
+      '/policies/contact-verification'
     ]
   ]
 ])(
@@ -205,6 +210,6 @@ test.each([
     const paths = screen
       .getAllByRole('link')
       .map((link) => link.getAttribute('href'));
-    expect(paths).toEqual([...expectedPaths, '/policies']);
+    expect(paths).toEqual(expectedPaths);
   }
 );

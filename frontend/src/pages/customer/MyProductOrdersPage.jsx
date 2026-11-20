@@ -10,7 +10,9 @@ import { formatOrderDate, formatVnd, productMessage } from '../../utils/product-
 import '../../components/product/product-shop.css';
 
 function OrderDetail({ order }) {
+  const { pathname, search } = useLocation();
   return <aside className="pwc-shop-panel" aria-label={`Chi tiết đơn ${order.code}`}>
+    <p><Link to="/contact" state={{ helpFrom: pathname + search }}>Hỗ trợ đơn mua</Link></p>
     <h2>Đơn {order.code} <OrderStatusBadge status={order.status} /></h2>
     <dl className="pwc-shop-facts">
       <dt>Ngày đặt</dt><dd>{formatOrderDate(order.createdAt)}</dd>

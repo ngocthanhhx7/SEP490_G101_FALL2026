@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import { PolicyContextLinks } from '../public/policies/PolicyLinks.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useProductCart } from '../../hooks/useProductCart.js';
@@ -72,6 +73,7 @@ export function ProductCheckoutPage() {
   return <section className="pwc-shop" aria-labelledby="checkout-title">
     {back}
     <h1 id="checkout-title">Thanh toán đơn hàng</h1>
+    <PolicyContextLinks context="productOrder" />
     <div className="pwc-shop-split">
       <div style={{ display: 'grid', gap: '1.5rem' }}>
         <div className="pwc-shop-panel">
