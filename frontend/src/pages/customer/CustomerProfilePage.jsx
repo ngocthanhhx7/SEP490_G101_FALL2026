@@ -47,9 +47,10 @@ export function CustomerProfilePage({ apiRequest }) {
   const [editStructured, setEditStructured] = useState(false);
   const family = personal.familyAndMiddleName ?? profile.data?.familyAndMiddleName ?? '';
   const given = personal.givenName ?? profile.data?.givenName ?? '';
-  const structured = compact || sitter || editStructured || Boolean(profile.data?.givenName);
+  const hasPersonalDraft = Object.keys(personal).length > 0;
+  const structured = !draft && (compact || sitter || editStructured || hasPersonalDraft || Boolean(profile.data?.givenName));
   const namesChanged = Object.hasOwn(personal, 'familyAndMiddleName') || Object.hasOwn(personal, 'givenName');
-  const canSave = structured ? (Object.keys(personal).length > 0
+  const canSave = structured ? (hasPersonalDraft
     && (!namesChanged || (family.trim() && given.trim() && family.trim().length + given.trim().length < 100)))
     : Boolean(displayName.trim() && displayName.trim() !== profile.data?.displayName && displayName.length <= 100);
   const [savePending, setSavePending] = useState(false);
@@ -144,7 +145,7 @@ export function CustomerProfilePage({ apiRequest }) {
               </select>
             </label>
           </> : <Input label="Họ và tên" value={displayName} onChange={event => {
-            setDraft({ value: event.target.value, version: profile.data.version });
+            setDraft(event.target.value === profile.data.displayName ? null : { value: event.target.value, version: profile.data.version });
             setSaveError('');
             setSaved(false);
           }} autoComplete="name" maxLength={100} required />}
@@ -153,7 +154,7 @@ export function CustomerProfilePage({ apiRequest }) {
             Lưu thay đổi
           </Button>
         </form>
-        {!structured && <Button variant="secondary" onClick={() => setEditStructured(true)}>Cập nhật tên, ngày sinh và giới tính</Button>}
+        {!structured && !draft && <Button variant="secondary" onClick={() => setEditStructured(true)}>Cập nhật tên, ngày sinh và giới tính</Button>}
         {saveError && <Notice state="error" title="Chưa xác nhận thay đổi"
           action={<Button variant="secondary" onClick={() => { setSaveError(''); profile.retry(); }}>Tải lại hồ sơ</Button>}>
           {saveError}
