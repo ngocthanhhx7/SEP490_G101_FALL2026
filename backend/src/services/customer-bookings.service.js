@@ -20,18 +20,33 @@ export function createCustomerBookingsService({ connection, cursorSecret, clock 
       filter._id = { $lt: new Types.ObjectId(last.id) };
     }
     const rows = await connection.db.collection('bookings').find(filter, { projection: {
-      _id: 1, state: 1, createdAt: 1, paymentState: 1, paymentDeadlineAt: 1, 'paymentSnapshot.amountVnd': 1,
+      _id: 1, visitIds: 1, state: 1, createdAt: 1, paymentState: 1, paymentDeadlineAt: 1, 'paymentSnapshot.amountVnd': 1,
       'checkoutSnapshot.customerVisits.startAt': 1, 'checkoutSnapshot.customerVisits.location': 1,
       'checkoutSnapshot.customerVisits.snapshots.pets.name': 1, 'checkoutSnapshot.customerVisits.snapshots.serviceName': 1
     } }).sort({ _id: -1 }).limit(limit + 1).toArray();
     const page = rows.slice(0, limit);
     if (page.some(row => typeof row.state !== 'string' || !row.state)) fail('INVALID_PROJECTION', 'Invalid booking state', 503);
+    const ids = [...new Set(page.flatMap(row => row.visitIds ?? []).map(String))].filter(Types.ObjectId.isValid);
+    const active = ids.length ? await connection.db.collection('visits').find({
+      _id: { $in: ids.map(value => new Types.ObjectId(value)) },
+      bookingId: { $in: page.map(row => row._id) }, state: { $ne: 'SUPERSEDED' }
+    }, { projection: { bookingId: 1, startAt: 1 }, maxTimeMS: 2000 }).toArray() : [];
+    const firstByBooking = new Map();
+    for (const visit of active) {
+      const key = String(visit.bookingId);
+      if (visit.startAt instanceof Date && (!firstByBooking.has(key) || visit.startAt < firstByBooking.get(key))) {
+        firstByBooking.set(key, visit.startAt);
+      }
+    }
     const asOf = new Date(clock());
     return { items: page.map(row => ({ id: String(row._id), state: row.state === 'AWAITING_PAYMENT' && row.paymentDeadlineAt <= asOf ? 'PAYMENT_EXPIRED' : row.state,
       createdAt: row.createdAt ?? null, paymentState: row.paymentState ?? null,
       totalVnd: Number.isSafeInteger(row.paymentSnapshot?.amountVnd) && row.paymentSnapshot.amountVnd >= 0 ? row.paymentSnapshot.amountVnd : null,
       visitCount: row.checkoutSnapshot?.customerVisits?.length ?? null,
-      firstVisitAt: (row.checkoutSnapshot?.customerVisits ?? []).map(visit => visit.startAt).filter(value => value && Number.isFinite(new Date(value).getTime())).sort((a,b) => new Date(a) - new Date(b))[0] ?? null,
+      firstVisitAt: firstByBooking.get(String(row._id)) ?? (row.checkoutSnapshot?.customerVisits ?? [])
+        .map(visit => visit.startAt).filter(value => value && Number.isFinite(new Date(value).getTime()))
+        .sort((a, b) => new Date(a) - new Date(b))[0] ?? null,
+      firstVisitSource: firstByBooking.has(String(row._id)) ? 'CURRENT' : 'ORIGINAL',
       petNames: [...new Set((row.checkoutSnapshot?.customerVisits ?? []).flatMap(visit => visit.snapshots?.pets ?? []).map(pet => pet.name).filter(value => typeof value === 'string' && value))],
       serviceName: [...new Set((row.checkoutSnapshot?.customerVisits ?? []).map(visit => visit.snapshots?.serviceName).filter(Boolean))].join(', ') })),
       nextCursor: rows.length > limit ? cursor.encode({ id: String(page.at(-1)._id) }, context) : null };

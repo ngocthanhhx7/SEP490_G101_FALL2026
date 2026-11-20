@@ -6,6 +6,7 @@ const states = {
   ASSIGNED: ['Đã có người chăm sóc', 'Sitter đã nhận ca. Xem chi tiết để kiểm tra lịch chăm sóc.'],
   IN_PROGRESS: ['Đang chăm sóc', 'Buổi chăm sóc đang diễn ra. Bạn có thể theo dõi trong chi tiết đơn.'],
   COMPLETED: ['Đã hoàn tất', 'Dịch vụ đã hoàn tất. Bạn có thể xem lại các buổi và gửi đánh giá.'],
+  CLOSED: ['Đã đóng', 'Lịch hẹn đã được đóng. Xem chi tiết từng buổi để kiểm tra kết quả.'],
   CANCELLED: ['Đã hủy', 'Đơn này đã được hủy.'],
   AWAITING_PAYMENT: ['Chờ thanh toán trước', 'Thanh toán đúng hạn để PawWorld bắt đầu gửi lời mời chăm sóc.'],
   PAYMENT_EXPIRED: ['Hết hạn thanh toán', 'Đơn đã quá hạn thanh toán. Mở chi tiết để kiểm tra trạng thái mới nhất.'],

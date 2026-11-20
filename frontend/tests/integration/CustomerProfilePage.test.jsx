@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CustomerProfilePage } from '../../src/pages/customer/CustomerProfilePage.jsx';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
@@ -65,6 +65,24 @@ test('shows forbidden and server-pending states without fake profile data', asyn
   renderProfile(pending);
   expect(await screen.findByRole('heading', { name: 'Đang chờ máy chủ xác nhận' })).toBeVisible();
   expect(screen.queryByRole('textbox', { name: 'Họ và tên' })).not.toBeInTheDocument();
+});
+
+test.each([true, false])('keeps the active name draft when compact layout changes from %s', async (compact) => {
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+  const media = new window.EventTarget();
+  media.matches = compact;
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => media });
+  const label = compact ? 'Họ và tên đệm' : 'Họ và tên';
+  const view = renderProfile(async () => ({ data: initialProfile, meta: { schemaVersion: 1 } }));
+  try {
+    fireEvent.change(await screen.findByRole('textbox', { name: label }), { target: { value: 'Tên đang chỉnh' } });
+    act(() => { media.matches = !compact; media.dispatchEvent(new window.Event('change')); });
+    expect(screen.getByRole('textbox', { name: label })).toHaveValue('Tên đang chỉnh');
+  } finally {
+    view.unmount();
+    if (descriptor) Object.defineProperty(window, 'matchMedia', descriptor);
+    else Reflect.deleteProperty(window, 'matchMedia');
+  }
 });
 
 test('shows a retryable load error and keeps server detail out of the interface', async () => {

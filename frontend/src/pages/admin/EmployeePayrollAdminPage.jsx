@@ -343,7 +343,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
             Hiện lịch sử tạm ứng
           </label>
         </header>
-        <OperationsTable
+        {state.data && <OperationsTable
           label="Đề nghị tạm ứng"
           rows={state.data?.advances ?? []}
           empty={history ? 'Chưa có đề nghị tạm ứng.' : 'Không có đề nghị chờ xử lý.'}
@@ -367,7 +367,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
               ),
             },
           ]}
-        />
+        />}
         <PayrollPager
           label="tạm ứng"
           pages={advancePages}
@@ -383,7 +383,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
             Mở từng phiếu để xem cách tính, in, duyệt hoặc ghi nhận giao dịch đã thực hiện.
           </p>
         </header>
-        <OperationsTable
+        {state.data && <OperationsTable
           label="Danh sách phiếu lương"
           rows={state.data?.statements ?? []}
           empty="Chưa có phiếu lương."
@@ -426,7 +426,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
               ),
             },
           ]}
-        />
+        />}
         <PayrollPager
           label="phiếu lương"
           pages={statementPages}
@@ -439,7 +439,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
         <header>
           <h2>Điều chỉnh lương</h2>
         </header>
-        <OperationsTable
+        {state.data && <OperationsTable
           label="Danh sách điều chỉnh"
           rows={state.data?.adjustments ?? []}
           empty="Chưa có điều chỉnh."
@@ -463,7 +463,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
               ),
             },
           ]}
-        />
+        />}
         <PayrollPager
           label="điều chỉnh"
           pages={adjustmentPages}

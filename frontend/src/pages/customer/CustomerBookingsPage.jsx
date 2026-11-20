@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { CalendarDays, PawPrint, ArrowUpRight } from 'lucide-react';
 import { bookingStatus, bookingDate, bookingMoney } from '../../utils/booking-presentation.js';
 import { CursorPagination } from '../../components/ui/Pagination.jsx';
@@ -12,6 +12,7 @@ import './customer-bookings.css';
 
 export function CustomerBookingsPage({ request: suppliedRequest }) {
   const { getCsrfToken } = useSession();
+  const { pathname, search } = useLocation();
   const request = useMemo(() => suppliedRequest || createApiClient({ getCsrfToken }), [suppliedRequest, getCsrfToken]);
   const [cursor, setCursor] = useState(null);
   const [history, setHistory] = useState([]);
@@ -26,10 +27,11 @@ export function CustomerBookingsPage({ request: suppliedRequest }) {
       <div className="customer-bookings__card-heading"><div><p className="customer-bookings__reference" title={item.id}>Mã đơn: {item.reference || `#${item.id.slice(-8).toUpperCase()}`}</p>
         <h2>{item.serviceName || 'Lịch chăm sóc thú cưng'}</h2></div><strong className="customer-bookings__total">{bookingMoney(item.totalVnd)}</strong></div>
       <dl className="customer-bookings__facts"><div><dt><PawPrint size={17} aria-hidden="true" />Thú cưng</dt><dd>{item.petNames?.length ? item.petNames.join(', ') : 'Xem trong chi tiết'}</dd></div>
-        <div><dt><CalendarDays size={17} aria-hidden="true" />Lịch đầu tiên</dt><dd>{bookingDate(item.firstVisitAt)}{item.visitCount > 0 && <small>{item.visitCount} buổi chăm sóc · Giờ Việt Nam</small>}</dd></div></dl>
+        <div><dt><CalendarDays size={17} aria-hidden="true" />{item.firstVisitSource === 'ORIGINAL' ? 'Lịch đặt ban đầu' : 'Lịch đầu tiên'}</dt><dd>{bookingDate(item.firstVisitAt)}{item.visitCount > 0 && <small>{item.visitCount} buổi chăm sóc · Giờ Việt Nam</small>}</dd></div></dl>
       <p className="customer-bookings__hint">{bookingStatus(item.state)[1]}</p>
       <div className="customer-bookings__actions"><span className={`customer-bookings__status customer-bookings__status--${item.state.toLowerCase()}`}>{bookingStatus(item.state)[0]}</span>
-        <Link className="customer-bookings__detail-button" to={`/account/bookings/${encodeURIComponent(item.id)}`} aria-label={`Xem chi tiết ${item.serviceName || 'đơn chăm sóc'} ${item.reference || item.id.slice(-8).toUpperCase()}`}>Xem chi tiết<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+        <Link className="customer-bookings__detail-button" to={`/account/bookings/${encodeURIComponent(item.id)}`}
+          state={{ mobileBack: pathname + search }} aria-label={`Xem chi tiết ${item.serviceName || 'đơn chăm sóc'} ${item.reference || item.id.slice(-8).toUpperCase()}`}>Xem chi tiết<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
     </li>)}</ul>}
     <CursorPagination label="đơn chăm sóc" page={history.length + 1} hasNext={Boolean(resource.meta?.nextCursor)}
       onFirst={() => { setHistory([]); setCursor(null); }} onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0,-1)); }}

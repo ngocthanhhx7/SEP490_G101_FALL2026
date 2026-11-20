@@ -42,7 +42,7 @@ function AppNavigation({ publicPolicyRouteElements }) {
   const role = primaryRole(user);
   const route = compact ? mobileRoute(pathname, role) : null;
   const identity = user ? user.id + ":" + role : "guest";
-  return <MobileAppShell key={identity} route={route}>
+  return <MobileAppShell key={identity} route={route} lookupRoute={mobileRoute}>
     <AppRoutes publicPolicyRouteElements={publicPolicyRouteElements} phoneApp={Boolean(route)} />
   </MobileAppShell>;
 }
