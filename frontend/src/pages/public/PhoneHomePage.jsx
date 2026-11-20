@@ -34,6 +34,7 @@ export function PhoneHomePage() {
     <nav className="pwc-phone-home__support" aria-label="Hỗ trợ và chính sách">
       <Link to="/contact">Hỗ trợ</Link>
       <Link to="/policies">Chính sách</Link>
+      <Link to="/install">Cài ứng dụng</Link>
     </nav>
   </section>;
 }

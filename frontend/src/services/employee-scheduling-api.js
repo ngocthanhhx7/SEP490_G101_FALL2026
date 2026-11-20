@@ -15,6 +15,13 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     ...createVisitTravelApi(request),
     ...createVisitClosureApi(request),
     ...createNeedsActionApi(request),
+    async assignedVisitSummary(id, { signal } = {}) {
+      const result = await request(`/visits/${encodeURIComponent(id)}/assigned-summary`, { signal });
+      const row = result.data;
+      if (row?.visitId !== id || typeof row.state !== 'string' || !Number.isFinite(Date.parse(row.startAt))
+        || !Number.isFinite(Date.parse(row.endAt))) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     async execution(id, { signal } = {}) {
       const result = await request(`/visits/${encodeURIComponent(id)}/execution`, { signal });
       const row = result.data;

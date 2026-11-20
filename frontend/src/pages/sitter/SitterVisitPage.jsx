@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
+import { googleMapsDirections } from '../../utils/maps.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { AssignedCare } from './AssignedCare.jsx';
 import { VisitExecution } from './VisitExecution.jsx';
@@ -8,7 +9,7 @@ import { VisitWithdrawalDialog } from './VisitWithdrawalDialog.jsx';
 import { Button } from '../../components/ui/index.js';
 
 export function SitterVisitPage({ api, visitId }) {
-  const load = useCallback(({ signal }) => api.execution(visitId, { signal }), [api, visitId]);
+  const load = useCallback(({ signal }) => api.assignedVisitSummary(visitId, { signal }), [api, visitId]);
   const visit = useApiResource(load);
   const [withdrawal, setWithdrawal] = useState(false);
   const row = visit.data;
@@ -20,9 +21,12 @@ export function SitterVisitPage({ api, visitId }) {
     <Button onClick={visit.retry}>Thử lại</Button> <Link to="/sitter/schedule">Về ca làm</Link>
   </section>;
 
+  const directions = googleMapsDirections(row.serviceAddress);
   return <section className="employee-scheduling pwc-mobile-screen">
     <h1>{row.serviceName || 'Buổi chăm sóc'}</h1>
     <p>{new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} · Giờ Việt Nam</p>
+    {row.serviceAddress && <p>{row.serviceAddress}</p>}
+    {directions && <a href={directions} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
     {['ASSIGNED','IN_PROGRESS'].includes(row.state) && <AssignedCare api={api} visitId={visitId} />}
     <VisitTravel api={api} visitId={visitId} employee startAt={row.startAt} endAt={row.endAt} />
     <VisitExecution api={api} visitId={visitId} onChanged={visit.retry} />

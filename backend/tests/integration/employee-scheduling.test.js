@@ -128,6 +128,11 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect(historyOffers.items.some(offer=>offer.state==='ACCEPTED')).toBe(true);
   expect(historyOffers.items.every(offer=>offer.state!=='PENDING')).toBe(true);
   const endpoint = `/api/v1/visits/${row._id}`;
+  const summary = await request(server).get(endpoint + '/assigned-summary').set(headers(sitter, 'synthetic-summary')).expect(200);
+  expect(summary.body.data).toMatchObject({ visitId: String(row._id), state: 'ASSIGNED', serviceAddress: 'Synthetic private facility' });
+  expect(summary.headers['cache-control']).toBe('private, no-store');
+  expect(Object.keys(summary.body.data).sort()).toEqual(['endAt', 'serviceAddress', 'serviceName', 'startAt', 'state', 'visitId']);
+  await request(server).get(endpoint + '/assigned-summary').set(headers(customer, 'synthetic-summary-denied')).expect(403);
   let current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   const upload = async key => (await request(server).post(images.mount).set(headers(sitter, key)).set('Content-Type', 'image/png').send(bytes).expect(201)).body.data.id;
   const mediaIn = await upload('synthetic-private-care-in');

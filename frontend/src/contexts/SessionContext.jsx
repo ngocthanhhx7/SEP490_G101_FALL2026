@@ -137,11 +137,18 @@ export function SessionProvider({ adapter = pendingSessionAdapter, foreground = 
       error.code = 'LOGOUT_NOT_AVAILABLE';
       throw error;
     }
-    ++generation.current;
+    const current = ++generation.current;
     resolution.current?.abort();
-    await logoutAction();
-    invalidate();
-  }, [invalidate]);
+    recheck.current?.abort();
+    recheck.current = null;
+    try {
+      await logoutAction();
+      invalidate();
+    } catch (error) {
+      if (generation.current === current && blocked.current) void revalidate();
+      throw error;
+    }
+  }, [invalidate, revalidate]);
   const value = useMemo(() => ({ ...session, invalidate, refresh, revalidation, revalidate, updateDisplayName, getCsrfToken,
     requestLoginOtp, login, logout }),
   [session, invalidate, refresh, revalidation, revalidate, updateDisplayName, getCsrfToken, requestLoginOtp, login, logout]);

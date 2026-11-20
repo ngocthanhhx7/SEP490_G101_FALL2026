@@ -4,13 +4,18 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterDashboardApi } from '../../services/sitter-dashboard-api.js';
 import { Button } from '../../components/ui/index.js';
 
-const localDay = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
+const localDay = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
 const localTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'medium', timeStyle: 'short' });
 const labels = { ASSIGNED: 'Đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn thành',
   STAFF_CLOSED: 'Đã đóng ca', CANCELLED: 'Đã hủy', SUPERSEDED: 'Đã thay thế' };
+function todayInVietnam() {
+  const parts = Object.fromEntries(localDay.formatToParts(new Date()).map(({ type, value }) => [type, value]));
+  return [parts.year, parts.month, parts.day].join('-');
+}
+
 export function SitterSchedulePage({ api = sitterDashboardApi }) {
   const [query, setQuery] = useSearchParams();
-  const day = /^\d{4}-\d{2}-\d{2}$/.test(query.get('day') ?? '') ? query.get('day') : localDay.format(new Date());
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(query.get('day') ?? '') ? query.get('day') : todayInVietnam();
   const cursor = query.get('cursor') || undefined;
   const load = useCallback(({ signal }) => api.read({ group: 'agenda', from: day, to: day, limit: 20, ...(cursor && { cursor }), signal }),
     [api, day, cursor]);

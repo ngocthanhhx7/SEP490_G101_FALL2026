@@ -257,6 +257,16 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
     return results;
   }
   return Object.freeze({
+    async readAssignedVisitSummary(current, visitId) {
+      actor(current, 'PET_SITTER');
+      return unitOfWork.run(async session => {
+        const { visit } = await visitContext(current, visitId, session);
+        const address = visit.snapshots?.serviceAddress;
+        const canSeeAddress = ['ASSIGNED', 'IN_PROGRESS'].includes(visit.state) && typeof address === 'string';
+        return { visitId, state: visit.state, startAt: visit.startAt, endAt: visit.endAt,
+          serviceName: visit.snapshots?.serviceName ?? null, serviceAddress: canSeeAddress ? address.slice(0, 500) : null };
+      });
+    },
     async readVisit(current, visitId) {
       actor(current, 'PET_SITTER');
       return unitOfWork.run(async session => {
