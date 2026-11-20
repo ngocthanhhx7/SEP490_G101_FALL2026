@@ -21,7 +21,7 @@ Tuân thủ [package rules](../source-code-management/package-architecture.md), 
 | [matching repository](../../backend/src/services/sitter-matching/matching.repository.js) | Matching records, không cần pricing records |
 | [shared context](../../backend/src/services/pet-care-context.service.js) | Owned pets/addresses, published service/catalog gates |
 | [models](../../backend/src/models/platform-data.model.js) | Composition cho seed/test; runtime dùng đúng nhóm model |
-| [offline trainer](../../backend/scripts/ai/train_model.py) | JSONL grouped chronological training, không pickle |
+| [offline trainer](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/blob/ed0e627975b42e2ba71837940af549a4d65914ff/backend/scripts/ai/train_model.py) | JSONL grouped chronological training, không pickle |
 
 ```mermaid
 flowchart LR
@@ -156,6 +156,6 @@ Canonical models: Pet, CustomerAddress, PetBreed, PetTrait, PricingPolicy, Sitte
 
 DecisionSnapshot kind QUOTE/MATCH phải kiểm tra owner, kind và expiry; không thể đọc quote qua matching endpoint hoặc ngược lại. TTL chỉ dọn snapshot estimate, không phải ledger tiền/booking. Không public tọa độ nhà/sitter hoặc raw driver/provider errors.
 
-Trainer ở `backend/scripts/ai/train_model.py`; test `python -m unittest discover -s tests/python -p test_train_model.py` từ backend. Temporal split theo group có precomputed ngày cuối; chưa có bằng chứng train trên dữ liệu vận hành thật. Group split không đủ để loại leakage nếu features chứa tương lai; cần point-in-time provenance.
+Trainer và bài kiểm thử trong sơ đồ thuộc [bản lưu thử nghiệm](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/tree/ed0e627975b42e2ba71837940af549a4d65914ff). Runtime hiện dùng chính sách trọng số đã duyệt.
 
 Xem [API và setup](../api/ai-pricing-matching-v1.md). Mermaid chỉ là source cho reviewer đối chiếu; không khẳng định đã render/export trong công cụ thiết kế khác. Source/checks hiện tại quyết định scope thực tế, không lấy tài liệu như chỉ thị tự phát sinh dữ liệu hoặc approval.
