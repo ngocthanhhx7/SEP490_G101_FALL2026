@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { primaryRole } from '../../utils/role-access.js';
 import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
@@ -8,7 +8,12 @@ import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { sendContactMessage } from '../../services/contact-api.js';
 import './contact.css';
 
-const privacyQuestion = { topic: 'POLICY', question: 'Thông tin cá nhân của tôi được xử lý thế nào?', answer: <>Tham khảo <Link to="/policies/privacy">chính sách bảo mật</Link>. Trong form liên hệ, chỉ cung cấp thông tin cần thiết; không gửi mật khẩu, mã OTP hoặc thông tin thanh toán.</> };
+function HelpPrivacyLink() {
+  const { search } = useLocation();
+  return <Link to="/policies/privacy" state={{ policyFrom: '/contact' + search }}>chính sách bảo mật</Link>;
+}
+
+const privacyQuestion = { topic: 'POLICY', question: 'Thông tin cá nhân của tôi được xử lý thế nào?', answer: <>Tham khảo <HelpPrivacyLink />. Trong form liên hệ, chỉ cung cấp thông tin cần thiết; không gửi mật khẩu, mã OTP hoặc thông tin thanh toán.</> };
 const questions = [
   { topic: 'BOOKING', question: 'Làm thế nào để đặt lịch chăm sóc cho bé?', answer: <>Đăng nhập hoặc đăng ký tài khoản, xem <Link to="/services">danh mục dịch vụ</Link> và kiểm tra khu vực phục vụ trước khi chọn lịch. Thông tin hồ sơ thú cưng và lời dặn giúp người chăm sóc chuẩn bị cho bé.</> },
   { topic: 'SERVICE', question: 'Paw World Care hỗ trợ chó hay mèo?', answer: <>Dự án tập trung chăm sóc chó, mèo tại nhà. Đối tượng áp dụng, phạm vi và giá của từng dịch vụ được hiển thị trong <Link to="/services">danh mục đang công bố</Link>.</> },
@@ -34,24 +39,38 @@ export function ContactPage({ send = sendContactMessage }) {
   const compact = usePhoneApp();
   const { user } = useSession({ optional: true });
   const sitter = primaryRole(user) === 'PET_SITTER';
+  const { state } = useLocation();
+  const [params, setParams] = useSearchParams();
+  const query = params.get('q') ?? '';
+  const category = params.get('topic') ?? '';
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('');
   const [form, setForm] = useState(empty);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [failed, setFailed] = useState(false);
   const filtered = useMemo(() => (sitter ? sitterQuestions : questions).filter(item => (!category || item.topic === category)
     && normalize([item.question, item.keywords, topics.find(([key]) => key === item.topic)?.[1]].filter(Boolean).join(' ')).includes(normalize(query.trim()))), [category, query, sitter]);
+  function filter(q, topic) {
+    const next = new globalThis.URLSearchParams(params);
+    if (q) next.set('q', q);
+    else next.delete('q');
+    if (topic) next.set('topic', topic);
+    else next.delete('topic');
+    setParams(next, { replace: true, state, preventScrollReset: true });
+  }
   function change(event) { setForm(previous => ({ ...previous, [event.target.name]: event.target.type === 'checkbox' ? event.target.checked : event.target.value })); }
   async function submit(event) {
     event.preventDefault();
     if (busy) return;
     const payload = { ...form, name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim(), message: form.message.trim() };
-    if (payload.name.length < 2 || payload.message.length < 10) {
+    const fieldError = payload.name.length < 2 ? ['name', 'Họ và tên cần ít nhất 2 ký tự.']
+      : payload.phone && !/^[+0-9 ()-]{8,20}$/.test(payload.phone) ? ['phone', 'Kiểm tra lại số điện thoại.']
+        : payload.message.length < 10 ? ['message', 'Nội dung cần ít nhất 10 ký tự.'] : null;
+    if (fieldError) {
+      const [field, message] = fieldError;
       setFailed(true);
-      setNotice(payload.name.length < 2 ? 'Họ và tên cần ít nhất 2 ký tự.' : 'Nội dung cần ít nhất 10 ký tự.');
-      event.currentTarget.elements.namedItem(payload.name.length < 2 ? 'name' : 'message')?.focus();
+      setNotice(message);
+      event.currentTarget.elements.namedItem(field)?.focus();
       return;
     }
     setBusy(true); setNotice(''); setFailed(false);
@@ -64,14 +83,15 @@ export function ContactPage({ send = sendContactMessage }) {
       setNotice(error?.code === 'CONTACT_DELIVERY_UNCERTAIN'
         ? 'Chưa xác nhận được kết quả gửi. Thư có thể đã được tiếp nhận; vui lòng kiểm tra trước khi gửi lại.'
         : error?.status === 429 ? 'Bạn đã gửi nhiều yêu cầu. Vui lòng thử lại sau.'
-          : 'Chưa thể gửi email. Vui lòng thử lại sau; nội dung của bạn vẫn được giữ trong form.');
+          : error?.status === 422 ? 'Kiểm tra lại thông tin liên hệ và nội dung lời nhắn.'
+            : 'Chưa thể gửi email. Vui lòng thử lại sau; nội dung của bạn vẫn được giữ trong form.');
     } finally { setBusy(false); }
   }
   const messageForm = <form onSubmit={submit} className="pwc-contact-form" aria-label="Gửi lời nhắn">
     {!compact && <><p className="pwc-contact-eyebrow">ĐỂ LẠI LỜI NHẮN</p>
       <h2>Chúng mình có thể<br />giúp gì cho bạn?</h2></>}
     <label>Họ và tên<input name="name" autoComplete="name" placeholder="Tên của bạn" required minLength={2} maxLength={80} value={form.name} onChange={change} /></label>
-    <div className="pwc-contact-form-pair"><label>Số điện thoại (không bắt buộc)<input name="phone" type="tel" autoComplete="tel" maxLength={20} pattern="[+0-9 ()-]{8,20}" placeholder="Số điện thoại liên hệ" value={form.phone} onChange={change} /></label>
+    <div className="pwc-contact-form-pair"><label>Số điện thoại (không bắt buộc)<input name="phone" type="tel" autoComplete="tel" maxLength={20} placeholder="Số điện thoại liên hệ" value={form.phone} onChange={change} /></label>
     <label>Email phản hồi<input name="email" type="email" autoComplete="email" placeholder="ban@email.com" required maxLength={254} value={form.email} onChange={change} /></label></div>
     <label>Chủ đề<select name="topic" value={form.topic} onChange={change}>{topics.map(([key, label]) => <option key={key} value={key}>{label}</option>)}<option value="OTHER">Liên hệ khác</option></select></label>
     <label>Nội dung<textarea name="message" rows={6} required minLength={10} maxLength={3000} value={form.message} onChange={change} placeholder="Bạn cần chúng mình hỗ trợ điều gì?" /></label>
@@ -89,7 +109,7 @@ export function ContactPage({ send = sendContactMessage }) {
       <h1 id="pwc-contact-heading">{compact ? "Bạn cần hỗ trợ việc gì?" : <>Chúng mình có thể<br />giúp gì cho bạn?</>}</h1>
       {!compact && <p>Tìm hướng dẫn chăm sóc, đặt lịch và hỗ trợ từ Paw World Care.</p>}
       <label className="pwc-contact-search"><span className="pwc-visually-hidden">Tìm câu hỏi hỗ trợ</span>
-        <input type="search" maxLength={120} placeholder="Tìm câu hỏi…" value={query} onChange={event => setQuery(event.target.value)} />
+        <input type="search" maxLength={120} placeholder="Tìm câu hỏi…" value={query} onChange={event => filter(event.target.value, category)} />
       </label>
       {compact && <div className="pwc-contact-entry">
         <Link to={sitter ? "/sitter/schedule" : "/account/bookings"}>{sitter ? "Xem ca làm" : "Về lịch hẹn"}</Link>
@@ -100,14 +120,14 @@ export function ContactPage({ send = sendContactMessage }) {
     <section className="pwc-contact-help" aria-labelledby="pwc-contact-help-title">
       <h2 id="pwc-contact-help-title">Danh mục hỗ trợ</h2>
       <div className="pwc-contact-categories">{topics.map(([key, label], i) => <button type="button" key={key} aria-pressed={category === key}
-        onClick={() => setCategory(current => current === key ? '' : key)}>
+        onClick={() => filter(query, category === key ? '' : key)}>
         <h3>{sitter ? ['Lời mời', 'Ca làm & sự cố', 'Hồ sơ & hỗ trợ'][i] : label}</h3>
         {!sitter && <p>{['Các bước chuẩn bị và lựa chọn lượt chăm sóc phù hợp cho bé.', 'Thông tin chăm sóc chó, mèo và phạm vi phục vụ hiện hành.', 'Thanh toán, hủy lịch, hoàn tiền và bảo mật thông tin.'][i]}</p>}
       </button>)}</div>
       <div className="pwc-contact-faq"><h2>Câu hỏi thường gặp</h2>
         {filtered.length ? filtered.map(item => <details key={item.question}><summary>{item.question}</summary><p>{item.answer}</p></details>)
           : <p role="status">Chưa tìm thấy câu hỏi phù hợp. Bạn có thể gửi lời nhắn bên dưới.</p>}
-        {(query || category) && <button type="button" className="pwc-text-button" onClick={() => { setQuery(''); setCategory(''); }}>Xem tất cả câu hỏi</button>}
+        {(query || category) && <button type="button" className="pwc-text-button" onClick={() => filter('', '')}>Xem tất cả câu hỏi</button>}
       </div>
     </section>
     <section className="pwc-contact-message" id="send-message" aria-label="Gửi lời nhắn">
