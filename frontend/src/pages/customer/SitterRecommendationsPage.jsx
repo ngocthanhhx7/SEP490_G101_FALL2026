@@ -168,7 +168,7 @@ export function SitterRecommendationsForm({ api }) {
       {expired && <Notice state="warning" title="Gợi ý đã hết hạn">Hãy tìm lại để kiểm tra lịch mới nhất.</Notice>}
       {result.shortfall > 0 && <Notice state="info" title="Chưa đủ 5 sitter phù hợp">{result.status === 'ROUTING_UNAVAILABLE' ? 'Một số ứng viên chưa xác minh được đường đi. ' : ''}Hiện có {result.candidates.length} sitter trong kết quả đã kiểm tra.</Notice>}
       {result.searchTruncated && <Notice state="warning" title="Phạm vi tìm kiếm có giới hạn">Danh sách chưa bao gồm toàn bộ sitter trong khu vực.</Notice>}
-      <p>{result.rankingSource === 'APPROVED_ADDITIVE_MODEL' ? 'Xếp hạng theo mô hình đã được duyệt.' : 'Xếp hạng theo tiêu chí đã được duyệt.'} Thời gian di chuyển là ước tính, chưa gồm giao thông trực tiếp.</p>
+      <p>Xếp hạng theo bộ trọng số đã duyệt. Thời gian di chuyển là ước tính, chưa gồm giao thông trực tiếp.</p>
       <ol>{result.candidates.map(sitter => <li key={sitter.sitterId}>
         <h3>{sitter.displayName}</h3><p>Điểm phù hợp: {sitter.score}/100 · Di chuyển tăng thêm: {Math.ceil(sitter.plan.extraTravelMinutes)} phút</p>
         {sitter.confidence === 'LIMITED_HISTORY' && <p>Lịch sử chăm sóc còn ít; điểm không phải cam kết chất lượng.</p>}

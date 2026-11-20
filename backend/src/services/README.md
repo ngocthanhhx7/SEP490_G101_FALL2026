@@ -127,7 +127,7 @@ it never inserts fixtures, removes indexes or runs during server startup.
 
 `product-sales/counter-catalog.service.js` tra sản phẩm, preview tiền bằng pricing hiện có và tìm Customer qua liên hệ VERIFIED. `counter-sale.service.js` tạo/khôi phục đơn quầy, giữ hàng và xử lý tiền mặt/hoàn tất/huỷ trong transaction; không dùng giỏ Customer hoặc phát notification online. `product-order-code.service.js` cấp chung mã DH cho online/quầy ngoài transaction. Directory liên hệ giữ reader điện thoại cũ và thêm lookup email theo hash, không trả liên hệ trong DTO quầy. Online readers/commands lọc kênh quầy, kể cả số đếm; legacy thiếu channel vẫn là online.
 
-`ai-training/` owns the read-only verified source export; `sitter-matching/` owns
+`sitter-matching/` owns
 advisory operational ranking and the Admin model registry. Offline training stays
 in `backend/scripts/ai/`, outside application startup.
 

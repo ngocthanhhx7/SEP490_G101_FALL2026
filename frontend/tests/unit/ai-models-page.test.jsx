@@ -1,50 +1,25 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AiModelsPage } from '../../src/pages/admin/AiModelsPage.jsx';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { SitterRankingPolicyPage } from '../../src/pages/admin/SitterRankingPolicyPage.jsx';
+import { createSitterRankingPolicyApi } from '../../src/services/sitter-ranking-policy-api.js';
+
 jest.mock('../../src/contexts/SessionContext.jsx', () => ({ useSession: () => ({ getCsrfToken: undefined }) }));
-const draft = { id: 'a'.repeat(24), version: 'synthetic-draft-v1', state: 'DRAFT', reviewVersion: 0,
-  weights: { fit: 30, travel: 25, quality: 20, reliability: 15, workload: 10 }, trainingRows: 200, testMae: 1, baselineMae: 2, evidenceAttached: true };
-const status = (models = []) => ({ rankingSource: 'EXPLAINABLE_RULES', activeModel: null, fallbackReason: 'NO_APPROVED_MODEL', models,
-  policyWeights: draft.weights, data: { outcomes: 0, verifiedCandidates: 0, capturedVisits: 0, minimumObservations: 200, minimumBookingGroups: 50 } });
-test('Admin sees rules, missing model and honest data gates without training or activating anything', async () => {
-  const api = { status: jest.fn().mockResolvedValue({ data: status() }), importModel: jest.fn(), reviewModel: jest.fn() };
-  render(<AiModelsPage api={api} />);
-  expect(await screen.findByText('Bộ quy tắc giải thích được')).toBeInTheDocument();
-  expect(screen.getByText('Chưa nhập model nào trong môi trường hiện tại.')).toBeInTheDocument();
-  expect(screen.getByRole('button', { name: 'Lưu model nháp' })).toBeDisabled();
-  expect(api.importModel).not.toHaveBeenCalled(); expect(api.reviewModel).not.toHaveBeenCalled();
-});
-test('uncertain model review freezes the selected version and retries the identical request and key', async () => {
-  const active = { ...draft, state: 'APPROVED', reviewVersion: 1 };
-  const api = { status: jest.fn().mockResolvedValueOnce({ data: status([draft]) }).mockResolvedValue({ data: { ...status([active]), activeModel: active, rankingSource: 'APPROVED_ADDITIVE_MODEL' } }),
-    reviewModel: jest.fn().mockRejectedValueOnce({ code: 'PROVIDER_UNAVAILABLE', status: 503 }).mockResolvedValue({ data: active }) };
-  render(<AiModelsPage api={api} />); await screen.findByText('Lịch sử model');
-  fireEvent.change(screen.getByLabelText(/Model cần review/), { target: { value: draft.id } });
-  fireEvent.change(screen.getByLabelText(/Tham chiếu review nguồn dữ liệu/), { target: { value: 'synthetic-reviewed-source' } });
-  fireEvent.change(screen.getByLabelText(/Lý do quyết định/), { target: { value: 'Synthetic holdout review' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận quyết định' }));
-  await screen.findByText('Chưa nhận được xác nhận. Hãy kiểm tra lại cùng yêu cầu.');
-  expect(screen.getByLabelText(/Model cần review/)).toBeDisabled();
-  fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại yêu cầu' }));
-  await waitFor(() => expect(api.reviewModel).toHaveBeenCalledTimes(2));
-  expect(api.reviewModel.mock.calls[0]).toEqual(api.reviewModel.mock.calls[1]);
-  expect(await screen.findByText('Model synthetic-draft-v1')).toBeInTheDocument();
+
+const policy = version => ({ rankingSource: 'EXPLAINABLE_RULES', policyVersion: version,
+  policyWeights: { fit: 30, travel: 25, quality: 20, reliability: 15, workload: 10 } });
+
+test('renders the active fixed policy and refreshes the approved version', async () => {
+  const request = jest.fn().mockResolvedValueOnce({ data: policy(1) }).mockResolvedValueOnce({ data: policy(2) });
+  render(<SitterRankingPolicyPage api={createSitterRankingPolicyApi(request)} />);
+  expect(await screen.findByRole('heading', { name: 'Chính sách xếp hạng phiên bản 1' })).toBeInTheDocument();
+  expect(screen.getByText('25%')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /model/ })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Tải lại trạng thái' }));
+  expect(await screen.findByRole('heading', { name: 'Chính sách xếp hạng phiên bản 2' })).toBeInTheDocument();
+  expect(request.mock.calls.every(([path]) => path === '/ai/admin/status')).toBe(true);
 });
 
-test('runs server-side model demo when requested and renders both rankings apart from current rules', async () => {
-  const model = { version: 'demo-v1', source: 'SIMULATION_ONLY', trainingRows: 372, testRows: 93,
-    testMae: 25.63, trainingBaselineMae: 28.59, constantMae: 24.19, weights: { travel: 0 } };
-  const api = { status: jest.fn().mockResolvedValue({ data: status() }),
-    runDemo: jest.fn().mockResolvedValue({ data: {
-      model, candidates: [{ id: 'A', score: 78.1, rank: 1 }, { id: 'B', score: 71.9, rank: 2 }],
-      baseline: { policyVersion: 1, candidates: [{ id: 'B', score: 66.8, rank: 1 }, { id: 'A', score: 55.3, rank: 2 }] }
-    } }), importModel: jest.fn(), reviewModel: jest.fn() };
-  render(<AiModelsPage api={api} />);
-  const button = await screen.findByRole('button', { name: 'Chạy model thử nghiệm' });
-  expect(api.runDemo).not.toHaveBeenCalled();
-  fireEvent.click(button);
-  expect(await screen.findByRole('table', { name: 'Điểm và thứ hạng theo từng bộ trọng số' })).toBeInTheDocument();
-  expect(screen.getByRole('rowheader', { name: 'A' }).closest('tr')).toHaveTextContent('A78,1155,32');
-  expect(screen.getByText('Bộ quy tắc giải thích được')).toBeInTheDocument();
-  expect(api.importModel).not.toHaveBeenCalled();
-  expect(api.reviewModel).not.toHaveBeenCalled();
+test('rejects a malformed ranking policy before rendering it', async () => {
+  const data = { ...policy(1), policyWeights: { fit: 100 } };
+  const api = createSitterRankingPolicyApi(jest.fn().mockResolvedValue({ data }));
+  await expect(api.status()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });

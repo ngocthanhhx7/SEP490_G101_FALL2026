@@ -73,34 +73,8 @@ export function createAiService({
         'Confirm pet care information before matching',
         409
       );
-    const { policy, model } = await repository.ranking();
+    const { policy } = await repository.ranking();
     weights(policy.weights);
-    let rankingWeights = policy.weights,
-      rankingSource = 'EXPLAINABLE_RULES',
-      fallbackReason = null;
-    if (model) {
-      try {
-        weights(model.weights);
-        const content = {
-          version: model.version,
-          weights: model.weights,
-          trainingRows: model.trainingRows,
-          testMae: model.testMae,
-          baselineMae: model.baselineMae,
-          testGroups: model.testGroups,
-          trainedUntil: new Date(model.trainedUntil).toISOString()
-        };
-        if (
-          digest(content) !== model.sha256 ||
-          model.testMae >= model.baselineMae
-        )
-          throw new Error('Model gate');
-        rankingWeights = model.weights;
-        rankingSource = 'APPROVED_ADDITIVE_MODEL';
-      } catch {
-        fallbackReason = 'MODEL_VALIDATION_FAILED';
-      }
-    }
     const {
       profiles,
       users,
@@ -249,7 +223,7 @@ export function createAiService({
             ...statistics,
             extraTravelMinutes: plan.extraTravelMinutes,
             busyMinutes: plan.busyMinutes,
-            weights: rankingWeights
+            weights: policy.weights
           });
           if (score.rawScore < 60) {
             reject('BELOW_AUTOMATIC_THRESHOLD');
@@ -319,11 +293,10 @@ export function createAiService({
       shortfall: Math.max(0, 5 - selected.length),
       eligibleInSearch: eligible.length,
       searchTruncated: truncated,
-      rankingSource,
+      rankingSource: 'EXPLAINABLE_RULES',
       policyVersion: policy.version,
-      modelVersion:
-        rankingSource === 'APPROVED_ADDITIVE_MODEL' ? model.version : null,
-      fallbackReason,
+      modelVersion: null,
+      fallbackReason: null,
       candidates: selected,
       exclusions,
       routingSource: `${routingProvider.source ?? 'OSRM_STATIC_ROAD_ETA'}_WITH_BUFFERS`,

@@ -37,7 +37,7 @@ export function createSitterRecommendationApi({ request = createApiClient() } = 
       if (response.pending || !result || !STATUSES.has(result.status) || !ID.test(result.matchId ?? '')
         || !Number.isFinite(Date.parse(result.expiresAt)) || !Array.isArray(result.candidates)
         || result.candidates.length > 20 || !Number.isSafeInteger(result.shortfall) || result.shortfall < 0
-        || !['EXPLAINABLE_RULES', 'APPROVED_ADDITIVE_MODEL'].includes(result.rankingSource)
+        || result.rankingSource !== 'EXPLAINABLE_RULES'
         || typeof result.searchTruncated !== 'boolean') invalid();
       for (const item of result.candidates) {
         if (!ID.test(item.sitterId ?? '') || typeof item.displayName !== 'string'

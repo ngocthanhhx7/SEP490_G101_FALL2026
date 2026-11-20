@@ -57,7 +57,7 @@ import { SitterProfileReviewsPage } from '../pages/staff/SitterProfileReviewsPag
 import { createSitterPublicProfileApi } from '../services/sitter-public-profile-api.js';
 import { createPrivateImageApi } from '../services/private-image-api.js';
 import { createEmployeePayrollApi } from '../services/employee-payroll-api.js';
-import { AiModelsPage } from '../pages/admin/AiModelsPage.jsx';
+import { SitterRankingPolicyPage } from '../pages/admin/SitterRankingPolicyPage.jsx';
 import { EmployeePayrollPage } from '../pages/sitter/EmployeePayrollPage.jsx';
 import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPage.jsx';
 import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api.js';
@@ -202,7 +202,7 @@ const navigationByRole = {
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
     ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
     ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
-    ['Điều phối AI', '/admin/ai-models', 'Hệ thống'],
+    ['Trọng số gợi ý sitter', '/admin/sitter-ranking', 'Hệ thống'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']
@@ -305,7 +305,8 @@ export function AppRoutes({
           <Route path="admin/sitters/:userId" element={<SitterManagementRoute detail />} />
           <Route path="admin/settlements" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
-          <Route path="admin/ai-models" element={<AiModelsPage />} />
+          <Route path="admin/sitter-ranking" element={<SitterRankingPolicyPage />} />
+          <Route path="admin/ai-models" element={<Navigate replace to="/admin/sitter-ranking" />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
           <Route path="admin/suppliers" element={<SupplierManagementRoute />} />
           <Route path="admin/stock-adjustments" element={<StockAdjustmentRoute />} />
