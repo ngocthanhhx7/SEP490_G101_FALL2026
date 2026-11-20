@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Camera, ImagePlus, RotateCw, Trash2 } from 'lucide-react';
+import { Camera, RotateCw, Trash2 } from 'lucide-react';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { avatarApi, avatarPath, AVATAR_CHANGED, createAvatarApi } from '../../services/avatar-api.js';
 import { prepareAvatarImage } from '../../services/avatar-image.js';
@@ -32,12 +32,12 @@ function AvatarImage({ identity, path, label, fallback, className, api, onImageE
   </span>;
 }
 
-export function AvatarEditor({ petId, label = 'Ảnh đại diện', fallback = 'PW', api: suppliedApi, onSaved, onBusyChange, prepareImage = prepareAvatarImage }) {
+export function AvatarEditor({ petId, label = 'Ảnh đại diện', fallback = 'PW', api: suppliedApi, onSaved, onBusyChange, prepareImage = prepareAvatarImage, personal = false }) {
   const session = useSession({ optional: true });
   const api = useMemo(() => suppliedApi ?? createAvatarApi({ getCsrfToken: session.getCsrfToken ?? (() => null) }), [suppliedApi, session.getCsrfToken]);
-  return <AvatarEditorContent key={`${session.user?.id}:${petId ?? 'me'}`} petId={petId} label={label} fallback={fallback} api={api} onSaved={onSaved} onBusyChange={onBusyChange} prepareImage={prepareImage} />;
+  return <AvatarEditorContent key={`${session.user?.id}:${petId ?? 'me'}`} petId={petId} label={label} fallback={fallback} api={api} onSaved={onSaved} onBusyChange={onBusyChange} prepareImage={prepareImage} personal={personal} />;
 }
-function AvatarEditorContent({ petId, label, fallback, api, onSaved, onBusyChange, prepareImage }) {
+function AvatarEditorContent({ petId, label, fallback, api, onSaved, onBusyChange, prepareImage, personal }) {
   const path = avatarPath(petId), fileId = useId();
   const [meta, setMeta] = useState(null), [busy, setBusy] = useState(false), [preparing, setPreparing] = useState(false);
   const [notice, setNotice] = useState(''), [selected, setSelected] = useState(null), [preview, setPreview] = useState(null), [deleting, setDeleting] = useState(false);
@@ -98,18 +98,18 @@ function AvatarEditorContent({ petId, label, fallback, api, onSaved, onBusyChang
   }
   const imageError = useCallback(() => setNotice('Ảnh đã lưu nhưng chưa hiển thị được. Bấm tải lại ảnh để kiểm tra.'), []);
   const disabled = busy || preparing || uncertain;
-  return <section className="pwc-avatar-editor" aria-label={label}>
+  return <section className={personal ? 'pwc-avatar-editor pwc-avatar-editor--personal' : 'pwc-avatar-editor'} aria-label={label}>
     <div className="pwc-avatar-editor__preview">{preview ? <img src={preview} alt={`Xem trước ${label.toLowerCase()}`} /> : <ProfileAvatar petId={petId} label={label} fallback={fallback} api={api} onImageError={meta?.present ? imageError : undefined} />}
-      <Camera size={19} aria-hidden="true" className="pwc-avatar-editor__camera" />
     </div>
-    <div className="pwc-avatar-editor__content"><h2>{label}</h2><p>Chọn ảnh JPG hoặc PNG, tối đa 10 MB. Ảnh được cắt vuông ở giữa và thu gọn trước khi lưu.</p>
-      <p className="pwc-avatar-editor__privacy">Ảnh được bảo vệ theo tài khoản; không có đường dẫn công khai.</p>
+    <div className="pwc-avatar-editor__content">{!personal && <><h2>{label}</h2><p>Chọn ảnh JPG hoặc PNG, tối đa 10 MB. Ảnh được cắt vuông ở giữa và thu gọn trước khi lưu.</p>
+      <p className="pwc-avatar-editor__privacy">Ảnh được bảo vệ theo tài khoản; không có đường dẫn công khai.</p></>}
       <input className="pwc-avatar-editor__input" id={fileId} ref={input} type="file" tabIndex={-1} accept="image/jpeg,image/png" disabled={disabled || !meta} onChange={event => choose(event.target.files?.[0])} aria-label="Chọn hoặc thay ảnh" />
-      <div className="pwc-avatar-editor__actions"><Button variant="secondary" disabled={disabled || !meta} onClick={() => input.current?.click()}><ImagePlus size={17} />{meta?.present ? 'Đổi ảnh' : 'Chọn ảnh'}</Button>
+      <div className="pwc-avatar-editor__actions"><Button className="pwc-avatar-editor__pick" variant={personal ? 'ghost' : 'secondary'} disabled={disabled || !meta} onClick={() => input.current?.click()}><Camera size={17} aria-hidden="true" />{personal ? 'Đổi ảnh đại diện' : meta?.present ? 'Đổi ảnh' : 'Chọn ảnh'}</Button>
         {selected && !uncertain && <><Button disabled={disabled || conflict} onClick={() => save()}>Lưu ảnh</Button><Button variant="ghost" disabled={disabled} onClick={clear}>Hủy chọn</Button></>}
         {!selected && meta?.present && <Button variant="ghost" disabled={disabled} onClick={() => setDeleting(true)}><Trash2 size={16} />Xóa ảnh</Button>}
-        <Button variant="ghost" disabled={busy || preparing} onClick={reload}><RotateCw size={16} />Tải lại ảnh</Button>
+        {(!personal || notice) && <Button variant="ghost" disabled={busy || preparing} onClick={reload}><RotateCw size={16} aria-hidden="true" />Tải lại ảnh</Button>}
       </div>
+      {personal && <p className="pwc-avatar-editor__formats">JPG hoặc PNG · tối đa 10 MB</p>}
       {selected && <p className="pwc-avatar-editor__filename">{selected.name} · ảnh xem trước chưa được lưu</p>}
       {!meta && !notice && <p role="status">Đang tải thông tin ảnh…</p>}
       {preparing && <p role="status">Đang xử lý ảnh để tải lên…</p>}{busy && <p role="status">Đang đối chiếu với máy chủ…</p>}

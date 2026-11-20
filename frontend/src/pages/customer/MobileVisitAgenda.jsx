@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { customerDashboardApi } from '../../services/customer-dashboard-api.js';
 import { Button } from '../../components/ui/index.js';
+import { CalendarDays, ClipboardList } from 'lucide-react';
+import { CompactEmpty, CompactRow } from '../../components/common/CompactSurface.jsx';
 
 const groups = [['upcoming','Sắp tới'], ['ongoing','Cần theo dõi'], ['history','Lịch sử']];
 const format = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'medium', timeStyle: 'short' });
@@ -36,14 +38,17 @@ export function MobileVisitAgenda({ api = customerDashboardApi }) {
     {result.status === 'loading' && <p role="status">Đang tải lịch chăm sóc…</p>}
     {['pending','error','forbidden'].includes(result.status) &&
       <p role="alert">Chưa tải được lịch. <Button onClick={result.retry}>Thử lại</Button></p>}
-    {result.status === 'success' && (result.data.items.length > 0
-      ? <ul className="pwc-mobile-rows">{result.data.items.map(row => <MobileVisitCard key={row.id} row={row}
-        mobileBack={`/account/bookings?${query.toString()}`} />)}</ul>
-      : <p>{cursor ? 'Trang này không còn kết quả.' : 'Chưa có buổi trong nhóm này.'}</p>)}
+    {result.status === 'success' && result.data.items.length > 0 && <ul className="pwc-mobile-rows">{result.data.items.map(row => <MobileVisitCard key={row.id} row={row}
+      mobileBack={`/account/bookings?${query.toString()}`} />)}</ul>}
+    {['success', 'empty'].includes(result.status) && !result.data?.items.length && <CompactEmpty icon={CalendarDays}
+      title={cursor ? 'Trang này không còn kết quả' : group === 'upcoming' ? 'Chưa có lịch hẹn sắp tới' : 'Chưa có buổi trong nhóm này'}
+      action={!cursor && group === 'upcoming' && <Link className="pwc-compact-cta" to="/services">Xem dịch vụ</Link>}>
+      {!cursor && group === 'upcoming' ? 'Khi đặt dịch vụ, bạn có thể theo dõi lịch của bé tại đây.' : undefined}
+    </CompactEmpty>}
     <div className="pwc-mobile-pager">
       {cursor && <Button onClick={() => changeQuery({ group })}>Về trang đầu</Button>}
       {result.data?.nextCursor && <Button onClick={() => changeQuery({ group, cursor: result.data.nextCursor })}>Xem trang tiếp</Button>}
     </div>
-    <Link to="/account/bookings?view=orders">Xem danh sách đơn chăm sóc</Link>
+    <CompactRow icon={ClipboardList} to="/account/bookings?view=orders">Đơn chăm sóc</CompactRow>
   </section>;
 }

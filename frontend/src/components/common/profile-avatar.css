@@ -3,7 +3,6 @@
 .pwc-avatar-editor{display:flex;gap:24px;align-items:flex-start;padding:20px 0;min-width:0}
 .pwc-avatar-editor__preview{position:relative;flex:0 0 112px;width:112px;height:112px}
 .pwc-avatar-editor__preview>.pwc-profile-avatar,.pwc-avatar-editor__preview>img{width:112px;height:112px;border-radius:50%;object-fit:cover}
-.pwc-avatar-editor__camera{position:absolute;right:0;bottom:2px;box-sizing:content-box;padding:7px;border-radius:50%;background:var(--pwc-surface,#fff);border:1px solid var(--pwc-border,#ddd)}
 .pwc-avatar-editor__content{min-width:0;flex:1}.pwc-avatar-editor h2{margin:0 0 8px;font-size:1.1rem}
 .pwc-avatar-editor p{overflow-wrap:anywhere;line-height:1.55;margin:8px 0}.pwc-avatar-editor__privacy{font-size:.875rem;color:var(--pwc-muted,#696176)}
 .pwc-avatar-editor__actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px}.pwc-avatar-editor__actions .pwc-button{min-height:42px}
@@ -11,3 +10,11 @@
 .pwc-avatar-editor__filename{font-size:.875rem}.pwc-avatar-editor__notice{padding:12px;border-radius:8px;background:var(--pwc-subtle,#f7f4fc)}
 .pwc-avatar-menu__trigger>.pwc-profile-avatar{width:36px;height:36px}.pwc-customer-account__identity>.pwc-profile-avatar{width:48px;height:48px}
 @media(max-width:600px){.pwc-avatar-editor{flex-direction:column;gap:16px}.pwc-avatar-editor__actions{gap:8px}.pwc-avatar-editor__content{width:100%}}
+.pwc-avatar-editor--personal { flex-direction: column; align-items: center; gap: .25rem; padding: 0; text-align: center; }
+.pwc-avatar-editor--personal .pwc-avatar-editor__preview { flex: none; width: 4.75rem; height: 4.75rem; }
+.pwc-avatar-editor--personal .pwc-avatar-editor__preview > :is(.pwc-profile-avatar, img) { width: 100%; height: 100%; }
+.pwc-avatar-editor--personal .pwc-profile-avatar { background: #efe7f8; color: #673b91; font-size: 1.5rem; }
+.pwc-avatar-editor--personal .pwc-avatar-editor__content { width: 100%; }
+.pwc-avatar-editor--personal .pwc-avatar-editor__actions { justify-content: center; margin-top: 0; }
+.pwc-avatar-editor--personal .pwc-avatar-editor__pick { min-height: 44px; color: #673b91; }
+.pwc-avatar-editor--personal .pwc-avatar-editor__formats { margin: .2rem 0 0; color: #625b6a; font-size: .8125rem; }
