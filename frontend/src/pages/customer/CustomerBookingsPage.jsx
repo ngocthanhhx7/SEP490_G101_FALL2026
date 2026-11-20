@@ -19,7 +19,7 @@ export function CustomerBookingsPage({ request: suppliedRequest }) {
   const load = useCallback(({ signal }) => listCustomerBookings(request, { signal, cursor }), [request, cursor]);
   const resource = useApiResource(load);
   return <section className="customer-bookings" aria-labelledby="customer-bookings-title">
-    <h1 id="customer-bookings-title">Đơn chăm sóc của bạn</h1><p>Dịch vụ, thú cưng và lịch chăm sóc trong từng đơn. Các đơn mới nhất hiển thị trước.</p>
+    <h1 id="customer-bookings-title" data-duplicate-title>Đơn chăm sóc của bạn</h1><p>Dịch vụ, thú cưng và lịch chăm sóc trong từng đơn.</p>
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải đơn hàng">Vui lòng chờ máy chủ phản hồi.</Notice>}
     {resource.status === 'empty' && <Notice state="empty" title="Chưa có đơn hàng">Bạn chưa có đơn hàng trong trang kết quả này.</Notice>}
     {['error', 'forbidden', 'pending'].includes(resource.status) && <Notice state={resource.status} title="Chưa tải được đơn hàng">Máy chủ chưa cung cấp được danh sách. Hãy thử lại; trạng thái này không có nghĩa bạn chưa đặt đơn.<Button onClick={resource.retry}>Thử lại</Button></Notice>}
@@ -33,8 +33,8 @@ export function CustomerBookingsPage({ request: suppliedRequest }) {
         <Link className="customer-bookings__detail-button" to={`/account/bookings/${encodeURIComponent(item.id)}`}
           state={{ mobileBack: pathname + search }} aria-label={`Xem chi tiết ${item.serviceName || 'đơn chăm sóc'} ${item.reference || item.id.slice(-8).toUpperCase()}`}>Xem chi tiết<ArrowUpRight size={16} aria-hidden="true" /></Link></div>
     </li>)}</ul>}
-    <CursorPagination label="đơn chăm sóc" page={history.length + 1} hasNext={Boolean(resource.meta?.nextCursor)}
+    {(history.length > 0 || Boolean(resource.meta?.nextCursor)) && <CursorPagination label="đơn chăm sóc" page={history.length + 1} hasNext={Boolean(resource.meta?.nextCursor)}
       onFirst={() => { setHistory([]); setCursor(null); }} onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0,-1)); }}
-      onNext={() => { setHistory([...history,cursor]); setCursor(resource.meta.nextCursor); }} nextLabel="Xem đơn cũ hơn" />
+      onNext={() => { setHistory([...history,cursor]); setCursor(resource.meta.nextCursor); }} nextLabel="Xem đơn cũ hơn" />}
   </section>;
 }
