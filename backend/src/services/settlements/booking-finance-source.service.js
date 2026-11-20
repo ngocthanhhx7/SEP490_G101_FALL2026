@@ -210,7 +210,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         if (operation === 'CHECK_OUT') await completeWholeBooking(updatedBooking, session);
         await event(`Visit${operation}`, updatedBooking, current.userId, `${visitId}:${saved.version}`, session);
         await createDomainNotifications({ connection, clock: () => now().getTime() }).visit({ visitId, version: saved.version,
-          customerId: booking.customerId, operation }, session);
+          customerId: booking.customerId, bookingId: String(booking._id), operation }, session);
         return { visitId, state: saved.state, version: saved.version };
       } });
   }

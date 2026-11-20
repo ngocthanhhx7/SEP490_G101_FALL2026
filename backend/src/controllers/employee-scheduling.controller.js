@@ -16,6 +16,7 @@ export function createEmployeeSchedulingController({ repository, dispatch, careP
     saveAreas: async (req, res) => send(req, res, await repository.areas.replaceMine({ actor: req.auth,
       ...workAreasInput(req.body), idempotencyKey: req.get('idempotency-key') })),
     offers: async (req, res) => send(req, res, await dispatch.offers.list(req.auth, req.query)),
+    offer: async (req, res) => send(req, res, await dispatch.offers.detail(req.auth, req.params.id)),
     assignments: async (req, res) => send(req, res, await dispatch.offers.assignments(req.auth, req.query)),
     accept: async (req, res) => send(req, res, await dispatch.offers.accept(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),
     decline: async (req, res) => send(req, res, await dispatch.offers.decline(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),

@@ -43,6 +43,7 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
     saveAvailability: ({ idempotencyKey, ...body }) => mutate('/availability', body, idempotencyKey, 'PUT'),
     load: ({ signal } = {}) => get('/work-areas', signal),
     save: ({ idempotencyKey, signal, ...body }) => mutate('/work-areas', body, idempotencyKey, 'PUT', signal),
+    offer: (id, { signal } = {}) => get('/offers/' + encodeURIComponent(id), signal),
     offers: ({ signal, cursor, state } = {}) => {
       const query = new globalThis.URLSearchParams({ ...(cursor ? { cursor } : {}), ...(state ? { state } : {}) });
       return get('/offers' + (query.size ? '?' + query : ''), signal);

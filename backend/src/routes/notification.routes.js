@@ -25,6 +25,9 @@ export function createNotificationRouter({
   router.use(requireSession(sessionPort, { clock }));
   const csrf = requireCsrf(sessionPort, { allowedOrigins });
   router.get('/', createNotificationController({ service }).getRoot);
+  if (typeof service.resolveIntent === 'function') {
+    router.get('/:notificationId/intent', createNotificationController({ service }).getIntent);
+  }
   router.post(
     '/:notificationId/read-receipts',
     csrf,

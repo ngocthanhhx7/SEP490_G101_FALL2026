@@ -19,4 +19,12 @@ renders visible group headings for work, personnel, finance, system and personal
 destinations as appropriate to each role. Customer keeps its separate account layout.
 The header omits the redundant workspace text; the sidebar retains the role label.
 
-Customer account navigation includes a separate product-order history destination with a shopping icon; the order page keeps account navigation on desktop and mobile.
+Customer account navigation links to product-order history. The compact order list links to its detail on the same URL with the selected order and the list page in the query.
+
+`MobileAppShell` adds a shared header and role-aware tabs to compact browsers and the installed PWA.
+Routes retain their normal session guards. The notification badge reuses
+NotificationContext. Bottom spacing accounts for the system gesture area and
+preserves access to sticky pet-editor actions. Compact catalog filters, the service
+basket, and selected form editors use native dialogs for focus containment.
+`routes/mobile-route-metadata.js` describes titles and active tabs; `AppRoutes.jsx`
+continues to own permissions and URL compatibility.

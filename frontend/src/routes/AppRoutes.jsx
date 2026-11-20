@@ -15,10 +15,14 @@ import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx'
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
-import { Navigate, Route, Routes, useSearchParams, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useSearchParams, useParams } from 'react-router-dom';
 import { InstallAppPage } from '../pages/public/InstallAppPage.jsx';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
+import { SitterSchedulePage } from '../pages/sitter/SitterSchedulePage.jsx';
+import { SitterVisitPage } from '../pages/sitter/SitterVisitPage.jsx';
+import { MobileAccountHub } from '../pages/account/MobileAccountHub.jsx';
+import { PhoneHomePage } from '../pages/public/PhoneHomePage.jsx';
 import { HomePage } from '../pages/public/HomePage.jsx';
 import { AboutPage } from '../pages/public/AboutPage.jsx';
 import { ContactPage } from '../pages/public/ContactPage.jsx';
@@ -45,11 +49,14 @@ import { useSession } from '../contexts/SessionContext.jsx';
 import { ApplicantWorkspacePage } from '../pages/public/application-status/ApplicantWorkspacePage.jsx';
 import { applicationStatusApi } from '../services/application-status-api.js';
 import { AdminDashboardPage } from '../pages/admin/AdminDashboardPage.jsx';
+import { MobileVisitAgenda } from '../pages/customer/MobileVisitAgenda.jsx';
+import { MobileCareHome } from '../pages/customer/MobileCareHome.jsx';
 import { CustomerDashboardPage } from '../pages/customer/CustomerDashboardPage.jsx';
 import { SitterListPage } from '../pages/customer/SitterListPage.jsx';
 import { SitterManagementPage } from '../pages/staff/SitterManagementPage.jsx';
 import { SitterManagementDetailPage } from '../pages/staff/SitterManagementDetailPage.jsx';
 import { createSitterManagementApi } from '../services/sitter-management-api.js';
+import { MobileSitterHome } from '../pages/sitter/MobileSitterHome.jsx';
 import { SitterDashboardPage } from '../pages/sitter/SitterDashboardPage.jsx';
 import { SitterProfilePage } from '../pages/sitter/SitterProfilePage.jsx';
 import { StaffDashboardPage } from '../pages/staff/StaffDashboardPage.jsx';
@@ -155,15 +162,29 @@ function IncidentRoute({ view }) {
 }
 
 function EmployeeScheduleRoute({ view }) {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
+  const { visitId } = useParams();
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createEmployeeSchedulingApi(createApiClient({ getCsrfToken }), {
     privateImages: createPrivateImageApi({ getCsrfToken })
   }), [getCsrfToken]);
+  if (view === 'visit') return /^[a-f\d]{24}$/i.test(visitId ?? '')
+    ? <SitterVisitPage key={user?.id + ':' + visitId} api={api} visitId={visitId} />
+    : <p role="alert">Mã buổi chăm sóc không hợp lệ.</p>;
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
   if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined}
     initialWorkflowId={params.get('workflowId') || undefined} initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
-  if (view === 'invitations') return <EmployeeInvitationsPage key={user?.id} api={api} initialVisitId={params.get('visitId') || undefined} />;
+  if (view === 'invitations' && /^[a-f\d]{24}$/i.test(params.get('visitId') ?? ''))
+    return <Navigate replace to={'/sitter/visits/' + params.get('visitId')} />;
+  if (view === 'invitations') {
+    const offerId = params.get('offerId');
+    return <EmployeeInvitationsPage key={user?.id + ':' + (offerId || '')} api={api} initialOfferId={offerId || undefined}
+      onCloseOffer={() => setParams(previous => {
+        const query = new globalThis.URLSearchParams(previous);
+        query.delete('offerId');
+        return query;
+      }, { replace: true })} />;
+  }
   if (view === 'proposal') return <DirectedBookingProposalPage key={user?.id} api={api} />;
   return <SitterAvailabilityPage key={user?.id} api={api} />;
 }
@@ -273,8 +294,10 @@ function AccountWorkspace() {
   return <Workspace role={role} />;
 }
 
-function AccountHome() {
-  const { user } = useSession();
+function AccountHome({ mobile }) {
+  const { user, logout } = useSession();
+  const role = primaryRole(user);
+  if (mobile && ['CUSTOMER', 'PET_SITTER'].includes(role)) return <MobileAccountHub role={role} user={user} logout={logout} />;
   return hasRole(user, 'CUSTOMER')
     ? <Navigate replace to="/account/profile" /> : <AccountPage />;
 }
@@ -292,6 +315,7 @@ function CustomerFeaturePage({ page }) {
 }
 
 export function AppRoutes({
+  phoneApp = false,
   publicPolicyRouteElements = publicPolicyFallbackRoutes
 }) {
   return (
@@ -348,14 +372,14 @@ export function AppRoutes({
       </Route>
       <Route element={<RequireSession />}>
         <Route element={<AccountWorkspace />}>
-          <Route path="account" element={<AccountHome />} />
+          <Route path="account" element={<AccountHome mobile={phoneApp} />} />
           <Route path="account/settings" element={<AccountSettingsPage />} />
           <Route path="account/notifications" element={<CustomerFeaturePage page="notifications" />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['CUSTOMER']} />}>
         <Route element={<Workspace role="CUSTOMER" />}>
-          <Route path="customer" element={<CustomerDashboardPage />} />
+          <Route path="customer" element={phoneApp ? <MobileCareHome /> : <CustomerDashboardPage />} />
           <Route path="sitters" element={<SitterListPage />} />
           <Route path="account/profile" element={<CustomerProfilePage />} />
           <Route path="account/addresses" element={<CustomerCarePage kind="addresses" />} />
@@ -367,7 +391,7 @@ export function AppRoutes({
             path="account/pets/:petId"
             element={<CustomerFeaturePage page="pet" />}
           />
-          <Route path="account/bookings" element={<CustomerBookingsPage />} />
+          <Route path="account/bookings" element={<CustomerBookingsEntry mobile={phoneApp} />} />
           <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
           <Route path="account/bookings/:bookingId/visits/:visitId" element={<VisitStatusTrackerPage />} />
@@ -378,7 +402,7 @@ export function AppRoutes({
       </Route>
       <Route element={<RequireSession roles={['PET_SITTER']} />}>
         <Route element={<Workspace role="PET_SITTER" />}>
-          <Route path="sitter" element={<SitterDashboardPage />} />
+          <Route path="sitter" element={phoneApp ? <MobileSitterHome /> : <SitterDashboardPage />} />
           <Route path="sitter/profile" element={<SitterProfilePage />} />
           <Route path="sitter/public-profile" element={<PublicProfileRoute />} />
           <Route path="sitter/earnings" element={<Navigate replace to="/sitter/payroll" />} />
@@ -390,6 +414,8 @@ export function AppRoutes({
           <Route path="sitter/settlements" element={<Navigate replace to="/sitter/payroll" />} />
           <Route path="sitter/payroll" element={<EmployeePayrollRoute />} />
           <Route path="sitter/work-areas" element={<EmployeeScheduleRoute view="areas" />} />
+          <Route path="sitter/schedule" element={<SitterSchedulePage />} />
+          <Route path="sitter/visits/:visitId" element={<EmployeeScheduleRoute view="visit" />} />
           <Route path="sitter/invitations" element={<EmployeeScheduleRoute view="invitations" />} />
         </Route>
       </Route>
@@ -417,13 +443,13 @@ export function AppRoutes({
       </Route>
       <Route path="install" element={<InstallAppPage />} />
       <Route element={<PublicSiteLayout />}>
-        <Route index element={<HomePage />} />
+        <Route index element={phoneApp ? <CompactLanding /> : <HomePage />} />
         <Route path="about" element={<AboutPage />} />
         <Route path="contact" element={<ContactPage />} />
-        <Route path="services" element={<ServiceListPage />} />
+        <Route path="services" element={<ServiceEntry />} />
         <Route path="services/:serviceId" element={<ServiceDetailsPage />} />
         <Route element={<RequireSession roles={['CUSTOMER']} />}>
-          <Route path="booking/:serviceId" element={<ServiceBookingPage />} />
+          <Route path="booking/:serviceId" element={<ServiceEntry booking /> } />
           <Route path="grooming-booking" element={<GroomingBookingPage />} />
         </Route>
         <Route path="products" element={<ProductListPage />} />
@@ -451,11 +477,45 @@ export function AppRoutes({
           element={
             <section>
               <h1>Không tìm thấy trang</h1>
-              <p>Hãy chọn một liên kết trong thanh điều hướng.</p>
+              {phoneApp ? <CompactNotFoundActions /> : <p>Hãy chọn một liên kết trong thanh điều hướng.</p>}
             </section>
           }
         />
       </Route>
     </Routes>
   );
+}
+
+function CompactNotFoundActions() {
+  const { user } = useSession();
+  const role = primaryRole(user);
+  const home = role === 'CUSTOMER' ? '/customer' : role === 'PET_SITTER' ? '/sitter' : '/';
+  return <ul className="pwc-mobile-rows">
+    <li><Link to={home}>Về trang chủ</Link></li>
+    <li><Link to={role ? '/account' : '/sign-in'}>{role ? 'Tài khoản' : 'Đăng nhập'}</Link></li>
+    {role !== 'PET_SITTER' && <li><Link to="/contact">Hỗ trợ</Link></li>}
+  </ul>;
+}
+
+function CompactLanding() {
+  const session = useSession();
+  if (session.status === 'loading') return <p role="status">Đang kiểm tra phiên…</p>;
+  if (session.status === 'error') return <p role="alert">Chưa kiểm tra được phiên.
+    <button onClick={session.refresh}>Thử lại</button></p>;
+  return primaryRole(session.user) === 'CUSTOMER' ? <Navigate to="/customer" replace /> : <PhoneHomePage />;
+}
+
+function ServiceEntry({ booking = false }) {
+  const [query] = useSearchParams();
+  if (!query.has('booking')) return booking ? <ServiceBookingPage /> : <ServiceListPage />;
+  const [bookingId] = query.getAll('booking');
+  if (query.getAll('booking').length !== 1 || !/^[a-f\d]{24}$/i.test(bookingId)) {
+    return <section><h1>Liên kết đơn chăm sóc không hợp lệ</h1><Link to="/account/bookings">Xem lịch hẹn</Link></section>;
+  }
+  return <Navigate replace to={`/account/bookings/${bookingId}`} />;
+}
+
+function CustomerBookingsEntry({ mobile }) {
+  const [query] = useSearchParams();
+  return mobile && query.get('view') !== 'orders' ? <MobileVisitAgenda /> : <CustomerBookingsPage />;
 }

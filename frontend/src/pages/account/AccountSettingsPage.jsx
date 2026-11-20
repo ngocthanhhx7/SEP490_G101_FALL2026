@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Button, Input, Notice } from '../../components/ui/index.js';
+import { Button, Dialog, Input, Notice } from '../../components/ui/index.js';
+import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { primaryRole } from '../../utils/role-access.js';
 import { otpFeedback } from '../../utils/otp-feedback.js';
@@ -53,6 +54,7 @@ function verifiedContact(contacts, channel) {
 
 export function AccountSettingsPage({ api: suppliedApi } = {}) {
   const session = useSession();
+  const compact = usePhoneApp();
   const request = useMemo(() => suppliedApi ? null : createApiClient({
     getCsrfToken: session.getCsrfToken ?? (() => null),
     onUnauthorized: session.invalidate ?? (() => {})
@@ -175,6 +177,39 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
   const secondsToResend = flow ? Math.max(0, Math.ceil((flow.resendAt - now) / 1000)) : 0;
   const secondsToExpire = flow ? Math.max(0, Math.ceil((flow.expiresAt - now) / 1000)) : 0;
 
+  const contactEditor = <>
+    {activeChannel && !flow && (() => {
+      const channel = CHANNELS.find(item => item.id === activeChannel);
+      return <form className="account-settings-form" onSubmit={submitContact}>
+        <h3>{verifiedContact(contacts, activeChannel) ? `Đổi ${channel.label.toLocaleLowerCase('vi-VN')}` : `Thêm ${channel.label.toLocaleLowerCase('vi-VN')}`}</h3>
+        <Input label={channel.label} type={channel.type} autoComplete={channel.autocomplete} inputMode={channel.id === 'PHONE' ? 'tel' : undefined}
+          placeholder={channel.placeholder} value={contactInput} onChange={event => { setContactInput(event.target.value); setFieldError(''); }}
+          required disabled={pending} error={fieldError} hint={channel.id === 'PHONE' ? 'Có thể nhập số Việt Nam hoặc dạng quốc tế +84.' : 'Mã xác minh sẽ được gửi đến địa chỉ này.'} />
+        <div className="account-settings-actions">
+          <Button type="submit" loading={pending} loadingLabel="Đang gửi mã…">Gửi mã xác minh</Button>
+          <Button variant="ghost" disabled={pending} onClick={closeFlow}>Hủy</Button>
+        </div>
+      </form>;
+    })()}
+
+    {flow && <form className="account-settings-form" onSubmit={submitCode}>
+      <h3>Xác minh {flow.channel === 'EMAIL' ? 'email' : 'số điện thoại'}</h3>
+      {flow.maskedContact && <p>Mã được gửi đến <strong>{flow.maskedContact}</strong>.</p>}
+      <p>Mã có hiệu lực thêm {secondsToExpire} giây. Có thể yêu cầu mã khác sau {secondsToResend} giây.</p>
+      <Input label="Mã OTP gồm 6 chữ số" type="text" inputMode="numeric" autoComplete="one-time-code"
+        pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+        required disabled={pending || secondsToExpire === 0} error={fieldError} />
+      <div className="account-settings-actions">
+        <Button type="submit" loading={pending} loadingLabel="Đang xác minh…" disabled={secondsToExpire === 0}>Xác minh và lưu</Button>
+        <Button variant="secondary" disabled={pending || secondsToResend > 0}
+          onClick={() => sendCode(flow.channel, flow.contact)}>
+          {secondsToResend > 0 ? `Gửi lại sau ${secondsToResend} giây` : 'Gửi mã mới'}
+        </Button>
+        <Button variant="ghost" disabled={pending} onClick={closeFlow}>Hủy</Button>
+      </div>
+    </form>}
+  </>;
+
   return <section className="account-settings" aria-labelledby="account-settings-title">
     <div className="account-settings-breadcrumb"><Link to="/account">Tài khoản</Link><span aria-hidden="true">/</span><strong>Cài đặt</strong></div>
     <header className="account-settings-heading">
@@ -183,7 +218,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
       <p>Quản lý các kênh liên hệ có thể dùng để đăng nhập Paw World Care.</p>
     </header>
 
-    {notice && <Notice state={notice.state} title={notice.title}>{notice.message}</Notice>}
+    {notice && (!compact || !activeChannel) && <Notice state={notice.state} title={notice.title}>{notice.message}</Notice>}
     {!canChangeContacts && <Notice state="pending" title="Đang chờ kết nối phiên an toàn">
       Bạn vẫn có thể xem liên hệ đã xác minh. Thêm hoặc đổi liên hệ sẽ khả dụng sau khi phiên đăng nhập và CSRF được tích hợp.
     </Notice>}
@@ -235,36 +270,11 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
         })}
       </div>
 
-      {activeChannel && !flow && (() => {
-        const channel = CHANNELS.find(item => item.id === activeChannel);
-        return <form className="account-settings-form" onSubmit={submitContact}>
-          <h3>{verifiedContact(contacts, activeChannel) ? `Đổi ${channel.label.toLocaleLowerCase('vi-VN')}` : `Thêm ${channel.label.toLocaleLowerCase('vi-VN')}`}</h3>
-          <Input label={channel.label} type={channel.type} autoComplete={channel.autocomplete} inputMode={channel.id === 'PHONE' ? 'tel' : undefined}
-            placeholder={channel.placeholder} value={contactInput} onChange={event => { setContactInput(event.target.value); setFieldError(''); }}
-            required disabled={pending} error={fieldError} hint={channel.id === 'PHONE' ? 'Có thể nhập số Việt Nam hoặc dạng quốc tế +84.' : 'Mã xác minh sẽ được gửi đến địa chỉ này.'} />
-          <div className="account-settings-actions">
-            <Button type="submit" loading={pending} loadingLabel="Đang gửi mã…">Gửi mã xác minh</Button>
-            <Button variant="ghost" disabled={pending} onClick={closeFlow}>Hủy</Button>
-          </div>
-        </form>;
-      })()}
-
-      {flow && <form className="account-settings-form" onSubmit={submitCode}>
-        <h3>Xác minh {flow.channel === 'EMAIL' ? 'email' : 'số điện thoại'}</h3>
-        {flow.maskedContact && <p>Mã được gửi đến <strong>{flow.maskedContact}</strong>.</p>}
-        <p>Mã có hiệu lực thêm {secondsToExpire} giây. Có thể yêu cầu mã khác sau {secondsToResend} giây.</p>
-        <Input label="Mã OTP gồm 6 chữ số" type="text" inputMode="numeric" autoComplete="one-time-code"
-          pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-          required disabled={pending || secondsToExpire === 0} error={fieldError} />
-        <div className="account-settings-actions">
-          <Button type="submit" loading={pending} loadingLabel="Đang xác minh…" disabled={secondsToExpire === 0}>Xác minh và lưu</Button>
-          <Button variant="secondary" disabled={pending || secondsToResend > 0}
-            onClick={() => sendCode(flow.channel, flow.contact)}>
-            {secondsToResend > 0 ? `Gửi lại sau ${secondsToResend} giây` : 'Gửi mã mới'}
-          </Button>
-          <Button variant="ghost" disabled={pending} onClick={closeFlow}>Hủy</Button>
-        </div>
-      </form>}
+      {compact ? <Dialog open={Boolean(activeChannel)} onClose={closeFlow} title="Xác minh liên hệ"
+        className="mobile-flow-dialog" dismissible={!pending}>
+        {activeChannel && notice && <Notice state={notice.state} title={notice.title}>{notice.message}</Notice>}
+        {contactEditor}
+      </Dialog> : contactEditor}
     </section>
 
     <Notice state="info" title="Thông tin liên hệ được bảo vệ">

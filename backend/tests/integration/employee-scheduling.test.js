@@ -77,6 +77,23 @@ test.each([undefined, 'false', 'true'])('dispatch reports travel capability for 
     .expect(flag === 'true' ? 200 : 404);
 });
 
+test('reads only the exact invitation owned by the signed-in sitter', async () => {
+  const assigned = await employee(), other = await employee();
+  const visitId = oid(), declined = oid(), pending = oid();
+  const offer = { visitId, sitterId: assigned.userId, deadline: new Date(clock() + 60000), version: 1,
+    offeredAt: new Date(clock()), serviceName: 'Chăm sóc thử', areaCode: 'TEST-AREA',
+    startAt: new Date(clock() + 3600000), endAt: new Date(clock() + 7200000) };
+  await connection.collection('employeevisitoffers').insertMany([
+    { ...offer, _id: declined, state: 'DECLINED' }, { ...offer, _id: pending, state: 'PENDING' }
+  ]);
+  const url = '/api/v1/employee-scheduling/offers/' + declined;
+  const result = await request(app).get(url).set('x-test-actor', assigned.userId).expect(200);
+  expect(result.body.data).toMatchObject({ id: String(declined), visitId: String(visitId), state: 'DECLINED', canRespond: false });
+  await request(app).get(url).set('x-test-actor', other.userId).expect(404);
+  await request(app).get('/api/v1/employee-scheduling/offers/' + visitId).set('x-test-actor', assigned.userId).expect(404);
+  await request(app).get(url).set('x-test-actor', customer.userId).expect(403);
+});
+
 test('customer confirmation to sitter acceptance, private evidence, checklist and customer progress persists over HTTP', async () => {
   const otherCustomer = actor('CUSTOMER');
   const sitter = await employee(), row = await visit({ start: '2026-10-30T02:00:00Z', requestedSitterId: sitter.userId });

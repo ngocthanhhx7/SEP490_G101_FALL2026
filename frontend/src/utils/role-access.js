@@ -25,13 +25,17 @@ export function roleLanding(user) {
   return LANDINGS[primaryRole(user)] || '/sign-in';
 }
 
-export function loginDestination(user, from) {
-  const fallback = roleLanding(user);
+export function loginDestination(user, from, { mobile = false } = {}) {
+  const fallback = mobile && primaryRole(user) === 'CUSTOMER' ? '/customer' : roleLanding(user);
   if (typeof from !== 'string' || !/^\/[a-zA-Z0-9]/.test(from)
-    || /[\\%\u0000-\u0020]/.test(from)) return fallback;
+    || /[\\\u0000-\u0020]/.test(from)) return fallback;
   const path = from.split(/[?#]/)[0];
-  if (path.split('/').some(segment => segment === '.' || segment === '..')) return fallback;
-  if (path==='/sitter/application-status' && ['CUSTOMER','PET_SITTER'].includes(primaryRole(user)))return from;
+  if (path.includes('%') || path.split('/').some(segment => segment === '.' || segment === '..')) return fallback;
+  if (['/services', '/grooming-booking'].includes(path)) return hasRole(user, 'CUSTOMER') ? from : fallback;
+  if (/^\/(?:visits\/[^/]+\/incidents\/new|cases\/[^/]+|incidents)$/.test(path)) {
+    return ['CUSTOMER', 'PET_SITTER', 'ADMIN', 'STAFF'].includes(primaryRole(user)) ? from : fallback;
+  }
+  if (path === '/sitter/application-status') return hasRole(user, 'CUSTOMER') ? from : fallback;
   if (['/account', '/account/settings', '/account/notifications'].includes(path)) return from;
   if ((path === LANDINGS.SALE_STAFF || path === '/admin/product-orders') && hasRole(user, 'SALE_STAFF')) return from;
   if (/^\/admin(?:\/|$)/.test(path)) return hasRole(user, 'ADMIN') ? from : fallback;

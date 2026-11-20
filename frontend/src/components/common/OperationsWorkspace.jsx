@@ -40,7 +40,7 @@ export function OperationsTable({
             rows.map((row) => (
               <tr key={rowKey(row)}>
                 {columns.map((c) => (
-                  <td key={c.key}>{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>
+                  <td key={c.key} data-column={typeof c.label === 'string' ? c.label : undefined}>{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>
                 ))}
               </tr>
             ))

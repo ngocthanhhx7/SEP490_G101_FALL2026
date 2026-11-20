@@ -28,13 +28,13 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
     const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
     const recipients = [];
     if (['VisitEndingSoon', 'VisitCheckOutReminder', 'VisitCompletionReviewRequired', 'VisitClosureVerified', 'VisitWithdrawalRequested', 'VisitWithdrawalApproved', 'VisitWithdrawalRejected', 'VisitWithdrawn'].includes(event.type))
-      recipients.push({ id: event.sitterId, role: 'PET_SITTER', to: '/sitter/invitations'
-        + (['VisitWithdrawalApproved', 'VisitWithdrawn'].includes(event.type) ? '' : '?visitId=' + String(event.visitId)) });
+      recipients.push({ id: event.sitterId, role: 'PET_SITTER', to: ['VisitWithdrawalApproved', 'VisitWithdrawn'].includes(event.type) ? '/sitter/invitations' : '/sitter/visits/' + String(event.visitId) });
     if (['VisitWithdrawalApproved', 'VisitWithdrawn'].includes(event.type) && booking?.customerId)
       recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
-    if (event.type === 'OfferCreated' || event.type === 'CustomerScheduleConfirmed') recipients.push({ id: event.sitterId, role: 'PET_SITTER', to: '/sitter/invitations' });
+    if (event.type === 'OfferCreated' || event.type === 'CustomerScheduleConfirmed') recipients.push({ id: event.sitterId, role: 'PET_SITTER',
+      to: /^[a-f0-9]{24}$/.test(event.offerId ?? '') ? '/sitter/invitations?offerId=' + event.offerId : '/sitter/invitations' });
     if (['OfferAccepted', 'ScheduleProposed'].includes(event.type) && booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER',
-      to: event.type === 'ScheduleProposed' ? '/account/schedule-proposals/' + event.detail.proposalId : '/account/bookings' });
+      to: event.type === 'ScheduleProposed' ? '/account/schedule-proposals/' + event.detail.proposalId : '/account/bookings/' + String(booking._id) });
     if (['DispatchReviewRequired', 'VisitCompletionReviewRequired', 'VisitClosureVerificationRequired', 'VisitWithdrawalRequested'].includes(event.type)) {
       const staff = await col('users').find({ state: 'ACTIVE', roles: { $in: event.type === 'VisitClosureVerificationRequired' ? ['ADMIN'] : ['STAFF', 'ADMIN'] }, synthetic: { $ne: true } },
         { session, projection: { _id: 1, roles: 1 }, maxTimeMS: 5000 }).toArray();
@@ -49,7 +49,7 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
         eventId, recipientId: recipient.id, role: recipient.role, eventType: event.type, title,
         message: recipient.role === 'PET_SITTER' && ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'].includes(event.type)
           ? `${message} Lý do: ${event.detail.reason}` : message,
-        channel: 'IN_APP', deepLink: recipient.to, metadata: { visitId: String(event.visitId) }, createdAt: new Date(clock()), readAt: null
+        channel: 'IN_APP', deepLink: recipient.to, metadata: { visitId: String(event.visitId), ...(event.offerId ? { offerId: String(event.offerId) } : {}) }, createdAt: new Date(clock()), readAt: null
       } }, { upsert: true, session });
     }
   } };

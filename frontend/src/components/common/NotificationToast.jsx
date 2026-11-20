@@ -12,7 +12,7 @@ export function NotificationToast() {
   const location = useLocation();
   useLayoutEffect(() => {
     if (!toast) return undefined;
-    const header = document.querySelector('.pwc-public-header, .pwc-role-shell__header');
+    const header = document.querySelector('.pwc-mobile-header') ?? document.querySelector('.pwc-public-header, .pwc-role-shell__header');
     const position = () => setTop(Math.max(16, Math.min((header?.getBoundingClientRect().bottom || 68) + 16, window.innerHeight - 160)));
     position(); window.addEventListener('resize', position);
     const observer = typeof globalThis.ResizeObserver === 'function' ? new globalThis.ResizeObserver(position) : null;

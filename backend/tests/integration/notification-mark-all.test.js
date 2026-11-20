@@ -105,3 +105,25 @@ test('concurrent retries keep the original cutoff, while a new operation can rea
     createdAt: { $lte: new Date(time) } }).explain('executionStats');
   expect(plan.executionStats.totalDocsExamined).toBeLessThanOrEqual(2);
 });
+
+test('notification intent rechecks recipient and object ownership without marking read', async () => {
+  const ownedBooking = new mongoose.Types.ObjectId();
+  const otherBooking = new mongoose.Types.ObjectId();
+  await connection.db.collection('bookings').insertMany([
+    { _id: ownedBooking, customerId: new mongoose.Types.ObjectId(owner.user.id) },
+    { _id: otherBooking, customerId: new mongoose.Types.ObjectId(other.user.id) }
+  ]);
+  const own = 'a'.repeat(64);
+  const denied = 'b'.repeat(64);
+  await Notification.create([
+    row(own, owner.user.id, { deepLink: '/account/bookings/' + ownedBooking }),
+    row(denied, owner.user.id, { deepLink: '/account/bookings/' + otherBooking })
+  ]);
+  const url = id => '/api/v1/notifications/' + id + '/intent';
+  await request(app).get(url(own)).set(headers(other)).expect(404);
+  await request(app).get(url(own)).set(headers(owner)).expect(200).expect(response =>
+    expect(response.body.data).toEqual({ to: '/account/bookings/' + ownedBooking }));
+  await request(app).get(url(denied)).set(headers(owner)).expect(200).expect(response =>
+    expect(response.body.data).toEqual({ to: null }));
+  expect((await Notification.findById(own).lean()).readAt).toBeNull();
+});

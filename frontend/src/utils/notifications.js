@@ -5,5 +5,9 @@ export function notificationDate(value) {
 }
 export function notificationTarget(item, fallback = '/account/notifications') {
   const path = item?.deepLink;
-  return typeof path === 'string' && /^\/(?!\/)/.test(path) && !/[\\\u0000-\u0020]/.test(path) ? path : fallback;
+  if (typeof path !== 'string' || !/^\/(?!\/)/.test(path) || /[\\\u0000-\u0020]/.test(path)) return fallback;
+  if (/^\/sitter\/invitations\?visitId=[a-f0-9]{24}$/i.test(path)) return '/sitter/invitations';
+  if (/^(?:\/account\/bookings\/[a-f0-9]{24}(?:\/visits\/[a-f0-9]{24})?|\/sitter\/(?:visits\/|invitations\?offerId=)[a-f0-9]{24})$/.test(path)
+    && typeof item.id === 'string' && /^[a-f0-9]{64}$/.test(item.id)) return '/account/notifications?open=' + item.id;
+  return path;
 }

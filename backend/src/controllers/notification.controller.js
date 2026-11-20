@@ -7,6 +7,8 @@ function response(res, req, status, data) {
 
 export function createNotificationController({ service, webPush } = {}) {
   return {
+    getIntent: async (req, res) => response(res, req, 200,
+      await service.resolveIntent({ actor: req.auth, notificationId: req.params.notificationId })),
     getRoot: async (req, res) =>
       response(
         res,

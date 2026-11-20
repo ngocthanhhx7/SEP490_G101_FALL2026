@@ -14,17 +14,24 @@ function validateSession(result) {
   return result;
 }
 
-export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
+export function SessionProvider({ adapter = pendingSessionAdapter, foreground = false, children }) {
   const [session, setSession] = useState({ status: 'loading' });
   const [revision, setRevision] = useState(0);
   const generation = useRef(0);
   const resolution = useRef(null);
   const adapterRef = useRef(adapter);
+  const [revalidation, setRevalidation] = useState('idle');
+  const recheck = useRef(null);
+  const blocked = useRef(false);
   adapterRef.current = adapter;
   useEffect(() => {
     const current = ++generation.current;
     const controller = new AbortController();
     resolution.current = controller;
+    recheck.current?.abort();
+    recheck.current = null;
+    blocked.current = false;
+    setRevalidation('idle');
     setSession({ status: 'loading' });
     Promise.resolve().then(() => adapter.resolve({ signal: controller.signal }))
       .then((result) => {
@@ -38,6 +45,10 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
   const invalidate = useCallback(() => {
     ++generation.current;
     resolution.current?.abort();
+    recheck.current?.abort();
+    recheck.current = null;
+    blocked.current = false;
+    setRevalidation('idle');
     setSession({ status: 'guest' });
   }, []);
   useEffect(() => {
@@ -54,7 +65,48 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
     setSession(current => current.status === 'authenticated' && current.user?.id === profile.id
       ? { ...current, user: { ...current.user, displayName: profile.displayName } } : current);
   }, []);
-  const getCsrfToken = useCallback(() => adapterRef.current.getCsrfToken?.() ?? null, []);
+  const revalidate = useCallback(async () => {
+    if (session.status !== 'authenticated' || recheck.current) return;
+    const current = generation.current;
+    const controller = new AbortController();
+    recheck.current = controller;
+    blocked.current = true;
+    setRevalidation('checking');
+    try {
+      const result = validateSession(await adapterRef.current.resolve({ signal: controller.signal }));
+      if (controller.signal.aborted || generation.current !== current) return;
+      if (result.status === 'pending') throw new Error('Session verification pending');
+      blocked.current = false;
+      setSession(previous => {
+        const sameUser = result.status === 'authenticated'
+          && previous.user?.id === result.user.id
+          && (previous.user.roles ?? [previous.user.role])[0] === (result.user.roles ?? [result.user.role])[0]
+          && previous.user.displayName === result.user.displayName;
+        return sameUser ? previous : result;
+      });
+      setRevalidation('idle');
+    } catch {
+      if (!controller.signal.aborted && generation.current === current) setRevalidation('error');
+    } finally {
+      if (recheck.current === controller) recheck.current = null;
+    }
+  }, [session.status]);
+  useEffect(() => {
+    if (!foreground || session.status !== 'authenticated') return;
+    const visible = () => { if (!document.hidden) revalidate(); };
+    const resume = event => { if (event.persisted) visible(); };
+    document.addEventListener('visibilitychange', visible);
+    window.addEventListener('online', visible);
+    window.addEventListener('pageshow', resume);
+    return () => {
+      document.removeEventListener('visibilitychange', visible);
+      window.removeEventListener('online', visible);
+      window.removeEventListener('pageshow', resume);
+    };
+  }, [foreground, revalidate, session.status]);
+  useEffect(() => () => recheck.current?.abort(), []);
+
+  const getCsrfToken = useCallback(() => blocked.current ? null : adapterRef.current.getCsrfToken?.() ?? null, []);
   const requestLoginOtp = useCallback(async (input) => {
     const action = adapterRef.current.requestLoginOtp;
     if (typeof action !== 'function') {
@@ -90,9 +142,9 @@ export function SessionProvider({ adapter = pendingSessionAdapter, children }) {
     await logoutAction();
     invalidate();
   }, [invalidate]);
-  const value = useMemo(() => ({ ...session, invalidate, refresh, updateDisplayName, getCsrfToken,
+  const value = useMemo(() => ({ ...session, invalidate, refresh, revalidation, revalidate, updateDisplayName, getCsrfToken,
     requestLoginOtp, login, logout }),
-  [session, invalidate, refresh, updateDisplayName, getCsrfToken, requestLoginOtp, login, logout]);
+  [session, invalidate, refresh, revalidation, revalidate, updateDisplayName, getCsrfToken, requestLoginOtp, login, logout]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

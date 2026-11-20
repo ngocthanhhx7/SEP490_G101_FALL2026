@@ -38,7 +38,13 @@ self.addEventListener('fetch', (event) => {
 
 
 self.addEventListener('push', (event) => {
+  let notificationId;
+  try {
+    const id = event.data?.json()?.notificationId;
+    if (typeof id === 'string' && /^[a-f0-9]{64}$/.test(id)) notificationId = id;
+  } catch { /* Invalid data still permits a generic reminder. */ }
   event.waitUntil(self.registration.showNotification('Paw World Care', {
+    data: notificationId ? { notificationId } : undefined,
     body: 'Bạn có thông báo mới. Mở ứng dụng để xem.',
     icon: '/pwa/icon-192.png',
     tag: 'pwc-notifications'
@@ -48,10 +54,15 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil((async () => {
-    const target = new URL('/account/notifications', self.location.origin).href;
-    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    const open = clients.find(client => client.url === target);
-    if (open) await open.focus();
-    else await self.clients.openWindow(target);
+    const id = event.notification.data?.notificationId;
+    const notificationId = typeof id === 'string' && /^[a-f0-9]{64}$/.test(id) ? id : undefined;
+    const target = new URL('/account/notifications', self.location.origin);
+    if (notificationId) target.searchParams.set('open', notificationId);
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: false });
+    const existing = clients.find(client => client.url === target.href) ?? clients[0];
+    if (existing) {
+      await existing.focus();
+      if (existing.url !== target.href) existing.postMessage({ type: 'PWC_NOTIFICATION_CLICK', notificationId });
+    } else await self.clients.openWindow(target.href);
   })());
 });
