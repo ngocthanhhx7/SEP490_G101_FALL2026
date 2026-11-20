@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { MobileAppShell } from '../../src/layouts/MobileAppShell.jsx';
 import { mobileRoute } from '../../src/routes/mobile-route-metadata.js';
@@ -15,11 +15,11 @@ function show({ enabled = true, role, path = '/', search = '', state } = {}) {
   </MemoryRouter>);
 }
 
-test('keeps desktop routes free of compact tabs and hides tabs on the install guide', () => {
+test('keeps desktop routes free of compact tabs and hides tabs on the install guide', async () => {
   const web = show({ enabled: false });
   expect(screen.queryByRole('navigation', { name: 'Điều hướng ứng dụng' })).not.toBeInTheDocument();
   web.unmount();
-  show({ path: '/install' });
+  await act(async () => { show({ path: '/install' }); });
   expect(screen.queryByRole('navigation', { name: 'Điều hướng ứng dụng' })).not.toBeInTheDocument();
 });
 
@@ -46,4 +46,16 @@ test('a product deep link and a notification resolve Back separately from the se
   show({ role: 'CUSTOMER', path: '/account/notifications', state: { mobileTab: 'services', mobileBack: '/account/bookings?group=history' } });
   expect(await screen.findByRole('link', { name: 'Dịch vụ' })).toHaveAttribute('aria-current', 'page');
   await waitFor(() => expect(screen.getByRole('link', { name: 'Quay lại' })).toHaveAttribute('href', '/account/bookings?group=history'));
+});
+
+test('changing compact layout preserves the open form', async () => {
+  const session = { resolve: async () => ({ status: 'guest' }) };
+  const shell = route => <MemoryRouter><SessionProvider adapter={session}>
+    <MobileAppShell route={route}><main><input aria-label="Tên đang nhập" defaultValue="" /></main></MobileAppShell>
+  </SessionProvider></MemoryRouter>;
+  const view = render(shell(mobileRoute('/register', 'GUEST')));
+  await act(async () => {});
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Nội dung đang nhập' } });
+  view.rerender(shell(null));
+  expect(screen.getByRole('textbox')).toHaveValue('Nội dung đang nhập');
 });

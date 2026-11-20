@@ -107,7 +107,7 @@ export function MobileAppShell({ route, children, lookupRoute }) {
       <Link to={'/account/notifications' + incoming} onClick={() => setIncoming(null)}>Mở thông báo</Link>
       <button type="button" onClick={() => setIncoming(null)}>Để sau</button>
     </aside>}
-    {enabled ? <div className="pwc-phone-content">{children}</div> : children}
+    <div className={enabled ? 'pwc-phone-content' : undefined}>{children}</div>
     {showTabs && <nav className="pwc-phone-tabs" aria-label="Điều hướng ứng dụng"
       style={{ '--pwc-tab-count': tabs.length }}>
       {tabs.map(([key, label, to, Icon]) => <Link key={key} to={to} aria-current={key === active ? 'page' : undefined}>
