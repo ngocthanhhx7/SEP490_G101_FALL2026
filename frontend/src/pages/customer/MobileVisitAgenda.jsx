@@ -9,14 +9,14 @@ const format = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', 
 const labels = { SCHEDULED: 'Chờ phân công', ASSIGNED: 'Đã phân công', IN_PROGRESS: 'Đang chăm sóc',
   COMPLETED: 'Hoàn thành', STAFF_CLOSED: 'Đã đóng', CANCELLED: 'Đã hủy', SUPERSEDED: 'Đã thay thế' };
 
-export function MobileVisitCard({ row, mobileBack }) {
+export function MobileVisitCard({ row, mobileBack, actionLabel = 'Xem buổi chăm sóc' }) {
   return <li>
     <strong>{row.serviceName || 'Buổi chăm sóc'}</strong>
     {row.petNames?.length > 0 && <p>{row.petNames.join(', ')}</p>}
     <p><time dateTime={row.startsAt}>{format.format(new Date(row.startsAt))}</time> · {labels[row.state] ?? 'Đang cập nhật'}</p>
     {row.sitterName && <p>Pet Sitter: {row.sitterName}</p>}
     {row.overdue && <p>Buổi đã qua giờ bắt đầu và đang chờ cập nhật.</p>}
-    {row.bookingId && <Link to={`/account/bookings/${row.bookingId}/visits/${row.id}`} state={{ mobileBack }}>Xem buổi chăm sóc</Link>}
+    {row.bookingId && <Link to={`/account/bookings/${row.bookingId}/visits/${row.id}`} state={{ mobileBack }}>{actionLabel}</Link>}
   </li>;
 }
 

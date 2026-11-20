@@ -41,6 +41,16 @@ export function useWebAppInstall() {
   return useSyncExternalStore(subscribe, snapshot);
 }
 
+export function useInstallGuideOffer() {
+  const install = useWebAppInstall();
+  if (install === 'installed' || window.isSecureContext === false) return false;
+  if (install === 'available') return true;
+  const { userAgent, maxTouchPoints } = window.navigator;
+  const appleMobile = /iPhone|iPad|iPod/.test(userAgent) || (/Macintosh/.test(userAgent) && maxTouchPoints > 1);
+  if (appleMobile) return /Version\/.*Safari\//.test(userAgent) && !/CriOS|FxiOS|EdgiOS|FBAN|FBAV|Instagram|Zalo/.test(userAgent);
+  return /Android.*Chrome\//.test(userAgent) && !/\bwv\b|EdgA|OPR|SamsungBrowser|FBAN|FBAV|Instagram|Zalo/.test(userAgent);
+}
+
 export async function requestWebAppInstall() {
   const event = installEvent;
   if (!event) return;
