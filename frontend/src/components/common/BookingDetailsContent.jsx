@@ -23,7 +23,7 @@ const summary = values => unique(values).join(' · ') || '—';
 const amount = value => Number.isSafeInteger(value) ? bookingMoney(value) : '—';
 const visitStatus = {
   SCHEDULED: 'Đang tìm người', OFFERED: 'Đang mời', ASSIGNED: 'Đã nhận',
-  ARRIVED: 'Đã đến', IN_PROGRESS: 'Đang làm', COMPLETED: 'Đã xong', CANCELLED: 'Đã huỷ'
+  ARRIVED: 'Đã đến', IN_PROGRESS: 'Đang làm', COMPLETED: 'Đã xong', STAFF_CLOSED: 'Đã đóng', CANCELLED: 'Đã huỷ', SUPERSEDED: 'Đã thay thế'
 };
 const paymentStatus = { PAID: 'Đã thanh toán', UNPAID: 'Chưa thanh toán' };
 
@@ -54,7 +54,8 @@ export function BookingDetailsContent({ booking, visitActions }) {
       </div>
       <span className="booking-details__status">{bookingStatus(booking.state)[0]}</span>
     </header>
-    <CareProgressSteps steps={['Đã đặt', 'Đã nhận ca', 'Check-in', 'Đang chăm sóc', 'Hoàn tất']} current={progress} complete={progress === 4} />
+    {!['CLOSED', 'CANCELLED'].includes(booking.state) &&
+      <CareProgressSteps steps={['Đã đặt', 'Đã nhận ca', 'Check-in', 'Đang chăm sóc', 'Hoàn tất']} current={progress} complete={progress === 4} />}
     <div className="booking-details__grid">
       <section className="booking-details__card booking-details__terms">
         <h3>Thông tin lịch đặt</h3>

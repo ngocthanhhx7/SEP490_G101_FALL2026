@@ -3,11 +3,11 @@ import { matchPath } from 'react-router-dom';
 // Matrix IDs trace compact presentation only. AppRoutes owns route guards.
 const metadata = [
   ["M01","/account","Tài khoản","account","root",["CUSTOMER","PET_SITTER"]],
-  ["M02","/account/settings","Cài đặt","account","detail",["CUSTOMER","PET_SITTER"]],
+  ["M02","/account/settings","Liên hệ & bảo mật","account","detail",["CUSTOMER","PET_SITTER"]],
   ["M03","/account/notifications","Thông báo","account","detail",["CUSTOMER","PET_SITTER"]],
   ["M04","/customer","Trang chủ","home","root",["CUSTOMER"]],
   ["M05","/sitters","Tìm Pet Sitter","services","detail",["CUSTOMER"]],
-  ["M06","/account/profile","Hồ sơ","account","detail",["CUSTOMER"]],
+  ["M06","/account/profile","Thông tin cá nhân","account","detail",["CUSTOMER","PET_SITTER"]],
   ["M07","/account/addresses","Địa chỉ","account","detail",["CUSTOMER"]],
   ["M08","/account/pets","Thú cưng","pets","root",["CUSTOMER"]],
   ["M09","/account/pets/:petId","Hồ sơ thú cưng","pets","detail",["CUSTOMER"]],

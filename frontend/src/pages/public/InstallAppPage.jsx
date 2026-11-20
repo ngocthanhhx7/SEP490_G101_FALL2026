@@ -31,7 +31,7 @@ export function InstallAppPage() {
         <img className="pwc-install-photo" src="/assets/figma-public/home-Image659.webp" alt="" />
       </section>
       <section className="pwc-install-guide" aria-labelledby="install-guide-title">
-        <h2 id="install-guide-title">{install === 'installed' ? 'Ứng dụng đã được thêm' : 'Cài ứng dụng'}</h2>
+        <h2 id="install-guide-title" data-duplicate-title={install !== 'installed' ? true : undefined}>{install === 'installed' ? 'Ứng dụng đã được thêm' : 'Cài ứng dụng'}</h2>
         {install === 'installed' ? <>
           <p>Mở Paw World Care từ biểu tượng trên màn hình chính hoặc danh sách ứng dụng.</p>
           <Link className="pwc-install-button" to="/">Tiếp tục vào Paw World Care</Link>

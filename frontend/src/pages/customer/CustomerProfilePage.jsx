@@ -5,6 +5,8 @@ import { Mail, Phone, ShieldCheck } from 'lucide-react';
 import { Button, Input, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
+import { usePhoneApp } from '../../hooks/usePhoneApp.js';
+import { primaryRole } from '../../utils/role-access.js';
 import { createApiClient } from '../../services/api-client.js';
 import { createCustomerProfileAdapter } from '../../services/customer-profile-adapter.js';
 import './customer-profile.css';
@@ -29,16 +31,28 @@ function verifiedDate(value) {
 
 export function CustomerProfilePage({ apiRequest }) {
   const session = useSession();
+  const compact = usePhoneApp();
+  const sitter = primaryRole(session.user) === 'PET_SITTER';
   const api = useMemo(() => apiRequest ?? createApiClient({
     getCsrfToken: session.getCsrfToken,
     onUnauthorized: session.invalidate
   }), [apiRequest, session.getCsrfToken, session.invalidate]);
-  const profileAdapter = useMemo(() => createCustomerProfileAdapter(api), [api]);
+  const profileAdapter = useMemo(() => createCustomerProfileAdapter(api, { sitter }), [api, sitter]);
   const loadProfile = useCallback(({ signal }) => profileAdapter.load({ signal }), [profileAdapter]);
   const profile = useApiResource(loadProfile);
   const [draft, setDraft] = useState(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const displayName = draft?.value ?? profile.data?.displayName ?? '';
+  const [personal, setPersonal] = useState({});
+  const [editStructured, setEditStructured] = useState(false);
+  const family = personal.familyAndMiddleName ?? profile.data?.familyAndMiddleName ?? '';
+  const given = personal.givenName ?? profile.data?.givenName ?? '';
+  const hasPersonalDraft = Object.keys(personal).length > 0;
+  const structured = !draft && (compact || sitter || editStructured || hasPersonalDraft || Boolean(profile.data?.givenName));
+  const namesChanged = Object.hasOwn(personal, 'familyAndMiddleName') || Object.hasOwn(personal, 'givenName');
+  const canSave = structured ? (hasPersonalDraft
+    && (!namesChanged || (family.trim() && given.trim() && family.trim().length + given.trim().length < 100)))
+    : Boolean(displayName.trim() && displayName.trim() !== profile.data?.displayName && displayName.length <= 100);
   const [savePending, setSavePending] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [savePendingNotice, setSavePendingNotice] = useState(false);
@@ -46,7 +60,7 @@ export function CustomerProfilePage({ apiRequest }) {
 
   async function submit(event) {
     event.preventDefault();
-    if (profile.status !== 'success' || savePending) return;
+    if (profile.status !== 'success' || savePending || !canSave) return;
     const normalizedName = displayName.normalize('NFC').replace(/[\s\u00a0]+/gu, ' ').trim();
     if (!normalizedName || normalizedName.length > 100) return;
     setSavePending(true);
@@ -54,13 +68,18 @@ export function CustomerProfilePage({ apiRequest }) {
     setSavePendingNotice(false);
     setSaved(false);
     try {
-      const result = await profileAdapter.update({ displayName: normalizedName, expectedVersion: profile.data.version });
+      const fields = structured ? {
+        ...personal,
+        ...(namesChanged && { familyAndMiddleName: family, givenName: given })
+      } : { displayName: normalizedName };
+      const result = await profileAdapter.update({ ...fields, expectedVersion: profile.data.version });
       if (result.pending) {
         setSavePendingNotice(true);
         profile.retry();
       } else {
         setSaved(true);
         setDraft(null);
+        setPersonal({});
         profile.retry();
         session.updateDisplayName(result.data);
       }
@@ -72,10 +91,16 @@ export function CustomerProfilePage({ apiRequest }) {
     }
   }
 
+  function editPersonal(key, value) {
+    setPersonal(previous => ({ ...previous, [key]: value }));
+    setSaved(false);
+    setSaveError('');
+  }
+
   return <section className="customer-profile" aria-labelledby="customer-profile-title">
     <div className="customer-profile-heading">
-      <h1 id="customer-profile-title">Hồ sơ của tôi</h1>
-      <p>Quản lý thông tin cá nhân và liên hệ của bạn.</p>
+      <h1 id="customer-profile-title" className={compact ? 'workspace-sr-only' : undefined}>{structured ? 'Thông tin cá nhân' : 'Hồ sơ của tôi'}</h1>
+      {!compact && <p>Quản lý thông tin cá nhân của bạn.</p>}
     </div>
 
     {profile.status === 'loading' && <div className="customer-profile-loading" role="status" aria-label="Đang tải hồ sơ">
@@ -86,7 +111,7 @@ export function CustomerProfilePage({ apiRequest }) {
       <Button variant="secondary" onClick={profile.retry}>Tải lại hồ sơ</Button>
     </Notice>}
     {profile.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem hồ sơ">
-      Chỉ Customer đã đăng nhập mới xem được hồ sơ Customer.
+      Tài khoản hiện tại cần quyền truy cập hồ sơ cá nhân.
     </Notice>}
     {profile.status === 'error' && <Notice state="error" title="Không tải được hồ sơ"
       action={<Button variant="secondary" onClick={profile.retry}>Thử lại</Button>}>
@@ -97,22 +122,39 @@ export function CustomerProfilePage({ apiRequest }) {
     </Notice>}
 
     {profile.status === 'success' && <div className="customer-profile-grid">
-      <section className="customer-profile-card" aria-labelledby="profile-details-title">
-        <div className="customer-profile-card-heading">
+      <section className="customer-profile-card" aria-labelledby={structured ? 'customer-profile-title' : 'profile-details-title'}>
+        {!structured && <div className="customer-profile-card-heading">
           <h2 id="profile-details-title">Thông tin cá nhân</h2>
-        </div>
+        </div>}
         <AvatarEditor fallback={profile.data.displayName?.[0] ?? 'PW'} onSaved={profile.retry} onBusyChange={setAvatarBusy} />
         <form className="customer-profile-form" onSubmit={submit}>
-          <Input label="Họ và tên" value={displayName} onChange={event => {
-            setDraft({ value: event.target.value, version: profile.data.version });
+          {structured ? <>
+            <p>Tên hiển thị hiện tại: <strong>{profile.data.displayName}</strong></p>
+            <Input label="Họ và tên đệm" value={family} onChange={event => editPersonal('familyAndMiddleName', event.target.value)}
+              autoComplete="family-name" maxLength={100} />
+            <Input label="Tên" value={given} onChange={event => editPersonal('givenName', event.target.value)}
+              autoComplete="given-name" maxLength={100} />
+            {namesChanged && (!family.trim() || !given.trim()) && <p>Điền cả hai phần để cập nhật họ tên.</p>}
+            <Input label="Ngày sinh" type="date" value={Object.hasOwn(personal, 'birthDate') ? personal.birthDate ?? '' : profile.data.birthDate ?? ''}
+              onChange={event => editPersonal('birthDate', event.target.value || null)} autoComplete="bday" />
+            <label className="pwc-field">Giới tính
+              <select className="pwc-control" value={Object.hasOwn(personal, 'gender') ? personal.gender ?? '' : profile.data.gender ?? ''}
+                onChange={event => editPersonal('gender', event.target.value || null)}>
+                <option value="">Chưa cung cấp</option><option value="MALE">Nam</option><option value="FEMALE">Nữ</option>
+                <option value="OTHER">Khác</option><option value="UNDISCLOSED">Không muốn chia sẻ</option>
+              </select>
+            </label>
+          </> : <Input label="Họ và tên" value={displayName} onChange={event => {
+            setDraft(event.target.value === profile.data.displayName ? null : { value: event.target.value, version: profile.data.version });
             setSaveError('');
             setSaved(false);
-          }} autoComplete="name" maxLength={100} required />
+          }} autoComplete="name" maxLength={100} required />}
           <Button type="submit" loading={savePending} loadingLabel="Đang lưu…"
-            disabled={avatarBusy || displayName.trim() === profile.data.displayName || !displayName.trim() || displayName.length > 100}>
+            disabled={avatarBusy || !canSave}>
             Lưu thay đổi
           </Button>
         </form>
+        {!structured && !draft && <Button variant="secondary" onClick={() => setEditStructured(true)}>Cập nhật tên, ngày sinh và giới tính</Button>}
         {saveError && <Notice state="error" title="Chưa xác nhận thay đổi"
           action={<Button variant="secondary" onClick={() => { setSaveError(''); profile.retry(); }}>Tải lại hồ sơ</Button>}>
           {saveError}
@@ -122,11 +164,11 @@ export function CustomerProfilePage({ apiRequest }) {
           <Button variant="secondary" onClick={profile.retry}>Đối chiếu hồ sơ</Button>
         </Notice>}
         {saved && <Notice state="success" title="Đã lưu thay đổi">
-          Họ và tên đã được lưu. Không cần chờ phê duyệt.
+          Thông tin cá nhân đã được lưu.
         </Notice>}
       </section>
 
-      <section className="customer-profile-card" aria-labelledby="profile-contacts-title">
+      {!compact && <section className="customer-profile-card" aria-labelledby="profile-contacts-title">
         <div className="customer-profile-card-heading">
           <h2 id="profile-contacts-title">Thông tin liên hệ</h2>
         </div>
@@ -142,7 +184,7 @@ export function CustomerProfilePage({ apiRequest }) {
           Thông tin liên hệ sẽ hiển thị sau khi được xác minh.
         </Notice>}
         <p className="customer-profile-private-note"><ShieldCheck size={18} aria-hidden="true" />Liên hệ được che để bảo vệ tài khoản. Thay đổi cần xác minh bằng OTP.</p>
-      </section>
+      </section>}
     </div>}
   </section>;
 }

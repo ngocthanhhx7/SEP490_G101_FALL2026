@@ -139,8 +139,8 @@ export function EmployeeInvitationsPage({
         if (historyOpen) history.retry();
       }}><RefreshCw size={18} /></Button></header>
     {command.message && <p role="status">{command.message}</p>}{command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại yêu cầu</Button>}
-    <h2>Lời mời đang chờ</h2>{resource.status === 'loading' && <p role="status">Đang tải lời mời…</p>}{['error', 'forbidden'].includes(resource.status) && <p role="alert">Chưa tải được lời mời của bạn.</p>}
-    <OperationsTable label="Lời mời đang chờ" rows={offerRows} empty="Chưa có lời mời đang chờ phản hồi." columns={[...baseColumns, {
+    <h2>Lời mời đang chờ</h2><ListStatus resource={resource} name="lời mời" />
+    {['success', 'empty'].includes(resource.status) && <OperationsTable label="Lời mời đang chờ" rows={offerRows} empty="Chưa có lời mời đang chờ phản hồi." columns={[...baseColumns, {
       key: 'deadline',
       label: 'Hạn phản hồi',
       render: row => time(row.deadline)
@@ -151,27 +151,28 @@ export function EmployeeInvitationsPage({
           kind: 'offer',
           row
         })}>Xem chi tiết</Button>{offerActions(row)}</>
-    }]} />
+    }]} />}
     {pager(resource, offerPages, setOfferPages, 'lời mời')}
-    <h2>Ca đã nhận</h2><Link to="/sitter/schedule">Xem lịch ca làm</Link>{withdrawalResult && <p role="status">{withdrawalResult}</p>}{assignments.status === 'loading' && <p role="status">Đang tải ca đã nhận…</p>}{['error', 'forbidden'].includes(assignments.status) && <p role="alert">Chưa tải được ca đã nhận.</p>}
-    <OperationsTable label="Ca đã nhận" rows={assignments.data?.items ?? []} empty="Chưa có ca đã nhận." columns={[...baseColumns, {
+    <h2>Ca đã nhận</h2><Link to="/sitter/schedule">Xem lịch ca làm</Link>{withdrawalResult && <p role="status">{withdrawalResult}</p>}<ListStatus resource={assignments} name="ca đã nhận" />
+    {['success', 'empty'].includes(assignments.status) && <OperationsTable label="Ca đã nhận" rows={assignments.data?.items ?? []} empty="Chưa có ca đã nhận." columns={[...baseColumns, {
       key: 'actions',
       label: 'Thao tác',
       render: row => <div className="employee-scheduling__actions"><Link to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>{row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
           setWithdrawalResult(null);
           setWithdrawalVisit(row.id);
         }}>Rút khỏi buổi</Button>}</div>
-    }]} />
+    }]} />}
     {pager(assignments, assignmentPages, setAssignmentPages, 'ca')}
     <details onToggle={event => setHistoryOpen(event.currentTarget.open)}><summary>Lịch sử lời mời</summary>
-      {historyOpen && <><OperationsTable label="Lịch sử lời mời" rows={(history.data?.items ?? []).filter(row => row.state !== 'PENDING')} empty="Chưa có lịch sử lời mời ở trang này." columns={[...baseColumns, {
+      {historyOpen && <><ListStatus resource={history} name="lịch sử lời mời" />
+        {['success', 'empty'].includes(history.status) && <OperationsTable label="Lịch sử lời mời" rows={(history.data?.items ?? []).filter(row => row.state !== 'PENDING')} empty="Chưa có lịch sử lời mời ở trang này." columns={[...baseColumns, {
           key: 'actions',
           label: 'Thao tác',
           render: row => <Button variant="secondary" onClick={() => setSelected({
             kind: 'history',
             row
           })}>Xem chi tiết</Button>
-        }]} />{pager(history, historyPages, setHistoryPages, 'lịch sử')}</>}
+        }]} />}{pager(history, historyPages, setHistoryPages, 'lịch sử')}</>}
     </details>
     <Dialog open={Boolean(active)} title={active ? title(active) : 'Chi tiết ca chăm sóc'} onClose={() => { if (selected?.kind === 'linkedOffer') onCloseOffer?.(); setSelected(null); }} className="employee-assignment-dialog" dismissible={!locked}>
       {active && <><p>{time(active.startAt)} – {time(active.endAt)}</p><p>{states[active.state] ?? 'Đang cập nhật'} · {active.areaLabel ?? active.areaCode}</p>
@@ -184,4 +185,12 @@ export function EmployeeInvitationsPage({
     </Dialog>
     {withdrawalVisit && <VisitWithdrawalDialog visitId={withdrawalVisit} api={api} onClose={() => setWithdrawalVisit(null)} onSuccess={withdrawalSaved} />}
   </section>;
+}
+
+function ListStatus({ resource, name }) {
+  if (resource.status === 'loading') return <p role="status">Đang tải {name}…</p>;
+  if (['error', 'forbidden', 'pending'].includes(resource.status)) return <p role="alert">
+    Chưa tải được {name}. <Button onClick={resource.retry}>Thử lại</Button>
+  </p>;
+  return null;
 }

@@ -214,7 +214,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
     <div className="account-settings-breadcrumb"><Link to="/account">Tài khoản</Link><span aria-hidden="true">/</span><strong>Cài đặt</strong></div>
     <header className="account-settings-heading">
       <span className="account-settings-eyebrow">BẢO MẬT TÀI KHOẢN</span>
-      <h1 id="account-settings-title">Cài đặt tài khoản</h1>
+      <h1 id="account-settings-title" data-duplicate-title>Cài đặt tài khoản</h1>
       <p>Quản lý các kênh liên hệ có thể dùng để đăng nhập Paw World Care.</p>
     </header>
 

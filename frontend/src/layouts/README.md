@@ -26,5 +26,7 @@ Routes retain their normal session guards. The notification badge reuses
 NotificationContext. Bottom spacing accounts for the system gesture area and
 preserves access to sticky pet-editor actions. Compact catalog filters, the service
 basket, and selected form editors use native dialogs for focus containment.
-`routes/mobile-route-metadata.js` describes titles and active tabs; `AppRoutes.jsx`
+`routes/mobile-route-metadata.js` describes titles and active tabs. Back resolves from the
+screen parent or a validated source URL. Compact screens use document scrolling with
+safe-area spacing from the shell and an in-flow sticky tab bar. `AppRoutes.jsx`
 continues to own permissions and URL compatibility.
