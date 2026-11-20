@@ -120,3 +120,8 @@ result collections. The tier document uses the customer account ID as its key.
 Goods receipt stock history uses the additive multikey compound index `lines.productId, createdAt descending, _id descending`; it preserves immutable receipts and the existing unique code/number/recorder-operation indexes. Provision explicitly with the reviewed release; runtime reads do not create it.
 
 `service-workflow-version.model.js` defines only immutable history in serviceworkflowversions, unique serviceId/revision. Bounded draft/current live on services; snapshots/results live on visits. Existing caremediabindings accepts namespaced workflow kinds without changing its primary and visit/kind uniqueness. No execution/task/evidence collection is introduced.
+
+
+The optional AuthSession Web Push subscription follows the existing session TTL.
+Two partial indexes support sole endpoint ownership and worker claims.
+See [Web Push storage plan](../../../doc/database/pwa-web-push.md).

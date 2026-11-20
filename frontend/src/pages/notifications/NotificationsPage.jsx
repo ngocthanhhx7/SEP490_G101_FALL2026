@@ -1,8 +1,9 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Notice } from '../../components/ui/index.js';
 import { Link } from 'react-router-dom';
 import { Bell, Check, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
+import { LockScreenNotifications } from './LockScreenNotifications.jsx';
 import './notifications.css';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('vi-VN', {
@@ -178,6 +179,7 @@ export function NotificationsPage({ api }) {
           </Button>
         </div>
       </header>
+      <LockScreenNotifications api={api} />
       <div className="workspace-tabs" role="group" aria-label="Lọc thông báo">{[[false, 'Tất cả'], [true, 'Chưa đọc']].map(([value, label]) =>
         <button key={label} type="button" aria-pressed={unreadOnly === value} onClick={() => { setCursor(null); setRows([]); setUnreadOnly(value); }}>{label}</button>)}
         <span className="notification-unread-count">{unreadCount ?? '—'} chưa đọc</span></div>

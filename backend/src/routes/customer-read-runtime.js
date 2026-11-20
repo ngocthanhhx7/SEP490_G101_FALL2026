@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireSession, requireRoles } from '../middlewares/session.js';
 import { createCustomerBookingsController } from '../controllers/customer-bookings.controller.js';
 import { createCustomerBookingsService } from '../services/customer-bookings.service.js';
+import { createWebPushService } from '../services/notifications/web-push.service.js';
 import { createNotificationService } from '../services/notifications/notification.service.js';
 import { createMongoNotificationRepository } from '../services/notifications/mongo-notification.repository.js';
 import { createNotificationRouter } from './notification.routes.js';
@@ -27,10 +28,11 @@ export function customerReadRuntime({ config, connection, sessionService, env, c
   }
   const notifications = createNotificationService({ repository: createMongoNotificationRepository({ connection,
     cursorSecret: config.auth.tokenSecret, clock }), clock });
-  router.use('/notifications', createNotificationRouter({ service: notifications, sessionPort: sessionService, clock }));
+  const webPush = createWebPushService({ connection, config: config.webPush, sessionPort: sessionService, clock });
+  router.use('/notifications', createNotificationRouter({ service: notifications, sessionPort: sessionService, webPush, clock }));
   if (env.FINANCE_SOURCES_ENABLED === 'true' && env.EMPLOYEE_SCHEDULING_ENABLED === 'true') {
     const reviews = createReviewService({ repository: createMongoCustomerReviewRepository({ connection }), clock });
     router.use('/reviews', createReviewRouter({ service: reviews, sessionService, clock }));
   }
-  return { router };
+  return { router, webPush: config.webPush ? webPush : null };
 }

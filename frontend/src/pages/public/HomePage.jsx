@@ -109,18 +109,11 @@ export function HomePage({ loadCatalog = loadPublicCatalog, productApi }) {
         <div className="pwc-design-hero">
           <div className="pwc-design-hero-copy">
             <h1 id="pwc-home-title">
-              Chăm pet
-              <br />
-              tận nhà,
-              <br />
-              pet khỏe
-              <br />
-              sen vui.
+              <span>Chăm pet tận nhà,</span>{' '}
+              <span>pet khỏe sen vui.</span>
             </h1>
             <p>
-              Đặt lịch dắt chó đi dạo, ghé thăm và chơi cùng bé, hoặc đưa bé đến
-              lịch hẹn thú y. Chọn thêm thức ăn và đồ dùng cho bé — cùng một nơi,
-              linh hoạt theo thời gian của bạn.
+              Đặt lịch chăm sóc tại nhà, dắt chó đi dạo và mua đồ dùng cho bé.
             </p>
             <div className="pwc-design-actions">
               <Link className="pwc-design-button" to="/sign-in">

@@ -21,6 +21,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('message', (event) => {
   if (event.data === 'PWC_ACTIVATE_UPDATE') event.waitUntil(self.skipWaiting());
+  if (event.data === 'PWC_PUSH_READY') event.ports[0]?.postMessage('PWC_PUSH_READY');
 });
 
 self.addEventListener('fetch', (event) => {
@@ -33,4 +34,24 @@ self.addEventListener('fetch', (event) => {
     const cache = await caches.open(cacheName);
     return (await cache.match(offlinePath)) ?? Response.error();
   }));
+});
+
+
+self.addEventListener('push', (event) => {
+  event.waitUntil(self.registration.showNotification('Paw World Care', {
+    body: 'Bạn có thông báo mới. Mở ứng dụng để xem.',
+    icon: '/pwa/icon-192.png',
+    tag: 'pwc-notifications'
+  }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const target = new URL('/account/notifications', self.location.origin).href;
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const open = clients.find(client => client.url === target);
+    if (open) await open.focus();
+    else await self.clients.openWindow(target);
+  })());
 });

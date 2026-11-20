@@ -41,7 +41,16 @@ export function identityModels(connection) {
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
   otpThrottleSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
+  const webPushSchema = new Schema({
+    endpoint: String,
+    keys: { p256dh: String, auth: String },
+    endpointDigest: String,
+    subscriptionId: String,
+    since: Date,
+    nextAt: Date
+  }, { _id: false, strict: 'throw' });
   const sessionSchema = new Schema({
+    webPush: { type: webPushSchema, select: false },
     sessionId: { type: String, required: true },
     userId: { type: Schema.Types.ObjectId, required: true },
     tokenDigest: { type: String, required: true, select: false },
@@ -52,6 +61,14 @@ export function identityModels(connection) {
   }, { timestamps: true, versionKey: false, strict: 'throw', bufferCommands: false });
   sessionSchema.index({ sessionId: 1 }, { unique: true });
   sessionSchema.index({ tokenDigest: 1 }, { unique: true });
+  sessionSchema.index({ 'webPush.endpointDigest': 1 }, {
+    name: 'auth_session_push_endpoint', unique: true,
+    partialFilterExpression: { 'webPush.endpointDigest': { $exists: true } }
+  });
+  sessionSchema.index({ 'webPush.nextAt': 1 }, {
+    name: 'auth_session_push_due',
+    partialFilterExpression: { revokedAt: null, 'webPush.nextAt': { $exists: true } }
+  });
   // TTL is cleanup only; authenticate() always checks expiresAt and revokedAt.
   sessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 

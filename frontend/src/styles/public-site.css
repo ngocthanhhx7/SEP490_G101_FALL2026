@@ -144,7 +144,7 @@
  .pwc-public-root .pwc-public-footer-inner { width: calc(100% - 80px); }
  .pwc-design-service-card strong { font-size: 20px; }
 }
-.pwc-public-navigation .pwc-mobile-install-link { display: none; }
+.pwc-public-navigation .pwc-mobile-install-link, .pwc-mobile-auth { display: none; }
 
 @media (max-width: 1000px) {
  .pwc-public-navigation .pwc-mobile-install-link { display: inline-flex; align-items: center; min-height: 44px; }
@@ -178,26 +178,27 @@
  .pwc-footer-bottom { flex-direction: column; align-items: flex-start; }
 }
 @media (max-width: 640px) {
- .pwc-public-root .pwc-public-header-inner { padding: 12px 16px; gap: 8px; flex-wrap: wrap; min-height: 72px; }
- .pwc-public-root .pwc-public-brand img { width: 160px; }
- .pwc-public-root .pwc-menu-toggle { font-size: 12px; padding: 8px 12px; }
- .pwc-header-actions { gap: 6px; }
- .pwc-auth-login, .pwc-auth-register { font-size: 12px; padding: 7px 10px; min-height: 38px; }
- .pwc-header-actions { order: 4; width: 100%; justify-content: flex-end; }
+ .pwc-public-root .pwc-public-header-inner { padding: 6px 10px; gap: 0; min-height: 56px; }
+ .pwc-public-root .pwc-menu-toggle { margin: 0; padding: 0; width: 44px; min-height: 44px; align-items: center; justify-content: center; border: 0; color: var(--public-purple); }
+ .pwc-header-actions { gap: 0; }
+ .pwc-header-actions > .pwc-auth-login, .pwc-header-actions > .pwc-auth-register,
+ .pwc-header-actions--signed-in .pwc-search-toggle { display: none; }
+ .pwc-mobile-auth { display: flex; flex-wrap: wrap; gap: 8px; }
+ .pwc-mobile-auth a { min-height: 44px; text-transform: none; letter-spacing: normal; }
  .pwc-header-session-pending { width: auto; }
  .pwc-search-toggle { padding: 10px; }
- .pwc-public-root .pwc-menu-toggle { margin-left: auto; }
  .pwc-header-search { flex-wrap: wrap; padding: 16px; gap: 10px; }
  .pwc-header-search label { width: 100%; }
  .pwc-header-search button { padding: 10px; }
- .pwc-design-hero-wrap { padding: 20px 16px 32px; }
- .pwc-design-hero { grid-template-columns: 1fr; padding: 30px 24px 48px; gap: 44px; border-radius: 28px; }
- .pwc-design-hero h1 { font-size: 64px; line-height: 68px; letter-spacing: -2px; }
- .pwc-design-hero-copy > p { font-size: 16px; line-height: 25px; margin-top: 24px; }
- .pwc-design-actions { gap: 10px; margin-top: 24px; }
- .pwc-design-button { min-width: 0; font-size: 14px; padding: 10px 16px; min-height: 48px; }
+ .pwc-design-hero-wrap { padding: 12px 12px 28px; }
+ .pwc-design-hero { grid-template-columns: minmax(0, 1fr); padding: 20px 16px 28px; gap: 20px; border-radius: 22px; }
+ .pwc-design-hero h1 { font-size: clamp(27px, 8.4vw, 48px); line-height: 1.08; letter-spacing: -.055em; }
+ .pwc-design-hero h1 > span { display: block; }
+ .pwc-design-hero-copy > p { font-size: 15px; line-height: 1.45; margin-top: 12px; }
+ .pwc-design-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+ .pwc-design-button { min-width: 0; font-size: 13px; line-height: 1.25; padding: 8px; min-height: 44px; }
  .pwc-design-hero-art { width: calc(100% - 16px); margin: 0 auto; }
- .pwc-design-hero-frame { border-radius: 32px; border-width: 5px; padding: 4px; }
+ .pwc-design-hero-frame { aspect-ratio: 1.35; border-radius: 22px; border-width: 5px; padding: 4px; }
  .pwc-design-hero-art::before { border-radius: 36px; inset: -6px; }
  .pwc-design-hero-art figcaption { left: -16px; padding: 12px; bottom: -22px; }
  .pwc-design-hero-art figcaption > span { width: 36px; height: 36px; }
@@ -253,15 +254,13 @@
 .pwc-design-tape-left > span { position: absolute; inset: 0; mask-image: url('/assets/figma-public/home-Group2.svg'); mask-size: 49.3634px 201.751px; mask-position: 0 11.7px; mask-repeat: no-repeat; }
 .pwc-design-tape-left > span > img { position: absolute; left: 4.63px; top: 0; }
 @media (max-width: 1250px) { .pwc-public-root .pwc-public-brand span { font-size: 30px; } }
-@media (max-width: 640px) { .pwc-public-root .pwc-public-brand span { font-size: 28px; } }
+@media (max-width: 640px) {
+ .pwc-public-root .pwc-public-brand .pwc-site-brandmark { gap: 5px; }
+ .pwc-public-root .pwc-public-brand .pwc-site-brandmark__icon { width: 22px; }
+ .pwc-public-root .pwc-public-brand span { font-size: clamp(14px, 4.3vw, 22px); line-height: 1.1; }
+}
 
 .pwc-public-root .pwc-public-brand { text-decoration: none; }
-@media (max-width: 640px) { .pwc-design-hero h1 { font-size: clamp(48px, 16vw, 64px); line-height: 1.06; } }
-
-@media (max-width: 640px) { .pwc-design-hero h1 { font-size: clamp(42px, 14.5vw, 64px); white-space: nowrap; text-wrap: initial; } }
-
-@media (max-width: 640px) { .pwc-public-root .pwc-public-brand span { font-size: clamp(24px, 7vw, 28px); } }
-
 .pwc-home-design { color: #211a13; }
 .pwc-public-root .pwc-public-navigation a { color: #211a13; }
 .pwc-public-root .pwc-public-main:focus { outline: none; }
@@ -282,4 +281,3 @@
 }
 .pwc-public-root .pwc-public-brand .pwc-brand-care, .pwc-public-root .pwc-footer-wordmark .pwc-brand-care { color: #8b65a4; font: inherit; }
 .pwc-public-brand > span, .pwc-footer-wordmark { white-space: nowrap; }
-@media (max-width: 400px) { .pwc-public-root .pwc-public-brand > span { font-size: 22px; } .pwc-public-root .pwc-public-brand { gap: 8px; } }
