@@ -12,7 +12,7 @@ export function MobileSitterHome({ api = sitterDashboardApi }) {
   const visit = result.data?.items?.[0];
   const offers = result.data?.metrics?.find(metric => metric.key === 'pendingOffers')?.value;
   return <section className="pwc-mobile-screen">
-    <h1>Hôm nay</h1>
+    <h1 data-duplicate-title>Hôm nay</h1>
     {result.status === 'loading' && <p role="status">Đang tìm ca cần xem…</p>}
     {['error', 'pending', 'forbidden'].includes(result.status) &&
       <p role="alert">Chưa cập nhật được ca làm. <Button onClick={result.retry}>Thử lại</Button></p>}

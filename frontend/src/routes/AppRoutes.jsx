@@ -375,13 +375,15 @@ export function AppRoutes({
           <Route path="account" element={<AccountHome mobile={phoneApp} />} />
           <Route path="account/settings" element={<AccountSettingsPage />} />
           <Route path="account/notifications" element={<CustomerFeaturePage page="notifications" />} />
+          <Route element={<RequireSession roles={['CUSTOMER', 'PET_SITTER']} />}>
+            <Route path="account/profile" element={<CustomerProfilePage />} />
+          </Route>
         </Route>
       </Route>
       <Route element={<RequireSession roles={['CUSTOMER']} />}>
         <Route element={<Workspace role="CUSTOMER" />}>
           <Route path="customer" element={phoneApp ? <MobileCareHome /> : <CustomerDashboardPage />} />
           <Route path="sitters" element={<SitterListPage />} />
-          <Route path="account/profile" element={<CustomerProfilePage />} />
           <Route path="account/addresses" element={<CustomerCarePage kind="addresses" />} />
           <Route
             path="account/pets"

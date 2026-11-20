@@ -15,7 +15,8 @@ export function customerProfileModule({
   connection,
   contactCrypto,
   requireAuthenticated,
-  requireCsrf
+  requireCsrf,
+  clock
 } = {}) {
   if (
     !connection ||
@@ -29,30 +30,18 @@ export function customerProfileModule({
   }
   const User = userModel(connection);
   const { Contact } = identityModels(connection);
-  const profile = createCustomerProfileService({
-    User,
-    Contact,
-    contactCrypto
-  });
   const router = Router();
   router.use((_req, res, next) => {
     res.set('Cache-Control', 'private, no-store');
     next();
   });
-  const customerSession = [requireAuthenticated, requireRoles('CUSTOMER')];
-
-  router.get(
-    '/profile',
-    ...customerSession,
-    createCustomerProfileController({ profile }).getProfile
-  );
-
-  router.patch(
-    '/profile',
-    ...customerSession,
-    requireCsrf,
-    createCustomerProfileController({ profile }).updateProfile
-  );
+  for (const [path, role] of [['/profile', 'CUSTOMER'], ['/sitter-personal-profile', 'PET_SITTER']]) {
+    const profile = createCustomerProfileService({ User, Contact, contactCrypto, role, clock });
+    const controller = createCustomerProfileController({ profile });
+    const guard = [requireAuthenticated, requireRoles(role)];
+    router.get(path, ...guard, controller.getProfile);
+    router.patch(path, ...guard, requireCsrf, controller.updateProfile);
+  }
 
   return { name: 'customer-profile', mount: '/api/v1/me', router };
 }
@@ -76,6 +65,7 @@ export function customerProfileRuntimeModule({
       encryptionKey: config.auth.contactEncryptionKey
     }),
     requireAuthenticated: requireSession(sessionService, { clock }),
-    requireCsrf: csrfMiddleware(sessionService)
+    requireCsrf: csrfMiddleware(sessionService),
+    clock
   });
 }

@@ -21,7 +21,7 @@ export function SitterSchedulePage({ api = sitterDashboardApi }) {
     [api, day, cursor]);
   const result = useApiResource(load);
   return <section className="pwc-mobile-screen">
-    <h1>Ca làm</h1>
+    <h1 data-duplicate-title>Ca làm</h1>
     <label>Ngày xem (giờ Việt Nam) <input type="date" value={day} onChange={event => {
       if (event.target.value) setQuery({ day: event.target.value });
     }} /></label>

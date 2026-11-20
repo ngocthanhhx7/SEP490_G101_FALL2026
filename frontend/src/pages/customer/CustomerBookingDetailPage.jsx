@@ -84,6 +84,11 @@ function CustomerBookingDetail({ bookingId }) {
       <Button aria-label="Đổi giờ cho cả lịch đặt" onClick={() => openBookingChange()}>Đổi giờ</Button>
     </section>,
     beforeList: <>
+      {changeOptions.status === 'loading' && <p role="status">Đang kiểm tra điều kiện đổi giờ…</p>}
+      {['pending', 'error', 'forbidden'].includes(changeOptions.status) && <p role="alert">
+        Chưa kiểm tra được điều kiện đổi giờ. <Button onClick={changeOptions.retry}>Thử lại</Button>
+      </p>}
+      {options && !changeable.length && <p>Hiện không có buổi đủ điều kiện đổi giờ.</p>}
       {changeSent && <p className="booking-change-sent" role="status">{bookingChangeSent}</p>}
       <ComplaintListAction resource={eligibility} bookingId={bookingId} />
     </>,

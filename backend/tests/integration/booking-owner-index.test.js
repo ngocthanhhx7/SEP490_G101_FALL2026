@@ -84,6 +84,23 @@ test('legacy missing/null owners remain untouched; malformed owner types block p
   await expect(provisionBookingReadStorage({ connection, apply: true, expectedDigest: invalid.digest })).rejects.toThrow();
 });
 
+test('uses the current first visit without changing the original snapshot or reading unrelated visits', async () => {
+  const id = new mongoose.Types.ObjectId(), unrelated = new mongoose.Types.ObjectId();
+  const superseded = new mongoose.Types.ObjectId(), active = new mongoose.Types.ObjectId();
+  const original = new Date('2026-12-02T00:00:00Z'), moved = new Date('2026-12-02T03:00:00Z');
+  const bookings = connection.db.collection('bookings');
+  await bookings.insertOne({ _id: id, customerId: owner, state: 'ASSIGNED', visitIds: [superseded, unrelated, active],
+    checkoutSnapshot: { customerVisits: [{ startAt: original }] } });
+  await connection.db.collection('visits').insertMany([
+    { _id: superseded, bookingId: id, state: 'SUPERSEDED', startAt: original },
+    { _id: unrelated, bookingId: new mongoose.Types.ObjectId(), state: 'ASSIGNED', startAt: original },
+    { _id: active, bookingId: id, state: 'ASSIGNED', startAt: moved }
+  ]);
+  const service = createCustomerBookingsService({ connection, clock, cursorSecret: 'synthetic-booking-cursor-secret-at-least32', enabled: true });
+  expect((await service.list(actor(owner))).items[0]).toMatchObject({ firstVisitAt: moved, firstVisitSource: 'CURRENT' });
+  expect((await bookings.findOne({ _id: id })).checkoutSnapshot.customerVisits[0].startAt).toEqual(original);
+});
+
 test('foreign index conflicts are preserved and equivalent names do not create duplicates', async () => {
   const c = connection.db.collection('bookings');
   await c.createIndex({ customerId: 1 }, { name: BOOKING_OWNER_INDEX.name });

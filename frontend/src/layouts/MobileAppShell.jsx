@@ -16,40 +16,68 @@ const customer = [['home', 'Trang chủ', '/customer', House], service,
 const sitter = [['home', 'Hôm nay', '/sitter', House], ['schedule', 'Ca làm', '/sitter/schedule', CalendarDays],
   ['offers', 'Lời mời', '/sitter/invitations', ClipboardList], ['income', 'Thu nhập', '/sitter/payroll', Wallet], account];
 
+const backRoutes = {
+  M05: '/services', M09: '/account/pets', M12: '/account/bookings', M15: '/account/bookings',
+  M16: '/services', M20: '/sitter/payroll', M21: '/sitter/payroll', M22: '/sitter/schedule',
+  M23: '/sitter/payroll', M28: '/incidents', M29: '/account', M35: '/services', M36: '/services',
+  M37: '/services', M39: '/products', M40: '/products', M41: '/customer/cart', M44: '/sign-in',
+  M46: '/account', M49: '/policies', M50: '/policies', N02: '/sitter/schedule'
+};
+
+function notificationBack(from, role, lookupRoute) {
+  if (typeof from !== 'string' || !/^\/[a-z0-9/-]*(?:\?[^#]*)?$/i.test(from) || from.startsWith('//')) return false;
+  const target = lookupRoute?.(from.split('?')[0], role);
+  return target && target.id !== 'M03' && target.id !== 'M47' && target.kind !== 'task' && target.roles.includes(role);
+}
+
 function stableTab(route, role, source, tabs) {
   if (route?.id === 'M03') return tabs.some(([key]) => key === source) ? source : 'account';
   if (route?.tab === 'shop' && role === 'CUSTOMER') return 'account';
   return tabs.some(([key]) => key === route?.tab) ? route.tab : 'account';
 }
 
-export function MobileAppShell({ route, children }) {
+export function MobileAppShell({ route, children, lookupRoute }) {
   const session = useSession();
   const { unreadCount } = useNotifications();
-  const { pathname, hash, state } = useLocation();
+  const { pathname, search, hash, state } = useLocation();
   const navigationType = useNavigationType();
   const [incoming, setIncoming] = useState(null);
+  const [keyboard, setKeyboard] = useState(false);
   const enabled = Boolean(route);
   const role = primaryRole(session.user);
   const tabs = role === 'CUSTOMER' ? customer : role === 'PET_SITTER' ? sitter : guest;
   const active = stableTab(route, role, state?.mobileTab, tabs);
-  const parent = route?.id === 'M09' ? '/account/pets' : route?.id === 'M13' || route?.id === 'M14'
-    ? pathname.split('/').slice(0, 4).join('/') : route?.id === 'M49' || route?.id === 'M50' ? '/policies'
-      : route?.id === 'M41' ? '/customer/cart' : tabs.find(([key]) => key === active)?.[2] ?? '/';
-  const fallback = parent === pathname ? tabs[0][2] : parent;
+  const parent = ['M13', 'M14'].includes(route?.id) ? pathname.split('/').slice(0, 4).join('/')
+    : backRoutes[route?.id] ?? (role && route?.id !== 'M43' ? '/account' : '/');
+  const fallback = parent === pathname ? role === 'PET_SITTER' ? '/sitter' : role === 'CUSTOMER' ? '/customer' : '/' : parent;
   const source = state?.mobileBack;
   const fromSitterSchedule = route?.id === 'N02' && typeof source === 'string'
     && /^\/sitter(?:\/(?:schedule(?:\?[^#]*)?|invitations))?$/.test(source);
-  const fromCustomerAgenda = route?.id === 'M13' && typeof source === 'string'
+  const fromCustomerAgenda = ['M12', 'M13'].includes(route?.id) && typeof source === 'string'
     && /^\/account\/bookings(?:\?[^#]*)?$/.test(source);
   const fromOrderList = route?.id === 'M11' && typeof source === 'string'
     && /^\/customer\/product-orders(?:\?page=\d+)?$/.test(source);
-  const back = fromSitterSchedule || fromCustomerAgenda || fromOrderList ? source : fallback;
+  const orderQuery = new globalThis.URLSearchParams(search);
+  const orderPage = orderQuery.get('page');
+  const orderDetail = route?.id === 'M11' && /^[a-f0-9]{24}$/i.test(orderQuery.get('order') ?? '');
+  const fromNotificationLink = route?.id === 'M03' && notificationBack(source, role, lookupRoute);
+  const back = fromSitterSchedule || fromCustomerAgenda || fromOrderList || fromNotificationLink ? source
+    : orderDetail ? pathname + (/^[1-9]\d*$/.test(orderPage ?? '') ? '?page=' + orderPage : '') : fallback;
   const showTabs = enabled && route.kind !== 'task';
   const count = Number.isInteger(unreadCount) && unreadCount > 0 ? unreadCount : 0;
 
   useEffect(() => {
     if (enabled && !hash && navigationType !== 'POP') window.scrollTo(0, 0);
   }, [enabled, pathname, hash, navigationType]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!enabled || !viewport) return;
+    const update = () => setKeyboard(window.innerHeight - viewport.height > 120 && viewport.scale === 1);
+    update();
+    viewport.addEventListener('resize', update);
+    return () => viewport.removeEventListener('resize', update);
+  }, [enabled]);
 
   useEffect(() => {
     const workers = window.navigator.serviceWorker;
@@ -62,12 +90,12 @@ export function MobileAppShell({ route, children }) {
     return () => workers?.removeEventListener('message', accept);
   }, []);
 
-  return <div className={enabled ? 'pwc-phone-app' : 'pwc-phone-app-pass-through'} data-tabs={showTabs || undefined} data-route={route?.id}>
+  return <div className={enabled ? 'pwc-phone-app' : 'pwc-phone-app-pass-through'} data-tabs={showTabs || undefined} data-route={route?.id} data-keyboard={keyboard || undefined}>
     {enabled && <header className="pwc-mobile-header">
       {route.kind !== 'root' && <Link to={back} replace aria-label="Quay lại"><ArrowLeft aria-hidden="true" /></Link>}
       {route.id === 'M31' || route.id === 'M04' ? <SiteBrandMark /> : <strong>{route.title}</strong>}
       {role && route.id !== 'M03' && <Link className="pwc-mobile-header__bell" to="/account/notifications"
-        state={{ mobileTab: active }} aria-label={count ? `Thông báo, ${count} chưa đọc` : 'Thông báo'}>
+        state={{ mobileTab: active, mobileBack: pathname + search }} aria-label={count ? `Thông báo, ${count} chưa đọc` : 'Thông báo'}>
         <Bell aria-hidden="true" />{count > 0 && <span aria-hidden="true">{count > 99 ? '99+' : count}</span>}
       </Link>}
     </header>}
@@ -79,7 +107,7 @@ export function MobileAppShell({ route, children }) {
       <Link to={'/account/notifications' + incoming} onClick={() => setIncoming(null)}>Mở thông báo</Link>
       <button type="button" onClick={() => setIncoming(null)}>Để sau</button>
     </aside>}
-    {children}
+    {enabled ? <div className="pwc-phone-content">{children}</div> : children}
     {showTabs && <nav className="pwc-phone-tabs" aria-label="Điều hướng ứng dụng"
       style={{ '--pwc-tab-count': tabs.length }}>
       {tabs.map(([key, label, to, Icon]) => <Link key={key} to={to} aria-current={key === active ? 'page' : undefined}>

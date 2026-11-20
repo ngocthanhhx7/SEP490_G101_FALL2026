@@ -18,6 +18,7 @@ const SECRETS = {
 const sessions = new Map([
   ['customer-a', { userId: 'aaaaaaaaaaaaaaaaaaaaaaaa', sessionId: 'session-a', state: 'ACTIVE', roles: ['CUSTOMER'], expiresAt: Date.now() + 3_600_000 }],
   ['customer-b', { userId: 'bbbbbbbbbbbbbbbbbbbbbbbb', sessionId: 'session-b', state: 'ACTIVE', roles: ['CUSTOMER'], expiresAt: Date.now() + 3_600_000 }],
+  ['sitter', { userId: 'dddddddddddddddddddddddd', sessionId: 'session-sitter', state: 'ACTIVE', roles: ['PET_SITTER'], expiresAt: Date.now() + 3_600_000 }],
   ['staff', { userId: 'cccccccccccccccccccccccc', sessionId: 'session-staff', state: 'ACTIVE', roles: ['STAFF'], expiresAt: Date.now() + 3_600_000 }]
 ]);
 let replica, connection, User, models, contactCrypto, app;
@@ -72,6 +73,30 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P14 customer profile service against isolated MongoDB', () => {
+  test('preserves the legacy name, stores explicit personal fields and rejects a stale write', async () => {
+    const path = '/api/v1/me/profile';
+    const { data: initial } = (await request(app).get(path).set(customerRequest()).expect(200)).body;
+    expect(initial).toMatchObject({ displayName: 'Linh Customer', familyAndMiddleName: null, givenName: null, birthDate: null, gender: null });
+    const fields = { familyAndMiddleName: 'Nguyễn  Ngọc', givenName: 'An Nhiên', birthDate: '2000-02-29', gender: 'UNDISCLOSED', expectedVersion: 0 };
+    await request(app).patch(path).set(customerRequest()).send({ ...fields, birthDate: '2001-02-29' }).expect(422);
+    await request(app).patch(path).set(customerRequest()).send(fields).expect(200);
+    await request(app).patch(path).set(customerRequest()).send(fields).expect(409);
+    const { data } = (await request(app).get(path).set(customerRequest()).expect(200)).body;
+    expect(data).toMatchObject({ displayName: 'Nguyễn Ngọc An Nhiên', familyAndMiddleName: 'Nguyễn Ngọc', givenName: 'An Nhiên',
+      birthDate: '2000-02-29', gender: 'UNDISCLOSED', version: 1 });
+    await request(app).patch(path).set(customerRequest()).send({ birthDate: null, gender: null, expectedVersion: 1 }).expect(200);
+  });
+
+  test('uses a separate owner-only Pet Sitter profile capability', async () => {
+    await User.create({ _id: sessions.get('sitter').userId, displayName: 'Sitter demo', roles: ['PET_SITTER'], state: 'ACTIVE' });
+    const path = '/api/v1/me/sitter-personal-profile';
+    await request(app).get('/api/v1/me/profile').set(customerRequest('sitter')).expect(403);
+    await request(app).get(path).set(customerRequest()).expect(403);
+    await request(app).patch(path).set(customerRequest('staff')).send({ gender: 'OTHER', expectedVersion: 0 }).expect(403);
+    const { data } = (await request(app).patch(path).set(customerRequest('sitter'))
+      .send({ birthDate: '1998-07-03', expectedVersion: 0 }).expect(200)).body;
+    expect(data).toMatchObject({ displayName: 'Sitter demo', birthDate: '1998-07-03', version: 1 });
+  });
   test('returns only the authenticated customer projection and masks verified contacts', async () => {
     const response = await request(app).get('/api/v1/me/profile').set(customerRequest()).expect(200);
     expect(response.body.data).toMatchObject({
