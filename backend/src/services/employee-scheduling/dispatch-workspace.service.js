@@ -1,3 +1,5 @@
+import { dispatchVisitPresentation } from './dispatch-visit-presentation.js';
+
 // Read-only operational projection. It never assigns visits or creates check-in evidence.
 export function createDispatchWorkspaceService({ col, clock }) {
   const names = [
@@ -13,7 +15,7 @@ export function createDispatchWorkspaceService({ col, clock }) {
       const [result] = await col('visits')
         .aggregate(
           [
-            { $match: { startAt: { $gte: start, $lt: end } } },
+            { $match: { startAt: { $gte: start, $lt: end }, state: { $ne: 'SUPERSEDED' } } },
             {
               $facet: {
                 summary: [
@@ -53,10 +55,14 @@ export function createDispatchWorkspaceService({ col, clock }) {
                       endAt: 1,
                       state: 1,
                       areaCode: 1,
+                      location: 1,
+                      sitterId: 1,
                       checkInAt: 1,
                       checkOutAt: 1,
                       'snapshots.serviceName': 1,
+                      'snapshots.serviceScope': 1,
                       'snapshots.pets.name': 1,
+                      'dispatchReview.code': 1,
                       customerName: { $arrayElemAt: ['$customer.displayName', 0] },
                       sitterName: { $arrayElemAt: ['$sitter.displayName', 0] },
                     },
@@ -78,8 +84,9 @@ export function createDispatchWorkspaceService({ col, clock }) {
           .map((r) => ({
             id: String(r._id),
             bookingId: String(r.bookingId),
-            serviceName: r.snapshots?.serviceName ?? 'Chăm sóc thú cưng',
-          petNames: (r.snapshots?.pets ?? []).map(pet => pet.name).filter(name => typeof name === 'string').slice(0,10),
+            ...dispatchVisitPresentation(r),
+            unassignedOverdue: r.state === 'SCHEDULED' && !r.sitterId && r.startAt <= now,
+            reviewCode: r.dispatchReview?.code ?? null,
             startAt: r.startAt,
             endAt: r.endAt,
             state: r.state,

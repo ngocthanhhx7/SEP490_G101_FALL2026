@@ -13,6 +13,7 @@ import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPa
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import { VisitBoard } from './visit-board/VisitBoard.jsx';
+import { VisitBoardCustomer, VisitBoardStatus, VisitBoardSummary } from './visit-board/VisitBoardCells.jsx';
 import { StaffBookingChangeRequests } from './booking-change/StaffBookingChangeRequests.jsx';
 import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import '../../styles/employee-scheduling.css';
@@ -25,15 +26,6 @@ const time = (value) =>
     hour: '2-digit',
     minute: '2-digit',
   });
-const visitLabel = {
-  SCHEDULED: 'Chờ phân công',
-  ASSIGNED: 'Đã nhận',
-  IN_PROGRESS: 'Đang chăm sóc',
-  COMPLETED: 'Đã xong',
-  CANCELLED: 'Đã hủy',
-  STAFF_CLOSED: 'Đã đóng',
-};
-const visitTitle = row => `${row.serviceName || 'Ca chăm sóc'}${row.petNames?.length ? ' cho ' + row.petNames.join(', ') : ''}`;
 const short = (id) => (id ? '…' + id.slice(-6) : '—');
 const reviewLabel = (code) =>
   ({
@@ -70,7 +62,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
     active = selectedDetails.data?.id === selected ? selectedDetails.data : rows.find((row) => row.id === selected),
     legacyRows = rows.filter((row) => !board.ids.has(row.id)),
     today = queue.data?.today;
-  const area = (code) => queue.data?.workAreas?.find((a) => a.code === code)?.label ?? code ?? '—';
+  const area = (code) => queue.data?.workAreas?.find((a) => a.code === code)?.label ?? 'Chưa rõ khu vực';
   const action = (row) =>
     row.pendingInvitation
       ? 'Đang chờ phản hồi'
@@ -165,15 +157,8 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           columns={[
             {
               key: 'visit',
-              label: 'Buổi',
-              render: (r) => (
-                <>
-                  <strong>{visitTitle(r)}</strong>
-                  <small>
-                    {time(r.startAt)} – {time(r.endAt)}
-                  </small>
-                </>
-              ),
+              label: 'Buổi chăm sóc',
+              render: (r) => <VisitBoardSummary row={r} />,
             },
             { key: 'customerName', label: 'Khách hàng', render: (r) => r.customerName ?? 'Chưa có tên' },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
@@ -227,49 +212,22 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
             </p>
           </div>
         </header>
-        <OperationsTable
+        <div className="visit-board"><OperationsTable
           label="Buổi chăm sóc hôm nay"
           rows={today?.items ?? []}
           empty={today ? 'Chưa có buổi chăm sóc hôm nay.' : 'Chưa có số liệu hôm nay.'}
           columns={[
-            {
-              key: 'time',
-              label: 'Giờ',
-              render: (r) => (
-                <>
-                  {time(r.startAt)}
-                  <small>Đến {time(r.endAt)}</small>
-                </>
-              ),
-            },
-            {
-              key: 'booking',
-              label: 'Lịch đặt',
-              render: (r) => <span>{visitTitle(r)}</span>,
-            },
+            { key: 'visit', label: 'Buổi chăm sóc', render: (r) => <VisitBoardSummary row={r} /> },
+            { key: 'customer', label: 'Khách hàng', render: (r) => <VisitBoardCustomer row={r} /> },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
             { key: 'sitterName', label: 'Người chăm sóc', render: (r) => r.sitterName ?? 'Chưa phân công' },
             {
               key: 'state',
               label: 'Trạng thái',
-              render: (r) => (
-                <OperationsBadge
-                  tone={
-                    r.late
-                      ? 'danger'
-                      : r.state === 'COMPLETED'
-                        ? 'success'
-                        : r.state === 'IN_PROGRESS'
-                          ? 'info'
-                          : 'neutral'
-                  }
-                >
-                  {r.late ? 'Chưa check-in, cần kiểm tra' : (visitLabel[r.state] ?? 'Cần đối chiếu')}
-                </OperationsBadge>
-              ),
+              render: (r) => r.late ? <OperationsBadge tone="danger">Chưa check-in, cần kiểm tra</OperationsBadge> : <VisitBoardStatus row={r} />,
             },
           ]}
-        />
+        /></div>
         {today?.hasMore && (
           <p className="ops-muted">
             Đang hiển thị 50 buổi đầu tiên trên tổng {today.summary.total} buổi. Báo cáo phía trên tính toàn
@@ -285,7 +243,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           dismissible={!command.busy && !command.pending}
           onClose={() => setSelected(null)}
         >
-          <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceName}</h3>
+          <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceDisplayName || active.serviceName || 'Chưa rõ dịch vụ'}</h3>
           <p>
             {time(active.startAt)} – {time(active.endAt)} · {area(active.areaCode)}
           </p>

@@ -1,3 +1,4 @@
+import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { Types } from 'mongoose';
 import { readDirectedSitterPage } from './directed-sitter-directory.service.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
@@ -26,7 +27,10 @@ export function createCheckoutAvailabilityService({ connection, repository, cloc
       exact(body, ['quoteId', 'visit', 'directory', 'page'], ['quoteId', 'visit']);
       if ((body.directory !== undefined && body.directory !== true) || (body.page !== undefined && body.directory !== true)) fail('VALIDATION_FAILED', 'Invalid directory request');
       const input = bookingCheckoutInput({ quoteId: body.quoteId, visits: [body.visit], acceptServicePolicies: true }), row = input.visits[0];
-      const quote = await DecisionSnapshot.findOne({ _id: input.quoteId, ownerId: actor.userId, kind: 'QUOTE', expiresAt: { $gt: new Date(clock()) } }).select('+snapshot').lean();
+      const at = clock();
+      if (row.location === 'HOME' && row.startAt.getTime() < at + HOME_BOOKING_NOTICE_MS)
+        fail('HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance');
+      const quote = await DecisionSnapshot.findOne({ _id: input.quoteId, ownerId: actor.userId, kind: 'QUOTE', expiresAt: { $gt: new Date(at) } }).select('+snapshot').lean();
       if (!quote) fail('RESOURCE_NOT_FOUND', 'Current owned quote required', 404);
       const raw = quote.snapshot.input?.items?.[row.itemIndex];
       if (!raw) fail('VALIDATION_FAILED', 'Quoted item required');

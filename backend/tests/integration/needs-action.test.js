@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { createNeedsActionService } from '../../src/services/employee-scheduling/needs-action.service.js';
 import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
 import { employeeSchedulingModels } from '../../src/models/employee-scheduling.model.js';
+import { demoServiceCatalog } from '../../src/constants/demo-service-catalog.js';
 
 const oid = () => new mongoose.Types.ObjectId();
 const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
@@ -48,6 +49,18 @@ beforeEach(async () => {
 });
 
 describe('Needs action reasons (R3 10.1.1)', () => {
+  test('board returns booked service presentation and pet names on both tabs without full pet records', async () => {
+    const { visitId } = await seed({ start: NOW + HOUR });
+    const home = demoServiceCatalog.find(service => service.code === 'home-care');
+    await col('visits').updateOne({ _id: new mongoose.Types.ObjectId(visitId) }, { $set: { location: 'HOME',
+      snapshots: { serviceName: home.name, serviceScope: home.scope, pets: [{ name: 'Bơ', traits: ['private'] }] } } });
+    for (const tab of ['needs-action', 'all']) {
+      const [item] = (await list({ tab })).items;
+      expect(item).toMatchObject({ id: visitId, serviceName: home.name, serviceDisplayName: 'Chăm sóc sinh hoạt thú cưng',
+        petNames: ['Bơ'], location: 'HOME' });
+      expect(item).not.toHaveProperty('snapshots');
+    }
+  });
   test('Staff-closed visits remain actionable until verification and financial reconciliation are resolved', async () => {
     const pending = await seed({ state: 'STAFF_CLOSED', sitter: sitterUser, start: NOW - 4 * HOUR, checkIn: true });
     const financial = await seed({ state: 'STAFF_CLOSED', sitter: sitterUser, start: NOW - 3 * HOUR, checkIn: true });

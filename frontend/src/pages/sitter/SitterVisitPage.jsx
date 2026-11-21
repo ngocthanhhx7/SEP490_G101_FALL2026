@@ -28,7 +28,7 @@ export function SitterVisitPage({ api, visitId }) {
     {row.serviceAddress && <p>{row.serviceAddress}</p>}
     {directions && <a href={directions} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
     {['ASSIGNED','IN_PROGRESS'].includes(row.state) && <AssignedCare api={api} visitId={visitId} />}
-    <VisitTravel api={api} visitId={visitId} employee startAt={row.startAt} endAt={row.endAt} />
+    {row.state === 'ASSIGNED' && <VisitTravel api={api} visitId={visitId} employee startAt={row.startAt} endAt={row.endAt} />}
     <VisitExecution api={api} visitId={visitId} onChanged={visit.retry} />
     {row.state === 'ASSIGNED' && <Button variant="secondary" onClick={() => setWithdrawal(true)}>Kiểm tra điều kiện rút khỏi buổi</Button>}
     {withdrawal && <VisitWithdrawalDialog visitId={visitId} api={api} onClose={() => setWithdrawal(false)}
