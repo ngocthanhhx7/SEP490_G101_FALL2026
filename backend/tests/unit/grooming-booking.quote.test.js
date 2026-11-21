@@ -9,7 +9,7 @@ describe('GRM-CTL-03 - quote', () => {
   afterEach(() => jest.useRealTimers());
   const cases = [
     ["UTCID01", "N", "maps request and preserves service DTO", {}],
-    ["UTCID02", "B", "preserves empty result collection or zero quote unchanged", {"data": {"currency": "VND", "pets": [], "subtotalVnd": 0, "totalVnd": 0}}],
+    ["UTCID02", "B", "preserves empty pet quote and zero totals unchanged", {"data": {"currency": "VND", "pets": [], "subtotalVnd": 0, "totalVnd": 0}}],
     ["UTCID03", "A", "preserves null service result", {"data": null}],
     ["UTCID04", "A", "preserves undefined service result at json boundary", {"noData": true}],
     ["UTCID05", "A", "passes missing auth and propagates service forbidden error", {"noAuth": true, "error": [403, "FORBIDDEN", "Customer required"]}],

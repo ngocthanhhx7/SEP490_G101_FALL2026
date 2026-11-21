@@ -9,7 +9,7 @@ describe('GRM-CTL-02 - slots', () => {
   afterEach(() => jest.useRealTimers());
   const cases = [
     ["UTCID01", "N", "maps request and preserves service DTO", {}],
-    ["UTCID02", "B", "preserves empty result collection or zero quote unchanged", {"data": {"date": "2026-11-19", "slots": []}}],
+    ["UTCID02", "B", "preserves empty slots unchanged", {"data": {"date": "2026-11-19", "slots": []}}],
     ["UTCID03", "A", "preserves null service result", {"data": null}],
     ["UTCID04", "A", "preserves undefined service result at json boundary", {"noData": true}],
     ["UTCID05", "A", "passes missing auth and propagates service forbidden error", {"noAuth": true, "error": [403, "FORBIDDEN", "Customer required"]}],
