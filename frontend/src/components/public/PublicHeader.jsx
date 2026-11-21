@@ -37,7 +37,7 @@ export function PublicHeader({ notificationTo } = {}) {
 
   return <header className="pwc-public-header">
     <div className="pwc-public-header-inner">
-      <Link className="pwc-public-brand" to="/" onClick={closeMenu} aria-label="Paw World Care — Trang chủ">
+      <Link className="pwc-public-brand" to="/" onClick={closeMenu} aria-label="PawWorldCare — Trang chủ">
         <SiteBrandMark />
       </Link>
       <button

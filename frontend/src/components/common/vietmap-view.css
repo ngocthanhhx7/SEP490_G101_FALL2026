@@ -2,3 +2,8 @@
 .pwc-vietmap__canvas { width: 100%; height: 320px; max-height: 50vh; min-height: 220px; overflow: hidden; border: 1px solid #d8dfe0; border-radius: 4px; }
 .pwc-vietmap__canvas canvas { max-width: 100%; }
 .pwc-vietmap p { margin: 8px 0; font-size: 14px; }
+
+.pwc-vietmap[data-failed] .pwc-vietmap__canvas { min-height: 0; height: 0; border: 0; }
+.pwc-vietmap__status { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; padding: .75rem; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); }
+.pwc-vietmap__status p { margin: 0; }
+.pwc-vietmap__status button { min-height: 48px; }

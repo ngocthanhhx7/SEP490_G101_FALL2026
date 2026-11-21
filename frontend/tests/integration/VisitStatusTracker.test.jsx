@@ -58,6 +58,16 @@ function show(getTracker, getPhoto) {
 }
 const reads = () => globalThis.fetch.mock.calls.filter(([url]) => url === tracker).length;
 
+test('the customer can expand the assigned sitter published introduction inside the visit', async () => {
+  show(() => ({ ...active, sitter: { ...active.sitter, profile: { bio: 'Giới thiệu đã duyệt', areas: ['Hà Nội'] } },
+    actions: { ...active.actions, profile: true } }));
+  const toggle = await screen.findByText('Xem hồ sơ người chăm sóc');
+  fireEvent.click(toggle);
+  expect(toggle.closest('details')).toHaveAttribute('open');
+  expect(screen.getByText('Giới thiệu đã duyệt')).toBeVisible();
+  expect(screen.getByText('Hà Nội')).toBeVisible();
+});
+
 test('exposes the journey only when the owner tracker returns the travel capability', async () => {
   show(() => ({ ...active, actions: { ...active.actions, travel: true } }));
   expect(await screen.findByText('Hành trình đến điểm chăm sóc')).toBeVisible();

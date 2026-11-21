@@ -124,7 +124,8 @@ function Tracker({ bookingId, visitId }) {
   const petDetails = visit.pets.map(pet => pet.breed ? pet.name + ' (' + pet.breed + ')' : pet.name).join(', ');
   const start = visit.startAt && new Date(visit.startAt);
   const date = start ? weekday.format(start) + ', ' + fullDay.format(start) : null;
-  const caption = [visit.serviceName, date, range, petNames].filter(Boolean).join(' · ');
+  const serviceName = visit.serviceDisplayName || visit.serviceName;
+  const caption = [serviceName, date, range, petNames].filter(Boolean).join(' · ');
   const cancelled = visit.status === 'CANCELLED';
   return <div className="visit-tracker">
     <Link className="visit-tracker-back" data-page-back to={back}><ArrowLeft size={18} />Quay lại Lịch đặt{booking.code && ' ' + booking.code}</Link>
@@ -144,7 +145,7 @@ function Tracker({ bookingId, visitId }) {
         {Array.isArray(careUpdates) && <CareUpdates tasks={careUpdates} startAt={visit.startAt} />}
         <Panel title="Thông tin buổi">
           <dl className="visit-tracker-facts">
-            <div><dt>Dịch vụ</dt><dd>{[visit.serviceName, visit.durationMinutes && visit.durationMinutes + ' phút'].filter(Boolean).join(', ') || '—'}</dd></div>
+            <div><dt>Dịch vụ</dt><dd>{[serviceName, visit.durationMinutes && visit.durationMinutes + ' phút'].filter(Boolean).join(', ') || '—'}</dd></div>
             <div><dt>Thú cưng</dt><dd>{petDetails || '—'}</dd></div>
             <div><dt>Địa chỉ</dt><dd>{visit.address || '—'}</dd></div>
             <div><dt>Giờ chăm sóc</dt><dd>{range}</dd></div>
@@ -157,8 +158,14 @@ function Tracker({ bookingId, visitId }) {
           <div className="visit-tracker-person">
             <span aria-hidden="true">{sitter.name.trim().split(/\s+/u).filter((_, index, words) => index === 0 || index === words.length - 1).map(word => word[0]).join('').toUpperCase()}</span>
             <div><strong>{sitter.name}</strong>
-              <p>{Number.isFinite(sitter.rating) ? '★ ' + ratingFormat.format(sitter.rating) + ' trên 5' : 'Chưa có đánh giá'}</p></div>
+              <p>{Number.isFinite(sitter.rating) ? '★ ' + ratingFormat.format(sitter.rating) + ' trên 5' : 'Chưa có đánh giá'}
+                {sitter.reviewCount > 0 && ' · ' + sitter.reviewCount + ' đánh giá'}</p></div>
           </div>
+          {actions.profile && sitter.profile?.bio && <details>
+            <summary>Xem hồ sơ người chăm sóc</summary>
+            <p>{sitter.profile.bio}</p>
+            {sitter.profile.areas?.length > 0 && <p><strong>Khu vực giới thiệu:</strong> {sitter.profile.areas.join(', ')}</p>}
+          </details>}
         </Panel>}
         {actions.travel === true && <VisitTravel api={travelApi} visitId={visit.id} available />}
         {actions.careReport && <Panel title="Thao tác"><ReportAction bookingId={booking.id} visitId={visit.id} /></Panel>}

@@ -1,18 +1,21 @@
 import { Link } from 'react-router-dom';
 import { CursorPagination } from '../../components/ui/Pagination.jsx';
 import { useCallback, useState } from 'react';
-import { Check, RefreshCw, X } from 'lucide-react';
+import { CalendarDays, Check, ChevronRight, ClipboardList, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { OperationsTable, OperationsBadge } from '../../components/common/OperationsWorkspace.jsx';
 import { googleMapsDirections } from '../../utils/maps.js';
+import { sitterAreaLabel } from '../../utils/sitter-area-label.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { AssignedCare } from './AssignedCare.jsx';
 import { VisitWithdrawalDialog } from './VisitWithdrawalDialog.jsx';
 import { VISIT_WITHDRAWAL_MESSAGES } from '../../constants/visit-withdrawal-messages.js';
 import { VisitExecution } from './VisitExecution.jsx';
+import { CompactEmpty, CompactRow } from '../../components/common/CompactSurface.jsx';
 import '../../styles/employee-scheduling.css';
+import './sitter-workspace.css';
 const time = value => new Date(value).toLocaleString('vi-VN', {
   timeZone: 'Asia/Ho_Chi_Minh',
   day: '2-digit',
@@ -102,10 +105,18 @@ export function EmployeeInvitationsPage({
     setSelected(null);
   }
   function pager(data, pages, setPages, label) {
-    return <CursorPagination page={pages.length + 1} label={label} hasNext onFirst={() => setPages([])} onPrevious={() => setPages(rows => rows.slice(0, -1))} onNext={() => setPages(rows => [...rows, data.data.nextCursor])} previousDisabled={!pages.length || data.status === 'loading'} nextDisabled={!data.data?.nextCursor || data.status !== 'success'} previousLabel={'Trang ' + label + ' trước'} nextLabel={'Trang ' + label + ' sau'} />;
+    if (!pages.length && !data.data?.nextCursor) return null;
+    return <CursorPagination page={pages.length + 1} label={label} hasNext={Boolean(data.data?.nextCursor)} onFirst={() => setPages([])} onPrevious={() => setPages(rows => rows.slice(0, -1))} onNext={() => setPages(rows => [...rows, data.data.nextCursor])} previousDisabled={!pages.length || data.status === 'loading'} nextDisabled={!data.data?.nextCursor || data.status !== 'success'} previousLabel={'Trang ' + label + ' trước'} nextLabel={'Trang ' + label + ' sau'} />;
   }
   function offerActions(row) {
-    return row.state === 'PENDING' && row.canRespond ? <div className="employee-scheduling__actions"><Button disabled={locked} onClick={() => command.execute(key => acceptOffer(row, key))}><Check size={16} />Nhận việc</Button><Button variant="secondary" disabled={locked} onClick={() => command.execute(key => api.respond(row.id, 'declines', row.version, key))}><X size={16} />Từ chối</Button></div> : null;
+    if (row.state !== 'PENDING' || !row.canRespond) return null;
+    return <div className="sitter-offer-actions">
+      <Button className="sitter-offer-actions__accept" disabled={locked} onClick={() => command.execute(key => acceptOffer(row, key))}>
+        <Check size={18} aria-hidden="true" />Nhận việc
+      </Button>
+      <Button variant="secondary" className="sitter-offer-actions__decline" disabled={locked}
+        onClick={() => command.execute(key => api.respond(row.id, 'declines', row.version, key))}>Từ chối</Button>
+    </div>;
   }
   const baseColumns = [{
     key: 'service',
@@ -118,7 +129,7 @@ export function EmployeeInvitationsPage({
   }, {
     key: 'area',
     label: 'Khu vực',
-    render: row => row.areaLabel ?? row.areaCode
+    render: sitterAreaLabel
   }, {
     key: 'state',
     label: 'Trạng thái',
@@ -127,37 +138,43 @@ export function EmployeeInvitationsPage({
   const offerRows = (resource.data?.items ?? []).filter(row => row.state === 'PENDING');
   const active = selected?.kind === 'linkedOffer' ? linkedOffer.data ?? null : selected?.kind === 'linked' ? linked.data ? { ...linked.data, id: linked.data.visitId } : null
     : (selected && (selected.kind === 'assignment' ? assignments.data?.items : selected.kind === 'history' ? history.data?.items : resource.data?.items)?.find(row => row.id === selected.row.id)) ?? selected?.row;
-  return <section className="employee-scheduling employee-invitations">
+  return <section className="employee-scheduling employee-invitations sitter-workspace">
     {selected?.kind === 'linked' && linked.status === 'loading' && <p role="status">Đang mở buổi từ thông báo…</p>}
     {selected?.kind === 'linked' && ['error', 'forbidden'].includes(linked.status) && <p role="alert">Không thể mở buổi từ thông báo. <Button onClick={linked.retry}>Thử lại</Button></p>}
     {selected?.kind === 'linkedOffer' && linkedOffer.status === 'loading' && <p role="status">Đang tải lời mời…</p>}
     {selected?.kind === 'linkedOffer' && ['error','forbidden','empty'].includes(linkedOffer.status) &&
       <p role="alert">Không tìm được lời mời này. <Button onClick={linkedOffer.retry}>Thử lại</Button> <Button onClick={onCloseOffer}>Xem danh sách</Button></p>}
-    <header><div><h1>Lời mời và ca chăm sóc</h1><p>Phản hồi lời mời, theo dõi ca đã nhận và mở chi tiết khi cần thực hiện.</p></div><Button variant="ghost" aria-label="Tải lại lời mời" onClick={() => {
+    <header><div><h1 data-duplicate-title>Lời mời nhận việc</h1><p>Xem ca và hạn phản hồi trước khi nhận việc.</p></div><Button variant="ghost" aria-label="Tải lại lời mời" className="sitter-workspace__refresh" onClick={() => {
         resource.retry();
         assignments.retry();
         if (historyOpen) history.retry();
-      }}><RefreshCw size={18} /></Button></header>
+      }}><RefreshCw size={18} aria-hidden="true" /><span>Tải lại</span></Button></header>
     {command.message && <p role="status">{command.message}</p>}{command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại yêu cầu</Button>}
     <h2>Lời mời đang chờ</h2><ListStatus resource={resource} name="lời mời" />
-    {['success', 'empty'].includes(resource.status) && <OperationsTable label="Lời mời đang chờ" rows={offerRows} empty="Chưa có lời mời đang chờ phản hồi." columns={[...baseColumns, {
+    {['success', 'empty'].includes(resource.status) && !offerRows.length && <CompactEmpty icon={ClipboardList} title="Chưa có lời mời đang chờ">
+      Lời mời mới sẽ xuất hiện ở đây khi bạn được mời nhận ca.
+    </CompactEmpty>}
+    {resource.status === 'success' && offerRows.length > 0 && <OperationsTable label="Lời mời đang chờ" rows={offerRows} empty="Chưa có lời mời đang chờ phản hồi." columns={[...baseColumns, {
       key: 'deadline',
       label: 'Hạn phản hồi',
       render: row => time(row.deadline)
     }, {
       key: 'actions',
       label: 'Thao tác',
-      render: row => <><Button variant="secondary" onClick={() => setSelected({
-          kind: 'offer',
-          row
-        })}>Xem chi tiết</Button>{offerActions(row)}</>
+      render: row => <div className="sitter-offer-card__controls">
+        <Button variant="ghost" className="sitter-offer-card__details" onClick={() => setSelected({ kind: 'offer', row })}>
+          Xem chi tiết <ChevronRight size={17} aria-hidden="true" />
+        </Button>
+        {offerActions(row)}
+      </div>
     }]} />}
     {pager(resource, offerPages, setOfferPages, 'lời mời')}
-    <h2>Ca đã nhận</h2><Link to="/sitter/schedule">Xem lịch ca làm</Link>{withdrawalResult && <p role="status">{withdrawalResult}</p>}<ListStatus resource={assignments} name="ca đã nhận" />
-    {['success', 'empty'].includes(assignments.status) && <OperationsTable label="Ca đã nhận" rows={assignments.data?.items ?? []} empty="Chưa có ca đã nhận." columns={[...baseColumns, {
+    <h2>Ca đã nhận</h2><CompactRow icon={CalendarDays} to="/sitter/schedule">Xem lịch ca làm</CompactRow>{withdrawalResult && <p role="status">{withdrawalResult}</p>}<ListStatus resource={assignments} name="ca đã nhận" />
+    {['success', 'empty'].includes(assignments.status) && !assignments.data?.items?.length && <p className="sitter-workspace__empty-note">Chưa có ca đã nhận.</p>}
+    {assignments.status === 'success' && assignments.data?.items?.length > 0 && <OperationsTable label="Ca đã nhận" rows={assignments.data?.items ?? []} empty="Chưa có ca đã nhận." columns={[...baseColumns, {
       key: 'actions',
       label: 'Thao tác',
-      render: row => <div className="employee-scheduling__actions"><Link to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>{row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
+      render: row => <div className="employee-scheduling__actions"><Link className="sitter-workspace-link" to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>{row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
           setWithdrawalResult(null);
           setWithdrawalVisit(row.id);
         }}>Rút khỏi buổi</Button>}</div>
@@ -175,7 +192,7 @@ export function EmployeeInvitationsPage({
         }]} />}{pager(history, historyPages, setHistoryPages, 'lịch sử')}</>}
     </details>
     <Dialog open={Boolean(active)} title={active ? title(active) : 'Chi tiết ca chăm sóc'} onClose={() => { if (selected?.kind === 'linkedOffer') onCloseOffer?.(); setSelected(null); }} className="employee-assignment-dialog" dismissible={!locked}>
-      {active && <><p>{time(active.startAt)} – {time(active.endAt)}</p><p>{states[active.state] ?? 'Đang cập nhật'} · {active.areaLabel ?? active.areaCode}</p>
+      {active && <><p>{time(active.startAt)} – {time(active.endAt)}</p><p>{states[active.state] ?? 'Đang cập nhật'} · {sitterAreaLabel(active)}</p>
         {['assignment', 'linked'].includes(selected.kind) ? <>{active.serviceAddress && <p>{active.serviceAddress}</p>}{googleMapsDirections(active.serviceAddress) && <a href={googleMapsDirections(active.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
           {active.state === 'ASSIGNED' && <VisitTravel api={api} visitId={active.id} employee startAt={active.startAt} endAt={active.endAt} />}
           {['ASSIGNED', 'IN_PROGRESS'].includes(active.state) && <AssignedCare api={api} visitId={active.id} />}
