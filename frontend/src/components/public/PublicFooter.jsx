@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 const a = '/assets/figma-public/';
-export function PublicFooter() {
+export function PublicFooter({ policyReading = false }) {
   return <footer className="pwc-public-footer" id="contact">
     <div className="pwc-public-footer-inner">
       <div className="pwc-footer-identity">
@@ -27,18 +27,18 @@ export function PublicFooter() {
       <nav className="pwc-footer-column" aria-label="Liên kết hỗ trợ">
         <h2>HỖ TRỢ</h2>
         <Link to="/">Trang chủ</Link><Link to="/about">Về chúng tôi</Link>
-        <Link to="/products">Sản phẩm</Link><Link to="/contact">Liên hệ</Link>
+        <Link to="/products">Sản phẩm</Link><Link className="pwc-footer-contact" to="/contact">Liên hệ</Link>
         <Link to="/install">Cài ứng dụng</Link>
       </nav>
       <nav className="pwc-footer-column pwc-footer-policies" aria-label="Trang chính sách">
         <h2>CHÍNH SÁCH</h2>
-        <Link to="/policies">Tất cả chính sách dịch vụ</Link>
+        {!policyReading && <Link to="/policies">Tất cả chính sách dịch vụ</Link>}
         <Link to="/policies/terms">Điều khoản sử dụng</Link>
         <Link to="/policies/privacy">Chính sách bảo mật</Link>
       </nav>
       <div className="pwc-footer-bottom"><p>© 2026 PawWorld. All rights reserved. Keep on wagging!</p>
-        <nav aria-label="Chính sách"><Link to="/policies/privacy">Privacy Policy</Link>
-          <Link to="/policies/terms">Terms of Service</Link></nav>
+        {!policyReading && <nav aria-label="Chính sách"><Link to="/policies/privacy">Privacy Policy</Link>
+          <Link to="/policies/terms">Terms of Service</Link></nav>}
       </div>
     </div>
   </footer>;

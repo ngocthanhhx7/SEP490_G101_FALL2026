@@ -5,6 +5,7 @@ P45 owns the approved-only public policy index/article UI, stable version links 
 ## Integration
 
 - `publicPolicyRouteElements` exports React Router elements for `/policies`, `/policies/:slug` and `/policies/:slug/:version`. `App` mounts this fragment by default through the real public route tree. Keep it outside `RequireSession` so guests can open pages and deep links.
+- The policy routes use the public site layout on desktop and the existing app header and tabs on phones. Article sections keep stable fragment IDs, including when a policy loads asynchronously.
 - `PolicyContextLinks` accepts `registration`, `booking`, `account` or `sitterApplication` and links to the current approved version returned by the public endpoint. It uses an explicit `/draft-v1` placeholder only while no approved version exists; that path displays a publication-pending state without showing draft copy.
 - P45 links registration consent to Terms, Privacy and OTP placeholders. Booking, account and sitter application screens are not available on this baseline; P34 or their page owners must add `PolicyContextLinks` when those screens are integrated. Registration consent cannot be treated as complete until the approved Terms and Privacy versions are available.
 
