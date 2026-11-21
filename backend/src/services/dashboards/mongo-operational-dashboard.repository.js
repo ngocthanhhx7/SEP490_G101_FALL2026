@@ -99,7 +99,8 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
       const rows = await visits.aggregate([{ $match: visitFilter }, ...groupFilter, ...paging, ...ownerJoin, ...priority,
         { $sort: { ...(priority.length && { _activePriority: 1 }), startAt: direction, _id: direction } },
         { $limit: query.group === 'next' ? 1 : query.limit + 1 },
-        { $project: { _id: 1, state: 1, startAt: 1, endAt: 1, bookingId: 1, sitterId: 1, 'snapshots.serviceName': 1, 'snapshots.pets.name': 1 } }], options).toArray();
+        { $project: { _id: 1, state: 1, startAt: 1, endAt: 1, bookingId: 1, sitterId: 1, 'snapshots.serviceName': 1, 'snapshots.pets.name': 1,
+          ...(scope.kind === 'customer-dashboard' && query.group && { location: 1, 'snapshots.serviceScope': 1 }) } }], options).toArray();
       const page = rows.slice(0, query.limit);
       if (page.some(row => !['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED', 'SUPERSEDED'].includes(row.state)
         || !(row.startAt instanceof Date) || !Number.isFinite(row.startAt.getTime()))) invalid();
@@ -120,7 +121,7 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
             petNames: Array.isArray(row.snapshots?.pets) ? row.snapshots.pets.map(pet => pet?.name) : [],
             overdue: open.includes(row.state) && row.startAt < asOf
           } : {}),
-          ...(scope.kind === 'customer-dashboard' ? { customerId: scope.userId } : {}),
+          ...(scope.kind === 'customer-dashboard' ? { customerId: scope.userId, location: row.location, serviceScope: row.snapshots?.serviceScope } : {}),
           ...(scope.kind === 'sitter-dashboard' ? { sitterId: String(row.sitterId) } : {}) })),
         nextCursor: rows.length > query.limit ? codec.encode({ id: String(last._id), startAt: last.startAt.toISOString(),
           ...(query.group && { asOf: asOf.toISOString() }) }, context) : null };

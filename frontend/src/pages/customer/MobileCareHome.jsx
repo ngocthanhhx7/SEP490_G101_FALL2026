@@ -23,7 +23,7 @@ export function MobileCareHome({ api = customerDashboardApi, loadCatalog }) {
       <p role="alert">Chưa cập nhật được lịch chăm sóc. <Button onClick={result.retry}>Thử lại</Button></p>}
     {visit && <section>
       <h2>{visit.state === 'IN_PROGRESS' ? 'Đang chăm sóc' : visit.overdue ? 'Buổi cần theo dõi' : 'Buổi tiếp theo'}</h2>
-      <ul className="pwc-mobile-rows"><MobileVisitCard row={visit} actionLabel={visit.state === 'IN_PROGRESS' ? 'Theo dõi buổi chăm sóc' : undefined} /></ul>
+      <ul className="pwc-mobile-rows"><MobileVisitCard row={visit} headingAs="h3" mobileBack="/customer" actionLabel={visit.state === 'IN_PROGRESS' ? 'Theo dõi buổi chăm sóc' : undefined} /></ul>
     </section>}
     {typeof awaitingPayment === 'number' && awaitingPayment > 0 &&
       <p><Link to="/account/bookings?view=orders">{awaitingPayment} đơn đang chờ thanh toán</Link></p>}
