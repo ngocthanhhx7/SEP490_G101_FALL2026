@@ -39,7 +39,7 @@ const reviewLabel = (code) =>
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const [bookingChangesRevision, setBookingChangesRevision] = useState(0);
@@ -53,8 +53,13 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
   const queue = useApiResource(load);
   const [tab, setTab] = useState('needs');
   const [board, setBoard] = useState({ ids: new Set(), filtering: false });
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(initialVisitId ?? null);
   const [addingInvitation, setAddingInvitation] = useState(false);
+  function closeVisit() {
+    setSelected(null);
+    setAddingInvitation(false);
+    onCloseVisit?.();
+  }
   const [withdrawalToReview, setWithdrawalToReview] = useState(null);
   const loadSelected = useCallback(({ signal }) => selected && api.dispatchDetails
     ? api.dispatchDetails(selected, { signal }) : Promise.resolve({ data: null }), [api, selected]);
@@ -116,7 +121,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
       {selected && !active && selectedDetails.status === 'loading' && <p role="status">Đang tải chi tiết ca…</p>}
       {selected && !active && ['error', 'forbidden', 'pending'].includes(selectedDetails.status) && <p role="alert">
         Chưa tải được ca này. <button onClick={selectedDetails.retry}>Thử lại</button>{' '}
-        <button onClick={() => setSelected(null)}>Đóng</button>
+        <button onClick={closeVisit}>Đóng</button>
       </p>}
       {!active && command.pending && (
         <Button disabled={command.busy} onClick={command.retry}>
@@ -248,7 +253,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           title="Chi tiết điều phối"
           className="ops-dialog dispatch-detail-dialog"
           dismissible={!command.busy && !command.pending}
-          onClose={() => { setSelected(null); setAddingInvitation(false); }}
+          onClose={closeVisit}
         >
           <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceDisplayName || active.serviceName || 'Chưa rõ dịch vụ'}</h3>
           <p>
