@@ -6,7 +6,9 @@ const EMAIL = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~
 
 // MSG03: ten digits starting with 0; spaces, dots and hyphens are dropped. Returns { value } (empty when not given) or { error }.
 export function parseSupplierPhoneInput(raw) {
-  const digits = (typeof raw === 'string' ? raw : '').trim().replace(/[\s.-]/gu, '');
+  if (raw === undefined || raw === null) return { value: '' };
+  if (typeof raw !== 'string') return { error: 'INVALID' };
+  const digits = raw.trim().replace(/[\s.-]/gu, '');
   if (!digits) return { value: '' };
   return PHONE.test(digits) ? { value: digits } : { error: 'INVALID' };
 }
