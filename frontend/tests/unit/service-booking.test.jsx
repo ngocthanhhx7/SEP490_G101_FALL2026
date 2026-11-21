@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BookingFlow } from '../../src/pages/public/ServiceBookingPage.jsx';
 
@@ -17,7 +17,7 @@ async function chooseSchedule(api, matching = {}, onBooked = jest.fn(), selected
   fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
   fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
   fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
-  fireEvent.submit(screen.getByText('Tiếp tục').closest('form'));
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
   await screen.findByText('Bạn muốn chọn pet sitter theo cách nào?');
 }
 async function reviewAndConfirm() {
@@ -29,7 +29,7 @@ test('pending setup stays recoverable instead of rendering incomplete customer d
   const api = fixture(); api.addresses.mockResolvedValue({ pending: true, data: null });
   render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()} /></MemoryRouter>);
   expect(await screen.findByRole('alert')).toHaveTextContent('Chưa tải được thông tin đặt lịch.');
-  expect(screen.queryByText('Tiếp tục')).not.toBeInTheDocument();
+  expect(screen.queryByText('Xem báo giá')).not.toBeInTheDocument();
 });
 
 test('quote policy review failure explains why no booking was created and keeps the pet selection', async () => {
@@ -38,7 +38,7 @@ test('quote policy review failure explains why no booking was created and keeps 
   fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
   fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
   fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
-  fireEvent.submit(screen.getByText('Tiếp tục').closest('form'));
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
   expect(await screen.findByRole('alert')).toHaveTextContent('chưa có quy tắc giá được duyệt');
   expect(screen.getByLabelText('Milo · 4 kg')).toBeChecked();
   expect(api.confirm).not.toHaveBeenCalled();
@@ -93,7 +93,7 @@ test('pricing review names the missing care traits without clearing the owned pe
   render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()}/></MemoryRouter>);
   fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
   fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'),{target:{value:'2098-11-03T09:00'}});
-  fireEvent.submit(screen.getByText('Tiếp tục').closest('form'));
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
   expect(await screen.findByRole('alert')).toHaveTextContent('Cần làm quen chậm, Cần hỗ trợ lồng vận chuyển');
   expect(screen.getByLabelText('Milo · 4 kg')).toBeChecked();expect(api.confirm).not.toHaveBeenCalled();
 });
@@ -157,8 +157,9 @@ test('direct selection requires eligibility for every visit while still showing 
   fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
   fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
   fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh buổi tiếp theo' }));
   fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: '2098-11-04T09:00' } });
-  fireEvent.submit(screen.getByText('Tiếp tục').closest('form'));
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
   fireEvent.click(await screen.findByLabelText('Chỉ định pet sitter'));
   expect(await screen.findByRole('radio', { name: /Sitter nhiều buổi/ })).toBeDisabled();
   expect(screen.getByText('Nghỉ trong ngày đã chọn.')).toBeVisible();
@@ -178,4 +179,49 @@ test('returning Customer can book boarding through staff-arranged shifts without
   expect(api.confirm.mock.calls[0][0].visits[0]).not.toHaveProperty('matchId');
   expect(matching.recommend).not.toHaveBeenCalled();
   expect(api.availability).not.toHaveBeenCalled();
+});
+test('chooses separate times across weeks and returns to the right visit when a date is incomplete', async () => {
+  const api = fixture();
+  render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Tuần sau' }));
+  fireEvent.click(within(screen.getByRole('group', { name: 'Các ngày trong tuần' })).getByRole('button', { name: /10 tháng 11, 2098/ }));
+  fireEvent.click(screen.getByRole('button', { name: /10\/11, 10:00/ }));
+  expect(screen.getByLabelText('Buổi 1 (giờ Việt Nam)')).toHaveValue('2098-11-10T10:00');
+  expect(screen.getByTitle('10:00–11:00 · Buổi 1')).toBeVisible();
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  expect(screen.getByRole('alert')).toHaveTextContent('Buổi 2');
+  expect(screen.getByLabelText('Buổi 2 (giờ Việt Nam)')).toHaveValue('');
+  fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: '2098-11-11T14:00' } });
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  await screen.findByText('Bạn muốn chọn pet sitter theo cách nào?');
+  await reviewAndConfirm();
+  await waitFor(() => expect(api.confirm).toHaveBeenCalled());
+  expect(api.confirm.mock.calls[0][0].visits.map(row => row.startAt)).toEqual([
+    '2098-11-10T03:00:00.000Z', '2098-11-11T07:00:00.000Z'
+  ]);
+});
+test('monthly draft skips missing dates, accepts a visit removal and confirms the final list', async () => {
+  const api = fixture();
+  render(<MemoryRouter><BookingFlow service={service} api={api} matching={{}} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.click(screen.getByText('Tạo lịch lặp theo tuần hoặc tháng'));
+  fireEvent.click(screen.getByRole('radio', { name: 'Hằng tháng' }));
+  fireEvent.change(screen.getByLabelText('Ngày bắt đầu'), { target: { value: '2098-01-31' } });
+  fireEvent.change(screen.getByLabelText('Giờ chăm sóc'), { target: { value: '10:15' } });
+  fireEvent.change(screen.getByLabelText('Số buổi lặp'), { target: { value: '3' } });
+  expect(screen.getByText(/Bỏ qua tháng/)).toHaveTextContent('02/2098');
+  fireEvent.click(screen.getByText('Dùng lịch này'));
+  fireEvent.change(screen.getByLabelText('Buổi cần chỉnh'), { target: { value: '1' } });
+  fireEvent.click(screen.getByText('Bỏ buổi này'));
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  await screen.findByText('Bạn muốn chọn pet sitter theo cách nào?');
+  expect(api.quote.mock.calls[0][0][0].visitCount).toBe(2);
+  await reviewAndConfirm();
+  await waitFor(() => expect(api.confirm).toHaveBeenCalled());
+  expect(api.confirm.mock.calls[0][0].visits.map(row => row.startAt)).toEqual(['2098-01-31T03:15:00.000Z','2098-05-31T03:15:00.000Z']);
 });

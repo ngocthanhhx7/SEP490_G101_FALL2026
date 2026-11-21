@@ -5,6 +5,8 @@ import { CalendarCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { googleMapsDirections } from '../../utils/maps.js';
 import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
+import { BookingDateTime } from '../../components/calendar/BookingDateTime.jsx';
+import { vietnamDate, vietnamDateTime } from '../../utils/calendar-date.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { VerifiedVisitRating } from '../customer/VerifiedVisitRating.jsx';
 import './booking-checkout.css';
@@ -28,6 +30,10 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
   const visits = quote.items.flatMap((item, itemIndex) => Array.from({ length: item.visitCount }, (_, index) => ({ itemIndex, index,
     service: services.find(service => service.id === item.serviceId) })));
   const [selectedLocations, setSelectedLocations] = useState(() => visits.map(row => recommendation ? 'HOME' : row.service?.details?.locations?.[0] || 'HOME'));
+  const [starts, setStarts] = useState(() => visits.map(() => recommendation ? vietnamDateTime(new Date(recommendation.startAt)) : ''));
+  const today = vietnamDate();
+  const minimumFor = location => vietnamDateTime(new Date(Math.ceil((Date.now() + (location === 'HOME'
+    ? 2 * 3600000 : quote.paymentMode === 'PREPAY' ? 15 * 60000 : 1)) / 60000) * 60000));
   const submit = async event => {
     event.preventDefault(); if (locked.current) return;
     if (!uncertain) {
@@ -50,7 +56,10 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     <fieldset disabled={busy || uncertain}>
       {visits.map((row, index) => <div className="pwc-checkout-visit" key={index}>
         <h4>{row.service?.name} · Buổi {row.index + 1}</h4>
-        <label>Bắt đầu (giờ Việt Nam)<input type="datetime-local" name={`start:${index}`} required readOnly={Boolean(recommendation)} defaultValue={recommendation ? new Date(Date.parse(recommendation.startAt) + 7 * 3600000).toISOString().slice(0, 16) : ''} /></label>
+        <BookingDateTime compact label="Bắt đầu (giờ Việt Nam)" name={`start:${index}`}
+          durationMinutes={quote.items[row.itemIndex].dayCount ? undefined : quote.items[row.itemIndex].durationMinutes}
+          value={starts[index]} readOnly={Boolean(recommendation)} today={today} minimum={minimumFor(selectedLocations[index])}
+          onChange={start => setStarts(current => current.map((value, i) => i === index ? start : value))} />
         <label>Địa điểm<select disabled={Boolean(recommendation)} value={selectedLocations[index]} onChange={event => setSelectedLocations(current => current.map((value, i) => i === index ? event.target.value : value))}>
           {(row.service?.details?.locations || ['HOME']).map(value => <option key={value} value={value}>{locations[value]}</option>)}
         </select></label>

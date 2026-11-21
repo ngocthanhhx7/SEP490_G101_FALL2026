@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { getSitterCalendarRange, SitterAvailabilityPage } from '../../src/pages/sitter/SitterAvailabilityPage.jsx';
 
 const currentAvailability = { zone: 'Asia/Ho_Chi_Minh', expectedVersion: 4, effectiveFrom: '2026-10-14',
@@ -24,7 +24,7 @@ describe('SitterAvailabilityPage', () => {
   test('shows the Sitter schedule in the canonical local timezone', async () => {
     render(<SitterAvailabilityPage api={buildApi()} />);
     expect(await screen.findByRole('heading', { name: 'Giờ có thể nhận việc' })).toBeInTheDocument();
-    expect(screen.getAllByText(/Asia\/Saigon/)).toHaveLength(2);
+    expect(screen.getByText('Giờ Việt Nam')).toBeInTheDocument();
     expect(await screen.findByLabelText('Ngày trong tuần')).toHaveValue('1');
     expect(screen.getByLabelText(/Bắt đầu/)).toHaveValue('09:00');
     expect(screen.getByLabelText(/Kết thúc/)).toHaveValue('12:00');
@@ -47,7 +47,7 @@ describe('SitterAvailabilityPage', () => {
     const displayedDate = container.querySelector('.sitter-availability__calendar-day time');
     expect(displayedDate).toHaveAttribute('dateTime', '2026-11-01');
     expect(screen.getByText('Có thể nhận việc')).toBeInTheDocument();
-    expect(screen.getByText(/09:00.*12:00/)).toBeInTheDocument();
+    expect(within(displayedDate.closest('.sitter-availability__calendar-day')).getByText(/09:00.*12:00/)).toBeInTheDocument();
   });
 
   test('sends local intervals, current version and an idempotency key, then reloads server state', async () => {
@@ -142,4 +142,50 @@ describe('SitterAvailabilityPage', () => {
     expect(screen.queryByText('Máy chủ đã xác nhận thay đổi lịch.')).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Bắt đầu/)).toHaveValue('09:00');
   });
+});
+
+test('copies only to empty weekdays and keeps the saved shop location and weekend draft', async () => {
+  const api = buildApi({ data: { ...currentAvailability, workingWindows: [
+    { weekday: 1, startLocalTime: '09:00', endLocalTime: '12:00', workLocation: 'SHOP' },
+    { weekday: 3, startLocalTime: '14:00', endLocalTime: '16:00' }
+  ] } });
+  render(<SitterAvailabilityPage api={api} createOperationKey={() => 'operation-key-copy'} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Thêm khung giờ Chủ Nhật' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Chép giờ Thứ Hai sang ngày trong tuần chưa có lịch' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }));
+  await waitFor(() => expect(api.saveAvailability).toHaveBeenCalledTimes(1));
+  expect(api.saveAvailability.mock.calls[0][0].workingWindows).toEqual(expect.arrayContaining([
+    ...[1, 2, 4, 5].map(weekday => ({ weekday, startLocalTime: '09:00', endLocalTime: '12:00', workLocation: 'SHOP' })),
+    { weekday: 3, startLocalTime: '14:00', endLocalTime: '16:00' },
+    { weekday: 7, startLocalTime: '09:00', endLocalTime: '17:00' }
+  ]));
+  expect(api.saveAvailability.mock.calls[0][0].workingWindows).toHaveLength(6);
+});
+
+test('adds a work interval by clicking a cell in the recurring timetable', async () => {
+  const api = buildApi();
+  render(<SitterAvailabilityPage api={api} now={new Date('2026-11-16T03:00:00Z')} createOperationKey={() => 'operation-grid'} />);
+  const timeline = await screen.findByRole('group', { name: 'Thêm khung giờ trên lịch' });
+  fireEvent.click(within(timeline).getByRole('button', { name: /thứ ba, 15:30/i }));
+  expect(within(timeline).getByText('15:30–16:30')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu lịch' }));
+  await waitFor(() => expect(api.saveAvailability).toHaveBeenCalledWith(expect.objectContaining({
+    workingWindows: expect.arrayContaining([{ weekday: 2, startLocalTime: '15:30', endLocalTime: '16:30' }])
+  })));
+});
+
+test('saved calendar carries overnight hours to the next date and updates the details when paging', async () => {
+  const now = new Date('2026-11-16T02:00:00Z');
+  const api = { ...buildApi(), listCalendar: async () => ({ data: [
+    { localDate: '2026-11-16', available: true, windows: [{ startLocalTime: '22:00', endLocalTime: '02:00' }] },
+    { localDate: '2026-11-17', available: false, windows: [] },
+    { localDate: '2026-11-24', available: false, windows: [] }
+  ] }) };
+  const { container } = render(<SitterAvailabilityPage api={api} now={now} />);
+  const calendar = within(await screen.findByRole('group', { name: 'Lịch trong 31 ngày' }));
+  fireEvent.click(within(calendar.getByRole('group', { name: 'Các ngày trong tuần' })).getByRole('button', { name: /17 tháng 11/ }));
+  const detail = () => container.querySelector('.sitter-availability__calendar-day');
+  expect(within(detail()).getByText('00:00–02:00')).toBeVisible();
+  fireEvent.click(calendar.getByRole('button', { name: 'Tuần sau' }));
+  expect(detail().querySelector('time')).toHaveAttribute('datetime','2026-11-24');
 });

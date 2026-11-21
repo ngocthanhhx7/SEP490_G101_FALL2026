@@ -45,3 +45,19 @@ Staff private notes; no Sitter complaint creation or Staff command is exposed.
 The invitation workspace uses compact tables for pending offers, assignments and lazy-loaded invitation history. Only assignment details mount private care, evidence previews and execution controls. A server-synchronized clock disables early/expired evidence submission before upload. The shared photo preview supports selected files, authenticated bound images, zoom-dialog viewing, cancellation and blob cleanup.
 
 `VisitWorkflowExecution.jsx` renders immutable server tasks with a direct selector, per-Pet slot counts, private photo capture/preview/retry, server-persisted notes/values and explicit blocked escalation. VisitExecution keeps its existing arrival/departure commands and legacy checklist.
+
+## Web and PWA workspace
+
+SitterSchedulePage and MobileSitterHome share SitterVisitCard for service,
+Vietnam local time, pet names and status, using the authenticated dashboard
+projection. The schedule route preserves its day and cursor when returning from a visit.
+Mobile Account exposes private profile, public profile moderation and work setup
+as separate groups. SitterAvailabilityPage uses the existing bounded 31-day response.
+Schedule, origin and area writes keep their API contracts. Invitations retain the existing table and command handlers with a
+stacked layout on small screens.
+
+The availability screen displays server-reported intervals on a week timeline
+and shows the status for the selected date. The recurring editor adds a draft
+interval when a time cell is selected. Selecting a draft block opens its time
+inputs, and copying to empty weekdays stages intervals without replacing
+already configured days. The existing save command validates the draft.
