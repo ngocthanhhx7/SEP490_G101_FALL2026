@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { BookingVisitReport } from '../../../components/common/BookingVisitReport.jsx';
@@ -103,7 +103,20 @@ function CareUpdates({ tasks, startAt }) {
   </Panel>;
 }
 
+function PublishedProfile({ load }) {
+  const readProfile = useCallback(async ({ signal }) => {
+    const fresh = await load(signal);
+    return { data: fresh.actions?.profile ? fresh.sitter?.profile ?? null : null };
+  }, [load]);
+  const result = useApiResource(readProfile);
+  if (result.status === 'loading') return <p role="status">Đang tải hồ sơ…</p>;
+  if (result.status === 'error') return <p role="alert">Chưa tải được hồ sơ. <Button onClick={result.retry}>Thử lại</Button></p>;
+  if (!result.data?.bio) return <p role="status">Hồ sơ hiện không được công bố.</p>;
+  return <><p>{result.data.bio}</p>{result.data.areas?.length > 0 && <p><strong>Khu vực giới thiệu:</strong> {result.data.areas.join(', ')}</p>}</>;
+}
+
 function Tracker({ bookingId, visitId }) {
+  const [profileOpen, setProfileOpen] = useState(false);
   const read = useMemo(() => createVisitTrackerApi(), []);
   const { getCsrfToken } = useSession();
   const travelApi = useMemo(() => createVisitTravelApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
@@ -161,11 +174,9 @@ function Tracker({ bookingId, visitId }) {
               <p>{Number.isFinite(sitter.rating) ? '★ ' + ratingFormat.format(sitter.rating) + ' trên 5' : 'Chưa có đánh giá'}
                 {sitter.reviewCount > 0 && ' · ' + sitter.reviewCount + ' đánh giá'}</p></div>
           </div>
-          {actions.profile && sitter.profile?.bio && <details>
-            <summary>Xem hồ sơ người chăm sóc</summary>
-            <p>{sitter.profile.bio}</p>
-            {sitter.profile.areas?.length > 0 && <p><strong>Khu vực giới thiệu:</strong> {sitter.profile.areas.join(', ')}</p>}
-          </details>}
+          {actions.profile && <><Button variant="secondary" aria-expanded={profileOpen} onClick={() => setProfileOpen(value => !value)}>
+            {profileOpen ? 'Thu gọn hồ sơ người chăm sóc' : 'Xem hồ sơ người chăm sóc'}
+          </Button>{profileOpen && <PublishedProfile load={load} />}</>}
         </Panel>}
         {actions.travel === true && <VisitTravel api={travelApi} visitId={visit.id} available />}
         {actions.careReport && <Panel title="Thao tác"><ReportAction bookingId={booking.id} visitId={visit.id} /></Panel>}
