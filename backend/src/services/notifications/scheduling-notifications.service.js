@@ -39,8 +39,8 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
       const staff = await col('users').find({ state: 'ACTIVE', roles: { $in: event.type === 'VisitClosureVerificationRequired' ? ['ADMIN'] : ['STAFF', 'ADMIN'] }, synthetic: { $ne: true } },
         { session, projection: { _id: 1, roles: 1 }, maxTimeMS: 5000 }).toArray();
       for (const user of staff) recipients.push({ id: String(user._id), role: user.roles.includes('ADMIN') ? 'ADMIN' : 'STAFF',
-        to: (user.roles.includes('ADMIN') ? '/admin/dispatch' : '/staff/dispatch')
-          + (event.type === 'VisitWithdrawalRequested' ? '?withdrawalId=' + String(event.visitId) : event.type !== 'DispatchReviewRequired' ? '?closureId=' + String(event.visitId) : '') });
+        to: '/staff/dispatch?' + (event.type === 'VisitWithdrawalRequested' ? 'withdrawalId'
+          : event.type === 'DispatchReviewRequired' ? 'visitId' : 'closureId') + '=' + String(visit._id) });
     }
     const eventId = digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId ?? event.detail?.noticeKey ?? event.detail?.version]);
     const [title, message] = messages[event.type];
