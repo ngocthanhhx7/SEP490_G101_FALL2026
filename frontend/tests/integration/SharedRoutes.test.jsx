@@ -20,7 +20,17 @@ test('P45 fragment replaces fallback inside the actual App router and remains pu
     <Route path="policies/:slug/:version" element={<h1>Synthetic approved article</h1>} />
   </> });
   expect(screen.getByRole('heading', { name: 'Synthetic approved article' })).toBeVisible();
+  expect(screen.getAllByRole('banner')).toHaveLength(1);
+  expect(screen.getAllByRole('contentinfo')).toHaveLength(1);
+  expect(screen.getAllByRole('main')).toHaveLength(1);
   expect(screen.queryByText('Chính sách chưa được xuất bản')).not.toBeInTheDocument();
+});
+
+test('published policy routes remain reachable after an operational session resolves', async () => {
+  show('/policies/terms', { sessionAdapter: { resolve: async () => ({ status: 'authenticated',
+    user: { id: 'synthetic-admin', displayName: 'Synthetic Admin', roles: ['ADMIN'] } }) } });
+  expect(await screen.findByRole('button', { name: /Tài khoản/i })).toBeVisible();
+  expect(screen.getByRole('heading', { name: 'Chính sách chưa được xuất bản' })).toBeVisible();
 });
 
 test('account uses the merged P48 shell with only registered destinations', async () => {

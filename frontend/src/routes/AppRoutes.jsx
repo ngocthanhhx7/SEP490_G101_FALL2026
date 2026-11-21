@@ -472,8 +472,10 @@ export function AppRoutes({
           element={<ApplicantWorkspacePage legacyApi={applicationStatusApi} />}
         />
       </Route>
-      <Route element={<FoundationLayout />}>
+      <Route element={<PublicSiteLayout policyReading />}>
         {publicPolicyRouteElements}
+      </Route>
+      <Route element={<FoundationLayout />}>
         <Route
           path="*"
           element={
