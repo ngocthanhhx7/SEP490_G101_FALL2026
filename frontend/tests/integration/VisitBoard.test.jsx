@@ -132,6 +132,16 @@ describe('Cần xử lý table', () => {
     expect(table.getByRole('button', { name: 'Gọi người chăm sóc' })).toBeInTheDocument();
   });
 
+  test('an overdue unassigned visit shows the overdue label when there are also no eligible sitters', async () => {
+    const overdue = { ...rows.shiftReached, reviewCode: 'NO_ELIGIBLE_CANDIDATES', unassignedOverdue: true,
+      reasons: [{ code: 'NO_SITTER_TO_OFFER', late: true, ms: 50 * MIN }, ...rows.shiftReached.reasons] };
+    const api = board({ visitBoard: jest.fn().mockResolvedValue(needsPage([overdue])) });
+    render(<Harness api={api} />);
+    const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
+    expect(table.getByText('Đã qua giờ hẹn, chưa có người nhận')).toBeVisible();
+    expect(table.getByText('Hết người để mời')).toBeVisible();
+  });
+
   test('says so when nothing needs action, and when a search matches nothing', async () => {
     const api = board({ visitBoard: jest.fn().mockResolvedValue(needsPage([])) });
     render(<Harness api={api} />);

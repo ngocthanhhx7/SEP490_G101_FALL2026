@@ -6,10 +6,12 @@ import { VisitBoardCustomer, VisitBoardSummary } from './VisitBoardCells.jsx';
 
 function ReasonCell({ row }) {
   const [main, ...others] = row.reasons;
+  const overdue = row.unassignedOverdue ?? (main.code === 'NO_SITTER_24H' && main.late);
+  const details = overdue ? row.reasons.filter(reason => reason.code !== 'NO_SITTER_24H') : others;
   return <>
-    <OperationsBadge tone={main.late ? 'danger' : 'warning'}>{main.code === 'NO_SITTER_24H' && main.late
+    <OperationsBadge tone={overdue || main.late ? 'danger' : 'warning'}>{overdue
       ? 'Đã qua giờ hẹn, chưa có người nhận' : REASON_LABELS[main.code]}</OperationsBadge>
-    {others.length > 0 && <small className="visit-board__others">{others.map(item => REASON_LABELS[item.code]).join(' · ')}</small>}
+    {details.length > 0 && <small className="visit-board__others">{details.map(item => REASON_LABELS[item.code]).join(' · ')}</small>}
   </>;
 }
 

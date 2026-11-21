@@ -104,12 +104,35 @@ function TravelPanel({ api, visitId, employee }) {
     <Button variant="ghost" title="Tải lại hành trình" aria-label="Tải lại hành trình" disabled={busy} onClick={refresh}><RefreshCw size={16} /></Button>
   </div>;
 }
-export function VisitTravel({ api, visitId, employee = false, startAt, endAt, available }) {
+function TravelDisclosure({ api, visitId, employee }) {
   const [open, setOpen] = useState(false);
-  const now = Date.now();
-  const inWindow = available ?? (now >= Date.parse(startAt) - 30 * 60000 && now < Date.parse(endAt));
-  if (!api?.travel || !inWindow) return null;
   return <details onToggle={event => setOpen(event.currentTarget.open)}><summary>Hành trình đến điểm chăm sóc</summary>
     {open && <TravelPanel api={api} visitId={visitId} employee={employee} />}
   </details>;
+}
+
+export function VisitTravel({ api, visitId, employee = false, startAt, endAt, available }) {
+  const [, setWindowTime] = useState(Date.now);
+  const opensAt = Date.parse(startAt) - 30 * 60000;
+  const closesAt = Date.parse(endAt);
+  const hasTravel = Boolean(api?.travel);
+  const hasAvailability = typeof available === 'boolean';
+  useEffect(() => {
+    if (!hasTravel || hasAvailability || !(opensAt < closesAt)) return;
+    let timer;
+    function scheduleBoundary() {
+      const now = Date.now();
+      const next = now < opensAt ? opensAt : closesAt;
+      if (now >= next) return;
+      timer = globalThis.setTimeout(() => {
+        setWindowTime(Date.now());
+        scheduleBoundary();
+      }, Math.min(next - now, 2147483647));
+    }
+    scheduleBoundary();
+    return () => globalThis.clearTimeout(timer);
+  }, [closesAt, hasAvailability, hasTravel, opensAt]);
+  const now = Date.now();
+  const inWindow = available ?? (now >= opensAt && now < closesAt);
+  return hasTravel && inWindow ? <TravelDisclosure key={visitId} api={api} visitId={visitId} employee={employee} /> : null;
 }
