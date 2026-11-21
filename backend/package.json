@@ -17,6 +17,7 @@
     "test:integration": "npm test -- --selectProjects integration",
     "seed:admin": "node --env-file-if-exists=.env scripts/seeds/admin.js",
     "seed:products": "node --env-file-if-exists=.env scripts/seeds/product-sales.js",
+    "demo:council": "node scripts/council-demo/start.js",
     "check:architecture": "node scripts/check-architecture.js"
   },
   "dependencies": {

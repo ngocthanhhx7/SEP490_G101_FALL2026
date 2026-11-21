@@ -52,8 +52,14 @@ export function createApp({
   logger = () => {},
   env = process.env,
   clock = Date.now,
-  referenceCatalog
+  referenceCatalog,
+  createOtpCode
 }) {
+  if (createOtpCode !== undefined && (config.nodeEnv !== 'development' || config.host !== '127.0.0.1'
+    || config.database !== 'pwc_council_demo' || connection?.name !== config.database
+    || connection.host !== '127.0.0.1')) {
+    throw new TypeError('Custom OTP generation requires the local council demo');
+  }
   const app = express();
   if (connection?.models) selectReferenceCatalogSource(connection, referenceCatalog);
   const basePorts = createPorts();
@@ -85,7 +91,7 @@ export function createApp({
   const ai = aiRuntimeModule(context);
   const pricing = pricingRuntimeModule(context);
   const petCare = petCareRuntimeModule(context);
-  const auth = authenticationModule({ ...context, logger });
+  const auth = authenticationModule({ ...context, logger, createOtpCode });
   if (auth && typeof connection?.model === 'function') {
     const customerRead = customerReadRuntime({ ...context, sessionService: auth.sessionService });
     auth.router.use(customerRead.router);
