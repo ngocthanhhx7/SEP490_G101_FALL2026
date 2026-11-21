@@ -15,7 +15,7 @@ import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx'
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
-import { Link, Navigate, Route, Routes, useSearchParams, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { InstallAppPage } from '../pages/public/InstallAppPage.jsx';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
@@ -161,6 +161,11 @@ function IncidentRoute({ view }) {
   return <IncidentListPage key={user?.id} api={api} />;
 }
 
+function LegacyDispatchRoute() {
+  const { search, hash } = useLocation();
+  return <Navigate replace to={{ pathname: '/staff/dispatch', search, hash }} />;
+}
+
 function EmployeeScheduleRoute({ view }) {
   const [params, setParams] = useSearchParams();
   const { visitId } = useParams();
@@ -172,7 +177,8 @@ function EmployeeScheduleRoute({ view }) {
     ? <SitterVisitPage key={user?.id + ':' + visitId} api={api} visitId={visitId} />
     : <p role="alert">Mã buổi chăm sóc không hợp lệ.</p>;
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
-  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined}
+  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id + ':' + params.toString()} api={api}
+    initialVisitId={/^[a-f0-9]{24}$/i.test(params.get('visitId') ?? '') ? params.get('visitId') : undefined} selectedSitter={params.get('sitterId') || undefined}
     initialWorkflowId={params.get('workflowId') || undefined} initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
   if (view === 'invitations' && /^[a-f\d]{24}$/i.test(params.get('visitId') ?? ''))
     return <Navigate replace to={'/sitter/visits/' + params.get('visitId')} />;
@@ -436,6 +442,7 @@ export function AppRoutes({
         <Route element={<AccountWorkspace />}>
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
           <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
+          <Route path="admin/dispatch" element={<LegacyDispatchRoute />} />
           <Route path="staff/bookings/:bookingId" element={<StaffBookingDetailPage />} />
         </Route>
       </Route>
