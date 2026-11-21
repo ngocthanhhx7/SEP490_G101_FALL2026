@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRight, ChevronRight, Link2, Search, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import {
   findPolicy,
   isUnpublishedPolicyPath,
@@ -9,27 +10,41 @@ import {
 import { usePublicPolicyCatalog } from '../../../contexts/PublicPolicyContext.jsx';
 import './public-policies.css';
 
+const policyDate = new Intl.DateTimeFormat('vi-VN', {
+  day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh'
+});
+
+function EffectiveDate({ policy }) {
+  const date = policy.effectiveAt ?? policy.effectiveDate;
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T|$)/.test(date) || !Number.isFinite(Date.parse(date))) {
+    return policy.effectiveDate;
+  }
+  return <time dateTime={date}>{policyDate.format(new Date(date))}</time>;
+}
+
+function PolicyBackLink({ children = 'Xem danh sách chính sách' }) {
+  return <Link className="policy-action policy-back-link" to="/policies">
+    <ArrowLeft size={17} aria-hidden="true" />
+    {children}
+  </Link>;
+}
+
 function PolicyCard({ policy }) {
   return (
     <li className="policy-card">
       <div>
-        <p className="policy-card__version">Phiên bản {policy.version}</p>
-        <h2>
-          <Link to={policyHref(policy.slug, policy.versionPath)}>
-            {policy.title}
-          </Link>
-        </h2>
+        <h2>{policy.title}</h2>
         <p>{policy.summary}</p>
-        <p className="policy-card__purpose">
+        {policy.purpose !== policy.summary && <p className="policy-card__purpose">
           <strong>Mục đích:</strong> {policy.purpose}
-        </p>
+        </p>}
       </div>
       <Link
-        className="policy-card__action"
+        className="policy-action"
         to={policyHref(policy.slug, policy.versionPath)}
         aria-label={`Đọc ${policy.title}`}
       >
-        Đọc chính sách <span aria-hidden="true">→</span>
+        Đọc chính sách <ArrowRight size={17} aria-hidden="true" />
       </Link>
     </li>
   );
@@ -42,6 +57,7 @@ export function PolicyIndexPage({ policies = publicPolicies }) {
       ? loadedPolicies
       : policies;
   const [query, setQuery] = useState('');
+  const searchInput = useRef(null);
   const filteredPolicies = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('vi');
     if (!normalizedQuery) return resolvedPolicies;
@@ -66,13 +82,7 @@ export function PolicyIndexPage({ policies = publicPolicies }) {
 
   return (
     <section className="public-policies" aria-labelledby="policy-index-title">
-      <nav className="policy-breadcrumbs" aria-label="Đường dẫn">
-        <Link to="/">Trang chủ</Link>
-        <span aria-hidden="true">/</span>
-        <span>Chính sách</span>
-      </nav>
       <header className="policy-page-header">
-        <p className="policy-eyebrow">Paw World Care · Thông tin công khai</p>
         <h1 id="policy-index-title">Chính sách &amp; hướng dẫn</h1>
         <p>
           Tìm các phiên bản chính sách đã được phê duyệt và đang có hiệu lực.
@@ -85,20 +95,29 @@ export function PolicyIndexPage({ policies = publicPolicies }) {
         </p>
       ) : (
         <>
-          <div className="policy-search">
+          <div className="policy-search" role="search" aria-label="Chính sách">
             <label htmlFor="policy-search-input">Tìm chính sách</label>
-            <input
-              id="policy-search-input"
-              type="search"
-              value={query}
-              placeholder="Ví dụ: OTP, hủy lịch, thanh toán"
-              onChange={(event) => setQuery(event.target.value)}
-            />
-            <p aria-live="polite">
-              {filteredPolicies.length
-                ? `Có ${filteredPolicies.length} chính sách${query.trim() ? ' phù hợp' : ''}.`
-                : 'Không tìm thấy chính sách phù hợp. Hãy thử từ khóa khác.'}
-            </p>
+            <div className="policy-search__field">
+              <Search size={19} aria-hidden="true" />
+              <input
+                ref={searchInput}
+                id="policy-search-input"
+                type="search"
+                value={query}
+                placeholder="Ví dụ: quyền riêng tư, OTP"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+              {query && <button type="button" aria-label="Xóa từ khóa"
+                onClick={() => {
+                  setQuery('');
+                  searchInput.current?.focus();
+                }}>
+                <X size={18} aria-hidden="true" />
+              </button>}
+            </div>
+            <p aria-live="polite">{query.trim() && (filteredPolicies.length
+              ? `Có ${filteredPolicies.length} chính sách phù hợp.`
+              : 'Không tìm thấy chính sách phù hợp. Hãy thử từ khóa khác.')}</p>
           </div>
           {filteredPolicies.length > 0 && (
             <ul className="policy-card-list">
@@ -107,9 +126,6 @@ export function PolicyIndexPage({ policies = publicPolicies }) {
               ))}
             </ul>
           )}
-          <p className="policy-source-note">
-            Chỉ phiên bản đã được phê duyệt mới xuất hiện tại đây.
-          </p>
         </>
       )}
     </section>
@@ -122,12 +138,9 @@ function PolicyNotFound() {
       className="public-policies policy-not-found"
       aria-labelledby="policy-not-found-title"
     >
-      <p className="policy-eyebrow">Paw World Care · Chính sách</p>
       <h1 id="policy-not-found-title">Không tìm thấy phiên bản này</h1>
       <p>Đường dẫn chính sách hoặc phiên bản không tồn tại.</p>
-      <Link className="policy-back-link" to="/policies">
-        Xem danh sách chính sách
-      </Link>
+      <PolicyBackLink />
     </section>
   );
 }
@@ -138,15 +151,12 @@ function PolicyUnpublished() {
       className="public-policies policy-unpublished"
       aria-labelledby="policy-unpublished-title"
     >
-      <p className="policy-eyebrow">Paw World Care · Chính sách</p>
       <h1 id="policy-unpublished-title">Chính sách chưa được xuất bản</h1>
       <p>
         Chưa có phiên bản được phê duyệt để công khai. Nội dung đang chờ duyệt
         và chưa có hiệu lực.
       </p>
-      <Link className="policy-back-link" to="/policies">
-        Xem danh sách chính sách
-      </Link>
+      <PolicyBackLink />
     </section>
   );
 }
@@ -166,84 +176,63 @@ function PolicyContent({ content }) {
 }
 
 function PolicyArticle({ policy, versioned }) {
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (!/^#policy-section-\d+$/.test(hash)) return;
+    const target = document.getElementById(hash.slice(1));
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView?.({ block: 'start' });
+  }, [hash, policy]);
+
   return (
-    <section className="public-policies" aria-labelledby="policy-article-title">
-      <nav className="policy-breadcrumbs" aria-label="Đường dẫn">
-        <Link to="/">Trang chủ</Link>
-        <span aria-hidden="true">/</span>
-        <Link to="/policies">Chính sách</Link>
-        <span aria-hidden="true">/</span>
-        <span aria-current="page">{policy.title}</span>
-      </nav>
+    <article className="public-policies" aria-labelledby="policy-article-title">
+      <PolicyBackLink>Tất cả chính sách</PolicyBackLink>
+      <header className="policy-page-header">
+        <h1 id="policy-article-title">{policy.title}</h1>
+        <p>{policy.summary}</p>
+        {policy.purpose !== policy.summary && <p>{policy.purpose}</p>}
+      </header>
+      <div className="policy-publication">
+        <dl className="policy-metadata">
+          <div>
+            <dt>Ngày hiệu lực</dt>
+            <dd><EffectiveDate policy={policy} /></dd>
+          </div>
+          <div>
+            <dt>Phiên bản</dt>
+            <dd>{policy.version}</dd>
+          </div>
+        </dl>
+        {!versioned && <Link className="policy-action" to={policyHref(policy.slug, policy.versionPath)}>
+          <Link2 size={17} aria-hidden="true" />
+          Mở bản cố định
+        </Link>}
+      </div>
       <div className="policy-article-layout">
-        <article className="policy-article">
-          <header className="policy-page-header policy-page-header--article">
-            <p className="policy-eyebrow">
-              Paw World Care · Chính sách công khai
-            </p>
-            <h1 id="policy-article-title">{policy.title}</h1>
-            <p>{policy.summary}</p>
-          </header>
-          <dl className="policy-metadata">
-            <div>
-              <dt>Mục đích</dt>
-              <dd>{policy.purpose}</dd>
-            </div>
-            <div>
-              <dt>Phiên bản</dt>
-              <dd>{policy.version}</dd>
-            </div>
-            <div>
-              <dt>Ngày hiệu lực</dt>
-              <dd>{policy.effectiveDate}</dd>
-            </div>
-          </dl>
-          <div className="policy-version-row">
-            <span>
-              {versioned
-                ? 'Đường dẫn phiên bản cố định:'
-                : 'Phiên bản hiện hành:'}
-            </span>
-            <Link
-              to={policyHref(policy.slug, policy.versionPath)}
-              aria-current={versioned ? 'page' : undefined}
-            >
-              {policy.version} · mở liên kết phiên bản
-            </Link>
-          </div>
-          <div className="policy-article-content">
-            {policy.sections.map((section, index) => (
-              <section
-                key={section.heading}
-                aria-labelledby={`policy-section-${index}`}
-              >
-                <h2 id={`policy-section-${index}`}>{section.heading}</h2>
-                <PolicyContent content={section} />
-              </section>
-            ))}
-          </div>
-          <footer className="policy-article-footer">
-            <p>
-              Thông tin trên thuộc phiên bản đã được phê duyệt và đang có hiệu
-              lực.
-            </p>
-            <Link className="policy-back-link" to="/policies">
-              ← Tất cả chính sách
-            </Link>
-          </footer>
-        </article>
-        <aside className="policy-contents" aria-label="Mục lục bài viết">
-          <h2>Trong bài viết</h2>
-          <ol>
+        {policy.sections.length > 0 && <nav className="policy-contents" aria-label="Mục lục bài viết">
+          <p>Mục lục</p>
+          <ul>
             {policy.sections.map((section, index) => (
               <li key={section.heading}>
-                <a href={`#policy-section-${index}`}>{section.heading}</a>
+                <a href={`#policy-section-${index}`}>
+                  {section.heading}
+                  <ChevronRight size={16} aria-hidden="true" />
+                </a>
               </li>
             ))}
-          </ol>
-        </aside>
+          </ul>
+        </nav>}
+        <div className="policy-article-content">
+          {policy.sections.map((section, index) => (
+            <section key={section.heading} aria-labelledby={`policy-section-${index}`}>
+              <h2 id={`policy-section-${index}`} tabIndex={-1}>{section.heading}</h2>
+              <PolicyContent content={section} />
+            </section>
+          ))}
+        </div>
       </div>
-    </section>
+    </article>
   );
 }
 
