@@ -22,8 +22,8 @@ function ProjectionContent({ api, title, description, kind, targetId, searchable
   const load = useCallback(({ signal }) => api.read({ ...query, targetId, signal }), [api, query, targetId]);
   const resource = useApiResource(load);
   const data = resource.data;
-  return <section className="pwc-projection">
-    <h1>{title}</h1><p>{description}</p>
+  return <section className={kind === 'sitter-profile' ? 'pwc-projection sitter-profile-preview' : 'pwc-projection'}>
+    <h1 data-duplicate-title={kind === 'sitter-profile' || undefined}>{title}</h1><p>{description}</p>
     {(filterDates || searchable) && <form className="pwc-projection__filters" onSubmit={event => {
       event.preventDefault(); setHistory([]); setQuery({ ...dates, ...(searchable ? { search } : {}) });
     }}>
@@ -58,10 +58,10 @@ function ProjectionContent({ api, title, description, kind, targetId, searchable
         </>}
         {kind === 'payroll' && <p>{format(item.amountVnd)} VND — tuần yêu cầu {item.requestWeekKey}</p>}
       </li>)}</ul>
-      <CursorPagination label="báo cáo" page={history.length + 1} hasNext={Boolean(data.nextCursor)} nextLabel="Trang tiếp"
+      {(kind !== 'sitter-profile' || history.length > 0 || data.nextCursor) && <CursorPagination label="báo cáo" page={history.length + 1} hasNext={Boolean(data.nextCursor)} nextLabel="Trang tiếp"
         onFirst={() => { setHistory([]); setQuery(({ cursor: _cursor, ...rest }) => rest); }}
         onPrevious={() => { setQuery({ ...query, cursor: history.at(-1) }); setHistory(history.slice(0,-1)); }}
-        onNext={() => { setHistory([...history,query.cursor]); setQuery({ ...query, cursor: data.nextCursor }); }} />
+        onNext={() => { setHistory([...history,query.cursor]); setQuery({ ...query, cursor: data.nextCursor }); }} />}
     </>}
     {kind === 'earnings' && <p>Thu nhập không đồng nghĩa tiền đã chuyển. Khả dụng, đang giữ và khoản dành cho yêu cầu tất toán là các trạng thái riêng. Việc gửi yêu cầu tất toán thuộc luồng tất toán; trang này chỉ xem.</p>}
   </section>;

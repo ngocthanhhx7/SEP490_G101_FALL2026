@@ -58,6 +58,28 @@ function show(getTracker, getPhoto) {
 }
 const reads = () => globalThis.fetch.mock.calls.filter(([url]) => url === tracker).length;
 
+test('the customer can expand the assigned sitter published introduction inside the visit', async () => {
+  show(() => ({ ...active, sitter: { ...active.sitter, profile: { bio: 'Giới thiệu đã duyệt', areas: ['Hà Nội'] } },
+    actions: { ...active.actions, profile: true } }));
+  const toggle = await screen.findByText('Xem hồ sơ người chăm sóc');
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(await screen.findByText('Giới thiệu đã duyệt')).toBeVisible();
+  expect(screen.getByText('Hà Nội')).toBeVisible();
+});
+
+test('opening the profile on a completed visit rechecks publication', async () => {
+  let published = true;
+  show(() => ({ ...active, visit: { ...active.visit, status: 'REPORT_READY' },
+    sitter: { ...active.sitter, ...(published && { profile: { bio: 'Giới thiệu cũ' } }) },
+    actions: { ...active.actions, profile: published } }));
+  const toggle = await screen.findByRole('button', { name: 'Xem hồ sơ người chăm sóc' });
+  published = false;
+  fireEvent.click(toggle);
+  expect(await screen.findByText('Hồ sơ hiện không được công bố.')).toBeVisible();
+  expect(screen.queryByText('Giới thiệu cũ')).not.toBeInTheDocument();
+});
+
 test('exposes the journey only when the owner tracker returns the travel capability', async () => {
   show(() => ({ ...active, actions: { ...active.actions, travel: true } }));
   expect(await screen.findByText('Hành trình đến điểm chăm sóc')).toBeVisible();

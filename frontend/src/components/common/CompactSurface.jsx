@@ -10,8 +10,8 @@ export function CompactEmpty({ icon: Icon, title, children, action }) {
   </div>;
 }
 
-export function CompactRow({ icon: Icon, to, children }) {
-  return <Link className="pwc-compact-row" to={to}>
+export function CompactRow({ icon: Icon, to, state, children }) {
+  return <Link className="pwc-compact-row" to={to} state={state}>
     <span className="pwc-compact-icon"><Icon size={18} aria-hidden="true" /></span>
     <strong>{children}</strong>
     <ChevronRight size={18} aria-hidden="true" />

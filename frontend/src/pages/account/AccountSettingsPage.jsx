@@ -233,7 +233,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
           <p>{ROLE_LABELS[role] ?? 'Chưa có thông tin'}</p>
         </div>
       </div>
-      <p className="account-settings-caption">Tên khách hàng được sửa trong hồ sơ cá nhân. Cài đặt này không thay đổi tên hoặc vai trò.</p>
+      <p className="account-settings-caption">Bạn có thể cập nhật tên trong hồ sơ cá nhân. Cài đặt này không thay đổi tên hoặc vai trò.</p>
     </section>
 
     <section className="account-settings-card" aria-labelledby="account-settings-contacts-title">

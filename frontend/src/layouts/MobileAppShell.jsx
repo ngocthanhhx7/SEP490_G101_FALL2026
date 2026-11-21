@@ -57,6 +57,9 @@ export function MobileAppShell({ route, children, lookupRoute }) {
   const source = state?.mobileBack;
   const fromSitterSchedule = route?.id === 'N02' && typeof source === 'string'
     && /^\/sitter(?:\/(?:schedule(?:\?[^#]*)?|invitations))?$/.test(source);
+  const fromSitterSettings = role === 'PET_SITTER' && ['M22', 'M25'].includes(route?.id)
+    && typeof source === 'string' && /^\/(?:account|sitter(?:\/schedule(?:\?[^#]*)?)?)$/.test(source);
+  const fromSitterPublicProfile = role === 'PET_SITTER' && route?.id === 'M18' && source === '/sitter/public-profile';
   const fromCustomerAgenda = ['M12', 'M13'].includes(route?.id) && typeof source === 'string'
     && /^\/account\/bookings(?:\?[^#]*)?$/.test(source);
   const orderQuery = new globalThis.URLSearchParams(search);
@@ -65,7 +68,7 @@ export function MobileAppShell({ route, children, lookupRoute }) {
   const fromOrderList = orderDetail && typeof source === 'string'
     && /^\/customer\/product-orders(?:\?page=[1-9]\d*)?$/.test(source);
   const fromNotificationLink = route?.id === 'M03' && notificationBack(source, role, lookupRoute);
-  const candidate = fromSitterSchedule || fromCustomerAgenda || fromOrderList || fromNotificationLink ? source
+  const candidate = fromSitterSchedule || fromSitterSettings || fromSitterPublicProfile || fromCustomerAgenda || fromOrderList || fromNotificationLink ? source
     : orderDetail ? pathname + (/^[1-9]\d*$/.test(orderPage ?? '') ? '?page=' + orderPage : '') : fallback;
   const queryIndex = candidate.indexOf('?');
   const candidatePath = queryIndex === -1 ? candidate : candidate.slice(0, queryIndex);

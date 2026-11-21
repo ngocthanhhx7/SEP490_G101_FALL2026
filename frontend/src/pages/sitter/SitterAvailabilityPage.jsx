@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Notice, Select } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
@@ -65,6 +66,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
   }, [api]);
   const resource = useApiResource(load);
   const [today] = useState(() => localDateInSitterZone(now));
+  const [calendarWeek, setCalendarWeek] = useState(0);
   const [calendarRange] = useState(() => getSitterCalendarRange(now));
   const loadCalendar = useCallback(({ signal }) => {
     if (typeof api?.listCalendar !== 'function') return Promise.resolve({ data: null, pending: true });
@@ -158,15 +160,20 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
     ? <Button variant="secondary" onClick={() => { operation.current = null; resource.retry(); }}>Tải lại lịch</Button>
     : undefined;
   const calendarEntries = Array.isArray(calendarResource.data) ? calendarResource.data : [];
+  const weekCount = Math.ceil(calendarEntries.length / 7);
+  const activeWeek = Math.min(calendarWeek, Math.max(0, weekCount - 1));
+  const weekEntries = calendarEntries.slice(activeWeek * 7, activeWeek * 7 + 7);
   return <section className="sitter-availability">
     <header className="sitter-availability__header">
-      <p className="sitter-availability__eyebrow">Khu vực Sitter</p>
-      <h1>Lịch làm việc</h1>
+      <h1 data-duplicate-title>Giờ nhận việc</h1>
       {resource.data?.registrationContract?.state === 'UPCOMING' && <Notice state="pending" title="Hợp đồng đã ký, sắp có hiệu lực">
         Đăng ký lịch áp dụng từ {localDateInSitterZone(new Date(resource.data.registrationContract.effectiveAt))}. Ca chăm sóc vẫn phải nằm trong thời hạn hợp đồng và năng lực đã được xác minh.
       </Notice>}
-        <p>Bạn tự đăng ký lịch cụ thể sau khi ký hợp đồng và được duyệt. Hợp đồng mới ghi thời gian tối thiểu: full time 40 giờ/tuần, part time 20 giờ/tuần. Lịch có thể nhận việc không phải bảng công hoặc căn cứ tự động trừ lương.</p>
-      <p>Chọn giờ có thể nhận việc theo ngày trong tuần. Giờ được nhập và đọc theo <strong>Asia/Saigon</strong>.</p>
+      <p>Xem ngày có thể nhận ca, chỉnh giờ hằng tuần hoặc khai báo điểm xuất phát. Tất cả thời gian theo giờ Việt Nam.</p>
+      <nav className="sitter-availability__jump" aria-label="Cài đặt lịch">
+        <a href="#sitter-hours-heading">Chỉnh giờ nhận việc</a>
+        {api?.getOrigins && <a href="#sitter-origin-heading">Điểm xuất phát</a>}
+      </nav>
     </header>
 
     {isEmpty && <Notice state="empty" title="Bạn chưa khai báo giờ làm việc">
@@ -186,7 +193,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
           <h2 id="sitter-calendar-heading">Lịch trong 31 ngày</h2>
           <p>{formatSitterCalendarDate(calendarRange.fromLocalDate)} – {formatSitterCalendarDate(calendarRange.toLocalDate)}</p>
         </div>
-        <span className="sitter-availability__version">Asia/Saigon</span>
+        <span className="sitter-availability__version">Giờ Việt Nam</span>
       </header>
       {calendarResource.status === 'loading' && <Notice state="loading" title="Đang tải lịch ngày">Đang lấy ngày có thể nhận việc trong múi giờ Sitter.</Notice>}
       {calendarResource.status === 'pending' && <Notice state="pending" title="Lịch ngày đang chờ tích hợp">API lịch ngày chưa được kết nối. Chưa có ngày rảnh nào được xác nhận.</Notice>}
@@ -194,8 +201,13 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
       {calendarResource.status === 'error' && <Notice state="error" title="Không tải được lịch ngày"
         action={<Button variant="secondary" onClick={calendarResource.retry}>Thử lại</Button>}>Lịch ngày chưa được tải.</Notice>}
       {calendarResource.status === 'empty' && <Notice state="empty" title="Chưa có ngày rảnh để hiển thị">Hãy kiểm tra lại sau khi lịch được kết nối.</Notice>}
+      {calendarResource.status === 'success' && weekCount > 1 && <div className="sitter-availability__week">
+        <Button variant="secondary" aria-label="Tuần trước" disabled={activeWeek === 0} onClick={() => setCalendarWeek(activeWeek - 1)}><ChevronLeft size={18} /></Button>
+        <span aria-live="polite">Tuần {activeWeek + 1} / {weekCount}</span>
+        <Button variant="secondary" aria-label="Tuần sau" disabled={activeWeek + 1 >= weekCount} onClick={() => setCalendarWeek(activeWeek + 1)}><ChevronRight size={18} /></Button>
+      </div>}
       {calendarResource.status === 'success' && <ol className="sitter-availability__calendar-list">
-        {calendarEntries.map(entry => <li className="sitter-availability__calendar-day" key={entry.localDate}>
+        {weekEntries.map(entry => <li className="sitter-availability__calendar-day" key={entry.localDate}>
           <div className="sitter-availability__calendar-day-heading">
             <time dateTime={entry.localDate}>{formatSitterCalendarDate(entry.localDate)}</time>
             <span className={entry.isDayOff ? 'sitter-availability__calendar-state sitter-availability__calendar-state--off'
@@ -218,7 +230,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
 
     <section className="sitter-availability__panel" aria-labelledby="sitter-hours-heading">
       <div className="sitter-availability__panel-heading">
-        <div><h2 id="sitter-hours-heading">Giờ có thể nhận việc</h2>
+        <div><h2 id="sitter-hours-heading" tabIndex={-1}>Giờ có thể nhận việc</h2>
           <p>Khoảng qua nửa đêm được tính sang ngày kế tiếp. Khoảng trùng nhau sẽ bị máy chủ từ chối.</p></div>
         <span className="sitter-availability__version">Phiên bản lịch: {currentVersion}</span>
       </div>
@@ -232,12 +244,12 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
             </Select>
             <Input label="Bắt đầu" type="time" value={window.startLocalTime}
               onChange={event => changeWindow(window.rowId, 'startLocalTime', event.target.value)} required disabled={fieldsDisabled} />
+            <Input label="Kết thúc" type="time" value={window.endLocalTime}
+              onChange={event => changeWindow(window.rowId, 'endLocalTime', event.target.value)} required disabled={fieldsDisabled} />
             <Select label="Nơi làm việc" value={window.workLocation ?? 'HOME'}
               onChange={event => changeWindow(window.rowId, 'workLocation', event.target.value)} disabled={fieldsDisabled}>
               <option value="HOME">Chăm sóc tại nhà khách</option><option value="SHOP">Tại cửa hàng</option>
             </Select>
-            <Input label="Kết thúc" type="time" value={window.endLocalTime}
-              onChange={event => changeWindow(window.rowId, 'endLocalTime', event.target.value)} required disabled={fieldsDisabled} />
             <Button variant="ghost" className="sitter-availability__remove" aria-label={`Xóa khung giờ ${index + 1}`}
               onClick={() => removeWindow(window.rowId)} disabled={fieldsDisabled}>Xóa</Button>
           </fieldset>)}
@@ -258,8 +270,9 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
 
     {api?.getOrigins && <SitterDayOriginForm api={api} />}
     <section className="sitter-availability__safety" aria-labelledby="sitter-hours-safety-heading">
-      <h2 id="sitter-hours-safety-heading">Thay đổi an toàn</h2>
+      <h2 id="sitter-hours-safety-heading">Khi thay đổi lịch</h2>
       <p>Lịch rảnh chỉ giúp tìm ứng viên; thao tác lưu không tạo booking hoặc offer. Buổi đã xác nhận không bị xóa. Nếu lịch mới ảnh hưởng buổi đã nhận, Staff cần xử lý theo chính sách.</p>
+      <p>Hợp đồng ghi thời gian tối thiểu: toàn thời gian 40 giờ/tuần, bán thời gian 20 giờ/tuần. Lịch nhận việc không dùng để chấm công hoặc tự động trừ lương.</p>
       <p>Ngày nghỉ và khu vực phục vụ được lưu như các phần cấu hình riêng; cập nhật giờ không thay đổi hai phần đó.</p>
     </section>
   </section>;
