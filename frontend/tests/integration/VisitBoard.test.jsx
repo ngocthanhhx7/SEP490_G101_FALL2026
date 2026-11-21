@@ -14,7 +14,8 @@ beforeAll(() => {
 const MIN = 60000;
 const workAreas = [{ code: 'DISTRICT_CAU_GIAY', label: 'Cầu Giấy' }, { code: 'DISTRICT_DONG_DA', label: 'Đống Đa' }];
 // Synthetic rows. Times are Vietnam time on 04/11/2026.
-const base = { version: 1, areaCode: 'DISTRICT_CAU_GIAY', state: 'ASSIGNED', reviewCode: null, serviceName: 'Chăm sóc tại nhà' };
+const base = { version: 1, areaCode: 'DISTRICT_CAU_GIAY', state: 'ASSIGNED', reviewCode: null, serviceName: 'Chăm sóc tại gia',
+  serviceDisplayName: 'Chăm sóc sinh hoạt thú cưng', petNames: ['Bơ'], location: 'HOME' };
 const rows = {
   notCheckedIn: { ...base, id: 'v-51', bookingId: '6720a1b2c3d4e5f6a7b8c951', bookingCode: 'BK-0051', startAt: '2026-11-04T01:05:00Z', endAt: '2026-11-04T02:05:00Z',
     customerName: 'Ngô Minh Đức', sitterId: 's-1', sitterName: 'Trịnh Văn Hoà', reasons: [{ code: 'NOT_CHECKED_IN_30M', late: true, ms: 35 * MIN }] },
@@ -98,8 +99,14 @@ describe('Cần xử lý table', () => {
   test('shows booking, customer, main reason, time, sitter and an action for each visit', async () => {
     render(<Harness api={board()} />);
     const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
-    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Buổi', 'Khách hàng', 'Lý do', 'Thời gian', 'Người chăm sóc', 'Thao tác']);
+    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Buổi chăm sóc', 'Khách hàng', 'Lý do', 'Thời gian', 'Khu vực', 'Người chăm sóc', 'Thao tác']);
     const row = table.getByText('BK-0051').closest('tr');
+    const [visit, customer] = within(row).getAllByRole('cell');
+    expect(within(row).getByText('Cầu Giấy')).toBeVisible();
+    expect(visit.querySelector('strong')).toHaveTextContent('Chăm sóc sinh hoạt thú cưng');
+    expect(visit).toHaveTextContent('Bơ');
+    expect(visit).toHaveTextContent('Tại nhà');
+    expect(customer).toHaveTextContent('Mã lịch · BK-0051');
     expect(within(row).getByText('Ngô Minh Đức')).toBeInTheDocument();
     expect(within(row).getByText('Chưa check-in sau 30 phút')).toBeInTheDocument();
     expect(within(row).getByText('Trễ 35 phút')).toHaveClass('visit-board__late');
@@ -123,6 +130,16 @@ describe('Cần xử lý table', () => {
     expect(table.getByText('Chưa check-in sau 30 phút')).toBeInTheDocument();
     expect(table.getByText('Rút buổi dưới 12 giờ')).toBeInTheDocument();
     expect(table.getByRole('button', { name: 'Gọi người chăm sóc' })).toBeInTheDocument();
+  });
+
+  test('an overdue unassigned visit shows the overdue label when there are also no eligible sitters', async () => {
+    const overdue = { ...rows.shiftReached, reviewCode: 'NO_ELIGIBLE_CANDIDATES', unassignedOverdue: true,
+      reasons: [{ code: 'NO_SITTER_TO_OFFER', late: true, ms: 50 * MIN }, ...rows.shiftReached.reasons] };
+    const api = board({ visitBoard: jest.fn().mockResolvedValue(needsPage([overdue])) });
+    render(<Harness api={api} />);
+    const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
+    expect(table.getByText('Đã qua giờ hẹn, chưa có người nhận')).toBeVisible();
+    expect(table.getByText('Hết người để mời')).toBeVisible();
   });
 
   test('says so when nothing needs action, and when a search matches nothing', async () => {
@@ -288,7 +305,7 @@ describe('Tất cả buổi', () => {
     render(<Harness api={api} />);
     fireEvent.click(tabNamed('Tất cả buổi'));
     const table = within(await screen.findByRole('region', { name: 'Tất cả buổi' }));
-    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Giờ', 'Lịch đặt', 'Dịch vụ', 'Khu vực', 'Người chăm sóc', 'Trạng thái']);
+    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Buổi chăm sóc', 'Khách hàng', 'Khu vực', 'Người chăm sóc', 'Trạng thái']);
     expect(table.getByText('Đống Đa')).toBeInTheDocument();
     expect(table.getByText('Chờ phân công')).toBeInTheDocument();
     expect(table.getByText('Đã nhận')).toBeInTheDocument();

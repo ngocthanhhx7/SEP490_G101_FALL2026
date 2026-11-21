@@ -68,6 +68,24 @@ beforeEach(async () => {
   await connection.collection('bookings').deleteMany({});
 });
 
+test('home-care availability and checkout share the inclusive 120-minute boundary', async () => {
+  const q = await quote('home-care', 1);
+  const body = input(q);
+  const visitAt = minutes => ({ ...body.visits[0], startAt: new Date(at.getTime() + minutes * 60000).toISOString() });
+  const short = { ...body, visits: [visitAt(119)] };
+  await expect(availability.search(owner, { quoteId: q.quoteId, visit: short.visits[0] }))
+    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
+  await expect(checkout.confirm(owner, short, 'home-notice-boundary'))
+    .rejects.toMatchObject({ code: 'HOME_BOOKING_NOTICE_REQUIRED', status: 422 });
+  expect(await connection.collection('visits').countDocuments()).toBe(0);
+  const exact = { ...body, visits: [visitAt(120)] };
+  await expect(availability.search(owner, { quoteId: q.quoteId, visit: exact.visits[0] })).resolves.toHaveProperty('sitters');
+  const saved = await checkout.confirm(owner, exact, 'home-notice-boundary');
+  expect(saved.visits[0].startAt).toEqual(new Date(exact.visits[0].startAt));
+  expect(await checkout.confirm(owner, exact, 'home-notice-boundary')).toMatchObject({ id: saved.id });
+  expect(await connection.collection('visits').countDocuments()).toBe(1);
+});
+
 test('different quotes for the same pet cannot reserve overlapping times, including concurrent checkout', async () => {
   const q1 = await quote('home-care', 1), q2 = await quote('home-care', 1);
   const results = await Promise.allSettled([

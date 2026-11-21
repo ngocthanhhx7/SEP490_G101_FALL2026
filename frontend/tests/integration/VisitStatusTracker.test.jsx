@@ -1,5 +1,5 @@
 import { beforeAll } from '@jest/globals';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppRoutes } from '../../src/routes/AppRoutes.jsx';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
@@ -43,9 +43,10 @@ afterEach(() => {
   else delete document.hidden;
   jest.useRealTimers();
 });
-function show(getTracker) {
+function show(getTracker, getPhoto) {
   globalThis.fetch = jest.fn(async url => {
     if (url === tracker) return envelope(await getTracker());
+    if (url.startsWith('/api/v1/private-images/') && getPhoto) return getPhoto(url);
     if (url === '/api/v1/checkout/bookings/' + bookingId)
       return envelope({ id: bookingId, state: 'IN_PROGRESS', paymentMode: 'POSTPAY', paymentState: 'UNPAID',
         visits: [], careShifts: [], scheduleProposals: [], details: { terms: [], price: { visitPricesVnd: [] },
@@ -57,9 +58,15 @@ function show(getTracker) {
 }
 const reads = () => globalThis.fetch.mock.calls.filter(([url]) => url === tracker).length;
 
+test('exposes the journey only when the owner tracker returns the travel capability', async () => {
+  show(() => ({ ...active, actions: { ...active.actions, travel: true } }));
+  expect(await screen.findByText('Hành trình đến điểm chăm sóc')).toBeVisible();
+});
+
 test('UC-78 renders current progress and newest updates and returns to the booking', async () => {
   show(() => active);
   expect(await screen.findByRole('heading', { name: 'Theo dõi buổi chăm sóc' })).toBeVisible();
+  expect(screen.queryByText('Hành trình đến điểm chăm sóc')).not.toBeInTheDocument();
   const progress = screen.getByRole('region', { name: 'Tiến trình buổi' });
   const steps = within(progress).getAllByRole('listitem');
   expect(steps).toHaveLength(5);
@@ -72,6 +79,36 @@ test('UC-78 renders current progress and newest updates and returns to the booki
   expect(screen.queryByText(/Xem hồ sơ người chăm sóc|Xem vị trí đi dạo|Báo sự cố/)).toBeNull();
   fireEvent.click(screen.getByRole('link', { name: 'Quay lại Lịch đặt BK-0042' }));
   expect(await screen.findByRole('heading', { name: 'Chi tiết đơn chăm sóc' })).toBeVisible();
+});
+
+test('shows the task, pet and private photo after a poll before checkout', async () => {
+  jest.useFakeTimers();
+  Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+  const photo = 'a'.repeat(64);
+  let current = { ...active, careUpdates: [] };
+  const createObjectURL = URL.createObjectURL;
+  const revokeObjectURL = URL.revokeObjectURL;
+  URL.createObjectURL = jest.fn(() => 'blob:synthetic');
+  URL.revokeObjectURL = jest.fn();
+  const getPhoto = jest.fn(async () => ({ ok: true, status: 200,
+    headers: new Headers({ 'Content-Type': 'image/png', 'Content-Length': '3' }),
+    blob: async () => new globalThis.Blob(['png'], { type: 'image/png' }) }));
+  try {
+    show(() => current, getPhoto);
+    await screen.findByText('Chưa có nhiệm vụ hoặc ảnh được chia sẻ trong buổi này.');
+    current = { ...active, careUpdates: [{ taskKey: 'feeding:milo', petName: 'Milo', title: 'Cho ăn',
+      status: 'COMPLETED', at: time('07:13'), photos: [{ mediaId: photo, label: 'Bát thức ăn' }] }] };
+    await act(async () => { jest.advanceTimersByTime(30000); });
+    const duringCare = screen.getByRole('region', { name: 'Nhiệm vụ và ảnh trong buổi' });
+    expect(within(duringCare).getByRole('heading', { name: 'Cho ăn · Milo' })).toBeVisible();
+    expect(await within(duringCare).findByRole('button', { name: 'Xem trước Bát thức ăn' })).toBeVisible();
+    expect(getPhoto).toHaveBeenCalledWith('/api/v1/private-images/' + photo + '/content');
+    expect(screen.queryByRole('button', { name: 'Xem báo cáo và ảnh' })).toBeNull();
+  } finally {
+    cleanup();
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+  }
 });
 
 test('UC-78 shows finding a sitter in place of the steps', async () => {

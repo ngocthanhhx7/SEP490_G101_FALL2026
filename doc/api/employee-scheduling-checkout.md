@@ -21,8 +21,10 @@ Travel transitions use optimistic expectedVersion, not an idempotency ledger. Af
 acknowledgement read the current state before another transition. GPS samples are monotonic per
 session; STOP/ARRIVED rotates away the session and removes its coordinates. Rate limits per
 account/instance: 120 reads, 20 writes, 2 ETA calculations per minute. No background GPS promise,
-care completion, automatic assignment change or financial effect. The window is startAt minus
-120 minutes through endAt; freshness is 90 seconds and maximum accuracy error is 100 m.
+care completion, automatic assignment change or financial effect. The window opens 30 minutes
+before startAt while the visit is assigned. Check-in or endAt closes it. Freshness is 90 seconds
+and maximum accuracy error is 100 m. The owner tracker exposes the journey entry only inside the
+window and while travel is enabled. Coordinates require explicit employee sharing.
 
 Map API `/api/v1/maps/search` accepts POST `{query}` with `MAPS_ENABLED=true`. Configured
 Google returns at most five `{label, coordinates}` results. Vietmap returns
@@ -47,6 +49,9 @@ Quotes cannot be reused. Checkout revalidates owned pets, current price/service/
 consent, address and overlap before saving one immutable customer/payment snapshot. Service
 amounts after combo are allocated exactly across visits using largest remainders. The employee
 commission basis excludes order fees and is distinct from the customer payment total.
+At-home visit availability and new checkout require at least 120 minutes of lead time on the server.
+Exactly 120 minutes is accepted. A shorter otherwise valid at-home time returns 422
+HOME_BOOKING_NOTICE_REQUIRED. Existing bookings and change requests follow their own rules.
 Multi-visit and multi-day stays require verified full prepayment within fifteen minutes.
 Browser redirects are not payment evidence; late callbacks require reconciliation and cannot
 revive expired unpaid bookings. Payment link creation uncertainty does not create a second link.

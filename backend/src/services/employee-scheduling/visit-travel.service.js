@@ -5,8 +5,13 @@ import { travelCommand, travelLocation } from '../../validators/visit-travel.val
 import { assertEmployeeSchedulingStorage } from './scheduling-storage.service.js';
 import { edgeKey } from '../sitter-matching/routing.service.js';
 
-const oid = value => new Types.ObjectId(value), ACTIVE = ['ASSIGNED', 'IN_PROGRESS'];
-const FRESH_MS = 90000, BEFORE_MS = 120 * 60000;
+const oid = value => new Types.ObjectId(value);
+const FRESH_MS = 90000, BEFORE_MS = 30 * 60000;
+
+export function isVisitTravelWindowOpen(visit, now) {
+  return visit.state === 'ASSIGNED' && !visit.checkInAt && !!visit.sitterId &&
+    now >= new Date(visit.startAt).getTime() - BEFORE_MS && now < new Date(visit.endAt).getTime();
+}
 export function createVisitTravelService({ repository, routingProvider, clock = Date.now }) {
   const { models, col, uow } = repository, Travel = models.EmployeeVisitTravel;
   function access(actor, visit) {
@@ -16,16 +21,13 @@ export function createVisitTravelService({ repository, routingProvider, clock = 
     if (actor.state !== 'ACTIVE' || !visit || (!sitter && !viewer)) fail('RESOURCE_NOT_FOUND', 'Visit unavailable', 404);
     return sitter;
   }
-  function windowOpen(visit) {
-    return ACTIVE.includes(visit.state) && !!visit.sitterId && clock() >= new Date(visit.startAt).getTime() - BEFORE_MS && clock() < new Date(visit.endAt).getTime();
-  }
   function view(visit, row, owner) {
-    const available = windowOpen(visit), matches = row?.sitterId === String(visit.sitterId);
+    const available = isVisitTravelWindowOpen(visit, clock()), matches = row?.sitterId === String(visit.sitterId);
     const fresh = available && matches && row.sharing && row.coordinates?.length === 2 &&
       row.observedAt && clock() - row.observedAt.getTime() <= FRESH_MS && row.accuracyMeters <= 100;
     return { visitId: String(visit._id), available, version: matches ? row.version : 0,
       state: available && matches ? row.state : 'NOT_SHARING', sharing: Boolean(available && matches && row.sharing),
-      fresh: Boolean(fresh), ...(owner && matches && row.sharing ? { sessionId: row.sessionId } : {}),
+      fresh: Boolean(fresh), ...(owner && available && matches && row.sharing ? { sessionId: row.sessionId } : {}),
       location: fresh ? { coordinates: row.coordinates, accuracyMeters: row.accuracyMeters, observedAt: row.observedAt } : null,
       updatedAt: matches ? row.updatedAt : null, serverTime: new Date(clock()) };
   }
@@ -43,7 +45,7 @@ export function createVisitTravelService({ repository, routingProvider, clock = 
     if (actor.state !== 'ACTIVE' || !actor.roles?.includes('PET_SITTER')) fail('FORBIDDEN', 'Assigned employee required', 403);
     await assertEmployeeSchedulingStorage(Travel.db);
     return uow.run(async session => {
-      const visit = await col('visits').findOneAndUpdate({ _id: oid(visitId), sitterId: oid(actor.userId), state: { $in: ACTIVE },
+      const visit = await col('visits').findOneAndUpdate({ _id: oid(visitId), sitterId: oid(actor.userId), state: 'ASSIGNED', checkInAt: null,
         startAt: { $lte: new Date(clock() + BEFORE_MS) }, endAt: { $gt: new Date(clock()) } },
       { $inc: { travelGuardVersion: 1 } }, { session, returnDocument: 'after' });
       if (!visit) fail('TRAVEL_WINDOW_CLOSED', 'Travel is only available during assigned work', 409);
@@ -60,7 +62,7 @@ export function createVisitTravelService({ repository, routingProvider, clock = 
       if (actor.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       exact(query, ['cursor']); if (query.cursor) id(query.cursor);
       const rows = await col('visits').aggregate([
-        { $match: { state: { $in: ACTIVE }, sitterId: { $ne: null }, startAt: { $lte: new Date(clock() + BEFORE_MS) },
+        { $match: { state: 'ASSIGNED', checkInAt: null, sitterId: { $ne: null }, startAt: { $lte: new Date(clock() + BEFORE_MS) },
           endAt: { $gt: new Date(clock()) }, ...(query.cursor ? { _id: { $lt: oid(query.cursor) } } : {}) } },
         { $sort: { _id: -1 } },
         { $lookup: { from: 'bookings', localField: 'bookingId', foreignField: '_id', as: 'booking' } },

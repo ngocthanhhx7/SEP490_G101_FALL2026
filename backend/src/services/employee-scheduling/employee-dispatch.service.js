@@ -1,4 +1,5 @@
 import { createDispatchWorkspaceService } from './dispatch-workspace.service.js';
+import { dispatchVisitPresentation } from './dispatch-visit-presentation.js';
 import { createVisitWithdrawalService, hasPendingWithdrawal } from './visit-withdrawal.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/app-error.js';
@@ -265,12 +266,12 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const people=await col('users').find({_id:{$in:rows.flatMap(r=>[r.customerId,directedSitter(r)]).filter(Boolean).map(value=>oid(String(value)))}},{projection:{displayName:1}}).toArray();
       const name=id=>people.find(p=>String(p._id)===String(id))?.displayName??null;
       return { ...withdrawalQueue, today, queueHasMore: rows.length>50, workAreas: await (repository.getCoverageAreas?.() ?? Promise.resolve(repository.coverageAreas)), items: rows.slice(0,50).map(row => ({ id: String(row._id), bookingId: String(row.bookingId), customerName:name(row.customerId), requestedSitterName:name(directedSitter(row)), version: row.version, startAt: row.startAt,
-        endAt: row.endAt, serviceName: row.snapshots.serviceName, petNames: (row.snapshots.pets ?? []).map(pet => pet.name).filter(name => typeof name === 'string').slice(0,10), areaCode: row.areaCode,
+        endAt: row.endAt, ...dispatchVisitPresentation(row), areaCode: row.areaCode,
         reviewCode: row.startAt <= new Date(clock()) ? 'SHIFT_START_REACHED' : row.dispatchReview?.code,
         dispatchState: row.pendingOffer ? 'AWAITING_RESPONSE' : row.dispatchReview || row.startAt <= new Date(clock()) ? 'NEEDS_STAFF' : 'SYSTEM_SEARCHING',
         pendingInvitation: row.pendingOffer ? { sitterId: row.pendingOffer.sitterId, deadline: row.pendingOffer.deadline } : null,
         pendingInvitationCount: row.pendingInvitationCount,
-        diagnostics: row.dispatchReview?.diagnostics, location: row.location, boarding: row.snapshots.boarding === true,
+        diagnostics: row.dispatchReview?.diagnostics, boarding: row.snapshots.boarding === true,
         requestedSitterId: directedSitter(row) })) };
     },
     async invite(actor, visitId, body, key) {

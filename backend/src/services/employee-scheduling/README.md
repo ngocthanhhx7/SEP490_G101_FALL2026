@@ -77,7 +77,8 @@ Runtime startup does not create indexes or delete existing collections.
 See [API and policy](../../../../doc/api/employee-scheduling-checkout.md).
 
 `visit-travel.service.js` scopes travel to the assigned employee, owning customer and Staff/Admin
-during an active visit window. Session stop, monotonic observations, accuracy/freshness validation,
+from 30 minutes before an assigned visit until check-in or endAt. Session stop, monotonic observations,
+accuracy/freshness validation,
 TTL latest-only storage and transaction guards protect updates. Travel does not complete care,
 attendance or finance. Explicit ETA uses the configured route adapter. Dispatch orders eligible
 candidates by available adjacent-route evidence and workload before an optional advisory ranker.
