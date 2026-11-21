@@ -178,6 +178,12 @@ function EmployeeScheduleRoute({ view }) {
     : <p role="alert">Mã buổi chăm sóc không hợp lệ.</p>;
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
   if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id + ':' + params.toString()} api={api}
+    onCloseVisit={() => {
+      if (!params.has('visitId')) return;
+      const query = new globalThis.URLSearchParams(params);
+      query.delete('visitId');
+      setParams(query, { replace: true });
+    }}
     initialVisitId={/^[a-f0-9]{24}$/i.test(params.get('visitId') ?? '') ? params.get('visitId') : undefined} selectedSitter={params.get('sitterId') || undefined}
     initialWorkflowId={params.get('workflowId') || undefined} initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
   if (view === 'invitations' && /^[a-f\d]{24}$/i.test(params.get('visitId') ?? ''))

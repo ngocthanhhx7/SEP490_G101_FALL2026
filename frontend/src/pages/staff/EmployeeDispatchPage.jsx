@@ -37,7 +37,7 @@ const reviewLabel = (code) =>
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const [bookingChangesRevision, setBookingChangesRevision] = useState(0);
@@ -241,7 +241,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, init
           title="Chi tiết điều phối"
           className="ops-dialog dispatch-detail-dialog"
           dismissible={!command.busy && !command.pending}
-          onClose={() => setSelected(null)}
+          onClose={() => { setSelected(null); onCloseVisit?.(); }}
         >
           <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceDisplayName || active.serviceName || 'Chưa rõ dịch vụ'}</h3>
           <p>
