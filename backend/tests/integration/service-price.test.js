@@ -56,22 +56,26 @@ afterAll(async () => {
 
 describe('P17 service price configuration on isolated MongoDB', () => {
   test('price writes require Admin and reject negative, fractional, and unknown input', async () => {
+    const priceInput = amountVnd => ({
+      expectedVersion: 0, amountVnd, unitLabel: 'mỗi lượt', effectiveAt: inMinutes(1), reason: 'Đã duyệt'
+    });
     await request(app).get('/api/v1/service-prices/admin/' + serviceId).expect(401);
     await request(app).get('/api/v1/service-prices/admin/' + serviceId).set(headers('CUSTOMER')).expect(403);
     await request(app).get('/api/v1/service-prices/admin/' + serviceId).set(headers('STAFF')).expect(200)
       .expect(({ body }) => expect(body.data.latestVersion).toBe(0));
-    await request(app).post('/api/v1/service-prices/admin/' + serviceId).set(headers('STAFF')).send({}).expect(403);
+    // IT-SEC-02: the Staff request has valid input and CSRF, but cannot create a price version.
+    await request(app).post('/api/v1/service-prices/admin/' + serviceId).set(headers('STAFF'))
+      .send(priceInput(50000)).expect(403)
+      .expect(({ body }) => expect(body.error.code).toBe('FORBIDDEN'));
+    expect(await connection.model('ServicePriceVersion').countDocuments({ serviceId })).toBe(0);
 
-    const invalid = amountVnd => ({
-      expectedVersion: 0, amountVnd, unitLabel: 'mỗi lượt', effectiveAt: inMinutes(1), reason: 'Đã duyệt'
-    });
     for (const amount of [-1, 12.5, '50000']) {
-      await request(app).post('/api/v1/service-prices/admin/' + serviceId).set(headers('ADMIN')).send(invalid(amount)).expect(422);
+      await request(app).post('/api/v1/service-prices/admin/' + serviceId).set(headers('ADMIN')).send(priceInput(amount)).expect(422);
     }
     await request(app).post('/api/v1/service-prices/admin/' + serviceId).set(headers('ADMIN'))
-      .send({ ...invalid(50000), effectiveAt: '2026-02-30T00:00:00Z' }).expect(422);
+      .send({ ...priceInput(50000), effectiveAt: '2026-02-30T00:00:00Z' }).expect(422);
     await request(app).post('/api/v1/service-prices/admin/' + serviceId).set(headers('ADMIN'))
-      .send({ ...invalid(50000), amountUsd: 1 }).expect(422);
+      .send({ ...priceInput(50000), amountUsd: 1 }).expect(422);
   });
 
   test('new prices activate at their effective time and preserve the previous version', async () => {
