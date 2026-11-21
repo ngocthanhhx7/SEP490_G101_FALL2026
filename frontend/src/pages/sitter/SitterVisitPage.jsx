@@ -18,7 +18,7 @@ export function SitterVisitPage({ api, visitId }) {
     <h1>Chưa mở được buổi chăm sóc</h1>
     <p role="status">{visit.httpStatus === 404 || visit.status === 'forbidden'
       ? 'Buổi không còn khả dụng với tài khoản này.' : 'Máy chủ chưa trả dữ liệu buổi.'}</p>
-    <Button onClick={visit.retry}>Thử lại</Button> <Link to="/sitter/schedule">Về ca làm</Link>
+    <Button onClick={visit.retry}>Thử lại</Button> <Link data-page-back to="/sitter/schedule">Về ca làm</Link>
   </section>;
 
   const directions = googleMapsDirections(row.serviceAddress);

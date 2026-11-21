@@ -142,9 +142,8 @@ export function AvatarMenu({ user, role, onLogout, notificationTo, customerNavig
         <nav className="pwc-avatar-menu__links" aria-label="Tùy chọn tài khoản">
           {role && role !== 'CUSTOMER' && <Link to={roleLanding(user)} onClick={() => dismiss()}>Trang quản lý</Link>}
           {customerNavigation ? <>
-            <div className="pwc-avatar-menu__account-group"><Link to="/account/profile" onClick={() => dismiss()}>Trung tâm tài khoản</Link>
-              <div className="pwc-avatar-menu__account-subnav"><Link to="/account/profile" onClick={() => dismiss()}>Hồ sơ</Link>
-                <Link to="/account/addresses" onClick={() => dismiss()}>Quản lý địa chỉ</Link></div></div>
+            <Link to="/account/profile" onClick={() => dismiss()}>Hồ sơ cá nhân</Link>
+            <Link to="/account/addresses" onClick={() => dismiss()}>Quản lý địa chỉ</Link>
             <Link to="/account/pets" onClick={() => dismiss()}>Quản lý hồ sơ các thú cưng</Link>
             <Link to="/account/bookings" onClick={() => dismiss()}>Đơn chăm sóc</Link>
             <Link to="/customer/product-orders" onClick={() => dismiss()}>Đơn mua sản phẩm</Link>

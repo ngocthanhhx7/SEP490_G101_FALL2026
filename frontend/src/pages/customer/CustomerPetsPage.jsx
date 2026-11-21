@@ -57,7 +57,7 @@ export function CustomerPetsPage({ api: suppliedApi }) {
   }
   function save(event) { event.preventDefault(); if (busy || uncertain || importBusy || photoBusy) return; start({ type: 'save', id: editor.id, body: customerPetBody(draft, editor.id ? editor.version : undefined) }); }
   return <section className="customer-pets" aria-labelledby="customer-pets-title">
-    {petId && <Link className="pet-back" to="/account/pets"><ArrowLeft size={17} />Thú cưng của tôi</Link>}
+    {petId && <Link className="pet-back" data-page-back to="/account/pets"><ArrowLeft size={17} />Thú cưng của tôi</Link>}
     {!pet && <header className="pet-page-heading"><div><span className="pet-eyebrow">Đồng hành cùng bạn</span><h1 id="customer-pets-title">{petId ? pet?.name ?? 'Hồ sơ thú cưng' : 'Thú cưng của tôi'}</h1><p>{petId ? 'Ảnh, thói quen và lưu ý để mỗi buổi chăm sóc phù hợp hơn.' : 'Lưu những điều riêng của từng bé, để người chăm sóc hiểu và chuẩn bị tốt hơn.'}</p></div>
       {!petId && <Button onClick={() => edit()} disabled={!catalog || busy || uncertain}><Plus size={18} />Thêm thú cưng</Button>}
     </header>}
@@ -65,7 +65,7 @@ export function CustomerPetsPage({ api: suppliedApi }) {
     {resource.status === 'loading' && <div className="pet-loading" role="status">Đang tải hồ sơ thú cưng…</div>}
     {['error', 'forbidden', 'pending'].includes(resource.status) && <Notice state={resource.status} title="Chưa tải được thú cưng" action={<Button onClick={resource.retry}>Tải lại</Button>}>{problem({ code: resource.code })}</Notice>}
     {catalog && !items.length && !petId && <div className="pet-empty"><PawPrint size={40} /><h2>Thêm người bạn nhỏ đầu tiên</h2><p>Bắt đầu bằng tên, giống và cân nặng. Ảnh và những thói quen khác có thể bổ sung sau.</p><Button onClick={() => edit()}><Plus size={18} />Tạo hồ sơ thú cưng</Button></div>}
-    {catalog && petId && !pet && <Notice state="empty" title="Không tìm thấy hồ sơ đang hoạt động"><Link to="/account/pets">Về danh sách thú cưng</Link></Notice>}
+    {catalog && petId && !pet && <Notice state="empty" title="Không tìm thấy hồ sơ đang hoạt động" />}
     {!petId && items.length > 0 && <><p className="pet-list-count">{items.length} người bạn nhỏ trong gia đình</p><ul className="pet-card-grid">{items.map(row => <li key={row.id} className="pet-summary-card">
       <Link to={`/account/pets/${row.id}`} className="pet-cover-link" aria-label={`Ảnh và hồ sơ ${row.name}`}><ProfileAvatar petId={row.id} label={`Ảnh của ${row.name}`} fallback={speciesName(row.species)} className="pet-card-cover" /><span className="pet-species-badge">{speciesName(row.species)}</span></Link>
       <div className="pet-card-body"><div className="pet-card-title"><div><h2>{row.name}</h2><p>{breed(row)}{row.sex && row.sex !== 'UNKNOWN' ? ` · ${{MALE:'Đực',FEMALE:'Cái'}[row.sex]}` : ''}</p></div><div className="pet-card-measures"><strong>{row.weightKg} kg</strong><small>{row.ageMonths !== undefined ? `${row.ageMonths} tháng tuổi` : 'Chưa rõ tuổi'}</small></div></div>

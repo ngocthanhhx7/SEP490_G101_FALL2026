@@ -208,13 +208,13 @@ export function ServiceBookingPage({ loadCatalog = loadPublicCatalog }) {
   const api = useMemo(() => createServiceBasketApi({ getCsrfToken: session.getCsrfToken }), [session.getCsrfToken]);
   const matching = useMemo(() => createSitterRecommendationApi({ request: createApiClient({ getCsrfToken: session.getCsrfToken }) }), [session.getCsrfToken]);
   if (catalog.status === 'loading') return <main className="pwc-page"><p role="status">Đang tải dịch vụ…</p></main>;
-  if (!service) return <main className="pwc-page"><h1>Dịch vụ chưa khả dụng</h1><Link to="/services">Về danh mục</Link><button onClick={catalog.retry}>Tải lại</button></main>;
+  if (!service) return <main className="pwc-page"><h1>Dịch vụ chưa khả dụng</h1><Link data-page-back to="/services">Về danh mục</Link><button onClick={catalog.retry}>Tải lại</button></main>;
   // After every hook. A shop-only service has no home visit to book here; `?booking=` is the confirmation of a booking just made.
   if (isShopOnly(service) && !params.get('booking')) return service.groomingBookingEnabled === false
     ? <main className="pwc-page"><h1>Đặt lịch tại cửa hàng chưa mở</h1><Link to={'/services/' + service.id}>Xem dịch vụ</Link></main>
     : <Navigate to={groomingPath(service)} replace />;
   const visual = serviceVisual(service);
-  return <main className="pwc-page service-booking"><nav aria-label="Đường dẫn"><Link to="/services">Dịch vụ</Link> / <Link to={'/services/'+service.id}>{service.name}</Link> / Đặt lịch</nav>
+  return <main className="pwc-page service-booking"><Link className="pwc-service-page-back" data-page-back to={'/services/' + service.id}>← Chi tiết dịch vụ</Link>
     <header className="booking-service"><img src={visual.src} alt={visual.alt} /><div><p>Đặt dịch vụ</p><h1>{service.name}</h1><p>{formatCatalogPrice(service.price)}</p></div></header>
     {session.status === 'authenticated' && hasRole(session.user, 'CUSTOMER') ? params.get('booking') ? <BookingConfirmation api={api} />
       : <BookingFlow key={session.user.id+service.id} service={service} api={api} matching={matching} onBooked={booking => { setParams({ booking: booking.id }); globalThis.scrollTo?.({ top: 0, behavior: 'smooth' }); }} />

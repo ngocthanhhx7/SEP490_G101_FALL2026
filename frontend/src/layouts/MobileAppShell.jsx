@@ -19,9 +19,9 @@ const sitter = [['home', 'Hôm nay', '/sitter', House], ['schedule', 'Ca làm', 
 const backRoutes = {
   M05: '/services', M09: '/account/pets', M12: '/account/bookings', M15: '/account/bookings',
   M16: '/services', M20: '/sitter/payroll', M21: '/sitter/payroll', M22: '/sitter/schedule',
-  M23: '/sitter/payroll', M28: '/incidents', M29: '/account', M35: '/services', M36: '/services',
+  M23: '/sitter/payroll', M28: '/incidents', M29: '/account', M35: '/services',
   M37: '/services', M39: '/products', M40: '/products', M41: '/customer/cart', M44: '/sign-in',
-  M46: '/account', M49: '/policies', M50: '/policies', N02: '/sitter/schedule'
+  M49: '/policies', M50: '/policies', N02: '/sitter/schedule'
 };
 
 function notificationBack(from, role, lookupRoute) {
@@ -47,22 +47,32 @@ export function MobileAppShell({ route, children, lookupRoute }) {
   const role = primaryRole(session.user);
   const tabs = role === 'CUSTOMER' ? customer : role === 'PET_SITTER' ? sitter : guest;
   const active = stableTab(route, role, state?.mobileTab, tabs);
-  const parent = ['M13', 'M14'].includes(route?.id) ? pathname.split('/').slice(0, 4).join('/')
-    : backRoutes[route?.id] ?? (role && route?.id !== 'M43' ? '/account' : '/');
-  const fallback = parent === pathname ? role === 'PET_SITTER' ? '/sitter' : role === 'CUSTOMER' ? '/customer' : '/' : parent;
+  const home = role === 'PET_SITTER' ? '/sitter' : role === 'CUSTOMER' ? '/customer' : '/';
+  const path = pathname.replace(/\/+$/, '').toLowerCase() || '/';
+  const serviceBooking = route?.id === 'M36' && /^\/booking\/([a-f0-9]{24})$/i.exec(path);
+  const parent = route?.id === 'M36' ? (serviceBooking ? '/services/' + serviceBooking[1] : '/services')
+    : ['M13', 'M14'].includes(route?.id) ? pathname.split('/').slice(0, 4).join('/')
+    : backRoutes[route?.id] ?? (role && !['M30', 'M43'].includes(route?.id) ? '/account' : home);
+  const fallback = parent === path ? home : parent;
   const source = state?.mobileBack;
   const fromSitterSchedule = route?.id === 'N02' && typeof source === 'string'
     && /^\/sitter(?:\/(?:schedule(?:\?[^#]*)?|invitations))?$/.test(source);
   const fromCustomerAgenda = ['M12', 'M13'].includes(route?.id) && typeof source === 'string'
     && /^\/account\/bookings(?:\?[^#]*)?$/.test(source);
-  const fromOrderList = route?.id === 'M11' && typeof source === 'string'
-    && /^\/customer\/product-orders(?:\?page=\d+)?$/.test(source);
   const orderQuery = new globalThis.URLSearchParams(search);
   const orderPage = orderQuery.get('page');
   const orderDetail = route?.id === 'M11' && /^[a-f0-9]{24}$/i.test(orderQuery.get('order') ?? '');
+  const fromOrderList = orderDetail && typeof source === 'string'
+    && /^\/customer\/product-orders(?:\?page=[1-9]\d*)?$/.test(source);
   const fromNotificationLink = route?.id === 'M03' && notificationBack(source, role, lookupRoute);
-  const back = fromSitterSchedule || fromCustomerAgenda || fromOrderList || fromNotificationLink ? source
+  const candidate = fromSitterSchedule || fromCustomerAgenda || fromOrderList || fromNotificationLink ? source
     : orderDetail ? pathname + (/^[1-9]\d*$/.test(orderPage ?? '') ? '?page=' + orderPage : '') : fallback;
+  const queryIndex = candidate.indexOf('?');
+  const candidatePath = queryIndex === -1 ? candidate : candidate.slice(0, queryIndex);
+  const candidateSearch = queryIndex === -1 ? '' : candidate.slice(queryIndex);
+  const candidateIsCurrent = (candidatePath.replace(/\/+$/, '').toLowerCase() || '/') === path
+    && candidateSearch === search;
+  const back = candidateIsCurrent ? (fallback === path ? null : fallback) : candidate;
   const showTabs = enabled && route.kind !== 'task';
   const count = Number.isInteger(unreadCount) && unreadCount > 0 ? unreadCount : 0;
 
@@ -92,7 +102,7 @@ export function MobileAppShell({ route, children, lookupRoute }) {
 
   return <div className={enabled ? 'pwc-phone-app' : 'pwc-phone-app-pass-through'} data-tabs={showTabs || undefined} data-route={route?.id} data-keyboard={keyboard || undefined}>
     {enabled && <header className="pwc-mobile-header">
-      {route.kind !== 'root' && <Link to={back} replace aria-label="Quay lại"><ArrowLeft aria-hidden="true" /></Link>}
+      {back && route.kind !== 'root' && <Link to={back} replace aria-label="Quay lại"><ArrowLeft aria-hidden="true" /></Link>}
       {route.id === 'M31' || route.id === 'M04' ? <SiteBrandMark /> : <strong>{orderDetail ? 'Chi tiết đơn mua' : route.id === 'M10' && orderQuery.get('view') === 'orders' ? 'Đơn chăm sóc' : route.title}</strong>}
       {role && route.id !== 'M03' && <Link className="pwc-mobile-header__bell" to="/account/notifications"
         state={{ mobileTab: active, mobileBack: pathname + search }} aria-label={count ? `Thông báo, ${count} chưa đọc` : 'Thông báo'}>

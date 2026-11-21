@@ -53,7 +53,7 @@ test('default registration cannot accept unpublished policies or send registrati
 });
 
 test.each(['/admin/services', '/admin/service-prices', '/admin/system-settings', '/admin/sitter-applications',
-  '/admin/sitter-applications/id', '/account/profile', '/account/addresses', '/sitter/availability'])('merged page %s is guarded before page API access', async path => {
+  '/admin/sitter-applications/id', '/account/addresses', '/sitter/availability'])('merged page %s is guarded before page API access', async path => {
   show(path, { sessionAdapter: { resolve: async () => ({ status: 'authenticated', user: { role: 'STAFF' } }) } });
   expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
 });

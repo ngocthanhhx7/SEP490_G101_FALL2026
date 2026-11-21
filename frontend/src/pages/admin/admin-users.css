@@ -167,8 +167,6 @@
 
 .admin-main { min-width: 0; outline: 0; }
 .admin-content { width: min(100%, 94rem); margin-inline: auto; padding: 1.6rem clamp(1rem, 2.4vw, 2.25rem) 1rem; }
-.admin-breadcrumb { display: flex; align-items: center; gap: 0.6rem; margin-block-end: 1.15rem; color: var(--admin-muted); font-size: 0.82rem; }
-.admin-breadcrumb strong { color: var(--admin-ink); }
 .admin-page-heading { display: flex; min-height: 8.4rem; align-items: center; justify-content: space-between; gap: 1rem; margin-block-end: 1.2rem; padding: 1.4rem 1.7rem; background: var(--pwc-cream); border: 1px solid #efe6c8; border-radius: var(--pwc-radius-panel); }
 .admin-page-heading h1 { margin-block: 0.35rem 0.25rem; font-size: clamp(1.7rem, 3vw, 2.25rem); line-height: 1.2; }
 .admin-page-heading p { max-width: 44rem; color: var(--admin-muted); font-size: 0.93rem; }
@@ -238,8 +236,6 @@
 .admin-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 
 .account-overview { --admin-ink: var(--pwc-ink); --admin-muted: var(--pwc-ink-muted); width: min(100%, 48rem); margin-inline: auto; color: var(--admin-ink); }
-.account-overview-breadcrumb { display: flex; align-items: center; gap: 0.6rem; margin-block-end: 1.15rem; color: var(--admin-muted); font-size: 0.82rem; }
-.account-overview-breadcrumb strong { color: var(--admin-ink); }
 .account-overview-heading { margin-block-end: 1rem; padding: 1.4rem 1.6rem; background: var(--pwc-cream); border: 1px solid #efe6c8; border-radius: var(--pwc-radius-panel); }
 .account-overview-heading h1 { margin-block: 0.35rem 0.25rem; font-size: clamp(1.75rem, 4vw, 2.25rem); }
 .account-overview-heading p { color: var(--admin-muted); font-size: 0.9rem; }
