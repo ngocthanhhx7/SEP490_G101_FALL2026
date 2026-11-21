@@ -1,5 +1,6 @@
 import { beforeAll } from '@jest/globals';
 import { useState } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { VisitBoard } from '../../src/pages/staff/visit-board/VisitBoard.jsx';
 import { EmployeeDispatchPage } from '../../src/pages/staff/EmployeeDispatchPage.jsx';
@@ -370,6 +371,33 @@ describe('the dispatch page', () => {
   function pageApi(overrides = {}) {
     return { ...board(), queue: jest.fn().mockResolvedValue({ data: { items: [legacy('v-42'), legacy('legacy-only')], workAreas, today: { date: '04/11/2026', asOf: startAt, summary: { total: 7, inProgress: 1, completed: 2, late: 0 } } } }), ...overrides };
   }
+
+  test('shows stored scores and can add an eligible sitter while offers are pending', async () => {
+    const row = { ...legacy('legacy-only'), version: 3, dispatchState: 'AWAITING_RESPONSE',
+      pendingInvitation: { deadline: startAt }, pendingInvitationCount: 5,
+      dispatchRanking: { at: startAt, minimumRequested: 5, eligibleCount: 6, invitedCount: 5,
+        candidates: [{ sitterId: 's-1', displayName: 'Người Có Tâm', invited: true, score: 92.5,
+          breakdown: [{ key: 'fit', points: 25, maximum: 30 }] }] },
+      latestOffers: [{ sitterId: 's-1', offeredAt: startAt, state: 'PENDING', displayName: 'Người Có Tâm' }] };
+    const api = pageApi({
+      dispatchDetails: jest.fn().mockResolvedValue({ data: row }),
+      candidates: jest.fn().mockResolvedValue({ data: { items: [{ sitterId: 's-6', displayName: 'Người bổ sung' }], blocked: [] } }),
+      invite: jest.fn().mockResolvedValue({ data: { invitationCount: 1 } })
+    });
+    render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
+    fireEvent.click(within((await screen.findByText('Ca legacy-only')).closest('tr')).getByRole('button'));
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(await dialog.findByText('92,5 / 100')).toBeVisible();
+    fireEvent.click(dialog.getByText('Chi tiết điểm'));
+    expect(dialog.getByText('Phù hợp dịch vụ')).toBeVisible();
+    expect(dialog.getByText('25 / 30')).toBeVisible();
+    expect(dialog.getByText('5 lời mời đang chờ phản hồi')).toBeVisible();
+    fireEvent.click(dialog.getByRole('button', { name: 'Gửi thêm lời mời' }));
+    fireEvent.click(await dialog.findByRole('radio', { name: /Người bổ sung/ }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Gửi lời mời bổ sung', exact: true }));
+    await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, 3, expect.any(String), 's-6'));
+    await waitFor(() => expect(api.dispatchDetails).toHaveBeenCalledTimes(2));
+  });
 
   test('shows the three tabs with the counts, and the legacy queue under its own title without the visits already listed', async () => {
     render(<EmployeeDispatchPage api={pageApi()} />);

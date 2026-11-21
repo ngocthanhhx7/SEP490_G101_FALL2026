@@ -11,6 +11,8 @@ import { createSchedulingNotifications } from '../notifications/scheduling-notif
 
 const MINUTE_MS = 60000;
 const NEAR_VISIT_MS = 24 * 60 * MINUTE_MS;
+const MIN_AUTOMATIC_INVITATIONS = 5;
+const RANKING_FACTORS = ['fit', 'travel', 'quality', 'reliability', 'workload'];
 const oid = value => new Types.ObjectId(value);
 
 function responseDeadline(offeredAt, startAt) {
@@ -19,9 +21,9 @@ function responseDeadline(offeredAt, startAt) {
   return new Date(offeredAt.getTime() + Math.min(remaining, (remaining <= NEAR_VISIT_MS ? 30 : 120) * MINUTE_MS));
 }
 
-function leadingGroup(ids, scores) {
-  const score = scores?.[ids[0]];
-  return Number.isFinite(score) ? ids.filter(id => scores[id] === score) : ids.slice(0, 1);
+function invitationBatch(ids, scores) {
+  const cutoff = scores?.[ids[MIN_AUTOMATIC_INVITATIONS - 1]];
+  return ids.filter((id, index) => index < MIN_AUTOMATIC_INVITATIONS || (Number.isFinite(cutoff) && scores[id] === cutoff));
 }
 const offerView = row => row && ({ ...row, id: String(row._id), visitId: String(row.visitId), sitterId: row.sitterId });
 // The customer's nominee remains binding until a customer-confirmed proposal repins it.
@@ -186,7 +188,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       if (knownX !== knownY) return knownX ? -1 : 1;
       return (knownX ? x.adjacentTravelMinutes - y.adjacentTravelMinutes : 0) || x.weeklyWorkMinutes - y.weeklyWorkMinutes || a.localeCompare(b);
     });
-    if (!ranker) return { sitterIds: allowed };
+    const diagnostics = { registered: rows.length, eligible: allowed.length, rejected };
+    if (!ranker) return { sitterIds: allowed, diagnostics };
     let timer;
     const controller = new globalThis.AbortController();
     try {
@@ -196,7 +199,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       ]);
       const ids = Array.isArray(ranked) ? ranked : ranked?.sitterIds;
       if (Array.isArray(ids) && ids.length === allowed.length && new Set(ids).size === allowed.length && ids.every(value => allowed.includes(value))) {
-        const snapshot = ranked.featureSnapshot, keys = ['fit', 'travel', 'quality', 'reliability', 'workload'];
+        const snapshot = ranked.featureSnapshot, keys = RANKING_FACTORS;
         const captured = snapshot?.version === 'PWC_MATCH_FEATURES_V1' && Number.isFinite(Date.parse(snapshot.decisionAt)) && Date.parse(snapshot.decisionAt) <= clock() &&
           Date.parse(snapshot.slotStartAt) === visit.startAt.getTime() && Date.parse(snapshot.slotEndAt) === visit.endAt.getTime() &&
           Array.isArray(snapshot.candidates) && snapshot.candidates.length <= ids.length && new Set(snapshot.candidates.map(row => row.sitterId)).size === snapshot.candidates.length &&
@@ -204,13 +207,32 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
             Number.isFinite(row.features[key]) && row.features[key] >= 0 && row.features[key] <= 1 && Number.isFinite(Date.parse(snapshot.featuresAsOf?.[key])) && Date.parse(snapshot.featuresAsOf[key]) <= Date.parse(snapshot.decisionAt)));
         const scoresBySitterId = Object.fromEntries(ids.flatMap(sitterId => {
           const score = ranked?.scoresBySitterId?.[sitterId];
-          return Number.isFinite(score) ? [[sitterId, score]] : [];
+          return Number.isFinite(score) && score >= 0 && score <= 100 ? [[sitterId, score]] : [];
         }));
-        return { sitterIds: ids, scoresBySitterId, ...(captured ? { featureSnapshot: snapshot } : {}) };
+        const weights = ranked.weights;
+        const validWeights = keys.every(key => Number.isFinite(weights?.[key]) && weights[key] >= 0)
+          && keys.reduce((total, key) => total + weights[key], 0) === 100;
+        return { sitterIds: ids, scoresBySitterId, diagnostics,
+          ...(captured ? { featureSnapshot: snapshot } : {}), ...(validWeights ? { weights } : {}) };
       }
     } catch { /* Deterministic order remains usable when advisory ranking fails. */ }
     finally { clearTimeout(timer); }
-    return { sitterIds: allowed };
+    return { sitterIds: allowed, diagnostics };
+  }
+  function rankingForVisit(ranking, available, selected, at) {
+    const selectedIds = new Set(selected);
+    const features = new Map(ranking.featureSnapshot?.candidates.map(row => [row.sitterId, row.features]));
+    return { at, minimumRequested: MIN_AUTOMATIC_INVITATIONS, eligibleCount: available.length,
+      invitedCount: selected.length, policyVersion: ranking.featureSnapshot?.policyVersion ?? null,
+      candidates: available.map((sitterId, index) => {
+        const score = ranking.scoresBySitterId?.[sitterId];
+        const factors = features.get(sitterId);
+        return { sitterId, rank: index + 1, score: Number.isFinite(score) ? Math.round(score * 10) / 10 : null,
+          invited: selectedIds.has(sitterId),
+          ...(Number.isFinite(score) && factors && ranking.weights ? { breakdown: RANKING_FACTORS.map(key => ({
+            key, points: Math.round(factors[key] * ranking.weights[key] * 10) / 10, maximum: ranking.weights[key]
+          })) } : {}) };
+      }) };
   }
   async function chooseCandidates(visit, excluded, preferred) {
     if (preferred && excluded.has(preferred))
@@ -243,8 +265,13 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const revised = { ...visit, startAt, endAt: new Date(startAt.getTime() + visit.endAt.getTime() - visit.startAt.getTime()), areaCode };
       try {
         const { sitterIds: ids, blocked = [], diagnostics } = await candidates(revised, { manual, explain: manual, alternatives: replacement });
+        const pending = input.mode === 'MANUAL' && !directedSitter(visit) && await models.EmployeeVisitOffer.exists({
+          visitId: visit._id, state: 'PENDING', deadline: { $gt: new Date(clock()) }
+        });
+        const invited = pending ? new Set(await models.EmployeeVisitOffer.distinct('sitterId', { visitId: visit._id, sitterId: { $in: ids } })) : new Set();
         const users = await col('users').find({ _id: { $in: [...ids, ...blocked.map(row => row.sitterId)].map(oid) } }, { projection: { displayName: 1 } }).limit(101).toArray();
-        return { items: ids.map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
+        return { items: ids.filter(sitterId => !invited.has(sitterId)).map(sitterId => ({ sitterId, displayName: users.find(row => String(row._id) === sitterId)?.displayName })),
+          ...(pending ? { alreadyInvitedCount: invited.size } : {}),
           ...(manual ? { diagnostics, blocked: blocked.map(row => ({ ...row, displayName: users.find(user => String(user._id) === row.sitterId)?.displayName })) } : {}),
           areaCode, startAt, endAt: revised.endAt };
       } catch (error) {
@@ -256,7 +283,25 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       id(visitId);
       const result = await service.queue(actor, { visitId });
       if (!result.items.length) fail('RESOURCE_NOT_FOUND', 'Dispatch visit unavailable', 404);
-      return result.items[0];
+      const row = result.items[0];
+      const [visit, lastOffer] = await Promise.all([
+        col('visits').findOne({ _id: oid(visitId), version: row.version }, { projection: { dispatchRanking: 1 } }),
+        models.EmployeeVisitOffer.findOne({ visitId }).sort({ _id: -1 }).select('offeredAt').lean()
+      ]);
+      const ranking = visit?.dispatchRanking;
+      const batch = lastOffer
+        ? await models.EmployeeVisitOffer.find({ visitId, $or: [
+          { offeredAt: { $in: [lastOffer.offeredAt, ...(ranking?.invitedCount ? [ranking.at] : [])] } },
+          { state: 'PENDING', deadline: { $gt: new Date(clock()) } }
+        ] }).select('sitterId state deadline offeredAt').sort({ _id: -1 }).limit(201).lean()
+        : [];
+      const ids = [...new Set([...(ranking?.candidates ?? []), ...batch].map(item => item.sitterId))];
+      const people = ids.length ? await col('users').find({ _id: { $in: ids.map(oid) } }, { projection: { displayName: 1 } }).toArray() : [];
+      const names = new Map(people.map(person => [String(person._id), person.displayName]));
+      return { ...row, latestOffers: batch.map(item => ({ sitterId: item.sitterId, displayName: names.get(item.sitterId) ?? null, offeredAt: item.offeredAt,
+        state: item.state === 'PENDING' && item.deadline <= new Date(clock()) ? 'EXPIRED' : item.state })),
+      ...(ranking ? { dispatchRanking: { ...ranking,
+        candidates: ranking.candidates.map(candidate => ({ ...candidate, displayName: names.get(candidate.sitterId) ?? null })) } } : {}) };
     },
     async queue(actor, { visitId } = {}) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
@@ -288,17 +333,27 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           fail('DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'Customer must confirm a replacement employee', 409);
         if (input.sitterId && input.sitterId === String(visit.withdrawalDispatch?.sitterId))
           fail('SITTER_WITHDREW', 'Employee withdrew from this visit', 409);
-        const resultView = rows => ({ offerId: String(rows[0]._id), state: 'PENDING', visitId, sitterId: rows[0].sitterId,
-          invitationCount: rows.length, minimumRequested: rows.length, shortfall: 0,
+        const resultView = (rows, minimumRequested = rows.length) => ({ offerId: String(rows[0]._id), state: 'PENDING', visitId, sitterId: rows[0].sitterId,
+          invitationCount: rows.length, minimumRequested, shortfall: 0,
           invitations: rows.map(row => ({ offerId: String(row._id), sitterId: row.sitterId, deadline: row.deadline })) });
-        if (pending.length) return resultView(pending);
-        if (actor !== agentActor && !visit.dispatchReview) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'System dispatch must exhaust automatic invitations before staff intervention', 409);
+        const additional = pending.length > 0 && actor !== agentActor && Boolean(input.sitterId) && !preferred;
+        if (pending.length && !additional) return resultView(pending);
+        if (additional && await models.EmployeeVisitOffer.exists({ visitId: visit._id, sitterId: input.sitterId }).session(session))
+          fail('SITTER_ALREADY_INVITED', 'Choose an employee who has not been invited for this visit', 409);
+        if (actor !== agentActor && !visit.dispatchReview && !additional) fail('SYSTEM_DISPATCH_IN_PROGRESS', 'System dispatch must exhaust automatic invitations before staff intervention', 409);
         const previous = await models.EmployeeVisitOffer.find({ visitId: visit._id, $or: [
           { state: { $in: ['DECLINED', 'EXPIRED'] } }, { state: 'PENDING', deadline: { $lte: asOf } }
         ] }, { sitterId: 1 }).session(session).lean();
         const excluded = new Set(previous.map(row => row.sitterId));
         const ranking = input.sitterId ? { sitterIds: [input.sitterId] } : await chooseCandidates(visit, excluded, preferred);
-        const selected = input.sitterId ? ranking.sitterIds : leadingGroup(ranking.sitterIds.filter(id => !excluded.has(id)), ranking.scoresBySitterId);
+        const automatic = !input.sitterId && !preferred;
+        const available = input.sitterId ? ranking.sitterIds : ranking.sitterIds.filter(id => !excluded.has(id));
+        const selected = automatic ? invitationBatch(available, ranking.scoresBySitterId) : available;
+        if (automatic && available.length > 0 && available.length < MIN_AUTOMATIC_INVITATIONS) {
+          throw new AppError(409, 'INSUFFICIENT_DISPATCH_CANDIDATES', 'Not enough eligible employees for a simultaneous invitation batch',
+            { diagnostics: { ...ranking.diagnostics, eligible: available.length },
+              dispatchRanking: rankingForVisit(ranking, available, [], asOf) });
+        }
         if (!selected.length) fail('STAFF_REVIEW_REQUIRED', 'All available employees have already been invited', 409);
         for (const sitterId of [...selected].sort()) {
           if (preferred && preferred !== sitterId)
@@ -309,7 +364,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
         const deadline = responseDeadline(offeredAt, visit.startAt);
         await expireOffers(visit._id, asOf, session);
         const changed = await col('visits').updateOne({ _id: visit._id, state: 'SCHEDULED', version: input.expectedVersion },
-          { $inc: { version: 1 }, $unset: { dispatchReview: 1 } },
+          { $inc: { version: 1 }, $unset: { dispatchReview: 1 },
+            ...(automatic ? { $set: { dispatchRanking: rankingForVisit(ranking, available, selected, offeredAt) } } : {}) },
           { session });
         if (!changed.matchedCount) fail('VERSION_CONFLICT', 'Visit changed', 409);
         const saved = await models.EmployeeVisitOffer.create(selected.map(sitterId => ({ visitId: visit._id, sitterId, state: 'PENDING', version: 0,
@@ -319,7 +375,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
             sitterId, features: ranking.featureSnapshot.candidates.find(row => row.sitterId === sitterId).features } } : {}),
           startAt: visit.startAt, endAt: visit.endAt, serviceName: visit.snapshots.serviceName, areaCode: visit.areaCode, pets: visit.snapshots.pets ?? [] })), { session, ordered: true });
         for (const offer of saved) await event({ type: 'OfferCreated', actorId: actor.userId, sitterId: offer.sitterId, visitId, offerId: String(offer._id) }, session);
-        return resultView(saved);
+        return resultView(saved, automatic ? MIN_AUTOMATIC_INVITATIONS : 1);
       });
     },
     async runBatch({ limit = 10 } = {}) {
@@ -343,12 +399,16 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       return 'invited';
     } catch (error) {
       if (error.status !== 409) throw error;
-      if (!['NO_ELIGIBLE_SITTER', 'DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'STAFF_REVIEW_REQUIRED',
+      if (!['NO_ELIGIBLE_SITTER', 'DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'STAFF_REVIEW_REQUIRED', 'INSUFFICIENT_DISPATCH_CANDIDATES',
         'TRAVEL_REVIEW_REQUIRED', 'DAY_ORIGIN_MISSING', 'DISPATCH_SEARCH_LIMIT', 'SHIFT_START_REACHED'].includes(error.code)) return 'review';
       await uow.run(async session => {
+        const emptyRanking = !directedSitter(row) && ['NO_ELIGIBLE_SITTER', 'STAFF_REVIEW_REQUIRED'].includes(error.code)
+          ? rankingForVisit({}, [], [], new Date(clock())) : null;
+        const lastRanking = error.details?.dispatchRanking ?? emptyRanking;
         const updated = await col('visits').findOneAndUpdate({ _id: row._id, version: row.version, state: 'SCHEDULED', sitterId: null },
           { $set: { dispatchReview: { code: error.code, at: new Date(clock()), retryAt: new Date(clock() + 60000),
-            ...(error.details?.diagnostics || row.dispatchReview?.diagnostics ? { diagnostics: error.details?.diagnostics ?? row.dispatchReview.diagnostics } : {}) } } },
+            ...(error.details?.diagnostics || row.dispatchReview?.diagnostics ? { diagnostics: error.details?.diagnostics ?? row.dispatchReview.diagnostics } : {}) },
+            ...(lastRanking ? { dispatchRanking: lastRanking } : {}) } },
           { session, returnDocument: 'before' });
         if (updated) await expireOffers(row._id, new Date(clock()), session);
         if (updated && !updated.dispatchReview) await event({ type: 'DispatchReviewRequired', actorId: agentActor.userId,
@@ -387,7 +447,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       ...(actionable ? [{ $match: { pendingInvitationCount: 0, $or: [
         { 'dispatchReview.retryAt': { $exists: false } }, { 'dispatchReview.retryAt': { $lte: new Date(clock()) } }
       ] } }] : []),
-      { $limit: limit }, { $unset: 'booking' }
+      { $limit: limit }, { $unset: ['booking', 'dispatchRanking'] }
     ], { maxTimeMS: 5000 }).toArray();
   }
   return service;

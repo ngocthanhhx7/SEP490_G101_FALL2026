@@ -11,6 +11,7 @@ import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
+import { DispatchRanking } from './DispatchRanking.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import { VisitBoard } from './visit-board/VisitBoard.jsx';
 import { VisitBoardCustomer, VisitBoardStatus, VisitBoardSummary } from './visit-board/VisitBoardCells.jsx';
@@ -30,6 +31,7 @@ const short = (id) => (id ? '…' + id.slice(-6) : '—');
 const reviewLabel = (code) =>
   ({
     NO_ELIGIBLE_SITTER: 'Chưa có người chăm sóc đủ điều kiện nhận ca.',
+    INSUFFICIENT_DISPATCH_CANDIDATES: 'Chưa đủ 5 người phù hợp để mời tự động.',
     STAFF_REVIEW_REQUIRED: 'Các lời mời đã bị từ chối hoặc hết hạn.',
     DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Người được khách chỉ định chưa thể nhận ca.',
     TRAVEL_REVIEW_REQUIRED: 'Cần xác minh khả năng di chuyển.',
@@ -52,12 +54,16 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
   const [tab, setTab] = useState('needs');
   const [board, setBoard] = useState({ ids: new Set(), filtering: false });
   const [selected, setSelected] = useState(null);
+  const [addingInvitation, setAddingInvitation] = useState(false);
   const [withdrawalToReview, setWithdrawalToReview] = useState(null);
   const loadSelected = useCallback(({ signal }) => selected && api.dispatchDetails
     ? api.dispatchDetails(selected, { signal }) : Promise.resolve({ data: null }), [api, selected]);
   const selectedDetails = useApiResource(loadSelected);
   const [proposal, setProposal] = useState(null);
-  const command = useSchedulingCommand(() => queue.retry());
+  const command = useSchedulingCommand(() => {
+    queue.retry();
+    if (selected) selectedDetails.retry();
+  });
   const rows = queue.data?.items ?? [],
     active = selectedDetails.data?.id === selected ? selectedDetails.data : rows.find((row) => row.id === selected),
     legacyRows = rows.filter((row) => !board.ids.has(row.id)),
@@ -241,7 +247,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           title="Chi tiết điều phối"
           className="ops-dialog dispatch-detail-dialog"
           dismissible={!command.busy && !command.pending}
-          onClose={() => setSelected(null)}
+          onClose={() => { setSelected(null); setAddingInvitation(false); }}
         >
           <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceDisplayName || active.serviceName || 'Chưa rõ dịch vụ'}</h3>
           <p>
@@ -251,12 +257,16 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
             {active.customerName ?? 'Khách hàng'} ·{' '}
             {active.reviewCode ? reviewLabel(active.reviewCode) : 'Hệ thống đang điều phối'}
           </p>
-          <details><summary>Kết quả tìm tự động gần nhất</summary><DispatchDiagnostics value={active.diagnostics} /><p>Danh sách chỉ định bên dưới được kiểm tra lại theo điều kiện mời thủ công cho lịch hiện tại.</p></details>
+          {active.diagnostics && <details><summary>Kết quả kiểm tra điều kiện</summary><DispatchDiagnostics value={active.diagnostics} /></details>}
           </aside><div className="dispatch-detail-work">{active.pendingInvitation ? (
-            <p>
-              {active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi ·{' '}
-              {time(active.pendingInvitation.deadline)}
-            </p>
+            <div className="dispatch-invitation-header">
+              <p>{active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi</p>
+              {!active.requestedSitterId && active.reviewCode !== 'SHIFT_START_REACHED' && api.candidates && (
+                <Button variant="secondary" aria-expanded={addingInvitation} onClick={() => setAddingInvitation(value => !value)}>
+                  {addingInvitation ? 'Đóng danh sách chọn' : 'Gửi thêm lời mời'}
+                </Button>
+              )}
+            </div>
           ) : active.reviewCode === 'SHIFT_START_REACHED' ? (
             <p>Cần khách xác nhận lịch mới trước khi tìm lại.</p>
           ) : active.dispatchState === 'NEEDS_STAFF' && api.candidates ? (
@@ -283,6 +293,13 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           ) : (
             <p>Hệ thống đang tìm người nhận ca</p>
           )}
+          {addingInvitation && active.pendingInvitation && !active.requestedSitterId && active.reviewCode !== 'SHIFT_START_REACHED' && api.candidates && (
+            <DispatchSitterPicker key={`additional:${active.id}:${active.version}`} row={active} api={api} command={command}
+              selectedSitter={selectedSitter} onProposed={setProposal} additional />
+          )}
+          <DispatchRanking ranking={active.dispatchRanking} latestOffers={active.latestOffers}
+            loading={selectedDetails.status === 'loading'} failed={['error', 'forbidden', 'pending'].includes(selectedDetails.status)}
+            onRetry={selectedDetails.retry} />
           {active.dispatchState === 'NEEDS_STAFF' && !active.pendingInvitation && api.candidates && (
             <DispatchRecoveryPanel
               key={`${active.id}:${active.version}`}

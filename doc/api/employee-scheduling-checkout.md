@@ -100,8 +100,11 @@ repins the operational nominee and creates one pending invitation. Late withdraw
 and records `VisitWithdrawalRequested` for Staff. A changed mode or version returns
 409. An out-of-scope visit returns 404. An exact retry replays the committed result.
 
-Staff can send invitations only after a dispatch escalation. GET /dispatch exposes
-dispatchState SYSTEM_SEARCHING/AWAITING_RESPONSE/NEEDS_STAFF and pendingInvitationCount.
+Staff can send an explicit invitation after escalation or add a new eligible sitter during a pending system-selected round.
+An additional invitation preserves the existing deadlines and rejects a sitter already invited for the same visit.
+GET /dispatch exposes dispatchState SYSTEM_SEARCHING/AWAITING_RESPONSE/NEEDS_STAFF and pendingInvitationCount.
+The scoped Staff/Admin visit detail includes the most recent automatic ranking, nullable scores and optional factor points,
+plus the current invitation states. Legacy invitations without captured scores still show the recipient and state.
 
 Boarding retains the original customer stay/price/combo count and is finalized into continuous
 unassigned care shifts <=8 hours. Commission basis is allocated by shift duration; actual
@@ -112,9 +115,10 @@ await dispatch. Moving a single boarding shift is rejected: whole-stay changes n
 visits/offers after restart; pending/declined/expired offers are not repeatedly sent to the same
 candidate automatically. Directed bookings retain the requested sitter; unavailability,
 decline or expiry escalates to Staff for a customer-confirmed replacement proposal.
-System-selected bookings consider successive eligible groups. Each group contains
-one sitter or all remaining sitters tied on the leading
-raw score. Dispatch waits until the current group has no live offer before continuing.
+System-selected bookings send each automatic round simultaneously to the first five eligible, untried sitters,
+including any ties at the fifth raw score. With fewer than five, the visit goes to Staff with
+`INSUFFICIENT_DISPATCH_CANDIDATES`. The fallback ordering sends the same minimum without fabricating points.
+Dispatch waits until the current round has no live offer before starting another automatic round.
 The bounded search still checks up to 100 employees with four concurrent checks.
 Automatic and explicit Staff invitations have a two-hour deadline, or 30 minutes
 when the visit starts within 24 hours, capped by the visit start. Existing offers
