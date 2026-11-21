@@ -9,7 +9,7 @@ import { planInsertion, requiredPoints, localDay } from './scheduling.service.js
 export function createOperationalRanker({ connection, routingProvider, clock = Date.now }) {
   const repository = createAiRepository(connection, clock, { employeeSchedulingEnabled: true });
   return async ({ visit, sitterIds, signal }) => {
-    if (!visit.point?.coordinates || !visit.pets?.length || visit.location !== 'HOME') return sitterIds;
+    if (!visit.point?.coordinates || !visit.pets?.length) return sitterIds;
     const context = { service: { _id: new Types.ObjectId(visit.serviceId) }, pets: visit.pets.map(pet => ({ ...pet, _id: pet.id })),
       address: { areaCode: visit.areaCode, point: visit.point } };
     const slot = { start: new Date(visit.startAt).getTime(), end: new Date(visit.endAt).getTime(), localDate: localDay(visit.startAt) };
@@ -17,6 +17,7 @@ export function createOperationalRanker({ connection, routingProvider, clock = D
     const data = await repository.candidates(context, slot), scores = new Map();
     const profiles = data.profiles.filter(profile => sitterIds.includes(String(profile.userId)));
     let next = 0;
+    const matrices = new Map();
     async function worker() {
       while (next < profiles.length) {
         signal?.throwIfAborted(); const profile = profiles[next++], sitterId = String(profile.userId);
@@ -24,8 +25,11 @@ export function createOperationalRanker({ connection, routingProvider, clock = D
           const dayStart = Date.parse(slot.localDate + 'T00:00:00+07:00');
           const blocks = data.blocks.filter(row => String(row.sitterId) === sitterId && new Date(row.startAt).getTime() < dayStart + 86400000 && new Date(row.endAt).getTime() > dayStart);
           if (blocks.length > 20) continue;
-          const matrix = await cachedMatrix({ points: requiredPoints(profile, blocks, context.address, slot.localDate),
-            Routing: repository.models.RoutingMatrixCache, provider: routingProvider, clock });
+          const points = requiredPoints(profile, blocks, context.address, slot.localDate);
+          const key = JSON.stringify(points);
+          if (!matrices.has(key)) matrices.set(key, cachedMatrix({ points,
+            Routing: repository.models.RoutingMatrixCache, provider: routingProvider, clock }));
+          const matrix = await matrices.get(key);
           signal?.throwIfAborted();
           const plan = await planInsertion({ profile, blocks, slot, address: context.address, matrix });
           if (!plan.eligible) continue;
@@ -43,7 +47,7 @@ export function createOperationalRanker({ connection, routingProvider, clock = D
       : scores.has(a) ? -1 : scores.has(b) ? 1 : sitterIds.indexOf(a) - sitterIds.indexOf(b));
     const decisionAt = new Date(clock()).toISOString();
     const scoresBySitterId = Object.fromEntries([...scores].map(([sitterId, score]) => [sitterId, score.rawScore]));
-    return { sitterIds: ranked, scoresBySitterId, featureSnapshot: { version: 'PWC_MATCH_FEATURES_V1', decisionAt,
+    return { sitterIds: ranked, scoresBySitterId, weights: policy.weights, featureSnapshot: { version: 'PWC_MATCH_FEATURES_V1', decisionAt,
       slotStartAt: new Date(visit.startAt).toISOString(), slotEndAt: new Date(visit.endAt).toISOString(),
       featuresAsOf: Object.fromEntries(['fit', 'travel', 'quality', 'reliability', 'workload'].map(key => [key, decisionAt])),
       candidates: [...scores].map(([sitterId, score]) => ({ sitterId, features: score.features })), policyVersion: policy.version, modelVersion: null } };
