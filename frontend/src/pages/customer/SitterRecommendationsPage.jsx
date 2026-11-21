@@ -9,14 +9,15 @@ import { VietmapView } from '../../components/common/VietmapView.jsx';
 import { RecommendationCheckout } from './RecommendationCheckout.jsx';
 import './sitter-recommendations.css';
 
-function message(error) {
+function message(error, minimumHours = 2) {
   return ({ CUSTOMER_CARE_HISTORY_EXISTS: 'Bạn đã hoàn tất dịch vụ chăm sóc. Mở dịch vụ muốn đặt để chọn trực tiếp sitter theo điểm đánh giá.', ROUTING_UNAVAILABLE: 'Chưa lấy được đường đi. Hãy thử lại sau.',
     RANKING_POLICY_UNAVAILABLE: 'Dịch vụ gợi ý đang chờ cấu hình xếp hạng.',
     CARE_INFORMATION_REQUIRED: 'Cần xác nhận thông tin chăm sóc của thú cưng.',
     RESOURCE_NOT_FOUND: 'Thông tin đã thay đổi hoặc không còn thuộc tài khoản này. Hãy tải lại.',
     CSRF_NOT_READY: 'Phiên bảo mật chưa sẵn sàng. Hãy đăng nhập lại.',
     TIMEOUT: 'Chưa nhận được kết quả. Bạn có thể yêu cầu gợi ý lại.',
-    VALIDATION_FAILED: 'Kiểm tra lại dữ liệu và chọn lịch trước ít nhất 24 giờ.' })[error?.code]
+    SLOT_INVALID: `Chọn giờ trong cùng ngày, trước ít nhất ${minimumHours} giờ và thời lượng tối đa 6 giờ.`,
+    VALIDATION_FAILED: 'Kiểm tra lại thông tin lịch và thú cưng.' })[error?.code]
     ?? 'Chưa thực hiện được yêu cầu. Vui lòng kiểm tra thông tin hoặc thử lại sau.';
 }
 
@@ -131,7 +132,7 @@ export function SitterRecommendationsForm({ api }) {
     active.current?.abort(); active.current = new AbortController();
     setPending(true); setResult(null); setError('');
     try { const next = await api.recommend(body, { signal: active.current.signal }); if (ticket === generation.current) setResult({ ...next, selection: body }); }
-    catch (failure) { if (ticket === generation.current) setError(message(failure)); }
+    catch (failure) { if (ticket === generation.current) setError(message(failure, vet ? 24 : 2)); }
     finally { if (ticket === generation.current) setPending(false); }
   }
   return <main className="sitter-recommendations">
@@ -152,7 +153,7 @@ export function SitterRecommendationsForm({ api }) {
         <fieldset><legend>Thú cưng cần chăm sóc</legend>{data.pets.map(pet => <label key={pet.id}><input type="checkbox" name="petId" value={pet.id} disabled={!pet.confirmed} /> {pet.name}{!pet.confirmed && ' — cần xác nhận thông tin'}</label>)}</fieldset>
         <Select label="Địa chỉ chăm sóc" name="addressId" required><option value="">Chọn địa chỉ</option>{data.addresses.filter(address => address.confirmed).map(address => <option key={address.id} value={address.id}>{address.label}</option>)}</Select>
         <Input label="Bắt đầu (giờ Việt Nam)" name="startAt" type="datetime-local" required step="60" />
-        <Input label="Kết thúc (giờ Việt Nam)" name="endAt" type="datetime-local" required step="60" hint="Đặt trước ít nhất 24 giờ. Giờ kết thúc phải sau giờ bắt đầu." />
+        <Input label="Kết thúc (giờ Việt Nam)" name="endAt" type="datetime-local" required step="60" hint={`Đặt trước ít nhất ${vet ? 24 : 2} giờ. Giờ kết thúc phải sau giờ bắt đầu.`} />
         {vet && <>
           <Select label="Địa chỉ phòng khám đã xác nhận" name="clinicAddressId" required><option value="">Chọn phòng khám</option>{data.addresses.filter(address => address.confirmed).map(address => <option key={address.id} value={address.id}>{address.label}</option>)}</Select>
           <Input label="Giờ hẹn phòng khám (giờ Việt Nam)" name="appointmentAt" type="datetime-local" required />

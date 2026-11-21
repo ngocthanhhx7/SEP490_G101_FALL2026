@@ -236,6 +236,11 @@ test('travel access is scoped, location is ordered, stop invalidates in-flight u
   await request(app).get('/api/v1/employee-scheduling/travel-visits').set('x-test-actor', customer.userId).expect(403);
   const customerCommand = request(app).post(`/api/v1/employee-scheduling/visits/${visitId}/travel`).set('Host', 'localhost').set('Origin', 'http://localhost').set('x-test-actor', customer.userId).set('x-csrf-token', 'synthetic-csrf');
   await customerCommand.send({ action: 'START', expectedVersion: 0 }).expect(403);
+  now -= 1;
+  expect(await travel.get(customer, visitId)).toMatchObject({ available: false, location: null });
+  await expect(travel.command(sitter, visitId, { action: 'START', expectedVersion: 0 })).rejects.toMatchObject({ code: 'TRAVEL_WINDOW_CLOSED' });
+  now += 1;
+  expect(await travel.get(customer, visitId)).toMatchObject({ available: true, location: null });
   const initial = await travel.command(sitter, visitId, { action: 'START', expectedVersion: 0 });
   const sample = { sessionId: initial.sessionId, coordinates: [105.85, 21.01], accuracyMeters: 12, observedAt: new Date(now).toISOString() };
   await expect(travel.locate(other, visitId, sample)).rejects.toMatchObject({ code: 'TRAVEL_WINDOW_CLOSED' });
@@ -299,6 +304,10 @@ test('travel rejects poor accuracy/future times, hides completed/reassigned/canc
   await expect(travel.locate(sitter, visitId, { ...sample, accuracyMeters: 101 })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   await expect(travel.locate(sitter, visitId, { ...sample, observedAt: new Date(now + 11000).toISOString() })).rejects.toMatchObject({ code: 'LOCATION_STALE' });
   await travel.locate(sitter, visitId, sample);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { state: 'IN_PROGRESS', checkInAt: new Date(now) } });
+  expect(await travel.get(customer, visitId)).toMatchObject({ available: false, sharing: false, location: null });
+  await expect(travel.locate(sitter, visitId, sample)).rejects.toMatchObject({ code: 'TRAVEL_WINDOW_CLOSED' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { state: 'ASSIGNED' }, $unset: { checkInAt: '' } });
   await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { state: 'CANCELLED' } });
   expect(await travel.get(customer, visitId)).toMatchObject({ available: false, location: null });
   await expect(travel.command(sitter, visitId, { action: 'START', expectedVersion: 1 })).rejects.toMatchObject({ code: 'TRAVEL_WINDOW_CLOSED' });

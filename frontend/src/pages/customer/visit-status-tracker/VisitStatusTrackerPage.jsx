@@ -2,7 +2,13 @@ import { useCallback, useId, useMemo } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { BookingVisitReport } from '../../../components/common/BookingVisitReport.jsx';
+import { VisitEvidencePreview } from '../../../components/common/VisitEvidencePreview.jsx';
+import { VisitTravel } from '../../../components/common/VisitTravel.jsx';
+import { createVisitTravelApi } from '../../../services/visit-travel-api.js';
+import { createApiClient } from '../../../services/api-client.js';
+import { workflowStatusLabels } from '../../../components/common/CareWorkflowReport.jsx';
 import { Button, Notice } from '../../../components/ui/index.js';
+import { useSession } from '../../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../../hooks/useApiResource.js';
 import { useVisitTracker } from '../../../hooks/useVisitTracker.js';
 import { createVisitTrackerApi } from '../../../services/visit-tracker-api.js';
@@ -80,12 +86,27 @@ function ReportAction({ bookingId, visitId }) {
   }, [api, bookingId, visitId]);
   const report = useApiResource(load);
   if (report.status === 'loading') return <p role="status">Đang tải báo cáo chăm sóc…</p>;
-  if (report.status !== 'success') return <p>Chưa mở được báo cáo. <Button variant="ghost" onClick={report.retry}>Thử lại</Button></p>;
+  if (report.status !== 'success' || !report.data) return <p>Chưa mở được báo cáo. <Button variant="ghost" onClick={report.retry}>Thử lại</Button></p>;
   return <BookingVisitReport visit={report.data} readEvidence={images.read} />;
+}
+
+function CareUpdates({ tasks, startAt }) {
+  const images = useMemo(() => createPrivateImageApi(), []);
+  return <Panel title="Nhiệm vụ và ảnh trong buổi">
+    {tasks.length ? tasks.map(task => <article className="care-workflow-card" key={task.taskKey}>
+      <h3>{task.title}{task.petName ? ` · ${task.petName}` : ''}</h3>
+      <p>{workflowStatusLabels[task.status]} · <time dateTime={task.at}>{eventTime(task.at, startAt)}</time></p>
+      {!!task.photos.length && <div className="visit-evidence-gallery">{task.photos.map(photo =>
+        <VisitEvidencePreview key={photo.mediaId} mediaId={photo.mediaId} read={images.read} label={photo.label} />
+      )}</div>}
+    </article>) : <p>Chưa có nhiệm vụ hoặc ảnh được chia sẻ trong buổi này.</p>}
+  </Panel>;
 }
 
 function Tracker({ bookingId, visitId }) {
   const read = useMemo(() => createVisitTrackerApi(), []);
+  const { getCsrfToken } = useSession();
+  const travelApi = useMemo(() => createVisitTravelApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
   const load = useCallback(signal => read(bookingId, visitId, { signal }), [read, bookingId, visitId]);
   const { data, error, retry } = useVisitTracker(load);
   const back = '/account/bookings/' + encodeURIComponent(bookingId);
@@ -96,7 +117,7 @@ function Tracker({ bookingId, visitId }) {
       : <Notice state="loading" title="Đang tải buổi chăm sóc…" />}
   </div>;
 
-  const { visit, booking, sitter, milestones, updates, actions } = data;
+  const { visit, booking, sitter, milestones, updates, actions, careUpdates } = data;
   const status = labels[visit.status] ?? labels.PENDING;
   const range = clockRange(visit.startAt, visit.endAt);
   const petNames = visit.pets.map(pet => pet.name).join(', ');
@@ -120,6 +141,7 @@ function Tracker({ bookingId, visitId }) {
             <time dateTime={at}>{eventTime(at, visit.startAt)}</time><span>{updateLabel(key, sitter)}</span>
           </li>)}</ul>
         </Panel>}
+        {Array.isArray(careUpdates) && <CareUpdates tasks={careUpdates} startAt={visit.startAt} />}
         <Panel title="Thông tin buổi">
           <dl className="visit-tracker-facts">
             <div><dt>Dịch vụ</dt><dd>{[visit.serviceName, visit.durationMinutes && visit.durationMinutes + ' phút'].filter(Boolean).join(', ') || '—'}</dd></div>
@@ -138,6 +160,7 @@ function Tracker({ bookingId, visitId }) {
               <p>{Number.isFinite(sitter.rating) ? '★ ' + ratingFormat.format(sitter.rating) + ' trên 5' : 'Chưa có đánh giá'}</p></div>
           </div>
         </Panel>}
+        {actions.travel === true && <VisitTravel api={travelApi} visitId={visit.id} available />}
         {actions.careReport && <Panel title="Thao tác"><ReportAction bookingId={booking.id} visitId={visit.id} /></Panel>}
       </aside>
     </div>

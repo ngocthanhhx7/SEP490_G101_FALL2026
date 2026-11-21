@@ -326,6 +326,7 @@ function AccountDetail({
 
 export function AdminUsersPage({ apiRequest, embedded = false }) {
   const session = useSession();
+  const MainContent = embedded ? 'section' : 'main';
   const mainRef = useRef(null);
   useEffect(() => {
     mainRef.current?.focus({ preventScroll: true });
@@ -550,9 +551,10 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
           </div>
         </aside>}
 
-        <main
+        <MainContent
           className="admin-main"
           id="admin-main"
+          aria-labelledby={embedded ? 'admin-users-title' : undefined}
           tabIndex={-1}
           ref={mainRef}
         >
@@ -560,7 +562,7 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
             <section className="admin-page-heading">
               <div>
                 <span className="admin-eyebrow">QUẢN LÝ HỆ THỐNG</span>
-                <h1>Quản lý tài khoản</h1>
+                <h1 id="admin-users-title">Quản lý tài khoản</h1>
                 <p>
                   Tìm kiếm, xem thông tin đã bảo vệ và quản lý trạng thái tài
                   khoản.
@@ -858,7 +860,7 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
               </span>
             </footer>}
           </div>
-        </main>
+        </MainContent>
       </div>
 
       {roleUser && <UserRolesDialog key={roleUser.id + ':' + roleUser.version} user={roleUser} request={request}

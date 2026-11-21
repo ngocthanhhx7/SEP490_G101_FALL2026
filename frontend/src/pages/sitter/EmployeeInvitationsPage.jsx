@@ -177,7 +177,7 @@ export function EmployeeInvitationsPage({
     <Dialog open={Boolean(active)} title={active ? title(active) : 'Chi tiết ca chăm sóc'} onClose={() => { if (selected?.kind === 'linkedOffer') onCloseOffer?.(); setSelected(null); }} className="employee-assignment-dialog" dismissible={!locked}>
       {active && <><p>{time(active.startAt)} – {time(active.endAt)}</p><p>{states[active.state] ?? 'Đang cập nhật'} · {active.areaLabel ?? active.areaCode}</p>
         {['assignment', 'linked'].includes(selected.kind) ? <>{active.serviceAddress && <p>{active.serviceAddress}</p>}{googleMapsDirections(active.serviceAddress) && <a href={googleMapsDirections(active.serviceAddress)} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Chỉ đường bằng Google Maps</a>}
-          <VisitTravel api={api} visitId={active.id} employee startAt={active.startAt} endAt={active.endAt} />
+          {active.state === 'ASSIGNED' && <VisitTravel api={api} visitId={active.id} employee startAt={active.startAt} endAt={active.endAt} />}
           {['ASSIGNED', 'IN_PROGRESS'].includes(active.state) && <AssignedCare api={api} visitId={active.id} />}
           {api.execution && <VisitExecution key={active.id} api={api} visitId={active.id} onChanged={assignments.retry} />}
         </> : <>{active.state === 'PENDING' && <p>Hạn phản hồi: {time(active.deadline)}</p>}{offerActions(active)}</>}

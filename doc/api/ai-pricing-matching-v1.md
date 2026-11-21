@@ -126,7 +126,7 @@ const recommendation = await send('/recommendations', {
 console.log(recommendation);
 ```
 
-Đổi ngày luôn >=24h trong tương lai. Backend không tự tạo sitter: database chưa có sitter được Admin duyệt/lịch nguồn thì trả INSUFFICIENT_ELIGIBLE_SITTERS với candidates=[], shortfall=5. Đây là kết quả thật, không phải test thất bại. Nếu chưa cấu hình đường đi cho ứng viên, kết quả có ROUTING_UNAVAILABLE, không lấy đường chim bay giả làm ETA.
+Tạo gợi ý mới cho lịch chăm sóc tại nhà ít nhất 2 giờ trước thời điểm bắt đầu. Gợi ý hộ tống đến phòng khám vẫn áp dụng 24 giờ. Mốc này dành cho lịch đặt mới. Backend không tự tạo sitter: database chưa có sitter được Admin duyệt/lịch nguồn thì trả INSUFFICIENT_ELIGIBLE_SITTERS với candidates=[], shortfall=5. Đây là kết quả thật, không phải test thất bại. Nếu chưa cấu hình đường đi cho ứng viên, kết quả có ROUTING_UNAVAILABLE, không lấy đường chim bay giả làm ETA.
 
 ## 6. Cấu hình sitter và dữ liệu lịch để test ghép thật
 

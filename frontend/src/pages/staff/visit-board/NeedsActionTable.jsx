@@ -1,13 +1,14 @@
 import { Button } from '../../../components/ui/index.js';
 import { OperationsBadge, OperationsTable } from '../../../components/common/OperationsWorkspace.jsx';
-import { formatBookingRef, formatClosureSlot } from '../../../utils/visit-closure-format.js';
 import { REASON_LABELS, actionFor, formatReasonTime } from '../../../utils/visit-board-format.js';
 import { ContactCell } from './ContactCell.jsx';
+import { VisitBoardCustomer, VisitBoardSummary } from './VisitBoardCells.jsx';
 
 function ReasonCell({ row }) {
   const [main, ...others] = row.reasons;
   return <>
-    <OperationsBadge tone={main.late ? 'danger' : 'warning'}>{REASON_LABELS[main.code]}</OperationsBadge>
+    <OperationsBadge tone={main.late ? 'danger' : 'warning'}>{main.code === 'NO_SITTER_24H' && main.late
+      ? 'Đã qua giờ hẹn, chưa có người nhận' : REASON_LABELS[main.code]}</OperationsBadge>
     {others.length > 0 && <small className="visit-board__others">{others.map(item => REASON_LABELS[item.code]).join(' · ')}</small>}
   </>;
 }
@@ -33,7 +34,7 @@ function ActionCell({ row, api, openableIds, onAction }) {
 }
 
 // One row per visit; every reason of the visit is kept, the most urgent one leads.
-export function NeedsActionTable({ list, rows, filtering, api, openableIds, onAction }) {
+export function NeedsActionTable({ list, rows, filtering, api, workAreas, openableIds, onAction }) {
   if (list.status === 'loading') return <p role="status">Đang tải các buổi cần xử lý…</p>;
   if (list.status !== 'success' && list.status !== 'empty') {
     return <p role="alert" className="visit-board__error">Chưa tải được danh sách cần xử lý. <Button variant="ghost" onClick={list.retry}>Thử lại</Button></p>;
@@ -42,11 +43,12 @@ export function NeedsActionTable({ list, rows, filtering, api, openableIds, onAc
     <OperationsTable label="Buổi cần xử lý" rows={rows}
       empty={filtering ? 'Không có buổi nào khớp.' : 'Không có buổi nào cần xử lý.'}
       columns={[
-        { key: 'visit', label: 'Buổi', render: row => <><strong>{formatBookingRef(row)}</strong><small>{formatClosureSlot(row.startAt, row.endAt)}</small></> },
-        { key: 'customer', label: 'Khách hàng', render: row => row.customerName ?? 'Chưa có tên' },
+        { key: 'visit', label: 'Buổi chăm sóc', render: row => <VisitBoardSummary row={row} /> },
+        { key: 'customer', label: 'Khách hàng', render: row => <VisitBoardCustomer row={row} /> },
         { key: 'reason', label: 'Lý do', render: row => <ReasonCell row={row} /> },
         { key: 'time', label: 'Thời gian', render: row => <TimeCell row={row} /> },
-        { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? '—' },
+        { key: 'area', label: 'Khu vực', render: row => workAreas.find(area => area.code === row.areaCode)?.label ?? 'Chưa rõ khu vực' },
+        { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? (row.state === 'SCHEDULED' ? 'Chưa phân công' : '—') },
         { key: 'action', label: 'Thao tác', render: row => <ActionCell row={row} api={api} openableIds={openableIds} onAction={onAction} /> }
       ]} />
     {list.data?.counts?.needsActionLimited && <p className="ops-muted">Đang hiển thị các buổi gần giờ nhất ở mỗi lý do. Xử lý rồi tải lại để xem tiếp.</p>}

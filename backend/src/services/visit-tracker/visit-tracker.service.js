@@ -3,6 +3,8 @@ import { financeSourceModels } from '../../models/finance-source.model.js';
 import { AppError } from '../../utils/app-error.js';
 import { createReferenceCatalogFacade } from '../reference-catalog.service.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
+import { workflowProjection } from '../care/workflow-snapshot.service.js';
+import { isVisitTravelWindowOpen } from '../employee-scheduling/visit-travel.service.js';
 
 const validId = value => typeof value === 'string' && /^[0-9a-f]{24}$/i.test(value);
 const notFound = () => { throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Không tìm thấy buổi chăm sóc.'); };
@@ -16,7 +18,7 @@ function progress(booking, visit, checklistAt, asOf) {
   const checkOutAt = currentDate(visit.checkOutAt, asOf);
   const checklistSaved = Boolean(checkInAt && (checklistAt || visit.checklist?.length));
   const finished = visit.state === 'COMPLETED' && (!visit.checkOutAt || Boolean(checkOutAt));
-  const reportReady = finished && Boolean(checkOutAt) && Array.isArray(visit.checklist);
+  const reportReady = finished && Boolean(checkOutAt) && (Boolean(visit.snapshots?.workflow) || Array.isArray(visit.checklist));
   const assigned = Boolean(visit.sitterId) && ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'ARRIVED'].includes(visit.state);
   const cancelled = visit.state === 'CANCELLED' || booking.state === 'CANCELLED';
   const blocked = ['AWAITING_PAYMENT', 'PAYMENT_EXPIRED', 'CARE_PLAN_PENDING'].includes(booking.state);
@@ -37,7 +39,7 @@ function progress(booking, visit, checklistAt, asOf) {
     inCare: showProgress && visit.state === 'IN_PROGRESS' && Boolean(checkInAt) && !visit.checkOutAt };
 }
 
-export function createVisitTrackerService({ connection, clock = Date.now }) {
+export function createVisitTrackerService({ connection, clock = Date.now, travelEnabled = false }) {
   const col = name => connection.db.collection(name);
   const uow = createUnitOfWork(connection);
 
@@ -96,14 +98,20 @@ export function createVisitTrackerService({ connection, clock = Date.now }) {
           _id: new Types.ObjectId(visitId), bookingId: booking._id, state: { $ne: 'SUPERSEDED' }
         }, { session, ...timeLimit, projection: {
           state: 1, sequence: 1, serviceId: 1, sitterId: 1, startAt: 1, endAt: 1, assignedAt: 1, checkInAt: 1, checkOutAt: 1,
-          checklist: 1, 'snapshots.serviceName': 1, 'snapshots.serviceAddress': 1, 'snapshots.careMinutes': 1, 'snapshots.pets': 1
+          location: 1, checklist: 1, workflowResults: 1, 'snapshots.workflow': 1,
+          'snapshots.serviceName': 1, 'snapshots.serviceAddress': 1, 'snapshots.careMinutes': 1, 'snapshots.pets': 1
         } });
         const ids = booking.visitIds?.length ? booking.visitIds.map(String) : (await col('visits').find({
           bookingId: booking._id, state: { $ne: 'SUPERSEDED' }
         }, { session, ...timeLimit, projection: { _id: 1 } }).sort({ sequence: 1, _id: 1 }).limit(60).toArray()).map(row => String(row._id));
         const index = ids.indexOf(visitId.toLowerCase());
         if (!visit || index < 0) notFound();
-        const checklistAt = await firstChecklist(booking, visit, asOf, session);
+        const workflow = visit.snapshots?.workflow && ['IN_PROGRESS', 'COMPLETED'].includes(visit.state)
+          ? workflowProjection(visit, { customer: true }) : null;
+        const recorded = workflow?.tasks.filter(task => currentDate(task.updatedAt, asOf)) ?? [];
+        const workflowAt = recorded.filter(task => task.step.phase === 'EXECUTION')
+          .reduce((first, task) => !first || task.updatedAt < first ? task.updatedAt : first, null);
+        const checklistAt = workflow ? workflowAt : await firstChecklist(booking, visit, asOf, session);
         const { status, showProgress, milestones, updates, reportReady, inCare } = progress(booking, visit, checklistAt, asOf);
         const service = inCare && visit.serviceId ? await col('services').findOne({ _id: visit.serviceId },
           { session, ...timeLimit, projection: { code: 1 } }) : null;
@@ -116,7 +124,14 @@ export function createVisitTrackerService({ connection, clock = Date.now }) {
             serviceName: visit.snapshots?.serviceName ?? null, durationMinutes: visit.snapshots?.careMinutes ?? null,
             address: visit.snapshots?.serviceAddress ?? null, pets },
           milestones, updates, sitter,
+          careUpdates: inCare && workflow ? recorded.map(task => ({
+            taskKey: task.taskKey, petName: task.petName, title: task.step.title, status: task.status, at: task.updatedAt,
+            photos: task.evidence.map(photo => ({ mediaId: photo.mediaId,
+              label: task.step.photoSlots.find(slot => slot.photoSlotId === photo.photoSlotId)?.title ?? 'Ảnh nhiệm vụ' }))
+          })) : null,
           actions: { profile: false, walkLocation: { eligible: inCare && service?.code === 'dog-walking', available: false },
+            ...(travelEnabled && ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'].includes(booking.state)
+              && isVisitTravelWindowOpen(visit, asOf.getTime()) ? { travel: true } : {}),
             incident: false, careReport: reportReady }
         };
       });

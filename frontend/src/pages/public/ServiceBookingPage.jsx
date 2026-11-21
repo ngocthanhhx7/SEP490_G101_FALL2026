@@ -41,7 +41,8 @@ function errorText(error) {
   return ({ QUOTE_CHANGED: 'Hồ sơ, giá hoặc điều kiện đã thay đổi. Vui lòng lấy báo giá mới.',
     PRICING_REVIEW_REQUIRED: 'Một đặc điểm chăm sóc của thú cưng chưa có quy tắc giá được duyệt. Vui lòng liên hệ PawWorld để rà soát giá trước khi đặt dịch vụ.',
     PRICING_POLICY_UNAVAILABLE: 'Dịch vụ chưa có chính sách giá có hiệu lực. Vui lòng liên hệ PawWorld hoặc thử lại sau.',
-    SLOT_INVALID: 'Lịch gợi ý cần đặt trước ít nhất 24 giờ, trong cùng ngày và tối đa 6 giờ. Vui lòng kiểm tra lại thời gian.',
+    HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
+    SLOT_INVALID: 'Lịch gợi ý cần đặt trước ít nhất 2 giờ, trong cùng ngày và tối đa 6 giờ. Vui lòng kiểm tra lại thời gian.',
     RESOURCE_NOT_FOUND: 'Báo giá hoặc hồ sơ không còn khả dụng. Vui lòng tải lại.',
     SCHEDULING_UNAVAILABLE: 'Chưa thể kiểm tra nhân viên. Bạn có thể gửi đơn để nhân viên hỗ trợ sắp xếp.',
     CARE_INFORMATION_REQUIRED: 'Cần xác nhận thông tin chăm sóc trong hồ sơ thú cưng trước khi tìm sitter.',
@@ -89,11 +90,15 @@ export function BookingFlow({ service, api, matching, onBooked }) {
     return starts.map(start => ({ itemIndex: 0, startAt: new Date(start+'+07:00').toISOString(), location,
       ...(location !== 'FACILITY' ? { addressId } : {}) }));
   }
+  const homeNoticeMs = 2 * 60 * 60 * 1000;
   async function price(event) {
     event.preventDefault(); if (locked.current) return;
     if (!petIds.length) { setError('Chọn ít nhất một thú cưng.'); return; }
     if (starts.some(start => !start || Date.parse(start+'+07:00') <= Date.now() + (count > 1 || boarding && units > 1 ? 15 : 0) * 60000)) {
       setError('Chọn thời gian trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.'); return;
+    }
+    if (location === 'HOME' && starts.some(start => Date.parse(start+'+07:00') < Date.now() + homeNoticeMs)) {
+      setError('Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.'); return;
     }
     const ticket = ++generation.current; locked.current = true; setBusy(true); setError('');
     try {
@@ -150,7 +155,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
   if (setup.status === 'loading') return <p role="status">Đang tải thông tin đặt lịch…</p>;
   if (setup.status !== 'success') return <div role="alert"><p>Chưa tải được thông tin đặt lịch.</p><button onClick={setup.retry}><RefreshCw size={16} />Tải lại</button></div>;
   const needsAddress = location !== 'FACILITY';
-  const canMatch = location === 'HOME' && !boarding && unit !== 'km' && service.code !== 'vet-escort' && durationMinutes <= 360 && starts.every(start => Date.parse(start+'+07:00') >= Date.now()+86400000);
+  const canMatch = location === 'HOME' && !boarding && unit !== 'km' && service.code !== 'vet-escort' && durationMinutes <= 360 && starts.every(start => Date.parse(start+'+07:00') >= Date.now() + homeNoticeMs);
   return <div className="booking-flow">
     <ol className="booking-steps" aria-label="Tiến trình đặt dịch vụ">{['Thú cưng và lịch', 'Chọn pet sitter', 'Xác nhận'].map((label, index) => <li key={label} aria-current={step === index ? 'step' : undefined}><span>{index < step ? <Check size={16} /> : index+1}</span>{label}</li>)}</ol>
     {step === 0 && <form onSubmit={price}>

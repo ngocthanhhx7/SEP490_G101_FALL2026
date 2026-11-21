@@ -12,7 +12,7 @@ Trạng thái: **PENDING_APPROVAL**. Tài liệu này là gói trình Leader và
 | `service-areas` | `service-areas-2026-10-14-draft-1` | `P45-APPROVAL-AREAS-2026-10-14` | Chưa chốt | Chưa chốt |
 | `booking` | `booking-2026-10-14-draft-1` | `P45-APPROVAL-BOOKING-2026-10-14` | Chưa chốt | Chưa chốt |
 | `payments` | `payments-2026-10-14-draft-1` | `P45-APPROVAL-PAYMENTS-2026-10-14` | Chưa chốt | Chưa chốt |
-| `cancellations-refunds` | `cancellations-2026-10-14-draft-1` | `P45-APPROVAL-CANCEL-2026-10-14` | Chưa chốt | Chưa chốt |
+| `cancellations-refunds` | `cancellations-2026-11-21-proposal-1` | `P45-APPROVAL-CANCEL-2026-11-21` | Chưa chốt | Chưa chốt |
 | `care-evidence` | `care-evidence-2026-10-14-draft-1` | `P45-APPROVAL-EVIDENCE-2026-10-14` | Chưa chốt | Chưa chốt |
 | `safety-complaints` | `safety-complaints-2026-10-14-draft-1` | `P45-APPROVAL-SAFETY-2026-10-14` | Chưa chốt | Chưa chốt |
 | `sitter-onboarding` | `sitter-onboarding-2026-10-14-draft-1` | `P45-APPROVAL-SITTER-2026-10-14` | Chưa chốt | Chưa chốt |
@@ -36,6 +36,10 @@ Các `versionId` trên chỉ là định danh đề xuất. Chỉ bản ghi tron
 - Mục đích sử dụng, thời hạn lưu, phân quyền truy cập và các trường hợp chia sẻ với provider cần thiết.
 - Cách xử lý yêu cầu xem, sửa, xóa hoặc hạn chế dữ liệu; đầu mối liên hệ privacy.
 - Không ghi số OTP, contact plaintext, giấy tờ định danh hoặc secret vào log/public policy/PWA cache.
+
+### Hủy lịch và hoàn tiền
+
+[Chính sách hủy và hoàn tiền bản trình duyệt](cancellation-refund-policy-proposal-2026-11-21.md) ghi nội dung dành cho khách, căn cứ pháp lý và điều kiện nghiệm thu.
 
 ### Các policy vận hành còn lại
 

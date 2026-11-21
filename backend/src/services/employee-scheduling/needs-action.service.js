@@ -5,6 +5,7 @@ import { createScopedCursor } from '../../utils/scoped-cursor.js';
 import { AppError } from '../../utils/app-error.js';
 import { hasPendingWithdrawal } from './visit-withdrawal.service.js';
 import { visitNeedsCountStages, visitBoardPageStages } from './visit-board-query.service.js';
+import { dispatchVisitPresentation } from './dispatch-visit-presentation.js';
 
 const MINUTE = 60000, HOUR = 60 * MINUTE;
 export const NO_SITTER_WINDOW_MS = 24 * HOUR;
@@ -50,9 +51,10 @@ export function createNeedsActionService({ repository, clock = Date.now, cursorS
     const names = new Map(users.map(row => [String(row._id), row.displayName]));
     const codes = new Map(bookings.map(row => [String(row._id), row.bookingCode ?? row.code ?? null]));
     return rows.map(row => ({ id: String(row._id), bookingId: String(row.bookingId), bookingCode: codes.get(String(row.bookingId)) ?? null,
-      ...(row.workflowProgress ? { workflowProgress: row.workflowProgress } : {}), version: row.version, serviceName: row.snapshots?.serviceName ?? null, startAt: row.startAt, endAt: row.endAt,
+      ...(row.workflowProgress ? { workflowProgress: row.workflowProgress } : {}), version: row.version, ...dispatchVisitPresentation(row), startAt: row.startAt, endAt: row.endAt,
       areaCode: row.areaCode ?? null, state: row.state, customerName: names.get(String(row.customerId)) ?? null,
       sitterId: row.sitterId ? String(row.sitterId) : null, sitterName: names.get(String(row.sitterId)) ?? null,
+      unassignedOverdue: row.state === 'SCHEDULED' && !row.sitterId && row.startAt.getTime() <= now,
       reviewCode: row.dispatchReview?.code ?? null, ...(needs ? { reasons: reasonsOfVisit(row, now) } : {}) }));
   }
 
