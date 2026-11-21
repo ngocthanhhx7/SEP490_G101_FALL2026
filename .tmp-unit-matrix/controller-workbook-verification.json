@@ -1,0 +1,652 @@
+{
+  "EMP-CTL-01": {
+    "changedCells": 179,
+    "boldCellsPreserved": 239,
+    "passed": 15,
+    "types": {
+      "N": 3,
+      "A": 9,
+      "B": 3
+    },
+    "sheet": "EMP-CTL-01_dispatchDetails",
+    "rows": [
+      [
+        "Actor: ACTIVE STAFF",
+        [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Actor: missing",
+        [
+          8
+        ]
+      ],
+      [
+        "ID: 24 hex, giữ nguyên case",
+        [
+          1,
+          2,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "ID: 23 ký tự",
+        [
+          3
+        ]
+      ],
+      [
+        "ID: 25 ký tự",
+        [
+          4
+        ]
+      ],
+      [
+        "ID: 24 chữ g (non-hex)",
+        [
+          5
+        ]
+      ],
+      [
+        "ID: undefined",
+        [
+          6
+        ]
+      ],
+      [
+        "ID: number 123",
+        [
+          7
+        ]
+      ],
+      [
+        "Service: detail DTO",
+        [
+          1,
+          2,
+          15
+        ]
+      ],
+      [
+        "Service: null",
+        [
+          9
+        ]
+      ],
+      [
+        "Service: undefined",
+        [
+          10
+        ]
+      ],
+      [
+        "Service: pending → DTO",
+        [
+          11
+        ]
+      ],
+      [
+        "Service: AppError 403 / 404",
+        [
+          8,
+          12
+        ]
+      ],
+      [
+        "Service: Error offline",
+        [
+          13,
+          14
+        ]
+      ]
+    ]
+  },
+  "GRM-CTL-01": {
+    "changedCells": 191,
+    "boldCellsPreserved": 239,
+    "passed": 15,
+    "types": {
+      "N": 4,
+      "A": 10,
+      "B": 1
+    },
+    "sheet": "GRM-CTL-01_options",
+    "rows": [
+      [
+        "Actor: ACTIVE CUSTOMER",
+        [
+          1,
+          2,
+          3,
+          4,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Actor: missing",
+        [
+          5
+        ]
+      ],
+      [
+        "Actor: null",
+        [
+          6
+        ]
+      ],
+      [
+        "Fields khác: không đọc",
+        [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Service: DTO",
+        [
+          1,
+          13,
+          14
+        ]
+      ],
+      [
+        "Service: empty / zero",
+        [
+          2
+        ]
+      ],
+      [
+        "Service: null",
+        [
+          3
+        ]
+      ],
+      [
+        "Service: undefined",
+        [
+          4
+        ]
+      ],
+      [
+        "Service: pending → DTO",
+        [
+          12
+        ]
+      ],
+      [
+        "Service: Error offline",
+        [
+          7,
+          8
+        ]
+      ],
+      [
+        "Service: code 11000",
+        [
+          9
+        ]
+      ],
+      [
+        "Service: ValidationError",
+        [
+          10
+        ]
+      ],
+      [
+        "Service: StrictModeError",
+        [
+          11
+        ]
+      ],
+      [
+        "Service: AppError",
+        [
+          5,
+          6,
+          15
+        ]
+      ]
+    ]
+  },
+  "GRM-CTL-02": {
+    "changedCells": 191,
+    "boldCellsPreserved": 239,
+    "passed": 15,
+    "types": {
+      "N": 4,
+      "A": 10,
+      "B": 1
+    },
+    "sheet": "GRM-CTL-02_slots",
+    "rows": [
+      [
+        "Actor: ACTIVE CUSTOMER",
+        [
+          1,
+          2,
+          3,
+          4,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Actor: missing",
+        [
+          5
+        ]
+      ],
+      [
+        "Body: selection payload",
+        [
+          1,
+          2,
+          3,
+          4,
+          5,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Body: null",
+        [
+          6
+        ]
+      ],
+      [
+        "Service: DTO",
+        [
+          1,
+          13,
+          14
+        ]
+      ],
+      [
+        "Service: empty / zero",
+        [
+          2
+        ]
+      ],
+      [
+        "Service: null",
+        [
+          3
+        ]
+      ],
+      [
+        "Service: undefined",
+        [
+          4
+        ]
+      ],
+      [
+        "Service: pending → DTO",
+        [
+          12
+        ]
+      ],
+      [
+        "Service: Error offline",
+        [
+          7,
+          8
+        ]
+      ],
+      [
+        "Service: code 11000",
+        [
+          9
+        ]
+      ],
+      [
+        "Service: ValidationError",
+        [
+          10
+        ]
+      ],
+      [
+        "Service: StrictModeError",
+        [
+          11
+        ]
+      ],
+      [
+        "Service: AppError",
+        [
+          5,
+          6,
+          15
+        ]
+      ]
+    ]
+  },
+  "GRM-CTL-03": {
+    "changedCells": 191,
+    "boldCellsPreserved": 239,
+    "passed": 15,
+    "types": {
+      "N": 4,
+      "A": 10,
+      "B": 1
+    },
+    "sheet": "GRM-CTL-03_quote",
+    "rows": [
+      [
+        "Actor: ACTIVE CUSTOMER",
+        [
+          1,
+          2,
+          3,
+          4,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Actor: missing",
+        [
+          5
+        ]
+      ],
+      [
+        "Body: selection payload",
+        [
+          1,
+          2,
+          3,
+          4,
+          5,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Body: null",
+        [
+          6
+        ]
+      ],
+      [
+        "Service: DTO",
+        [
+          1,
+          13,
+          14
+        ]
+      ],
+      [
+        "Service: empty / zero",
+        [
+          2
+        ]
+      ],
+      [
+        "Service: null",
+        [
+          3
+        ]
+      ],
+      [
+        "Service: undefined",
+        [
+          4
+        ]
+      ],
+      [
+        "Service: pending → DTO",
+        [
+          12
+        ]
+      ],
+      [
+        "Service: Error offline",
+        [
+          7,
+          8
+        ]
+      ],
+      [
+        "Service: code 11000",
+        [
+          9
+        ]
+      ],
+      [
+        "Service: ValidationError",
+        [
+          10
+        ]
+      ],
+      [
+        "Service: StrictModeError",
+        [
+          11
+        ]
+      ],
+      [
+        "Service: AppError",
+        [
+          5,
+          6,
+          15
+        ]
+      ]
+    ]
+  },
+  "GRM-CTL-04": {
+    "changedCells": 203,
+    "boldCellsPreserved": 239,
+    "passed": 15,
+    "types": {
+      "N": 2,
+      "A": 11,
+      "B": 2
+    },
+    "sheet": "GRM-CTL-04_book",
+    "rows": [
+      [
+        "Actor: ACTIVE CUSTOMER",
+        [
+          1,
+          2,
+          3,
+          4,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Actor: missing",
+        [
+          5
+        ]
+      ],
+      [
+        "Body: booking payload",
+        [
+          1,
+          2,
+          3,
+          4,
+          5,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Body: null",
+        [
+          6
+        ]
+      ],
+      [
+        "Key: booking-key-001",
+        [
+          1,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      ],
+      [
+        "Key: undefined",
+        [
+          2
+        ]
+      ],
+      [
+        "Key: empty string",
+        [
+          3
+        ]
+      ],
+      [
+        "Key: 3 spaces",
+        [
+          4
+        ]
+      ],
+      [
+        "Service: DTO / null / undefined",
+        [
+          1,
+          13,
+          14
+        ]
+      ],
+      [
+        "Service: pending → DTO",
+        [
+          12
+        ]
+      ],
+      [
+        "Service: Error offline",
+        [
+          7,
+          8
+        ]
+      ],
+      [
+        "Service: code 11000",
+        [
+          9
+        ]
+      ],
+      [
+        "Service: schema error",
+        [
+          10,
+          11
+        ]
+      ],
+      [
+        "Service: AppError",
+        [
+          2,
+          3,
+          4,
+          5,
+          6,
+          15
+        ]
+      ]
+    ]
+  }
+}
