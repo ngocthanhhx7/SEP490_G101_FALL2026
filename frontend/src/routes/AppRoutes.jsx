@@ -294,6 +294,11 @@ function AccountWorkspace() {
   return <Workspace role={role} />;
 }
 
+function ApplicationStatusLayout() {
+  const { user } = useSession();
+  return primaryRole(user) === 'PET_SITTER' ? <Workspace role="PET_SITTER" /> : <PublicSiteLayout />;
+}
+
 function AccountHome({ mobile }) {
   const { user, logout } = useSession();
   const role = primaryRole(user);
@@ -375,9 +380,7 @@ export function AppRoutes({
           <Route path="account" element={<AccountHome mobile={phoneApp} />} />
           <Route path="account/settings" element={<AccountSettingsPage />} />
           <Route path="account/notifications" element={<CustomerFeaturePage page="notifications" />} />
-          <Route element={<RequireSession roles={['CUSTOMER', 'PET_SITTER']} />}>
-            <Route path="account/profile" element={<CustomerProfilePage />} />
-          </Route>
+          <Route path="account/profile" element={<CustomerProfilePage />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['CUSTOMER']} />}>
@@ -467,6 +470,8 @@ export function AppRoutes({
           path="sitter/apply"
           element={<RegistrationPage initialSitter />}
         />
+      </Route>
+      <Route element={<ApplicationStatusLayout />}>
         <Route
           path="sitter/application-status"
           element={<ApplicantWorkspacePage legacyApi={applicationStatusApi} />}

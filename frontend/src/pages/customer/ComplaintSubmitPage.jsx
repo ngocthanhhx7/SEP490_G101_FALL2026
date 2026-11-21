@@ -159,7 +159,7 @@ function ComplaintWorkspace({ bookingId, visitId, selectedId, api, imageApi }) {
     : [booking?.code ? 'Lịch đặt ' + booking.code : null, booking?.serviceName, complaintVisitTime(booking)];
   return <section className="complaint-submit" aria-labelledby="complaint-submit-title">
     <header className="complaint-submit__header">
-      <Link to={bookingPath(bookingId)}><ArrowLeft size={18} aria-hidden="true" />Quay lại chi tiết lịch đặt</Link>
+      <Link data-page-back to={bookingPath(bookingId)}><ArrowLeft size={18} aria-hidden="true" />Quay lại chi tiết lịch đặt</Link>
       <h1 id="complaint-submit-title">Gửi khiếu nại</h1>
       {context.some(Boolean) && <p>{context.filter(Boolean).join(' · ')}</p>}
     </header>

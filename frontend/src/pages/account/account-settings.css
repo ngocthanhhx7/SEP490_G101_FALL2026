@@ -1,7 +1,4 @@
 .account-settings { display: grid; gap: var(--pwc-space-6); max-width: 52rem; margin-inline: auto; }
-.account-settings-breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: var(--pwc-space-2); color: var(--pwc-ink-muted); }
-.account-settings-breadcrumb a { min-height: var(--pwc-target); display: inline-flex; align-items: center; color: inherit; }
-.account-settings-breadcrumb strong { color: var(--pwc-ink); }
 .account-settings-heading { display: grid; gap: var(--pwc-space-2); }
 .account-settings-heading h1 { margin: 0; font-family: var(--pwc-font-display); font-size: var(--pwc-text-heading); font-weight: 400; line-height: 1.15; }
 .account-settings-heading p, .account-settings-caption { margin: 0; color: var(--pwc-ink-muted); line-height: var(--pwc-leading); }

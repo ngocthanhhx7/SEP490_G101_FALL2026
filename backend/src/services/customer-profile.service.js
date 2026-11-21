@@ -1,15 +1,17 @@
 import { AppError } from '../utils/app-error.js';
-import { hasRole } from '../utils/roles.js';
+import { isSingleRole } from '../utils/roles.js';
+import { ACCOUNT_ROLES } from '../constants/account-roles.js';
 
 const VERSION = Number.MAX_SAFE_INTEGER;
 const USER_ID = /^[a-f\d]{24}$/i;
 const profileFields = 'displayName version createdAt updatedAt +familyAndMiddleName +givenName +birthDate +gender';
 
 function actorId(actor, role) {
-  if (actor?.state !== 'ACTIVE' || !hasRole(actor.roles, role)
+  if (actor?.state !== 'ACTIVE' || !isSingleRole(actor.roles)
     || typeof actor.userId !== 'string' || !USER_ID.test(actor.userId)) {
     throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
   }
+  if (!actor.roles.includes(role)) throw new AppError(403, 'FORBIDDEN', 'Action is not permitted');
   return actor.userId;
 }
 
@@ -89,7 +91,7 @@ function fieldsFor(input, now) {
 }
 
 export function createCustomerProfileService({ User, Contact, contactCrypto, role = 'CUSTOMER', clock = Date.now }) {
-  if (!['CUSTOMER', 'PET_SITTER'].includes(role)) throw new TypeError('Unsupported personal profile role');
+  if (!ACCOUNT_ROLES.includes(role)) throw new TypeError('Unsupported personal profile role');
   if (typeof User?.findOne !== 'function' || typeof User?.updateOne !== 'function'
     || typeof Contact?.find !== 'function' || typeof contactCrypto?.decrypt !== 'function') {
     throw new TypeError('User, Contact and contact decryption dependencies are required');

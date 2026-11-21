@@ -47,7 +47,7 @@ const metadata = [
   ["M43","/sign-in","Đăng nhập","account","task",["GUEST","CUSTOMER","PET_SITTER"]],
   ["M44","/register","Tạo tài khoản","account","task",["GUEST","CUSTOMER"]],
   ["M45","/sitter/apply","Ứng tuyển Pet Sitter","account","task",["GUEST","CUSTOMER"]],
-  ["M46","/sitter/application-status","Hồ sơ ứng tuyển","account","detail",["GUEST","CUSTOMER"]],
+  ["M46","/sitter/application-status","Hồ sơ ứng tuyển","account","detail",["GUEST","CUSTOMER","PET_SITTER"]],
   ["M47","*","Không tìm thấy trang","account","root",["GUEST","CUSTOMER","PET_SITTER"]],
   ["M48","/policies","Chính sách","account","detail",["GUEST","CUSTOMER","PET_SITTER"]],
   ["M49","/policies/:slug","Chính sách","account","detail",["GUEST","CUSTOMER","PET_SITTER"]],

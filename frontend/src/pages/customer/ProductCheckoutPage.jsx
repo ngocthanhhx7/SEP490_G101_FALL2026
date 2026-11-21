@@ -62,7 +62,7 @@ export function ProductCheckoutPage() {
     } finally { locked.current = false; setBusy(false); }
   }
 
-  const back = <Link className="pwc-shop-back" to="/customer/cart"><ArrowLeft aria-hidden="true" size={18} />Quay lại giỏ hàng</Link>;
+  const back = <Link className="pwc-shop-back" data-page-back to="/customer/cart"><ArrowLeft aria-hidden="true" size={18} />Quay lại giỏ hàng</Link>;
   if (!cart && status === 'error') return <section className="pwc-shop">{back}<Notice state="error" title="Chưa tải được giỏ hàng"
     action={<Button variant="secondary" onClick={() => refresh().catch(() => {})}>Thử lại</Button>} /></section>;
   if (!cart) return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải đơn hàng…" /></section>;

@@ -36,11 +36,45 @@ test('authenticated session opens account; unknown routes remain public', async 
     id: '507f1f77bcf86cd799439001', displayName: 'Nguyễn Admin', roles: ['ADMIN']
   } }));
   expect(await screen.findByRole('heading', { name: 'Tài khoản' })).toBeVisible();
-  expect(within(screen.getByRole('main')).getAllByText('Nguyễn Admin')).toHaveLength(2);
-  expect(screen.getByRole('link', { name: 'Quản lý tài khoản người dùng' })).toHaveAttribute('href', '/admin/users');
+  expect(within(screen.getByRole('main')).getByText('Nguyễn Admin')).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Chỉnh sửa hồ sơ' })).toHaveAttribute('href', '/account/profile');
   view.unmount();
   renderApp('/missing', { resolve: () => new Promise(() => {}) });
   expect(screen.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();
+});
+
+test.each(['ADMIN', 'STAFF', 'SALE_STAFF', 'PET_SITTER'])('opens personal profile from the account for %s', async role => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = jest.fn(async () => ({ ok: true, status: 200, json: async () => ({
+    data: { displayName: 'Synthetic', version: 0, contacts: [] }, meta: { schemaVersion: 1 }
+  }) }));
+  try {
+    renderApp('/account', adapter({ status: 'authenticated', user: { id: 'synthetic', displayName: 'Synthetic', roles: [role] } }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Chỉnh sửa hồ sơ' }));
+    expect(await screen.findByRole('heading', { name: 'Thông tin cá nhân', level: 1 })).toBeVisible();
+    expect(await screen.findByRole('textbox', { name: 'Họ và tên đệm' })).toBeVisible();
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('sitter can open application status without bouncing to the dashboard', async () => {
+  const previousFetch = globalThis.fetch;
+  const fetch = globalThis.fetch = jest.fn(async url => ({
+    ok: true, status: 200, json: async () => ({
+      data: String(url).endsWith('/applications/me') ? { application: null } : { items: [], unreadCount: 0 },
+      meta: { schemaVersion: 1 }
+    })
+  }));
+  try {
+    renderApp('/sitter/application-status', adapter({ status: 'authenticated', user: {
+      id: 'aaaaaaaaaaaaaaaaaaaaaaaa', displayName: 'Sitter', roles: ['PET_SITTER']
+    } }));
+    expect(await screen.findByRole('heading', { name: 'Bạn chưa có hồ sơ ứng tuyển' })).toBeVisible();
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/applications/me'))).toBe(true);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
 });
 
 test('failed session can retry and fails closed for unknown roles', async () => {

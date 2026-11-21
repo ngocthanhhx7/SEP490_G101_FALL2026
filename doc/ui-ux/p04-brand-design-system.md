@@ -52,3 +52,5 @@ npx --no-install vite --config tests/manual/vite.config.js --host 127.0.0.1 --po
 ```
 
 Actual results and browser limits: [P04 handoff](p04-handoff.md). Manual fixture runs in its own root and compiles into ignored dist/p04-manual; do not deploy it. It uses synthetic display states/no API. Production build still validates existing P03. Brand adoption in production root remains a P34 wiring gate; [proposed patch](p04-root-integration-proposal.patch) is reviewable against base798a795, not applied here. P34 should remove duplicate P03 font/global declarations when importing the P04 CSS entry, use shared components where appropriate, and rerun app tests/build/route/keyboard checks. Do not apply this patch blindly if those files have changed.
+
+See the [shared navigation rules](navigation-notifications-2026-10-30.md#tiêu-đề-và-đường-quay-lại) for page titles and Back behavior.

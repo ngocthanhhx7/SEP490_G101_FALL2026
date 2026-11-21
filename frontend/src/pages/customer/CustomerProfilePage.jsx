@@ -6,7 +6,7 @@ import { Button, Input, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { usePhoneApp } from '../../hooks/usePhoneApp.js';
-import { primaryRole } from '../../utils/role-access.js';
+import { primaryRole, roleLabel } from '../../utils/role-access.js';
 import { createApiClient } from '../../services/api-client.js';
 import { createCustomerProfileAdapter } from '../../services/customer-profile-adapter.js';
 import './customer-profile.css';
@@ -14,7 +14,7 @@ import './customer-profile.css';
 function requestMessage(error) {
   if (error?.status === 401) return 'Phiên đã hết hạn. Vui lòng đăng nhập lại rồi tiếp tục.';
   if (error?.status === 403) return 'Tài khoản hiện tại không có quyền xem hồ sơ này.';
-  if (error?.status === 404) return 'Không tìm thấy hồ sơ Customer của tài khoản này.';
+  if (error?.status === 404) return 'Không tìm thấy hồ sơ của tài khoản này.';
   if (error?.status === 409) return 'Hồ sơ đã được cập nhật ở nơi khác. Tải lại trước khi lưu tiếp.';
   if (error?.code === 'CSRF_NOT_READY') return 'Phiên bảo mật chưa sẵn sàng. Vui lòng đăng nhập lại.';
   if (error?.code === 'TIMEOUT' || error?.code === 'NETWORK_ERROR') {
@@ -31,13 +31,15 @@ function verifiedDate(value) {
 
 export function CustomerProfilePage({ apiRequest }) {
   const session = useSession();
-  const compact = usePhoneApp();
-  const sitter = primaryRole(session.user) === 'PET_SITTER';
+  const phone = usePhoneApp();
+  const role = primaryRole(session.user) ?? 'CUSTOMER';
+  const operational = !['CUSTOMER', 'PET_SITTER'].includes(role);
+  const compact = phone && !operational;
   const api = useMemo(() => apiRequest ?? createApiClient({
     getCsrfToken: session.getCsrfToken,
     onUnauthorized: session.invalidate
   }), [apiRequest, session.getCsrfToken, session.invalidate]);
-  const profileAdapter = useMemo(() => createCustomerProfileAdapter(api, { sitter }), [api, sitter]);
+  const profileAdapter = useMemo(() => createCustomerProfileAdapter(api, { role }), [api, role]);
   const loadProfile = useCallback(({ signal }) => profileAdapter.load({ signal }), [profileAdapter]);
   const profile = useApiResource(loadProfile);
   const [draft, setDraft] = useState(null);
@@ -48,7 +50,7 @@ export function CustomerProfilePage({ apiRequest }) {
   const family = personal.familyAndMiddleName ?? profile.data?.familyAndMiddleName ?? '';
   const given = personal.givenName ?? profile.data?.givenName ?? '';
   const hasPersonalDraft = Object.keys(personal).length > 0;
-  const structured = !draft && (compact || sitter || editStructured || hasPersonalDraft || Boolean(profile.data?.givenName));
+  const structured = !draft && (compact || role !== 'CUSTOMER' || editStructured || hasPersonalDraft || Boolean(profile.data?.givenName));
   const namesChanged = Object.hasOwn(personal, 'familyAndMiddleName') || Object.hasOwn(personal, 'givenName');
   const canSave = structured ? (hasPersonalDraft
     && (!namesChanged || (family.trim() && given.trim() && family.trim().length + given.trim().length < 100)))
@@ -98,11 +100,15 @@ export function CustomerProfilePage({ apiRequest }) {
   }
 
   return <section className="customer-profile" aria-labelledby="customer-profile-title">
+    {operational && <Link className="customer-profile-back" to="/account">← Tài khoản</Link>}
     <div className="customer-profile-heading">
       <h1 id="customer-profile-title" className={compact ? 'workspace-sr-only' : undefined}>{structured ? 'Thông tin cá nhân' : 'Hồ sơ của tôi'}</h1>
       {!compact && <p>Quản lý thông tin cá nhân của bạn.</p>}
     </div>
 
+    {saved && <Notice state="success" title="Đã lưu thay đổi">
+      Thông tin cá nhân đã được lưu.
+    </Notice>}
     {profile.status === 'loading' && <div className="customer-profile-loading" role="status" aria-label="Đang tải hồ sơ">
       <span /><span /><span />
     </div>}
@@ -117,8 +123,8 @@ export function CustomerProfilePage({ apiRequest }) {
       action={<Button variant="secondary" onClick={profile.retry}>Thử lại</Button>}>
       {requestMessage({ code: profile.code })}
     </Notice>}
-    {profile.status === 'empty' && <Notice state="empty" title="Chưa có hồ sơ Customer">
-      Hoàn tất đăng ký Customer để tạo hồ sơ.
+    {profile.status === 'empty' && <Notice state="empty" title="Chưa có hồ sơ cá nhân">
+      Hãy tải lại hoặc liên hệ hỗ trợ nếu thông tin vẫn chưa hiện.
     </Notice>}
 
     {profile.status === 'success' && <div className="customer-profile-grid">
@@ -126,6 +132,7 @@ export function CustomerProfilePage({ apiRequest }) {
         {!structured && <div className="customer-profile-card-heading">
           <h2 id="profile-details-title">Thông tin cá nhân</h2>
         </div>}
+        {operational && <p className="customer-profile-hint">Vai trò: <strong>{roleLabel(role)}</strong></p>}
         <AvatarEditor personal fallback={profile.data.displayName?.trim().split(/\s+/).slice(-2).map(part => Array.from(part)[0]).join('').toLocaleUpperCase('vi') || 'PW'} onSaved={profile.retry} onBusyChange={setAvatarBusy} />
         <form className="customer-profile-form" data-structured={structured || undefined} onSubmit={submit}>
           {structured ? <>
@@ -164,9 +171,6 @@ export function CustomerProfilePage({ apiRequest }) {
           Máy chủ đã nhận yêu cầu xử lý. Tải lại hồ sơ để xem kết quả đã lưu.
           <Button variant="secondary" onClick={profile.retry}>Đối chiếu hồ sơ</Button>
         </Notice>}
-        {saved && <Notice state="success" title="Đã lưu thay đổi">
-          Thông tin cá nhân đã được lưu.
-        </Notice>}
       </section>
 
       {!compact && <section className="customer-profile-card" aria-labelledby="profile-contacts-title">
@@ -179,11 +183,11 @@ export function CustomerProfilePage({ apiRequest }) {
             <span><strong>{contact.channel === 'EMAIL' ? 'Email' : 'Điện thoại'}</strong>
               <small>{verifiedDate(contact.verifiedAt)}</small></span>
             <b>{contact.maskedValue}</b>
-            <Link to="/account/settings">Thay đổi</Link>
           </li>)}
         </ul> : <Notice state="empty" title="Chưa có kênh liên hệ đã xác minh">
           Thông tin liên hệ sẽ hiển thị sau khi được xác minh.
         </Notice>}
+        <Link className="customer-profile-contact-link" to="/account/settings">Quản lý liên hệ</Link>
         <p className="customer-profile-private-note"><ShieldCheck size={18} aria-hidden="true" />Liên hệ được che để bảo vệ tài khoản. Thay đổi cần xác minh bằng OTP.</p>
       </section>}
     </div>}

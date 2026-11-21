@@ -24,7 +24,7 @@ export function ShoppingCartPage() {
     } finally { setBusyId(null); }
   }
 
-  const back = <Link className="pwc-shop-back" to="/products"><ArrowLeft aria-hidden="true" size={18} />Tiếp tục mua sắm</Link>;
+  const back = <Link className="pwc-shop-back" data-page-back to="/products"><ArrowLeft aria-hidden="true" size={18} />Tiếp tục mua sắm</Link>;
   if (!cart && status === 'error') return <section className="pwc-shop">{back}<Notice state="error" title="Chưa tải được giỏ hàng"
     action={<Button variant="secondary" onClick={() => refresh().catch(() => {})}>Thử lại</Button>} /></section>;
   if (!cart) return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải giỏ hàng…" /></section>;
