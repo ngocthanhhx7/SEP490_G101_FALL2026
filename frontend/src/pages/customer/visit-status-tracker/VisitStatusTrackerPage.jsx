@@ -1,4 +1,4 @@
-import { useCallback, useId, useMemo } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { BookingVisitReport } from '../../../components/common/BookingVisitReport.jsx';
@@ -103,7 +103,20 @@ function CareUpdates({ tasks, startAt }) {
   </Panel>;
 }
 
+function PublishedProfile({ load }) {
+  const readProfile = useCallback(async ({ signal }) => {
+    const fresh = await load(signal);
+    return { data: fresh.actions?.profile ? fresh.sitter?.profile ?? null : null };
+  }, [load]);
+  const result = useApiResource(readProfile);
+  if (result.status === 'loading') return <p role="status">Đang tải hồ sơ…</p>;
+  if (result.status === 'error') return <p role="alert">Chưa tải được hồ sơ. <Button onClick={result.retry}>Thử lại</Button></p>;
+  if (!result.data?.bio) return <p role="status">Hồ sơ hiện không được công bố.</p>;
+  return <><p>{result.data.bio}</p>{result.data.areas?.length > 0 && <p><strong>Khu vực giới thiệu:</strong> {result.data.areas.join(', ')}</p>}</>;
+}
+
 function Tracker({ bookingId, visitId }) {
+  const [profileOpen, setProfileOpen] = useState(false);
   const read = useMemo(() => createVisitTrackerApi(), []);
   const { getCsrfToken } = useSession();
   const travelApi = useMemo(() => createVisitTravelApi(createApiClient({ getCsrfToken })), [getCsrfToken]);
@@ -124,7 +137,8 @@ function Tracker({ bookingId, visitId }) {
   const petDetails = visit.pets.map(pet => pet.breed ? pet.name + ' (' + pet.breed + ')' : pet.name).join(', ');
   const start = visit.startAt && new Date(visit.startAt);
   const date = start ? weekday.format(start) + ', ' + fullDay.format(start) : null;
-  const caption = [visit.serviceName, date, range, petNames].filter(Boolean).join(' · ');
+  const serviceName = visit.serviceDisplayName || visit.serviceName;
+  const caption = [serviceName, date, range, petNames].filter(Boolean).join(' · ');
   const cancelled = visit.status === 'CANCELLED';
   return <div className="visit-tracker">
     <Link className="visit-tracker-back" data-page-back to={back}><ArrowLeft size={18} />Quay lại Lịch đặt{booking.code && ' ' + booking.code}</Link>
@@ -144,7 +158,7 @@ function Tracker({ bookingId, visitId }) {
         {Array.isArray(careUpdates) && <CareUpdates tasks={careUpdates} startAt={visit.startAt} />}
         <Panel title="Thông tin buổi">
           <dl className="visit-tracker-facts">
-            <div><dt>Dịch vụ</dt><dd>{[visit.serviceName, visit.durationMinutes && visit.durationMinutes + ' phút'].filter(Boolean).join(', ') || '—'}</dd></div>
+            <div><dt>Dịch vụ</dt><dd>{[serviceName, visit.durationMinutes && visit.durationMinutes + ' phút'].filter(Boolean).join(', ') || '—'}</dd></div>
             <div><dt>Thú cưng</dt><dd>{petDetails || '—'}</dd></div>
             <div><dt>Địa chỉ</dt><dd>{visit.address || '—'}</dd></div>
             <div><dt>Giờ chăm sóc</dt><dd>{range}</dd></div>
@@ -157,8 +171,12 @@ function Tracker({ bookingId, visitId }) {
           <div className="visit-tracker-person">
             <span aria-hidden="true">{sitter.name.trim().split(/\s+/u).filter((_, index, words) => index === 0 || index === words.length - 1).map(word => word[0]).join('').toUpperCase()}</span>
             <div><strong>{sitter.name}</strong>
-              <p>{Number.isFinite(sitter.rating) ? '★ ' + ratingFormat.format(sitter.rating) + ' trên 5' : 'Chưa có đánh giá'}</p></div>
+              <p>{Number.isFinite(sitter.rating) ? '★ ' + ratingFormat.format(sitter.rating) + ' trên 5' : 'Chưa có đánh giá'}
+                {sitter.reviewCount > 0 && ' · ' + sitter.reviewCount + ' đánh giá'}</p></div>
           </div>
+          {actions.profile && <><Button variant="secondary" aria-expanded={profileOpen} onClick={() => setProfileOpen(value => !value)}>
+            {profileOpen ? 'Thu gọn hồ sơ người chăm sóc' : 'Xem hồ sơ người chăm sóc'}
+          </Button>{profileOpen && <PublishedProfile load={load} />}</>}
         </Panel>}
         {actions.travel === true && <VisitTravel api={travelApi} visitId={visit.id} available />}
         {actions.careReport && <Panel title="Thao tác"><ReportAction bookingId={booking.id} visitId={visit.id} /></Panel>}

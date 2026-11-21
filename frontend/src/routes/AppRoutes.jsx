@@ -256,12 +256,14 @@ const navigationByRole = {
   PET_SITTER: [
     ['Công việc của tôi', '/sitter', 'Công việc'],
     ['Lời mời nhận việc', '/sitter/invitations', 'Công việc'],
-    ['Lịch làm việc', '/sitter/availability', 'Công việc'],
+    ['Ca làm', '/sitter/schedule', 'Công việc'],
+    ['Giờ nhận việc', '/sitter/availability', 'Công việc'],
     ['Khu vực làm việc', '/sitter/work-areas', 'Công việc'],
     ['Lương và tạm ứng', '/sitter/payroll', 'Tài chính'],
     ['Hồ sơ người chăm sóc', '/sitter/profile', 'Hồ sơ của tôi'],
     ['Hồ sơ công khai', '/sitter/public-profile', 'Hồ sơ của tôi'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
+    ['Thông tin cá nhân', '/account/profile', 'Cá nhân'],
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']
   ],

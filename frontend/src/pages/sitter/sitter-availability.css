@@ -48,8 +48,32 @@
 @media (max-width: 42rem) {
   .sitter-availability { padding: var(--pwc-space-3); gap: var(--pwc-space-4); }
   .sitter-availability__window { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .sitter-availability__window > :first-of-type { grid-column: 1 / -1; }
+  .sitter-availability__window > .pwc-field:first-of-type { grid-column: 1 / -1; }
   .sitter-availability__remove { justify-self: start; }
   .sitter-availability__actions { grid-template-columns: 1fr; }
   .sitter-availability__actions > button { width: 100%; }
+}
+
+.sitter-availability__header h1 { font-family: inherit; font-weight: 800; }
+.sitter-availability__panel, .sitter-availability__safety { box-shadow: none; }
+.sitter-availability__jump { display: flex; flex-wrap: wrap; gap: .5rem; }
+.sitter-availability__jump a { display: inline-flex; align-items: center; text-decoration: none; }
+.sitter-availability__week { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin: 0 0 .75rem; font-weight: 700; }
+.sitter-availability__week button { min-width: 48px; min-height: 48px; }
+.sitter-availability__calendar-day { border: 0; border-bottom: 1px solid #e8def0; border-radius: 0; padding-inline: .25rem; }
+.sitter-availability__calendar-day:last-child { border-bottom: 0; }
+.sitter-availability__window { grid-template-columns: minmax(0, 1.15fr) repeat(2, minmax(0, 1fr)) minmax(0, 1.4fr) auto; }
+.sitter-availability__window > *, .sitter-origin__fields > * { min-width: 0; }
+.sitter-availability__window :is(input,select), .sitter-origin__fields input, .sitter-availability__actions input { min-width: 0; width: 100%; }
+.sitter-availability__panel :is(h2, legend) { scroll-margin-top: 5rem; }
+.sitter-origin__fields { border: 0; margin: 0; padding: 0; display: grid; gap: .75rem; grid-template-columns: repeat(3,minmax(0,1fr)); }
+.sitter-origin__fields legend { margin-block: .75rem; font-weight: 800; }
+.sitter-origin__map { grid-column: 1 / -1; }
+.pwc-phone-app .sitter-availability { padding-inline: 0; }
+@media (max-width: 680px) {
+  .sitter-origin__fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .sitter-origin__fields > .pwc-field:first-of-type { grid-column: 1 / -1; }
+  .sitter-availability__window { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .sitter-availability__window > .pwc-field:nth-of-type(4) { grid-column: 1 / -1; }
+  .sitter-availability__window legend { max-width: 100%; }
 }

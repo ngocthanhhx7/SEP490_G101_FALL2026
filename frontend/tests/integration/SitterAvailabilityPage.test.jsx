@@ -24,7 +24,7 @@ describe('SitterAvailabilityPage', () => {
   test('shows the Sitter schedule in the canonical local timezone', async () => {
     render(<SitterAvailabilityPage api={buildApi()} />);
     expect(await screen.findByRole('heading', { name: 'Giờ có thể nhận việc' })).toBeInTheDocument();
-    expect(screen.getAllByText(/Asia\/Saigon/)).toHaveLength(2);
+    expect(screen.getByText('Giờ Việt Nam')).toBeInTheDocument();
     expect(await screen.findByLabelText('Ngày trong tuần')).toHaveValue('1');
     expect(screen.getByLabelText(/Bắt đầu/)).toHaveValue('09:00');
     expect(screen.getByLabelText(/Kết thúc/)).toHaveValue('12:00');

@@ -71,6 +71,24 @@ beforeAll(async () => {
 
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
+test('owner can read only the assigned active sitter approved bio and areas; re-review hides them', async () => {
+  await col('users').updateOne({ _id: sitter }, { $set: { roles: ['PET_SITTER'], state: 'ACTIVE' } });
+  await col('sitterstatuses').insertOne({ userId: sitter, status: 'ACTIVE' });
+  await col('sitterpublicprofiles').insertOne({ userId: sitter, state: 'APPROVED', bio: 'Approved bio', areas: ['Hà Nội'], reason: 'INTERNAL_NOTE' });
+  try {
+    const res = await read(active).expect(200);
+    expect(res.body.data.sitter.profile).toEqual({ bio: 'Approved bio', areas: ['Hà Nội'] });
+    expect(res.body.data.actions.profile).toBe(true);
+    expect(res.text).not.toContain('INTERNAL_NOTE');
+    await col('sitterpublicprofiles').updateOne({ userId: sitter }, { $set: { state: 'SUBMITTED' } });
+    const pending = await read(active).expect(200);
+    expect(pending.body.data.actions.profile).toBe(false);
+    expect(pending.text).not.toContain('Approved bio');
+  } finally {
+    await col('sitterpublicprofiles').deleteOne({ userId: sitter });
+  }
+});
+
 test('UC-78 owner reads live times, first matching checklist and newest updates with private caching', async () => {
   const response = await read(active).expect(200);
   expect(response.headers['cache-control']).toBe('private, no-store');

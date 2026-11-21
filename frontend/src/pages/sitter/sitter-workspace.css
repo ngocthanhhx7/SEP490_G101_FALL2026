@@ -1,0 +1,71 @@
+
+.sitter-workspace { width: min(100%, 66rem); margin-inline: auto; min-width: 0; }
+.sitter-workspace h1, .sitter-workspace h2 { font-family: inherit; font-weight: 800; }
+.sitter-workspace h2 { font-size: 1.15rem; margin: 1.25rem 0 .65rem; }
+.sitter-workspace__filter { display: flex; flex-wrap: wrap; align-items: end; gap: .75rem; padding: 1rem; background: var(--pwc-surface); border: 1px solid #e8def0; border-radius: .875rem; }
+.sitter-workspace__filter > .pwc-field { min-width: 0; flex: 1 1 12rem; }
+.sitter-workspace__filter input { width: 100%; min-width: 0; }
+.sitter-workspace__controls { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-start: .6rem; }
+.sitter-workspace__filter .sitter-workspace__controls { margin-block-start: 0; }
+.sitter-workspace__controls button { min-height: 48px; min-width: 48px; }
+.sitter-workspace__links, .sitter-workspace__list { display: grid; gap: .65rem; }
+.sitter-workspace__list { margin: 0; padding: 0; list-style: none; grid-template-columns: repeat(auto-fit, minmax(min(100%, 23rem), 1fr)); }
+.sitter-workspace__links { margin-block-start: 1rem; }
+.sitter-visit-card { display: grid; align-content: start; gap: .6rem; min-width: 0; height: 100%; padding: 1rem; border: 1px solid #e8def0; background: var(--pwc-surface); border-radius: .875rem; overflow-wrap: anywhere; }
+.sitter-visit-card__top, .sitter-visit-card__footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
+.sitter-visit-card h3 { margin: 0; font-family: inherit; font-size: 1.125rem; color: var(--pwc-compact-ink, #281f35); font-weight: 800; }
+.sitter-visit-card__status, .sitter-visit-card__place { padding: .2rem .55rem; border-radius: 999px; color: #533374; background: #f0e8f8; font-size: .875rem; font-weight: 700; }
+.sitter-visit-card__status[data-state="COMPLETED"] { color: #235c46; background: #e6f3ed; }
+.sitter-visit-card__meta { display: flex; align-items: flex-start; gap: .55rem; color: var(--pwc-compact-muted, #62586b); }
+.sitter-visit-card__meta svg { flex: 0 0 auto; margin-top: .18rem; }
+.sitter-visit-card__footer { margin-top: .25rem; }
+.sitter-visit-card__footer > a, .sitter-workspace-link { display: inline-flex; gap: .5rem; align-items: center; justify-content: center; text-decoration: none; }
+.sitter-workspace-link, .sitter-availability__jump a { padding: .45rem .8rem; min-height: 48px; border-radius: .6rem; color: #49216a; background: #f0e8f8; font-weight: 800; }
+.sitter-workspace-link:hover, .sitter-availability__jump a:hover { background: #e8daf6; }
+.employee-invitations > header > div { min-width: 0; }
+.employee-invitations .sitter-workspace__refresh { flex: 0 0 auto; }
+.employee-invitations .ops-table { min-width: 0; }
+.employee-invitations :is(th,td) { overflow-wrap: anywhere; }
+.employee-invitations > details > summary { min-height: 48px; padding: .65rem .8rem; background: var(--pwc-surface); border: 1px solid #e8def0; border-radius: .75rem; cursor: pointer; font-weight: 800; }
+.sitter-workspace__empty-note { color: var(--pwc-compact-muted, #62586b); }
+.pwc-phone-app .sitter-workspace { padding-inline: 0; }
+@media (max-width: 768px) {
+  .employee-invitations > header { gap: .5rem; }
+  .employee-invitations :is(.ops-table, tbody) { display: block; }
+  .employee-invitations .ops-table :is(thead, caption) { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+  .employee-invitations .ops-table-scroll { overflow: visible; border: 0; background: transparent; }
+  .employee-invitations .ops-table tr { display: grid; padding: .85rem; gap: .35rem; margin-bottom: .65rem; border-radius: .875rem; border: 1px solid #e8def0; background: var(--pwc-surface); }
+  .employee-invitations .ops-table td { display: block; max-width: none; padding: .15rem 0; border: 0; }
+  .employee-invitations .ops-table td:nth-child(n+2):not(:last-child)::before { content: attr(data-column) ": "; font-weight: 700; }
+  .employee-invitations .employee-scheduling__actions { flex-wrap: wrap; }
+  .sitter-visit-card__footer > a { width: 100%; min-height: 48px; }
+}
+
+.sitter-workspace__visit-summary { background: var(--pwc-surface); border: 1px solid #e8def0; border-radius: .875rem; padding: 1rem; margin-block-end: 1rem; }
+.sitter-workspace__visit-summary h1 { margin: 0; }
+.sitter-payroll .sitter-availability__jump { margin-block: .75rem; }
+.sitter-payroll h2[id] { scroll-margin-top: 5rem; }
+.pwc-phone-app .employee-invitations .ops-table :is(caption, thead) { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+.pwc-phone-app .employee-invitations .ops-table tbody td:first-child::before,
+.pwc-phone-app .employee-invitations .ops-table tbody td:last-child::before { content: none; }
+
+.sitter-workspace__links > .pwc-compact-row { margin-block: 0; }
+@media (min-width: 360px) and (max-width: 768px) {
+  .employee-invitations .ops-table tbody tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .65rem 1rem; }
+  .employee-invitations .ops-table td:first-child,
+  .employee-invitations .ops-table td:last-child { grid-column: 1 / -1; }
+}
+
+.sitter-offer-card__controls { display: grid; gap: .5rem; }
+.sitter-offer-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+.sitter-offer-actions > .pwc-button,
+.employee-invitations .sitter-offer-card__details { min-height: 48px; font-weight: 800; }
+.employee-invitations .sitter-offer-card__details { justify-content: space-between; gap: .5rem; text-align: start; color: #4e2b72; }
+.sitter-offer-actions > .sitter-offer-actions__accept { gap: .45rem; color: #322014; }
+.sitter-offer-actions > .sitter-offer-actions__decline { border: 1px solid #a992bd; color: #4e2b72; background: #fff; }
+.sitter-offer-actions > .sitter-offer-actions__decline:not(:disabled):hover { background: #f2ebf8; }
+@media (max-width: 768px) {
+  .sitter-offer-card__controls { margin-top: .3rem; }
+  .employee-invitations .sitter-offer-card__details { width: 100%; padding-inline: .15rem; border-radius: 0; border-bottom: 1px solid #e8def0; }
+  .sitter-offer-actions > .pwc-button { flex: 1 1 6rem; justify-content: center; }
+}
