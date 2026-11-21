@@ -1104,9 +1104,17 @@ test('Staff can add one eligible sitter to a pending automatic batch while prese
   expect(await offers('PENDING')).toHaveLength(6);
   const updated = await dispatch.details(staff, visitId);
   expect(updated.latestOffers).toHaveLength(6);
+  expect(updated.latestOffers.every(offer => offer.deadline instanceof Date)).toBe(true);
+  expect(+updated.pendingInvitation.earliestDeadline).toBe(Math.min(...updated.latestOffers.map(offer => +offer.deadline)));
   await expect(dispatch.invite(staff, visitId, { ...body, expectedVersion: updated.version }, 'pending-duplicate-worker'))
     .rejects.toMatchObject({ code: 'SITTER_ALREADY_INVITED' });
   await request(app).get('/api/v1/employee-scheduling/visits/' + visitId + '/dispatch').set('x-test-actor', workers[0].userId).expect(403);
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    startAt: new Date(+row.startAt + 3600000), endAt: new Date(+row.endAt + 3600000)
+  }, $inc: { version: 1 } });
+  const rescheduled = await dispatch.details(staff, visitId);
+  expect(rescheduled).not.toHaveProperty('dispatchRanking');
+  expect(rescheduled.latestOffers).toEqual([]);
 });
 
 test('GBR-12 preserves the sitter accepted by the customer on a reschedule', async () => {

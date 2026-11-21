@@ -16,11 +16,15 @@ const offerLabel = {
 
 const points = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 1 });
 const dateTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short', timeStyle: 'short' });
+const offerStatusText = offer => {
+  const label = offerLabel[offer?.state];
+  return offer?.state === 'PENDING' && offer.deadline ? `${label} đến ${dateTime.format(new Date(offer.deadline))}` : label;
+};
 
 export function DispatchRanking({ ranking, latestOffers = [], loading, failed, onRetry }) {
   const invited = new Set(ranking?.candidates.filter(candidate => candidate.invited).map(candidate => candidate.sitterId));
   const automatic = new Map(latestOffers.filter(offer => offer.offeredAt === ranking?.at && invited.has(offer.sitterId))
-    .map(offer => [offer.sitterId, offer.state]));
+    .map(offer => [offer.sitterId, offer]));
   const additional = [...new Map(latestOffers.filter(offer => !automatic.has(offer.sitterId)).map(offer => [offer.sitterId, offer])).values()];
   return <section className="dispatch-ranking" aria-label="Điểm và lời mời điều phối">
     {ranking && <>
@@ -32,7 +36,7 @@ export function DispatchRanking({ ranking, latestOffers = [], loading, failed, o
         {ranking.candidates.map(candidate => <li key={candidate.sitterId}>
           <div className="dispatch-ranking-row">
             <span><strong>{candidate.displayName ?? 'Người chăm sóc'}</strong><small>
-              {offerLabel[automatic.get(candidate.sitterId)] ?? (candidate.invited ? 'Đã gửi lời mời' : 'Chưa mời trong đợt này')}
+              {offerStatusText(automatic.get(candidate.sitterId)) ?? (candidate.invited ? 'Đã gửi lời mời' : 'Chưa mời trong đợt này')}
             </small></span>
             <strong>{candidate.score === null ? 'Chưa có điểm' : `${points.format(candidate.score)} / 100`}</strong>
           </div>
@@ -51,7 +55,7 @@ export function DispatchRanking({ ranking, latestOffers = [], loading, failed, o
       {!ranking && <p>Đợt này chưa có điểm được lưu.</p>}
       <ul className="dispatch-ranking-list">
         {additional.map(offer => <li key={offer.sitterId} className="dispatch-ranking-row">
-          <strong>{offer.displayName ?? 'Người chăm sóc'}</strong><span>{offerLabel[offer.state] ?? 'Chưa rõ trạng thái'}</span>
+          <strong>{offer.displayName ?? 'Người chăm sóc'}</strong><span>{offerStatusText(offer) ?? 'Chưa rõ trạng thái'}</span>
         </li>)}
       </ul>
     </>}

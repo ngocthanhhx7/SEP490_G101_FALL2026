@@ -61,6 +61,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
   const selectedDetails = useApiResource(loadSelected);
   const [proposal, setProposal] = useState(null);
   const command = useSchedulingCommand(() => {
+    setAddingInvitation(false);
     queue.retry();
     if (selected) selectedDetails.retry();
   });
@@ -260,7 +261,9 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           {active.diagnostics && <details><summary>Kết quả kiểm tra điều kiện</summary><DispatchDiagnostics value={active.diagnostics} /></details>}
           </aside><div className="dispatch-detail-work">{active.pendingInvitation ? (
             <div className="dispatch-invitation-header">
-              <p>{active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi</p>
+              <div><p>{active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi</p>
+                <small>Hạn gần nhất {time(active.pendingInvitation.earliestDeadline ?? active.pendingInvitation.deadline)}</small>
+              </div>
               {!active.requestedSitterId && active.reviewCode !== 'SHIFT_START_REACHED' && api.candidates && (
                 <Button variant="secondary" aria-expanded={addingInvitation} onClick={() => setAddingInvitation(value => !value)}>
                   {addingInvitation ? 'Đóng danh sách chọn' : 'Gửi thêm lời mời'}

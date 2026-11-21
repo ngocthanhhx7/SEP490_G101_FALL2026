@@ -378,7 +378,7 @@ describe('the dispatch page', () => {
       dispatchRanking: { at: startAt, minimumRequested: 5, eligibleCount: 6, invitedCount: 5,
         candidates: [{ sitterId: 's-1', displayName: 'Người Có Tâm', invited: true, score: 92.5,
           breakdown: [{ key: 'fit', points: 25, maximum: 30 }] }] },
-      latestOffers: [{ sitterId: 's-1', offeredAt: startAt, state: 'PENDING', displayName: 'Người Có Tâm' }] };
+      latestOffers: [{ sitterId: 's-1', offeredAt: startAt, deadline: startAt, state: 'PENDING', displayName: 'Người Có Tâm' }] };
     const api = pageApi({
       dispatchDetails: jest.fn().mockResolvedValue({ data: row }),
       candidates: jest.fn().mockResolvedValue({ data: { items: [{ sitterId: 's-6', displayName: 'Người bổ sung' }], blocked: [] } }),
@@ -392,6 +392,8 @@ describe('the dispatch page', () => {
     expect(dialog.getByText('Phù hợp dịch vụ')).toBeVisible();
     expect(dialog.getByText('25 / 30')).toBeVisible();
     expect(dialog.getByText('5 lời mời đang chờ phản hồi')).toBeVisible();
+    expect(dialog.getByText(/Hạn gần nhất/)).toBeVisible();
+    expect(dialog.getByText(/Chờ phản hồi đến/)).toBeVisible();
     fireEvent.click(dialog.getByRole('button', { name: 'Gửi thêm lời mời' }));
     fireEvent.click(await dialog.findByRole('radio', { name: /Người bổ sung/ }));
     fireEvent.click(dialog.getByRole('button', { name: 'Gửi lời mời bổ sung', exact: true }));
