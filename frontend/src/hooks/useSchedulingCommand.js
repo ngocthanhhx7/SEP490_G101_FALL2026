@@ -28,6 +28,8 @@ const errors = {
   INVALID_PRIVATE_IMAGE: 'Chọn ảnh JPG hoặc PNG, tối đa 5 MB.',
   SHIFT_START_REACHED: 'Ca đã đến giờ. Cần khách xác nhận lịch mới trước khi mời người nhận ca.',
   NO_ELIGIBLE_SITTER: 'Chưa có nhân viên phù hợp với khu vực và ca này.',
+  INSUFFICIENT_DISPATCH_CANDIDATES: 'Chưa đủ 5 người phù hợp cho đợt mời tự động.',
+  SITTER_ALREADY_INVITED: 'Người này đã được mời cho ca này. Hãy chọn người khác.',
   DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Nhân viên khách chỉ định chưa có ca phù hợp. Cần thống nhất lại lịch với khách.',
   STAFF_REVIEW_REQUIRED: 'Cần nhân viên điều phối xem lại lịch và các lời mời đã gửi.',
   SYSTEM_DISPATCH_IN_PROGRESS: 'Hệ thống đang tìm người nhận ca. Chỉ điều phối thủ công khi ca cần hỗ trợ.',

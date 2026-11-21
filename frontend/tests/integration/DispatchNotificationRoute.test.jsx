@@ -11,17 +11,26 @@ function Navigation() {
   return <><output>{location.pathname + location.search}</output><Link to={target}>Open notification</Link></>;
 }
 
-test('closing dispatch detail keeps the sitter filter and the same notification opens again', async () => {
+test.each([false, true])('closing dispatch detail (initial failure: %s) keeps the sitter filter and the same notification opens again', async firstRequestFails => {
   window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
-  globalThis.fetch = jest.fn(async path => ({ ok: true, status: 200, json: async () => ({
-    meta: { schemaVersion: 1 }, data: String(path).endsWith('/visits/' + id + '/dispatch')
-      ? { id, version: 1, serviceDisplayName: 'Visit A' } : { items: [] }
-  }) }));
+  let visitRequests = 0;
+  globalThis.fetch = jest.fn(async path => {
+    const isVisit = String(path).endsWith('/visits/' + id + '/dispatch');
+    if (isVisit && ++visitRequests === 1 && firstRequestFails) {
+      return { ok: false, status: 503, json: async () => ({ error: { code: 'UNAVAILABLE' } }) };
+    }
+    return { ok: true, status: 200, json: async () => ({
+      meta: { schemaVersion: 1 },
+      data: isVisit ? { id, version: 1, serviceDisplayName: 'Visit A' } : { items: [] }
+    }) };
+  });
   const adapter = { resolve: async () => ({ status: 'authenticated', user: { id: 'staff', roles: ['STAFF'] } }) };
   render(<MemoryRouter initialEntries={[target]}><SessionProvider adapter={adapter}><Navigation /><AppRoutes /></SessionProvider></MemoryRouter>);
-  const dialog = await screen.findByRole('dialog', { name: 'Chi tiết điều phối' });
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
+  const visitDetail = firstRequestFails
+    ? await screen.findByText('Chưa tải được ca này.')
+    : await screen.findByRole('dialog', { name: 'Chi tiết điều phối' });
+  fireEvent.click(within(visitDetail).getByRole('button', { name: 'Đóng' }));
   expect(screen.getByText(base)).toBeVisible();
   fireEvent.click(screen.getByRole('link', { name: 'Open notification' }));
   expect(within(await screen.findByRole('dialog')).getByText('Visit A')).toBeVisible();

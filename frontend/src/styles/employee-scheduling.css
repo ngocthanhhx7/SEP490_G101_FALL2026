@@ -46,6 +46,17 @@
 .dispatch-visit-summary { padding:20px; border:1px solid #e7dff0; border-radius:14px; background:#faf8fd; min-width:0; }
 .dispatch-visit-summary p { line-height:1.65; }.dispatch-visit-summary details { padding-top:16px; border-top:1px solid #e7dff0; }.dispatch-detail-work { min-width:0; }
 .dispatch-detail-work .dispatch-picker { margin:0; padding:0; border:0; }
+.dispatch-ranking { margin-block: 1rem; }
+.dispatch-invitation-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem 1rem; }
+.dispatch-ranking-list { margin: .5rem 0; padding: 0 0 0 1.25rem; }
+.dispatch-ranking-list > li { padding: .5rem 0; border-bottom: 1px solid #e7dff0; }
+.dispatch-ranking-row { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: .25rem .75rem; }
+.dispatch-ranking-row small { display: block; }
+.dispatch-ranking-row > strong:last-child, .dispatch-ranking-list dd { font-variant-numeric: tabular-nums; }
+.dispatch-ranking-list summary { cursor: pointer; }
+.dispatch-ranking-list dl { margin: .25rem 0; }
+.dispatch-ranking-list dl > div { display: flex; justify-content: space-between; gap: .5rem; }
+.dispatch-ranking-list dd { margin: 0; white-space: nowrap; }
 .dispatch-detail-dialog .dispatch-candidate-list { display:grid; grid-template-columns:minmax(0,1fr); padding:0; margin:20px 0; border:0; min-width:0; }
 .dispatch-candidate-list legend { font-weight:700; margin-bottom:12px; }
 .dispatch-detail-dialog .dispatch-candidate { display:flex; flex-direction:row; align-items:center; gap:14px; width:100%; max-width:none; min-height:88px; padding:16px; margin:0; box-sizing:border-box; }
