@@ -257,13 +257,30 @@ test('rejects changed price/policy/pets, expired quote, missing consent, overlap
 
 test('single visit postpay can await dispatch without a payment intent; guarded HTTP endpoints enforce session and CSRF', async () => {
   const q = await quote('home-care', 1), body = input(q);
-  const result = await checkout.confirm(owner, body, 'checkout-postpay-001');
-  expect(result).toMatchObject({ state: 'DISPATCH_PENDING', paymentMode: 'POSTPAY', paymentState: 'UNPAID' });
-  expect(await connection.collection('paymentintents').countDocuments({ bookingId: new mongoose.Types.ObjectId(result.id) })).toBe(0);
-  await request(app).get(`/api/v1/checkout/bookings/${result.id}`).expect(401);
-  await request(app).get(`/api/v1/checkout/bookings/${result.id}`).set('x-test-actor', 'other').expect(404);
-  await request(app).post('/api/v1/checkout/bookings').set('x-test-actor', 'owner').send(body).expect(403);
-  await request(app).get(`/api/v1/checkout/bookings/${result.id}`).set('x-test-actor', 'owner').expect(200).expect('Cache-Control', 'private, no-store');
+  const path = '/api/v1/checkout/bookings';
+  const confirm = payload => request(app).post(path).set('Host', 'localhost').set('Origin', 'http://localhost')
+    .set('x-test-actor', 'owner').set('x-csrf-token', 'synthetic-csrf')
+    .set('Idempotency-Key', 'checkout-postpay-001').send(payload);
+  const result = (await confirm(body).expect(201)).body.data;
+  expect(result).toMatchObject({ state: 'DISPATCH_PENDING', paymentMode: 'POSTPAY', paymentState: 'UNPAID', totalVnd: q.totalVnd });
+  expect((await confirm(body).expect(201)).body.data).toEqual(result);
+  const later = new Date(Date.parse(body.visits[0].startAt) + 3600000).toISOString();
+  const conflict = await confirm({ ...body, visits: [{ ...body.visits[0], startAt: later }] }).expect(409);
+  expect(conflict.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
+  const detail = `${path}/${result.id}`;
+  await request(app).get(detail).expect(401);
+  await request(app).get(detail).set('x-test-actor', 'other').expect(404)
+    .expect(({ body: denied }) => expect(denied.error.code).toBe('RESOURCE_NOT_FOUND'));
+  await request(app).post(path).set('x-test-actor', 'owner').send(body).expect(403);
+  const read = await request(app).get(detail).set('x-test-actor', 'owner').expect(200).expect('Cache-Control', 'private, no-store');
+  expect(read.body.data).toMatchObject(result);
+  expect(read.body.data.details.price).toMatchObject({ visitCount: 1, totalVnd: q.totalVnd });
+  const bookingId = new mongoose.Types.ObjectId(result.id);
+  expect(await connection.collection('bookings').countDocuments()).toBe(1);
+  expect(await connection.collection('paymentintents').countDocuments({ bookingId })).toBe(0);
+  const savedVisits = await connection.collection('visits').find({ bookingId }).toArray();
+  expect(savedVisits).toHaveLength(1);
+  expect(savedVisits[0].startAt.toISOString()).toBe(body.visits[0].startAt);
 });
 
 test('provider link is created once from server amount and replayed without authorizing payment from browser redirects', async () => {
