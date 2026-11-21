@@ -52,7 +52,12 @@ SitterSchedulePage and MobileSitterHome share SitterVisitCard for service,
 Vietnam local time, pet names and status, using the authenticated dashboard
 projection. The schedule route preserves its day and cursor when returning from a visit.
 Mobile Account exposes private profile, public profile moderation and work setup
-as separate groups. SitterAvailabilityPage displays seven dates at a time from the
-existing bounded 31-day response; schedule, origin and area writes keep their same
-API contracts. Invitations retain the existing table and command handlers with a
+as separate groups. SitterAvailabilityPage uses the existing bounded 31-day response.
+Schedule, origin and area writes keep their API contracts. Invitations retain the existing table and command handlers with a
 stacked layout on small screens.
+
+The availability screen displays server-reported intervals on a week timeline
+and shows the status for the selected date. The recurring editor adds a draft
+interval when a time cell is selected. Selecting a draft block opens its time
+inputs, and copying to empty weekdays stages intervals without replacing
+already configured days. The existing save command validates the draft.

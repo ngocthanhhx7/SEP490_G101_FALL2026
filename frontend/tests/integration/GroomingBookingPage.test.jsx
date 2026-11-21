@@ -162,15 +162,20 @@ test('a full slot is greyed out and cannot be chosen', async () => {
   const full = await screen.findByRole('radio', { name: '09:00 · đã kín' });
   expect(full).toBeDisabled();
   expect(screen.getByRole('radio', { name: '08:00' })).toBeEnabled();
-  expect(screen.getAllByRole('radio', { name: /T\d · \d\d\/11|CN · \d\d\/11/ })).toHaveLength(7);
-  expect(screen.getByRole('radio', { name: 'T5 · 05/11' })).toBeChecked();
+  const calendar = within(screen.getByRole('group', { name: 'Ngày hẹn tại cửa hàng' }));
+  expect(calendar.getByRole('button', { name: /5 tháng 11, 2026/ })).toHaveAttribute('aria-pressed', 'true');
+  expect(calendar.getByRole('button', { name: /4 tháng 11, 2026/ })).toBeDisabled();
+  fireEvent.click(calendar.getByRole('button', { name: 'Tuần sau' }));
+  expect(calendar.getByRole('button', { name: /11 tháng 11, 2026/ })).toBeEnabled();
+  expect(calendar.getByRole('button', { name: /12 tháng 11, 2026/ })).toBeDisabled();
+  expect(calendar.getByRole('button', { name: 'Tuần sau' })).toBeDisabled();
 });
 
 test('choosing another day asks for that day and clears the chosen time', async () => {
   const api = fixture();
   await fillMilo(api);
   await waitFor(() => expect(confirmButton()).toBeEnabled());
-  fireEvent.click(screen.getByRole('radio', { name: 'T6 · 06/11' }));
+  fireEvent.click(screen.getByRole('button', { name: /6 tháng 11, 2026/ }));
   await waitFor(() => expect(api.slots).toHaveBeenLastCalledWith(expect.objectContaining({ date: '2026-11-06' }), expect.anything()));
   expect(confirmButton()).toBeDisabled();
 });
