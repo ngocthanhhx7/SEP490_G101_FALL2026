@@ -166,7 +166,8 @@ test('a full slot is greyed out and cannot be chosen', async () => {
   expect(calendar.getByRole('button', { name: /5 tháng 11, 2026/ })).toHaveAttribute('aria-pressed', 'true');
   expect(calendar.getByRole('button', { name: /4 tháng 11, 2026/ })).toBeDisabled();
   fireEvent.click(calendar.getByRole('button', { name: 'Tuần sau' }));
-  expect(calendar.getByRole('button', { name: /11 tháng 11, 2026/ })).toBeEnabled();
+  expect(calendar.getByRole('button', { name: /11 tháng 11, 2026/ })).toHaveAttribute('aria-pressed', 'true');
+  await waitFor(() => expect(api.slots).toHaveBeenLastCalledWith(expect.objectContaining({ date: '2026-11-11' }), expect.anything()));
   expect(calendar.getByRole('button', { name: /12 tháng 11, 2026/ })).toBeDisabled();
   expect(calendar.getByRole('button', { name: 'Tuần sau' })).toBeDisabled();
 });

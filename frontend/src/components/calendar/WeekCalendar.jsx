@@ -23,6 +23,10 @@ export function WeekCalendar({ value, onChange, min, max, today = vietnamDate(),
   const next = addCalendarDays(week, 7);
   const month = calendarMonthLabel(week);
   const endMonth = calendarMonthLabel(last);
+  function moveWeek(offset) {
+    const day = addCalendarDays(activeDate || week, offset);
+    choose(min && day < min ? min : max && day > max ? max : day);
+  }
   function choose(day) {
     setWeek(mondayOf(day));
     setFocusedDay(day);
@@ -34,9 +38,9 @@ export function WeekCalendar({ value, onChange, min, max, today = vietnamDate(),
       <div className="pwc-week-calendar__navigation">
         <button type="button" onClick={() => choose(today)} disabled={activeDate === today || today !== home}>Hôm nay</button>
         <button type="button" aria-label="Tuần trước" disabled={Boolean(min && addCalendarDays(previous, 6) < min)}
-          onClick={() => setWeek(previous)}><ChevronLeft size={18} aria-hidden="true" /></button>
+          onClick={() => moveWeek(-7)}><ChevronLeft size={18} aria-hidden="true" /></button>
         <button type="button" aria-label="Tuần sau" disabled={Boolean(max && next > max)}
-          onClick={() => setWeek(next)}><ChevronRight size={18} aria-hidden="true" /></button>
+          onClick={() => moveWeek(7)}><ChevronRight size={18} aria-hidden="true" /></button>
       </div>
     </div>}
     {legend}

@@ -173,3 +173,19 @@ test('adds a work interval by clicking a cell in the recurring timetable', async
     workingWindows: expect.arrayContaining([{ weekday: 2, startLocalTime: '15:30', endLocalTime: '16:30' }])
   })));
 });
+
+test('saved calendar carries overnight hours to the next date and updates the details when paging', async () => {
+  const now = new Date('2026-11-16T02:00:00Z');
+  const api = { ...buildApi(), listCalendar: async () => ({ data: [
+    { localDate: '2026-11-16', available: true, windows: [{ startLocalTime: '22:00', endLocalTime: '02:00' }] },
+    { localDate: '2026-11-17', available: false, windows: [] },
+    { localDate: '2026-11-24', available: false, windows: [] }
+  ] }) };
+  const { container } = render(<SitterAvailabilityPage api={api} now={now} />);
+  const calendar = within(await screen.findByRole('group', { name: 'Lịch trong 31 ngày' }));
+  fireEvent.click(within(calendar.getByRole('group', { name: 'Các ngày trong tuần' })).getByRole('button', { name: /17 tháng 11/ }));
+  const detail = () => container.querySelector('.sitter-availability__calendar-day');
+  expect(within(detail()).getByText('00:00–02:00')).toBeVisible();
+  fireEvent.click(calendar.getByRole('button', { name: 'Tuần sau' }));
+  expect(detail().querySelector('time')).toHaveAttribute('datetime','2026-11-24');
+});

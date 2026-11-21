@@ -190,7 +190,16 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
     : undefined;
   const calendarEntries = Array.isArray(calendarResource.data) ? calendarResource.data : [];
   const calendarEntry = calendarEntries.find(entry => entry.localDate === calendarDay);
-  const markedDays = new Set(calendarEntries.filter(entry => entry.available && !entry.isDayOff).map(entry => entry.localDate));
+  function savedWindows(entry) {
+    if (!entry || entry.isDayOff) return [];
+    const previous = calendarEntries.find(row => row.localDate === addCalendarDays(entry.localDate, -1));
+    const overnight = previous?.available && !previous.isDayOff ? (previous.windows ?? []).filter(row =>
+      row.endLocalTime < row.startLocalTime && row.endLocalTime !== '00:00'
+    ).map(row => ({ ...row, startLocalTime: '00:00' })) : [];
+    return [...overnight, ...(entry.available ? entry.windows ?? [] : [])];
+  }
+  const dayWindows = savedWindows(calendarEntry);
+  const markedDays = new Set(calendarEntries.filter(entry => savedWindows(entry).length).map(entry => entry.localDate));
   const emptyWeekdays = DAYS.filter(({ value }) => value <= 5 && !windows.some(window => window.weekday === value));
   return <section className="sitter-availability">
     <header className="sitter-availability__header">
@@ -239,19 +248,19 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
           timeline={{ label: 'Khung giờ đã lưu', eventsFor: date => {
             const row = calendarEntries.find(entry => entry.localDate === date);
             if (row?.isDayOff) return [{ key: date, start: 0, end: 1440, label: 'Ngày nghỉ đã duyệt', kind: 'off' }];
-            return row?.available ? row.windows?.flatMap((window, index) => windowBlock(window, index)) : [];
+            return savedWindows(row).flatMap((window, index) => windowBlock(window, index));
           } }} />
         {calendarEntry ? <div className="sitter-availability__calendar-day" aria-live="polite">
           <div className="sitter-availability__calendar-day-heading">
             <time dateTime={calendarEntry.localDate}>{formatSitterCalendarDate(calendarEntry.localDate)}</time>
             <span className={calendarEntry.isDayOff ? 'sitter-availability__calendar-state sitter-availability__calendar-state--off'
-              : calendarEntry.available ? 'sitter-availability__calendar-state sitter-availability__calendar-state--available'
+              : dayWindows.length ? 'sitter-availability__calendar-state sitter-availability__calendar-state--available'
                 : 'sitter-availability__calendar-state'}>
-              {calendarEntry.isDayOff ? 'Ngày nghỉ đã duyệt' : calendarEntry.available ? 'Có thể nhận việc' : 'Không nhận việc'}
+              {calendarEntry.isDayOff ? 'Ngày nghỉ đã duyệt' : dayWindows.length ? 'Có thể nhận việc' : 'Chưa có khung giờ trong dữ liệu ngày'}
             </span>
           </div>
-          {calendarEntry.available && !calendarEntry.isDayOff && calendarEntry.windows?.length > 0 && <ul className="sitter-availability__calendar-windows">
-            {calendarEntry.windows.map((window, index) => <li key={`${window.weekday}-${window.startLocalTime}-${index}`}>
+          {dayWindows.length > 0 && <ul className="sitter-availability__calendar-windows">
+            {dayWindows.map((window, index) => <li key={`${window.weekday}-${window.startLocalTime}-${index}`}>
               {window.startLocalTime}–{window.endLocalTime}
             </li>)}
           </ul>}
