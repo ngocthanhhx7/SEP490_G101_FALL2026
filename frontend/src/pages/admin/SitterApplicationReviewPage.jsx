@@ -87,7 +87,7 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
   }
 
   return <main className="sitter-app-admin" aria-labelledby="sitter-review-title">
-    <nav aria-label="Đường dẫn hồ sơ"><Link to="/admin/sitter-applications">← Danh sách hồ sơ ứng tuyển</Link></nav>
+    <Link to="/admin/sitter-applications">← Danh sách hồ sơ ứng tuyển</Link>
     <header className="sitter-app-admin__header"><div>
       <p className="sitter-app-admin__eyebrow">Paw World Care · Thẩm định</p>
       <h1 id="sitter-review-title">Chi tiết hồ sơ ứng tuyển</h1>

@@ -35,7 +35,13 @@ export function customerProfileModule({
     res.set('Cache-Control', 'private, no-store');
     next();
   });
-  for (const [path, role] of [['/profile', 'CUSTOMER'], ['/sitter-personal-profile', 'PET_SITTER']]) {
+  for (const [path, role] of [
+    ['/profile', 'CUSTOMER'],
+    ['/sitter-personal-profile', 'PET_SITTER'],
+    ['/admin-personal-profile', 'ADMIN'],
+    ['/staff-personal-profile', 'STAFF'],
+    ['/sale-staff-personal-profile', 'SALE_STAFF']
+  ]) {
     const profile = createCustomerProfileService({ User, Contact, contactCrypto, role, clock });
     const controller = createCustomerProfileController({ profile });
     const guard = [requireAuthenticated, requireRoles(role)];

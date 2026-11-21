@@ -11,7 +11,8 @@ const customer = [
   ['Cửa hàng', '/products', ShoppingBag], ['Giỏ hàng', '/customer/cart', ShoppingCart],
   ['Hồ sơ ứng tuyển', '/sitter/application-status', FileText]];
 const sitter = [['Hồ sơ Pet Sitter', '/sitter/profile'], ['Hồ sơ công khai', '/sitter/public-profile'],
-  ['Khu vực làm việc', '/sitter/work-areas'], ['Giờ nhận việc', '/sitter/availability'], ['Sự cố', '/incidents']];
+  ['Khu vực làm việc', '/sitter/work-areas'], ['Giờ nhận việc', '/sitter/availability'], ['Sự cố', '/incidents'],
+  ['Hồ sơ ứng tuyển', '/sitter/application-status', FileText]];
 
 export function MobileAccountHub({ role, user, logout }) {
   const [busy, setBusy] = useState(false);

@@ -16,7 +16,7 @@ function PublicPolicyUnavailable() {
         xác nhận đồng ý ở bước này.
       </p>
       {slug ? (
-        <Link to="/policies">Danh sách chính sách</Link>
+        <Link data-page-back to="/policies">Danh sách chính sách</Link>
       ) : (
         <>
           <Link to="/policies/terms">Điều khoản dịch vụ</Link>

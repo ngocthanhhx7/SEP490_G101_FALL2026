@@ -31,7 +31,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
           emptyBody="Hãy quay lại danh mục để xem dịch vụ đang được công bố."
         />
         <p className="pwc-back-link">
-          <Link to="/services">Về danh mục dịch vụ</Link>
+          <Link data-page-back to="/services">Về danh mục dịch vụ</Link>
         </p>
       </div>
     );
@@ -44,7 +44,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
           body="Thông tin dịch vụ hiện chưa sẵn sàng."
         />
         <p className="pwc-back-link">
-          <Link to="/services">Về danh mục dịch vụ</Link>
+          <Link data-page-back to="/services">Về danh mục dịch vụ</Link>
         </p>
       </div>
     );
@@ -55,7 +55,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
         <div className="pwc-state-card" role="status">
           <h1>Không tìm thấy dịch vụ</h1>
           <p>Dịch vụ này không nằm trong danh mục đang được công bố.</p>
-          <Link className="pwc-button pwc-button-primary" to="/services">
+          <Link data-page-back className="pwc-button pwc-button-primary" to="/services">
             Xem danh mục dịch vụ
           </Link>
         </div>
@@ -74,13 +74,7 @@ export function ServiceDetailsPage({ loadCatalog = loadPublicCatalog }) {
 
   return (
     <div className="pwc-page pwc-service-details-page">
-      <nav className="pwc-service-breadcrumb" aria-label="Đường dẫn trang">
-        <Link to="/">Trang chủ</Link>
-        <span>›</span>
-        <Link to="/services">Dịch vụ</Link>
-        <span>›</span>
-        <span>{service.name}</span>
-      </nav>
+      <Link className="pwc-service-page-back" data-page-back to="/services">← Tất cả dịch vụ</Link>
       <section
         className="pwc-service-detail-hero"
         aria-labelledby="pwc-service-title"

@@ -90,7 +90,7 @@ function Tracker({ bookingId, visitId }) {
   const { data, error, retry } = useVisitTracker(load);
   const back = '/account/bookings/' + encodeURIComponent(bookingId);
   if (!data) return <div className="visit-tracker">
-    <Link className="visit-tracker-back" to={back}><ArrowLeft size={18} />Quay lại Lịch đặt</Link>
+    <Link className="visit-tracker-back" data-page-back to={back}><ArrowLeft size={18} />Quay lại Lịch đặt</Link>
     {error ? <Notice state="error" title={apiErrorFeedback(error)}
       action={error.status !== 404 && <Button variant="secondary" onClick={retry}>Thử lại</Button>} />
       : <Notice state="loading" title="Đang tải buổi chăm sóc…" />}
@@ -106,7 +106,7 @@ function Tracker({ bookingId, visitId }) {
   const caption = [visit.serviceName, date, range, petNames].filter(Boolean).join(' · ');
   const cancelled = visit.status === 'CANCELLED';
   return <div className="visit-tracker">
-    <Link className="visit-tracker-back" to={back}><ArrowLeft size={18} />Quay lại Lịch đặt{booking.code && ' ' + booking.code}</Link>
+    <Link className="visit-tracker-back" data-page-back to={back}><ArrowLeft size={18} />Quay lại Lịch đặt{booking.code && ' ' + booking.code}</Link>
     <header className="visit-tracker-heading">
       <div><h1>Theo dõi buổi chăm sóc</h1><span className="visit-tracker-status" data-status={visit.status}>{status}</span></div>
       <p>{caption}</p>

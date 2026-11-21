@@ -105,7 +105,7 @@ function CustomerBookingDetail({ bookingId }) {
   };
   const overdue = booking?.state === 'OVERDUE';
   const deadline = overdue ? complaintDeadline(booking.paymentDeadlineAt) : null;
-  return <section className="customer-booking-detail"><Link className="customer-booking-detail__back" to="/account/bookings"><ArrowLeft size={17} />Danh sách đơn chăm sóc</Link>
+  return <section className="customer-booking-detail"><Link className="customer-booking-detail__back" data-page-back to="/account/bookings"><ArrowLeft size={17} />Danh sách đơn chăm sóc</Link>
     <h1>Chi tiết đơn chăm sóc</h1><p>Lịch đã đặt, người chăm sóc, thanh toán và tiến độ từng buổi.</p>
     {overdue && <div className="customer-booking-detail__payment">
       <strong className="customer-bookings__status customer-bookings__status--payment_expired">Quá hạn</strong>

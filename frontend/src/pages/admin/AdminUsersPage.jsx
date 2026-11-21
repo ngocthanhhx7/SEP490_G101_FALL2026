@@ -557,11 +557,6 @@ export function AdminUsersPage({ apiRequest, embedded = false }) {
           ref={mainRef}
         >
           <div className="admin-content">
-            <div className="admin-breadcrumb">
-              <span>Quản trị</span>
-              <span aria-hidden="true">/</span>
-              <strong>Tài khoản người dùng</strong>
-            </div>
             <section className="admin-page-heading">
               <div>
                 <span className="admin-eyebrow">QUẢN LÝ HỆ THỐNG</span>

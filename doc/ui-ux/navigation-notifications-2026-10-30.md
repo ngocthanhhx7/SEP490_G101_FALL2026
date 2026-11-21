@@ -13,6 +13,13 @@ Admin retains Admin navigation when entering shared Staff work routes.
 The operational header removes the workspace label. Every account trigger omits
 the decorative chevron while preserving its accessible expanded state and menu.
 
+### Tiêu đề và đường quay lại
+
+- Không dùng breadcrumb hiển thị (ví dụ: “Trang chủ / Chính sách / Tên chính sách”) trên bất kỳ trang nào, kể cả trang công khai, màn quản trị, web mobile và PWA. Tiêu đề chính cho biết màn hiện tại; thanh điều hướng chính cho biết nhóm đang mở.
+- Mỗi màn có tối đa một nút Back để quay về màn cha. Khi khung mobile đã có Back, không lặp lại trong nội dung. Trên web, ghi nhãn theo đích đến như “Tất cả chính sách” hoặc “Tài khoản”. Nút lùi trong quy trình nhiều bước, nút đóng dialog và mục lục vẫn có nhiệm vụ riêng.
+- Mỗi menu chỉ có một mục cho mỗi đích. Đánh dấu mục hiện tại bằng trạng thái chọn; không thêm lượt vào lịch sử khi bấm lại. Nếu màn chỉ là bí danh, chuyển sang URL chính bằng `replace`. Đích Back phải tồn tại, đúng quyền, không quay lại chính màn hoặc màn sẽ chuyển ngược về nó. Giữ tham số có ý nghĩa như bộ lọc lịch và trang danh sách đơn khi quay lại.
+- Khi review, mở link trực tiếp và tải lại, thử Back trên giao diện và trình duyệt, thử khi khách chưa đăng nhập và khi đăng nhập sai vai trò. Kiểm tra 320 px, 390 px và desktop. Đối chiếu `AppRoutes.jsx`, guard và `mobile-route-metadata.js` khi đổi route hoặc Back.
+
 ## Notifications
 
 One session-scoped provider reads the existing `/api/v1/notifications` feed with
