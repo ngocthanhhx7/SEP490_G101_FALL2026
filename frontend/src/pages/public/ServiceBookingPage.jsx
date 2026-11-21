@@ -12,9 +12,16 @@ import { formatCatalogPrice } from '../../utils/catalog-format.js';
 import { apiErrorFeedback } from '../../utils/api-error-feedback.js';
 import { groomingPath, homeLocations, isShopOnly } from '../../utils/shop-grooming.js';
 import { serviceVisual } from './service-visuals.js';
+import { RecurringSchedule } from '../../components/calendar/RecurringSchedule.jsx';
+import { BookingDateTime } from '../../components/calendar/BookingDateTime.jsx';
+import { vietnamDate, vietnamDateTime } from '../../utils/calendar-date.js';
 import { BookingConfirmation } from './BookingCheckout.jsx';
 import './service-booking.css';
 
+const homeNoticeMs = 2 * 60 * 60 * 1000;
+const scheduleLabel = value => new Date(value + '+07:00').toLocaleString('vi-VN', {
+  timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short', timeStyle: 'short'
+});
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const locations = { HOME: 'Tại nhà', FACILITY: 'Tại cơ sở', OUTDOOR: 'Ngoài trời' };
 const uncertainResponse = error => ['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(error.code) || error.status >= 500;
@@ -72,6 +79,8 @@ export function BookingFlow({ service, api, matching, onBooked }) {
   }, [api]);
   const setup = useApiResource(load), [step, setStep] = useState(0), [busy, setBusy] = useState(false), [error, setError] = useState('');
   const [petIds, setPetIds] = useState([]), [units, setUnits] = useState(1), [count, setCount] = useState(1), [starts, setStarts] = useState(['']);
+  const [editingRepeat, setEditingRepeat] = useState(false);
+  const [activeVisit, setActiveVisit] = useState(0);
   const [location, setLocation] = useState(homeLocations(service)[0] ?? 'HOME'), [addressId, setAddressId] = useState('');
   const [mode, setMode] = useState('SYSTEM'), [quote, setQuote] = useState(null), [available, setAvailable] = useState(null), [selected, setSelected] = useState('');
   const [shortlists, setShortlists] = useState(null), [consent, setConsent] = useState(false), [uncertain, setUncertain] = useState(false);
@@ -90,16 +99,26 @@ export function BookingFlow({ service, api, matching, onBooked }) {
     return starts.map(start => ({ itemIndex: 0, startAt: new Date(start+'+07:00').toISOString(), location,
       ...(location !== 'FACILITY' ? { addressId } : {}) }));
   }
-  const homeNoticeMs = 2 * 60 * 60 * 1000;
+  const prepayNotice = Number(count) > 1 || boarding && Number(units) > 1 ? 15 * 60000 : 0;
+  const leadMs = location === 'HOME' ? homeNoticeMs : prepayNotice;
+  const minimum = vietnamDateTime(new Date(Math.ceil((Date.now() + Math.max(leadMs, 1)) / 60000) * 60000));
   async function price(event) {
-    event.preventDefault(); if (locked.current) return;
+    event.preventDefault(); if (locked.current || editingRepeat) return;
     if (!petIds.length) { setError('Chọn ít nhất một thú cưng.'); return; }
-    if (starts.some(start => !start || Date.parse(start+'+07:00') <= Date.now() + (count > 1 || boarding && units > 1 ? 15 : 0) * 60000)) {
-      setError('Chọn thời gian trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.'); return;
+    const now = Date.now();
+    const invalid = starts.findIndex(start => !start || Date.parse(start + '+07:00') <= now + prepayNotice
+      || location === 'HOME' && Date.parse(start + '+07:00') < now + homeNoticeMs);
+    if (invalid !== -1) {
+      setActiveVisit(invalid);
+      const instruction = !starts[invalid] ? 'Chọn ngày và giờ bắt đầu.'
+        : location === 'HOME' ? 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.'
+          : 'Chọn giờ trong tương lai, sau hạn thanh toán nếu đơn cần trả trước.';
+      setError(`Buổi ${invalid + 1}. ${instruction}`);
+      return;
     }
-    if (location === 'HOME' && starts.some(start => Date.parse(start+'+07:00') < Date.now() + homeNoticeMs)) {
-      setError('Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.'); return;
-    }
+    const ordered = starts.map((value, index) => ({ at: Date.parse(value + '+07:00'), index })).sort((a,b) => a.at - b.at);
+    const overlap = ordered.find((slot, i) => i > 0 && slot.at < ordered[i-1].at + durationMinutes * 60000);
+    if (overlap) { setActiveVisit(overlap.index); setError(`Buổi ${overlap.index + 1} trùng giờ chăm sóc với một buổi khác. Hãy đổi giờ.`); return; }
     const ticket = ++generation.current; locked.current = true; setBusy(true); setError('');
     try {
       const value = await api.quote([{ serviceId: service.id, petIds, durationMinutes, visitCount: Number(count),
@@ -160,6 +179,41 @@ export function BookingFlow({ service, api, matching, onBooked }) {
     <ol className="booking-steps" aria-label="Tiến trình đặt dịch vụ">{['Thú cưng và lịch', 'Chọn pet sitter', 'Xác nhận'].map((label, index) => <li key={label} aria-current={step === index ? 'step' : undefined}><span>{index < step ? <Check size={16} /> : index+1}</span>{label}</li>)}</ol>
     {step === 0 && <form onSubmit={price}>
       <h2>Thú cưng và lịch chăm sóc</h2>
+      <div className="booking-compose">
+        <fieldset className="booking-compose__schedule" disabled={busy}>
+          <legend>Lịch chăm sóc</legend>
+          <p className="booking-schedule-hint">{location === 'HOME' ? 'Giờ Việt Nam · Đặt trước ít nhất 2 giờ.' : 'Giờ Việt Nam'}</p>
+          {location === 'HOME' && !boarding && <>
+            <button type="button" className="booking-repeat-trigger" aria-haspopup="dialog" onClick={() => setEditingRepeat(true)}>
+              <RefreshCw size={16} aria-hidden="true" /> Tạo lịch lặp theo tuần hoặc tháng
+            </button>
+            {editingRepeat && <RecurringSchedule replacing={starts.some(Boolean)} initial={starts[activeVisit]} minimum={minimum} onCancel={() => setEditingRepeat(false)}
+              onApply={values => { invalidate(); setStarts(values); setCount(values.length); setActiveVisit(0); setEditingRepeat(false); }} />}
+          </>}
+          {starts.length > 1 && <label className="booking-visit-select">Buổi cần chỉnh
+            <select value={activeVisit} onChange={event => { setActiveVisit(Number(event.target.value)); setError(''); }}>
+              {starts.map((start, index) => <option key={index} value={index}>
+                {start ? `Buổi ${index + 1} · ${scheduleLabel(start)}` : `Buổi ${index + 1} · Chưa chọn giờ`}
+              </option>)}
+            </select>
+          </label>}
+          <BookingDateTime key={activeVisit} label={`Buổi ${activeVisit + 1} (giờ Việt Nam)`}
+            value={starts[activeVisit]} minimum={minimum} today={vietnamDate()} visits={starts} activeVisit={activeVisit}
+            durationMinutes={boarding || !Number.isFinite(durationMinutes) ? undefined : durationMinutes}
+            markedDays={new Set(starts.filter(Boolean).map(value => value.slice(0, 10)))}
+            onChange={value => { invalidate(); setStarts(current => current.map((start, index) => index === activeVisit ? value : start)); }}
+          />
+          {starts.length > 1 && <div className="booking-schedule-footer">
+            <span>{starts.filter(Boolean).length}/{starts.length} buổi đã chọn giờ</span>
+            <button type="button" className="booking-schedule-next" onClick={() => {
+              invalidate(); setStarts(starts.filter((_, index) => index !== activeVisit)); setCount(starts.length - 1);
+              setActiveVisit(Math.min(activeVisit, starts.length - 2));
+            }}>Bỏ buổi này</button>
+            {activeVisit < starts.length - 1 && <button type="button" className="booking-schedule-next"
+              onClick={() => { setActiveVisit(activeVisit + 1); setError(''); }}>Chỉnh buổi tiếp theo</button>}
+          </div>}
+        </fieldset>
+        <div className="booking-compose__details">
       <fieldset disabled={busy}><legend>Thú cưng của bạn</legend>
         {pets.map(pet => <label className="booking-check" key={pet.id || pet._id}><input type="checkbox" checked={petIds.includes(pet.id || pet._id)} onChange={event => { invalidate(); const id = pet.id || pet._id; setPetIds(current => event.target.checked ? [...current, id] : current.filter(value => value !== id)); }} />{pet.name} · {pet.weightKg} kg</label>)}
         {!pets.length && <p>Chưa có hồ sơ {service.species.map(value => value === 'DOG' ? 'chó' : 'mèo').join(' / ')} phù hợp. <Link to="/account/pets" target="_blank">Thêm thú cưng</Link></p>}
@@ -167,17 +221,30 @@ export function BookingFlow({ service, api, matching, onBooked }) {
         <Link to="/account/pets" target="_blank">Cập nhật hồ sơ chăm sóc</Link>
         <button type="button" className="booking-refresh" onClick={setup.retry}><RefreshCw size={16} />Tải lại hồ sơ</button>
       </fieldset>
-      <fieldset className="booking-fields" disabled={busy}>
+      <fieldset className="booking-fields" disabled={busy || editingRepeat}>
         {['tiếng', '30 phút', 'ngày', 'km'].includes(unit) && <label>{unit === 'ngày' ? 'Số ngày mỗi lượt' : unit === 'km' ? 'Khoảng cách mỗi lượt (km)' : 'Số đơn vị mỗi lượt ('+unit+')'}<input type="number" required min={unit === 'km' ? .001 : 1} max={boarding ? 60 : unit === 'km' ? 1000 : unit === 'tiếng' ? 24 : 48} step={unit === 'km' ? .001 : 1} value={units} onChange={event => { invalidate(); setUnits(event.target.value); }} /></label>}
-        <label>Số buổi<input type="number" min="1" max="60" required value={count} onChange={event => { invalidate(); const value = Number(event.target.value); setCount(event.target.value); if (value >= 1 && value <= 60) setStarts(current => Array.from({ length: value }, (_, index) => current[index] ?? '')); }} /></label>
+        <label>Số buổi<input type="number" min="1" max="60" required value={count} onChange={event => {
+          invalidate();
+          const value = Number(event.target.value);
+          setCount(event.target.value);
+          if (Number.isInteger(value) && value >= 1 && value <= 60) {
+            setStarts(current => Array.from({ length: value }, (_, index) => current[index] ?? ''));
+            setActiveVisit(current => Math.min(current, value - 1));
+          }
+        }} /></label>
         <label>Địa điểm<select value={location} onChange={event => { invalidate(); setLocation(event.target.value); }}>{homeLocations(service).map(value => <option key={value} value={value}>{locations[value]}</option>)}</select></label>
         {needsAddress ? <label>Địa chỉ đã xác nhận<select value={addressId} required onChange={event => { invalidate(); setAddressId(event.target.value); }}><option value="">Chọn địa chỉ</option>{addresses.map(address => <option key={address.id || address._id} value={address.id || address._id}>{address.label}</option>)}</select></label> : <p>{setup.data.options.facilityAddress ?? 'Địa chỉ cơ sở chưa được cấu hình.'}</p>}
-        {starts.map((start, index) => <label key={index}>Buổi {index+1} (giờ Việt Nam)<input type="datetime-local" required value={start} onChange={event => { invalidate(); setStarts(current => current.map((value, i) => i === index ? event.target.value : value)); }} /></label>)}
       </fieldset>
       {needsAddress && <p><Link to="/account/addresses" target="_blank">Thêm hoặc sửa địa chỉ trên bản đồ</Link><button type="button" className="booking-refresh" onClick={setup.retry}><RefreshCw size={16} />Tải lại địa chỉ</button></p>}
-      <div className="booking-actions"><button className="pwc-button pwc-button-primary" disabled={busy || !pets.length || needsAddress && !addresses.length || !needsAddress && !setup.data.options.facilityAddress}>{busy ? 'Đang lấy báo giá…' : 'Tiếp tục'}<ArrowRight size={17} /></button></div>
+        </div>
+      </div>
+      <div className="booking-actions"><button className="pwc-button pwc-button-primary" disabled={busy || editingRepeat || !pets.length || needsAddress && !addresses.length || !needsAddress && !setup.data.options.facilityAddress}>{busy ? 'Đang lấy báo giá…' : 'Xem báo giá'}<ArrowRight size={17} /></button></div>
     </form>}
     {step === 1 && <section><h2>Bạn muốn chọn pet sitter theo cách nào?</h2>
+      <section className="booking-schedule-review" aria-label="Lịch đã chọn">
+        <span>{starts.length} buổi · {locations[location]} · Giờ Việt Nam</span>
+        <strong>{scheduleLabel(starts[0])}{starts.length > 1 ? ` · thêm ${starts.length - 1} buổi` : ''}</strong>
+      </section>
       <div className="booking-modes">{[['SYSTEM', Users, recommendationAllowed ? 'Hệ thống đề xuất' : 'PawWorld sắp xếp'], ['DIRECT', UserRound, 'Chỉ định pet sitter']].map(([value, Icon, label]) => <label key={value} className={mode === value ? 'is-selected' : ''}><input type="radio" name="booking-mode" value={value} checked={mode === value} disabled={busy} onChange={() => { generation.current++; setMode(value); setShortlists(null); setAvailable(null); setSelected(''); setError(''); }} /><Icon size={22} /><strong>{label}</strong></label>)}</div>
       {setup.data?.options.recommendationAllowed === false && <p>Chọn sitter bạn muốn từ danh sách đăng ký dịch vụ, xếp theo điểm đánh giá; hoặc để PawWorld điều phối ca chăm sóc.</p>}
       {mode === 'SYSTEM' ? <><p>PawWorld kiểm tra lịch và gửi lời mời cho nhân viên phù hợp. Ca được phân công sau khi sitter nhận lời.</p>
@@ -195,7 +262,7 @@ export function BookingFlow({ service, api, matching, onBooked }) {
     </section>}
     {step === 2 && <form onSubmit={confirm}><h2>Xác nhận đặt dịch vụ</h2><fieldset disabled={busy || uncertain}>
       <dl className="booking-review"><div><dt>Thú cưng</dt><dd>{pets.filter(pet => petIds.includes(pet.id || pet._id)).map(pet => pet.name).join(', ')}</dd></div><div><dt>Cách chọn sitter</dt><dd>{mode === 'DIRECT' ? available?.sitters.find(sitter => sitter.id === selected)?.displayName : shortlists ? 'Hệ thống đề xuất theo lịch' : 'PawWorld sắp xếp'}</dd></div><div><dt>Địa điểm</dt><dd>{locations[location]} · {needsAddress ? addresses.find(address => (address.id || address._id) === addressId)?.label : setup.data.options.facilityAddress}</dd></div></dl>
-      <ul>{starts.map((value, index) => <li key={index}>Buổi {index+1}: {new Date(value+'+07:00').toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</li>)}</ul>
+      <ul>{starts.map((value, index) => <li key={index}>Buổi {index+1}: {scheduleLabel(value)}</li>)}</ul>
       <dl className="booking-review">{[['Dịch vụ', quote.baseVnd], ['Phụ phí', quote.surchargeVnd], ['Giảm combo', -quote.discountVnd], ['Phí bậc giá', quote.orderFeeVnd], ['Tổng thanh toán', quote.totalVnd]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
       <p>{quote.paymentMode === 'PREPAY' ? 'Đơn nhiều buổi cần thanh toán đủ trong 15 phút trước khi gửi lời mời.' : 'Thanh toán sau khi hoàn tất dịch vụ.'}</p>
       <p>Hệ thống tìm người chăm sóc sau khi đơn đủ điều kiện. Ca được xác nhận khi người chăm sóc nhận lời mời.</p>

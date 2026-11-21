@@ -16,3 +16,4 @@
 
 .pwc-booking-reference { font-size: 13px; color: #71647e; overflow-wrap: anywhere; }
 .pwc-booking-current-status { display: inline-block; padding: 8px 14px; border-radius: 22px; color: #512c77; background: #f0e4fb; }
+.pwc-booking-checkout .pwc-week-calendar button { margin: 0; }

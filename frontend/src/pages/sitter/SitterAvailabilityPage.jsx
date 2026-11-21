@@ -1,8 +1,11 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Copy, Plus } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Input, Notice, Select } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import './sitter-availability.css';
+import { timelineMinute } from '../../components/calendar/CalendarTimeline.jsx';
+import { WeekCalendar } from '../../components/calendar/WeekCalendar.jsx';
+import { addCalendarDays, calendarDateLabel, vietnamDate } from '../../utils/calendar-date.js';
 import { SitterDayOriginForm } from './SitterDayOriginForm.jsx';
 
 const DAYS = [
@@ -11,31 +14,24 @@ const DAYS = [
   { value: 7, label: 'Chủ Nhật' }
 ];
 
-function localDateInSitterZone(now = new Date()) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit'
-  }).formatToParts(now);
-  const values = Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
+const maxWindows = 14;
+const weekdayOf = date => new Date(date + 'T12:00:00Z').getUTCDay() || 7;
+
+function windowBlock(row, key, onOpen) {
+  if (!row.startLocalTime || !row.endLocalTime || row.startLocalTime === row.endLocalTime) return [];
+  const start = timelineMinute(row.startLocalTime);
+  const end = timelineMinute(row.endLocalTime);
+  return [{ key, start, end: end < start ? 1440 : end,
+    label: row.startLocalTime + '–' + row.endLocalTime + (end < start ? ' hôm sau' : ''),
+    detail: row.workLocation === 'SHOP' ? 'Tại cửa hàng' : 'Tại nhà khách',
+    kind: row.workLocation === 'SHOP' ? 'shop' : 'work', onOpen }];
 }
 
-function addLocalCalendarDays(localDate, count) {
-  const [year, month, day] = localDate.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + count));
-  return date.toISOString().slice(0, 10);
-}
+const formatSitterCalendarDate = date => calendarDateLabel(date, { weekday: 'long', day: 'numeric', month: 'long' });
 
 export function getSitterCalendarRange(now = new Date()) {
-  const fromLocalDate = localDateInSitterZone(now);
-  return { fromLocalDate, toLocalDate: addLocalCalendarDays(fromLocalDate, 30) };
-}
-
-function formatSitterCalendarDate(localDate) {
-  const [year, month, day] = localDate.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day, 12));
-  return new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh', weekday: 'long', day: 'numeric', month: 'long'
-  }).format(date);
+  const fromLocalDate = vietnamDate(now);
+  return { fromLocalDate, toLocalDate: addCalendarDays(fromLocalDate, 30) };
 }
 
 function newOperationKey() {
@@ -49,6 +45,7 @@ function newOperationKey() {
 function messageFor(error) {
   if (error?.code === 'CONTRACT_REQUIRED') return 'Chưa có hợp đồng đã được Admin xác minh bao phủ ngày áp dụng. Hãy liên hệ Admin để xác minh hợp đồng, sau đó lưu lại lịch.';
   if (error?.code === 'SITTER_NOT_ELIGIBLE') return 'Tài khoản Pet Sitter chưa đủ điều kiện hoạt động. Hãy liên hệ Admin kiểm tra trạng thái hồ sơ.';
+  if (error?.code === 'AVAILABILITY_WINDOW_OVERLAP') return 'Hai khung giờ bị trùng. Kiểm tra cả phần qua nửa đêm của ngày trước.';
   if (error?.status === 422) return 'Kiểm tra ngày áp dụng và các khung giờ đã nhập trước khi lưu lại.';
   if (error?.code === 'CONFIRMED_VISIT_CONFLICT') {
     return 'Lịch có buổi đã xác nhận. Lịch cũ vẫn được giữ nguyên; Staff cần xem và xử lý xung đột trước khi thay đổi.';
@@ -65,8 +62,11 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
     return api.getAvailability({ signal });
   }, [api]);
   const resource = useApiResource(load);
-  const [today] = useState(() => localDateInSitterZone(now));
-  const [calendarWeek, setCalendarWeek] = useState(0);
+  const [today] = useState(() => vietnamDate(now));
+  const [view, setView] = useState(() => typeof api?.listCalendar === 'function' ? 'calendar' : 'hours');
+  const [originOpened, setOriginOpened] = useState(false);
+  const [calendarDay, setCalendarDay] = useState(today);
+  const [editorDay, setEditorDay] = useState(today);
   const [calendarRange] = useState(() => getSitterCalendarRange(now));
   const loadCalendar = useCallback(({ signal }) => {
     if (typeof api?.listCalendar !== 'function') return Promise.resolve({ data: null, pending: true });
@@ -78,12 +78,13 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
   const [saving, setSaving] = useState(false);
   const [commandStatus, setCommandStatus] = useState(null);
   const operation = useRef(null);
+  const nextWindowId = useRef(0);
 
   useEffect(() => {
     if (!resource.data || typeof resource.data !== 'object') return;
     setWindows((resource.data.workingWindows ?? []).map((window, index) => ({ ...window, rowId: `saved-${index}` })));
     const contractStart = resource.data.registrationContract?.state === 'UPCOMING'
-      ? localDateInSitterZone(new Date(resource.data.registrationContract.effectiveAt)) : today;
+      ? vietnamDate(new Date(resource.data.registrationContract.effectiveAt)) : today;
     setEffectiveFrom([resource.data.effectiveFrom ?? today, contractStart, today].sort().at(-1));
   }, [resource.data, today]);
 
@@ -100,9 +101,37 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
     setCommandStatus(null);
   }
 
-  function addWindow() {
-    setWindows(rows => [...rows, { rowId: `new-${Date.now()}-${rows.length}`, weekday: 1,
-      startLocalTime: '09:00', endLocalTime: '17:00' }]);
+  function focusWindow(rowId) {
+    globalThis.requestAnimationFrame?.(() => {
+      globalThis.document.getElementById('availability-' + rowId)?.querySelector('input[type="time"]')?.focus();
+    });
+  }
+
+  function addWindow(weekday, startLocalTime = '09:00', endLocalTime = '17:00') {
+    const row = { rowId: `new-${nextWindowId.current++}`, weekday, startLocalTime, endLocalTime };
+    setWindows(rows => [...rows, row]);
+    operation.current = null;
+    setCommandStatus(null);
+    focusWindow(row.rowId);
+  }
+
+  function draftEvents(date) {
+    const weekday = weekdayOf(date);
+    const previous = weekday === 1 ? 7 : weekday - 1;
+    return windows.flatMap(window => {
+      const opener = () => focusWindow(window.rowId);
+      if (weekday === window.weekday) return windowBlock(window, window.rowId, opener);
+      if (previous !== window.weekday || !window.endLocalTime || window.endLocalTime === '00:00'
+        || window.endLocalTime >= window.startLocalTime) return [];
+      return windowBlock({ ...window, startLocalTime: '00:00' }, window.rowId, opener);
+    });
+  }
+
+  function copyToEmptyWeekdays(dayWindows, targetDays) {
+    const newRows = targetDays.flatMap(({ value }) => dayWindows.map(row => ({
+      ...row, rowId: `new-${nextWindowId.current++}`, weekday: value
+    })));
+    setWindows(rows => [...rows, ...newRows]);
     operation.current = null;
     setCommandStatus(null);
   }
@@ -160,19 +189,31 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
     ? <Button variant="secondary" onClick={() => { operation.current = null; resource.retry(); }}>Tải lại lịch</Button>
     : undefined;
   const calendarEntries = Array.isArray(calendarResource.data) ? calendarResource.data : [];
-  const weekCount = Math.ceil(calendarEntries.length / 7);
-  const activeWeek = Math.min(calendarWeek, Math.max(0, weekCount - 1));
-  const weekEntries = calendarEntries.slice(activeWeek * 7, activeWeek * 7 + 7);
+  const calendarEntry = calendarEntries.find(entry => entry.localDate === calendarDay);
+  function savedWindows(entry) {
+    if (!entry || entry.isDayOff) return [];
+    const previous = calendarEntries.find(row => row.localDate === addCalendarDays(entry.localDate, -1));
+    const overnight = previous?.available && !previous.isDayOff ? (previous.windows ?? []).filter(row =>
+      row.endLocalTime < row.startLocalTime && row.endLocalTime !== '00:00'
+    ).map(row => ({ ...row, startLocalTime: '00:00' })) : [];
+    return [...overnight, ...(entry.available ? entry.windows ?? [] : [])];
+  }
+  const dayWindows = savedWindows(calendarEntry);
+  const markedDays = new Set(calendarEntries.filter(entry => savedWindows(entry).length).map(entry => entry.localDate));
+  const emptyWeekdays = DAYS.filter(({ value }) => value <= 5 && !windows.some(window => window.weekday === value));
   return <section className="sitter-availability">
     <header className="sitter-availability__header">
       <h1 data-duplicate-title>Giờ nhận việc</h1>
       {resource.data?.registrationContract?.state === 'UPCOMING' && <Notice state="pending" title="Hợp đồng đã ký, sắp có hiệu lực">
-        Đăng ký lịch áp dụng từ {localDateInSitterZone(new Date(resource.data.registrationContract.effectiveAt))}. Ca chăm sóc vẫn phải nằm trong thời hạn hợp đồng và năng lực đã được xác minh.
+        Đăng ký lịch áp dụng từ {vietnamDate(new Date(resource.data.registrationContract.effectiveAt))}. Ca chăm sóc vẫn phải nằm trong thời hạn hợp đồng và năng lực đã được xác minh.
       </Notice>}
-      <p>Xem ngày có thể nhận ca, chỉnh giờ hằng tuần hoặc khai báo điểm xuất phát. Tất cả thời gian theo giờ Việt Nam.</p>
+
       <nav className="sitter-availability__jump" aria-label="Cài đặt lịch">
-        <a href="#sitter-hours-heading">Chỉnh giờ nhận việc</a>
-        {api?.getOrigins && <a href="#sitter-origin-heading">Điểm xuất phát</a>}
+        {[['calendar', 'Lịch đã lưu'], ['hours', 'Chỉnh giờ hằng tuần'], ...(api?.getOrigins ? [['origin', 'Điểm xuất phát']] : [])].map(([key, label]) =>
+          <button type="button" key={key} aria-pressed={view === key} onClick={() => {
+            setView(key);
+            if (key === 'origin') setOriginOpened(true);
+          }}>{label}</button>)}
       </nav>
     </header>
 
@@ -187,7 +228,7 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
       Có buổi đã xác nhận bị ảnh hưởng. Lịch và phân công hiện tại vẫn được giữ nguyên.
     </Notice>}
 
-    <section className="sitter-availability__calendar" aria-labelledby="sitter-calendar-heading">
+    <section hidden={view !== 'calendar'} className="sitter-availability__calendar" aria-labelledby="sitter-calendar-heading">
       <header className="sitter-availability__calendar-heading">
         <div>
           <h2 id="sitter-calendar-heading">Lịch trong 31 ngày</h2>
@@ -201,66 +242,94 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
       {calendarResource.status === 'error' && <Notice state="error" title="Không tải được lịch ngày"
         action={<Button variant="secondary" onClick={calendarResource.retry}>Thử lại</Button>}>Lịch ngày chưa được tải.</Notice>}
       {calendarResource.status === 'empty' && <Notice state="empty" title="Chưa có ngày rảnh để hiển thị">Hãy kiểm tra lại sau khi lịch được kết nối.</Notice>}
-      {calendarResource.status === 'success' && weekCount > 1 && <div className="sitter-availability__week">
-        <Button variant="secondary" aria-label="Tuần trước" disabled={activeWeek === 0} onClick={() => setCalendarWeek(activeWeek - 1)}><ChevronLeft size={18} /></Button>
-        <span aria-live="polite">Tuần {activeWeek + 1} / {weekCount}</span>
-        <Button variant="secondary" aria-label="Tuần sau" disabled={activeWeek + 1 >= weekCount} onClick={() => setCalendarWeek(activeWeek + 1)}><ChevronRight size={18} /></Button>
-      </div>}
-      {calendarResource.status === 'success' && <ol className="sitter-availability__calendar-list">
-        {weekEntries.map(entry => <li className="sitter-availability__calendar-day" key={entry.localDate}>
+      {calendarResource.status === 'success' && <>
+        <WeekCalendar monthOverview label="Lịch trong 31 ngày" value={calendarDay} today={today} min={calendarRange.fromLocalDate}
+          max={calendarRange.toLocalDate} markedDays={markedDays} markLabel="có thể nhận việc" onChange={setCalendarDay}
+          timeline={{ label: 'Khung giờ đã lưu', eventsFor: date => {
+            const row = calendarEntries.find(entry => entry.localDate === date);
+            if (row?.isDayOff) return [{ key: date, start: 0, end: 1440, label: 'Ngày nghỉ đã duyệt', kind: 'off' }];
+            return savedWindows(row).flatMap((window, index) => windowBlock(window, index));
+          } }} />
+        {calendarEntry ? <div className="sitter-availability__calendar-day" aria-live="polite">
           <div className="sitter-availability__calendar-day-heading">
-            <time dateTime={entry.localDate}>{formatSitterCalendarDate(entry.localDate)}</time>
-            <span className={entry.isDayOff ? 'sitter-availability__calendar-state sitter-availability__calendar-state--off'
-              : entry.available ? 'sitter-availability__calendar-state sitter-availability__calendar-state--available'
+            <time dateTime={calendarEntry.localDate}>{formatSitterCalendarDate(calendarEntry.localDate)}</time>
+            <span className={calendarEntry.isDayOff ? 'sitter-availability__calendar-state sitter-availability__calendar-state--off'
+              : dayWindows.length ? 'sitter-availability__calendar-state sitter-availability__calendar-state--available'
                 : 'sitter-availability__calendar-state'}>
-              {entry.isDayOff ? 'Ngày nghỉ đã duyệt' : entry.available ? 'Có thể nhận việc' : 'Không nhận việc'}
+              {calendarEntry.isDayOff ? 'Ngày nghỉ đã duyệt' : dayWindows.length ? 'Có thể nhận việc' : 'Chưa có khung giờ trong dữ liệu ngày'}
             </span>
           </div>
-          {entry.available && !entry.isDayOff && entry.windows?.length > 0 && <ul className="sitter-availability__calendar-windows">
-            {entry.windows.map((window, index) => <li key={`${window.weekday}-${window.startLocalTime}-${index}`}>
+          {dayWindows.length > 0 && <ul className="sitter-availability__calendar-windows">
+            {dayWindows.map((window, index) => <li key={`${window.weekday}-${window.startLocalTime}-${index}`}>
               {window.startLocalTime}–{window.endLocalTime}
             </li>)}
           </ul>}
-        </li>)}
-      </ol>}
+        </div> : <p className="sitter-availability__no-day" role="status">Chưa có dữ liệu lịch cho ngày này.</p>}
+      </>}
       {typeof api?.listCalendar !== 'function' && <p className="sitter-availability__integration-note">
         INTEGRATION_PENDING: P34 cần kết nối API lịch ngày có giới hạn 31 ngày.
       </p>}
     </section>
 
-    <section className="sitter-availability__panel" aria-labelledby="sitter-hours-heading">
+    <section hidden={view !== 'hours'} className="sitter-availability__panel" aria-labelledby="sitter-hours-heading">
       <div className="sitter-availability__panel-heading">
         <div><h2 id="sitter-hours-heading" tabIndex={-1}>Giờ có thể nhận việc</h2>
-          <p>Khoảng qua nửa đêm được tính sang ngày kế tiếp. Khoảng trùng nhau sẽ bị máy chủ từ chối.</p></div>
-        <span className="sitter-availability__version">Phiên bản lịch: {currentVersion}</span>
+          <p>Lịch lặp hằng tuần. Giờ kết thúc sớm hơn giờ bắt đầu được tính sang ngày hôm sau.</p></div>
+        <span className="sitter-availability__version">{windows.length}/{maxWindows} khung giờ</span>
       </div>
       <form onSubmit={submit}>
-        <div className="sitter-availability__window-list">
-          {windows.map((window, index) => <fieldset className="sitter-availability__window" key={window.rowId}>
-            <legend>Khung giờ {index + 1}</legend>
-            <Select label="Ngày trong tuần" value={window.weekday}
-              onChange={event => changeWindow(window.rowId, 'weekday', event.target.value)} disabled={fieldsDisabled}>
-              {DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
-            </Select>
-            <Input label="Bắt đầu" type="time" value={window.startLocalTime}
-              onChange={event => changeWindow(window.rowId, 'startLocalTime', event.target.value)} required disabled={fieldsDisabled} />
-            <Input label="Kết thúc" type="time" value={window.endLocalTime}
-              onChange={event => changeWindow(window.rowId, 'endLocalTime', event.target.value)} required disabled={fieldsDisabled} />
-            <Select label="Nơi làm việc" value={window.workLocation ?? 'HOME'}
-              onChange={event => changeWindow(window.rowId, 'workLocation', event.target.value)} disabled={fieldsDisabled}>
-              <option value="HOME">Chăm sóc tại nhà khách</option><option value="SHOP">Tại cửa hàng</option>
-            </Select>
-            <Button variant="ghost" className="sitter-availability__remove" aria-label={`Xóa khung giờ ${index + 1}`}
-              onClick={() => removeWindow(window.rowId)} disabled={fieldsDisabled}>Xóa</Button>
-          </fieldset>)}
-        </div>
         <div className="sitter-availability__actions">
-          <Button variant="secondary" onClick={addWindow} disabled={fieldsDisabled}>Thêm khung giờ</Button>
           <Input label="Áp dụng từ ngày" type="date" value={effectiveFrom} min={today}
             onChange={event => { setEffectiveFrom(event.target.value); operation.current = null; setCommandStatus(null); }} required disabled={fieldsDisabled} />
           <Button type="submit" loading={saving} loadingLabel="Đang lưu…" disabled={typeof api?.saveAvailability !== 'function'}>
             {pendingAcknowledgement ? 'Kiểm tra yêu cầu' : 'Lưu lịch'}
           </Button>
+        </div>
+        <p className="sitter-availability__edit-hint">Bấm ô giờ để thêm khung một tiếng. Bấm một khung đã có để chỉnh giờ và nơi làm việc.</p>
+        <WeekCalendar recurring label="Chỉnh lịch lặp hằng tuần" today={today} value={editorDay} onChange={setEditorDay}
+          timeline={{
+            label: 'Thêm khung giờ trên lịch', eventsFor: draftEvents,
+            canPick: () => !fieldsDisabled && windows.length < maxWindows,
+            onPick: (date, hour) => {
+              setEditorDay(date);
+              const nextHour = String((Number(hour.slice(0, 2)) + 1) % 24).padStart(2, '0') + hour.slice(2);
+              addWindow(weekdayOf(date), hour, nextHour);
+            }
+          }} />
+        <div className="sitter-availability__window-list">
+          {DAYS.map(({ value, label }) => {
+            const dayWindows = windows.filter(window => window.weekday === value);
+            const canCopy = dayWindows.length > 0 && emptyWeekdays.length > 0
+              && windows.length + dayWindows.length * emptyWeekdays.length <= maxWindows;
+            return <section key={value} className="sitter-availability__weekday" aria-label={label}>
+              <div className="sitter-availability__weekday-header">
+                <h3>{label}</h3>
+                {!dayWindows.length && <span>Không nhận việc</span>}
+                {canCopy && <Button variant="ghost" title="Chép sang các ngày thứ Hai đến thứ Sáu chưa có giờ"
+                  onClick={() => copyToEmptyWeekdays(dayWindows, emptyWeekdays)} disabled={fieldsDisabled}
+                  aria-label={`Chép giờ ${label} sang ngày trong tuần chưa có lịch`}><Copy size={16} aria-hidden="true" /> Chép giờ</Button>}
+                <Button variant="ghost" onClick={() => addWindow(value)} disabled={fieldsDisabled || windows.length >= maxWindows}
+                  aria-label={`Thêm khung giờ ${label}`}><Plus size={17} aria-hidden="true" /> Thêm giờ</Button>
+              </div>
+              {dayWindows.map((window, index) => <fieldset className="sitter-availability__window" id={'availability-' + window.rowId} key={window.rowId}>
+                <legend>Khung giờ {index + 1}</legend>
+                <Select label="Ngày trong tuần" value={window.weekday}
+                  onChange={event => changeWindow(window.rowId, 'weekday', event.target.value)} disabled={fieldsDisabled}>
+                  {DAYS.map(day => <option key={day.value} value={day.value}>{day.label}</option>)}
+                </Select>
+                <Input label="Bắt đầu" type="time" value={window.startLocalTime}
+                  onChange={event => changeWindow(window.rowId, 'startLocalTime', event.target.value)} required disabled={fieldsDisabled} />
+                <Input label="Kết thúc" type="time" value={window.endLocalTime}
+                  onChange={event => changeWindow(window.rowId, 'endLocalTime', event.target.value)} required disabled={fieldsDisabled} />
+                <Select label="Nơi làm việc" value={window.workLocation ?? 'HOME'}
+                  onChange={event => changeWindow(window.rowId, 'workLocation', event.target.value)} disabled={fieldsDisabled}>
+                  <option value="HOME">Chăm sóc tại nhà khách</option><option value="SHOP">Tại cửa hàng</option>
+                </Select>
+                <Button variant="ghost" className="sitter-availability__remove" aria-label={`Xóa khung giờ ${index + 1} ${label}`}
+                  onClick={() => removeWindow(window.rowId)} disabled={fieldsDisabled}>Xóa</Button>
+              </fieldset>)}
+            </section>;
+          })}
         </div>
         {typeof api?.saveAvailability !== 'function' && <p className="sitter-availability__integration-note">
           INTEGRATION_PENDING: route, phiên CSRF và API lưu lịch do P34 tích hợp.
@@ -268,13 +337,12 @@ export function SitterAvailabilityPage({ api, createOperationKey = newOperationK
       </form>
     </section>
 
-    {api?.getOrigins && <SitterDayOriginForm api={api} />}
-    <section className="sitter-availability__safety" aria-labelledby="sitter-hours-safety-heading">
-      <h2 id="sitter-hours-safety-heading">Khi thay đổi lịch</h2>
+    {originOpened && api?.getOrigins && <div hidden={view !== 'origin'}><SitterDayOriginForm api={api} /></div>}
+    <details className="sitter-availability__safety"><summary>Khi thay đổi lịch</summary>
       <p>Lịch rảnh chỉ giúp tìm ứng viên; thao tác lưu không tạo booking hoặc offer. Buổi đã xác nhận không bị xóa. Nếu lịch mới ảnh hưởng buổi đã nhận, Staff cần xử lý theo chính sách.</p>
       <p>Hợp đồng ghi thời gian tối thiểu: toàn thời gian 40 giờ/tuần, bán thời gian 20 giờ/tuần. Lịch nhận việc không dùng để chấm công hoặc tự động trừ lương.</p>
       <p>Ngày nghỉ và khu vực phục vụ được lưu như các phần cấu hình riêng; cập nhật giờ không thay đổi hai phần đó.</p>
-    </section>
+    </details>
   </section>;
 }
 
