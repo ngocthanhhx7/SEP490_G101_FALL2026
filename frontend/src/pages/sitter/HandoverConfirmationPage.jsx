@@ -50,7 +50,7 @@ function CareInstructions({ care }) {
         {!fields.length && <p>Chưa có hướng dẫn riêng cho {pet.name}.</p>}
       </div>;
     })}
-    {care.tasks.length > 0 && <dl className="handover-confirmation__details">
+    {care.tasks.length > 0 && <dl className="handover-confirmation__details handover-confirmation__tasks">
       <Detail label="Việc cần làm"><ul>{care.tasks.map((task, index) => <li key={index}>{task}</li>)}</ul></Detail>
     </dl>}
   </section>;
@@ -115,11 +115,13 @@ export function HandoverConfirmationPage({ api, visitId }) {
         action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>} />}
     {changed && resource.status === 'success' &&
       <Notice state="warning" title="Buổi vừa thay đổi. Trang đã tải lại thông tin mới." />}
-    {confirmed && <Notice state="success" title={`Đã xác nhận bàn giao. Bạn check-in được từ ${time(confirmed.checkInOpensAt)}.`} />}
-    {visit?.state === 'CONFIRMED' && <p>{visit.acceptedAt
-      ? `Đã xác nhận bàn giao lúc ${time(visit.acceptedAt)} ngày ${shortDate(visit.acceptedAt)}.` : 'Đã xác nhận bàn giao.'}</p>}
-    {visit?.state === 'NOT_REQUIRED' && <p>Buổi này không cần bàn giao.</p>}
-    {visit && !pending && <Link className="sitter-workspace-link" to={visitPath}>Về buổi chăm sóc</Link>}
+    {confirmed && <Notice state="success" title={`Đã xác nhận bàn giao. Bạn check-in được từ ${time(confirmed.checkInOpensAt)}.`}
+      action={<Link className="sitter-workspace-link" to={visitPath}>Về buổi chăm sóc</Link>} />}
+    {!confirmed && visit?.state === 'CONFIRMED' && <Notice state="success" title={visit.acceptedAt
+      ? `Đã xác nhận bàn giao lúc ${time(visit.acceptedAt)} ngày ${shortDate(visit.acceptedAt)}.` : 'Đã xác nhận bàn giao.'}
+      action={<Link className="sitter-workspace-link" to={visitPath}>Về buổi chăm sóc</Link>} />}
+    {visit?.state === 'NOT_REQUIRED' && <Notice state="info" title="Buổi này không cần bàn giao."
+      action={<Link className="sitter-workspace-link" to={visitPath}>Về buổi chăm sóc</Link>} />}
     {pending && <>
       <p className="handover-confirmation__summary">{[`Buổi ${shortDate(visit.startAt)}`, interval(visit), visit.bookingCode, visit.serviceName,
         visit.pets.map(pet => pet.name).join(', '), visit.serviceAddress].filter(Boolean).join(' · ')}</p>
@@ -135,7 +137,7 @@ export function HandoverConfirmationPage({ api, visitId }) {
         <div className="handover-confirmation__side">
         <section className="handover-confirmation__card handover-confirmation__pets">
           <h2>Thú cưng</h2>
-          <dl className="handover-confirmation__details">{visit.pets.map((pet, index) =>
+          <dl className="handover-confirmation__details handover-confirmation__details--inline">{visit.pets.map((pet, index) =>
             <Detail label={pet.name} key={index}>{pet.breed ?? 'Chưa ghi nhận giống'}</Detail>)}</dl>
           {!visit.pets.length && <p>Chưa ghi nhận thú cưng cho buổi này.</p>}
         </section>

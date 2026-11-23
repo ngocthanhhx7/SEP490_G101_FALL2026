@@ -15,7 +15,8 @@
 .handover-confirmation__back {
   width: fit-content;
   min-height: var(--pwc-target);
-  font-weight: 700;
+  font-weight: 600;
+  text-decoration: none;
   margin-block-end: var(--pwc-space-2);
 }
 
@@ -29,9 +30,10 @@
   padding: var(--pwc-space-3) var(--pwc-space-4);
 }
 
-.handover-confirmation__deadline h3 {
+.handover-confirmation .handover-confirmation__deadline h3 {
   font-size: var(--pwc-text-small);
-  font-weight: 600;
+  font-weight: 400;
+  line-height: 1.5;
   color: var(--pwc-ink);
 }
 
@@ -78,7 +80,26 @@
 }
 
 .handover-confirmation__card .handover-confirmation__heading {
-  margin-block-end: var(--pwc-space-4);
+  margin-block-end: var(--pwc-space-3);
+  gap: var(--pwc-space-2) var(--pwc-space-3);
+}
+
+.handover-confirmation__care h3 {
+  margin: var(--pwc-space-6) 0 var(--pwc-space-3);
+  padding-block-start: var(--pwc-space-4);
+  border-block-start: 1px solid var(--pwc-lavender-soft);
+}
+
+.handover-confirmation__care .handover-confirmation__muted + div h3 {
+  margin-block-start: var(--pwc-space-2);
+  padding-block-start: 0;
+  border-block-start: 0;
+}
+
+.handover-confirmation__details.handover-confirmation__tasks {
+  margin-block-start: var(--pwc-space-6);
+  padding-block-start: var(--pwc-space-4);
+  border-block-start: 1px solid var(--pwc-lavender-soft);
 }
 
 .handover-confirmation__heading h2 {
@@ -99,7 +120,8 @@
 .handover-confirmation__details dt,
 .handover-confirmation__mobile-label {
   font-weight: 700;
-  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+  color: var(--pwc-ink);
 }
 
 .handover-confirmation__details dd,
@@ -179,6 +201,7 @@
 .handover-confirmation .handover-confirmation__confirm .pwc-button:disabled {
   background: var(--pwc-disabled-surface);
   color: var(--pwc-disabled-ink);
+  border-color: var(--pwc-border);
 }
 
 @media (max-width: 640px) {
@@ -194,6 +217,8 @@
     clip-path: inset(50%);
   }
   .handover-confirmation__table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     padding: var(--pwc-space-2);
     margin-block-end: var(--pwc-space-2);
     border: 1px solid var(--pwc-lavender-soft);
@@ -203,9 +228,16 @@
     border: 0;
     padding: var(--pwc-space-1) var(--pwc-space-2);
   }
+  .handover-confirmation__table td:nth-child(n + 3) {
+    grid-column: 1 / -1;
+  }
   .handover-confirmation__mobile-label {
     display: block;
     font-size: var(--pwc-text-small);
+  }
+  .handover-confirmation__details--inline > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    column-gap: var(--pwc-space-3);
   }
 }
 
@@ -216,6 +248,9 @@
   .handover-confirmation__details > div {
     grid-template-columns: minmax(0, 2fr) minmax(0, 5fr);
     column-gap: var(--pwc-space-4);
+  }
+  .handover-confirmation__details--inline > div {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   }
 }
 
@@ -235,4 +270,12 @@
     min-width: 0;
   }
   .handover-confirmation__confirm { grid-row: 1; }
+}
+
+.handover-confirmation > .pwc-notice {
+  margin-block-start: var(--pwc-space-4);
+}
+
+.handover-confirmation .pwc-notice h3 {
+  max-inline-size: none;
 }
