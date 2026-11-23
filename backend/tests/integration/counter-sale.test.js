@@ -273,7 +273,7 @@ test('AC-28 GBR-38 records full cash only once, retaining the first amount, reco
   expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 10, quantityHeld: 2 });
 });
 
-test('AC-28 GBR-38 completes only a paid sale and releases stock exactly once', async () => {
+test('IT-FE25-UC71-15 shows reduced stock after UC-68 completes a counter sale', async () => {
   const p = await product(), order = (await save(body(p)).expect(201)).body.data;
   expect((await act(order, 'complete').expect(409)).body.error.code).toBe('ORDER_NOT_PAID');
   const paid = (await act(order, 'record-cash').expect(200)).body.data;
@@ -282,6 +282,8 @@ test('AC-28 GBR-38 completes only a paid sale and releases stock exactly once', 
   expect(replies.map(x => x.status)).toEqual([200, 200]);
   expect(replies[0].body.data).toMatchObject({ status: 'COMPLETED', paid: true, cashPayment: paid.cashPayment });
   expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 8, quantityHeld: 0, version: 2, detailsVersion: 2 });
+  expect((await get('/api/v1/admin/stock-levels').query({ search: p.code }).expect(200)).body.data.items[0])
+    .toMatchObject({ stockOnHand: 8, quantityHeld: 0, available: 8 });
   expect((await act(order, 'record-cash').expect(200)).body.data.cashPayment).toEqual(paid.cashPayment);
   expect((await get().expect(200)).body.data.total).toBe(0);
 });
