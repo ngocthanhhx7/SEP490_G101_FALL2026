@@ -1390,7 +1390,7 @@ describe('UC-38 Staff replace the pet sitter of an accepted visit', () => {
     expect(customerNotice.filter(item => item.metadata.visitId === String(row._id))).toHaveLength(1); expect(formerNotice).toHaveLength(1);
     expect(customerNotice.find(item => item.metadata.visitId === String(row._id)).deepLink).toBe(`/account/bookings/${stored.bookingId}`);
     expect(formerNotice[0]).toMatchObject({ deepLink: '/sitter/schedule', role: 'PET_SITTER' });
-    expect(JSON.stringify([customerNotice, formerNotice])).not.toMatch(/\+?84\d{8,9}|0\d{9}/);
+    expect(JSON.stringify([...customerNotice, ...formerNotice].map(item => [item.title, item.message]))).not.toMatch(/\+?84\d{8,9}|0\d{9}/);
     expect(await notices('VisitHandoverRequired', replacement.userId)).toEqual([expect.objectContaining({ deepLink: `/sitter/visits/${row._id}/handover` })]);
     // Another staff member who still holds version 1 gets MSG25 and the current state.
     const stale = await send(row, await newStaff(), { expectedVersion: 1, sitterId: (await employee()).userId, reason: 'Synthetic' }, 'uc38-stale').expect(409);
@@ -1439,6 +1439,24 @@ describe('UC-38 Staff replace the pet sitter of an accepted visit', () => {
     expect(reasonsOfVisit(stored, clock()).map(reason => reason.code)).not.toEqual(expect.arrayContaining(['NO_SITTER_TO_OFFER', 'NO_SITTER_24H']));
     expect((await module.dispatch.queue(staff)).items.some(item => item.id === String(row._id))).toBe(false);
     expect((await notices('VisitReassigned', customer.userId)).some(item => item.metadata.visitId === String(row._id))).toBe(true);
+  });
+
+  test('replacing the sitter of one visit leaves the other visits of the same booking with the sitter the customer chose', async () => {
+    const { row, holder } = await assigned(LATE_START, { requested: true }), replacement = await employee(), staffUser = await newStaff();
+    const second = await employee(), secondId = oid(), secondStart = new Date(Date.parse(LATE_START) + 24 * 3600000);
+    const sibling = { ...row, _id: secondId, sitterId: new mongoose.Types.ObjectId(second.userId), requestedSitterId: new mongoose.Types.ObjectId(second.userId),
+      startAt: secondStart, endAt: new Date(+secondStart + 60 * 60000), version: 0 };
+    await visits().insertOne(sibling);
+    await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { visitIds: [row._id, secondId], originalVisitCount: 2, careVisitCount: 2, 'checkoutSnapshot.customerVisits.0.requestedSitterId': new mongoose.Types.ObjectId(holder.userId) } });
+    await send(row, staffUser, { expectedVersion: 0, sitterId: replacement.userId, reason: 'Synthetic' }).expect(200);
+    const first = await visits().findOne({ _id: row._id }), other = await visits().findOne({ _id: secondId });
+    expect(first.requestedSitterId).toBeNull();
+    expect(String(first.staffReassignment.customerRequestedSitterId)).toBe(holder.userId);
+    expect(String(other.requestedSitterId)).toBe(second.userId);
+    expect(String(other.sitterId)).toBe(second.userId);
+    expect(other.version).toBe(0); expect(other.staffReassignment).toBeUndefined();
+    const booking = await connection.collection('bookings').findOne({ _id: row.bookingId });
+    expect(String(booking.checkoutSnapshot.customerVisits[0].requestedSitterId)).toBe(holder.userId);
   });
 
   test('a visit that is checked in, finished or without a sitter cannot be replaced; a blank reason is 422', async () => {

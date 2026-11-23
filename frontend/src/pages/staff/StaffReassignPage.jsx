@@ -112,7 +112,8 @@ export function StaffReassignPage({ api, visitId }) {
       <section className="staff-reassign__card dispatch-picker" aria-labelledby="staff-reassign-pick">
         <h2 id="staff-reassign-pick">Chọn người thay</h2>
         {data.items.length > 0 && <DispatchCandidateOptions items={data.items} selected={selected} disabled={busy} onSelect={id => { setSelected(id); setListNotice(''); }} name="reassign-sitter"
-          meta={item => <>{item.employmentType && `${sitterLabel(item.employmentType)} · `}Tuần này đã làm {formatDuration((item.weeklyMinutes ?? 0) * 60000)} · <OperationsBadge tone="success">Nhận được</OperationsBadge></>} />}
+          meta={item => <><span className="staff-reassign__meta">{item.employmentType && `${sitterLabel(item.employmentType)} · `}Tuần này đã làm {formatDuration((item.weeklyMinutes ?? 0) * 60000)}</span>
+          <span className="staff-reassign__meta"><OperationsBadge tone="success">Nhận được</OperationsBadge></span></>} />}
         {data.items.length === 0 && <Notice state="warning" title="Chưa có người chăm sóc nào nhận được buổi này.">Có thể huỷ buổi không tính phí ở Điều phối ca.</Notice>}
         {data.blocked.length > 0 && <DispatchBlockedSection blocked={data.blocked} selected={selected} prefix="/staff" radios />}
         {listNotice && <p role="alert" className="staff-reassign__error">{listNotice}</p>}

@@ -38,6 +38,6 @@ export function VisitBoardStatus({ row }) {
 export const canReassign = row => row.state === 'ASSIGNED' && !!row.sitterId;
 export function ReassignLink({ row, returnTo }) {
   const to = `/staff/visits/${row.id}/reassign`;
-  return useInRouterContext() ? <Link className="visit-board__reassign" to={to} state={{ returnTo }}>Giao lại</Link>
-    : <a className="visit-board__reassign" href={to}>Giao lại</a>;
+  return useInRouterContext() ? <Link className="ops-link visit-board__reassign" to={to} state={{ returnTo }}>Giao lại</Link>
+    : <a className="ops-link visit-board__reassign" href={to}>Giao lại</a>;
 }
