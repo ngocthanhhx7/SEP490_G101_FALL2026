@@ -35,5 +35,5 @@
   .visit-board__filters input[type="search"] { min-width: 0; }
 }
 
-.visit-board__reassign { display: inline-block; margin-inline-start: var(--pwc-space-3); text-decoration: none; }
-.visit-board__reassign:first-child { margin-inline-start: 0; }
+.visit-board__actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--pwc-space-1) var(--pwc-space-3); }
+.visit-board__reassign { display: inline-block; text-decoration: none; }

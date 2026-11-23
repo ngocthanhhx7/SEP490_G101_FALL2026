@@ -28,15 +28,15 @@ export const OUTSIDE_QUEUE_NOTE = 'Buổi nằm ngoài 50 ca đầu của hàng 
 function ActionCell({ row, api, openableIds, onAction, returnTo }) {
   const action = actionFor(row), reassign = canReassign(row) && row.reasons.some(reason => REASSIGN_REASONS.includes(reason.code));
   if (!action) return reassign ? <ReassignLink row={row} returnTo={returnTo} /> : '—';
-  if (action.kind === 'call') return <><ContactCell row={row} label={action.label} party={action.party} api={api} />{reassign && <ReassignLink row={row} returnTo={returnTo} />}</>;
+  if (action.kind === 'call') return <div className="visit-board__actions"><ContactCell row={row} label={action.label} party={action.party} api={api} />{reassign && <ReassignLink row={row} returnTo={returnTo} />}</div>;
   // The dispatch dialog only opens for the rows the page loaded, so a visit beyond them is locked with the reason.
   const locked = action.kind === 'dispatch' && !api.dispatchDetails && openableIds && !openableIds.has(row.id);
   const noteId = `outside-queue-${row.id}`;
-  return <>
+  return <div className="visit-board__actions">
     <button type="button" disabled={locked} aria-describedby={locked ? noteId : undefined} onClick={() => onAction(row, action)}>{action.label}</button>
     {locked && <small id={noteId} className="visit-board__locked">{OUTSIDE_QUEUE_NOTE}</small>}
     {reassign && <ReassignLink row={row} returnTo={returnTo} />}
-  </>;
+  </div>;
 }
 
 // One row per visit; every reason of the visit is kept, the most urgent one leads.

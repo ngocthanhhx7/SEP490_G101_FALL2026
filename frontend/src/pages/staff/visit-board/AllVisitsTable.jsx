@@ -24,9 +24,9 @@ export function AllVisitsTable({ api, filters, workAreas, onWorkflow, returnTo }
         { key: 'area', label: 'Khu vực', render: row => areaOf(row.areaCode) },
         { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? (row.state === 'SCHEDULED' ? 'Chưa phân công' : '—') },
         { key: 'state', label: 'Trạng thái', render: row => <VisitBoardStatus row={row} /> },
-        ...(api.visitWorkflow ? [{ key: 'workflow', label: 'Thao tác', render: row => <>
+        ...(api.visitWorkflow ? [{ key: 'workflow', label: 'Thao tác', render: row => <div className="visit-board__actions">
           <Button variant="ghost" onClick={() => onWorkflow?.(row.id)}>Xem quy trình</Button>
-          {canReassign(row) && <ReassignLink row={row} returnTo={returnTo} />}</> }] : [])
+          {canReassign(row) && <ReassignLink row={row} returnTo={returnTo} />}</div> }] : [])
       ]} />
     {moreStatus === 'error' && <p role="alert" className="visit-board__error">Chưa tải thêm được. Thử lại.</p>}
     {next && <Button variant="secondary" loading={moreStatus === 'loading'} onClick={loadMore}>Tải thêm</Button>}
