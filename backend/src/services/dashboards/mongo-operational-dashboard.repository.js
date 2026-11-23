@@ -1,3 +1,4 @@
+import { handoverPending } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { createScopedCursor } from '../../utils/scoped-cursor.js';
 import { AppError } from '../../utils/app-error.js';
@@ -100,7 +101,8 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
         { $sort: { ...(priority.length && { _activePriority: 1 }), startAt: direction, _id: direction } },
         { $limit: query.group === 'next' ? 1 : query.limit + 1 },
         { $project: { _id: 1, state: 1, startAt: 1, endAt: 1, bookingId: 1, sitterId: 1, 'snapshots.serviceName': 1, 'snapshots.pets.name': 1,
-          ...(query.group && { location: 1, 'snapshots.serviceScope': 1 }) } }], options).toArray();
+          ...(query.group && { location: 1, 'snapshots.serviceScope': 1 }),
+          ...(scope.kind === 'sitter-dashboard' && query.group && { checkInAt: 1, handoverRequired: 1, handoverAccepted: 1 }) } }], options).toArray();
       const page = rows.slice(0, query.limit);
       if (page.some(row => !['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED', 'SUPERSEDED'].includes(row.state)
         || !(row.startAt instanceof Date) || !Number.isFinite(row.startAt.getTime()))) invalid();
@@ -124,7 +126,8 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
             overdue: open.includes(row.state) && row.startAt < asOf
           } : {}),
           ...(scope.kind === 'customer-dashboard' ? { customerId: scope.userId } : {}),
-          ...(scope.kind === 'sitter-dashboard' ? { sitterId: String(row.sitterId) } : {}) })),
+          ...(scope.kind === 'sitter-dashboard' ? { sitterId: String(row.sitterId),
+            ...(query.group && row.state === 'ASSIGNED' && !row.checkInAt && handoverPending(row) && { handoverPending: true }) } : {}) })),
         nextCursor: rows.length > query.limit ? codec.encode({ id: String(last._id), startAt: last.startAt.toISOString(),
           ...(query.group && { asOf: asOf.toISOString() }) }, context) : null };
     }, { readConcern: { level: 'snapshot' }, readPreference: 'primary' });

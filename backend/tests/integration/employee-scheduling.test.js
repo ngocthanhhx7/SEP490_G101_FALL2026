@@ -8,6 +8,7 @@ import express from 'express';
 import request from 'supertest';
 import { employeeSchedulingRuntimeModule } from '../../src/routes/employee-scheduling.routes.js';
 import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
+import { recordEmployeeServiceCompletion } from '../../src/services/payroll/completion-payroll-source.service.js';
 import { payrollModels } from '../../src/models/payroll.model.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { CHECKOUT_POLICY_VERSION } from '../../src/services/booking-proposals/checkout-snapshot.service.js';
@@ -756,7 +757,10 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   expect(assigned.assignedFeatureSnapshot.sitterId).toBe(sitter.userId);
   expect(await matching.SitterVisitOutcome.countDocuments({ sitterId: new mongoose.Types.ObjectId(sitter.userId) })).toBe(0);
 
-  let at = row.startAt.getTime();
+  // UC-41 GBR-24: the completed visit carries an acknowledged urgent replacement assignment.
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { handoverRequired: true,
+    handoverAccepted: true, handoverLateCheckInExempt: true, assignedAt: new Date(+row.startAt - 40 * 60000) } });
+  let at = +row.startAt + 10 * 60000;
   const finance = createBookingFinanceSourceService({ connection, clock: () => new Date(at) });
   const stored = new Map();
   const images = createPrivateImageService({ connection, secret: 'isolated-replay-example-media-key', media: {
@@ -796,7 +800,8 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   expect((await rate()).body.data).toEqual(accepted.body.data);
   const outcomes = await matching.SitterVisitOutcome.find({ visitId: row._id }).select('+provenance').lean();
   expect(outcomes).toHaveLength(1);
-  expect(outcomes[0]).toMatchObject({ rating: 4, occurredAt: new Date(at),
+  expect(await payroll.PayrollServiceCredit.findOne({ visitId: row._id }).lean()).toMatchObject({ onTime: true });
+  expect(outcomes[0]).toMatchObject({ rating: 4, onTime: true, occurredAt: new Date(at),
     provenance: { labelVersion: 'VERIFIED_CUSTOMER_SATISFACTION_V1' } });
 });
 
@@ -934,7 +939,9 @@ test('directed withdrawal waits for customer replacement consent and retains the
   const sitter = await employee(), replacement = await employee();
   const row = await visit({ start: '2026-11-23T02:00:00Z', requestedSitterId: sitter.userId });
   const dedicatedService = oid();
-  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { serviceId: dedicatedService } });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    serviceId: dedicatedService, 'snapshots.care': { schemaVersion: 1, capturedAt: new Date(clock()), pets: row.snapshots.pets }
+  } });
   await connection.collection('aisitterprofiles').updateMany({
     userId: { $in: [sitter.userId, replacement.userId].map(value => new mongoose.Types.ObjectId(value)) }
   }, { $set: { serviceIds: [dedicatedService] } });
@@ -975,6 +982,9 @@ test('directed withdrawal waits for customer replacement consent and retains the
   await module.dispatch.offers.accept(replacement, confirmed.offer.id, 0, 'withdraw-replacement-accept');
   expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({ state: 'ASSIGNED', handoverRequired: true, handoverAccepted: false });
   await request(app).get(`${withdrawalPath(row)}/care`).set('x-test-actor', replacement.userId).expect(403);
+  const handover = (await request(app).get(`${withdrawalPath(row)}/handover`).set('x-test-actor', replacement.userId).expect(200)).body.data;
+  expect(handover).toMatchObject({ state: 'PENDING', note: { reasonCode: 'FAMILY_EMERGENCY' }, assignedAt: new Date(clock()).toISOString() });
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'VisitHandoverRequired', recipientId: replacement.userId, 'metadata.visitId': String(row._id) })).toBe(1);
 });
 
 
@@ -1154,4 +1164,58 @@ test('signed upcoming contract permits onboarding preparation but does not autho
  expect((await module.repository.contractAt(sitter.userId,effectiveAt,effectiveAt)).employmentType).toBe('PART_TIME');
  await connection.collection('employmentcontracts').updateOne({employeeId:new mongoose.Types.ObjectId(sitter.userId)},{$unset:{verifiedBy:''}});
  await expect(module.repository.areas.replaceMine({actor:sitter,areas:[],expectedVersion:2,idempotencyKey:'unverified-contract-areas'})).rejects.toMatchObject({code:'CONTRACT_REQUIRED'});
+});
+
+test('UC-41 GBR-24 confirms an urgent assignment once and returns the MSG81 check-in time', async () => {
+  const sitter = await employee(), other = await employee();
+  const row = await assignedForWithdrawal(sitter, '2026-10-30T03:20:00Z');
+  const visits = connection.collection('visits'), path = withdrawalPath(row);
+  await visits.updateOne({ _id: row._id }, { $set: {
+    handoverRequired: true, handoverAccepted: false, assignedAt: new Date(clock()),
+    handoverLateCheckInExempt: true, 'snapshots.care': { schemaVersion: 1, capturedAt: new Date(clock()),
+      pets: row.snapshots.pets, privateAccessNotes: 'synthetic access note' }
+  } });
+  const get = () => request(app).get(path + '/handover');
+  await get().expect(401);
+  await get().set('x-test-actor', customer.userId).expect(403);
+  await get().set('x-test-actor', other.userId).expect(404);
+  const current = (await get().set('x-test-actor', sitter.userId).expect(200)).body.data;
+  expect(current).toMatchObject({ state: 'PENDING', urgent: true });
+  expect(JSON.stringify(current)).not.toContain('synthetic access note');
+  const access = () => request(app).get(path + '/access-notes').set('x-test-actor', sitter.userId);
+  await access().expect(403);
+  const mediaId = 'd'.repeat(64);
+  await connection.collection('privateimages').insertOne({ _id: mediaId, ownerId: new mongoose.Types.ObjectId(sitter.userId),
+    state: 'READY', byteLength: 100, contentDigest: 'a'.repeat(64) });
+  const finance = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()) });
+  const checkIn = (expectedVersion, idempotencyKey) => finance.checkIn({ actor: sitter, visitId: String(row._id), expectedVersion, idempotencyKey, mediaId });
+  await expect(checkIn(current.version, 'check-in-before-handover')).rejects.toMatchObject({ code: 'HANDOVER_REQUIRED' });
+  const send = (input, key = 'test-handover-confirmation') => request(app).post(path + '/handover-confirmations')
+    .set({ 'x-test-actor': sitter.userId, 'X-CSRF-Token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' }).send(input);
+  const input = { expectedVersion: current.version, careVersion: current.care.version, acknowledged: true };
+  await send({ ...input, acknowledged: false }).expect(422);
+  await send({ ...input, expectedVersion: current.version + 1 }).expect(409);
+  await send({ ...input, careVersion: 'a'.repeat(64) }, 'test-handover-stale-care').expect(409);
+  const first = (await send(input).expect(200)).body.data;
+  expect(first).toMatchObject({ state: 'CONFIRMED', checkInOpensAt: '2026-10-30T02:50:00.000Z', version: current.version + 1 });
+  expect((await send(input).expect(200)).body.data).toEqual(first);
+  await send({ ...input, careVersion: 'a'.repeat(64) }).expect(409);
+  await send(input, 'test-handover-second-command').expect(409);
+  expect(await visits.findOne({ _id: row._id })).toMatchObject({
+    handoverAccepted: true, handoverAcceptedBy: expect.anything(), handoverAcceptedAt: new Date(clock()),
+    careAcknowledgement: { sitterId: sitter.userId, version: input.careVersion, acknowledgedAt: new Date(clock()) }
+  });
+  expect((await access().expect(200)).body.data.privateAccessNotes).toBe('synthetic access note');
+  await expect(checkIn(first.version, 'check-in-after-handover')).resolves.toMatchObject({ state: 'IN_PROGRESS' });
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'VisitHandoverConfirmed', recipientId: staff.userId, 'metadata.visitId': String(row._id) })).toBe(1);
+});
+
+test('UC-41 GBR-24 payroll onTime treats equally late first assignments and replacements differently', async () => {
+  const sitterId = oid(), startAt = new Date(clock()), checkInAt = new Date(clock() + 10 * 60000), assignedAt = new Date(clock() - 40 * 60000);
+  const checkOutAt = new Date(clock() + 30 * 60000), common = { bookingId: oid(), sitterId, state: 'COMPLETED',
+    startAt, checkInAt, assignedAt, checkOutAt, completedAt: checkOutAt, version: 4, snapshots: { employeeServiceNetVnd: 100000 } };
+  const ordinary = { ...common, _id: oid() }, urgent = { ...common, _id: oid(), handoverRequired: true, handoverAccepted: true };
+  await connection.transaction(session => recordEmployeeServiceCompletion({ connection, visits: [ordinary, urgent], session }));
+  expect(await payroll.PayrollServiceCredit.findOne({ visitId: ordinary._id }).lean()).toMatchObject({ onTime: false });
+  expect(await payroll.PayrollServiceCredit.findOne({ visitId: urgent._id }).lean()).toMatchObject({ onTime: true });
 });

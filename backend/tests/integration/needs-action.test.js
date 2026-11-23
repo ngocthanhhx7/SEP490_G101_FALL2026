@@ -49,6 +49,18 @@ beforeEach(async () => {
 });
 
 describe('Needs action reasons (R3 10.1.1)', () => {
+  test('GBR-24 UC-41 includes only pending handovers at 60 and 59 minutes and keeps the count in sync', async () => {
+    const rows = [];
+    for (const minutes of [61, 60, 59]) rows.push(await seed({ state: 'ASSIGNED', sitter: sitterUser, start: NOW + minutes * MIN }));
+    const ids = rows.map(item => new mongoose.Types.ObjectId(item.visitId));
+    await col('visits').updateMany({ _id: { $in: ids } }, { $set: { handoverRequired: true } });
+    const result = await list({ reason: 'HANDOVER_NOT_CONFIRMED_1H' });
+    expect(result.items.map(item => item.id)).toEqual([rows[2].visitId, rows[1].visitId]);
+    expect(result.counts.needsAction).toBe(2);
+    await col('visits').updateOne({ _id: ids[2] }, { $set: { handoverAccepted: true } });
+    expect((await list()).counts.needsAction).toBe(1);
+  });
+
   test('board returns booked service presentation and pet names on both tabs without full pet records', async () => {
     const { visitId } = await seed({ start: NOW + HOUR });
     const home = demoServiceCatalog.find(service => service.code === 'home-care');

@@ -14,7 +14,7 @@ export function AllVisitsTable({ api, filters, workAreas, onWorkflow }) {
   }
 
   return <>
-    <p className="ops-muted">{filters.search
+    <p className="ops-muted">{filters.visitId ? 'Buổi chăm sóc từ thông báo xác nhận bàn giao.' : filters.search
       ? 'Kết quả tìm kiếm gồm cả các buổi đã qua, buổi mới nhất trước.'
       : 'Các buổi từ 00:00 hôm nay trở đi, theo giờ bắt đầu.'}</p>
     <OperationsTable label="Tất cả buổi" rows={items} empty="Không có buổi nào khớp."

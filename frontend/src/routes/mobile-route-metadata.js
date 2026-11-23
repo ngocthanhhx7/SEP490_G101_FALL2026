@@ -54,6 +54,7 @@ const metadata = [
   ["M50","/policies/:slug/:version","Phiên bản chính sách","account","detail",["GUEST","CUSTOMER","PET_SITTER"]],
   ["N01","/sitter/schedule","Ca làm","schedule","root",["PET_SITTER"]],
   ["N02","/sitter/visits/:visitId","Buổi chăm sóc","schedule","task",["PET_SITTER"]],
+  ["N03","/sitter/visits/:visitId/handover","Xác nhận bàn giao","schedule","task",["PET_SITTER"]],
 ];
 
 export const mobileRoutes = metadata.map(([id, path, title, tab, kind, roles]) =>
