@@ -115,6 +115,20 @@ export function createEmployeeSchedulingApi(request, { privateImages } = {}) {
       if (result.data?.id !== id || !Number.isSafeInteger(result.data.version)) throw new ApiError('INVALID_RESPONSE');
       return result;
     },
+    async reassignment(id, { signal } = {}) {
+      const result = await get(`/visits/${encodeURIComponent(id)}/reassignment`, signal);
+      const row = result.data;
+      if (row?.visit?.id !== id || !Number.isSafeInteger(row.visit.version) || !Number.isFinite(Date.parse(row.visit.startAt)) || !row.currentSitter?.id
+        || !Array.isArray(row.items) || !Array.isArray(row.blocked)) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
+    async reassign(id, body, key) {
+      const result = await mutate(`/visits/${encodeURIComponent(id)}/reassignments`, body, key);
+      if (result.pending || result.status === 202) return result;
+      if (result.data?.visitId !== id || result.data.sitterId !== body.sitterId || result.data.version !== body.expectedVersion + 1
+        || !Number.isFinite(Date.parse(result.data.startAt))) throw new ApiError('INVALID_RESPONSE');
+      return result;
+    },
     candidates: (id, query, { signal } = {}) => get(`/visits/${encodeURIComponent(id)}/candidates?${new globalThis.URLSearchParams(query)}`, signal),
     plans: ({ signal } = {}) => get('/care-plans', signal),
     respond: (id, decision, expectedVersion, key) => mutate(`/offers/${encodeURIComponent(id)}/${decision}`, { expectedVersion }, key),

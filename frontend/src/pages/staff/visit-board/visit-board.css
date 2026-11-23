@@ -34,3 +34,6 @@
   .visit-board .ops-table td.ops-empty { font-size: inherit; }
   .visit-board__filters input[type="search"] { min-width: 0; }
 }
+
+.visit-board__reassign { display: inline-block; margin-inline-start: var(--pwc-space-3); font-weight: 600; }
+.visit-board__reassign:first-child { margin-inline-start: 0; }

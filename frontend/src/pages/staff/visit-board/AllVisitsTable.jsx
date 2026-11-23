@@ -1,10 +1,10 @@
 import { Button } from '../../../components/ui/index.js';
 import { OperationsTable } from '../../../components/common/OperationsWorkspace.jsx';
 import { useVisitBoardPages } from '../../../hooks/useVisitBoardPages.js';
-import { VisitBoardCustomer, VisitBoardStatus, VisitBoardSummary } from './VisitBoardCells.jsx';
+import { ReassignLink, VisitBoardCustomer, VisitBoardStatus, VisitBoardSummary, canReassign } from './VisitBoardCells.jsx';
 
 // "All visits": from 00:00 today in time order, or the newest first including past visits while searching.
-export function AllVisitsTable({ api, filters, workAreas, onWorkflow }) {
+export function AllVisitsTable({ api, filters, workAreas, onWorkflow, returnTo }) {
   const { first, items, next, moreStatus, loadMore } = useVisitBoardPages(api, 'all', filters);
   const areaOf = code => workAreas.find(area => area.code === code)?.label ?? 'Chưa rõ khu vực';
 
@@ -24,7 +24,9 @@ export function AllVisitsTable({ api, filters, workAreas, onWorkflow }) {
         { key: 'area', label: 'Khu vực', render: row => areaOf(row.areaCode) },
         { key: 'sitter', label: 'Người chăm sóc', render: row => row.sitterName ?? (row.state === 'SCHEDULED' ? 'Chưa phân công' : '—') },
         { key: 'state', label: 'Trạng thái', render: row => <VisitBoardStatus row={row} /> },
-        ...(api.visitWorkflow ? [{ key: 'workflow', label: 'Thao tác', render: row => <Button variant="ghost" onClick={()=>onWorkflow?.(row.id)}>Xem quy trình</Button> }] : [])
+        ...(api.visitWorkflow ? [{ key: 'workflow', label: 'Thao tác', render: row => <>
+          <Button variant="ghost" onClick={() => onWorkflow?.(row.id)}>Xem quy trình</Button>
+          {canReassign(row) && <ReassignLink row={row} returnTo={returnTo} />}</> }] : [])
       ]} />
     {moreStatus === 'error' && <p role="alert" className="visit-board__error">Chưa tải thêm được. Thử lại.</p>}
     {next && <Button variant="secondary" loading={moreStatus === 'loading'} onClick={loadMore}>Tải thêm</Button>}
