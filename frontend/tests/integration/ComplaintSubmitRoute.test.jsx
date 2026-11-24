@@ -101,11 +101,12 @@ test('UC-52 uses whole-booking scope, submits the short form and shows MSG128', 
 });
 
 test.each([
-  ['COMPLETED', 'buổi kết thúc'],
-  ['STAFF_CLOSED', 'buổi được đóng']
-])('UC-52 shows the server deadline for an eligible %s visit', async (state, cutoff) => {
+  ['COMPLETED', undefined, 'buổi kết thúc'],
+  ['STAFF_CLOSED', undefined, 'buổi được đóng'],
+  ['COMPLETED', 'INCIDENT_RESULT', 'nhận kết quả sự cố']
+])('UC-52 ST-CAS-11 shows the server deadline for an eligible %s visit (source=%s)', async (state, deadlineSource, cutoff) => {
   const data = eligibility();
-  data.visits[0] = { ...data.visits[0], state, eligibility: { eligible: true, deadlineAt: '2026-11-17T17:05:00Z' } };
+  data.visits[0] = { ...data.visits[0], state, eligibility: { eligible: true, deadlineAt: '2026-11-17T17:05:00Z', ...(deadlineSource ? { deadlineSource } : {}) } };
   show(base + '/complaints/new?visit=' + visitId, { [apiBase + '/eligibility/bookings/' + bookingId]: () => reply(data) });
   expect(await screen.findByRole('radio', { name: 'Buổi này (10/11, 07:00)' })).toBeChecked();
   expect(screen.getByText(/Thứ Ba, 10\/11\/2026 · 07:00 – 07:30/)).toBeVisible();
