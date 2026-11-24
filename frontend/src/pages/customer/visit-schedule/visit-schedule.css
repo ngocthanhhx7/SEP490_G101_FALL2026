@@ -88,18 +88,20 @@
 .visit-schedule__board {
   display: flex;
   align-items: stretch;
-  gap: 14px;
+  gap: 10px;
   overflow-x: auto;
   padding: 4px 2px 12px;
 }
 
 .visit-schedule-day {
-  flex: 1 0 210px;
+  flex: 1 1 0;
+  min-width: 160px;
   max-width: 280px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 14px;
+  gap: 10px;
+  padding: 14px 10px;
   border-radius: 18px;
   border: 1px solid #e6dcef;
   background: #ffffff;
@@ -145,12 +147,13 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  padding: 14px;
+  padding: 12px 10px;
   border-radius: 14px;
   border: 1px solid #ece3f3;
   background: #ffffff;
   color: inherit;
   text-decoration: none;
+  min-width: 0;
 }
 
 .visit-schedule-card--link {
@@ -178,15 +181,22 @@
 
 .visit-schedule-card__row {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 0.9rem;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.875rem;
   line-height: 1.35;
+  min-width: 0;
+}
+
+.visit-schedule-card__row svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
 }
 
 .visit-schedule-card__time strong {
   color: #1f0d36;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .visit-schedule-card--cancelled .visit-schedule-card__time strong {
@@ -239,8 +249,10 @@
 
   .visit-schedule-day {
     flex: none;
+    min-width: 0;
     max-width: none;
     width: 100%;
+    padding: 16px 14px;
     box-sizing: border-box;
   }
 }
