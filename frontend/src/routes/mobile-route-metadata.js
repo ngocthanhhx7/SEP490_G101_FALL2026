@@ -14,6 +14,7 @@ const metadata = [
   ["M10","/account/bookings","Lịch hẹn","bookings","root",["CUSTOMER"]],
   ["M11","/customer/product-orders","Đơn mua hàng","account","detail",["CUSTOMER"]],
   ["M12","/account/bookings/:bookingId","Chi tiết đơn","bookings","detail",["CUSTOMER"]],
+  ["M12B","/account/bookings/:bookingId/visits","Lịch các buổi","bookings","detail",["CUSTOMER"]],
   ["M13","/account/bookings/:bookingId/visits/:visitId","Theo dõi buổi chăm sóc","bookings","detail",["CUSTOMER"]],
   ["M14","/account/bookings/:bookingId/complaints/new","Gửi khiếu nại","bookings","task",["CUSTOMER"]],
   ["M15","/account/schedule-proposals/:proposalId","Đề nghị đổi lịch","bookings","detail",["CUSTOMER"]],

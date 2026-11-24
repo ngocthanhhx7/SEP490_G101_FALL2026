@@ -89,7 +89,10 @@ export function BookingDetailsContent({ booking, visitActions }) {
         {visitActions?.booking}
       </section>
       <section className="booking-details__card booking-details__visits">
-        <h3>Các buổi chăm sóc ({visits.length})</h3>
+        <div className="booking-details__visits-header">
+          <h3>Các buổi chăm sóc ({visits.length})</h3>
+          {visitActions?.headerAction}
+        </div>
         {visitActions?.beforeList}
         {visits.length > 0 ? <div className="booking-details__table" tabIndex={0} role="region" aria-label="Bảng các buổi chăm sóc">
           <table aria-label="Các buổi chăm sóc">

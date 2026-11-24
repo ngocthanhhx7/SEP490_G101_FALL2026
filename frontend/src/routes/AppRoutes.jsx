@@ -7,6 +7,7 @@ import { createServiceAreaManagementApi } from '../services/service-area-managem
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
+import { VisitSchedulePage } from '../pages/customer/visit-schedule/VisitSchedulePage.jsx';
 import { VisitStatusTrackerPage } from '../pages/customer/visit-status-tracker/VisitStatusTrackerPage.jsx';
 import { ComplaintSubmitPage } from '../pages/customer/ComplaintSubmitPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
@@ -413,6 +414,7 @@ export function AppRoutes({
           <Route path="account/bookings" element={<CustomerBookingsEntry mobile={phoneApp} />} />
           <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
+          <Route path="account/bookings/:bookingId/visits" element={<VisitSchedulePage />} />
           <Route path="account/bookings/:bookingId/visits/:visitId" element={<VisitStatusTrackerPage />} />
           <Route path="account/bookings/:bookingId/complaints/new" element={<ComplaintSubmitPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />

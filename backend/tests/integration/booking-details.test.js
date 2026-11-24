@@ -112,3 +112,124 @@ test('saved terms resolve official commune labels even after an area closes, wit
   expect(result.body.data.details.terms.map(term => term.areaName)).toEqual([label, label]);
   expect(await connection.db.collection('bookings').findOne({ _id: id })).toEqual(before);
 });
+
+test('UC-28 / GBR-22: returns previous time only for visits moved by an approved change request, pending offer flag without sitter leak, and denies other customers', async () => {
+  const scheduleBookingId = oid();
+  const movedVisitId = oid();
+  const keptVisitId = oid();
+  const offeredVisitId = oid();
+  const expiredOfferVisitId = oid();
+  const approvedChangeId = oid();
+  const rejectedChangeId = oid();
+  const invitedSitterId = oid();
+
+  const movedOldStart = new Date('2026-11-14T00:00:00Z');
+  const movedOldEnd = new Date('2026-11-14T00:30:00Z');
+  const movedNewStart = new Date('2026-11-14T02:00:00Z');
+  const movedNewEnd = new Date('2026-11-14T02:30:00Z');
+  const keptStart = new Date('2026-11-15T00:00:00Z');
+  const keptEnd = new Date('2026-11-15T00:30:00Z');
+  const offeredStart = new Date('2026-11-16T00:00:00Z');
+  const offeredEnd = new Date('2026-11-16T00:30:00Z');
+  const expiredStart = new Date('2026-11-17T00:00:00Z');
+  const expiredEnd = new Date('2026-11-17T00:30:00Z');
+
+  const baseSnapshot = {
+    serviceName: 'Dắt chó đi dạo',
+    serviceAddress: 'Địa chỉ lúc đặt',
+    careMinutes: 30,
+    baseVnd: 80000,
+    surchargeVnd: 10000,
+    pets: [{ name: 'Milo' }],
+    care: { pets: [] }
+  };
+  const makeCustomerVisit = (_id, startAt, endAt) => ({
+    _id, bookingId: scheduleBookingId, addressId, areaCode: 'DISTRICT_THANH_XUAN',
+    startAt, endAt, state: 'SCHEDULED', snapshots: baseSnapshot
+  });
+
+  await connection.db.collection('users').insertOne({ _id: invitedSitterId, displayName: 'SECRET_INVITED_SITTER' });
+  await connection.db.collection('bookings').insertOne({
+    _id: scheduleBookingId,
+    bookingCode: 'BK-0042',
+    customerId: owner,
+    state: 'ASSIGNED',
+    paymentMode: 'PREPAY',
+    paymentState: 'PAID',
+    paymentSnapshot: { amountVnd: 360000, currency: 'VND' },
+    visitIds: [movedVisitId, keptVisitId, offeredVisitId, expiredOfferVisitId],
+    originalVisitCount: 4,
+    checkoutSnapshot: {
+      consentAt: originalTime,
+      customerVisits: [
+        makeCustomerVisit(movedVisitId, movedOldStart, movedOldEnd),
+        makeCustomerVisit(keptVisitId, keptStart, keptEnd),
+        makeCustomerVisit(offeredVisitId, offeredStart, offeredEnd),
+        makeCustomerVisit(expiredOfferVisitId, expiredStart, expiredEnd)
+      ],
+      quote: { visitCount: 4, discountVnd: 0, totalVnd: 360000 }
+    }
+  });
+  await connection.db.collection('bookingchangerequests').insertMany([
+    {
+      _id: approvedChangeId,
+      bookingId: scheduleBookingId,
+      customerId: owner,
+      scope: 'BOOKING',
+      state: 'APPROVED',
+      items: [
+        { visitId: String(movedVisitId), oldVersion: 0, oldStartAt: movedOldStart, oldEndAt: movedOldEnd, newStartAt: movedNewStart, newEndAt: movedNewEnd },
+        { visitId: String(keptVisitId), oldVersion: 0, oldStartAt: keptStart, oldEndAt: keptEnd, newStartAt: keptStart, newEndAt: keptEnd }
+      ],
+      keptVisitIds: [String(keptVisitId)],
+      removedVisitIds: []
+    },
+    {
+      _id: rejectedChangeId,
+      bookingId: scheduleBookingId,
+      customerId: owner,
+      scope: 'VISIT',
+      state: 'REJECTED',
+      items: [
+        { visitId: String(expiredOfferVisitId), oldVersion: 0, oldStartAt: new Date('2026-11-17T03:00:00Z'), oldEndAt: new Date('2026-11-17T03:30:00Z'), newStartAt: expiredStart, newEndAt: expiredEnd }
+      ]
+    }
+  ]);
+  await connection.db.collection('visits').insertMany([
+    { ...makeCustomerVisit(movedVisitId, movedNewStart, movedNewEnd), sitterId, state: 'ASSIGNED', bookingChangeRequestId: approvedChangeId },
+    { ...makeCustomerVisit(keptVisitId, keptStart, keptEnd), sitterId, state: 'ASSIGNED' },
+    { ...makeCustomerVisit(offeredVisitId, offeredStart, offeredEnd), sitterId: null, state: 'SCHEDULED' },
+    { ...makeCustomerVisit(expiredOfferVisitId, expiredStart, expiredEnd), sitterId: null, state: 'SCHEDULED', bookingChangeRequestId: rejectedChangeId }
+  ]);
+  await connection.db.collection('employeevisitoffers').insertMany([
+    { visitId: offeredVisitId, sitterId: String(invitedSitterId), state: 'PENDING', deadline: new Date(now() + 3600000) },
+    { visitId: expiredOfferVisitId, sitterId: String(invitedSitterId), state: 'PENDING', deadline: new Date(now() - 1000) }
+  ]);
+
+  const instance = app();
+  const response = await request(instance).get(`/api/v1/checkout/bookings/${scheduleBookingId}`).set('x-test-actor', 'owner').expect(200);
+  expect(response.body.data.bookingCode).toBe('BK-0042');
+  const visitsById = new Map(response.body.data.details.visits.map(v => [v.id, v]));
+
+  expect(visitsById.get(String(movedVisitId))).toMatchObject({
+    startAt: movedNewStart.toISOString(),
+    endAt: movedNewEnd.toISOString(),
+    previousStartAt: movedOldStart.toISOString(),
+    previousEndAt: movedOldEnd.toISOString(),
+    sitterName: 'Lê Văn Minh'
+  });
+  expect(visitsById.get(String(movedVisitId))).not.toHaveProperty('hasPendingOffer');
+
+  expect(visitsById.get(String(keptVisitId))).not.toHaveProperty('previousStartAt');
+  expect(visitsById.get(String(keptVisitId))).not.toHaveProperty('previousEndAt');
+  expect(visitsById.get(String(keptVisitId))).not.toHaveProperty('hasPendingOffer');
+
+  expect(visitsById.get(String(offeredVisitId))).toMatchObject({ state: 'SCHEDULED', sitterName: null, hasPendingOffer: true });
+  expect(visitsById.get(String(offeredVisitId))).not.toHaveProperty('previousStartAt');
+
+  expect(visitsById.get(String(expiredOfferVisitId))).not.toHaveProperty('previousStartAt');
+  expect(visitsById.get(String(expiredOfferVisitId))).not.toHaveProperty('hasPendingOffer');
+  expect(response.text).not.toContain('SECRET_INVITED_SITTER');
+
+  await request(instance).get(`/api/v1/checkout/bookings/${scheduleBookingId}`).set('x-test-actor', 'other').expect(404);
+});

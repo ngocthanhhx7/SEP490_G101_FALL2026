@@ -92,6 +92,8 @@ function CustomerBookingDetail({ bookingId }) {
   });
 
   const visitActions = {
+    headerAction: detailVisits.length >= 2 && <Link className="booking-details__schedule-link"
+      to={'/account/bookings/' + encodeURIComponent(bookingId) + '/visits'}>Xem cả {detailVisits.length} buổi</Link>,
     reportForVisit: visit => <BookingVisitReport visit={visit} readEvidence={images.read} />,
     booking: options?.canChangeBooking && changeable.length > 0 && <section className="booking-change-actions">
       <h3>Thao tác</h3>

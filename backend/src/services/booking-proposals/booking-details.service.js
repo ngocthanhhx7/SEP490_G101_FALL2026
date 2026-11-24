@@ -8,8 +8,14 @@ import { assertFinanceSourceStorage } from '../settlements/source-provisioning.j
 const CARE_FIELDS = ['feeding', 'handling', 'health', 'allergies', 'medication'];
 const areas = new Map(DEMO_WORK_AREAS.map(({ code, label }) => [code, label]));
 const oid = value => new Types.ObjectId(value);
+const validOid = value => typeof value === 'string' && /^[a-f\d]{24}$/i.test(value);
 const money = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
 const personName = (names, id) => names.get(String(id)) ?? null;
+const validTimestamp = value => {
+  if (!value) return null;
+  const ms = value instanceof Date ? value.getTime() : Date.parse(value);
+  return Number.isFinite(ms) ? ms : null;
+};
 
 function savedTerms(visit, names, areaNames) {
   const snapshot = visit.snapshots ?? {};
@@ -55,17 +61,47 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
     const visits = await connection.db.collection('visits').find({
       bookingId: booking._id, state: { $ne: 'SUPERSEDED' },
       ...(booking.visitIds?.length ? { _id: { $in: booking.visitIds } } : {})
-    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, checkInAt: 1, checkOutAt: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, workflowResults: 1, location: 1, evidenceRefs: 1 }, maxTimeMS: 2000 })
+    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, bookingChangeRequestId: 1, checkInAt: 1, checkOutAt: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, workflowResults: 1, location: 1, evidenceRefs: 1 }, maxTimeMS: 2000 })
       .sort({ startAt: 1, _id: 1 }).limit(60).toArray();
+    const changeIds = [...new Set(visits.map(visit => visit.bookingChangeRequestId).filter(Boolean).map(String))]
+      .filter(validOid).map(oid);
+    const unassignedVisitIds = visits.filter(visit => visit.state === 'SCHEDULED' && !visit.sitterId).map(visit => visit._id);
     const ids = [...new Set([
       ...(includeCustomerName ? [booking.customerId] : []),
       ...original.map(visit => visit.requestedSitterId),
       ...visits.map(visit => visit.sitterId)
-    ].filter(Boolean).map(String))].filter(value => /^[a-f\d]{24}$/i.test(value));
-    const users = ids.length ? await connection.db.collection('users').find({ _id: { $in: ids.map(oid) } },
-      { projection: { displayName: 1 }, maxTimeMS: 2000 }).toArray() : [];
+    ].filter(Boolean).map(String))].filter(validOid);
+    const [users, approvedChanges, pendingOffers] = await Promise.all([
+      ids.length ? connection.db.collection('users').find({ _id: { $in: ids.map(oid) } },
+        { projection: { displayName: 1 }, maxTimeMS: 2000 }).toArray() : Promise.resolve([]),
+      changeIds.length ? connection.db.collection('bookingchangerequests').find(
+        { _id: { $in: changeIds }, state: 'APPROVED' },
+        { projection: { items: 1 }, maxTimeMS: 2000 }
+      ).limit(changeIds.length).toArray() : Promise.resolve([]),
+      unassignedVisitIds.length ? connection.db.collection('employeevisitoffers').find(
+        { visitId: { $in: unassignedVisitIds }, state: 'PENDING', deadline: { $gt: new Date(clock()) } },
+        { projection: { visitId: 1 }, maxTimeMS: 2000 }
+      ).toArray() : Promise.resolve([])
+    ]);
     const names = new Map(users.map(user => [String(user._id), user.displayName]));
+    const changesById = new Map(approvedChanges.map(change => [String(change._id), change]));
+    const pendingOfferVisitIds = new Set(pendingOffers.map(offer => String(offer.visitId)));
+    const bookingCode = booking.bookingCode ?? booking.code ?? null;
+    const previousSlotFor = visit => {
+      if (!visit.bookingChangeRequestId) return {};
+      const change = changesById.get(String(visit.bookingChangeRequestId));
+      const item = change?.items?.find(entry => String(entry.visitId) === String(visit._id));
+      const oldStartMs = validTimestamp(item?.oldStartAt);
+      const currentStartMs = validTimestamp(visit.startAt);
+      if (oldStartMs === null || currentStartMs === null || oldStartMs === currentStartMs) return {};
+      const oldEndMs = validTimestamp(item?.oldEndAt);
+      return {
+        previousStartAt: item.oldStartAt,
+        ...(oldEndMs !== null ? { previousEndAt: item.oldEndAt } : {})
+      };
+    };
     return {
+      ...(bookingCode ? { bookingCode } : {}),
       ...(includeCustomerName ? { customerName: personName(names, booking.customerId) } : {}),
       details: {
         consentAt: booking.checkoutSnapshot?.consentAt ?? null,
@@ -76,6 +112,8 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
         }),
         visits: visits.map(visit => ({
           id: String(visit._id), ...(visit.snapshots?.workflow ? { workflow: workflowProjection(visit, { customer: !includeCustomerName }) } : {}), startAt: visit.startAt ?? null, endAt: visit.endAt ?? null,
+          ...previousSlotFor(visit),
+          ...(pendingOfferVisitIds.has(String(visit._id)) ? { hasPendingOffer: true } : {}),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
           checklist: (visit.checklist ?? []).slice(0, 100).map(item => ({ itemId: item.itemId,
             label: visit.snapshots?.checklistItems?.find(row => row.itemId === item.itemId)?.label ?? item.itemId,

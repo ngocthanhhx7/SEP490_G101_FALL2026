@@ -33,7 +33,9 @@ belongs in layouts and routes; see the Customer account UI plan under doc/ui-ux.
   location/area/pin resets confirmation. Owner management uses
   `/pet-care/addresses/manage`; the matching list stays minimal.
 - `CustomerBookingsPage` reads owner-scoped `/bookings` across all states with
-  cursor pagination; details open the existing checkout confirmation.
+  cursor pagination; details open the existing checkout confirmation, and
+  `visit-schedule/VisitSchedulePage.jsx` serves `/account/bookings/:bookingId/visits`
+  (`UC-28`) using the same owner-scoped booking details read.
   `/account/notifications` uses durable notifications and read receipts.
 - `CustomerProfilePage` uses `/me/profile` and session/CSRF. The separate
   `CustomerUnpaidBookingsPage` displays unpaid projections/payment intents;
