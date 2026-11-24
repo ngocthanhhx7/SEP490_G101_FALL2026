@@ -1,4 +1,9 @@
 /* Scoped to Staff Visit Board. Mockup-measured colors live in local custom properties. */
+.visit-board,
+.visit-board__booking-link {
+  --vb-link: #583188;
+}
+
 .visit-board {
   --vb-ink-strong: #19112b;
   --vb-card-border: #ebe3f4;
@@ -6,7 +11,6 @@
   --vb-divider: #f1eaf8;
   --vb-shadow: 0 8px 24px rgb(63 42 107 / 6%);
   --vb-tab-active-bg: #efe4fc;
-  --vb-link: #583188;
   --vb-badge-done-bg: #dff5e8;
   --vb-badge-done-ink: #16653d;
   --vb-badge-active-bg: #dceeff;
@@ -152,15 +156,26 @@
 
 .visit-board td a,
 .visit-board td button.pwc-button--ghost,
-.visit-board td button.ops-link-button {
+.visit-board td button.ops-link-button,
+.visit-board__booking-link {
   color: var(--vb-link);
-  font-weight: 700;
+  font-weight: 800;
   text-decoration: none;
 }
 
+.visit-board__booking-link {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 .visit-board td a:hover,
+.visit-board td a:focus-visible,
 .visit-board td button.pwc-button--ghost:hover,
-.visit-board td button.ops-link-button:hover {
+.visit-board td button.pwc-button--ghost:focus-visible,
+.visit-board td button.ops-link-button:hover,
+.visit-board td button.ops-link-button:focus-visible,
+.visit-board__booking-link:hover,
+.visit-board__booking-link:focus-visible {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
