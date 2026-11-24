@@ -205,7 +205,7 @@ describe('access and input', () => {
 });
 
 describe('booking', () => {
-  test('saves a Booked appointment with the final price of each pet, holds one place per pet and slot, and takes no payment', async () => {
+  test('IT-FE22-UC58-10 saves a Booked appointment, holds the selected slot and requires no deposit', async () => {
     await sitter(); await sitter();
     const rows = [row(pets.Milo, ['pet-bathing', 'nail-trimming']), row(pets.Bo, ['hair-trimming'])];
     const response = await bookFor(rows, { startAt: startOf('10:00') }).expect(201);
@@ -235,7 +235,7 @@ describe('booking', () => {
     expect([await held('09:00'), await held('10:00'), await held('11:00'), await held('12:00')]).toEqual([2, 1, 1, undefined]);
   });
 
-  test('numbers the appointments one by one and keeps the tier of the moment', async () => {
+  test('IT-FE22-UC58-03 calculates per-pet prices and tier discount before saving the appointment', async () => {
     await sitter(); await sitter();
     await db.collection('customer_tiers').insertOne({ _id: new mongoose.Types.ObjectId(actors.CUSTOMER.userId), tier: 'GOLD', asOf: new Date(NOW) });
     const first = (await bookFor([row(pets.Milo, ['pet-bathing'])]).expect(201)).body.data;
@@ -255,7 +255,7 @@ describe('booking', () => {
     expect(data.pricing.tierDiscountVnd).toBe(0);
   });
 
-  test('a price that changed since the customer saw it is refused with the new total', async () => {
+  test('IT-FE22-UC58-09 refuses a stale price and returns the new total for confirmation', async () => {
     await sitter();
     const rows = [row(pets.Milo, ['pet-bathing'])];
     const response = await book(payload(rows, 99000)).expect(409);
@@ -327,7 +327,7 @@ describe('authoritative employee reservations', () => {
 });
 
 describe('slot holding', () => {
-  test('two customers booking the last place at the same moment: one 201 and one MSG64, one place held', async () => {
+  test('IT-FE22-UC58-07 lets only one customer reserve the last place and returns MSG64 to the other', async () => {
     await sitter();
     const lu = await petOf('CUSTOMER2', 'Lu');
     const [a, b] = await Promise.all([
@@ -496,7 +496,7 @@ describe('a pet cannot have two overlapping appointments (Q6)', () => {
     expect(await NO_SLOT_STORE().countDocuments({})).toBe(0);
   });
 
-  test('the same pet booked twice at the same moment with two keys gets one appointment', async () => {
+  test('IT-FE22-UC58-08 prevents two overlapping appointments for the same pet', async () => {
     await sitter(); await sitter();
     const rows = [row(pets.Milo, ['pet-bathing'])], body = payload(rows, await totalOf(rows));
     const responses = await Promise.all([book(body, 'synthetic-key-one'), book(body, 'synthetic-key-two')]);
@@ -545,4 +545,44 @@ describe('reading appointments', () => {
       expect(text).not.toContain(hidden);
     }
   });
+});
+
+describe('FE-22 scenarios pending runtime implementation', () => {
+  test.todo('IT-FE22-UC58-04 blocks a new appointment when the customer has an unpaid grooming appointment (MSG21) - booking currently only removes the tier discount');
+  test.todo('IT-FE22-UC58-05 blocks online booking when the customer exceeds the no-show limit (MSG160) - no-show eligibility gate is not implemented');
+  test.todo('IT-FE22-UC58-11 cancels at least two hours before start and releases the held slot - customer cancellation is not implemented');
+
+  test.todo('IT-FE22-UC59-01 shows the appointment, customer, pets, answers and services to Staff - Staff check-in API is not implemented');
+  test.todo('IT-FE22-UC59-02 stores check-in condition photos for the correct pet - Staff check-in API and media flow are not implemented');
+  test.todo('IT-FE22-UC59-03 stores confirmed difficulty for difficulty bonus calculation - Staff check-in API is not implemented');
+  test.todo('IT-FE22-UC59-04 assigns an eligible on-shift grooming Pet Sitter and exposes Grooming Work - assignment API is not implemented');
+  test.todo('IT-FE22-UC59-05 allows check-in within thirty minutes and cancels work that cannot finish - late check-in flow is not implemented');
+  test.todo('IT-FE22-UC59-06 records no-show after thirty minutes - no-show transition is not implemented');
+  test.todo('IT-FE22-UC59-07 lets the shop cancel without no-show when no eligible sitter is available and notifies the customer - Staff cancellation is not implemented');
+  test.todo('IT-FE22-UC59-08 applies the configured surcharge only after customer consent - check-in surcharge flow is not implemented');
+  test.todo('IT-FE22-UC59-09 cancels the affected pet without charge when surcharge consent is refused - per-pet cancellation is not implemented');
+  test.todo('IT-FE22-UC59-10 stores independent check-in evidence, difficulty and sitter assignments for multiple pets - Staff check-in API is not implemented');
+
+  test.todo('IT-FE22-UC60-01 allows hand-back only after every pet is Ready, Cancelled or Stopped - hand-back API is not implemented');
+  test.todo('IT-FE22-UC60-02 notifies the customer and displays the payable amount after all pets finish - completion notification is not implemented');
+  test.todo('IT-FE22-UC60-03 records a full cash payment and updates appointment payment state - grooming payment API is not implemented');
+  test.todo('IT-FE22-UC60-04 records a successful VietQR payment confirmed by payOS - grooming payOS integration is not implemented');
+  test.todo('IT-FE22-UC60-05 rejects a failed VietQR transaction with MSG32 and permits retry - grooming payOS integration is not implemented');
+  test.todo('IT-FE22-UC60-06 records the tip against the corresponding Pet Sitter - grooming tip flow is not implemented');
+  test.todo('IT-FE22-UC60-07 excludes Stopped and Cancelled pets from the payable amount - hand-back pricing is not implemented');
+  test.todo('IT-FE22-UC60-08 closes with zero payable amount when no pet is Ready - zero-charge closure is not implemented');
+  test.todo('IT-FE22-UC60-09 hands pets back, closes as Not paid and stores the outstanding amount - grooming debt flow is not implemented');
+  test.todo('IT-FE22-UC60-10 records an additional payment against a Not paid appointment - additional grooming payment is not implemented');
+  test.todo('IT-FE22-UC60-11 refuses completion until every pet is handed back - hand-back completion validation is not implemented');
+  test.todo('IT-FE22-UC60-12 processes a repeated payOS result idempotently - grooming payment webhook is not implemented');
+
+  test.todo('IT-FE22-UC91-01 lists only pets assigned to the signed-in Pet Sitter - Grooming Work API is not implemented');
+  test.todo('IT-FE22-UC91-02 updates the assigned pet to In Progress - grooming status command is not implemented');
+  test.todo('IT-FE22-UC91-03 updates the assigned pet to Ready and synchronizes the appointment - grooming status command is not implemented');
+  test.todo('IT-FE22-UC91-04 does not notify hand-back while another pet remains In Progress - completion notification is not implemented');
+  test.todo('IT-FE22-UC91-05 notifies the customer and enables UC-60 after all pets finish - lifecycle transition to hand-back is not implemented');
+  test.todo('IT-FE22-UC91-06 stores Stopped reason in Pet Profile and excludes the pet from charges - stop grooming flow is not implemented');
+  test.todo('IT-FE22-UC91-07 records higher-difficulty notes for future bookings without changing current confirmed difficulty - Pet Profile grooming note flow is not implemented');
+  test.todo('IT-FE22-UC91-08 rejects status updates for a pet not assigned to the Pet Sitter - Grooming Work authorization is not implemented');
+  test.todo('IT-FE22-UC91-09 updates only the selected pet in a multi-pet appointment - grooming status command is not implemented');
 });

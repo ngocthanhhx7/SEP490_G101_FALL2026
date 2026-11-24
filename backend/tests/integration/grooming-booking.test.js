@@ -113,6 +113,15 @@ beforeEach(async () => {
 });
 
 describe('options and access', () => {
+  test('IT-FE22-UC58-01 gets the selected pet from Pet Profile and accepts a valid shop grooming service', async () => {
+    const options = (await call('get', '/options').expect(200)).body.data;
+    const bathing = options.services.find(row => row.code === 'pet-bathing');
+    expect(bathing).toMatchObject({ bookable: true, durationMinutes: 60 });
+
+    const quote = (await call('post', '/quotes').send({ pets: [pet('Milo', ['pet-bathing'])] }).expect(200)).body.data;
+    expect(quote.pets).toEqual([expect.objectContaining({ petId: String(pets.Milo._id), name: 'Milo', priceVnd: 110000 })]);
+  });
+
   test('lists the five shop services, the fixed questions, the shop and the seven-day window', async () => {
     const data = (await call('get', '/options').expect(200)).body.data;
     expect(data.services.map(row => row.code).sort()).toEqual([...SHOP_CODES].sort());
@@ -162,7 +171,7 @@ describe('options and access', () => {
 });
 
 describe('time slots', () => {
-  test('a full-time sitter on a shop shift opens the slots inside the working hours, and no others', async () => {
+  test('IT-FE22-UC58-02 finds slots only when a skilled full-time Pet Sitter is on a shop shift', async () => {
     await sitter();
     expect(times(await slotsOf(addDays(TODAY, 1), pet('Bo', ['pet-bathing'])))).toEqual(['08:00:A', '09:00:A', '10:00:A', '11:00:A', '14:00:A', '15:00:A', '16:00:A']);
   });
@@ -341,7 +350,7 @@ describe('final price', () => {
     expect(data.tier).toMatchObject({ discountBps: 0, discountVnd: 0, applied: false, blockedReason: 'POLICY_UNAPPROVED' });
   });
 
-  test('a pet that bites or scratches is referred to the shop (MSG63) and nothing is stored', async () => {
+  test('IT-FE22-UC58-06 refers a dangerous pet to the shop (MSG63) and stores nothing', async () => {
     const response = await call('post', '/quotes').send({ pets: [pet('Milo', ['pet-bathing']), pet('Bo', ['pet-bathing'], { biteOrScratch: 'YES' })] }).expect(422);
     expect(response.body.error).toMatchObject({ code: 'GROOMING_PET_REFERRAL_REQUIRED', petId: String(pets.Bo._id), petName: 'Bơ', hotline: null });
     const { GroomingAppointment } = groomingModels(connection);
