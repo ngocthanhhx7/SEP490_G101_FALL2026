@@ -299,7 +299,7 @@ describe('Order Management', () => {
 
     test('shows an advance payment without breaking the order detail', async () => {
       const panel = await open(apiWith([shipped({ paymentMethod: 'PREPAID', paid: true })]));
-      expect(panel.getByText(/Thanh toán trước · đã thu/)).toBeVisible();
+      expect(panel.getByText(/Thanh toán trước qua payOS · đã thu/)).toBeVisible();
     });
   });
 });
