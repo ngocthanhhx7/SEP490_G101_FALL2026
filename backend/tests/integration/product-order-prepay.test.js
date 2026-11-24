@@ -193,11 +193,22 @@ describe('payment link (UC-62 step 7, MSG33)', () => {
     expect((await link('a', order)).body.data.checkoutUrl).toBe(`https://pay.payos.vn/web/${first}`);
     expect(provider.createPaymentLink).toHaveBeenCalledTimes(1);
     links.get(Number(first)).status = 'CANCELLED';
+    now = START + 20 * 60_000;
     const again = await link('a', order);
     expect(again.status).toBe(200);
     const second = await reference(order);
     expect(second).not.toBe(first);
+    // UC-62 step 8.1: a link cancelled at payOS is not handed out again; the new link is a new payOS order and
+    // still ends at the payment deadline of the order, not later.
+    expect(again.body.data.checkoutUrl).toBe(`https://pay.payos.vn/web/${second}`);
+    expect(provider.createPaymentLink).toHaveBeenCalledTimes(2);
+    expect(provider.createPaymentLink).toHaveBeenLastCalledWith(expect.objectContaining({ orderCode: Number(second),
+      expiredAt: Math.floor((START + HOUR) / 1000) }));
     expect((await orderDoc(order)).payment.providerReferences).toEqual([first, second]);
+    links.get(Number(second)).status = 'EXPIRED';
+    await link('a', order).expect(200);
+    expect((await orderDoc(order)).payment.providerReferences).toHaveLength(3);
+    expect(provider.createPaymentLink).toHaveBeenLastCalledWith(expect.objectContaining({ expiredAt: Math.floor((START + HOUR) / 1000) }));
   });
 
   test('MSG33: when payOS cannot make the link the order stays placed and can be paid within the deadline', async () => {
@@ -359,7 +370,12 @@ describe('ST-ORD-11 JOB-04 prepaid order not paid in time', () => {
     await act(order, 'mark-ready').expect(200);
     now = START + 100 * HOUR;
     expect(await expiry(settler()).runBatch()).toMatchObject({ cancelled: 1 });
-    expect(await orderDoc(order)).toMatchObject({ status: 'CANCELLED', refundMarked: true, refundAmountVnd: order.total });
+    expect(await orderDoc(order)).toMatchObject({ status: 'CANCELLED', refundMarked: true, refundAmountVnd: order.total, shippingFee: 0 });
+    expect(order.total).toBe(order.subtotal);
+    expect(await models.ProductCustomerRefusal.find().lean()).toEqual([expect.objectContaining({ orderId: expect.anything(), reason: 'NOT_COLLECTED' })]);
+    expect(await product('SP-0020')).toMatchObject({ quantityHeld: 0 });
+    // A second run changes nothing: one refusal, one refund mark.
+    expect(await expiry(settler()).runBatch()).toMatchObject({ cancelled: 0 });
     expect(await models.ProductCustomerRefusal.countDocuments()).toBe(1);
   });
 });
