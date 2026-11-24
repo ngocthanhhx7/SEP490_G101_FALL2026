@@ -75,8 +75,8 @@
   font-weight: 800;
 }
 
-.payroll-admin-page .ops-builder,
-.payroll-admin-page .ops-section {
+.payroll-workspace.payroll-admin-page .ops-builder,
+.payroll-workspace.payroll-admin-page .ops-section {
   background: var(--pwc-surface);
   border: 1px solid var(--pa-card-border);
   border-radius: var(--pwc-radius-panel);
@@ -84,11 +84,34 @@
   padding: clamp(1.15rem, 2.4vw, 1.65rem);
 }
 
-.payroll-admin-page .ops-builder summary {
+.payroll-workspace.payroll-admin-page .ops-builder {
+  padding: 0.9rem 1.35rem;
+  margin: 0.85rem 0;
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder details {
+  margin: 0;
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder summary {
+  padding: 0;
   color: var(--pa-ink-strong);
   font-size: 1rem;
   font-weight: 800;
+  line-height: 1.45;
   cursor: pointer;
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder details[open] > summary,
+.payroll-workspace.payroll-admin-page details.ops-builder[open] > summary {
+  margin-bottom: var(--pwc-space-4);
+}
+
+.payroll-workspace.payroll-admin-page > details.ops-builder + p {
+  margin: -0.45rem 0 0.9rem;
+  color: var(--pwc-ink-muted);
+  font-size: 0.825rem;
+  line-height: 1.5;
 }
 
 .payroll-admin-page .ops-section > header h2 {

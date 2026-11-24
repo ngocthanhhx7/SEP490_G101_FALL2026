@@ -19,6 +19,9 @@
   --sa-app-status-danger-ink: #a52232;
   --sa-app-status-neutral-bg: #efeaf4;
   --sa-app-status-neutral-ink: #6b5e7a;
+  --sa-app-notice-warn-bg: #fff9e6;
+  --sa-app-notice-warn-border: #edd699;
+  --sa-app-notice-warn-ink: #705100;
   display: grid;
   gap: var(--pwc-space-6);
   width: min(100%, var(--pwc-content-width));
@@ -282,21 +285,39 @@
   color: var(--sa-app-status-danger-ink);
 }
 
+.sitter-app-admin > a,
 .sitter-app-admin > nav a {
   display: inline-flex;
   align-items: center;
+  justify-self: start;
   gap: var(--pwc-space-2);
-  color: var(--pwc-ink-muted);
+  color: var(--sa-app-link);
   font-size: var(--pwc-text-small);
   font-weight: 700;
   text-decoration: none;
 }
 
+.sitter-app-admin > a:hover,
+.sitter-app-admin > a:focus-visible,
 .sitter-app-admin > nav a:hover,
 .sitter-app-admin > nav a:focus-visible {
   color: var(--pwc-ink);
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+.sitter-app-detail .pwc-notice--pending,
+.sitter-app-detail .pwc-notice--warning {
+  border: 1px solid var(--sa-app-notice-warn-border);
+  border-radius: 1rem;
+  background: var(--sa-app-notice-warn-bg);
+  color: var(--sa-app-notice-warn-ink);
+}
+
+.sitter-app-detail .pwc-notice--pending h3,
+.sitter-app-detail .pwc-notice--warning h3 {
+  color: var(--sa-app-ink-strong);
+  font-weight: 800;
 }
 
 .sitter-app-detail {
