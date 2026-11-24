@@ -88,9 +88,14 @@ export function MyProductOrdersPage() {
   const orders = resource.data ?? [];
   const selected = orders.find((order) => order.id === selectedId) ?? (requestedOrder.data?.id === requested ? requestedOrder.data : null) ?? (!requested ? orders[0] : null);
 
+  // Back from payOS after paying (UC-62 step 8): MSG59 once the order itself says it is paid. The return address alone proves nothing.
+  const paidReturn = selected?.id === requested && selected.paid && selected.paymentMethod === 'PREPAID' && params.get('status') === 'PAID';
+  const placedCode = placed ?? (paidReturn ? selected.code : null);
+
   if (compact && requested) return <section className="pwc-shop" aria-labelledby="orders-title">
     <h1 id="orders-title" data-duplicate-title>Chi tiết đơn mua</h1>
     <Link data-page-back to={listUrl}>Về đơn mua hàng</Link>
+    {placedCode && <p className="pwc-shop-alert pwc-shop-alert--ok" role="status">{productMessage('MSG59', { code: placedCode })}</p>}
     {selected?.id === requested ? <OrderDetail order={selected} api={api} notice={noticeFor(selected)} /> : requestedOrder.status === 'loading'
       ? <Notice state="loading" title="Đang tải chi tiết đơn…" />
       : <Notice state="error" title="Chưa mở được chi tiết đơn" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}
@@ -99,7 +104,7 @@ export function MyProductOrdersPage() {
   return <section className="pwc-shop" aria-labelledby="orders-title">
     <h1 id="orders-title" data-duplicate-title>Đơn mua sản phẩm</h1>
     <p className="pwc-shop-lead">Các đơn mua sản phẩm của bạn. Chọn một đơn để xem chi tiết.</p>
-    {placed && <p className="pwc-shop-alert pwc-shop-alert--ok" role="status">{productMessage('MSG59', { code: placed })}</p>}
+    {placedCode && <p className="pwc-shop-alert pwc-shop-alert--ok" role="status">{productMessage('MSG59', { code: placedCode })}</p>}
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải đơn hàng…" />}
     {resource.status === 'error' && <Notice state="error" title="Chưa tải được đơn hàng"
       action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>} />}

@@ -50,6 +50,17 @@ describe('My Orders, payment in advance', () => {
     expect(screen.getByRole('button', { name: PAY })).toBeVisible();
   });
 
+  test('MSG59 when the customer comes back from payOS and the order itself is paid; the address alone is not enough', async () => {
+    showOrders(prepaid({ paid: true }), { path: `/customer/product-orders?order=${ID}&cancel=false&status=PAID` });
+    expect(await screen.findByText('Đơn hàng DH-0040 đã được đặt.')).toBeVisible();
+  });
+
+  test('no MSG59 when the return address says paid but the order is not paid yet', async () => {
+    showOrders(prepaid(), { path: `/customer/product-orders?order=${ID}&cancel=false&status=PAID` });
+    expect(await screen.findByText('Chờ thanh toán')).toBeVisible();
+    expect(screen.queryByText('Đơn hàng DH-0040 đã được đặt.')).not.toBeInTheDocument();
+  });
+
   test('a paid order has no pay button', async () => {
     showOrders(prepaid({ paid: true }));
     expect(await screen.findByText('Đã thanh toán')).toBeVisible();
