@@ -436,7 +436,7 @@ describe('what is refused', () => {
     expect(res.body.error.code).toBe('SUPPLIER_NOT_FOUND');
   });
 
-  test('a product that is not in the catalog is refused for the whole receipt, and the other lines add no stock', async () => {
+  test('IT-FE21-UC57-13 requires a product to exist in Product Catalogue before Goods Receipt can use it', async () => {
     const supplierId = await makeSupplier();
     const before = await stockSnapshotAll();
     const ghost = String(oid());

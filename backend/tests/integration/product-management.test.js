@@ -76,7 +76,7 @@ describe('durable product photos', () => {
   const image = color => sharp({ create: { width: 24, height: 18, channels: 3, background: color } }).png().toBuffer();
   const upload = (id, version, body, index) => (index === undefined ? admin.post(`${ADMIN_PRODUCTS}/${id}/photos`)
     : admin.put(`${ADMIN_PRODUCTS}/${id}/photos/${index}`)).set('X-Product-Version', String(version)).set('Content-Type', 'image/png').send(body);
-  test('stores normalized bytes in MongoDB, protects hidden photos, replaces and removes without touching stock', async () => {
+  test('IT-FE21-UC57-07 stores product images and serves them on public catalogue reads without changing stock', async () => {
     const created = (await create()).body.data, bytes = await image('red');
     const saved = (await upload(created.id, 0, bytes).expect(200)).body.data;
     expect(saved.version).toBe(1); expect(saved.photos).toHaveLength(1);
@@ -234,7 +234,7 @@ describe('guarded product deletion and overview', () => {
 });
 
 describe('list (UC-57)', () => {
-  test('shows every product, hidden ones too, without any stock figure, in code order', async () => {
+  test('IT-FE21-UC57-12 returns the persisted product data and visibility state in the Admin list', async () => {
     const res = await admin.get(ADMIN_PRODUCTS).expect(200);
     const { items, total, page, limit } = res.body.data;
     expect([total, page, limit, items.length]).toEqual([9, 1, 20, 9]);
@@ -243,18 +243,22 @@ describe('list (UC-57)', () => {
     expect(Object.keys(items[0]).sort()).toEqual(['category', 'code', 'description', 'id', 'name', 'petType', 'photos', 'sellingPrice', 'updatedAt', 'version', 'visible']);
   });
 
-  test('searches a part of the name or of the code, whatever the case, and filters by category and pet together', async () => {
+  test('IT-FE21-UC57-10 searches Admin products by a partial product name or code', async () => {
     const codes = async (query) => (await admin.get(ADMIN_PRODUCTS).query(query).expect(200)).body.data.items.map((item) => item.code);
     expect(await codes({ search: 'xương' })).toEqual(['SP-0020']);
     expect(await codes({ search: 'XƯƠNG' })).toEqual(['SP-0020']);
     expect(await codes({ search: 'sp-003' })).toEqual(['SP-0031', 'SP-0035', 'SP-0036', 'SP-0037']);
     expect(await codes({ search: '0036' })).toEqual(['SP-0036']);
     expect(await codes({ search: ' dây  dắt ' })).toEqual(['SP-0031']);
-    expect(await codes({ category: 'FOOD', petType: 'CAT' })).toEqual(['SP-0014', 'SP-0016']);
-    expect(await codes({ category: 'ACCESSORY', petType: 'DOG', search: 'sp-003' })).toEqual(['SP-0031', 'SP-0035', 'SP-0036']);
     expect(await codes({ search: 'zzz' })).toEqual([]);
     // Regex characters are matched literally.
     expect(await codes({ search: '.*' })).toEqual([]);
+  });
+
+  test('IT-FE21-UC57-11 filters Admin products by category and pet type together', async () => {
+    const codes = async (query) => (await admin.get(ADMIN_PRODUCTS).query(query).expect(200)).body.data.items.map((item) => item.code);
+    expect(await codes({ category: 'FOOD', petType: 'CAT' })).toEqual(['SP-0014', 'SP-0016']);
+    expect(await codes({ category: 'ACCESSORY', petType: 'DOG', search: 'sp-003' })).toEqual(['SP-0031', 'SP-0035', 'SP-0036']);
   });
 
   test('pages through the list with a total, and a page past the end is empty', async () => {
@@ -279,7 +283,14 @@ describe('list (UC-57)', () => {
 });
 
 describe('create (UC-57, AC-29)', () => {
-  test('AC-29 saves a hidden product with no stock and a system code that continues after the highest one', async () => {
+  const failure = async (body) => {
+    const res = await create(body);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    return res.body.error.fields;
+  };
+
+  test('IT-FE21-UC57-01 creates a product with a generated code, Hidden state and no stock', async () => {
     const res = await create();
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({ code: 'SP-0038', name: 'Synthetic bone toy', category: 'ACCESSORY', petType: 'DOG',
@@ -311,20 +322,31 @@ describe('create (UC-57, AC-29)', () => {
     expect(second.code).not.toBe(first.code);
   });
 
-  test('AC-29 a missing name is MSG01 (REQUIRED) and a price that is not a whole number above 0 is MSG113 (WHOLE_NUMBER)', async () => {
-    const failure = async (body) => {
-      const res = await create(body);
-      expect(res.status).toBe(422);
-      expect(res.body.error.code).toBe('VALIDATION_FAILED');
-      return res.body.error.fields;
-    };
+  test('IT-FE21-UC57-02 rejects a missing product name with MSG01', async () => {
     for (const name of [undefined, '', '   ', null]) expect(await failure(valid({ name }))).toEqual({ name: 'REQUIRED' });
     expect(await failure({ category: 'FOOD', petType: 'CAT', sellingPrice: 1000 })).toEqual({ name: 'REQUIRED' });
-    for (const sellingPrice of [undefined, '', '  ', 0, '0', -5, '-5', 1.5, '1.5', '12.5', '12.50', '1.00', 'abc', null, {}, [], true, '250,000', 'e5', '0250']) {
-      expect(await failure(valid({ sellingPrice }))).toEqual({ sellingPrice: 'WHOLE_NUMBER' });
-    }
     expect(await failure({ name: '', sellingPrice: 'x' })).toMatchObject({ name: 'REQUIRED', sellingPrice: 'WHOLE_NUMBER', category: 'REQUIRED', petType: 'REQUIRED' });
     expect(await models.Product.countDocuments()).toBe(9);
+  });
+
+  test('IT-FE21-UC57-03 rejects a zero or negative selling price with MSG113', async () => {
+    for (const sellingPrice of [0, '0', -5, '-5']) {
+      expect(await failure(valid({ sellingPrice }))).toEqual({ sellingPrice: 'WHOLE_NUMBER' });
+    }
+    expect(await models.Product.countDocuments()).toBe(9);
+  });
+
+  test('IT-FE21-UC57-04 rejects a decimal selling price because VND must be a positive whole number', async () => {
+    for (const sellingPrice of [1.5, '1.5', '12.5', '12.50', '1.00']) {
+      expect(await failure(valid({ sellingPrice }))).toEqual({ sellingPrice: 'WHOLE_NUMBER' });
+    }
+    expect(await models.Product.countDocuments()).toBe(9);
+  });
+
+  test('AC-29 rejects other malformed selling price values with MSG113', async () => {
+    for (const sellingPrice of [undefined, '', '  ', 'abc', null, {}, [], true, '250,000', 'e5', '0250']) {
+      expect(await failure(valid({ sellingPrice }))).toEqual({ sellingPrice: 'WHOLE_NUMBER' });
+    }
   });
 
   test('AC-29 accepts a price as 250000 or 250.000, and refuses one above the limit with 422 but not MSG113', async () => {
@@ -373,7 +395,7 @@ describe('edit (UC-57, AC-29)', () => {
   const edit = (product, body) => admin.patch(`${ADMIN_PRODUCTS}/${product.id}`).send(body);
   const first = async (code = 'SP-0012') => (await admin.get(ADMIN_PRODUCTS).query({ search: code }).expect(200)).body.data.items[0];
 
-  test('AC-29 changes only what was sent, keeps the code, raises the version and never touches the stock', async () => {
+  test('IT-FE21-UC57-05 updates persisted product details without changing its code or stock', async () => {
     const product = await first();
     const before = await byCode('SP-0012');
     const res = await edit(product, { version: product.version, name: '  Thức ăn hạt mới  ', sellingPrice: '260.000', description: 'Mô tả mới' });
@@ -400,7 +422,7 @@ describe('edit (UC-57, AC-29)', () => {
     expect(await byCode('SP-0012')).toMatchObject({ name: 'Thức ăn hạt cho chó trưởng thành, túi 2 kg', sellingPrice: 250000, version: 0 });
   });
 
-  test('AC-12 hiding takes a product off the public Products page and showing puts it back', async () => {
+  test('IT-FE21-UC57-09 hides a Shown product from public Product List and Details', async () => {
     const product = await first('SP-0012');
     expect(await publicCodes()).toContain('SP-0012');
     const hidden = (await edit(product, { version: product.version, visible: false })).body.data;
@@ -414,13 +436,13 @@ describe('edit (UC-57, AC-29)', () => {
     expect((await first('SP-0036')).visible).toBe(false);
   });
 
-  test('AC-29 a new product, once shown, appears on the public Products page', async () => {
+  test('IT-FE21-UC57-08 publishes a Hidden product to Guest and Customer Product List', async () => {
     const created = (await create(valid({ name: 'Synthetic public toy' }))).body.data;
     await edit(created, { version: created.version, visible: true }).expect(200);
     expect(await publicCodes('?search=public')).toEqual([created.code]);
   });
 
-  test('AC-10 a new price applies to orders placed afterwards, never to orders already placed', async () => {
+  test('IT-FE21-UC57-06 applies a new selling price only to orders placed after the update', async () => {
     const product = await first('SP-0020');
     const before = await placePickup('SP-0020', 1);
     await edit(product, { version: product.version, sellingPrice: 50000 }).expect(200);
@@ -431,7 +453,7 @@ describe('edit (UC-57, AC-29)', () => {
     expect(after.lines[0].unitPrice).toBe(50000);
   });
 
-  test('AC-29 hiding a product leaves orders already placed as they are', async () => {
+  test('IT-FE21-UC57-14 hides the product without changing an order placed before the update', async () => {
     const product = await first('SP-0020');
     const order = await placePickup('SP-0020', 2);
     await edit(product, { version: product.version, visible: false }).expect(200);
