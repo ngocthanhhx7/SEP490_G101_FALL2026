@@ -38,8 +38,8 @@
   text-underline-offset: 3px;
 }
 
-.customer-booking-detail > h1,
-.staff-booking-detail > h1 {
+.customer-booking-detail.customer-booking-detail > h1,
+.staff-booking-detail.staff-booking-detail > h1 {
   margin: 0 0 var(--pwc-space-2);
   font-family: var(--pwc-font-display);
   font-size: clamp(1.75rem, 3.2vw, 2.35rem);
@@ -110,7 +110,7 @@
   align-items: start;
   display: grid;
   gap: var(--pwc-space-6);
-  grid-template-areas: "terms payment" "visits payment";
+  grid-template-areas: "terms payment" "visits visits";
   grid-template-columns: minmax(0, 1.9fr) minmax(16.5rem, 1fr);
 }
 
