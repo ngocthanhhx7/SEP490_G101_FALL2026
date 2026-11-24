@@ -44,7 +44,7 @@
   font-size: 0.95rem;
 }
 
-.payroll-admin-page > header > button {
+.payroll-workspace.payroll-admin-page > header > button {
   min-height: var(--pwc-target);
   padding: 0.55rem 1.2rem;
   border: 1.5px solid var(--pwc-ink);
@@ -174,7 +174,7 @@
   color: var(--pa-badge-neutral-ink);
 }
 
-.payroll-admin-page .ops-table td button {
+.payroll-workspace.payroll-admin-page .ops-table td button {
   min-height: var(--pwc-target);
   padding: 0.35rem 0.75rem;
   border: 0;
@@ -182,16 +182,17 @@
   background: transparent;
   color: var(--pa-link);
   font: 800 0.875rem/1.3 var(--pwc-font-body);
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.payroll-admin-page .ops-table td button:hover,
-.payroll-admin-page .ops-table td button:focus-visible {
+.payroll-workspace.payroll-admin-page .ops-table td button:hover,
+.payroll-workspace.payroll-admin-page .ops-table td button:focus-visible {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
-.payroll-admin-page :is(input:not([type="checkbox"]), select, textarea),
+.payroll-workspace.payroll-admin-page :is(input:not([type="checkbox"]), select, textarea),
 .payroll-admin-dialog :is(input:not([type="checkbox"]), select, textarea) {
   min-height: var(--pwc-target);
   padding: 0.65rem 0.9rem;
@@ -207,7 +208,7 @@
   accent-color: var(--pwc-ink);
 }
 
-.payroll-admin-page form button[type="submit"],
+.payroll-workspace.payroll-admin-page form button[type="submit"],
 .payroll-admin-dialog form button[type="submit"] {
   min-height: var(--pwc-target);
   padding: 0.6rem 1.35rem;
@@ -219,13 +220,13 @@
   cursor: pointer;
 }
 
-.payroll-admin-page form button[type="submit"]:enabled:hover,
+.payroll-workspace.payroll-admin-page form button[type="submit"]:enabled:hover,
 .payroll-admin-dialog form button[type="submit"]:enabled:hover {
   border-color: var(--pwc-sun-hover);
   background: var(--pwc-sun-hover);
 }
 
-.payroll-admin-page form button[type="button"],
+.payroll-workspace.payroll-admin-page form button[type="button"],
 .payroll-admin-dialog button[type="button"] {
   min-height: var(--pwc-target);
   padding: 0.55rem 1.15rem;

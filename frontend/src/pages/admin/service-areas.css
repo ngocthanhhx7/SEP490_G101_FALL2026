@@ -104,24 +104,24 @@
   font-weight: 700;
 }
 
-.service-area-admin .pwc-button {
+section.service-area-admin .pwc-button {
   min-height: var(--pwc-target);
   border-radius: 999px;
   font-weight: 800;
 }
 
-.service-area-admin .pwc-button--primary:enabled {
+section.service-area-admin .pwc-button--primary:enabled {
   border-color: var(--pwc-sun);
   background: var(--pwc-sun);
   color: var(--sa-ink-strong);
 }
 
-.service-area-admin .pwc-button--primary:enabled:hover {
+section.service-area-admin .pwc-button--primary:enabled:hover {
   border-color: var(--pwc-sun-hover);
   background: var(--pwc-sun-hover);
 }
 
-.service-area-admin .pwc-button--secondary {
+section.service-area-admin .pwc-button--secondary {
   border: 1.5px solid var(--pwc-ink);
   background: var(--pwc-surface);
   color: var(--pwc-ink);
