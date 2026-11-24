@@ -109,3 +109,35 @@ test('clears a challenge when the contact changes and does not persist registrat
   expect(window.localStorage.length).toBe(0);
   expect(window.sessionStorage.length).toBe(0);
 });
+
+test('UC-05: shows MSG07 remaining tries and MSG09 lockout time on registration', async () => {
+  const api = {
+    requestOtp: jest.fn().mockResolvedValueOnce({ challengeId: 'challenge-5', expiresInSeconds: 300, resendAfterSeconds: 0 }),
+    verifyAndRegister: jest.fn()
+      .mockRejectedValueOnce({ code: 'OTP_INCORRECT', status: 400, remainingAttempts: 2 })
+      .mockRejectedValueOnce({ code: 'OTP_RATE_LIMITED', status: 429, reason: 'TOO_MANY_WRONG_CODES', retryAfterAt: '2026-11-24T03:45:00.000Z' }),
+  };
+  renderRegistration(api);
+  fillNameAndEmail();
+  sendAfterDetails();
+  await screen.findByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' });
+
+  fireEvent.change(screen.getByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '111111' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & hoàn tất đăng ký' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Mã không đúng. Bạn còn 2 lần thử.');
+
+  fireEvent.change(screen.getByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '222222' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & hoàn tất đăng ký' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10:45.');
+});
+
+test('UC-05: shows MSG10 hourly limit time on registration OTP request', async () => {
+  const api = {
+    requestOtp: jest.fn().mockRejectedValueOnce({ code: 'OTP_RATE_LIMITED', status: 429, reason: 'HOURLY_LIMIT', retryAfterAt: '2026-11-24T05:10:00.000Z' }),
+    verifyAndRegister: jest.fn(),
+  };
+  renderRegistration(api);
+  fillNameAndEmail();
+  sendAfterDetails();
+  expect(await screen.findByText('Bạn đã yêu cầu quá nhiều mã. Vui lòng thử lại sau 12:10.')).toBeVisible();
+});

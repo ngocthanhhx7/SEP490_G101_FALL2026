@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { OperationsBadge } from '../../../components/common/OperationsWorkspace.jsx';
 import { formatBookingRef, formatClosureDay, formatClosureSlot, formatClosureTime } from '../../../utils/visit-closure-format.js';
 import { VISIT_STATE_LABELS } from '../../../utils/visit-board-format.js';
@@ -21,8 +22,11 @@ export function VisitBoardSummary({ row }) {
 }
 
 export function VisitBoardCustomer({ row }) {
+  const ref = formatBookingRef(row);
   return <><span>{row.customerName ?? 'Chưa có tên'}</span>
-    {(row.bookingCode || row.bookingId) && <small>Mã lịch · <span>{formatBookingRef(row)}</span></small>}
+    {(row.bookingCode || row.bookingId) && <small>Mã lịch · {row.bookingId
+      ? <Link className="visit-board__booking-link" to={'/staff/bookings/' + encodeURIComponent(row.bookingId)}>{ref}</Link>
+      : <span>{ref}</span>}</small>}
   </>;
 }
 

@@ -26,11 +26,15 @@ function ComplaintListAction({ resource, bookingId }) {
   </p> : null;
 }
 
-function ComplaintVisitActions({ visits, bookingId }) {
+function visitTrackerPath(bookingId, visitId) {
+  return '/account/bookings/' + encodeURIComponent(bookingId) + '/visits/' + encodeURIComponent(visitId);
+}
+
+function ComplaintVisitActions({ visits, bookingId, bookingCancelled = false }) {
   return visits.map(visit => <div key={visit.id} className="booking-complaint-visit">
     {visits.length > 1 && <span>{complaintVisitStart(visit.startAt)}</span>}
     <span className="booking-complaint-visit__status">{visitLabel(visit.state)}</span>
-    {visit.state !== 'CANCELLED' && visit.canSubmit && <Link className="pwc-button pwc-button--secondary"
+    {!bookingCancelled && visit.state !== 'CANCELLED' && visit.canSubmit && <Link className="pwc-button pwc-button--secondary"
       to={complaintSubmitPath(bookingId, visit.id)}>Gửi khiếu nại</Link>}
   </div>);
 }
@@ -77,6 +81,16 @@ function CustomerBookingDetail({ bookingId }) {
     setChangeDialog({ booking, options, initialVisitId: visitId });
   }
 
+  const bookingCancelled = booking?.state === 'CANCELLED';
+  const detailVisits = booking?.details?.visits ?? [];
+  const hasVisitActions = detailVisits.some(row => {
+    const rowCancelled = bookingCancelled || row.state === 'CANCELLED';
+    const canTrack = !rowCancelled && Boolean(row.id);
+    const canChange = !rowCancelled && changeable.some(item => item.id === row.id || item.customerVisitId === row.id);
+    const canComplain = !rowCancelled && (visitsByRow.get(row.id) ?? []).some(v => v.state !== 'CANCELLED' && v.canSubmit);
+    return canTrack || canChange || canComplain;
+  });
+
   const visitActions = {
     reportForVisit: visit => <BookingVisitReport visit={visit} readEvidence={images.read} />,
     booking: options?.canChangeBooking && changeable.length > 0 && <section className="booking-change-actions">
@@ -92,15 +106,19 @@ function CustomerBookingDetail({ bookingId }) {
       {changeSent && <p className="booking-change-sent" role="status">{bookingChangeSent}</p>}
       <ComplaintListAction resource={eligibility} bookingId={bookingId} />
     </>,
-    columnLabel: changeable.length > 0 ? 'Thao tác' : undefined,
+    showColumn: hasVisitActions,
+    columnLabel: 'Thao tác',
     forVisit: row => {
-      const visit = changeable.find(item => item.id === row.id || item.customerVisitId === row.id);
-      return <>
-        <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
+      const rowCancelled = bookingCancelled || row.state === 'CANCELLED';
+      const canTrack = Boolean(booking?.details) && !rowCancelled && Boolean(row.id);
+      const visit = !rowCancelled ? changeable.find(item => item.id === row.id || item.customerVisitId === row.id) : null;
+      return <div className="booking-visit-actions">
+        {canTrack && <Link className="booking-visit-track-link" to={visitTrackerPath(bookingId, row.id)}>Theo dõi buổi</Link>}
         {visit && <Button variant="ghost" className="booking-change-visit-action"
           aria-label={'Đổi giờ buổi ' + bookingChangeVisitLabel(visit)}
           onClick={() => openBookingChange(visit.id)}>Đổi giờ</Button>}
-      </>;
+        <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} bookingCancelled={bookingCancelled} />
+      </div>;
     }
   };
   const overdue = booking?.state === 'OVERDUE';

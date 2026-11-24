@@ -352,6 +352,34 @@ describe('UC-74 Staff sitter list', () => {
       await col('employeescheduleevents').deleteOne({ _id: eventId });
     }
   });
+
+  test('UC-74 returns upcoming days off within 30 Vietnam days merged from availability and capability', async () => {
+    const vnDay = offsetDays => new Date(Date.now() + 7 * 3600000 + offsetDays * 86400000).toISOString().slice(0, 10);
+    const yesterday = vnDay(-1);
+    const today = vnDay(0);
+    const inFiveDays = vnDay(5);
+    const day30 = vnDay(30);
+    const day31 = vnDay(31);
+    await col('employeeavailabilities').updateOne(
+      { _id: String(ids[0]) },
+      { $set: { dayOffDates: [yesterday, day30, today, day31, 'invalid'] } }
+    );
+    await col('aisitterprofiles').updateOne(
+      { userId: ids[0] },
+      { $set: { dayOffDates: [inFiveDays, today] } },
+      { upsert: true }
+    );
+    try {
+      const { items } = (await read({ search: 'NV-TEST-001' }, staff).expect(200)).body.data;
+      expect(items).toHaveLength(1);
+      expect(items[0].upcomingDaysOff).toEqual([today, inFiveDays, day30]);
+      const all = (await read({}, staff).expect(200)).body.data.items;
+      expect(all.find(item => item.id === String(ids[1])).upcomingDaysOff).toEqual([]);
+    } finally {
+      await col('employeeavailabilities').updateOne({ _id: String(ids[0]) }, { $set: { dayOffDates: [] } });
+      await col('aisitterprofiles').deleteOne({ userId: ids[0] });
+    }
+  });
 });
 
 test('Staff leaderboard keeps exact global ordering and totals when winners appear after two cursor batches', async () => {

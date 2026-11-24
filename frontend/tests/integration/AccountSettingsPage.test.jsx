@@ -193,6 +193,68 @@ describe('account settings page', () => {
     expect(screen.getByRole('heading', { name: 'Đổi số điện thoại' })).toBeVisible();
   });
 
+  test('UC-04: resets the countdown clock immediately when the OTP step opens after a delay on the page', async () => {
+    let clock = 1_760_000_000_000;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => clock);
+    try {
+      const api = {
+        getContacts: jest.fn(async () => [oldEmail]),
+        requestContactOtp: jest.fn(async () => ({ challengeId: 'challenge-clock', expiresInSeconds: 300, resendAfterSeconds: 60 })),
+        verifyContact: jest.fn()
+      };
+      renderPage(api);
+      await screen.findByText('p*****@example.test');
+      clock += 21_000;
+      fireEvent.click(screen.getByRole('button', { name: 'Đổi email' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'new@example.test' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Gửi mã xác minh' }));
+      expect(await screen.findByText(/Mã có hiệu lực thêm 300 giây\. Có thể yêu cầu mã khác sau 60 giây\./)).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Gửi lại sau 60 giây' })).toBeDisabled();
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('UC-05: shows MSG07 remaining tries, MSG09 lockout time and MSG10 hourly limit time', async () => {
+    const api = {
+      getContacts: jest.fn(async () => [oldEmail]),
+      requestContactOtp: jest.fn()
+        .mockResolvedValueOnce({ challengeId: 'challenge-otp', expiresInSeconds: 300, resendAfterSeconds: 60 })
+        .mockRejectedValueOnce(Object.assign(new Error('hourly'), {
+          code: 'OTP_RATE_LIMITED', status: 429, reason: 'HOURLY_LIMIT',
+          retryAfterSeconds: 1800, retryAfterAt: '2026-11-24T04:15:00.000Z'
+        })),
+      verifyContact: jest.fn()
+        .mockRejectedValueOnce(Object.assign(new Error('wrong'), {
+          code: 'OTP_INCORRECT', status: 400, remainingAttempts: 4
+        }))
+        .mockRejectedValueOnce(Object.assign(new Error('locked'), {
+          code: 'OTP_RATE_LIMITED', status: 429, reason: 'TOO_MANY_WRONG_CODES',
+          retryAfterSeconds: 900, retryAfterAt: '2026-11-24T03:30:00.000Z'
+        }))
+    };
+    renderPage(api);
+    await screen.findByText('p*****@example.test');
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi email' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'new@example.test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã xác minh' }));
+    const codeInput = await screen.findByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' });
+
+    fireEvent.change(codeInput, { target: { value: '111111' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác minh và lưu' }));
+    expect(await screen.findByText('Mã không đúng. Bạn còn 4 lần thử.')).toBeVisible();
+
+    fireEvent.change(codeInput, { target: { value: '222222' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Xác minh và lưu' }));
+    expect(await screen.findByText('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10:30.')).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Đổi email' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'new@example.test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi mã xác minh' }));
+    expect(await screen.findByText('Bạn đã yêu cầu quá nhiều mã. Vui lòng thử lại sau 11:15.')).toBeVisible();
+  });
+
   test('shows an owner-safe forbidden state if the contact projection is denied', async () => {
     const api = {
       getContacts: jest.fn(async () => { throw Object.assign(new Error('forbidden'), { code: 'FORBIDDEN', status: 403 }); }),
