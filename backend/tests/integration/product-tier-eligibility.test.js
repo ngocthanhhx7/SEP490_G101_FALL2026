@@ -160,7 +160,24 @@ test('AC-08 placing a pickup above L leaves the cart and stock unchanged', async
   }
 });
 
-test('AC-10 cart and persisted online order agree and replay keeps the old snapshot', async () => {
+test('IT-FE23-UC61-03 reads the current tier and calculates the discounted cart total', async () => {
+  const { Product, ProductCart } = productSalesModels(connection);
+  const product = await Product.create({
+    code: 'SP-9994', name: 'Synthetic tier cart item', category: 'FOOD', petType: 'DOG',
+    sellingPrice: 101, visible: true, stockOnHand: 5
+  });
+  const actor = { userId: String(customer), state: 'ACTIVE', roles: ['CUSTOMER'] };
+  try {
+    const cart = await createProductCartService({ connection }).addLine(actor, { productId: String(product._id), quantity: 3 });
+    expect(cart).toMatchObject({ tierCode: 'SILVER', subtotal: 303, tierDiscount: 15, total: 288,
+      lines: [{ unitPrice: 101, unitDiscount: 5, discountedUnitPrice: 96, netLineTotal: 288 }] });
+  } finally {
+    await ProductCart.deleteOne({ customerId: customer });
+    await Product.deleteOne({ _id: product._id });
+  }
+});
+
+test('IT-FE23-UC62-02 applies and snapshots the eligible tier discount when placing an order', async () => {
   const { Product, ProductCart, ProductOrder } = productSalesModels(connection);
   const product = await Product.create({
     code: 'SP-9996', name: 'Synthetic food', category: 'FOOD', petType: 'DOG',

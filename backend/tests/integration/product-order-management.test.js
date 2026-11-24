@@ -163,7 +163,7 @@ describe('UC-94 Sale Staff dashboard', () => {
   const DASHBOARD = '/api/v1/dashboards/sale-staff';
   const NO_ORDERS = { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 };
 
-  test('returns only counts matching Order Management across statuses', async () => {
+  test('IT-FE23-UC94-01 returns the orders to prepare and ready pickup counts', async () => {
     await placeDelivery('a', 'SP-0012', 1);
     await placePickup('a', 'SP-0020', 1);
     const pickup = await placePickup('b', 'SP-0020', 1);
@@ -178,6 +178,15 @@ describe('UC-94 Sale Staff dashboard', () => {
     expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING } });
     expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1 });
   });
+
+  test('IT-FE23-UC94-02 returns the parcels awaiting return inspection count', async () => {
+    await returning(await placeShipped('a', [['SP-0012', 1]]));
+    const dashboard = await api('saleStaff').get(DASHBOARD).expect(200);
+    expect(dashboard.body.data.counts).toEqual({ PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 1 });
+  });
+
+  test.todo('IT-FE23-UC94-03 returns the pending faulty product claim count (faulty product claims are not implemented)');
+  test.todo('IT-FE23-UC94-04 returns the low-stock product count (the Sale Staff dashboard does not compose Stock List counts)');
 
   test.each([[null, 401], ['a', 403], ['sitter', 403], ['staff', 403], ['admin', 403]])(
     'restricts dashboard access for %s to HTTP %s', async (actor, status) => {
@@ -344,7 +353,7 @@ describe('handing a delivery order to the carrier', () => {
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 15, quantityHeld: 2 });
   });
 
-  test('releases the hold and reduces the real stock, and the customer sees the tracking code', async () => {
+  test('IT-FE23-UC64-01 hands an order to the carrier, releases its hold and deducts stock', async () => {
     const order = await placeDelivery('a', 'SP-0012', 2);
     const done = await act(order, 'hand-to-carrier', { trackingCode: ' VN7290018342 ' });
     expect(done.status).toBe(200);
@@ -353,6 +362,8 @@ describe('handing a delivery order to the carrier', () => {
     const mine = await api('a').get(`/api/v1/product-orders/${order.id}`).expect(200);
     expect(mine.body.data).toMatchObject({ status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342' });
   });
+
+  test.todo('IT-FE23-UC64-02 requires a prepaid order to be paid before carrier handover and still permits COD (prepaid product checkout is not implemented)');
 
   test('cannot be repeated and never takes stock twice', async () => {
     const order = await placeDelivery('a', 'SP-0012', 2);
@@ -380,7 +391,7 @@ describe('handing a delivery order to the carrier', () => {
 });
 
 describe('delivery result (UC-65, AC-04)', () => {
-  test('AC-04 delivered: a cash-on-delivery order becomes paid, stock stays, the customer sees it', async () => {
+  test('IT-FE23-UC65-01 marks a delivered COD order paid without changing stock again', async () => {
     const order = await placeShipped('a', [['SP-0012', 2]]);
     const done = await act(order, 'mark-delivered');
     expect(done.status).toBe(200);
@@ -430,7 +441,7 @@ describe('delivery result (UC-65, AC-04)', () => {
     expect(await models.ProductOrder.findById(order.id).lean()).toMatchObject({ status: 'HANDED_TO_CARRIER' });
   });
 
-  test('AC-04 being returned: keeps the carrier reason, leaves stock alone and shows in the Returning tab', async () => {
+  test('IT-FE23-UC65-02 marks an order as being returned and stores the carrier reason', async () => {
     const order = await placeShipped('a', [['SP-0012', 2]]);
     const res = await act(order, 'mark-returning', { carrierReason: ' Customer was not at home ' });
     expect(res.status).toBe(200);
@@ -452,7 +463,7 @@ describe('delivery result (UC-65, AC-04)', () => {
 });
 
 describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
-  test('AC-04 puts back only the resellable quantity of each line, once, and keeps the reasons', async () => {
+  test('IT-FE23-UC66-01 returns only eligible resellable quantities to stock', async () => {
     const order = await returning(await placeShipped('a', [['SP-0012', 2], ['SP-0020', 1]]));
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 13, quantityHeld: 0 });
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 31, quantityHeld: 0 });
@@ -464,8 +475,14 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
     expect(done.body.data.lines.map((line) => [line.productCode, line.quantity, line.resellableQuantity])).toEqual([['SP-0012', 2, 1], ['SP-0020', 1, 0]]);
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 14, quantityHeld: 0 });
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 31, quantityHeld: 0 });
-    // A second confirmation changes nothing and never adds stock again.
-    const again = await act(order, 'confirm-returned', await confirmBody([['SP-0012', 2], ['SP-0020', 1]]));
+  });
+
+  test('IT-FE23-UC66-02 rejects a second return confirmation without adding stock twice', async () => {
+    const order = await returning(await placeShipped('a', [['SP-0012', 2]]));
+    const body = await confirmBody([['SP-0012', 1]]);
+    await act(order, 'confirm-returned', body).expect(200);
+    expect(await product('SP-0012')).toMatchObject({ stockOnHand: 14, quantityHeld: 0 });
+    const again = await act(order, 'confirm-returned', body);
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe('ORDER_STATE_CONFLICT');
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 14, quantityHeld: 0 });
@@ -557,7 +574,7 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
       .rejects.toThrow();
   });
 
-  test('AC-18 an advance payment that was paid is marked for refund; cash on delivery and unpaid ones are not', async () => {
+  test('IT-FE23-UC66-03 marks a returned paid prepaid order as requiring a refund', async () => {
     const paid = await returning(await placeShipped('a', [['SP-0012', 1]], { paymentMethod: 'PREPAID', paid: true }));
     expect((await act(paid, 'confirm-returned', await confirmBody([['SP-0012', 1]], { reason: 'SHOP_FAULT' }))).body.data.refundMarked).toBe(true);
     const unpaid = await returning(await placeShipped('b', [['SP-0020', 1]], { paymentMethod: 'PREPAID', paid: false }));
@@ -580,7 +597,19 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
 });
 
 describe('pickup orders', () => {
-  test('are readied without touching stock, then handed over once paid in full', async () => {
+  test('IT-FE23-UC67-01 marks a pickup order ready and notifies its Customer', async () => {
+    const order = await placePickup('a', 'SP-0020', 1);
+    const ready = await act(order, 'mark-ready').expect(200);
+    expect(ready.body.data.status).toBe('READY');
+    expect(await product('SP-0020')).toMatchObject({ stockOnHand: 32, quantityHeld: 1 });
+    expect(await connection.db.collection('notifications').findOne({
+      recipientId: actors.a.userId,
+      eventType: 'ProductOrderUpdated',
+      deepLink: `/customer/product-orders?order=${order.id}`
+    })).not.toBeNull();
+  });
+
+  test('IT-FE23-UC67-02 hands over a fully paid pickup order and deducts its held stock', async () => {
     const order = await placePickup('a', 'SP-0020', 2);
     const ready = await act(order, 'mark-ready');
     expect(ready.body.data.status).toBe('READY');
@@ -599,6 +628,14 @@ describe('pickup orders', () => {
     expect(handed.body.data.status).toBe('PICKED_UP');
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 30, quantityHeld: 0 });
     expect((await act(order, 'hand-to-customer')).body.error.code).toBe('ORDER_STATE_CONFLICT');
+  });
+
+  test('IT-FE23-UC67-03 records payment at the shop and makes the pickup order eligible for handover', async () => {
+    const order = await placePickup('a', 'SP-0020', 1);
+    await act(order, 'mark-ready').expect(200);
+    const paid = await act(order, 'record-payment').expect(200);
+    expect(paid.body.data).toMatchObject({ status: 'READY', paymentMethod: 'PAY_AT_SHOP', paid: true });
+    await act(order, 'hand-to-customer').expect(200);
   });
 
   test('cannot be handed over before they are ready, and delivery orders cannot be readied', async () => {
@@ -806,6 +843,14 @@ describe('cancelling', () => {
     expect((await addToCart('b', 'SP-0031', 2)).status).toBe(201);
   });
 });
+
+test.todo('IT-FE23-UC63-02 lets a Customer cancel an owned Placed order and releases its hold (only Admin cancellation is currently exposed)');
+
+test.todo('IT-FE23-UC92-01 creates an owned faulty product claim and notifies Sale Staff (faulty product claims are not implemented)');
+test.todo('IT-FE23-UC93-01 records the Admin claim decision and notifies the Customer (faulty product claims are not implemented)');
+test.todo('IT-FE23-UC93-02 sends an approved replacement and deducts replacement stock (faulty product exchange is not implemented)');
+test.todo('IT-FE23-UC93-03 marks an approved faulty-product refund as requiring refund processing (claim refunds are not implemented)');
+test.todo('IT-FE23-UC93-04 never returns a reported faulty product to sellable stock (faulty product returns are not implemented)');
 
 describe('stock safety', () => {
   test('refuses to change an order whose held stock no longer matches, and changes nothing', async () => {
