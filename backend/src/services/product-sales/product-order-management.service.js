@@ -169,9 +169,9 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
           paymentExpired: true
         });
         if (updated) summary.cancelled += 1;
-      } catch {
+      } catch (error) {
         summary.failed += 1;
-        logger({ event: 'product_payment_expiry_order_failed', orderId: String(candidate._id) });
+        logger({ event: 'product_payment_expiry_order_failed', orderId: String(candidate._id), code: error?.code ?? error?.name });
       }
     }
   }
