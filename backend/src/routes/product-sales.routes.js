@@ -6,7 +6,7 @@ import { PRODUCT_PHOTO_LIMITS, PRODUCT_PHOTO_TYPES } from '../constants/product-
 import { createMediaAdmission, createAdmissionMiddleware, parseBody } from './private-image.routes.js';
 import { createProductCatalogController } from '../controllers/product-catalog.controller.js';
 import { createProductCartController } from '../controllers/product-cart.controller.js';
-import { createProductOrderController } from '../controllers/product-order.controller.js';
+import { createProductOrderController, createProductOrderPaymentController } from '../controllers/product-order.controller.js';
 import { createProductOrderManagementController } from '../controllers/product-order-management.controller.js';
 import { createSaleStaffDashboardController } from '../controllers/sale-staff-dashboard.controller.js';
 import { createProductManagementController } from '../controllers/product-management.controller.js';
@@ -19,6 +19,9 @@ import { createStockListService } from '../services/product-sales/stock-list.ser
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
+import { createProductOrderPaymentService } from '../services/product-sales/product-order-payment.service.js';
+import { loadPayosConfig, createPayosProvider } from '../services/providers/payos/payos.provider.js';
+import { parseWebOrigin } from '../config/web-origin.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
 import { createSaleStaffDashboardService } from '../services/product-sales/sale-staff-dashboard.service.js';
 import { createProductManagementService } from '../services/product-sales/product-management.service.js';
@@ -40,7 +43,8 @@ import { createProductCustomerPriceService } from '../services/product-sales/pro
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); };
 
 // Disabled unless PRODUCT_SALES_ENABLED=true; needs authentication because cart and orders are Customer-only.
-export function productSalesRuntimeModules({ config, connection, env = {}, clock = Date.now, sessionService }) {
+// `provider` lets tests replace payOS; otherwise it comes from the PAYOS_* settings (null when payOS is off).
+export function productSalesRuntimeModules({ config, connection, env = {}, clock = Date.now, sessionService, provider }) {
   if (env.PRODUCT_SALES_ENABLED !== undefined && !['true', 'false'].includes(env.PRODUCT_SALES_ENABLED)) {
     throw new TypeError('Invalid PRODUCT_SALES_ENABLED');
   }
@@ -69,12 +73,17 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   cartRouter.patch('/lines/:productId', csrf, cart.setLine);
   cartRouter.delete('/lines/:productId', csrf, cart.removeLine);
 
-  const orders = createProductOrderController(createProductOrderService({ connection, serviceAreas: DEMO_WORK_AREAS, eligibility }));
+  const orders = createProductOrderController(createProductOrderService({
+    connection, serviceAreas: DEMO_WORK_AREAS, eligibility, clock, paymentDeadlineHours: config.paymentDeadlineHours }));
+  const payos = provider ? null : loadPayosConfig(env);
+  const payments = createProductOrderPaymentController(createProductOrderPaymentService({
+    connection, clock, provider: provider ?? (payos ? createPayosProvider(payos) : null), webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) }));
   const orderRouter = Router();
   orderRouter.use(noStore, requireSession(session, { clock }), customer);
   orderRouter.get('/', orders.list);
   orderRouter.post('/', csrf, orders.place);
   orderRouter.get('/:orderId', orders.read);
+  orderRouter.post('/:orderId/payment-link', csrf, payments.paymentLink);
 
   // Order handlers read verified customer phone numbers through the same contact keys as sign-in (D-217).
   const contactCrypto = createContactCrypto({

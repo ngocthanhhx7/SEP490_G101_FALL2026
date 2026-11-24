@@ -6,6 +6,12 @@ This directory contains the server-only payOS HTTP adapter for P31. `payos.provi
 
 Configuration is opt-in through `PAYOS_ENABLED=true` with `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, and `PAYOS_CHECKSUM_KEY`. Missing/disabled configuration leaves the provider unavailable. P34 owns runtime wiring and `.env.example` updates.
 
+The webhook also accepts the payment of a prepaid product order. Its payment link is
+found by its payOS order code on the order (`kind: 'PRODUCT_ORDER'` in the intent),
+the receipt is kept on the order, and the booking rules are unchanged. The
+product-order expiry job asks `getPaymentLink` before it cancels an unpaid order and
+feeds a paid status to `handleVerifiedPayment`, which uses the same code path.
+
 New raw webhook receipts carry `storageContractVersion=1` for the reviewed native
 receipt shape. The marker does not verify signatures or authorize payment; existing
 signature/intent/booking guards and reconciliation still decide. Unmarked history

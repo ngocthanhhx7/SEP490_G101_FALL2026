@@ -70,9 +70,9 @@ const placeShipped = async (who, lines, { paymentMethod, paid } = {}) => {
     .send({ receiveMethod: 'DELIVERY', paymentMethod: 'COD', addressId: String(addressOf[who]._id) });
   expect(res.status).toBe(201);
   const order = res.body.data;
-  // Advance payments cannot be placed yet; the order is switched to one directly for the refund checks.
-  if (paymentMethod) await models.ProductOrder.updateOne({ _id: order.id }, { $set: { paymentMethod, paid } });
   await act(order, 'hand-to-carrier', { trackingCode: 'VN7290018342' }).expect(200);
+  // An unpaid prepaid order cannot be handed over, so the order is switched to prepaid afterwards for the refund checks.
+  if (paymentMethod) await models.ProductOrder.updateOne({ _id: order.id }, { $set: { paymentMethod, paid } });
   return order;
 };
 const returning = async (order, carrierReason = 'Customer not at home') => {
@@ -559,7 +559,14 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
 
   test('AC-18 an advance payment that was paid is marked for refund; cash on delivery and unpaid ones are not', async () => {
     const paid = await returning(await placeShipped('a', [['SP-0012', 1]], { paymentMethod: 'PREPAID', paid: true }));
-    expect((await act(paid, 'confirm-returned', await confirmBody([['SP-0012', 1]], { reason: 'SHOP_FAULT' }))).body.data.refundMarked).toBe(true);
+    const faulty = (await act(paid, 'confirm-returned', await confirmBody([['SP-0012', 1]], { reason: 'SHOP_FAULT' }))).body.data;
+    // GBR-37: the shop's own mistake refunds the whole amount, shipping fee included.
+    expect(faulty).toMatchObject({ refundMarked: true, refundAmountVnd: faulty.total });
+    const refusedPaid = await returning(await placeShipped('a', [['SP-0031', 1]], { paymentMethod: 'PREPAID', paid: true }));
+    const refusedView = (await act(refusedPaid, 'confirm-returned', await confirmBody([['SP-0031', 1]]))).body.data;
+    // GBR-37: a customer who refuses without a reason gets the price of the goods back; the shipping fee is kept.
+    expect(refusedView).toMatchObject({ refundMarked: true, refundAmountVnd: refusedView.total - refusedView.shippingFee });
+    expect(refusedView.shippingFee).toBeGreaterThan(0);
     const unpaid = await returning(await placeShipped('b', [['SP-0020', 1]], { paymentMethod: 'PREPAID', paid: false }));
     expect((await act(unpaid, 'confirm-returned', await confirmBody([['SP-0020', 1]]))).body.data.refundMarked).toBe(false);
     const cod = await returning(await placeShipped('c', [['SP-0031', 1]]));
