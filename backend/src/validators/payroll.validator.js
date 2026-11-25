@@ -41,7 +41,7 @@ export function contractInput(value) {
   const signedAt = new Date(instant(value.signedAt)), effectiveAt = new Date(instant(value.effectiveAt));
   const endsAt = value.endsAt ? new Date(instant(value.endsAt)) : undefined;
   if (signedAt > effectiveAt || (endsAt && endsAt <= effectiveAt)) fail('VALIDATION_FAILED', 'Invalid contract dates');
-  if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.payCycle !== 'MONTHLY')) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
+  if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.payCycle !== 'MONTHLY' || value.weeklyMinutes < 2400)) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
   if (value.employmentType === 'PART_TIME' && value.monthlyBaseVnd !== 3000000) fail('VALIDATION_FAILED', 'Part-time agreement mismatch');
   return { ...value, signedAt, effectiveAt, ...(endsAt ? { endsAt } : {}), contractReference: text(value.contractReference, 160), workplaceReference: text(value.workplaceReference, 160) };
 }

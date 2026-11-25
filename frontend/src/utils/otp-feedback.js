@@ -12,6 +12,9 @@ const MESSAGES = Object.freeze({
   OTP_REPLACED: 'Bạn đã yêu cầu mã mới. Vui lòng dùng mã trong email hoặc SMS mới nhất.',
   OTP_INVALID_OR_EXPIRED: 'Không thể xác thực mã này. Vui lòng dùng mã mới nhất hoặc yêu cầu gửi lại.',
   OTP_DELIVERY_UNAVAILABLE: 'Chưa thể gửi mã OTP. Vui lòng thử lại sau.',
+  OTP_RATE_LIMITED: 'Bạn đã yêu cầu mã quá nhanh. Vui lòng thử lại sau.',
+  RATE_LIMITED: 'Bạn đã vượt quá số lần thử cho phép. Vui lòng thử lại sau.',
+  PROVIDER_UNAVAILABLE: 'Dịch vụ gửi mã OTP đang tạm gián đoạn. Vui lòng thử lại sau.',
 });
 
 function formatRetryTime(error, now = Date.now()) {

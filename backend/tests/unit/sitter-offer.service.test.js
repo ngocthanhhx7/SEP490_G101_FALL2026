@@ -113,7 +113,7 @@ describe('sitter offer projections and commands', () => {
   test('deadline is exclusive and decline remains an operational offer decision', async () => {
     const repo = repository();
     const service = createSitterOfferService({ repository: repo, clock: () => now });
-    await expect(service.decline(actor, OFFER, 1, 'decline-offer-1')).resolves.toMatchObject({ state: 'DECLINED' });
+    await expect(service.decline(actor, OFFER, 1, 'decline-offer-1', 'SCHEDULE_CONFLICT')).resolves.toMatchObject({ state: 'DECLINED' });
     expect(repo.state.calls).toEqual(['decline', 'OfferDeclined']);
   });
 

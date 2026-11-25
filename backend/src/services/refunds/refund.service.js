@@ -380,6 +380,7 @@ export function createRefundService({
     refundId,
     decision,
     reason,
+    amountVnd,
     expectedVersion,
     idempotencyKey
   }) {
@@ -388,11 +389,13 @@ export function createRefundService({
     if (!DECISIONS.has(decision))
       fail(422, 'VALIDATION_FAILED', 'decision must be APPROVE or REJECT');
     const note = requiredText(reason, 'reason');
+    const requestedAmountVnd = amountVnd === undefined ? undefined : safeAmount(amountVnd);
     const version = safeVersion(expectedVersion);
     const payload = {
       refundId: id,
       decision,
       reason: note,
+      ...(requestedAmountVnd !== undefined ? { amountVnd: requestedAmountVnd } : {}),
       expectedVersion: version
     };
     return execute({
@@ -449,8 +452,17 @@ export function createRefundService({
           return result;
         }
 
+        const approvedAmountVnd =
+          requestedAmountVnd === undefined ? refund.amountVnd : requestedAmountVnd;
+        if (approvedAmountVnd > refund.amountVnd) {
+          fail(
+            422,
+            'VALIDATION_FAILED',
+            'Approved refund cannot exceed the proposed amount'
+          );
+        }
         const available = await getCapacity(refund.sourceRef, transaction);
-        if (refund.amountVnd > available.amountVnd) {
+        if (approvedAmountVnd > available.amountVnd) {
           fail(
             409,
             'REFUND_LIMIT_EXCEEDED',
@@ -462,7 +474,7 @@ export function createRefundService({
           {
             refundId: id,
             sourceRef: refund.sourceRef,
-            amountVnd: refund.amountVnd
+            amountVnd: approvedAmountVnd
           },
           transaction
         );
@@ -477,6 +489,7 @@ export function createRefundService({
           version,
           {
             status: REFUND_STATUS.APPROVED,
+            amountVnd: approvedAmountVnd,
             version: version + 1,
             decision: {
               outcome: decision,
@@ -497,7 +510,7 @@ export function createRefundService({
             refundId: id,
             fromBucket: 'REFUNDABLE_AVAILABLE',
             toBucket: 'REFUND_RESERVED',
-            amountVnd: refund.amountVnd,
+            amountVnd: approvedAmountVnd,
             actorId: actor.userId,
             occurredAt
           },
@@ -508,7 +521,7 @@ export function createRefundService({
           {
             refundId: id,
             type: 'REFUND_APPROVED',
-            amountVnd: refund.amountVnd,
+            amountVnd: approvedAmountVnd,
             actorId: actor.userId,
             occurredAt,
             reason: note

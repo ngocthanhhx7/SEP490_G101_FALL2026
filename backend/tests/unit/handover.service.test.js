@@ -33,7 +33,7 @@ function fixture() {
 test('confirms replacement handover only after the latest instruction is acknowledged', async () => {
   const { state, repository } = fixture();
   const service = createHandoverService({ repository, clock: () => new Date('2026-10-15T00:00:00.000Z') });
-  const result = await service.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+  const result = await service.confirm({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 3, idempotencyKey: 'handover-key' });
   expect(result).toMatchObject({ state: 'CONFIRMED', replacementSitterId: REPLACEMENT, accessGranted: true, version: 8 });
   expect(state.audit).toHaveBeenCalledWith(expect.objectContaining({ type: 'VisitHandoverConfirmed', visitId: VISIT }));
@@ -44,21 +44,21 @@ test('rejects an unacknowledged replacement, wrong booking actor, stale visit an
   const first = fixture();
   first.state.care.acknowledgements = [];
   const service = createHandoverService({ repository: first.repository });
-  await expect(service.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+  await expect(service.confirm({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 3, idempotencyKey: 'handover-key-1' }))
     .rejects.toMatchObject({ status: 409, code: 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED' });
   await expect(service.confirm({ actor: actor('eeeeeeeeeeeeeeeeeeeeeeee', ['CUSTOMER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 3, idempotencyKey: 'handover-key-2' }))
     .rejects.toMatchObject({ status: 404, code: 'RESOURCE_NOT_FOUND' });
-  await expect(service.confirm({ actor: actor(CURRENT, ['PET_SITTER']), visitId: VISIT,
+  await expect(service.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 3, idempotencyKey: 'handover-key-4' }))
-    .rejects.toMatchObject({ status: 404, code: 'RESOURCE_NOT_FOUND' });
+    .rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' });
 
   const replay = fixture();
   const replayService = createHandoverService({ repository: replay.repository });
-  await replayService.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+  await replayService.confirm({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 3, idempotencyKey: 'handover-key-3' });
-  await expect(replayService.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+  await expect(replayService.confirm({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 8, instructionVersion: 2, idempotencyKey: 'handover-key-3' }))
     .rejects.toMatchObject({ status: 409, code: 'IDEMPOTENCY_CONFLICT' });
 });
@@ -71,7 +71,7 @@ test('fails closed when handover persistence is unavailable', async () => {
       getCareInstructions: async () => ({ version: 3, acknowledgements: [{ sitterId: REPLACEMENT, version: 3 }] }),
     }),
   }});
-  await expect(service.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+  await expect(service.confirm({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 3, idempotencyKey: 'missing-save' }))
     .rejects.toMatchObject({ status: 503, code: 'HANDOVER_UNAVAILABLE' });
 });
@@ -85,7 +85,7 @@ test('does not synthesize access on a confirmed record without capability', asyn
       getCareInstructions: async () => ({ version: 3, acknowledgements: [{ sitterId: REPLACEMENT, version: 3 }] }),
     }),
   }});
-  await expect(service.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+  await expect(service.confirm({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
     replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 3, idempotencyKey: 'bad-replay' }))
     .rejects.toMatchObject({ status: 503, code: 'HANDOVER_UNAVAILABLE' });
 });

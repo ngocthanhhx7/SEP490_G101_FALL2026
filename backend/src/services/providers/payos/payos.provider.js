@@ -244,7 +244,7 @@ export function createPayosProvider(options = {}) {
 
     if (!isRecord(payload) || payload.code !== '00' || !isRecord(payload.data)) {
       throw failure('PAYOS_REQUEST_REJECTED', 'Payment provider rejected the request', 503, {
-        uncertain: method !== 'GET'
+        uncertain: false
       });
     }
     if (!isValidPayosSignature(payload.data, payload.signature, checksumKey)) {
