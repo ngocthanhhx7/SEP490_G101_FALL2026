@@ -4,7 +4,9 @@ import { ApiError, createApiClient } from './api-client.js';
 const CATEGORIES = ['FOOD', 'ACCESSORY'];
 const PET_TYPES = ['DOG', 'CAT'];
 const RECEIVE_METHODS = ['DELIVERY', 'PICKUP'];
-const PAYMENT_METHODS = ['COD', 'PAY_AT_SHOP'];
+const PAYMENT_METHODS = ['COD', 'PAY_AT_SHOP', 'PREPAID'];
+// The only page a payment link may open: payOS's own checkout (GBR-36). Anything else is not followed.
+const PAYOS_CHECKOUT = /^https:\/\/pay\.payos\.vn\/web\//u;
 const money = (value) => Number.isSafeInteger(value) && value >= 0;
 const text = (value) => typeof value === 'string' && value.length > 0;
 const invalid = () => { throw new ApiError('INVALID_RESPONSE', 200); };
@@ -31,7 +33,8 @@ function checkOrder(order) {
     || !PAYMENT_METHODS.includes(order.paymentMethod) || typeof order.paid !== 'boolean' || !text(order.status)
     || !Array.isArray(order.lines) || !money(order.subtotal) || !money(order.shippingFee) || !money(order.total)
     || (order.tierDiscount !== undefined && (!money(order.tierDiscount) || order.tierDiscount > order.subtotal
-      || order.total !== order.subtotal - order.tierDiscount + order.shippingFee))) invalid();
+      || order.total !== order.subtotal - order.tierDiscount + order.shippingFee))
+    || (order.paymentDeadlineAt !== undefined && order.paymentDeadlineAt !== null && !text(order.paymentDeadlineAt))) invalid();
   return order;
 }
 function notPending(response) {
@@ -98,6 +101,12 @@ export function createProductSalesApi(options) {
     async placeOrder(body, idempotencyKey) {
       const response = notPending(await request('/product-orders', { method: 'POST', body, idempotencyKey }));
       return checkOrder(response.data);
+    },
+    // The payOS page of a prepaid order that is not paid yet (UC-62 step 7). The caller opens `checkoutUrl`.
+    async createPaymentLink(orderId) {
+      const response = notPending(await request(`/product-orders/${encodeURIComponent(orderId)}/payment-link`, { method: 'POST', body: {} }));
+      if (!PAYOS_CHECKOUT.test(response.data?.checkoutUrl ?? '')) invalid();
+      return response.data;
     },
     async getOrder(orderId, { signal } = {}) {
       return { data: checkOrder((await request(`/product-orders/${encodeURIComponent(orderId)}`, { signal })).data) };

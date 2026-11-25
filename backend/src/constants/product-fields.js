@@ -2,9 +2,7 @@
 export const PRODUCT_CATEGORIES = Object.freeze(['FOOD', 'ACCESSORY']);
 export const PRODUCT_PET_TYPES = Object.freeze(['DOG', 'CAT']);
 export const PRODUCT_RECEIVE_METHODS = Object.freeze(['DELIVERY', 'PICKUP']);
-// Orders can only be placed with COD (delivery) or PAY_AT_SHOP (pickup) for now (PRODUCT_PAYMENT_BY_RECEIVE_METHOD).
-// PREPAID is the online payment method the model already accepts, so returns can tell prepaid orders apart;
-// it cannot be chosen when placing an order until online payment is built.
+// R3 GBR-36: a delivery is paid through payOS in advance or in cash on delivery; a pick-up in advance or at the shop.
 export const PRODUCT_PAYMENT_METHODS = Object.freeze(['COD', 'PAY_AT_SHOP', 'PREPAID']);
 export const PRODUCT_PREPAID_PAYMENT_METHODS = Object.freeze(['PREPAID']);
 export const DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS = 72;
@@ -28,11 +26,18 @@ export const PRODUCT_ORDER_TAB_STATUSES = Object.freeze({
 });
 export const PRODUCT_ORDER_TABS = Object.freeze([...Object.keys(PRODUCT_ORDER_TAB_STATUSES), 'ALL']);
 
-// Each receive method has exactly one demo payment method.
+// The ways to pay each receive method offers (PREPAID first). A customer over the refusal limit may only use PREPAID.
 export const PRODUCT_PAYMENT_BY_RECEIVE_METHOD = Object.freeze({
-  DELIVERY: 'COD',
-  PICKUP: 'PAY_AT_SHOP'
+  DELIVERY: Object.freeze(['PREPAID', 'COD']),
+  PICKUP: Object.freeze(['PREPAID', 'PAY_AT_SHOP'])
 });
+
+// R3 System Settings > Shop Rules, "payment deadline of a prepaid order", in hours counted from the time of ordering.
+export const DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS = 1;
+// A prepaid order keeps at most this many payOS references (one per payment link) and receipts.
+export const PRODUCT_PAYMENT_LIMITS = Object.freeze({ maxReferences: 10, maxReceipts: 10 });
+export const PRODUCT_PAYMENT_LINK_STATES = Object.freeze(['CREATING', 'READY', 'FAILED', 'PAID']);
+export const PRODUCT_PAYMENT_RECEIPT_STATES = Object.freeze(['VERIFIED', 'RECONCILIATION_REQUIRED']);
 
 export const PRODUCT_LIMITS = Object.freeze({
   maxLineQuantity: 99,

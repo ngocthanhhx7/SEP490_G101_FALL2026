@@ -8,10 +8,13 @@ import {
   PRODUCT_ORDER_STATUSES,
   PRODUCT_RETURN_REASONS,
   PRODUCT_RETURN_LIMITS,
-  PRODUCT_REFUSAL_REASONS
+  PRODUCT_REFUSAL_REASONS,
+  PRODUCT_PAYMENT_LIMITS,
+  PRODUCT_PAYMENT_LINK_STATES,
+  PRODUCT_PAYMENT_RECEIPT_STATES
 } from '../constants/product-fields.js';
 import { SUPPLIER_STATUSES, SUPPLIER_LIMITS } from '../constants/supplier-fields.js';
-import { COUNTER_CHANNEL, COUNTER_RECEIVE_METHOD, COUNTER_PAYMENT_METHOD, COUNTER_ORDER_STATUSES } from '../constants/counter-sale-fields.js';
+import { COUNTER_CHANNEL, COUNTER_RECEIVE_METHOD, COUNTER_PAYMENT_METHODS, COUNTER_ORDER_STATUSES } from '../constants/counter-sale-fields.js';
 import { GOODS_RECEIPT_LIMITS } from '../constants/goods-receipt-fields.js';
 import { STOCK_ADJUSTMENT_TYPES, STOCK_ADJUSTMENT_REASONS, STOCK_ADJUSTMENT_LIMITS } from '../constants/stock-adjustment-fields.js';
 
@@ -45,6 +48,28 @@ const deliveryAddress = sub({
   label: { type: String, required: true, maxlength: 100 },
   location: { type: String, required: true, maxlength: 500 },
   areaCode: { type: String, required: true, maxlength: 80 }
+});
+// One payOS receipt kept on a prepaid order. No raw provider data is stored; the bank reference identifies the transfer.
+const paymentReceipt = sub({
+  eventId: { type: String, required: true, maxlength: 64 },
+  providerOrderCode: { type: String, required: true, maxlength: 20 },
+  transactionReference: { type: String, maxlength: 128 },
+  amountVnd: { ...integer() },
+  state: { type: String, enum: PRODUCT_PAYMENT_RECEIPT_STATES, required: true },
+  reason: { type: String, maxlength: 64 },
+  receivedAt: { type: Date, required: true }
+});
+// The payOS side of a prepaid order. Each payment link has its own order code, so paying again after a failed or
+// cancelled link adds a code instead of replacing it: a late result for an older link still finds this order.
+const orderPayment = sub({
+  providerReferences: { type: [String], default: [], validate: (list) => list.length <= PRODUCT_PAYMENT_LIMITS.maxReferences },
+  linkState: { type: String, enum: PRODUCT_PAYMENT_LINK_STATES },
+  linkRequestedAt: { type: Date },
+  linkExpiresAt: { type: Date },
+  checkoutUrl: { type: String, maxlength: 500 },
+  paymentLinkId: { type: String, maxlength: 128 },
+  paidAt: { type: Date },
+  receipts: { type: [paymentReceipt], default: [], validate: (list) => list.length <= PRODUCT_PAYMENT_LIMITS.maxReceipts }
 });
 const cashPayment = sub({
   amount: { ...integer(), required: true },
@@ -134,8 +159,11 @@ export function productSalesModels(connection) {
         subtotal: { ...integer(), required: true },
         shippingFee: { ...integer(), required: true },
         total: { ...integer(), required: true },
-        paymentMethod: { type: String, enum: [...PRODUCT_PAYMENT_METHODS, COUNTER_PAYMENT_METHOD], required: true },
+        paymentMethod: { type: String, enum: [...PRODUCT_PAYMENT_METHODS, ...COUNTER_PAYMENT_METHODS], required: true },
         paid: { type: Boolean, default: false },
+        // Prepaid orders only: when the payment is due (counted from the time of ordering) and the payOS state.
+        paymentDeadlineAt: { type: Date },
+        payment: { type: orderPayment },
         trackingCode: { type: String, maxlength: 64 },
         status: { type: String, enum: [...new Set([...PRODUCT_ORDER_STATUSES, ...COUNTER_ORDER_STATUSES])], default: 'PLACED' },
         pickupDeadlineAt: { type: Date },
@@ -147,6 +175,8 @@ export function productSalesModels(connection) {
         returnedAt: { type: Date },
         // A paid advance payment on an order that was cancelled or returned; accounting works out and pays the money outside PWC.
         refundMarked: { type: Boolean, default: false },
+        // The amount accounting refunds for a marked order, integer VND (GBR-37). Not set until the order is marked.
+        refundAmountVnd: { ...integer() },
         idempotencyKey: { type: String, required: true, maxlength: 128 },
         requestFingerprint: { type: String, required: true, maxlength: 128 },
         version: { ...integer(), default: 0 }
@@ -159,7 +189,9 @@ export function productSalesModels(connection) {
         [{ status: 1, createdAt: -1 }, {}],
         [{ counterCreatedBy: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { channel: COUNTER_CHANNEL } }],
         [{ channel: 1, status: 1, createdAt: 1, _id: 1 }, {}],
-        [{ status: 1, receiveMethod: 1, pickupDeadlineAt: 1, _id: 1 }, {}]
+        [{ status: 1, receiveMethod: 1, pickupDeadlineAt: 1, _id: 1 }, {}],
+        [{ status: 1, paymentMethod: 1, paymentDeadlineAt: 1, _id: 1 }, { partialFilterExpression: { paymentMethod: 'PREPAID', paid: false } }],
+        [{ 'payment.providerReferences': 1 }, { unique: true, partialFilterExpression: { 'payment.providerReferences': { $type: 'string' } } }]
       ]
     },
     // One record per refused order (the order id is unique, so a refusal is never counted twice).

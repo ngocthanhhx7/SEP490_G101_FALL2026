@@ -28,3 +28,12 @@ export function priceProductOrder({ lines, receiveMethod, discountBps = 0, allow
 export function sellableQuantity(product) {
   return Math.max(0, product.stockOnHand - product.quantityHeld);
 }
+
+// R3 GBR-37: the amount accounting refunds for a prepaid order that is cancelled or returned. Paw World's mistake, a
+// parcel the carrier could not deliver, or a customer cancelling a Placed order: the whole amount, shipping fee included.
+// A customer who refuses the goods without a reason: the price of the goods only (the shop keeps the shipping fee).
+export function productOrderRefundAmount(order, { goodsOnly = false } = {}) {
+  const amount = goodsOnly ? order.total - order.shippingFee : order.total;
+  if (!isMoney(amount)) throw new TypeError('Order amount is out of range');
+  return amount;
+}
