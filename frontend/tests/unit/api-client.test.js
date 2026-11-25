@@ -21,10 +21,13 @@ test('preserves a safe current available quantity on stock adjustment conflicts'
   }
 });
 
-test('retains correlation ID and retry interval without exposing backend message', async () => {
+test('retains correlation ID, retry interval and OTP feedback fields without exposing backend message', async () => {
   const correlationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-  const fetchImpl = async () => response(429, { error: { code: 'OTP_RATE_LIMITED', retryAfterSeconds: 60, message: 'private' }, meta: { correlationId } });
-  await expect(createApiClient({ fetchImpl })('/otp-challenges')).rejects.toMatchObject({ correlationId, retryAfterSeconds: 60, message: 'OTP_RATE_LIMITED' });
+  const retryAfterAt = '2026-11-24T03:30:00.000Z';
+  const fetchImpl = async () => response(429, { error: { code: 'OTP_RATE_LIMITED', retryAfterSeconds: 60, retryAfterAt, reason: 'TOO_MANY_WRONG_CODES', message: 'private' }, meta: { correlationId } });
+  await expect(createApiClient({ fetchImpl })('/otp-challenges')).rejects.toMatchObject({ correlationId, retryAfterSeconds: 60, retryAfterAt, reason: 'TOO_MANY_WRONG_CODES', message: 'OTP_RATE_LIMITED' });
+  const wrongFetch = async () => response(400, { error: { code: 'OTP_INCORRECT', remainingAttempts: 3, message: 'private' }, meta: { correlationId } });
+  await expect(createApiClient({ fetchImpl: wrongFetch })('/sessions')).rejects.toMatchObject({ code: 'OTP_INCORRECT', remainingAttempts: 3 });
   const html = async () => ({ status: 503, ok: false, headers: new Headers({ 'Retry-After': '30', 'X-Request-ID': correlationId }), json: async () => { throw Error('HTML'); } });
   await expect(createApiClient({ fetchImpl: html })('/services')).rejects.toMatchObject({ status: 503, retryAfterSeconds: 30, correlationId });
 });

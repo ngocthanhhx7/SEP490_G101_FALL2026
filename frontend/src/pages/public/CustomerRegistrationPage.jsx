@@ -19,11 +19,12 @@ function formatTimer(seconds) {
 function messageForError(error) {
   if (!error || typeof error.code !== 'string') return 'Không thể hoàn tất đăng ký. Vui lòng thử lại.';
   if (error.code === 'PROVIDER_UNAVAILABLE') return 'Chưa thể gửi mã xác minh. Hãy thử lại sau.';
+  const otpMessage = otpFeedback(error);
+  if (otpMessage) return otpMessage;
   if (error.code === 'OTP_RATE_LIMITED' || error.code === 'RATE_LIMITED') {
     const wait = Number.isSafeInteger(error.retryAfterSeconds) ? ` Thử lại sau ${error.retryAfterSeconds} giây.` : '';
     return `Bạn đã yêu cầu mã quá nhanh.${wait}`;
   }
-  if (otpFeedback(error.code)) return otpFeedback(error.code);
   if (error.code === 'CONTACT_ALREADY_LINKED') return 'Email hoặc số điện thoại này đã được đăng ký. Vui lòng đăng nhập bằng OTP.';
   if (error.code === 'CONTACT_UNAVAILABLE') {
     return 'Thông tin liên hệ này không thể dùng để đăng ký. Hãy đăng nhập bằng OTP nếu bạn đã có tài khoản.';

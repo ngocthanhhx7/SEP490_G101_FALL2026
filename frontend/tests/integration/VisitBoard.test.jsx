@@ -45,7 +45,7 @@ function board(overrides = {}) {
 }
 function Harness({ api, todayTotal = 7, ...props }) {
   const [tab, setTab] = useState('needs');
-  return <VisitBoard api={api} tab={tab} onTab={setTab} todayTotal={todayTotal} workAreas={workAreas} {...props} />;
+  return <MemoryRouter><VisitBoard api={api} tab={tab} onTab={setTab} todayTotal={todayTotal} workAreas={workAreas} {...props} /></MemoryRouter>;
 }
 const tabNamed = name => screen.getByRole('tab', { name });
 
@@ -108,6 +108,7 @@ describe('Cần xử lý table', () => {
     expect(visit).toHaveTextContent('Bơ');
     expect(visit).toHaveTextContent('Tại nhà');
     expect(customer).toHaveTextContent('Mã lịch · BK-0051');
+    expect(within(customer).getByRole('link', { name: 'BK-0051' })).toHaveAttribute('href', '/staff/bookings/6720a1b2c3d4e5f6a7b8c951');
     expect(within(row).getByText('Ngô Minh Đức')).toBeInTheDocument();
     expect(within(row).getByText('Chưa check-in sau 30 phút')).toBeInTheDocument();
     expect(within(row).getByText('Trễ 35 phút')).toHaveClass('visit-board__late');
@@ -120,7 +121,7 @@ describe('Cần xử lý table', () => {
     const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
     expect(table.getByText('Còn 19 giờ')).not.toHaveClass('visit-board__late');
     expect(table.getByText('Còn 5 giờ')).toBeInTheDocument();
-    expect(table.getByText('…b8c942')).toBeInTheDocument();
+    expect(table.getByRole('link', { name: '…b8c942' })).toHaveAttribute('href', '/staff/bookings/6720a1b2c3d4e5f6a7b8c942');
   });
 
   test('one row per visit: the main reason leads and the other reasons stay visible', async () => {
@@ -402,7 +403,7 @@ describe('the dispatch page', () => {
   });
 
   test('shows the three tabs with the counts, and the legacy queue under its own title without the visits already listed', async () => {
-    render(<EmployeeDispatchPage api={pageApi()} />);
+    render(<MemoryRouter><EmployeeDispatchPage api={pageApi()} /></MemoryRouter>);
     expect(await screen.findByRole('tab', { name: 'Cần xử lý (5)' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Buổi hôm nay (7)' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Hàng đợi tìm người của hệ thống' })).toBeVisible();
@@ -412,7 +413,7 @@ describe('the dispatch page', () => {
   });
 
   test('searching or filtering hides the legacy queue with a note, and clearing brings it back', async () => {
-    render(<EmployeeDispatchPage api={pageApi()} />);
+    render(<MemoryRouter><EmployeeDispatchPage api={pageApi()} /></MemoryRouter>);
     await screen.findByRole('region', { name: 'Ca cần điều phối' });
     fireEvent.change(screen.getByLabelText('Khu vực phục vụ'), { target: { value: 'DISTRICT_DONG_DA' } });
     expect(await screen.findByText('Đang tìm hoặc lọc, hàng đợi tìm người của hệ thống tạm ẩn.')).toBeInTheDocument();
@@ -423,7 +424,7 @@ describe('the dispatch page', () => {
 
   test('the legacy queue rows stay clickable and Giao người on the board opens the same dispatch dialog', async () => {
     const api = pageApi({ proposals: jest.fn(), sitters: jest.fn().mockResolvedValue({ data: { items: [] } }) });
-    render(<EmployeeDispatchPage api={api} />);
+    render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
     const legacyRow = (await screen.findByText('Ca legacy-only')).closest('tr');
     expect(within(legacyRow).getByRole('button')).toBeEnabled();
     fireEvent.click(within((await screen.findByText('Trần Thị Lan')).closest('tr')).getByRole('button', { name: 'Giao người' }));
@@ -432,7 +433,7 @@ describe('the dispatch page', () => {
 
   test('a visit outside the first queue page opens through its scoped detail endpoint', async () => {
     const api = pageApi({ dispatchDetails: jest.fn(async id => ({ data: { ...legacy(id), reviewCode: 'SHIFT_START_REACHED' } })) });
-    render(<EmployeeDispatchPage api={api} />);
+    render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
     const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
     const action = within(table.getByText('Đỗ Khánh Linh').closest('tr')).getByRole('button', { name: 'Đổi lịch với khách' });
     expect(action).toBeEnabled();
@@ -444,7 +445,7 @@ describe('the dispatch page', () => {
   test('legacy adapters without a detail endpoint keep their explicit queue limitation', async () => {
     const api = pageApi({ queue: jest.fn().mockResolvedValue({ data: { items: [legacy('v-42')], workAreas, today: { date: '04/11/2026', asOf: startAt, summary: { total: 7, inProgress: 1, completed: 2, late: 0 } } } }),
       sitters: jest.fn().mockResolvedValue({ data: { items: [] } }) });
-    render(<EmployeeDispatchPage api={api} />);
+    render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
     const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
     expect(within(table.getByText('Đỗ Khánh Linh').closest('tr')).getByRole('button', { name: 'Đổi lịch với khách' })).toBeDisabled();
     expect(table.getByText('Buổi nằm ngoài 50 ca đầu của hàng đợi. Xử lý các ca sớm hơn rồi tải lại.')).toBeInTheDocument();
@@ -454,17 +455,33 @@ describe('the dispatch page', () => {
 
   test('a board error is shown in the Cần xử lý area while the legacy queue stays usable', async () => {
     const api = pageApi({ visitBoard: jest.fn().mockRejectedValue(new ApiError('HTTP_ERROR', 500)) });
-    render(<EmployeeDispatchPage api={api} />);
+    render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
     expect(await screen.findByText('Chưa tải được danh sách cần xử lý.')).toBeVisible();
     expect(screen.getByRole('tab', { name: 'Cần xử lý' })).toBeInTheDocument();
     expect(within(await screen.findByRole('region', { name: 'Ca cần điều phối' })).getByText('Ca v-42')).toBeInTheDocument();
   });
 
   test('the Buổi hôm nay tab shows today and hides the legacy queue', async () => {
-    render(<EmployeeDispatchPage api={pageApi()} />);
-    fireEvent.click(await screen.findByRole('tab', { name: 'Buổi hôm nay (7)' }));
+    const api = pageApi({
+      queue: jest.fn().mockResolvedValue({
+        data: {
+          items: [legacy('legacy-only')],
+          workAreas,
+          today: {
+            date: '04/11/2026',
+            asOf: startAt,
+            summary: { total: 1, inProgress: 0, completed: 0, late: 0 },
+            items: [{ ...rows.notCheckedIn, id: 'today-1' }]
+          }
+        }
+      })
+    });
+    render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Buổi hôm nay (1)' }));
     expect(screen.getByRole('heading', { name: 'Buổi hôm nay' })).toBeVisible();
     expect(screen.queryByRole('region', { name: 'Ca cần điều phối' })).not.toBeInTheDocument();
+    const todayTable = within(screen.getByRole('region', { name: 'Buổi chăm sóc hôm nay' }));
+    expect(todayTable.getByRole('link', { name: 'BK-0051' })).toHaveAttribute('href', '/staff/bookings/6720a1b2c3d4e5f6a7b8c951');
   });
 });
 
@@ -492,7 +509,7 @@ describe('UC-38 Giao lại entry points', () => {
 
   test('the all-visits list offers it for an accepted visit that has a sitter, with the board view to return to', async () => {
     const api = board({ visitWorkflow: jest.fn(), visitBoard: jest.fn(async params => (params.tab === 'all' ? allPage([visit('1'), visit('2', { state: 'SCHEDULED', sitterId: null, sitterName: null })]) : needsPage([]))) });
-    render(<MemoryRouter><Harness api={api} /></MemoryRouter>);
+    render(<Harness api={api} />);
     fireEvent.click(tabNamed('Tất cả buổi'));
     const table = within(await screen.findByRole('region', { name: 'Tất cả buổi' }));
     const links = table.getAllByRole('link', { name: 'Giao lại' });
@@ -504,7 +521,7 @@ describe('UC-38 Giao lại entry points', () => {
     const onReassign = jest.fn();
     const api = board({ withdrawalReview: jest.fn().mockResolvedValue({ data: { visitId: 'v-38', version: 3, serviceName: 'Chăm sóc tại nhà', sitterName: 'Đoàn Minh Khôi',
       startAt: '2026-11-04T07:30:00Z', endAt: '2026-11-04T08:30:00Z', reasonCode: 'SICK', note: null } }) });
-    render(<MemoryRouter><Harness api={api} onReassign={onReassign} initialWithdrawalId={'a'.repeat(24)} /></MemoryRouter>);
+    render(<Harness api={api} onReassign={onReassign} initialWithdrawalId={'a'.repeat(24)} />);
     const dialog = within(await screen.findByRole('dialog'));
     await dialog.findByText(/Đoàn Minh Khôi/);
     expect(dialog.getByRole('option', { name: 'Chấp nhận rút, sắp xếp lại ca' })).toBeInTheDocument();

@@ -19,6 +19,9 @@ export class ApiError extends Error {
     this.lineFields = details.lineFields;
     this.decisionIds = details.decisionIds;
     this.retryAfterSeconds = Number.isSafeInteger(details.retryAfterSeconds) && details.retryAfterSeconds > 0 ? details.retryAfterSeconds : undefined;
+    this.retryAfterAt = typeof details.retryAfterAt === 'string' && Number.isFinite(Date.parse(details.retryAfterAt)) ? details.retryAfterAt : undefined;
+    this.remainingAttempts = Number.isSafeInteger(details.remainingAttempts) && details.remainingAttempts >= 0 ? details.remainingAttempts : undefined;
+    this.reason = typeof details.reason === 'string' ? details.reason : undefined;
     this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
   }
 }
@@ -86,6 +89,9 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
           available: envelope?.error?.available, productId: envelope?.error?.productId,
           time: envelope?.error?.time, pet: envelope?.error?.pet,
           retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
+          retryAfterAt: envelope?.error?.retryAfterAt,
+          remainingAttempts: envelope?.error?.remainingAttempts,
+          reason: envelope?.error?.reason,
           correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         });
       }

@@ -101,7 +101,7 @@ export function BookingDetailsContent({ booking, visitActions }) {
         {visitActions?.beforeList}
         {visits.length > 0 ? <div className="booking-details__table" tabIndex={0} role="region" aria-label="Bảng các buổi chăm sóc">
           <table aria-label="Các buổi chăm sóc">
-            <thead><tr>{['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo', ...(visitActions ? [visitActions.columnLabel ?? 'Khiếu nại'] : [])].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+            <thead><tr>{['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo', ...(visitActions?.forVisit && visitActions.showColumn !== false ? [visitActions.columnLabel ?? 'Khiếu nại'] : [])].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
             <tbody>{visits.map(visit => <tr key={visit.id}>
               <td><time dateTime={visit.startAt ?? undefined} title={date(visit.startAt)}>
                 {visitDay(visit.startAt)}
@@ -110,7 +110,7 @@ export function BookingDetailsContent({ booking, visitActions }) {
               <td>{visit.sitterName ?? '—'}</td>
               <td><span className="booking-details__status" data-state={visit.state}>{visitStatus[visit.state] ?? 'Đang cập nhật'}</span></td>
               <td>{visitActions?.reportForVisit?.(visit) ?? '—'}</td>
-              {visitActions && <td>{visitActions.forVisit?.(visit)}</td>}
+              {visitActions?.forVisit && visitActions.showColumn !== false && <td>{visitActions.forVisit(visit)}</td>}
             </tr>)}</tbody>
           </table>
         </div> : <p>Chưa có dữ liệu buổi chăm sóc.</p>}
