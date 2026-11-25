@@ -78,6 +78,18 @@
 /* Order tables (My Orders, Order Management): keep columns readable and scroll inside the panel on phones. */
 .pwc-shop-table--wide { min-width: 40rem; }
 .pwc-shop-table--wide td:first-child { white-space: nowrap; }
+/* My Orders inside the account workspace: fit all 6 columns including View without horizontal scroll at 1280px+ and stack below when narrower. */
+.pwc-shop-split.pwc-shop-split--orders { grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+@media (min-width: 78rem) { .pwc-shop-split.pwc-shop-split--orders { grid-template-columns: minmax(0, 1fr) 19rem; } }
+.pwc-shop-panel.pwc-shop-orders-panel { padding: .85rem .9rem; }
+.pwc-shop-split--orders .pwc-shop-facts { gap: .4rem 1rem; }
+.pwc-shop-table.pwc-shop-table--orders { min-width: 0; width: 100%; font-size: .875rem; }
+.pwc-shop-table.pwc-shop-table--orders th { padding: .5rem .45rem; font-size: .8rem; white-space: nowrap; }
+.pwc-shop-table.pwc-shop-table--orders td { padding: .6rem .45rem; }
+.pwc-shop-table.pwc-shop-table--orders td:first-child { white-space: nowrap; }
+.pwc-shop-table.pwc-shop-table--orders td:nth-child(3) { white-space: normal; }
+.pwc-shop-table.pwc-shop-table--orders .pwc-shop-status { padding: .15rem .55rem; font-size: .75rem; }
+.pwc-shop-table.pwc-shop-table--orders .pwc-shop-link-button { padding: .35rem .45rem; }
 /* Admin Order Management: the next-step block under an order's details. */
 .pwc-shop-actions { display: grid; gap: .6rem; border-top: 1px solid var(--shop-border); margin-top: 1rem; padding-top: 1rem; }
 .pwc-shop-hint { color: var(--shop-muted); font-size: .9rem; margin: 0; }

@@ -37,6 +37,22 @@
 .pwc-notice--error, .pwc-notice--forbidden { color: var(--pwc-error); border-color: var(--pwc-error); background: var(--pwc-error-surface); }
 .pwc-notice--success { color: var(--pwc-success); border-color: var(--pwc-success); background: var(--pwc-success-surface); }
 .pwc-notice--warning, .pwc-notice--pending { color: var(--pwc-warning); border-color: var(--pwc-warning); background: var(--pwc-warning-surface); }
+.pwc-toast-region {
+  position: fixed; bottom: 1.5rem; right: 1.25rem; z-index: 1150;
+  width: min(24rem, calc(100vw - 2rem)); pointer-events: none;
+}
+.pwc-toast {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: start;
+  padding: .85rem 1rem; border: 1px solid #cfe6da; border-left: 4px solid #2b7654; border-radius: .75rem;
+  background: #fff; color: #0e0e2c; box-shadow: 0 8px 24px rgb(14 14 44 / 14%);
+  pointer-events: auto; font: 700 .95rem/1.45 var(--pwc-font-body, 'Nunito', sans-serif); overflow-wrap: anywhere;
+}
+.pwc-toast__close {
+  display: grid; place-items: center; width: 1.75rem; height: 1.75rem; padding: 0; border: 0;
+  border-radius: .35rem; background: transparent; color: #515151; cursor: pointer;
+}
+.pwc-toast__close:hover { background: #e9f7f0; color: #0e0e2c; }
+.pwc-toast__close:focus-visible { outline: 3px solid #7351ac; outline-offset: 2px; }
 .pwc-dialog {
   width: min(var(--pwc-dialog-width), calc(100% - 2rem)); max-height: calc(100dvh - 2rem);
   padding: var(--pwc-space-6); margin: auto; overflow: auto; border: 2px solid var(--pwc-border);
