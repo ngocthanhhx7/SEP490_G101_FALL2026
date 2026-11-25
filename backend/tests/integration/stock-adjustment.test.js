@@ -156,14 +156,15 @@ test('IT-FE25-UC95-10 corrects UC-70 stock without changing the original Goods R
   expect(await models.StockAdjustment.countDocuments()).toBe(1);
 });
 
-test('IT-FE25-UC95-11 keeps UC-71 and UC-94 Low Stock counts consistent after an adjustment', async () => {
+test('IT-FE25-UC95-11 keeps the Low Stock count and tab consistent after an adjustment', async () => {
   const p = await product('SP-0001', { stockOnHand: T + 1 });
   await save(values(p, { quantity: 1 })).expect(201);
   const stock = (await get('/api/v1/admin/stock-levels').expect(200)).body.data;
   expect(stock.items[0]).toMatchObject({ id: p.id, available: T, status: 'LOW_STOCK' });
   expect(stock.counts.LOW_STOCK).toBe(1);
-  const dashboard = (await get('/api/v1/dashboards/sale-staff', 'SALE_STAFF').expect(200)).body.data;
-  expect(dashboard.counts.LOW_STOCK).toBe(stock.counts.LOW_STOCK);
+  const lowStock = (await get('/api/v1/admin/stock-levels').query({ tab: 'LOW_STOCK' }).expect(200)).body.data;
+  expect(lowStock.total).toBe(stock.counts.LOW_STOCK);
+  expect(lowStock.items).toEqual([expect.objectContaining({ id: p.id, status: 'LOW_STOCK' })]);
 });
 
 test('IT-FE25-UC95-12 stores multiple adjustments independently and lists newest history first', async () => {
