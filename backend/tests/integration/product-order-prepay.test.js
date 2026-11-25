@@ -366,6 +366,16 @@ describe('ST-ORD-11 JOB-04 prepaid order not paid in time', () => {
     expect(await orderDoc(cod)).toMatchObject({ status: 'PLACED' });
   });
 
+  test('records a different transfer for an already paid link for reconciliation', async () => {
+    const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
+    await link('a', order).expect(200);
+    expect(await receive(order)).toMatchObject({ status: 'PAYMENT_VERIFIED' });
+    expect(await receive(order, { reference: 'BANK-SECOND-TRANSFER' }))
+      .toMatchObject({ status: 'RECONCILIATION_REQUIRED' });
+    expect((await orderDoc(order)).payment.receipts.map(receipt => receipt.state))
+      .toEqual(['VERIFIED', 'RECONCILIATION_REQUIRED']);
+  });
+
   test('is kept and recorded as paid when payOS says it was paid after all', async () => {
     const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
     await link('a', order).expect(200);
@@ -374,9 +384,19 @@ describe('ST-ORD-11 JOB-04 prepaid order not paid in time', () => {
     now = START + 2 * HOUR;
     expect(await expiry(settler()).runBatch()).toMatchObject({ cancelled: 0, failed: 0, kept: 1 });
     expect(await orderDoc(order)).toMatchObject({ status: 'PLACED', paid: true });
-    // The webhook that follows is the same payment: it is not recorded twice.
-    expect(await receive(order)).toMatchObject({ status: 'DUPLICATE' });
-    expect((await orderDoc(order)).payment.receipts).toHaveLength(1);
+    // The status lookup cannot prove the bank reference is the same transfer.
+    expect(await receive(order)).toMatchObject({ status: 'RECONCILIATION_REQUIRED' });
+    expect((await orderDoc(order)).payment.receipts.map(receipt => receipt.state))
+      .toEqual(['VERIFIED', 'RECONCILIATION_REQUIRED']);
+  });
+
+  test('keeps an issued payment link for reconciliation while payOS is disabled', async () => {
+    const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
+    await link('a', order).expect(200);
+    now = START + HOUR;
+    expect(await expiry(null).runBatch()).toMatchObject({ cancelled: 0, kept: 1 });
+    expect(await orderDoc(order)).toMatchObject({ status: 'PLACED', paid: false });
+    expect(await product('SP-0012')).toMatchObject({ quantityHeld: 1 });
   });
 
   test('is left alone when payOS cannot be asked, so a paid order is never cancelled by mistake', async () => {

@@ -158,6 +158,10 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
     for (const candidate of candidates) {
       try {
         // A payOS error throws and leaves the order for the next run, so a paid order is never cancelled by mistake.
+        if (!payments && candidate.payment?.providerReferences?.length) {
+          summary.kept += 1;
+          continue;
+        }
         const outcome = payments ? await payments.settleIfPaid(candidate) : 'UNPAID';
         if (outcome !== 'UNPAID') { summary.kept += 1; continue; }
         // The cancellation only applies while the order is still unpaid and unchanged. A late payment is no refusal
