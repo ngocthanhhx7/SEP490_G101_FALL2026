@@ -5,10 +5,11 @@ This directory contains bounded background jobs. `visit-reminder.job.js` sweeps 
 `booking-payment-expiry.job.js` schedules JOB-03 every 30 seconds when
 authenticated checkout has a configured payOS status provider. The backend
 service performs bounded signed-provider reconciliation for attempted links.
-If the customer never requested a payOS link, the service can expire the
-unpaid booking transactionally after rechecking that no intent was sent and no
-verified payment exists. Attempted links still require confirmed terminal
-unpaid status from payOS; uncertain status is deferred.
+If a pending intent was never submitted, it can expire locally even if an
+earlier replaced intent already has verified terminal-unpaid evidence. Each
+attempted intent must have recorded terminal evidence or a fresh terminal-
+unpaid result from payOS. The transaction rechecks every intent and any
+verified or reconciliation-required payment; uncertain status is deferred.
 
 `application-mail.job.js` runs the application mail queue only when runtime
 EMAIL_ENABLED is true. It bounds each batch, avoids overlapping ticks and awaits

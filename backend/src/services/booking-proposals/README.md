@@ -46,10 +46,13 @@ GBR-17 requires PREPAY for every newly created checkout booking, including
 one-visit bookings. Every order creates a payOS intent with the original
 15-minute deadline and stays out of dispatch until verified payment.
 `booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch.
-An expired order whose intents have no payOS submission markers can expire
-locally because no payment link request was ever started. The service checks
-those markers again inside the same guarded transaction that expires the
-booking and releases the visits, and refuses expiry if a verified payment
-exists. For any attempted payment link, it requires authenticated payOS proof
-of terminal unpaid state. Missing or ambiguous provider evidence defers
-expiry for reconciliation.
+An expired order can be finalized when *each* payOS intent is independently
+safe: a pending intent without any submission marker was never sent; a
+replaced `CANCELLED` intent with recorded terminal payOS evidence is already
+reconciled; all other attempted or legacy intents require a fresh authenticated
+payOS terminal-unpaid result. This covers a cancelled old link followed by a
+new pending intent that the Customer never opened. The service checks intent
+state, version, provider reference, money and submission markers again inside
+the guarded transaction, rejects verified or reconciliation-required payments,
+then expires the booking and releases visits. Missing or ambiguous evidence
+defers expiry rather than inferring payment failure from a payOS 404.

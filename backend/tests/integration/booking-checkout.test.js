@@ -576,6 +576,122 @@ test('JOB-03 never expires an unsubmitted intent if a verified payment receipt a
   expect((await connection.collection('paymentintents').findOne({ _id: intent._id })).state).toBe('PENDING');
 });
 
+test('JOB-03 expires a replaced payOS link when the new intent was never submitted', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-replaced-unsubmitted');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  await checkout.paymentLink(owner, booking.id, 'replace-expiry-first-link');
+  const original = await connection.collection('paymentintents').findOne({ bookingId });
+  const replace = createBookingCheckoutService({ connection, clock: () => at.getTime(), provider: {
+    createPaymentLink: provider.createPaymentLink,
+    getPaymentLink: async orderCode => ({ orderCode, amount: original.amountVnd, amountPaid: 0,
+      amountRemaining: original.amountVnd, providerStatus: 'CANCELLED' })
+  }, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
+  await replace.paymentLink(owner, booking.id, 'replace-expiry-second-link');
+  const previous = await connection.collection('paymentintents').findOne({ _id: original._id });
+  const newest = await connection.collection('paymentintents').findOne({ bookingId, state: 'PENDING' });
+  // The second link was created above; model a customer leaving immediately
+  // after replacement's intent was persisted but before its provider request.
+  await connection.collection('paymentintents').updateOne({ _id: newest._id },
+    { $unset: { linkState: '', linkRequestedAt: '', checkoutUrl: '', paymentLinkId: '' } });
+  expect(previous).toMatchObject({ state: 'CANCELLED', providerTerminalStatus: 'CANCELLED' });
+  expect(newest.providerReference).not.toBe(original.providerReference);
+  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const worker = createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => original.expiresAt.getTime() + 1000 });
+  expect(await worker.runBatch()).toMatchObject({ expired: 1, deferred: 0 });
+  expect(lookup).not.toHaveBeenCalled();
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('PAYMENT_EXPIRED');
+  expect((await connection.collection('paymentintents').findOne({ _id: previous._id })).state).toBe('CANCELLED');
+  expect((await connection.collection('paymentintents').findOne({ _id: newest._id })).state).toBe('EXPIRED');
+  expect(await connection.collection('visits').countDocuments({ bookingId, state: 'CANCELLED' })).toBe(1);
+  expect(await connection.collection('financesourceevents').countDocuments({ _id: `booking-payment-expired:${bookingId}` })).toBe(1);
+  expect(await worker.runBatch()).toMatchObject({ expired: 0 });
+});
+
+test('JOB-03 defers a replaced link when older terminal evidence is missing and payOS returns 404', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-missing-old-evidence');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  const old = await connection.collection('paymentintents').findOne({ bookingId });
+  await connection.collection('paymentintents').updateOne({ _id: old._id },
+    { $set: { state: 'CANCELLED', linkState: 'READY', linkRequestedAt: at } });
+  await connection.collection('paymentintents').insertOne({ _id: oid(), bookingId, provider: 'PAYOS',
+    providerReference: '1777777777777', amountVnd: old.amountVnd, currency: 'VND', state: 'PENDING',
+    version: 0, expiresAt: old.expiresAt, createdAt: at });
+  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => old.expiresAt.getTime() + 1000 }).runBatch();
+  expect(result).toMatchObject({ expired: 0, deferred: 1 });
+  expect(lookup).toHaveBeenCalledWith(Number(old.providerReference));
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('AWAITING_PAYMENT');
+});
+
+test('JOB-03 checks an older replaced attempt without cached proof, but skips the unsubmitted new intent', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-older-attempt-lookup');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  const old = await connection.collection('paymentintents').findOne({ bookingId });
+  await connection.collection('paymentintents').updateOne({ _id: old._id },
+    { $set: { state: 'CANCELLED', linkState: 'READY', linkRequestedAt: at } });
+  await connection.collection('paymentintents').insertOne({ _id: oid(), bookingId, provider: 'PAYOS',
+    providerReference: '1999999999999', amountVnd: old.amountVnd, currency: 'VND', state: 'PENDING',
+    version: 0, expiresAt: old.expiresAt, createdAt: at });
+  const lookup = jest.fn(async orderCode => ({ orderCode, amount: old.amountVnd, amountPaid: 0,
+    providerStatus: 'CANCELLED' }));
+  const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => old.expiresAt.getTime() + 1000 }).runBatch();
+  expect(result).toMatchObject({ expired: 1, deferred: 0 });
+  expect(lookup).toHaveBeenCalledTimes(1);
+  expect(lookup).toHaveBeenCalledWith(Number(old.providerReference));
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('PAYMENT_EXPIRED');
+});
+
+test('JOB-03 rechecks a replacement intent claimed during provider reconciliation inside the transaction', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-replacement-race');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  const old = await connection.collection('paymentintents').findOne({ bookingId });
+  await connection.collection('paymentintents').updateOne({ _id: old._id },
+    { $set: { state: 'CANCELLED', linkState: 'READY', linkRequestedAt: at } });
+  const newestId = oid();
+  await connection.collection('paymentintents').insertOne({ _id: newestId, bookingId, provider: 'PAYOS',
+    providerReference: '1888888888888', amountVnd: old.amountVnd, currency: 'VND', state: 'PENDING',
+    version: 0, expiresAt: old.expiresAt, createdAt: at });
+  const lookup = jest.fn(async orderCode => {
+    await connection.collection('paymentintents').updateOne({ _id: newestId },
+      { $set: { linkState: 'CREATING', linkRequestedAt: at } });
+    return { orderCode, amount: old.amountVnd, amountPaid: 0, providerStatus: 'CANCELLED' };
+  });
+  const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => old.expiresAt.getTime() + 1000 }).runBatch();
+  expect(result).toMatchObject({ expired: 0, deferred: 1 });
+  expect(lookup).toHaveBeenCalledWith(Number(old.providerReference));
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('AWAITING_PAYMENT');
+  expect((await connection.collection('paymentintents').findOne({ _id: newestId })).state).toBe('PENDING');
+});
+
+test('JOB-03 never expires replaced intents with a payment awaiting reconciliation', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-replacement-receipt-review');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  const old = await connection.collection('paymentintents').findOne({ bookingId });
+  await connection.collection('paymentintents').updateOne({ _id: old._id },
+    { $set: { state: 'CANCELLED', providerTerminalStatus: 'CANCELLED' } });
+  await connection.collection('paymentintents').insertOne({ _id: oid(), bookingId, provider: 'PAYOS',
+    providerReference: '1666666666666', amountVnd: old.amountVnd, currency: 'VND', state: 'PENDING',
+    version: 0, expiresAt: old.expiresAt, createdAt: at });
+  await connection.collection('payments').insertOne({ bookingId, state: 'RECONCILIATION_REQUIRED',
+    provider: 'PAYOS', providerEventId: 'synthetic-replacement-review-event',
+    amountVnd: old.amountVnd, currency: 'VND' });
+  const lookup = jest.fn();
+  const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => old.expiresAt.getTime() + 1000 }).runBatch();
+  expect(result).toMatchObject({ expired: 0, deferred: 1 });
+  expect(lookup).not.toHaveBeenCalled();
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('AWAITING_PAYMENT');
+});
+
 
 test('ST-BKG-21 / GBR-12: checkout options disable AI recommendations and list only sitters who previously cared for the customer', async () => {
   expect((await checkout.options(owner)).recommendationAllowed).toBe(false);
