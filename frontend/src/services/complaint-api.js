@@ -11,10 +11,18 @@ function key(factory) { const value = factory(); if (typeof value !== 'string' |
 function text(value, field, optional = false, max = 4000) { if (value === undefined && optional) return; if (typeof value !== 'string' || !value.trim() || value.length > max) throw new ApiError(`INVALID_${field.toUpperCase()}`, 422); return value.trim(); }
 function category(value) { if (value !== undefined && !CATEGORIES.has(value)) throw new ApiError('INVALID_CATEGORY', 422); }
 function state(value) { if (value !== undefined && !STATES.has(value)) throw new ApiError('INVALID_STATE', 422); }
+const PROPOSAL_KINDS = new Set(['COMPLAINT', 'INCIDENT']);
 function complaintView(result, complaintId) {
   if (result?.pending) return result;
   const data = result?.data?.complaint ?? result?.data;
   if (!data || (complaintId && data.id !== complaintId) || data.kind !== 'COMPLAINT' || !STATES.has(data.state)) throw new ApiError('INVALID_RESPONSE', result?.status || 0);
+  if (data.evidenceRefs?.some(item => item.readUrl || item.url)) throw new ApiError('PRIVATE_MEDIA_LEAK', result?.status || 0);
+  return result;
+}
+function proposalView(result, caseId) {
+  if (result?.pending) return result;
+  const data = result?.data?.complaint ?? result?.data;
+  if (!data || (caseId && data.id !== caseId) || !PROPOSAL_KINDS.has(data.kind) || !STATES.has(data.state)) throw new ApiError('INVALID_RESPONSE', result?.status || 0);
   if (data.evidenceRefs?.some(item => item.readUrl || item.url)) throw new ApiError('PRIVATE_MEDIA_LEAK', result?.status || 0);
   return result;
 }
@@ -107,14 +115,14 @@ export function createComplaintApi({ request, fetchImpl, getCsrfToken, onUnautho
       const result = await send(`/complaints/refund-proposals${params.toString() ? `?${params}` : ''}`, { signal: input.signal });
       if (result?.pending) return result;
       if (!result?.data || !Array.isArray(result.data.items)
-        || result.data.items.some(item => item.kind !== 'COMPLAINT' || !STATES.has(item.state))) {
+        || result.data.items.some(item => !PROPOSAL_KINDS.has(item.kind) || !STATES.has(item.state))) {
         throw new ApiError('INVALID_RESPONSE', result?.status || 0);
       }
       return result;
     },
     async refundProposal(input = {}) {
       const complaintId = id(typeof input === 'string' ? input : input.complaintId, 'complaintId');
-      return complaintView(await send(`/complaints/${complaintId}/refund-proposal`, {
+      return proposalView(await send(`/complaints/${complaintId}/refund-proposal`, {
         signal: typeof input === 'object' ? input.signal : undefined
       }), complaintId);
     },
@@ -128,7 +136,7 @@ export function createComplaintApi({ request, fetchImpl, getCsrfToken, onUnautho
       const result = await command(`/complaints/${complaintId}/refund-decision`, input, [
         'expectedVersion', 'outcome', 'amountVnd', 'reason'
       ], true);
-      return complaintView(result, complaintId);
+      return proposalView(result, complaintId);
     },
     async bookingRefunds(input = {}) {
       const params = new globalThis.URLSearchParams();

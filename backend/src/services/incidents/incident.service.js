@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
 import { AppError } from '../../utils/app-error.js';
 import { workflowTasks } from '../care/workflow-snapshot.service.js';
+import { visitInitialNetVnd } from '../booking-proposals/booking-cancellation.service.js';
 
 export const INCIDENT_STATES = Object.freeze([
   'OPEN',
@@ -35,15 +36,20 @@ const MAX_TEXT = 4000;
 const MAX_NOTES = 8000;
 const MAX_EVIDENCE = 20;
 const MAX_TIMELINE = 100;
+const MEDIA_ID = /^[a-f0-9]{64}$/;
+const incidentCode = id => 'SC-' + String(id).replaceAll('-', '').slice(0, 12).toUpperCase();
 const fail = (status, code, message, details = {}) => {
   throw new AppError(status, code, message, details);
 };
-const invalid = (field, message = 'Incident request is invalid') =>
+const invalid = (field, message = 'Incident request is invalid', messageCode) =>
   fail(
     422,
     'VALIDATION_FAILED',
     message,
-    field ? { fieldErrors: { [field]: message } } : {}
+    {
+      ...(field ? { fieldErrors: { [field]: message } } : {}),
+      ...(messageCode ? { messageCode } : {})
+    }
   );
 
 function nowValue(clock) {
@@ -90,7 +96,7 @@ function idempotency(value) {
   return value;
 }
 function text(value, field, max = MAX_TEXT, optional = false) {
-  if (value === undefined && optional) return null;
+  if ((value === undefined || value === null) && optional) return null;
   if (
     typeof value !== 'string' ||
     value.length > max ||
@@ -98,7 +104,7 @@ function text(value, field, max = MAX_TEXT, optional = false) {
   )
     invalid(field, `${field} is invalid`);
   const normalized = value.trim();
-  if (!normalized && !optional) invalid(field, `${field} cannot be empty`);
+  if (!normalized && !optional) invalid(field, 'This field is required.', 'MSG01');
   return normalized || null;
 }
 function enumValue(value, values, field, fallback) {
@@ -249,6 +255,49 @@ function normalizeIncident(input = {}, clock) {
         : identifier(input.petId, 'petId')
   };
 }
+function normalizeProposalEvidence(value = []) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > MAX_EVIDENCE) {
+    invalid('evidenceRefs', 'At most 20 evidence references are allowed');
+  }
+  const seen = new Set();
+  return value.map(item => {
+    const mediaId = typeof item === 'string' ? item : item?.mediaId ?? item?.id;
+    if (typeof mediaId !== 'string' || !MEDIA_ID.test(mediaId) || seen.has(mediaId)) {
+      invalid('evidenceRefs', 'Evidence ID is invalid or duplicated');
+    }
+    seen.add(mediaId);
+    return { mediaId, kind: 'INCIDENT_PROPOSAL', caption: null };
+  });
+}
+
+function normalizeResolutionProposal(input, chargeVisit) {
+  if (input.proposal === undefined || input.proposal === null) {
+    if (chargeVisit === false) {
+      invalid('reason', 'This field is required.', 'MSG01');
+    }
+    return null;
+  }
+  const raw = input.proposal;
+  if (typeof raw !== 'object' || Array.isArray(raw)
+    || Object.keys(raw).some(key => !['amountVnd', 'reason', 'evidenceRefs'].includes(key))) {
+    invalid('proposal');
+  }
+  let extraAmountVnd = 0;
+  if (raw.amountVnd !== undefined && raw.amountVnd !== null) {
+    if (!Number.isSafeInteger(raw.amountVnd) || raw.amountVnd < 0) {
+      invalid('amountVnd', 'Amount must be a whole number of VND');
+    }
+    extraAmountVnd = raw.amountVnd;
+  }
+  if (chargeVisit !== false && extraAmountVnd < 1) {
+    invalid('amountVnd', 'Amount must be a whole number of VND');
+  }
+  const reason = text(raw.reason, 'reason', MAX_TEXT, false);
+  const evidenceRefs = normalizeProposalEvidence(raw.evidenceRefs);
+  return { extraAmountVnd, reason, evidenceRefs };
+}
+
 function normalizeResolution(input = {}, actor, clock) {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     invalid('resolution');
@@ -258,9 +307,15 @@ function normalizeResolution(input = {}, actor, clock) {
     'targetState',
     'RESOLVED'
   );
+  let chargeVisit = null;
+  if (input.chargeVisit !== undefined && input.chargeVisit !== null) {
+    if (typeof input.chargeVisit !== 'boolean') invalid('chargeVisit');
+    chargeVisit = input.chargeVisit;
+  }
+  const proposal = normalizeResolutionProposal(input, chargeVisit);
   return {
     targetState,
-    summary: text(input.summary ?? input.resolution, 'summary'),
+    summary: text(input.customerResult ?? input.summary ?? input.resolution, 'summary'),
     actionsTaken: text(input.actionsTaken, 'actionsTaken', 4000, true),
     customerContacted:
       input.customerContacted === undefined ? false : input.customerContacted,
@@ -272,6 +327,8 @@ function normalizeResolution(input = {}, actor, clock) {
     staffNotes: operational(actor)
       ? text(input.staffNotes, 'staffNotes', MAX_NOTES, true)
       : null,
+    chargeVisit,
+    proposal,
     financialDecision:
       input.financialDecision === undefined || input.financialDecision === null
         ? null
@@ -351,10 +408,20 @@ function customerMaySeeEvidence(visit, ref) {
   const workflow = workflowPhoto(visit, ref.mediaId);
   return !workflow || workflow.task?.step.customerVisible === true;
 }
-function safeCase(record, actor, visit) {
+function safeCase(record, actor, visit, extras = {}) {
   if (!record || typeof record !== 'object') return null;
+  const id = safeId(record.id ?? record._id, 'id');
+  const proposalPending = record.proposal?.status === 'PENDING';
+  const resolvedVisible = ['RESOLVED', 'CLOSED'].includes(record.state) && !proposalPending;
+  const deliveredResult = record.customerResult ?? record.resolution?.summary ?? null;
+  const approvedAmountVnd = resolvedVisible
+    && record.moneyDecision?.outcome !== 'REJECT'
+    && Number.isSafeInteger(record.moneyDecision?.amountVnd)
+    ? record.moneyDecision.amountVnd
+    : null;
   const result = {
-    id: safeId(record.id ?? record._id, 'id'),
+    id,
+    code: record.code ?? (id ? incidentCode(id) : null),
     visitId: safeId(record.visitId ?? record.visit?._id, 'visitId'),
     kind: record.kind === 'INCIDENT' ? 'INCIDENT' : null,
     state: state(record.state),
@@ -386,6 +453,10 @@ function safeCase(record, actor, visit) {
     timeline: safeTimeline(record.timeline),
     createdAt: record.createdAt || record.openedAt || null,
     updatedAt: record.updatedAt || null,
+    customerResult: operational(actor)
+      ? (deliveredResult ?? record.proposal?.customerResult ?? null)
+      : (resolvedVisible ? deliveredResult : null),
+    approvedAmountVnd,
     resolution: record.resolution
       ? {
           targetState:
@@ -426,6 +497,46 @@ function safeCase(record, actor, visit) {
         : typeof record.staffNotes === 'string'
           ? record.staffNotes
           : null;
+    if (record.suspensionProposal) {
+      result.suspensionProposal = {
+        sitterId: safeId(record.suspensionProposal.sitterId, 'sitterId'),
+        sitterName: record.suspensionProposal.sitterName ?? null,
+        applicationId: safeId(record.suspensionProposal.applicationId, 'applicationId'),
+        proposedBy: safeId(record.suspensionProposal.proposedBy, 'proposedBy'),
+        proposedAt: record.suspensionProposal.proposedAt ?? null,
+        reason: record.suspensionProposal.reason ?? null
+      };
+    } else {
+      result.suspensionProposal = null;
+    }
+    if (record.proposal) {
+      result.proposal = {
+        status: record.proposal.status ?? 'PENDING',
+        amountVnd: record.proposal.amountVnd ?? 0,
+        waiveVisitCharge: record.proposal.waiveVisitCharge === true,
+        waivedVisitAmountVnd: record.proposal.waivedVisitAmountVnd ?? 0,
+        extraAmountVnd: record.proposal.extraAmountVnd ?? 0,
+        reason: record.proposal.reason ?? null,
+        customerResult: record.proposal.customerResult ?? null,
+        createdAt: record.proposal.createdAt ?? null,
+        createdBy: safeId(record.proposal.createdBy, 'createdBy'),
+        ...(extras.proposerName !== undefined ? { createdByName: extras.proposerName } : {}),
+        evidenceRefs: Array.isArray(record.proposal.evidenceRefs)
+          ? record.proposal.evidenceRefs.map(item => safeEvidence(item, false)).filter(Boolean)
+          : []
+      };
+    } else {
+      result.proposal = null;
+    }
+    if (record.moneyDecision) {
+      result.moneyDecision = { ...record.moneyDecision };
+    } else {
+      result.moneyDecision = null;
+    }
+    if (extras.sitter !== undefined) result.sitter = extras.sitter;
+    if (extras.booking !== undefined) result.booking = extras.booking;
+    if (extras.billing !== undefined) result.billing = extras.billing;
+    if (extras.visitBilling !== undefined) result.visitBilling = extras.visitBilling;
     if (hasRole(actor.roles, 'ADMIN') && record.financialDecision)
       result.financialDecision = { ...record.financialDecision };
   }
@@ -467,6 +578,8 @@ async function saveOperation(tx, identity, hash, result) {
 function transitions(current, target) {
   return (
     (current === 'OPEN' && target === 'UNDER_REVIEW') ||
+    (current === 'OPEN' && target === 'RESOLVED') ||
+    (current === 'UNDER_REVIEW' && target === 'UNDER_REVIEW') ||
     (current === 'UNDER_REVIEW' && target === 'RESOLVED') ||
     (current === 'RESOLVED' && target === 'CLOSED') ||
     (current === 'RESOLVED' && target === 'UNDER_REVIEW')
@@ -493,6 +606,7 @@ function runner(repository, actor, resourceId, work, resourceKind = 'visit') {
 
 export function createIncidentService({
   repository,
+  billing = null,
   clock = () => new Date(),
   hotline = null,
   readImage
@@ -806,22 +920,76 @@ export function createIncidentService({
           fail(503, 'INCIDENT_UNAVAILABLE', 'Incident visit is unavailable');
         const visit = await getVisit(tx, visitId);
         authorizeVisit(actor, visit);
-        return project(record, visit, visitId);
+        return project(record, visit, visitId, tx);
       },
       'case'
     );
   }
 
+  async function readBillingSummary(tx, bookingId) {
+    if (!billing || !bookingId) return { status: 'UNAVAILABLE', code: 'BILLING_SOURCE_UNAVAILABLE' };
+    const basis = await billing.read({ bookingId: String(bookingId), session: tx?.session });
+    if (!basis || !['ISSUED', 'EXPECTED'].includes(basis.basis)
+      || !Number.isSafeInteger(basis.basisAmountVnd) || basis.basisAmountVnd < 0
+      || !Number.isSafeInteger(basis.approvedTotalVnd) || basis.approvedTotalVnd < 0) {
+      return { status: 'UNAVAILABLE', code: 'BILLING_SOURCE_UNAVAILABLE' };
+    }
+    return {
+      status: 'AVAILABLE',
+      basis: basis.basis,
+      basisAmountVnd: basis.basisAmountVnd,
+      approvedTotalVnd: basis.approvedTotalVnd,
+      remainingVnd: Math.max(0, basis.basisAmountVnd - basis.approvedTotalVnd),
+      paidInFull: basis.paidInFull === true
+    };
+  }
+
   async function detail(input = {}) {
-    return withAuthorizedCase(input, (record, visit) => safeCase(record, input.actor, visit));
+    return withAuthorizedCase(input, async (record, visit, _visitId, tx) => {
+      const extras = {};
+      if (operational(input.actor)) {
+        const bookingId = idOf(visit.booking?._id ?? visit.bookingId ?? record.bookingId);
+        extras.booking = bookingId ? {
+          id: bookingId,
+          code: visit.booking?.bookingCode ?? visit.booking?.code ?? null
+        } : null;
+        extras.billing = await readBillingSummary(tx, bookingId);
+        const paidPriceVnd = visitInitialNetVnd(visit);
+        const alreadyWaived = typeof tx.isVisitAlreadyWaived === 'function'
+          ? await tx.isVisitAlreadyWaived({ visit, caseId: idOf(record.id ?? record._id) })
+          : visit.state === 'CANCELLED';
+        extras.visitBilling = {
+          paidPriceVnd,
+          alreadyWaived,
+          canWaive: !alreadyWaived && paidPriceVnd > 0
+        };
+        const sitterId = sitterIdOf(visit) ?? safeId(record.sitterId, 'sitterId');
+        if (sitterId) {
+          const sitterName = typeof tx.getUserName === 'function' ? await tx.getUserName(sitterId) : null;
+          extras.sitter = { id: sitterId, displayName: sitterName };
+        } else {
+          extras.sitter = null;
+        }
+        if (record.proposal?.createdBy && typeof tx.getUserName === 'function') {
+          extras.proposerName = await tx.getUserName(record.proposal.createdBy);
+        }
+      }
+      return safeCase(record, input.actor, visit, extras);
+    });
   }
 
   async function evidence({ actor, caseId, mediaId } = {}) {
     if (!/^[a-f0-9]{64}$/.test(mediaId ?? ''))
       fail(404, 'RESOURCE_NOT_FOUND', 'Incident image not found');
     const authorize = await withAuthorizedCase({ actor, caseId }, (record, visit, visitId) => {
-      if (!record.evidenceRefs?.some(ref => ref.mediaId === mediaId))
+      const inReport = record.evidenceRefs?.some(ref => ref.mediaId === mediaId);
+      const inProposal = operational(actor) && record.proposal?.evidenceRefs?.some(ref => ref.mediaId === mediaId);
+      if (!inReport && !inProposal)
         fail(404, 'RESOURCE_NOT_FOUND', 'Incident image not found');
+      if (inProposal) {
+        const proposerId = record.proposal?.createdBy;
+        return image => Boolean(proposerId && String(image.ownerId) === String(proposerId) && image.state === 'READY');
+      }
       const reporter = record.timeline?.find(event => event.type === 'INCIDENT_REPORTED')?.actorId;
       const legacy = visit.evidenceRefs?.find(ref => ref.mediaId === mediaId);
       const { photo, task } = workflowPhoto(visit, mediaId) ?? {};
@@ -841,6 +1009,110 @@ export function createIncidentService({
     });
     if (!readImage) fail(503, 'PROVIDER_UNAVAILABLE', 'Private media is unavailable');
     return readImage({ actor, id: mediaId, authorize });
+  }
+
+  async function addAction({
+    actor,
+    caseId,
+    incidentId,
+    expectedVersion: suppliedVersion,
+    idempotencyKey: suppliedKey,
+    note: rawNote
+  } = {}) {
+    active(actor, clock);
+    if (!operational(actor)) fail(403, 'FORBIDDEN', 'Operational access required');
+    const id = identifier(caseId ?? incidentId, 'caseId');
+    const expected = version(suppliedVersion);
+    const key = idempotency(suppliedKey);
+    const note = text(rawNote, 'note', MAX_TEXT, false);
+    const hash = payloadHash({ caseId: id, expectedVersion: expected, note });
+    return transaction(actor, id, async tx => {
+      const current = await callFirst(tx, ['getCase', 'getIncident', 'findCase', 'findIncident'], id);
+      if (!current || current.kind !== 'INCIDENT') fail(404, 'RESOURCE_NOT_FOUND', 'Incident not found');
+      const visitId = visitIdOf(current);
+      const visit = await getVisit(tx, visitId);
+      authorizeVisit(actor, visit);
+      const identity = { actorRef: actor.userId, resourceRef: id, operation: 'INCIDENT_ACTION', key };
+      const previous = await existingOperation(tx, identity, hash);
+      if (previous) return previous;
+      if (current.version !== expected) fail(409, 'VERSION_CONFLICT', 'Incident changed; reload before continuing');
+      if (['RESOLVED', 'CLOSED'].includes(current.state)) {
+        fail(409, 'INVALID_STATE', 'Incident is already resolved');
+      }
+      const now = new Date(nowValue(clock)).toISOString();
+      const nextState = current.state === 'OPEN' ? 'UNDER_REVIEW' : current.state;
+      const saved = await callFirst(tx, ['addIncidentAction'], {
+        caseId: id,
+        expectedVersion: expected,
+        nextState,
+        note,
+        actorId: actor.userId,
+        actorRole: actor.roles[0],
+        recordedAt: now
+      });
+      if (!saved || saved.version !== expected + 1) {
+        fail(503, 'INCIDENT_UNAVAILABLE', 'Action was not acknowledged by the server');
+      }
+      const result = { ...safeCase(saved, actor, visit), messageCode: 'MSG51' };
+      await saveOperation(tx, identity, hash, result);
+      return result;
+    }, 'case');
+  }
+
+  async function proposeSuspension({
+    actor,
+    caseId,
+    incidentId,
+    expectedVersion: suppliedVersion,
+    idempotencyKey: suppliedKey,
+    reason: rawReason
+  } = {}) {
+    active(actor, clock);
+    if (!operational(actor)) fail(403, 'FORBIDDEN', 'Operational access required');
+    const id = identifier(caseId ?? incidentId, 'caseId');
+    const expected = version(suppliedVersion);
+    const key = idempotency(suppliedKey);
+    const reason = text(rawReason, 'reason', 1000, true);
+    const hash = payloadHash({ caseId: id, expectedVersion: expected, reason });
+    return transaction(actor, id, async tx => {
+      const current = await callFirst(tx, ['getCase', 'getIncident', 'findCase', 'findIncident'], id);
+      if (!current || current.kind !== 'INCIDENT') fail(404, 'RESOURCE_NOT_FOUND', 'Incident not found');
+      const visitId = visitIdOf(current);
+      const visit = await getVisit(tx, visitId);
+      authorizeVisit(actor, visit);
+      const identity = { actorRef: actor.userId, resourceRef: id, operation: 'INCIDENT_SUSPENSION_PROPOSAL', key };
+      const previous = await existingOperation(tx, identity, hash);
+      if (previous) return previous;
+      if (current.version !== expected) fail(409, 'VERSION_CONFLICT', 'Incident changed; reload before continuing');
+      if (['RESOLVED', 'CLOSED'].includes(current.state)) {
+        fail(409, 'INVALID_STATE', 'Resolved incidents cannot propose sitter suspension');
+      }
+      if (current.suspensionProposal) {
+        fail(409, 'SUSPENSION_ALREADY_PROPOSED', 'A suspension proposal has already been sent for this incident');
+      }
+      const sitterId = sitterIdOf(visit) ?? safeId(current.sitterId, 'sitterId');
+      if (!sitterId) fail(409, 'SITTER_NOT_ASSIGNED', 'No pet sitter is assigned to this visit');
+      const now = new Date(nowValue(clock)).toISOString();
+      const nextState = current.state === 'OPEN' ? 'UNDER_REVIEW' : current.state;
+      const saved = await callFirst(tx, ['proposeSitterSuspension'], {
+        caseId: id,
+        code: current.code ?? incidentCode(id),
+        visit,
+        sitterId,
+        expectedVersion: expected,
+        nextState,
+        reason,
+        actorId: actor.userId,
+        actorRole: actor.roles[0],
+        recordedAt: now
+      });
+      if (!saved || saved.version !== expected + 1) {
+        fail(503, 'INCIDENT_UNAVAILABLE', 'Suspension proposal was not acknowledged by the server');
+      }
+      const result = safeCase(saved, actor, visit);
+      await saveOperation(tx, identity, hash, result);
+      return result;
+    }, 'case');
   }
   async function resolve({
     actor,
@@ -907,9 +1179,17 @@ export function createIncidentService({
             'VERSION_CONFLICT',
             'Incident changed; reload before resolving'
           );
-        if (!transitions(current.state, resolution.targetState))
+        if (current.proposal?.status === 'PENDING') {
+          fail(409, 'INVALID_STATE', 'A refund proposal is already waiting for Admin review');
+        }
+        const hasMoneyProposal = resolution.chargeVisit === false || Boolean(resolution.proposal);
+        if (hasMoneyProposal && resolution.targetState === 'CLOSED') {
+          fail(409, 'INVALID_STATE', 'Cannot close an incident while proposing a refund');
+        }
+        if (!transitions(current.state, hasMoneyProposal ? 'UNDER_REVIEW' : resolution.targetState))
           fail(409, 'INVALID_STATE', 'Incident cannot make that transition');
         if (
+          !hasMoneyProposal &&
           resolution.targetState === 'CLOSED' &&
           !hasRole(actor.roles, 'ADMIN')
         )
@@ -919,6 +1199,81 @@ export function createIncidentService({
             'Admin final decision is required to close an incident'
           );
         const now = resolution.recordedAt;
+        if (hasMoneyProposal) {
+          let waivedVisitAmountVnd = 0;
+          if (resolution.chargeVisit === false) {
+            const alreadyWaived = typeof tx.isVisitAlreadyWaived === 'function'
+              ? await tx.isVisitAlreadyWaived({ visit, caseId: id })
+              : visit.state === 'CANCELLED';
+            if (alreadyWaived) {
+              fail(409, 'VISIT_ALREADY_WAIVED', 'This visit price has already been waived or refunded');
+            }
+            waivedVisitAmountVnd = visitInitialNetVnd(visit);
+          }
+          const extraAmountVnd = resolution.proposal?.extraAmountVnd ?? 0;
+          const totalProposedVnd = waivedVisitAmountVnd + extraAmountVnd;
+          if (!Number.isSafeInteger(totalProposedVnd) || totalProposedVnd < 1) {
+            invalid('amountVnd', 'Amount must be a whole number of VND');
+          }
+          const bookingId = idOf(visit.booking?._id ?? visit.bookingId ?? current.bookingId);
+          const basis = await readBillingSummary(tx, bookingId);
+          if (basis.status !== 'AVAILABLE') {
+            fail(503, 'BILLING_SOURCE_UNAVAILABLE', 'An authoritative booking bill source is unavailable');
+          }
+          if (totalProposedVnd > basis.remainingVnd) {
+            fail(422, 'REFUND_CAP_EXCEEDED', 'Amount exceeds the remaining booking bill', {
+              messageCode: 'MSG44',
+              remainingVnd: basis.remainingVnd
+            });
+          }
+          if (resolution.proposal.evidenceRefs.length && typeof tx.assertStaffEvidence === 'function') {
+            await tx.assertStaffEvidence(resolution.proposal.evidenceRefs, actor.userId);
+          }
+          const proposalDoc = {
+            status: 'PENDING',
+            amountVnd: totalProposedVnd,
+            waiveVisitCharge: resolution.chargeVisit === false,
+            waivedVisitAmountVnd,
+            extraAmountVnd,
+            reason: resolution.proposal.reason,
+            evidenceRefs: resolution.proposal.evidenceRefs,
+            customerResult: resolution.summary,
+            createdAt: new Date(now),
+            createdBy: actor.userId
+          };
+          const record = {
+            ...resolution,
+            state: 'UNDER_REVIEW',
+            targetState: 'UNDER_REVIEW',
+            final: false,
+            actorId: actor.userId,
+            version: expected + 1,
+            proposal: proposalDoc
+          };
+          const saved = await callFirst(
+            tx,
+            ['proposeIncidentRefund', 'resolveIncident'],
+            {
+              caseId: id,
+              code: current.code ?? incidentCode(id),
+              incident: current,
+              resolution: record,
+              proposal: proposalDoc,
+              expectedVersion: expected,
+              actorId: actor.userId,
+              idempotencyKey: key
+            }
+          );
+          if (!saved || saved.version !== expected + 1) {
+            fail(503, 'INCIDENT_UNAVAILABLE', 'Refund proposal was not acknowledged by the server');
+          }
+          const result = {
+            ...safeCase({ ...current, ...saved, id, kind: 'INCIDENT', visitId }, actor, visit),
+            messageCode: 'MSG95'
+          };
+          await saveOperation(tx, identity, hash, result);
+          return result;
+        }
         const final =
           hasRole(actor.roles, 'ADMIN') && resolution.targetState === 'CLOSED';
         const record = {
@@ -953,25 +1308,30 @@ export function createIncidentService({
             'INCIDENT_UNAVAILABLE',
             'Resolution was not acknowledged by the server'
           );
-        const result = safeCase(
-          {
-            ...current,
-            ...saved,
-            id,
-            kind: 'INCIDENT',
-            visitId,
-            version: saved.version,
-            state: saved.state ?? record.state,
-            resolution: { ...record, ...(saved.resolution || {}) }
-          },
-          actor
-        );
-        if (!result)
+        const result = {
+          ...safeCase(
+            {
+              ...current,
+              ...saved,
+              id,
+              kind: 'INCIDENT',
+              visitId,
+              version: saved.version,
+              state: saved.state ?? record.state,
+              resolution: { ...record, ...(saved.resolution || {}) }
+            },
+            actor,
+            visit
+          ),
+          ...(record.state === 'RESOLVED' ? { messageCode: 'MSG96' } : {})
+        };
+        if (!result.id)
           fail(503, 'INCIDENT_UNAVAILABLE', 'Resolution response is invalid');
         await callFirst(tx, ['appendAuditAndOutbox'], {
           type: 'IncidentResolved',
           actorId: actor.userId,
           caseId: id,
+          code: current.code ?? incidentCode(id),
           visitId,
           state: result.state,
           at: now,
@@ -998,6 +1358,8 @@ export function createIncidentService({
     detail,
     get: detail,
     evidence,
+    addAction,
+    proposeSuspension,
     resolve,
     resolveIncident: resolve
   });

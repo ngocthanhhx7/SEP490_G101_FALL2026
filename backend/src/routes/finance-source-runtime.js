@@ -42,8 +42,10 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
   const images = r2 && ports?.privateMedia ? createPrivateImageService({ connection, media: ports.privateMedia,
     secret: config.auth.tokenSecret, maxImagesPerUser: r2.maxImagesPerUser }) : null;
   const incidentHotline = env.PAWWORLD_HOTLINE?.trim() || env.GROOMING_SHOP_HOTLINE?.trim() || null;
+  const bookingRefundBilling = createBookingRefundBilling({ connection });
   const incidents = createIncidentService({
     repository: createMongoIncidentRepository({ connection, finance: service, clock, compensationModel }),
+    billing: bookingRefundBilling,
     clock,
     hotline: incidentHotline,
     readImage: images?.readScoped
@@ -57,7 +59,7 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
   const complaints = createComplaintService({
     repository: createMongoComplaintRepository({ connection,
       finance: service, cursorSecret: config.auth.tokenSecret, compensationModel, phones, clock }),
-    billing: createBookingRefundBilling({ connection }),
+    billing: bookingRefundBilling,
     readImage: images?.read,
     clock
   });
