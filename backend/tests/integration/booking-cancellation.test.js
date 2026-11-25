@@ -7,6 +7,7 @@ import { createSessionService } from '../../src/services/session.service.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { provisionBookingChanges } from '../../src/services/booking-change/booking-change-store.js';
 import { createBookingRefundBilling } from '../../src/services/complaints/booking-refund-billing.service.js';
+import { createBookingCancellationService } from '../../src/services/booking-proposals/booking-cancellation.service.js';
 import { pricingModels } from '../../src/models/pricing.model.js';
 import { bookingChangeModels } from '../../src/models/booking-change.model.js';
 import { employeeSchedulingModels } from '../../src/models/employee-scheduling.model.js';
@@ -375,6 +376,54 @@ describe('Customer cancel booking or visit (UC-39, GBR-15, GBR-17, GBR-19)', () 
       .send({ scope: 'VISIT', visitId: String(visits[0]._id) }).expect(409);
     expect(result.body.error.code).toBe('CANCELLATION_PAYMENT_PENDING');
     expect((await connection.db.collection('visits').findOne({ _id: visits[0]._id })).state).toBe('SCHEDULED');
+  });
+
+  test.each([
+    ['no link requested', undefined, undefined, 0, false, true, false],
+    ['request in progress', 'CREATING', 'CANCELLED', 0, false, false, false],
+    ['link can accept payment', 'READY', 'PENDING', 0, false, false, false],
+    ['link has a partial payment', 'READY', 'CANCELLED', 1000, false, false, false],
+    ['closed empty link', 'READY', 'CANCELLED', 0, false, true, false],
+    ['payment awaiting reconciliation', 'READY', 'CANCELLED', 0, true, false, false],
+    ['expired link with no funds', 'READY', 'EXPIRED', 0, false, true, true],
+    ['expired link with partial funds', 'READY', 'EXPIRED', 1000, false, false, true]
+  ])('guards unpaid cancellation: %s', async (_label, linkState, providerStatus, amountPaid, reconcile, allowed, expired) => {
+    const { bookingId, bookingOid, totalVnd, visits } = await seedBooking({
+      bookingState: 'AWAITING_PAYMENT',
+      paymentState: 'UNPAID',
+      visitSpecs: [{ startAt: BASE_NOW + 48 * 3600000, state: 'SCHEDULED', baseVnd: 100000 }]
+    });
+    const intentId = new mongoose.Types.ObjectId();
+    if (expired) await connection.db.collection('bookings').updateOne({ _id: bookingOid },
+      { $set: { paymentDeadlineAt: new Date(BASE_NOW - 1) } });
+    await connection.db.collection('paymentintents').insertOne({
+      _id: intentId, bookingId: bookingOid, state: 'PENDING', provider: 'PAYOS', providerReference: '123456', amountVnd: totalVnd,
+      version: 0, ...(linkState ? { linkState } : {})
+    });
+    if (reconcile) await connection.db.collection('payments').insertOne({
+      bookingId: bookingOid, intentId, provider: 'PAYOS', providerEventId: 'partial-receipt',
+      state: 'RECONCILIATION_REQUIRED', receiptMoney: { amountVnd: 1000, currency: 'VND' }, receivedAt: new Date(BASE_NOW), version: 0
+    });
+    const service = createBookingCancellationService({ connection, clock: () => BASE_NOW,
+      provider: { getPaymentLink: async orderCode => ({ orderCode, amount: totalVnd, providerStatus, amountPaid }) } });
+    const actor = { userId: String(customerId), state: 'ACTIVE', roles: ['CUSTOMER'] };
+    const body = { scope: 'BOOKING' };
+    if (expired) {
+      const single = { scope: 'VISIT', visitId: String(visits[0]._id ?? visits[0].id) };
+      await expect(service.preview(actor, bookingId, single)).rejects.toMatchObject({ code: 'BOOKING_NOT_CANCELLABLE' });
+      await expect(service.cancel(actor, bookingId, single, 'guard-expired-single')).rejects.toMatchObject({ code: 'BOOKING_NOT_CANCELLABLE' });
+    }
+    if (allowed) {
+      await expect(service.preview(actor, bookingId, body)).resolves.toMatchObject({ isPaid: false });
+      const result = await service.cancel(actor, bookingId, body, 'guard-unpaid-001');
+      await expect(service.cancel(actor, bookingId, body, 'guard-unpaid-001')).resolves.toEqual(result);
+    } else {
+      const failure = { code: 'CANCELLATION_RECONCILIATION_REQUIRED', status: 409 };
+      await expect(service.preview(actor, bookingId, body)).rejects.toMatchObject(failure);
+      await expect(service.cancel(actor, bookingId, body, 'guard-unpaid-001')).rejects.toMatchObject(failure);
+    }
+    expect((await connection.db.collection('paymentintents').findOne({ _id: intentId })).state).toBe(allowed ? 'CANCELLED' : 'PENDING');
+    expect((await connection.db.collection('bookings').findOne({ _id: bookingOid })).state).toBe(allowed ? 'CANCELLED' : 'AWAITING_PAYMENT');
   });
 
   test('a paid flag without a verified receipt cannot authorize a refund', async () => {

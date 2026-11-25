@@ -50,6 +50,9 @@ function formatTimeRemaining(startAt, serverNow) {
 }
 
 function cancelErrorMessage(error) {
+  if (error?.code === 'CANCELLATION_RECONCILIATION_REQUIRED') {
+    return 'Chưa thể huỷ vì giao dịch payOS chưa được xác nhận đã đóng và chưa nhận tiền. Nếu đã chuyển tiền, hãy liên hệ hỗ trợ để được đối soát.';
+  }
   if (error?.code === 'VISIT_ALREADY_STARTED') return 'Buổi chăm sóc đã tới giờ bắt đầu nên không thể huỷ.';
   if (error?.code === 'VISIT_NOT_CANCELLABLE' || error?.code === 'BOOKING_NOT_CANCELLABLE') {
     return 'Lịch đặt hoặc buổi chăm sóc này không còn ở trạng thái cho phép huỷ.';
@@ -84,7 +87,8 @@ export function BookingCancelDialog({ booking, visits, initialVisitId, api, onCl
   const inFlight = useRef(false);
   const operation = useRef(null);
 
-  const single = scope === 'VISIT';
+  const fullBookingOnly = booking.state === 'PAYMENT_EXPIRED';
+  const single = !fullBookingOnly && scope === 'VISIT';
   const activeVisitId = single ? (visits.some(item => item.id === selectedId) ? selectedId : visits[0]?.id) : null;
   const locked = busy || uncertain;
 
@@ -119,7 +123,7 @@ export function BookingCancelDialog({ booking, visits, initialVisitId, api, onCl
     event.preventDefault();
     if (locked || inFlight.current || !preview) return;
     const body = {
-      scope,
+      scope: single ? 'VISIT' : 'BOOKING',
       ...(single ? { visitId: activeVisitId } : {}),
       ...(reason ? { reason } : {})
     };
@@ -144,7 +148,7 @@ export function BookingCancelDialog({ booking, visits, initialVisitId, api, onCl
     </>}>
     <form id={formId} onSubmit={submit}>
       <fieldset disabled={locked} className="booking-change-form">
-        {visits.length > 1 && <div className="booking-change-field">
+        {!fullBookingOnly && visits.length > 1 && <div className="booking-change-field">
           <span id={formId + '-scope'}>Phạm vi huỷ</span>
           <div role="group" aria-labelledby={formId + '-scope'} className="booking-change-scope">
             <button type="button" aria-pressed={!single} onClick={() => { setScope('BOOKING'); setError(''); }}>
