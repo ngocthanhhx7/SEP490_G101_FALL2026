@@ -26,6 +26,10 @@ function ComplaintListAction({ resource, bookingId }) {
   </p> : null;
 }
 
+function hasOperationalVisitId(row) {
+  return typeof row.id === 'string' && /^[0-9a-f]{24}$/i.test(row.id);
+}
+
 function visitTrackerPath(bookingId, visitId) {
   return '/account/bookings/' + encodeURIComponent(bookingId) + '/visits/' + encodeURIComponent(visitId);
 }
@@ -85,7 +89,7 @@ function CustomerBookingDetail({ bookingId }) {
   const detailVisits = booking?.details?.visits ?? [];
   const hasVisitActions = detailVisits.some(row => {
     const rowCancelled = bookingCancelled || row.state === 'CANCELLED';
-    const canTrack = !rowCancelled && Boolean(row.id);
+    const canTrack = !rowCancelled && hasOperationalVisitId(row);
     const canChange = !rowCancelled && changeable.some(item => item.id === row.id || item.customerVisitId === row.id);
     const canComplain = !rowCancelled && (visitsByRow.get(row.id) ?? []).some(v => v.state !== 'CANCELLED' && v.canSubmit);
     return canTrack || canChange || canComplain;
@@ -110,7 +114,7 @@ function CustomerBookingDetail({ bookingId }) {
     columnLabel: 'Thao tác',
     forVisit: row => {
       const rowCancelled = bookingCancelled || row.state === 'CANCELLED';
-      const canTrack = Boolean(booking?.details) && !rowCancelled && Boolean(row.id);
+      const canTrack = Boolean(booking?.details) && !rowCancelled && hasOperationalVisitId(row);
       const visit = !rowCancelled ? changeable.find(item => item.id === row.id || item.customerVisitId === row.id) : null;
       return <div className="booking-visit-actions">
         {canTrack && <Link className="booking-visit-track-link" to={visitTrackerPath(bookingId, row.id)}>Theo dõi buổi</Link>}

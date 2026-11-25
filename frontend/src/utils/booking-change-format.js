@@ -7,7 +7,7 @@ const amountFormat = new Intl.NumberFormat('vi-VN');
 const validDate = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
 
 export const bookingChangeSent = 'Đã gửi yêu cầu đổi giờ. Bạn sẽ được báo khi nhân viên trả lời.';
-export const bookingChangeLeadTime = 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.';
+export const bookingChangeLeadTime = 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 2 giờ.';
 
 export function bookingChangeInputDate(value) {
   const parts = Object.fromEntries(dateFormat.formatToParts(new Date(value)).map(part => [part.type, part.value]));

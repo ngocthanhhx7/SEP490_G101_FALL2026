@@ -10,16 +10,16 @@ Các đường dẫn dưới đây có tiền tố `/api/v1`. Module dùng phiê
 | `GET /staff/booking-change-requests/:id` | Staff/Admin | Trả booking, khách, giờ gửi, hạn, giá, giờ cũ/mới và `AVAILABLE`, `BUSY`, `UNASSIGNED` hoặc `CHANGED` cho các buổi chờ. |
 | `POST /staff/booking-change-requests/:id/decision` | Staff/Admin | Gửi `action: APPROVE\|REJECT` và `expectedVersion`. Trả 200 và `MSG126` hoặc `MSG127`. |
 
-Booking đủ điều kiện thuộc `DISPATCH_PENDING`, `ASSIGNED` hoặc `IN_PROGRESS`, với kế hoạch chăm sóc đã duyệt. Booking trả trước cần biên nhận xác minh đủ tiền. Khi gửi cả lịch, buổi chưa bắt đầu còn dưới 24 giờ giữ giờ cũ và vẫn tham gia kiểm lịch. Thời lượng và giá lấy từ dữ liệu đã chốt. Trạng thái yêu cầu gồm `PENDING`, `APPROVED`, `REJECTED`, `EXPIRED` và `CLOSED`. Hạn bằng giờ sớm nhất giữa giờ cũ và mới trừ 6 giờ, tính lại khi buổi bị huỷ rời yêu cầu.
+Booking đủ điều kiện thuộc `DISPATCH_PENDING`, `ASSIGNED` hoặc `IN_PROGRESS`, với kế hoạch chăm sóc đã duyệt. Booking trả trước cần biên nhận xác minh đủ tiền. Khi gửi cả lịch, buổi chưa bắt đầu còn dưới 24 giờ giữ giờ cũ và vẫn tham gia kiểm lịch. Thời lượng và giá lấy từ dữ liệu đã chốt. Trạng thái yêu cầu gồm `PENDING`, `APPROVED`, `REJECTED`, `EXPIRED` và `CLOSED`. Hạn bằng giờ cũ sớm nhất trừ 6 giờ (GBR-19), tính lại khi buổi bị huỷ rời yêu cầu; khi Staff duyệt, hệ thống kiểm lại giờ mới còn cách ít nhất 2 giờ.
 
 | Mã | Kết quả |
 | --- | --- |
-| `422 MSG54` | Không đạt mốc 24 giờ trước giờ cũ hoặc 24 giờ trước giờ mới. |
+| `422 MSG54` | Không đạt mốc 24 giờ trước giờ cũ hoặc 2 giờ trước giờ mới. |
 | `409 MSG55` | Buổi đã được dời qua một yêu cầu đã duyệt. |
 | `409 MSG149` | Buổi có yêu cầu đổi giờ của khách đang chờ nhân viên duyệt. |
 | `409 BOOKING_CHANGE_STAFF_PROPOSAL_PENDING` | Buổi này đang có đề xuất đổi giờ của nhân viên chờ bạn xác nhận. |
-| `422 MSG20 / MSG150 / MSG148 / MSG68` | Vi phạm giới hạn 30 ngày, hai buổi/ngày, giờ kết thúc dự kiến, hoặc trùng thú. `MSG148` có trường `time`, `MSG68` có trường `pet`. |
-| `422 MSG151` | Khi duyệt, lịch không còn hợp lệ. `reasonCode` nhận `BOOKING_TOO_LONG`, `TOO_MANY_VISITS`, `VISIT_BEFORE_PREVIOUS_END` hoặc `PET_OVERLAP`. |
+| `422 MSG20 / MSG150 / MSG148 / MSG68` | Vi phạm giới hạn 30 ngày lịch (từ buổi đầu đến buổi cuối), hai buổi/ngày, giờ kết thúc dự kiến, hoặc trùng thú. `MSG148` có trường `time`, `MSG68` có trường `pet`. |
+| `422 MSG151` | Khi duyệt, lịch không còn hợp lệ. `reasonCode` nhận `BOOKING_TOO_LONG`, `TOO_MANY_VISITS`, `VISIT_BEFORE_PREVIOUS_END`, `PET_OVERLAP` hoặc `NEW_TIME_TOO_SOON`. |
 | `409 BOOKING_CHANGE_VISIT_CHANGED` | Giờ hoặc version của buổi đã đổi từ lúc gửi. Staff có thể từ chối. |
 | `409 BOOKING_CHANGE_NOT_PENDING` | Yêu cầu đã xử lý hoặc hết hạn. |
 
