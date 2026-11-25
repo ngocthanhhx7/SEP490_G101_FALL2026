@@ -24,7 +24,8 @@ function errorMessage(error) {
   if (error?.code === 'PROVIDER_UNAVAILABLE') {
     return 'Chưa gửi được mã xác minh. Liên hệ hiện tại vẫn hoạt động; hãy thử lại sau.';
   }
-  if (otpFeedback(error?.code)) return otpFeedback(error.code);
+  const otpMessage = otpFeedback(error);
+  if (otpMessage) return otpMessage;
   if (error?.code === 'OTP_RATE_LIMITED') {
     return 'Bạn đã yêu cầu hoặc nhập mã quá nhiều lần. Hãy chờ một lúc rồi thử lại.';
   }
@@ -118,6 +119,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
     try {
       const challenge = await api.requestContactOtp({ channel, contact: value });
       const startedAt = Date.now();
+      setNow(startedAt);
       setFlow({ channel, contact: value, challengeId: challenge.challengeId,
         maskedContact: challenge.maskedContact,
         expiresAt: startedAt + challenge.expiresInSeconds * 1000,
@@ -233,7 +235,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
           <p>{ROLE_LABELS[role] ?? 'Chưa có thông tin'}</p>
         </div>
       </div>
-      <p className="account-settings-caption">Tên khách hàng được sửa trong hồ sơ cá nhân. Cài đặt này không thay đổi tên hoặc vai trò.</p>
+      <p className="account-settings-caption">Bạn có thể cập nhật tên trong hồ sơ cá nhân. Cài đặt này không thay đổi tên hoặc vai trò.</p>
     </section>
 
     <section className="account-settings-card" aria-labelledby="account-settings-contacts-title">

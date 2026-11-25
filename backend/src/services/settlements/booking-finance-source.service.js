@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { visitServiceDisplayName } from '../employee-scheduling/dispatch-visit-presentation.js';
+import { handoverPending } from '../care/visit-handover-policy.service.js';
 import { assertWorkflowGate, workflowProjection } from '../care/workflow-snapshot.service.js';
 import { createVisitWorkflowService } from '../care/visit-workflow.service.js';
 import { Types } from 'mongoose';
@@ -154,7 +156,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             || visit.endAt <= visit.startAt) fail(409, 'SOURCE_RECONCILIATION_REQUIRED');
           if (at.getTime() < visit.startAt.getTime() - CHECK_IN_EARLY_MS) fail(409, 'CHECK_IN_TOO_EARLY');
           if (at > visit.endAt) fail(409, 'INVALID_STATE');
-          if (visit.handoverRequired && visit.handoverAccepted !== true) fail(409, 'HANDOVER_REQUIRED');
+          if (handoverPending(visit)) fail(409, 'HANDOVER_REQUIRED');
           if (booking.originalVisitCount > 1 || booking.paymentMode === 'PREPAY') {
             const receipt = await col('payments').find({ bookingId: booking._id, state: 'VERIFIED' }, { session }).limit(2).toArray();
             if (receipt.length !== 1) fail(409, 'PREPAYMENT_REQUIRED');
@@ -263,7 +265,11 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         const { visit } = await visitContext(current, visitId, session);
         const address = visit.snapshots?.serviceAddress;
         const canSeeAddress = ['ASSIGNED', 'IN_PROGRESS'].includes(visit.state) && typeof address === 'string';
+        const serviceDisplayName = visitServiceDisplayName({ ...visit.snapshots, location: visit.location });
         return { visitId, state: visit.state, startAt: visit.startAt, endAt: visit.endAt,
+          ...(visit.state === 'ASSIGNED' && !visit.checkInAt && handoverPending(visit) && { handoverPending: true }),
+          ...(serviceDisplayName && { serviceDisplayName }),
+          ...(visit.location && { location: visit.location }),
           serviceName: visit.snapshots?.serviceName ?? null, serviceAddress: canSeeAddress ? address.slice(0, 500) : null };
       });
     },
@@ -271,7 +277,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       actor(current, 'PET_SITTER');
       return unitOfWork.run(async session => {
         const { visit } = await visitContext(current, visitId, session);
-        if (visit.snapshots?.workflow && visit.handoverRequired && visit.handoverAccepted !== true) fail(409, 'HANDOVER_REQUIRED');
+        if (visit.snapshots?.workflow && handoverPending(visit)) fail(409, 'HANDOVER_REQUIRED');
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
           workflow: workflowProjection(visit),
           serviceName: visit.snapshots?.serviceName ?? null, completionAttention: visit.completionAttention?.code ?? null,

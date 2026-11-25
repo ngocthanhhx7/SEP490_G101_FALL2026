@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import { visitServiceDisplayName } from '../employee-scheduling/dispatch-visit-presentation.js';
 import { financeSourceModels } from '../../models/finance-source.model.js';
 import { AppError } from '../../utils/app-error.js';
 import { createReferenceCatalogFacade } from '../reference-catalog.service.js';
@@ -11,6 +12,11 @@ const notFound = () => { throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Không t
 const milestoneKeys = ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'FINISHED', 'REPORT_READY'];
 const currentDate = (value, asOf) => value instanceof Date && Number.isFinite(+value) && value <= asOf ? value : null;
 const timeLimit = { maxTimeMS: 2000 };
+
+function trackerServiceLabel(visit) {
+  const serviceDisplayName = visitServiceDisplayName({ ...visit.snapshots, location: visit.location });
+  return { serviceName: visit.snapshots?.serviceName ?? null, ...(serviceDisplayName && { serviceDisplayName }) };
+}
 
 function progress(booking, visit, checklistAt, asOf) {
   const assignedAt = visit.sitterId ? currentDate(visit.assignedAt, asOf) : null;
@@ -71,18 +77,25 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
     });
   }
 
-  async function visitSitter(sitterId, session) {
+  async function visitSitter(sitterId, session, showProfile) {
     if (!validId(String(sitterId ?? ''))) return null;
     const id = new Types.ObjectId(String(sitterId));
     const sitter = await col('users').findOne({ _id: id },
-      { session, ...timeLimit, projection: { displayName: 1 } });
+      { session, ...timeLimit, projection: { displayName: 1, state: 1, roles: 1, synthetic: 1 } });
     if (!sitter?.displayName) return null;
     const [result] = await col('reviews').aggregate([
       { $match: { sitterId: { $in: [id, String(id)] }, state: 'PUBLISHED',
         direction: 'CUSTOMER_TO_SITTER', rating: { $in: [1, 2, 3, 4, 5] } } },
-      { $group: { _id: null, rating: { $avg: '$rating' } } }
+      { $group: { _id: null, rating: { $avg: '$rating' }, reviewCount: { $sum: 1 } } }
     ], { session, ...timeLimit }).toArray();
-    return { name: sitter.displayName, rating: result?.rating ?? null };
+    let profile;
+    if (showProfile && sitter.state === 'ACTIVE' && sitter.roles?.includes('PET_SITTER') && sitter.synthetic !== true
+      && await col('sitterstatuses').findOne({ userId: id, status: 'ACTIVE' }, { session, ...timeLimit, projection: { _id: 1 } })) {
+      profile = await col('sitterpublicprofiles').findOne({ userId: id, state: 'APPROVED' },
+        { session, ...timeLimit, projection: { _id: 0, bio: 1, areas: 1 } });
+    }
+    return { name: sitter.displayName, rating: result?.rating ?? null, reviewCount: result?.reviewCount ?? 0,
+      ...(profile?.bio && { profile }) };
   }
 
   return {
@@ -99,7 +112,7 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
         }, { session, ...timeLimit, projection: {
           state: 1, sequence: 1, serviceId: 1, sitterId: 1, startAt: 1, endAt: 1, assignedAt: 1, checkInAt: 1, checkOutAt: 1,
           location: 1, checklist: 1, workflowResults: 1, 'snapshots.workflow': 1,
-          'snapshots.serviceName': 1, 'snapshots.serviceAddress': 1, 'snapshots.careMinutes': 1, 'snapshots.pets': 1
+          'snapshots.serviceName': 1, 'snapshots.serviceScope': 1, 'snapshots.serviceAddress': 1, 'snapshots.careMinutes': 1, 'snapshots.pets': 1
         } });
         const ids = booking.visitIds?.length ? booking.visitIds.map(String) : (await col('visits').find({
           bookingId: booking._id, state: { $ne: 'SUPERSEDED' }
@@ -116,12 +129,12 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
         const service = inCare && visit.serviceId ? await col('services').findOne({ _id: visit.serviceId },
           { session, ...timeLimit, projection: { code: 1 } }) : null;
         const pets = await visitPets(visit, customerId, session);
-        const sitter = await visitSitter(visit.sitterId, session);
+        const sitter = await visitSitter(visit.sitterId, session, ['ASSIGNED', 'ARRIVED', 'IN_PROGRESS', 'COMPLETED'].includes(visit.state));
         return {
           asOf,
           booking: { id: String(booking._id), code: booking.bookingCode ?? booking.code ?? null, visitNumber: index + 1, visitCount: ids.length },
           visit: { id: String(visit._id), status, showProgress, startAt: visit.startAt ?? null, endAt: visit.endAt ?? null,
-            serviceName: visit.snapshots?.serviceName ?? null, durationMinutes: visit.snapshots?.careMinutes ?? null,
+            ...trackerServiceLabel(visit), durationMinutes: visit.snapshots?.careMinutes ?? null,
             address: visit.snapshots?.serviceAddress ?? null, pets },
           milestones, updates, sitter,
           careUpdates: inCare && workflow ? recorded.map(task => ({
@@ -129,7 +142,7 @@ export function createVisitTrackerService({ connection, clock = Date.now, travel
             photos: task.evidence.map(photo => ({ mediaId: photo.mediaId,
               label: task.step.photoSlots.find(slot => slot.photoSlotId === photo.photoSlotId)?.title ?? 'Ảnh nhiệm vụ' }))
           })) : null,
-          actions: { profile: false, walkLocation: { eligible: inCare && service?.code === 'dog-walking', available: false },
+          actions: { profile: Boolean(sitter?.profile), walkLocation: { eligible: inCare && service?.code === 'dog-walking', available: false },
             ...(travelEnabled && ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'].includes(booking.state)
               && isVisitTravelWindowOpen(visit, asOf.getTime()) ? { travel: true } : {}),
             incident: false, careReport: reportReady }

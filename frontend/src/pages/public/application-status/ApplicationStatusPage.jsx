@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Input, Notice } from '../../../components/ui/index.js';
+import { otpFeedback } from '../../../utils/otp-feedback.js';
 import './application-status.css';
 
 const STATUS_LABELS = Object.freeze({
@@ -25,7 +26,8 @@ function formatVietnamDate(value) {
 
 function messageForError(error) {
   if (error?.status === 429 || error?.code === 'RATE_LIMITED' || error?.code === 'OTP_RATE_LIMITED') {
-    return 'Bạn đã yêu cầu quá nhiều mã. Hãy chờ theo thời gian máy chủ thông báo rồi thử lại.';
+    return otpFeedback({ ...error, code: error?.code ?? 'RATE_LIMITED' })
+      ?? 'Bạn đã yêu cầu quá nhiều mã. Hãy chờ theo thời gian máy chủ thông báo rồi thử lại.';
   }
   if (error?.status === 403 || error?.code === 'FORBIDDEN') {
     return 'Không thể xác minh hồ sơ với thông tin đã nhập.';

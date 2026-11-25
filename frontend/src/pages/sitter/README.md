@@ -1,5 +1,9 @@
 # Sitter pages
 
+`HandoverConfirmationPage.jsx` is the UC-41 route for the assigned replacement.
+The visit and assignment views link to it while handover is pending. Home access
+notes still use the time-windowed access in `AssignedCare.jsx`.
+
 The mounted employee invitation screen composes `AssignedCare.jsx` for active
 assignments. Private care lives only in memory and is discarded on close/reload;
 entry notes require server authorization and expire at shift end. Legacy P24/P26
@@ -46,7 +50,15 @@ The invitation workspace uses compact tables for pending offers, assignments and
 
 `VisitWorkflowExecution.jsx` renders immutable server tasks with a direct selector, per-Pet slot counts, private photo capture/preview/retry, server-persisted notes/values and explicit blocked escalation. VisitExecution keeps its existing arrival/departure commands and legacy checklist.
 
-## Work availability
+## Web and PWA workspace
+
+SitterSchedulePage and MobileSitterHome share SitterVisitCard for service,
+Vietnam local time, pet names and status, using the authenticated dashboard
+projection. The schedule route preserves its day and cursor when returning from a visit.
+Mobile Account exposes private profile, public profile moderation and work setup
+as separate groups. SitterAvailabilityPage uses the existing bounded 31-day response.
+Schedule, origin and area writes keep their API contracts. Invitations retain the existing table and command handlers with a
+stacked layout on small screens.
 
 The availability screen displays server-reported intervals on a week timeline
 and shows the status for the selected date. The recurring editor adds a draft

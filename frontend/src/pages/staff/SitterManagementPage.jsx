@@ -119,6 +119,16 @@ function StaffHours({ sitter }) {
   </div>);
 }
 
+function formatDayOff(value) {
+  const match = typeof value === 'string' && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return match ? `${match[3]}/${match[2]}` : null;
+}
+
+function StaffDaysOff({ dates }) {
+  const formatted = Array.isArray(dates) ? dates.map(formatDayOff).filter(Boolean) : [];
+  return formatted.length ? formatted.join(', ') : 'Không có';
+}
+
 function StaffSitterList({ api }) {
   const [filters, setFilters] = useState(STAFF_FILTERS);
   const [cursor, setCursor] = useState('');
@@ -198,7 +208,7 @@ function StaffSitterList({ api }) {
             </span></td>
             <td data-label="Khu vực phục vụ">{sitter.areas.map(areaName).join(', ') || 'Chưa đăng ký'}</td>
             <td data-label="Giờ làm hoặc ca"><StaffHours sitter={sitter} /></td>
-            <td data-label="Ngày nghỉ">Chưa có dữ liệu</td>
+            <td data-label="Ngày nghỉ"><StaffDaysOff dates={sitter.upcomingDaysOff} /></td>
             <td data-label="Đánh giá">{sitter.rating === null ? 'Chưa có' : '★ ' + RATING_FORMAT.format(sitter.rating)}</td>
             <td data-label="Rút buổi"><MetricCount value={sitter.withdrawals} /></td>
             <td data-label="Đến muộn"><MetricCount value={sitter.lateCheckIns} /></td>

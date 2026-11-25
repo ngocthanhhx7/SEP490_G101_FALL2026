@@ -42,6 +42,26 @@
 .booking-details__payment { grid-area: payment; }
 .booking-details__visits { grid-area: visits; }
 
+.booking-details__visits-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+
+.booking-details__visits-header h3 {
+  margin: 0;
+}
+
+.booking-details__schedule-link {
+  color: #603388;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .booking-details dl { margin: 0; }
 
 .booking-details dl > div {
@@ -135,3 +155,6 @@
 
 .booking-details__header { padding:20px; border-radius:16px; background:linear-gradient(110deg,#f2ecfb,#fff8e2); }
 .booking-details__reference { margin-top:8px; font-size:13px; color:#6f617f; }.booking-details__reference code { display:block; word-break:break-all; margin-top:4px; }
+
+.booking-details__saved-policies summary { min-height: 48px; padding-block: .7rem; cursor: pointer; font-weight: 750; }
+.booking-details__policy-body { white-space: pre-wrap; overflow-wrap: anywhere; }

@@ -4,6 +4,7 @@ import { Dialog } from '../../components/ui/index.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../sitter/sitter-public-profile.css';
+import './sitter-profile-reviews.css';
 
 function ProfileReview({ row, api, refresh, onLock }) {
   const [reason, setReason] = useState('');
@@ -104,7 +105,7 @@ export function SitterProfileReviewsPage({ api, userId }) {
     summary = data?.summary;
   const labels = { SUBMITTED: 'Chờ duyệt', APPROVED: 'Đã duyệt', REJECTED: 'Từ chối' };
   return (
-    <section className="ops-workspace">
+    <section className="ops-workspace sitter-profile-reviews-page">
       <header>
         <div>
           <h1>Duyệt hồ sơ công khai</h1>
@@ -222,7 +223,7 @@ export function SitterProfileReviewsPage({ api, userId }) {
         <Dialog
           open
           title="Kiểm tra hồ sơ công khai"
-          className="ops-dialog"
+          className="ops-dialog sitter-profile-review-dialog"
           dismissible={!locked}
           onClose={() => setSelected(null)}
         >

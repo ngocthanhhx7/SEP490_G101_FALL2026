@@ -8,6 +8,7 @@ export class ApiError extends Error {
     this.missingTasks = Array.isArray(details.missingTasks) ? details.missingTasks.filter(item => typeof item?.taskKey === 'string' && item.taskKey.length <= 70 && Array.isArray(item.reasons)).slice(0, 240) : undefined;
     this.reasonCode = typeof details.reasonCode === 'string' ? details.reasonCode : undefined;
     this.state = typeof details.state === 'string' ? details.state : undefined;
+    this.sitterName = typeof details.sitterName === 'string' && details.sitterName.length <= 120 ? details.sitterName : undefined;
     // Per-field reasons from a 422, e.g. { name: 'REQUIRED', sellingPrice: 'WHOLE_NUMBER' }.
     this.fields = details.fields;
     this.available = Number.isSafeInteger(details.available) && details.available >= 0 ? details.available : undefined;
@@ -18,6 +19,9 @@ export class ApiError extends Error {
     this.lineFields = details.lineFields;
     this.decisionIds = details.decisionIds;
     this.retryAfterSeconds = Number.isSafeInteger(details.retryAfterSeconds) && details.retryAfterSeconds > 0 ? details.retryAfterSeconds : undefined;
+    this.retryAfterAt = typeof details.retryAfterAt === 'string' && Number.isFinite(Date.parse(details.retryAfterAt)) ? details.retryAfterAt : undefined;
+    this.remainingAttempts = Number.isSafeInteger(details.remainingAttempts) && details.remainingAttempts >= 0 ? details.remainingAttempts : undefined;
+    this.reason = typeof details.reason === 'string' ? details.reason : undefined;
     this.correlationId = /^[\da-f]{8}-(?:[\da-f]{4}-){3}[\da-f]{12}$/i.test(details.correlationId ?? '') ? details.correlationId : undefined;
   }
 }
@@ -81,10 +85,13 @@ export function createApiClient({ fetchImpl = fetch, getCsrfToken = () => null,
       if (!response.ok) {
         throw new ApiError(envelope?.error?.code || 'HTTP_ERROR', response.status, {
           missingTasks: envelope?.error?.missingTasks, fieldErrors: envelope?.error?.fieldErrors, fields: envelope?.error?.fields, lineFields: envelope?.error?.lineFields, decisionIds: envelope?.error?.decisionIds,
-          reasonCode: envelope?.error?.reasonCode, state: envelope?.error?.state,
+          reasonCode: envelope?.error?.reasonCode, state: envelope?.error?.state, sitterName: envelope?.error?.sitterName,
           available: envelope?.error?.available, productId: envelope?.error?.productId,
           time: envelope?.error?.time, pet: envelope?.error?.pet,
           retryAfterSeconds: envelope?.error?.retryAfterSeconds ?? Number(response.headers?.get('Retry-After')),
+          retryAfterAt: envelope?.error?.retryAfterAt,
+          remainingAttempts: envelope?.error?.remainingAttempts,
+          reason: envelope?.error?.reason,
           correlationId: envelope?.meta?.correlationId ?? response.headers?.get('X-Request-ID'),
         });
       }

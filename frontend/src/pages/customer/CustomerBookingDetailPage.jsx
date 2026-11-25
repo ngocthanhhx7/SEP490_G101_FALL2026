@@ -1,7 +1,7 @@
 import { createPrivateImageApi } from '../../services/private-image-api.js';
 import { BookingVisitReport } from '../../components/common/BookingVisitReport.jsx';
 import { useCallback, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
@@ -13,8 +13,17 @@ import { complaintDeadline, complaintSubmitPath, complaintVisitStart, visitLabel
 import { BookingConfirmation } from '../public/BookingCheckout.jsx';
 import { BookingDetailsContent } from '../../components/common/BookingDetailsContent.jsx';
 import { BookingChangeDialog } from './BookingChangeDialog.jsx';
-import { bookingChangeSent, bookingChangeVisitLabel } from '../../utils/booking-change-format.js';
+import { bookingChangeLeadTime, bookingChangeSent, bookingChangeVisitLabel } from '../../utils/booking-change-format.js';
 import './customer-bookings.css';
+
+const changeRestrictions = {
+  BOOKING_STATE: 'Trạng thái hiện tại của lịch hẹn chưa cho phép yêu cầu đổi giờ.',
+  CARE_PLAN: 'Kế hoạch chăm sóc cần được duyệt trước khi yêu cầu đổi giờ.',
+  BOARDING: 'Lịch có dịch vụ lưu trú cần được hỗ trợ để kiểm tra khả năng đổi giờ.',
+  PAYMENT: 'Cần xác nhận thanh toán cho lịch hẹn trước khi yêu cầu đổi giờ.',
+  NO_REMAINING_VISIT: 'Hiện không còn buổi đủ điều kiện để đổi giờ.',
+  LEAD_TIME: bookingChangeLeadTime
+};
 
 function ComplaintListAction({ resource, bookingId }) {
   if (resource.status === 'loading' || resource.status === 'empty') return <p role="status">Đang tải điều kiện khiếu nại…</p>;
@@ -26,17 +35,26 @@ function ComplaintListAction({ resource, bookingId }) {
   </p> : null;
 }
 
-function ComplaintVisitActions({ visits, bookingId }) {
+function hasOperationalVisitId(row) {
+  return typeof row.id === 'string' && /^[0-9a-f]{24}$/i.test(row.id);
+}
+
+function visitTrackerPath(bookingId, visitId) {
+  return '/account/bookings/' + encodeURIComponent(bookingId) + '/visits/' + encodeURIComponent(visitId);
+}
+
+function ComplaintVisitActions({ visits, bookingId, bookingCancelled = false }) {
   return visits.map(visit => <div key={visit.id} className="booking-complaint-visit">
     {visits.length > 1 && <span>{complaintVisitStart(visit.startAt)}</span>}
     <span className="booking-complaint-visit__status">{visitLabel(visit.state)}</span>
-    {visit.state !== 'CANCELLED' && visit.canSubmit && <Link className="pwc-button pwc-button--secondary"
+    {!bookingCancelled && visit.state !== 'CANCELLED' && visit.canSubmit && <Link className="pwc-button pwc-button--secondary"
       to={complaintSubmitPath(bookingId, visit.id)}>Gửi khiếu nại</Link>}
   </div>);
 }
 
 function CustomerBookingDetail({ bookingId }) {
   const { getCsrfToken } = useSession();
+  const location = useLocation();
   const [booking, setBooking] = useState(null);
   const api = useMemo(() => {
     const checkout = createServiceBasketApi({ getCsrfToken });
@@ -71,17 +89,40 @@ function CustomerBookingDetail({ bookingId }) {
   const [changeDialog, setChangeDialog] = useState(null);
   const [changeSent, setChangeSent] = useState(false);
   const options = changeOptions.status === 'success' ? changeOptions.data : null;
-  const changeable = options?.visits.filter(visit => visit.canSelect) ?? [];
+  const changeable = options?.visits.filter(visit => visit.canSelect && !visit.pendingChange) ?? [];
+  const hasPending = options?.visits.some(visit => visit.pendingChange);
   function openBookingChange(visitId) {
     setChangeSent(false);
     setChangeDialog({ booking, options, initialVisitId: visitId });
   }
 
+  const bookingCancelled = booking?.state === 'CANCELLED';
+  const detailVisits = booking?.details?.visits ?? [];
+  const hasVisitActions = detailVisits.some(row => {
+    const rowCancelled = bookingCancelled || row.state === 'CANCELLED';
+    const canTrack = !rowCancelled && hasOperationalVisitId(row);
+    const canChange = !rowCancelled && changeable.some(item => item.id === row.id || item.customerVisitId === row.id);
+    const canComplain = !rowCancelled && (visitsByRow.get(row.id) ?? []).some(v => v.state !== 'CANCELLED' && v.canSubmit);
+    return canTrack || canChange || canComplain;
+  });
+
   const visitActions = {
+    headerAction: detailVisits.length >= 2 && <Link className="booking-details__schedule-link"
+      to={'/account/bookings/' + encodeURIComponent(bookingId) + '/visits'}>Xem cả {detailVisits.length} buổi</Link>,
     reportForVisit: visit => <BookingVisitReport visit={visit} readEvidence={images.read} />,
-    booking: options?.canChangeBooking && changeable.length > 0 && <section className="booking-change-actions">
-      <h3>Thao tác</h3>
-      <Button aria-label="Đổi giờ cho cả lịch đặt" onClick={() => openBookingChange()}>Đổi giờ</Button>
+    booking: <section className="booking-change-actions">
+      <h3>Thay đổi lịch hẹn</h3>
+      {changeOptions.status === 'loading' && <p role="status">Đang kiểm tra điều kiện đổi giờ…</p>}
+      {['pending', 'error', 'forbidden'].includes(changeOptions.status) && <p role="status">
+        {changeOptions.httpStatus === 409 ? 'Trạng thái của lịch này chưa cho phép gửi yêu cầu đổi giờ.' :
+          <>Chưa tải được điều kiện đổi giờ. <Button variant="secondary" onClick={changeOptions.retry}>Thử lại</Button></>}
+      </p>}
+      {hasPending && <p>Một hoặc nhiều buổi đang chờ duyệt đổi giờ.</p>}
+      {options && (changeable.length ? <>
+        <p>{bookingChangeLeadTime}</p>
+        {options.canChangeBooking && !options.visits.some(visit => visit.canSelect && visit.pendingChange) && <Button aria-label="Đổi giờ cho cả lịch đặt" onClick={() => openBookingChange()}>Đổi giờ</Button>}
+      </> : !hasPending && <p>{changeRestrictions[options.unavailableReason] ?? 'Hiện không có buổi phù hợp để đổi giờ.'}</p>)}
+      <Link to="/contact" state={{ helpFrom: location.pathname }}>Hỗ trợ lịch hẹn</Link>
     </section>,
     beforeList: <>
       {changeOptions.status === 'loading' && <p role="status">Đang kiểm tra điều kiện đổi giờ…</p>}
@@ -92,15 +133,19 @@ function CustomerBookingDetail({ bookingId }) {
       {changeSent && <p className="booking-change-sent" role="status">{bookingChangeSent}</p>}
       <ComplaintListAction resource={eligibility} bookingId={bookingId} />
     </>,
-    columnLabel: changeable.length > 0 ? 'Thao tác' : undefined,
+    showColumn: hasVisitActions,
+    columnLabel: 'Thao tác',
     forVisit: row => {
-      const visit = changeable.find(item => item.id === row.id || item.customerVisitId === row.id);
-      return <>
-        <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
+      const rowCancelled = bookingCancelled || row.state === 'CANCELLED';
+      const canTrack = Boolean(booking?.details) && !rowCancelled && hasOperationalVisitId(row);
+      const visit = !rowCancelled ? changeable.find(item => item.id === row.id || item.customerVisitId === row.id) : null;
+      return <div className="booking-visit-actions">
+        {canTrack && <Link className="booking-visit-track-link" to={visitTrackerPath(bookingId, row.id)}>Theo dõi buổi</Link>}
         {visit && <Button variant="ghost" className="booking-change-visit-action"
           aria-label={'Đổi giờ buổi ' + bookingChangeVisitLabel(visit)}
           onClick={() => openBookingChange(visit.id)}>Đổi giờ</Button>}
-      </>;
+        <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} bookingCancelled={bookingCancelled} />
+      </div>;
     }
   };
   const overdue = booking?.state === 'OVERDUE';

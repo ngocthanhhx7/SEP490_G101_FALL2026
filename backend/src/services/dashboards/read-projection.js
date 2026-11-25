@@ -1,5 +1,6 @@
 import { AppError } from '../../utils/app-error.js';
 import { hasRole } from '../../utils/roles.js';
+import { visitServiceDisplayName } from '../employee-scheduling/dispatch-visit-presentation.js';
 
 // P41 settlement identifiers are opaque strings (for example UUID earning ids),
 // while user ids normally serialize as Mongo ObjectIds. Keep one bounded
@@ -81,12 +82,16 @@ export function visitRows(snapshot, scope, ownerField) {
   return snapshot.items.map(row => {
     if (!ID.test(row.id ?? '') || !text(row.state, 64) || !row.state
       || (ownerField && row[ownerField] !== scope.userId)) fail(503, 'INVALID_PROJECTION');
+    const serviceDisplayName = ownerField && visitServiceDisplayName(row);
     return { id: row.id, state: row.state, startsAt: date(row.startsAt),
+      ...(ownerField && ['HOME', 'FACILITY', 'OUTDOOR'].includes(row.location) ? { location: row.location } : {}),
+      ...(serviceDisplayName && { serviceDisplayName }),
       ...(ownerField && row.bookingId && ID.test(row.bookingId) ? { bookingId: row.bookingId } : {}),
       ...(ownerField && row.endsAt ? { endsAt: date(row.endsAt) } : {}),
       ...(ownerField && text(row.serviceName, 250) ? { serviceName: row.serviceName } : {}),
       ...(ownerField && text(row.sitterName, 160) ? { sitterName: row.sitterName } : {}),
       ...(ownerField && Array.isArray(row.petNames) ? { petNames: row.petNames.filter(name => text(name, 100)).slice(0, 30) } : {}),
+      ...(ownerField === 'sitterId' && row.handoverPending === true ? { handoverPending: true } : {}),
       ...(ownerField && row.overdue === true ? { overdue: true } : {}) };
   });
 }

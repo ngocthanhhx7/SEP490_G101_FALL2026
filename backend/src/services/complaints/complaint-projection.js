@@ -75,7 +75,12 @@ export function safeComplaint(record, actor, asOf, { customerPhone, billing } = 
       customer: { displayName: record.customerName ?? null, ...(customerPhone !== undefined ? { phone: customerPhone } : {}) },
       handlingNotes: record.handlingNotes ?? record.privateStaffNotes ?? record.staffNotes ?? null,
       objectionReason: record.objection?.reason ?? record.latestObjection?.reason ?? null,
-      proposal: proposal ? { ...proposal, evidenceRefs: imageRefs(proposal.evidenceRefs) } : null,
+      proposal: proposal ? {
+        ...proposal,
+        ...(record.proposerName !== undefined || proposal.createdByName !== undefined
+          ? { createdByName: record.proposerName ?? proposal.createdByName ?? null } : {}),
+        evidenceRefs: imageRefs(proposal.evidenceRefs)
+      } : null,
       moneyDecision: record.moneyDecision ?? null,
       ...(billing !== undefined ? { billing } : {})
     } : {})

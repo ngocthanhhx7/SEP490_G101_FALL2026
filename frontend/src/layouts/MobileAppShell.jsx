@@ -51,12 +51,15 @@ export function MobileAppShell({ route, children, lookupRoute }) {
   const path = pathname.replace(/\/+$/, '').toLowerCase() || '/';
   const serviceBooking = route?.id === 'M36' && /^\/booking\/([a-f0-9]{24})$/i.exec(path);
   const parent = route?.id === 'M36' ? (serviceBooking ? '/services/' + serviceBooking[1] : '/services')
-    : ['M13', 'M14'].includes(route?.id) ? pathname.split('/').slice(0, 4).join('/')
+    : ['M13', 'M14', 'N03'].includes(route?.id) ? pathname.split('/').slice(0, 4).join('/')
     : backRoutes[route?.id] ?? (role && !['M30', 'M43'].includes(route?.id) ? '/account' : home);
   const fallback = parent === path ? home : parent;
   const source = state?.mobileBack;
   const fromSitterSchedule = route?.id === 'N02' && typeof source === 'string'
     && /^\/sitter(?:\/(?:schedule(?:\?[^#]*)?|invitations))?$/.test(source);
+  const fromSitterSettings = role === 'PET_SITTER' && ['M22', 'M25'].includes(route?.id)
+    && typeof source === 'string' && /^\/(?:account|sitter(?:\/schedule(?:\?[^#]*)?)?)$/.test(source);
+  const fromSitterPublicProfile = role === 'PET_SITTER' && route?.id === 'M18' && source === '/sitter/public-profile';
   const fromCustomerAgenda = ['M12', 'M13'].includes(route?.id) && typeof source === 'string'
     && /^\/account\/bookings(?:\?[^#]*)?$/.test(source);
   const orderQuery = new globalThis.URLSearchParams(search);
@@ -65,8 +68,14 @@ export function MobileAppShell({ route, children, lookupRoute }) {
   const fromOrderList = orderDetail && typeof source === 'string'
     && /^\/customer\/product-orders(?:\?page=[1-9]\d*)?$/.test(source);
   const fromNotificationLink = route?.id === 'M03' && notificationBack(source, role, lookupRoute);
-  const candidate = fromSitterSchedule || fromCustomerAgenda || fromOrderList || fromNotificationLink ? source
-    : orderDetail ? pathname + (/^[1-9]\d*$/.test(orderPage ?? '') ? '?page=' + orderPage : '') : fallback;
+  const fromHelp = state?.helpFrom;
+  const helpBack = route?.id === 'M33' && typeof fromHelp === 'string'
+    && /^(?:\/(?:customer\/product-orders|account\/bookings\/[a-f0-9]{24}|sitter\/visits\/[a-f0-9]{24}|policies(?:\/[a-z0-9._-]{1,80}){0,2})(?:\?[^#]*)?|\/)$/i.test(fromHelp);
+  const fromPolicy = state?.policyFrom;
+  const policyBack = ['M48', 'M49', 'M50'].includes(route?.id) && typeof fromPolicy === 'string'
+    && /^\/(?:account|(?:contact|policies)(?:\?[^#]*)?)?$/.test(fromPolicy) && fromPolicy !== pathname;
+  const candidate = helpBack ? fromHelp : policyBack ? fromPolicy : fromSitterSchedule || fromSitterSettings || fromSitterPublicProfile || fromCustomerAgenda || fromOrderList || fromNotificationLink ? source
+    : orderDetail ? pathname + (/^[1-9]\d*$/.test(orderPage ?? '') ? '?page=' + orderPage : '') : !role && ['M33','M48'].includes(route?.id) ? '/' : fallback;
   const queryIndex = candidate.indexOf('?');
   const candidatePath = queryIndex === -1 ? candidate : candidate.slice(0, queryIndex);
   const candidateSearch = queryIndex === -1 ? '' : candidate.slice(queryIndex);
