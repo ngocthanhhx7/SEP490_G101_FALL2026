@@ -69,7 +69,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         startAt: actual.find(visit => visit.customerVisitId === String(row._id))?.startAt ?? row.startAt,
         endAt: actual.find(visit => visit.customerVisitId === String(row._id))?.endAt ?? row.endAt,
         serviceName: row.snapshots.serviceName, petNames: (row.snapshots.pets ?? []).map(pet => pet.name).filter(value => typeof value === 'string' && value), location: row.location, serviceAddress: row.snapshots.serviceAddress,
-        requestedSitterId: row.requestedSitterId && String(row.requestedSitterId) })) };
+        requestedSitterId: row.requestedSitterId && String(row.requestedSitterId) }))
+        .sort((a, b) => new Date(a.startAt) - new Date(b.startAt)) };
   }
   return {
     async options(actor) {
@@ -208,6 +209,10 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         }
         if (Object.keys(unavailableVisits).length) throw new AppError(409, 'SITTER_AVAILABILITY_CONSENT_REQUIRED',
           'Confirm each visit outside the selected employee availability', { lineFields: unavailableVisits });
+        // Keep request indexes through eligibility/consent checks. Only then number
+        // the complete visit records chronologically, retaining their own snapshots.
+        visits.sort((a, b) => a.startAt - b.startAt || a.sequence - b.sequence);
+        visits.forEach((visit, sequence) => { visit.sequence = sequence; });
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
           paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },

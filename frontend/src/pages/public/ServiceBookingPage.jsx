@@ -89,8 +89,8 @@ export function BookingFlow({ service, api, onBooked }) {
     setError('');
   }
 
-  function schedule() {
-    return starts.map(start => ({
+  function schedule(selectedStarts = starts) {
+    return selectedStarts.map(start => ({
       itemIndex: 0,
       startAt: new Date(start + '+07:00').toISOString(),
       location,
@@ -102,7 +102,7 @@ export function BookingFlow({ service, api, onBooked }) {
   const leadMs = location === 'HOME' ? homeNoticeMs : prepayNotice;
   const minimum = vietnamDateTime(new Date(Math.ceil((Date.now() + Math.max(leadMs, 1)) / 60000) * 60000));
 
-  async function loadPreviousSitters(activeQuote) {
+  async function loadPreviousSitters(activeQuote, selectedStarts = starts) {
     const targetQuote = activeQuote ?? quote;
     if (!targetQuote || boarding) return;
     const ticket = ++generation.current;
@@ -112,7 +112,7 @@ export function BookingFlow({ service, api, onBooked }) {
     setAvailable(null);
     setSelected('');
     try {
-      const currentSchedule = schedule();
+      const currentSchedule = schedule(selectedStarts);
       const values = [];
       for (const visit of currentSchedule) {
         values.push(await api.availability({ quoteId: targetQuote.quoteId, visit }));
@@ -131,7 +131,7 @@ export function BookingFlow({ service, api, onBooked }) {
             entry.eligible = false;
             entry.unavailableVisits.push({
               index: visitIndex,
-              start: starts[visitIndex],
+              start: selectedStarts[visitIndex],
               reason: sitter.unavailableReason ?? null
             });
           }
@@ -165,6 +165,7 @@ export function BookingFlow({ service, api, onBooked }) {
     const ordered = starts.map((value, index) => ({ at: Date.parse(value + '+07:00'), index })).sort((a, b) => a.at - b.at);
     const overlap = ordered.find((slot, i) => i > 0 && slot.at < ordered[i - 1].at + durationMinutes * 60000);
     if (overlap) { setActiveVisit(overlap.index); setError(`Buổi ${overlap.index + 1} trùng giờ chăm sóc với một buổi khác. Hãy đổi giờ.`); return; }
+    const chronologicalStarts = ordered.map(slot => starts[slot.index]);
     const ticket = ++generation.current;
     locked.current = true;
     setBusy(true);
@@ -179,13 +180,15 @@ export function BookingFlow({ service, api, onBooked }) {
         ...(unit === 'km' ? { distanceMeters: Math.round(Number(units) * 1000) } : {})
       }]);
       if (ticket === generation.current) {
+        setStarts(chronologicalStarts);
+        setActiveVisit(0);
         setQuote(value);
         setStep(1);
         setAvailable(null);
         setSelected('');
         locked.current = false;
         setBusy(false);
-        if (!boarding) void loadPreviousSitters(value);
+        if (!boarding) void loadPreviousSitters(value, chronologicalStarts);
         return;
       }
     } catch (failure) {
@@ -278,6 +281,7 @@ export function BookingFlow({ service, api, onBooked }) {
         <fieldset className="booking-compose__schedule" disabled={busy}>
           <legend>Lịch chăm sóc</legend>
           <p className="booking-schedule-hint">{location === 'HOME' ? 'Giờ Việt Nam · Đặt trước ít nhất 2 giờ.' : 'Giờ Việt Nam'}</p>
+          {starts.length > 1 && <p className="booking-schedule-hint">Các buổi sẽ được đánh số theo thời gian từ sớm đến muộn khi xem báo giá.</p>}
           {location === 'HOME' && !boarding && <>
             <button type="button" className="booking-repeat-trigger" aria-haspopup="dialog" onClick={() => setEditingRepeat(true)}>
               <RefreshCw size={16} aria-hidden="true" /> Tạo lịch lặp theo tuần hoặc tháng
