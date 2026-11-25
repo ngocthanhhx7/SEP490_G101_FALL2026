@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
 import { ProductCartProvider } from '../../src/contexts/ProductCartContext.jsx';
 import { MyProductOrdersPage } from '../../src/pages/customer/MyProductOrdersPage.jsx';
@@ -17,13 +17,19 @@ const prepaid = (over = {}) => ({ id: ID, code: 'DH-0040', createdAt: '2026-11-2
   lines: [line], subtotal: 420000, shippingFee: 25000, total: 445000, ...over });
 const PAY = 'Thanh toán qua payOS';
 
-function showOrders(order, { path = '/customer/product-orders', createPaymentLink } = {}) {
+function LocationProbe() {
+  const location = useLocation();
+  return <div data-testid="location-probe">{`${location.pathname}${location.search}|${JSON.stringify(location.state)}`}</div>;
+}
+
+function showOrders(ordersOrOne, { path = '/customer/product-orders', createPaymentLink } = {}) {
+  const list = Array.isArray(ordersOrOne) ? ordersOrOne : [ordersOrOne];
   const api = { getCart: jest.fn().mockResolvedValue({ data: { lines: [], lineCount: 0 } }),
-    listOrders: jest.fn().mockResolvedValue({ data: [order], meta: { page: { page: 1, limit: 20, total: 1, totalPages: 1 } } }),
-    getOrder: jest.fn().mockResolvedValue({ data: order }),
+    listOrders: jest.fn().mockResolvedValue({ data: list, meta: { page: { page: 1, limit: 20, total: list.length, totalPages: 1 } } }),
+    getOrder: jest.fn().mockImplementation((id) => Promise.resolve({ data: list.find((item) => item.id === id) ?? list[0] })),
     createPaymentLink: createPaymentLink ?? jest.fn().mockRejectedValue({ code: 'PAYMENT_PROVIDER_UNAVAILABLE', status: 503 }) };
   render(<MemoryRouter initialEntries={[path]}><SessionProvider adapter={adapter}><ProductCartProvider api={api}>
-    <MyProductOrdersPage api={api} /></ProductCartProvider></SessionProvider></MemoryRouter>);
+    <MyProductOrdersPage api={api} /><LocationProbe /></ProductCartProvider></SessionProvider></MemoryRouter>);
   return api;
 }
 
@@ -77,6 +83,59 @@ describe('My Orders, payment in advance', () => {
     showOrders(prepaid({ paymentDeadlineAt: new Date(Date.now() - 60_000).toISOString() }));
     expect(await screen.findByText('Chờ thanh toán')).toBeVisible();
     expect(screen.queryByRole('button', { name: PAY })).not.toBeInTheDocument();
+  });
+
+  test('B1: uses dedicated My Orders split/table classes and switches detail with full amounts on View click', async () => {
+    const first = prepaid({ id: '1'.repeat(24), code: 'DH-0041', status: 'DELIVERED', paid: true, paymentMethod: 'COD',
+      subtotal: 420000, tierDiscount: 0, shippingFee: 25000, total: 445000 });
+    const second = prepaid({ id: '2'.repeat(24), code: 'DH-0042', status: 'HANDED_TO_CARRIER', paid: false, paymentMethod: 'COD',
+      lines: [{ productId: 'p2', productCode: 'SP-0015', productName: 'Cát vệ sinh', quantity: 3, unitPrice: 100000, lineTotal: 300000 }],
+      subtotal: 300000, tierDiscount: 15000, tierCode: 'GOLD', shippingFee: 25000, total: 310000 });
+    showOrders([first, second]);
+    await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0041' });
+    const table = screen.getByRole('table');
+    expect(table).toHaveClass('pwc-shop-table--orders');
+    expect(table).not.toHaveClass('pwc-shop-table--wide');
+    expect(table.closest('.pwc-shop-split')).toHaveClass('pwc-shop-split--orders');
+
+    const viewSecond = screen.getByRole('button', { name: 'Xem đơn DH-0042' });
+    fireEvent.click(viewSecond);
+    expect(viewSecond).toHaveAttribute('aria-pressed', 'true');
+    expect(viewSecond.closest('tr')).toHaveClass('is-selected');
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0042' });
+    expect(within(detail).getByText('Cát vệ sinh × 3')).toBeVisible();
+    expect(within(detail).getByText('Tạm tính')).toBeVisible();
+    expect(within(detail).getByText('Giảm giá hạng Vàng')).toBeVisible();
+    expect(within(detail).getByText('− 15.000 đ')).toBeVisible();
+    expect(within(detail).getByText('Phí giao hàng')).toBeVisible();
+    expect(within(detail).getByText('310.000 đ')).toBeVisible();
+  });
+
+  test('B2: MSG59 toast auto-hides and clears location.state while keeping MSG33 payment link error', async () => {
+    jest.useFakeTimers();
+    try {
+      const msg33 = 'Chưa thể mở trang thanh toán lúc này. Vui lòng thử lại sau vài phút.';
+      showOrders(prepaid(), { path: { pathname: '/customer/product-orders', search: `?order=${ID}`, state: { placed: 'DH-0040', paymentLinkError: msg33 } } });
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+      const toastText = screen.getByText('Đơn hàng DH-0040 đã được đặt.');
+      expect(toastText.closest('[role="status"]')).toBeVisible();
+      expect(screen.getByText(msg33)).toBeVisible();
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(`/customer/product-orders?order=${ID}|null`);
+      act(() => { jest.advanceTimersByTime(5000); });
+      expect(screen.queryByText('Đơn hàng DH-0040 đã được đặt.')).not.toBeInTheDocument();
+      expect(screen.getByText(msg33)).toBeVisible();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test('B2: MSG59 toast from payOS return strips status query param and can be manually closed', async () => {
+    showOrders(prepaid({ paid: true }), { path: `/customer/product-orders?order=${ID}&cancel=false&status=PAID` });
+    const toastText = await screen.findByText('Đơn hàng DH-0040 đã được đặt.');
+    expect(toastText.closest('[role="status"]')).toBeVisible();
+    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent(`/customer/product-orders?order=${ID}&cancel=false|null`));
+    fireEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
+    expect(screen.queryByText('Đơn hàng DH-0040 đã được đặt.')).not.toBeInTheDocument();
   });
 });
 
