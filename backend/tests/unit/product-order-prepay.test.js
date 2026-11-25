@@ -101,14 +101,20 @@ describe('asking payOS before an unpaid order is cancelled (JOB-04)', () => {
   const order = { payment: { providerReferences: ['1', '2'] } };
   test('nothing paid means unpaid, a paid link is recorded through the webhook path, a provider error is thrown', async () => {
     const handle = jest.fn(async () => ({ status: 'PAYMENT_VERIFIED' }));
-    const unpaid = createProductOrderPaymentSettler({ provider: { getPaymentLink: jest.fn(async () => link()) }, handleVerifiedPayment: handle });
+    const unpaid = createProductOrderPaymentSettler({ provider: { getPaymentLink: jest.fn(async () => link({ providerStatus: 'EXPIRED' })) }, handleVerifiedPayment: handle });
     expect(await unpaid.settleIfPaid(order)).toBe('UNPAID');
+    for (const snapshot of [link(), link({ providerStatus: 'EXPIRED', amountPaid: 1, amountRemaining: 99 })]) {
+      const held = createProductOrderPaymentSettler({ provider: { getPaymentLink: async () => snapshot }, handleVerifiedPayment: handle });
+      expect(await held.settleIfPaid(order)).toBe('RECONCILE');
+    }
     expect(handle).not.toHaveBeenCalled();
     const paid = createProductOrderPaymentSettler({ provider: { getPaymentLink: jest.fn(async (code) => (code === 2
       ? link({ orderCode: 2, providerStatus: 'PAID', amountPaid: 100, amountRemaining: 0 }) : link({ orderCode: 1 }))) }, handleVerifiedPayment: handle });
     expect(await paid.settleIfPaid(order)).toBe('PAID');
     expect(handle).toHaveBeenCalledWith(expect.objectContaining({ orderCode: 2, amount: 100, currency: 'VND', code: '00' }));
     handle.mockResolvedValueOnce({ status: 'RECONCILIATION_REQUIRED', reason: 'AMOUNT_MISMATCH' });
+    expect(await paid.settleIfPaid(order)).toBe('RECONCILE');
+    handle.mockResolvedValueOnce({ status: 'DUPLICATE' });
     expect(await paid.settleIfPaid(order)).toBe('RECONCILE');
     const broken = createProductOrderPaymentSettler({ provider: { getPaymentLink: jest.fn(async () => { throw new Error('payOS down'); }) }, handleVerifiedPayment: handle });
     await expect(broken.settleIfPaid(order)).rejects.toThrow('payOS down');
