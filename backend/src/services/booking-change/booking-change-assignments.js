@@ -1,3 +1,4 @@
+import { flagVisitHandover, urgentReplacement } from '../care/visit-handover-policy.service.js';
 import { AppError } from '../../utils/app-error.js';
 import { futureVisit } from './booking-change-policy.js';
 import { oid } from './booking-change-store.js';
@@ -60,9 +61,12 @@ export async function moveVisits({ store, repository, change, items, visits, ass
       Object.assign(set, { state: 'SCHEDULED', sitterId: null });
       Object.assign(unset, { assignedAt: 1, careAcknowledgement: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 });
       if (visit.sitterId) {
-        Object.assign(set, { handoverRequired: true, handoverAccepted: false });
-        unset.handoverAcceptedAt = 1;
+        const handover = flagVisitHandover(visit.sitterId, now, { reasonCode: 'BOOKING_RESCHEDULED' });
+        Object.assign(set, handover.set);
+        Object.assign(unset, handover.unset);
       }
+    } else if (visit.handoverRequired === true) {
+      set.handoverLateCheckInExempt = urgentReplacement(visit, visit.assignedAt, item.newStartAt);
     }
     const updated = await store.visits.updateOne({ _id: visit._id, state: visit.state, checkInAt: null,
       version: item.oldVersion, startAt: item.oldStartAt, endAt: item.oldEndAt },

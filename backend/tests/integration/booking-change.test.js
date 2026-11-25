@@ -347,6 +347,9 @@ describe('UC-85 decisions and expiry', () => {
     const record = await booking([BASE + 25 * HOUR], { assigned: true });
     await readySitter(record.serviceId, [{ weekday: 4, startLocalTime: '06:30', endLocalTime: '19:00' }]);
     const visit = record.visits[0], newStart = BASE + DAY + 8 * HOUR;
+    // UC-41: recompute a retained replacement's previously stored exemption against the new schedule.
+    await col('visits').updateOne({ _id: visit._id }, { $set: { handoverRequired: true, handoverAccepted: true,
+      handoverLateCheckInExempt: true, assignedAt: new Date(BASE - 40 * MINUTE) } });
     const change = (await submit(record, single(visit, newStart)).expect(201)).body.data;
     now = BASE + 5 * HOUR;
     expect((await detail(change).expect(200)).body.data.items[0].availability).toBe('AVAILABLE');
@@ -356,7 +359,7 @@ describe('UC-85 decisions and expiry', () => {
     expect(results.find(result => result.status === 200).body.data).toMatchObject({ state: 'APPROVED', messageCode: 'MSG126' });
     const moved = await col('visits').findOne({ _id: visit._id });
     expect(moved).toMatchObject({ state: 'ASSIGNED', sitterId: visit.sitterId, snapshots: visit.snapshots,
-      startAt: new Date(newStart), endAt: new Date(newStart + HOUR / 2) });
+      startAt: new Date(newStart), endAt: new Date(newStart + HOUR / 2), handoverAccepted: true, handoverLateCheckInExempt: false });
     expect((await col('bookings').findOne({ _id: record._id })).paymentSnapshot.amountVnd).toBe(90000);
     await app.locals.bookingChange.runBatch();
     expect(await col('notifications').countDocuments({ eventType: 'BookingChangeApproved' })).toBe(2);
@@ -375,6 +378,7 @@ describe('UC-85 decisions and expiry', () => {
     await decision(change, 'APPROVE', admin).expect(200);
     expect(await col('visits').findOne({ _id: visit._id })).toMatchObject({
       state: 'SCHEDULED', sitterId: null, startAt: new Date(newStart), handoverRequired: true,
+      handoverNote: { reasonCode: 'BOOKING_RESCHEDULED', previousSitterId: visit.sitterId },
       dispatchReview: { code: 'INSUFFICIENT_DISPATCH_CANDIDATES' },
       dispatchRanking: { eligibleCount: 1, candidates: [{ sitterId: replacement.user.id }] }
     });
