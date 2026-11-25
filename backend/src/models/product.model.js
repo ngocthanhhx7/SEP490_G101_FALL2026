@@ -14,7 +14,7 @@ import {
   PRODUCT_PAYMENT_RECEIPT_STATES
 } from '../constants/product-fields.js';
 import { SUPPLIER_STATUSES, SUPPLIER_LIMITS } from '../constants/supplier-fields.js';
-import { COUNTER_CHANNEL, COUNTER_RECEIVE_METHOD, COUNTER_PAYMENT_METHOD, COUNTER_ORDER_STATUSES } from '../constants/counter-sale-fields.js';
+import { COUNTER_CHANNEL, COUNTER_RECEIVE_METHOD, COUNTER_PAYMENT_METHODS, COUNTER_ORDER_STATUSES } from '../constants/counter-sale-fields.js';
 import { GOODS_RECEIPT_LIMITS } from '../constants/goods-receipt-fields.js';
 import { STOCK_ADJUSTMENT_TYPES, STOCK_ADJUSTMENT_REASONS, STOCK_ADJUSTMENT_LIMITS } from '../constants/stock-adjustment-fields.js';
 
@@ -65,6 +65,7 @@ const orderPayment = sub({
   providerReferences: { type: [String], default: [], validate: (list) => list.length <= PRODUCT_PAYMENT_LIMITS.maxReferences },
   linkState: { type: String, enum: PRODUCT_PAYMENT_LINK_STATES },
   linkRequestedAt: { type: Date },
+  linkExpiresAt: { type: Date },
   checkoutUrl: { type: String, maxlength: 500 },
   paymentLinkId: { type: String, maxlength: 128 },
   paidAt: { type: Date },
@@ -158,7 +159,7 @@ export function productSalesModels(connection) {
         subtotal: { ...integer(), required: true },
         shippingFee: { ...integer(), required: true },
         total: { ...integer(), required: true },
-        paymentMethod: { type: String, enum: [...PRODUCT_PAYMENT_METHODS, COUNTER_PAYMENT_METHOD], required: true },
+        paymentMethod: { type: String, enum: [...PRODUCT_PAYMENT_METHODS, ...COUNTER_PAYMENT_METHODS], required: true },
         paid: { type: Boolean, default: false },
         // Prepaid orders only: when the payment is due (counted from the time of ordering) and the payOS state.
         paymentDeadlineAt: { type: Date },

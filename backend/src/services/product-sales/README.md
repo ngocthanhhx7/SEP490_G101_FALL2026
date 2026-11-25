@@ -34,4 +34,20 @@ cancelled or returned gets `refundMarked` and `refundAmountVnd` (GBR-37): the
 whole amount, or the price of the goods when the customer refused them without a
 reason. PWC does not call payOS to refund; accounting pays outside the system.
 
-A partial transfer, a positive receipt awaiting reconciliation or a still-payable link prevents cancellation and cash substitution. A link with money received is never reissued. Link reservations and reconciliation receipts advance the order version so stale cash/cancellation commands cannot release stock.
+## Counter VietQR (payOS)
+
+Counter orders (`channel: 'COUNTER'`, `status: 'AWAITING_PAYMENT'`) reuse the same
+payOS payment-link and webhook path. `createCounterLink` reserves a payOS order code
+in `payment.providerReferences` with a 15-minute `payment.linkExpiresAt` (separate
+from online `paymentDeadlineAt`). A verified webhook transitions the order to `PAID`
+with `paymentMethod: 'COUNTER_VIETQR'` and records the receipt once in
+`payment.receipts` without sending an online-order notification. Before recording
+cash on an order with a provider reference, the service verifies the provider
+state. Confirmed unpaid orders can switch to cash. A partial payment, unavailable
+lookup or unresolved receipt pauses cash collection. Late transfers after cash
+collection remain available for reconciliation.
+
+Unpaid `PAY_AT_SHOP` pick-up orders in `READY` (UC-67 branch 4.1) reuse the same
+link creation (`createPickupShopLink`), webhook receipt and settler flow while
+keeping `paymentMethod: 'PAY_AT_SHOP'` and storing VietQR receipts in
+`payment.receipts`.
