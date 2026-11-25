@@ -21,6 +21,7 @@ import {
   PayrollAdjustmentDecision,
 } from '../../components/payroll/PayrollAdjustmentForms.jsx';
 import { EmployeeContractForm } from '../../components/payroll/EmployeeContractForm.jsx';
+import './employee-payroll-admin.css';
 
 const employeeField = {
   label: 'Mã nhân viên',
@@ -215,7 +216,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
     </OperationsBadge>
   );
   return (
-    <section className="ops-workspace payroll-workspace">
+    <section className="ops-workspace payroll-workspace payroll-admin-page">
       <header>
         <div>
           <h1>Quản lý lương</h1>
@@ -482,7 +483,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
                 ? 'Đối chiếu tạm ứng'
                 : 'Chi tiết điều chỉnh'
           }
-          className="ops-dialog"
+          className="ops-dialog payroll-admin-dialog"
           dismissible={!state.busy && !uncertain}
           onClose={() => setSelected(null)}
         >

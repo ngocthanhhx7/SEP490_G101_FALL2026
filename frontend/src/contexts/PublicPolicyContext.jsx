@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
 const EMPTY = Object.freeze([]);
-const PublicPolicyContext = createContext(EMPTY);
+const PublicPolicyContext = createContext({ status: 'ready', catalog: EMPTY });
 
 // UI readiness only. The server remains the authority and independently validates
 // and persists accepted versions before provisioning.
@@ -27,25 +27,28 @@ export function registrationPolicyReadiness(policies, now = Date.now()) {
 }
 
 export function PublicPolicyProvider({ policies, loadPolicies, children }) {
-  const [catalog, setCatalog] = useState(Array.isArray(policies) ? policies : EMPTY);
+  const [state, setState] = useState({ status: 'loading', catalog: EMPTY });
+  const [revision, setRevision] = useState(0);
+  const retry = useCallback(() => setRevision(value => value + 1), []);
   useEffect(() => {
-    if (Array.isArray(policies)) {
-      setCatalog(policies);
-      return undefined;
-    }
-    if (typeof loadPolicies !== 'function') return undefined;
-    let active = true;
-    loadPolicies().then(next => { if (active && Array.isArray(next)) setCatalog(next); }).catch(() => {});
-    return () => { active = false; };
-  }, [loadPolicies, policies]);
-  return <PublicPolicyContext.Provider value={catalog}>{children}</PublicPolicyContext.Provider>;
+    if (Array.isArray(policies) || typeof loadPolicies !== 'function') return;
+    const abort = new AbortController();
+    setState({ status: 'loading', catalog: EMPTY });
+    Promise.resolve().then(() => loadPolicies({ signal: abort.signal })).then(catalog => {
+      if (!Array.isArray(catalog)) throw new Error('Invalid policy catalog');
+      if (!abort.signal.aborted) setState({ status: 'ready', catalog });
+    }).catch(() => { if (!abort.signal.aborted) setState({ status: 'error', catalog: EMPTY }); });
+    return () => abort.abort();
+  }, [loadPolicies, policies, revision]);
+  const value = Array.isArray(policies) ? { status: 'ready', catalog: policies }
+    : typeof loadPolicies === 'function' ? state : { status: 'ready', catalog: EMPTY };
+  return <PublicPolicyContext.Provider value={{ ...value, retry }}>{children}</PublicPolicyContext.Provider>;
 }
 
 export function useRegistrationPolicies() {
-  const policies = useContext(PublicPolicyContext);
-  return { ...registrationPolicyReadiness(policies), current: () => registrationPolicyReadiness(policies) };
+  const { catalog, status, retry } = useContext(PublicPolicyContext);
+  return { ...registrationPolicyReadiness(catalog), status, retry, current: () => registrationPolicyReadiness(catalog) };
 }
 
-export function usePublicPolicyCatalog() {
-  return useContext(PublicPolicyContext);
-}
+export function usePublicPolicyState() { return useContext(PublicPolicyContext); }
+export function usePublicPolicyCatalog() { return usePublicPolicyState().catalog; }

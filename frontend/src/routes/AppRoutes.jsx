@@ -7,6 +7,7 @@ import { createServiceAreaManagementApi } from '../services/service-area-managem
 import { useMemo } from 'react';
 import { CustomerCarePage } from '../pages/customer/CustomerCarePage.jsx';
 import { CustomerBookingDetailPage } from '../pages/customer/CustomerBookingDetailPage.jsx';
+import { VisitSchedulePage } from '../pages/customer/visit-schedule/VisitSchedulePage.jsx';
 import { VisitStatusTrackerPage } from '../pages/customer/visit-status-tracker/VisitStatusTrackerPage.jsx';
 import { ComplaintSubmitPage } from '../pages/customer/ComplaintSubmitPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
@@ -14,11 +15,13 @@ import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx'
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
-import { Link, Navigate, Route, Routes, useLocation, useSearchParams, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { InstallAppPage } from '../pages/public/InstallAppPage.jsx';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
 import { SitterSchedulePage } from '../pages/sitter/SitterSchedulePage.jsx';
+import { StaffReassignPage } from '../pages/staff/StaffReassignPage.jsx';
+import { HandoverConfirmationPage } from '../pages/sitter/HandoverConfirmationPage.jsx';
 import { SitterVisitPage } from '../pages/sitter/SitterVisitPage.jsx';
 import { MobileAccountHub } from '../pages/account/MobileAccountHub.jsx';
 import { PhoneHomePage } from '../pages/public/PhoneHomePage.jsx';
@@ -67,6 +70,7 @@ import { createEmployeePayrollApi } from '../services/employee-payroll-api.js';
 import { SitterRankingPolicyPage } from '../pages/admin/SitterRankingPolicyPage.jsx';
 import { EmployeePayrollPage } from '../pages/sitter/EmployeePayrollPage.jsx';
 import { EmployeePayrollAdminPage } from '../pages/admin/EmployeePayrollAdminPage.jsx';
+import { RefundProcessingPage } from '../pages/admin/RefundProcessingPage.jsx';
 import { createEmployeeSchedulingApi } from '../services/employee-scheduling-api.js';
 import { SitterWorkAreasPanel } from '../pages/sitter/SitterWorkAreasPanel.jsx';
 import { EmployeeDispatchPage } from '../pages/staff/EmployeeDispatchPage.jsx';
@@ -168,11 +172,18 @@ function LegacyDispatchRoute() {
 
 function EmployeeScheduleRoute({ view }) {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate(), location = useLocation();
   const { visitId } = useParams();
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createEmployeeSchedulingApi(createApiClient({ getCsrfToken }), {
     privateImages: createPrivateImageApi({ getCsrfToken })
   }), [getCsrfToken]);
+  if (view === 'reassign') return /^[a-f\d]{24}$/i.test(visitId ?? '')
+    ? <StaffReassignPage key={user?.id + ':' + visitId} api={api} visitId={visitId.toLowerCase()} />
+    : <p role="alert">Buổi không còn khả dụng với tài khoản này.</p>;
+  if (view === 'handover') return /^[a-f\d]{24}$/i.test(visitId ?? '')
+    ? <HandoverConfirmationPage key={user?.id + ':' + visitId} api={api} visitId={visitId.toLowerCase()} />
+    : <p role="alert">Buổi không còn khả dụng với tài khoản này.</p>;
   if (view === 'visit') return /^[a-f\d]{24}$/i.test(visitId ?? '')
     ? <SitterVisitPage key={user?.id + ':' + visitId} api={api} visitId={visitId} />
     : <p role="alert">Mã buổi chăm sóc không hợp lệ.</p>;
@@ -185,6 +196,11 @@ function EmployeeScheduleRoute({ view }) {
       setParams(query, { replace: true });
     }}
     initialVisitId={/^[a-f0-9]{24}$/i.test(params.get('visitId') ?? '') ? params.get('visitId') : undefined} selectedSitter={params.get('sitterId') || undefined}
+    initialHandoverVisitId={/^[a-f0-9]{24}$/i.test(params.get('handoverVisitId') ?? '') ? params.get('handoverVisitId') : undefined}
+    reassignedNotice={location.state?.reassigned}
+    onReassign={(id, returnTo) => navigate(`/staff/visits/${id}/reassign`, { state: { returnTo } })}
+    initialTab={['needs', 'today', 'all'].includes(params.get('tab')) ? params.get('tab') : undefined}
+    initialFilters={{ text: params.get('q') ?? '', areaCode: params.get('area') ?? '', reason: params.get('reason') ?? '' }}
     initialWorkflowId={params.get('workflowId') || undefined} initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
   if (view === 'invitations' && /^[a-f\d]{24}$/i.test(params.get('visitId') ?? ''))
     return <Navigate replace to={'/sitter/visits/' + params.get('visitId')} />;
@@ -233,6 +249,7 @@ const navigationByRole = {
     ['Tồn kho', '/admin/stock', 'Cửa hàng'],
     ['Điều chỉnh tồn kho', '/admin/stock-adjustments', 'Cửa hàng'],
     ['Quản lý lương', '/admin/payroll', 'Tài chính'],
+    ['Hoàn tiền', '/admin/refunds', 'Tài chính'],
     ['Dịch vụ và giá', '/admin/services', 'Hệ thống'],
     ['Phạm vi phục vụ', '/admin/service-areas', 'Hệ thống'],
     ['Cấu hình hệ thống', '/admin/system-settings', 'Hệ thống'],
@@ -348,6 +365,7 @@ export function AppRoutes({
           <Route path="admin/sitters/:userId" element={<SitterManagementRoute detail />} />
           <Route path="admin/settlements" element={<Navigate replace to="/admin/payroll" />} />
           <Route path="admin/payroll" element={<EmployeePayrollRoute admin />} />
+          <Route path="admin/refunds" element={<RefundProcessingPage />} />
           <Route path="admin/sitter-ranking" element={<SitterRankingPolicyPage />} />
           <Route path="admin/ai-models" element={<Navigate replace to="/admin/sitter-ranking" />} />
           <Route path="admin/products" element={<ProductManagementRoute />} />
@@ -412,6 +430,7 @@ export function AppRoutes({
           <Route path="account/bookings" element={<CustomerBookingsEntry mobile={phoneApp} />} />
           <Route path="customer/product-orders" element={<MyProductOrdersPage />} />
           <Route path="account/bookings/:bookingId" element={<CustomerBookingDetailPage />} />
+          <Route path="account/bookings/:bookingId/visits" element={<VisitSchedulePage />} />
           <Route path="account/bookings/:bookingId/visits/:visitId" element={<VisitStatusTrackerPage />} />
           <Route path="account/bookings/:bookingId/complaints/new" element={<ComplaintSubmitPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
@@ -433,6 +452,7 @@ export function AppRoutes({
           <Route path="sitter/work-areas" element={<EmployeeScheduleRoute view="areas" />} />
           <Route path="sitter/schedule" element={<SitterSchedulePage />} />
           <Route path="sitter/visits/:visitId" element={<EmployeeScheduleRoute view="visit" />} />
+          <Route path="sitter/visits/:visitId/handover" element={<EmployeeScheduleRoute view="handover" />} />
           <Route path="sitter/invitations" element={<EmployeeScheduleRoute view="invitations" />} />
         </Route>
       </Route>
@@ -448,6 +468,7 @@ export function AppRoutes({
         <Route element={<AccountWorkspace />}>
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
           <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
+          <Route path="staff/visits/:visitId/reassign" element={<EmployeeScheduleRoute view="reassign" />} />
           <Route path="admin/dispatch" element={<LegacyDispatchRoute />} />
           <Route path="staff/bookings/:bookingId" element={<StaffBookingDetailPage />} />
         </Route>

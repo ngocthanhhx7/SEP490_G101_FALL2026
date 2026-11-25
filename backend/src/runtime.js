@@ -11,7 +11,11 @@ import { startCustomerTierWorker } from './jobs/customer-tier.job.js';
 import { createCustomerTierService } from './services/customer-tier.service.js';
 import { createMongoCustomerTierRepository } from './services/mongo-customer-tier.repository.js';
 import { startProductPickupExpiryWorker } from './jobs/product-pickup-expiry.job.js';
-import { createProductPickupExpiryService } from './services/product-sales/product-order-management.service.js';
+import { createProductOrderExpiryService } from './services/product-sales/product-order-management.service.js';
+import { createProductOrderPaymentSettler } from './services/product-sales/product-order-payment.service.js';
+import { createPayosPaymentWebhookService } from './services/providers/payos/payment-webhook.service.js';
+import { createMongoPaymentWebhookRepository } from './services/providers/payos/mongo-payment-webhook.repository.js';
+import { createPayosProvider, loadPayosConfig } from './services/providers/payos/payos.provider.js';
 import { assertRuntimeStorageProfile } from './config/storage-profile.js';
 import { referenceCatalogSource } from './models/reference-catalog-source.js';
 import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
@@ -44,7 +48,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       createCustomerTierService({ repository: createMongoCustomerTierRepository(connection), logger }) });
     productPickupExpiryWorker = startProductPickupExpiryWorker({
       enabled: config.productPickupExpiryJobEnabled && env.PRODUCT_SALES_ENABLED === 'true' && config.auth.enabled,
-      createService: () => createProductPickupExpiryService({ connection, clock: appOptions.clock, logger }),
+      createService: () => createProductOrderExpiryService({ connection, clock: appOptions.clock, logger, payments: productPaymentSettler(config, env, connection, appOptions.clock) }),
       logger
     });
   } catch {
@@ -76,4 +80,15 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     return stopping;
   }
   return { server, connection, lifecycle, config, stop };
+}
+
+// The expiry job asks payOS before it cancels an unpaid prepaid order (R3 JOB-04). Without payOS no order can be paid,
+// so there is nothing to ask and the job cancels on the deadline alone.
+function productPaymentSettler(config, env, connection, clock = Date.now) {
+  const payos = loadPayosConfig(env);
+  if (!payos) return null;
+  const provider = createPayosProvider(payos);
+  const webhook = createPayosPaymentWebhookService({ provider, clock: () => new Date(clock()),
+    repository: createMongoPaymentWebhookRepository({ connection }) });
+  return createProductOrderPaymentSettler({ provider, handleVerifiedPayment: webhook.handleVerifiedPayment });
 }

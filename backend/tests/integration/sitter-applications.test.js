@@ -410,7 +410,14 @@ describe('P46 composed applicant status runtime', () => {
     await f.verify(first).expect(401);
     const second = (await f.begin().expect(202)).body.data;
     const wrong = f.sent.at(-1).code === '000000' ? '999999' : '000000';
-    for (let i = 0; i < 5; i++) await f.verify(second, { code: wrong }).expect(401);
+    for (let i = 0; i < 4; i++) await f.verify(second, { code: wrong }).expect(401);
+    const locked = await f.verify(second, { code: wrong }).expect(429);
+    expect(locked.body.error).toMatchObject({
+      code: 'RATE_LIMITED',
+      reason: 'TOO_MANY_WRONG_CODES',
+      retryAfterSeconds: 900,
+      retryAfterAt: new Date(clockNow + 900000).toISOString()
+    });
     await f.verify(second).expect(429);
     await f.begin().expect(429);
     clockNow += 900000;

@@ -42,15 +42,17 @@ export function createBookingChangeService({ connection, repository, cursorSecre
     if (!current.matchedCount) throw new AppError(403, 'FORBIDDEN', 'Tài khoản không còn quyền thực hiện thao tác này.');
   }
 
-  async function canChange(booking, rows, session) {
-    if (!BOOKING_CHANGE_STATES.includes(booking.state) || booking.carePlanState !== 'APPROVED' ||
-      rows.some(visit => visit.snapshots?.boarding === true) ||
-      booking.checkoutSnapshot?.customerVisits?.some(visit => visit.snapshots?.boarding === true)) return false;
-    if (booking.paymentMode === 'POSTPAY') return true;
+  async function changeRestriction(booking, rows, session) {
+    if (!BOOKING_CHANGE_STATES.includes(booking.state)) return 'BOOKING_STATE';
+    if (booking.carePlanState !== 'APPROVED') return 'CARE_PLAN';
+    if (rows.some(visit => visit.snapshots?.boarding === true) ||
+      booking.checkoutSnapshot?.customerVisits?.some(visit => visit.snapshots?.boarding === true)) return 'BOARDING';
+    if (booking.paymentMode === 'POSTPAY') return null;
     const amount = booking.paymentSnapshot?.amountVnd;
-    return booking.paymentMode === 'PREPAY' && booking.paymentState === 'PAID' && Number.isSafeInteger(amount) &&
+    const paid = booking.paymentMode === 'PREPAY' && booking.paymentState === 'PAID' && Number.isSafeInteger(amount) &&
       Boolean(await col('payments').findOne({ bookingId: booking._id, state: 'VERIFIED',
         'receiptMoney.currency': 'VND', 'receiptMoney.amountVnd': amount }, { session, projection: { _id: 1 } }));
+    return paid ? null : 'PAYMENT';
   }
 
   async function checkPetOverlap(proposed, movedIds, session, { writeGuard }) {
@@ -113,23 +115,29 @@ export function createBookingChangeService({ connection, repository, cursorSecre
         const at = now();
         const booking = await store.readBooking(bookingId, session, actor.userId);
         const rows = await store.readVisits(booking, session);
-        const enabled = await canChange(booking, rows, session);
-        const future = enabled ? visitSlots(rows).filter(({ visit }) => futureVisit(visit, at)) : [];
+        const restriction = await changeRestriction(booking, rows, session);
+        const future = restriction ? [] : visitSlots(rows).filter(({ visit }) => futureVisit(visit, at));
+        const pending = future.length ? await requests.find({ state: 'PENDING', expiresAt: { $gt: at },
+          pendingVisitIds: { $in: future.map(({ visit }) => String(visit._id)) }
+        }, { session, projection: { pendingVisitIds: 1 }, maxTimeMS: 2000 }).limit(rows.length).toArray() : [];
+        const pendingIds = new Set(pending.flatMap(row => row.pendingVisitIds));
         const names = await store.names(future.map(({ visit }) => visit.sitterId), session);
         const visitOptions = future.map(({ visit, slot }) => {
+          const pendingChange = pendingIds.has(String(visit._id));
           const canSelect = hasOldVisitChangeLeadTime(visit, at);
           return {
             id: String(visit._id), customerVisitId: visit.customerVisitId ?? null, slotNumber: slot + 1,
             startAt: visit.startAt, endAt: visit.endAt, sitterName: names.get(String(visit.sitterId)) ?? null,
             serviceName: visit.snapshots?.serviceName ?? null, priceVnd: bookedPrice(visit),
-            canSelect, keepsOldTime: !canSelect
+            canSelect, keepsOldTime: !canSelect, pendingChange
           };
         });
         const slotNumbers = [...new Set(visitOptions.filter(({ canSelect }) => canSelect)
           .map(({ slotNumber }) => slotNumber))].sort((a, b) => a - b);
         return {
           serverNow: at, bookingId: String(booking._id), bookingCode: bookingCode(booking), slotNumbers,
-          canChangeBooking: slotNumbers.length > 0, visits: visitOptions
+          canChangeBooking: slotNumbers.length > 0, visits: visitOptions,
+          unavailableReason: restriction ?? (future.length === 0 ? 'NO_REMAINING_VISIT' : slotNumbers.length === 0 ? 'LEAD_TIME' : null)
         };
       });
     },
@@ -148,7 +156,7 @@ export function createBookingChangeService({ connection, repository, cursorSecre
         const previous = await replay(commandId, fingerprint, session);
         if (previous) return previous;
         const rows = await store.readVisits(booking, session);
-        if (!await canChange(booking, rows, session))
+        if (await changeRestriction(booking, rows, session))
           throw new AppError(409, 'BOOKING_CHANGE_UNAVAILABLE', 'Lịch đặt này chưa thể gửi yêu cầu đổi giờ.');
         const { selected, keptVisitIds } = chooseChange(input, rows, at);
         checkLeadTime(selected, at);
@@ -260,7 +268,7 @@ export function createBookingChangeService({ connection, repository, cursorSecre
           const booking = await store.readBooking(String(change.bookingId), session);
           const rows = await store.readVisits(booking, session);
           oldVisits = movedIds.map(visitId => rows.find(visit => String(visit._id) === visitId));
-          if (!await canChange(booking, rows, session) || items.some((item, index) => hasChanged(oldVisits[index], item, at)))
+          if (await changeRestriction(booking, rows, session) || items.some((item, index) => hasChanged(oldVisits[index], item, at)))
             throw visitChanged();
           const resulting = resultingSchedule(rows, items);
           assertSchedule(newVisitLeadViolation(items, at), true);

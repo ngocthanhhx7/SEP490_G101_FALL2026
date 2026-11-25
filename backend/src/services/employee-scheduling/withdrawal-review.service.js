@@ -1,3 +1,4 @@
+import { flagVisitHandover } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { payrollModels } from '../../models/payroll.model.js';
 import { fail, id, digest } from '../../validators/pet-care.validator.js';
@@ -52,11 +53,12 @@ export function createWithdrawalReviewService({ repository, clock = Date.now, re
             await col('users').updateOne({ _id: row.sitterId }, { $inc: { schedulingGuardVersion: 1 } }, { session });
             await col('sitterstatuses').updateOne({ userId: row.sitterId }, { $inc: { schedulingGuardVersion: 1 } }, { session });
             const at = new Date(clock()), release = input.decision === 'RELEASE';
+            const handover = release ? flagVisitHandover(row.sitterId, at, { reasonText: input.reason }) : null;
             const saved = await col('visits').findOneAndUpdate({ _id: row._id, version: row.version, state: 'ASSIGNED', checkInAt: null }, {
               $set: { withdrawalDecision: { decision: input.decision, reason: input.reason, at, byUserId: actor.userId },
-                ...(release ? { state: 'SCHEDULED', sitterId: null, handoverRequired: true, handoverAccepted: false,
+                ...(release ? { state: 'SCHEDULED', sitterId: null, ...handover.set,
                   withdrawalDispatch: { sitterId: row.sitterId } } : {}) },
-              $unset: { withdrawalRequest: '', ...(release ? { assignedAt: '', assignedFeatureSnapshot: '', careAcknowledgement: '', handoverAcceptedAt: '', dispatchReview: '' } : {}) },
+              $unset: { withdrawalRequest: '', ...(release ? { assignedAt: '', assignedFeatureSnapshot: '', ...handover.unset, dispatchReview: '' } : {}) },
               $inc: { version: 1 }
             }, { session, returnDocument: 'after' });
             if (!saved) fail('VERSION_CONFLICT', 'Visit changed', 409);

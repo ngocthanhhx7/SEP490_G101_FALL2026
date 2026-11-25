@@ -2,7 +2,7 @@ import { isApprovedCustomerTierPolicy } from '../config/customer-tier-policy.js'
 import { AppError } from '../utils/app-error.js';
 import { randomUUID } from 'node:crypto';
 import { CUSTOMER_TIERS } from '../models/customer-tier.model.js';
-import { COUNTER_PAYMENT_METHOD } from '../constants/counter-sale-fields.js';
+import { COUNTER_PAYMENT_METHOD, COUNTER_VIETQR_PAYMENT_METHOD } from '../constants/counter-sale-fields.js';
 
 const VIETNAM_OFFSET_MS = 7 * 3600000;
 const PAGE_SIZE = 100;
@@ -63,12 +63,17 @@ function productSpend(orders, { from, asOf }) {
     if (order.paymentMethod === 'COD' && order.status === 'DELIVERED') recordedAt = order.deliveredAt;
     // A pickup already paid in the snapshot was collected no earlier than creation.
     // Creation inside the window proves inclusion without asserting it is the payment time.
-    if (order.paymentMethod === 'PAY_AT_SHOP' && validDate(order.createdAt) && order.createdAt >= from) {
+    if (order.paymentMethod === 'PAY_AT_SHOP' && validDate(order.payment?.paidAt)) {
+      recordedAt = order.payment.paidAt;
+    } else if (order.paymentMethod === 'PAY_AT_SHOP' && validDate(order.createdAt) && order.createdAt >= from) {
       recordedAt = order.createdAt;
     }
     // A counter sale is paid at the till; a missing receipt time is left empty so the customer keeps the tier.
     if (COUNTER_RECEIPT_METHODS.has(order.paymentMethod) && validDate(order.cashPayment?.receivedAt)) {
       recordedAt = order.cashPayment.receivedAt;
+    }
+    if (order.paymentMethod === COUNTER_VIETQR_PAYMENT_METHOD && validDate(order.payment?.paidAt)) {
+      recordedAt = order.payment.paidAt;
     }
     if (validDate(order.createdAt) && order.createdAt >= asOf) recordedAt = order.createdAt;
     return { customerId: order.customerId, amountVnd: order.total, recordedAt };

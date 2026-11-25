@@ -1,3 +1,4 @@
+import { handoverPending } from './visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { id, fail, exact, digest } from '../../validators/pet-care.validator.js';
 import { schedulingKey } from '../../validators/employee-scheduling.validator.js';
@@ -11,7 +12,7 @@ export function createAssignedCareService({ repository, clock = Date.now }) {
     const visit = await col('visits').findOne({ _id: oid(visitId), sitterId: oid(actor.userId), state: { $in: ['ASSIGNED', 'IN_PROGRESS'] } }, { session });
     const booking = visit && await col('bookings').findOne({ _id: visit.bookingId, state: { $in: ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'] } }, { session });
     if (!visit || !booking) fail('RESOURCE_NOT_FOUND', 'Assigned care unavailable', 404);
-    if (visit.handoverRequired === true && visit.handoverAccepted !== true) fail('HANDOVER_REQUIRED', 'Confirmed handover required', 403);
+    if (handoverPending(visit)) fail('HANDOVER_REQUIRED', 'Confirmed handover required', 403);
     if (visit.snapshots?.care?.schemaVersion !== 1) fail('CARE_SNAPSHOT_UNAVAILABLE', 'Legacy visit requires an authorized care snapshot', 503);
     return visit;
   }

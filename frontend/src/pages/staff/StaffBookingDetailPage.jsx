@@ -19,8 +19,8 @@ function StaffBookingDetail({ bookingId }) {
   const request = useMemo(() => createApiClient({ getCsrfToken }), [getCsrfToken]);
   const load = useCallback(({ signal }) => readStaffBooking(request, bookingId, { signal }), [request, bookingId]);
   const resource = useApiResource(load);
-  return <section>
-    <Link to="/staff/dispatch">Quay lại Điều phối ca</Link>
+  return <section className="staff-booking-detail">
+    <Link className="staff-booking-detail__back" to="/staff/dispatch">Quay lại Điều phối ca</Link>
     <h1>Chi tiết lịch đặt</h1>
     <StaffBookingChangeRequests bookingId={bookingId} enabled={resource.status === 'success'} onDecision={resource.retry} />
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải lịch đặt" />}

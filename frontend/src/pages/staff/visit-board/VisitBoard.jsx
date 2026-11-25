@@ -32,13 +32,16 @@ function Tab({ id, tab, onTab, children }) {
 // Staff visit board (R3 10.1.1): the tabs, the shared search and filters, and the two lists that are new in this slice.
 // The "Buổi hôm nay" tab is the existing section of the page; the page decides what to show for it.
 // openableIds: ids of the visits whose dispatch dialog the page can open; without it every visit counts as openable.
-export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openableIds, onOpenDispatch, onChanged, onState,
-  initialWorkflowId, initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey, initialClosureId, canVerifyClosure = false }) {
+export function VisitBoard({ initialFilters, onReassign, api, tab, onTab, todayTotal, workAreas = [], openableIds, onOpenDispatch, onChanged, onState,
+  initialHandoverVisitId, initialWorkflowId, initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey, initialClosureId, canVerifyClosure = false }) {
   const [workflowId,setWorkflowId]=useState(initialWorkflowId??null);
   const hasBoard = typeof api.visitBoard === 'function';
-  const [text, setText] = useState('');
-  const [areaCode, setAreaCode] = useState('');
-  const [reason, setReason] = useState('');
+  const [handoverVisitId, setHandoverVisitId] = useState(initialHandoverVisitId);
+  const [text, setText] = useState(initialFilters?.text ?? '');
+  const [areaCode, setAreaCode] = useState(initialFilters?.areaCode ?? '');
+  const [reason, setReason] = useState(initialFilters?.reason ?? '');
+  // "Giao lại" opens its own page; going back returns to this tab with the same search and filters.
+  const returnTo = `/staff/dispatch?${new globalThis.URLSearchParams({ tab, ...(text.trim() ? { q: text.trim() } : {}), ...(areaCode ? { area: areaCode } : {}), ...(reason ? { reason } : {}) })}`;
   const query = useDebounced(text.trim().replace(/\s+/gu, ' '), SEARCH_DELAY_MS);
   const filters = useMemo(() => ({
     ...(query.length >= SEARCH_MIN_LENGTH ? { search: query } : {}),
@@ -46,6 +49,7 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
     ...(reason ? { reason } : {})
   }), [query, areaCode, reason]);
   const filtering = Object.keys(filters).length > 0;
+  const allFilters = useMemo(() => handoverVisitId ? { visitId: handoverVisitId } : filters, [handoverVisitId, filters]);
   const [notice, setNotice] = useState(null);
   const [closing, setClosing] = useState(null);
   useEffect(() => { if (/^[a-f0-9]{24}$/i.test(initialClosureId ?? '')) setClosing(initialClosureId); }, [initialClosureId]);
@@ -89,7 +93,8 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
       <Tab id="today" tab={tab} onTab={onTab}>Buổi hôm nay{count(todayTotal)}</Tab>
       {hasBoard && <Tab id="all" tab={tab} onTab={onTab}>Tất cả buổi</Tab>}
     </div>
-    {hasBoard && tab !== 'today' && <div className="ops-toolbar visit-board__filters">
+    {hasBoard && tab === 'all' && handoverVisitId && <Button variant="secondary" onClick={() => setHandoverVisitId(null)}>Xem tất cả buổi</Button>}
+    {hasBoard && tab !== 'today' && !(tab === 'all' && handoverVisitId) && <div className="ops-toolbar visit-board__filters">
       <input type="search" aria-label="Tìm buổi" placeholder="Tìm theo tên khách, người chăm sóc, mã lịch đặt" value={text} maxLength={50}
         onChange={event => setText(event.target.value)} />
       <select aria-label="Khu vực phục vụ" value={areaCode} onChange={event => setAreaCode(event.target.value)}>
@@ -103,13 +108,13 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
       {text.trim().length === 1 && <small className="ops-muted">Nhập ít nhất 2 ký tự để tìm.</small>}
     </div>}
     {notice && <p role="status" className="visit-board__notice">{notice}</p>}
-    {hasBoard && tab === 'needs' && <NeedsActionTable list={needs} rows={needsRows} filtering={filtering} api={api} workAreas={workAreas} openableIds={openableIds} onAction={onAction} />}
+    {hasBoard && tab === 'needs' && <NeedsActionTable list={needs} rows={needsRows} filtering={filtering} api={api} workAreas={workAreas} openableIds={openableIds} onAction={onAction} returnTo={returnTo} />}
     {hasBoard && tab === 'needs' && pages.moreStatus === 'error' && <p role="alert">Chưa tải thêm được các buổi. Bạn có thể thử lại.</p>}
     {hasBoard && tab === 'needs' && pages.next && <Button variant="secondary" loading={pages.moreStatus === 'loading'} onClick={pages.loadMore}>Tải thêm buổi cần xử lý</Button>}
-    {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={filters} workAreas={workAreas} onWorkflow={setWorkflowId} />}
+    {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={allFilters} workAreas={workAreas} onWorkflow={setWorkflowId} returnTo={returnTo} />}
     {workflowId && api.visitWorkflow && <VisitWorkflowReview visitId={workflowId} api={api} onClose={()=>setWorkflowId(null)} onChanged={()=>{needs.retry();onChanged?.();}} />}
     {closing && <CloseVisitDialog key={closing} visitId={closing} api={api} canVerify={canVerifyClosure} onClose={() => setClosing(null)} onClosed={afterClosed} />}
-    {withdrawal && api.withdrawalReview && <WithdrawalReviewDialog visitId={withdrawal} api={api} onClose={() => {
+    {withdrawal && api.withdrawalReview && <WithdrawalReviewDialog visitId={withdrawal} api={api} onReassign={onReassign && (() => onReassign(withdrawal, returnTo))} onClose={() => {
       setWithdrawal(null); onWithdrawalDismiss?.();
     }} onDone={() => {
       setWithdrawal(null); onWithdrawalDismiss?.(); needs.retry(); onChanged?.(); setNotice('Đã ghi nhận kết quả yêu cầu rút ca.');

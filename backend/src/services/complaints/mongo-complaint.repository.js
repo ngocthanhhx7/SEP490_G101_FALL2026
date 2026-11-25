@@ -39,7 +39,7 @@ function matchList(actor, filter) {
     if (!oid(filter.visitId)) fail(422, 'VALIDATION_FAILED');
     match.visitId = oid(filter.visitId);
   }
-  if (filter.proposals) match['proposal.status'] = 'PENDING';
+  if (filter.proposals) match['proposal.status'] = { $in: ['PENDING', 'APPROVED', 'REDUCED', 'REJECTED'] };
   if (filter.category) match.category = filter.category === 'OTHER' ? { $in: ['OTHER', null] } : filter.category;
   return match;
 }
@@ -48,11 +48,17 @@ function join(collection, field, name, project) {
   return { $lookup: { from: collection, localField: field, foreignField: '_id', pipeline: [{ $project: project }], as: name } };
 }
 
-function listFields() {
+function listFields(filter) {
+  const orderInput = filter.proposals
+    ? (filter.proposalStatus === 'DECIDED'
+      ? { $ifNull: ['$moneyDecision.decidedAt', '$updatedAt'] }
+      : { $ifNull: ['$proposal.createdAt', '$updatedAt'] })
+    : { $ifNull: ['$createdAt', '$openedAt'] };
   return {
     rowId: { $toString: '$_id' },
     displayBookingId: { $toString: '$bookingId' },
-    submittedAt: { $convert: { input: { $ifNull: ['$createdAt', '$openedAt'] }, to: 'date', onError: new Date(0), onNull: new Date(0) } },
+    submittedAt: { $convert: { input: orderInput, to: 'date', onError: new Date(0), onNull: new Date(0) } },
+    proposalBucket: { $cond: [{ $eq: ['$proposal.status', 'PENDING'] }, 'PENDING', 'DECIDED'] },
     displayState: { $switch: { branches: [
       { case: { $eq: ['$state', 'UNDER_REVIEW'] }, then: { $cond: [{ $ifNull: ['$latestObjection.reason', false] }, 'ESCALATED', 'OPEN'] } },
       { case: { $eq: ['$state', 'CLOSED'] }, then: 'RESOLVED' }
@@ -67,6 +73,7 @@ function pageStages({ filter, cursor, context, codec, limit, stateField }) {
   const dir = filter.sort === 'oldest' ? 1 : -1;
   const cmp = dir === 1 ? '$gt' : '$lt';
   const stages = [];
+  if (filter.proposals) stages.push({ $match: { proposalBucket: filter.proposalStatus ?? 'PENDING' } });
   if (filter.state) stages.push({ $match: { [stateField]: filter.state } });
   if (cursor) {
     const position = codec.decode(cursor, context);
@@ -175,6 +182,12 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
           if (rows.length > 1000) fail(503, 'COMPLAINT_UNAVAILABLE');
           return rows.map(asCase);
         },
+        bookingIncidents: async bookingId => {
+          const rows = await col('cases').find({ bookingId: oid(bookingId), kind: 'INCIDENT' },
+            { session, maxTimeMS: 5000 }).limit(1001).toArray();
+          if (rows.length > 1000) fail(503, 'COMPLAINT_UNAVAILABLE');
+          return rows.map(asCase);
+        },
         createComplaint: async input => {
           const row = { ...input, _id: input.id, visitId: oid(input.visitId), bookingId: oid(input.bookingId),
             customerId: oid(input.customerId), sitterId: oid(input.sitterId) };
@@ -218,7 +231,7 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
 
   async function listComplaints({ actor, filter, limit, cursor, asOf }) {
     const staff = hasRole(actor.roles, 'STAFF'), sitter = hasRole(actor.roles, 'PET_SITTER');
-    const stages = [{ $match: matchList(actor, filter) }, { $set: listFields() }];
+    const stages = [{ $match: matchList(actor, filter) }, { $set: listFields(filter) }];
     if (sitter) {
       stages.push(join('visits', 'visitId', 'visitRows', { sitterId: 1 }),
         { $match: { 'visitRows.sitterId': oid(actor.userId) } },
@@ -235,6 +248,16 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
     if (hasRole(actor.roles, 'CUSTOMER')) stages.push({ $match: { 'joinedBooking.customerId': oid(actor.userId) } });
     if (staff) stages.push(join('users', 'customerId', 'customerRows', { displayName: 1 }),
       { $set: { customerName: { $first: '$customerRows.displayName' } } });
+    if (filter.proposals) {
+      stages.push({
+        $lookup: {
+          from: 'users',
+          let: { authorId: { $convert: { input: '$proposal.createdBy', to: 'objectId', onError: null, onNull: null } } },
+          pipeline: [{ $match: { $expr: { $eq: ['$_id', '$$authorId'] } } }, { $project: { displayName: 1 } }],
+          as: 'proposerRows'
+        }
+      }, { $set: { proposerName: { $first: '$proposerRows.displayName' } } });
+    }
     if (filter.q) {
       const needle = { $regex: escapeRegex(filter.q), $options: 'i' };
       stages.push({ $match: { $or: [{ displayCode: needle }, { rowId: needle }, { 'joinedBooking.code': needle },
@@ -246,6 +269,7 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
       state: 1, version: 1, startAt: 1, endAt: 1, 'snapshots.serviceName': 1, sitterId: 1
     })] };
     if (staff) facet.counts = [{ $group: { _id: '$displayState', count: { $sum: 1 } } }];
+    if (filter.proposals) facet.proposalCounts = [{ $group: { _id: '$proposalBucket', count: { $sum: 1 } } }];
     const [result] = await col('cases').aggregate([...stages, { $facet: facet }], { maxTimeMS: 5000 }).toArray();
     const rows = result.items.slice(0, limit);
     const last = rows.at(-1);
@@ -256,9 +280,12 @@ export function createMongoComplaintRepository({ connection, finance, cursorSecr
     });
     const counts = staff ? Object.assign({ OPEN: 0, ESCALATED: 0, RESOLVED: 0 },
       Object.fromEntries(result.counts.filter(row => ['OPEN', 'ESCALATED', 'RESOLVED'].includes(row._id)).map(row => [row._id, row.count]))) : null;
+    const proposalCounts = filter.proposals ? Object.assign({ PENDING: 0, DECIDED: 0 },
+      Object.fromEntries(result.proposalCounts.filter(row => ['PENDING', 'DECIDED'].includes(row._id)).map(row => [row._id, row.count]))) : null;
     return { items, nextCursor: result.items.length > limit
       ? codec.encode({ at: +last.submittedAt, id: last.rowId }, context) : null,
-    ...(counts ? { counts } : {}) };
+    ...(counts ? { counts } : {}),
+    ...(proposalCounts ? { proposalCounts } : {}) };
   }
 
   return { run, listComplaints, runForCase: (_actor, _id, work) => run(work) };

@@ -1,3 +1,4 @@
+import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, CalendarCheck, Check, RefreshCw } from 'lucide-react';
@@ -374,7 +375,7 @@ export function BookingFlow({ service, api, onBooked }) {
       <p>Hệ thống tìm người chăm sóc sau khi đơn đủ điều kiện. Ca được xác nhận khi người chăm sóc nhận lời mời.</p>
       {quote.items.map((item, index) => <details key={index}><summary>{item.servicePolicy?.title ?? 'Điều kiện dịch vụ'}</summary><p className="pwc-checkout-policy">{item.servicePolicy?.body}</p></details>)}
       <label className="booking-check"><input type="checkbox" required checked={consent} onChange={event => setConsent(event.target.checked)} />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ.</label>
-    </fieldset><div className="booking-actions"><button type="button" disabled={busy || uncertain} onClick={() => { setStep(1); setError(''); }}><ArrowLeft size={17} />Quay lại</button><button className="pwc-button pwc-button-primary" disabled={busy || !consent}><CalendarCheck size={17} />{busy ? 'Đang xác nhận…' : uncertain ? 'Kiểm tra lại đơn' : 'Xác nhận đặt dịch vụ'}</button></div></form>}
+    </fieldset><PolicyContextLinks context="booking" /><div className="booking-actions"><button type="button" disabled={busy || uncertain} onClick={() => { setStep(1); setError(''); }}><ArrowLeft size={17} />Quay lại</button><button className="pwc-button pwc-button-primary" disabled={busy || !consent}><CalendarCheck size={17} />{busy ? 'Đang xác nhận…' : uncertain ? 'Kiểm tra lại đơn' : 'Xác nhận đặt dịch vụ'}</button></div></form>}
     {quote && step > 0 && <p className="booking-expiry">Báo giá đến {new Date(quote.expiresAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short', timeStyle: 'short' })} (giờ Việt Nam) · {money(quote.totalVnd)}</p>}
     {error && <p role="alert" className="booking-error">{error}</p>}
     <Dialog
