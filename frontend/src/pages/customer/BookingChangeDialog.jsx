@@ -34,7 +34,8 @@ function defaultDate(visit, serverNow) {
 
 export function BookingChangeDialog({ booking, options, initialVisitId, api, onClose, onSent }) {
   const formId = useId();
-  const selectable = options.visits.filter(visit => visit.canSelect);
+  const selectable = options.visits.filter(visit => visit.canSelect && !visit.pendingChange);
+  const canChangeAll = options.canChangeBooking && !options.visits.some(visit => visit.canSelect && visit.pendingChange);
   const kept = options.visits.filter(visit => visit.keepsOldTime);
   const first = selectable[0];
   const initialVisit = selectable.find(visit => visit.id === initialVisitId) ?? first;
@@ -108,7 +109,7 @@ export function BookingChangeDialog({ booking, options, initialVisitId, api, onC
         <div className="booking-change-field">
           <span id={formId + '-scope'}>Đổi giờ cho *</span>
           <div role="group" aria-labelledby={formId + '-scope'} className="booking-change-scope">
-            <button type="button" aria-pressed={!single} onClick={() => changeScope('BOOKING')}>Cả lịch đặt</button>
+            <button type="button" disabled={!canChangeAll} aria-pressed={!single} onClick={() => changeScope('BOOKING')}>Cả lịch đặt</button>
             <button type="button" aria-pressed={single} onClick={() => changeScope('VISIT')}>Một buổi</button>
           </div>
         </div>

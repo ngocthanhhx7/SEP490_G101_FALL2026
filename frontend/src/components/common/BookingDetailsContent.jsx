@@ -32,7 +32,7 @@ function Row({ label, children }) {
 }
 
 export function BookingDetailsContent({ booking, visitActions }) {
-  const { terms, visits, price, consentAt } = booking.details;
+  const { terms, visits, price, consentAt, servicePolicies } = booking.details;
   const prepay = booking.paymentMode === 'PREPAY';
   const postpay = booking.paymentMode === 'POSTPAY';
   const payment = prepay
@@ -69,10 +69,18 @@ export function BookingDetailsContent({ booking, visitActions }) {
           <Row label="Giờ chăm sóc">{summary(terms.map(row => row.startAt && time(row.startAt)))}</Row>
           <Row label="Người chăm sóc mong muốn">{summary(terms.map(row => row.requestedSitterName))}</Row>
           <Row label="Yêu cầu chăm sóc">{summary(terms.flatMap(row => row.careRequirements))}</Row>
-          <Row label="Chính sách trách nhiệm">{consentAt
+          <Row label="Xác nhận điều kiện">{consentAt
             ? `Xác nhận đặt lịch lúc ${time(consentAt)} ngày ${date(consentAt)}`
             : '—'}</Row>
         </dl>
+        <details className="booking-details__saved-policies">
+          <summary>Điều kiện áp dụng cho lịch này</summary>
+          {servicePolicies?.length ? servicePolicies.map(policy => <section key={policy.item}>
+            <h4>{policy.title}</h4>
+            <p>Phiên bản {policy.version}{policy.visitCount && <> · {policy.visitCount} buổi trong báo giá đã xác nhận</>}</p>
+            <p className="booking-details__policy-body">{policy.body}</p>
+          </section>) : <p>Lịch này chưa có bản nội dung điều kiện được lưu để đọc lại.</p>}
+        </details>
       </section>
       <section className="booking-details__card booking-details__payment">
         <h3>Giá và thanh toán</h3>

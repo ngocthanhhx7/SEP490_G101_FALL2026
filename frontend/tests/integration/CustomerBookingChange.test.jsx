@@ -82,7 +82,7 @@ test('UC-84 hides the visit action at 23 hours 59 minutes and submits another vi
   expect(dialog.getByLabelText(/Buổi cần đổi/)).toHaveValue(sampleVisits[2].id);
   expect(dialog.getByText('Giá không đổi: 90.000 đ mỗi buổi.')).toBeVisible();
   submitSingle(dialog);
-  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Bạn sẽ được báo khi nhân viên trả lời.')).toBeVisible();
+  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Giờ hiện tại vẫn được giữ cho đến khi yêu cầu được duyệt.')).toBeVisible();
   expect(screen.queryByRole('dialog', { name: 'Gửi yêu cầu đổi giờ' })).toBeNull();
   const [request] = submitted();
   expect(JSON.parse(request.body)).toEqual({ scope: 'VISIT', visitId: sampleVisits[2].id, startAt: '2026-11-07T18:00:00+07:00' });
@@ -171,7 +171,7 @@ test('UC-84 retries an uncertain send with the same payload and idempotency key'
   expect(await dialog.findByRole('alert')).toHaveTextContent('Chưa nhận được xác nhận');
   expect(dialog.getByLabelText(/Giờ mới/)).toBeDisabled();
   fireEvent.click(dialog.getByRole('button', { name: 'Kiểm tra lại yêu cầu' }));
-  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Bạn sẽ được báo khi nhân viên trả lời.')).toBeVisible();
+  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Giờ hiện tại vẫn được giữ cho đến khi yêu cầu được duyệt.')).toBeVisible();
   const [first, second] = submitted();
   expect(second.body).toBe(first.body);
   expect(second.headers.get('Idempotency-Key')).toBe(first.headers.get('Idempotency-Key'));

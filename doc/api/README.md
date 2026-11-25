@@ -18,3 +18,9 @@ Thư mục chứa hợp đồng REST, DTO/events, quyền và lỗi để review
 - Hồ sơ trả `familyAndMiddleName`, `givenName`, `birthDate` và `gender` dưới dạng nullable. Ngày sinh là ngày lịch `YYYY-MM-DD`. Giới tính có thể là `MALE`, `FEMALE`, `OTHER`, `UNDISCLOSED` hoặc `null`.
 - PATCH dùng CSRF và `expectedVersion`. Cập nhật tên theo cấu trúc gửi cả hai phần và đặt lại `displayName` từ dữ liệu đã xác nhận. Client cũ vẫn có thể gửi `displayName`. Trường tùy chọn bị bỏ qua sẽ giữ nguyên, gửi `null` xóa ngày sinh hoặc giới tính. Dữ liệu cũ không có các trường này vẫn hiển thị tên gốc.
 - `GET /api/v1/bookings` báo nguồn thời gian đầu tiên trong `firstVisitSource`. `CURRENT` là giờ từ ca hiện hành và `ORIGINAL` là giờ gốc khi thiếu dữ liệu ca hiện hành.
+
+## Đọc chính sách
+
+- `GET /api/v1/public/public-policies` trả các phiên bản hiện hành có đủ dấu vết phê duyệt. Danh sách rỗng trả 200. Khi kho chính sách không khả dụng vì thiếu kết nối cấu hình, API trả 503.
+- `GET /api/v1/public/public-policies/:slug/:version` trả bản đã đến ngày hiệu lực và có dấu vết phê duyệt, kể cả bản đã lưu trữ. `archived` và `currentVersionId` mô tả quan hệ với bản hiện hành. Phiên bản nháp, chưa đến ngày hiệu lực hoặc không tồn tại trả 404 `POLICY_VERSION_NOT_FOUND`.
+- `GET /api/v1/checkout/bookings/:bookingId` giữ kiểm tra quyền chủ lịch. `details.servicePolicies` chứa phiên bản, tiêu đề, nội dung và số buổi theo bản chụp lúc chấp thuận. Lịch cũ thiếu bản chụp trả mảng rỗng.
