@@ -1,3 +1,4 @@
+import { handoverPending } from './visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { workflowTasks } from './workflow-snapshot.service.js';
 
@@ -25,7 +26,7 @@ export function createVisitEvidenceAccess({ connection }) {
     if (!booking) return false;
     if (workflow && actor.roles?.some(role => ['ADMIN', 'STAFF'].includes(role))) return true;
     if (workflow && actor.roles?.includes('PET_SITTER') && String(visit.sitterId) === actor.userId && ['ASSIGNED', 'IN_PROGRESS'].includes(visit.state)
-      && (!visit.handoverRequired || visit.handoverAccepted === true)) return true;
+      && !handoverPending(visit)) return true;
     return Boolean(actor.roles?.includes('CUSTOMER') && String(booking.customerId) === actor.userId && (!workflow || task.step.customerVisible));
   };
 }

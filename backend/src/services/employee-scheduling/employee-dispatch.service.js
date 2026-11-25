@@ -1,12 +1,14 @@
 import { createDispatchWorkspaceService } from './dispatch-workspace.service.js';
 import { dispatchVisitPresentation } from './dispatch-visit-presentation.js';
 import { createVisitWithdrawalService, hasPendingWithdrawal } from './visit-withdrawal.service.js';
+import { handoverPending, urgentReplacement } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/app-error.js';
 import { createSitterOfferService } from '../sitter-offer.service.js';
 import { fail, id, digest, exact, instant } from '../../validators/pet-care.validator.js';
 import { invitationInput, schedulingKey } from '../../validators/employee-scheduling.validator.js';
 import { assertEmployeeSchedulingStorage } from './scheduling-storage.service.js';
+import { createStaffReassignmentService } from './staff-reassignment.service.js';
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 
 const MINUTE_MS = 60000;
@@ -41,7 +43,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       try { return await uow.run(async session => {
         const user = actor === agentActor ? null : await col('users').findOneAndUpdate({ _id: oid(actor.userId), state: 'ACTIVE', synthetic: { $ne: true },
           ...(actor.authEpoch !== undefined ? { authEpoch: actor.authEpoch } : {}) }, { $inc: { schedulingGuardVersion: 1 } }, { session, returnDocument: 'after' });
-        const needed = operation === 'invite' ? ['STAFF', 'ADMIN'] : ['PET_SITTER'];
+        const needed = ['invite', 'visit-reassignment'].includes(operation) ? ['STAFF', 'ADMIN'] : ['PET_SITTER'];
         if (actor !== agentActor && (!user || !needed.some(role => user.roles.includes(role)))) fail('FORBIDDEN', 'Current account cannot perform this operation', 403);
         const previous = await models.EmployeeScheduleCommand.findById(commandId).session(session).lean();
         if (previous) { if (previous.fingerprint !== fingerprint) fail('IDEMPOTENCY_CONFLICT', 'Operation key reused', 409); return previous.result; }
@@ -88,6 +90,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const areas = await areaNames(rows);
       return { items: rows.slice(0, limit).map(row => ({ areaLabel: areas.find(area => area._id === row.areaCode)?.label ?? row.areaCode, id: String(row._id), sitterId, state: row.state, version: row.version,
         canWithdraw: row.state === 'ASSIGNED' && !row.checkInAt && !hasPendingWithdrawal(row),
+        handoverRequired: row.handoverRequired, handoverAccepted: row.handoverAccepted,
         startAt: row.startAt, endAt: row.endAt, serviceName: row.snapshots.serviceName, serviceAddress: row.snapshots.serviceAddress, areaCode: row.areaCode, pets: row.snapshots.pets })),
       nextCursor: rows.length > limit ? String(rows[limit - 1]._id) : null };
     },
@@ -124,8 +127,11 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           const accepted = await models.EmployeeVisitOffer.findOneAndUpdate({ _id: offerId, sitterId, state: 'PENDING', version: expectedVersion, deadline: { $gt: new Date(clock()) } },
             { $set: { state: 'ACCEPTED', decidedAt: new Date(clock()) }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).select('+featureSnapshot').lean();
           if (!accepted) fail('VERSION_CONFLICT', 'Offer changed', 409);
+          const assignedAt = new Date(clock());
+          const needsHandover = handoverPending(visit);
           const assigned = await col('visits').updateOne({ _id: visit._id, sitterId: null, state: 'SCHEDULED', version: visit.version },
-            { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt: new Date(clock()),
+            { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt,
+              ...(needsHandover && { handoverLateCheckInExempt: urgentReplacement(visit, assignedAt) }),
               ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) },
               $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 }, $inc: { version: 1 } }, { session });
           if (!assigned.matchedCount) fail('SLOT_UNAVAILABLE', 'Visit changed', 409);
@@ -133,6 +139,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           const pending = await col('visits').countDocuments({ bookingId: visit.bookingId, state: 'SCHEDULED' }, { session });
           if (!pending) await col('bookings').updateOne({ _id: visit.bookingId, state: 'DISPATCH_PENDING' }, { $set: { state: 'ASSIGNED' } }, { session });
           await models.EmployeeVisitOffer.updateMany({ visitId: visit._id, state: 'PENDING', _id: { $ne: offer._id } }, { $set: { state: 'REVOKED' }, $inc: { version: 1 } }, { session });
+          if (needsHandover) await event({ type: 'VisitHandoverRequired', visitId: String(visit._id), sitterId,
+            actorId: sitterId, offerId, detail: { version: visit.version + 1 } }, session);
           return { state: 'ACCEPTED', sitterId, version: accepted.version, assignmentId: String(visit._id) };
         },
         declineOffer: async ({ expectedVersion }) => {
@@ -146,7 +154,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       });
     })
   } });
-  async function candidates(visit, { manual = false, explain = false, alternatives = false } = {}) {
+  async function candidates(visit, { manual = false, explain = false, alternatives = false, allowStarted = false } = {}) {
     const directed = directedSitter(visit);
     const withdrawn = visit.withdrawalDispatch?.sitterId;
     const sitterFilter = directed && !alternatives ? { _id: directed } : withdrawn ? { _id: { $ne: String(withdrawn) } } : {};
@@ -168,12 +176,13 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       while (next < rows.length) {
         const row = rows[next++];
         if (!activeUsers.has(row._id) || !activeStatuses.has(row._id)) { rejected.SITTER_NOT_ELIGIBLE = (rejected.SITTER_NOT_ELIGIBLE ?? 0) + 1; blocked.push({ sitterId: row._id, reason: 'SITTER_NOT_ELIGIBLE' }); continue; }
-        try { evidence.set(row._id, await eligible(row._id, visit, undefined, { requireOrigin: !manual })); allowed.push(row._id); }
+        try { evidence.set(row._id, await eligible(row._id, visit, undefined, { requireOrigin: !manual, allowStarted })); allowed.push(row._id); }
         catch (error) { if (error.status !== 409) throw error; rejected[error.code] = (rejected[error.code] ?? 0) + 1; blocked.push({ sitterId: row._id, reason: error.code }); }
       }
     }
     await Promise.all(Array.from({ length: Math.min(4, rows.length) }, scan));
-    if (explain) return { sitterIds: allowed.sort((a, b) => evidence.get(a).weeklyWorkMinutes - evidence.get(b).weeklyWorkMinutes || a.localeCompare(b)), blocked, diagnostics: { registered: rows.length, eligible: allowed.length, rejected } };
+    if (explain) return { sitterIds: allowed.sort((a, b) => evidence.get(a).weeklyWorkMinutes - evidence.get(b).weeklyWorkMinutes || a.localeCompare(b)), blocked,
+      weeklyMinutes: Object.fromEntries(allowed.map(sitterId => [sitterId, evidence.get(sitterId).weeklyWorkMinutes])), diagnostics: { registered: rows.length, eligible: allowed.length, rejected } };
     if (!allowed.length) {
       throw new AppError(409, directed ? 'DIRECTED_SCHEDULE_REVIEW_REQUIRED' : 'NO_ELIGIBLE_SITTER', 'No eligible employee',
         { diagnostics: { registered: rows.length, eligible: 0, rejected } });
@@ -249,7 +258,9 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
   const withdrawals = createVisitWithdrawalService({ repository, clock,
     runCommand: (actor, payload, key, execute) => command(actor, 'visit-withdrawal', payload, key, execute),
     requeue: autoDispatchWithdrawals ? requeueWithdrawal : undefined });
-  const service = { offers, withdrawals, readContext: readyVisit, requeueWithdrawal,
+  const reassignments = createStaffReassignmentService({ repository, clock, candidates, event,
+    runCommand: (actor, payload, key, execute) => command(actor, 'visit-reassignment', payload, key, execute) });
+  const service = { offers, withdrawals, reassignments, readContext: readyVisit, requeueWithdrawal,
     requeueVisit: autoDispatchWithdrawals ? requeueWithdrawal : undefined,
     async previewCandidates(actor, visitId, input) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);

@@ -125,9 +125,10 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       await models.EmployeeScheduleEvent.create([{ type: 'WorkAreasChanged', sitterId, actorId: sitterId, at: new Date(clock()), detail: { areas } }], { session });
       return result;
     }) });
-  async function eligible(sitterId, visit, session, { requireOrigin = false, excludeVisitIds = [], proposedVisits = [] } = {}) {
+  // allowStarted is only for staff replacing the sitter of a visit that has not ended; invitations and automatic dispatch never set it.
+  async function eligible(sitterId, visit, session, { requireOrigin = false, excludeVisitIds = [], proposedVisits = [], allowStarted = false } = {}) {
     const start = new Date(visit.startAt), end = new Date(visit.endAt), date = schedulingDate(start);
-    if (start <= new Date(clock()) || end <= start || end - start > 480 * 60000) fail('SHIFT_REVIEW_REQUIRED', 'Future care shifts must not exceed eight hours', 409);
+    if ((allowStarted ? end <= new Date(clock()) : start <= new Date(clock())) || end <= start || end - start > 480 * 60000) fail('SHIFT_REVIEW_REQUIRED', 'Future care shifts must not exceed eight hours', 409);
     const contract = await contractAt(sitterId, start, end, session), record = await find(sitterId, session);
     const capabilityFilter = { userId: oid(sitterId), active: true };
     const capability = session

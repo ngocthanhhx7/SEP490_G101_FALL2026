@@ -17,6 +17,8 @@ function show(roles, path, from) {
       <Location /><Routes>
         <Route element={<PublicSiteLayout />}>
           <Route path="/" element={<h1>Public</h1>} />
+          <Route path="/contact" element={<h1>Help</h1>} />
+          <Route path="/policies/:slug/:version" element={<h1>Policy</h1>} />
           <Route path="/sign-in" element={<SignInPage />} />
           <Route element={<RequireSession roles={['CUSTOMER']} />}>
             <Route path="/booking/service" element={<h1>Purchase</h1>} />
@@ -54,6 +56,13 @@ test('guest must authenticate before purchase and Customer can purchase', async 
   show(['CUSTOMER'], '/booking/service');
   expect(await screen.findByRole('heading', { name: 'Purchase' })).toBeVisible();
 });
+
+test.each([['/contact', 'Help'], ['/policies/privacy/v1', 'Policy'], ['/booking/service', 'Sitter']])(
+  'Sitter reaches support URLs and retains the purchase guard for %s', async (path, heading) => {
+    show(['PET_SITTER'], path);
+    expect(await screen.findByRole('heading', { name: heading })).toBeVisible();
+  }
+);
 
 test('login preserves an authorized Staff deep link within the public layout', async () => {
   show(['ADMIN'], '/sign-in', '/staff/dispatch');

@@ -1,4 +1,5 @@
 
+import { flagVisitHandover } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { VISIT_WITHDRAWAL_REASONS } from '../../constants/visit-withdrawal.js';
 import { fail } from '../../validators/pet-care.validator.js';
@@ -47,12 +48,13 @@ export function createVisitWithdrawalService({ repository, clock, runCommand, re
         const { reasonCode, note } = input;
         const details = { reasonCode, ...(note ? { note } : {}) };
         const early = mode === 'EARLY';
+        const handover = early ? flagVisitHandover(visit.sitterId, at, { reasonCode }) : null;
         const updated = await visits.updateOne({
           _id: visit._id, sitterId: visit.sitterId, version: visit.version, state: 'ASSIGNED', checkInAt: null
         }, early ? {
-          $set: { state: 'SCHEDULED', sitterId: null, handoverRequired: true, handoverAccepted: false,
+          $set: { state: 'SCHEDULED', sitterId: null, ...handover.set,
             withdrawalDispatch: { sitterId: visit.sitterId } },
-          $unset: { assignedAt: 1, assignedFeatureSnapshot: 1, careAcknowledgement: 1, handoverAcceptedAt: 1,
+          $unset: { assignedAt: 1, assignedFeatureSnapshot: 1, ...handover.unset,
             withdrawalRequest: 1, dispatchReview: 1 },
           $inc: { version: 1 }
         } : {

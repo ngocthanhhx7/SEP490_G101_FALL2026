@@ -33,7 +33,7 @@ test('renders accessible customer registration fields and OTP-only language', ()
   expect(screen.queryByRole('radio')).not.toBeInTheDocument();
   expect(screen.queryByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' })).not.toBeInTheDocument();
   expect(screen.queryByLabelText(/mật khẩu/i)).not.toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Điều khoản dịch vụ' })).toHaveAttribute('href', '/policies/terms/test-terms');
+  expect(screen.getByRole('link', { name: 'Điều khoản sử dụng tài khoản' })).toHaveAttribute('href', '/policies/terms/test-terms');
   expect(screen.getByRole('link', { name: 'Chính sách quyền riêng tư' })).toHaveAttribute('href', '/policies/privacy/test-privacy');
 });
 

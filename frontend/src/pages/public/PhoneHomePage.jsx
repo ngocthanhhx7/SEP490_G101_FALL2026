@@ -31,8 +31,8 @@ export function PhoneHomePage({ loadCatalog }) {
     </div>
 
     <nav className="pwc-phone-home__support" aria-label="Hỗ trợ và chính sách">
-      <Link className="pwc-phone-home__button" to="/contact"><LifeBuoy size={17} aria-hidden="true" /> Hỗ trợ</Link>
-      <Link className="pwc-phone-home__button" to="/policies"><FileText size={17} aria-hidden="true" /> Chính sách</Link>
+      <Link className="pwc-phone-home__button" to="/contact" state={{ helpFrom: '/' }}><LifeBuoy size={17} aria-hidden="true" /> Hỗ trợ</Link>
+      <Link className="pwc-phone-home__button" to="/policies" state={{ policyFrom: '/' }}><FileText size={17} aria-hidden="true" /> Chính sách</Link>
       {showInstallGuide && <Link className="pwc-phone-home__button" to="/install">
         <ArrowDownToLine size={17} aria-hidden="true" /> Cài ứng dụng
       </Link>}

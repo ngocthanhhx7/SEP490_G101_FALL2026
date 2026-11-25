@@ -92,7 +92,7 @@ test('UC-53 validates required fields and resolves without money when billing is
   expect(screen.getByRole('link', { name: 'Xem lịch đặt' })).toHaveAttribute('href', '/staff/bookings/' + bookingId);
   expect(screen.queryByRole('link', { name: 'Xem báo cáo chăm sóc' })).toBeNull();
   expect(screen.getByLabelText('Số tiền đề xuất hoàn')).toBeDisabled();
-  expect(screen.getByText(/Chưa có nguồn hóa đơn/)).toBeVisible();
+  expect(screen.getByText(/Lịch đặt chưa có thanh toán được xác nhận/)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Giải quyết' }));
   expect(screen.getAllByText('Trường này là bắt buộc.')).toHaveLength(2);
   expect(api.resolve).not.toHaveBeenCalled();
@@ -104,33 +104,45 @@ test('UC-53 validates required fields and resolves without money when billing is
   expect(api.resolve.mock.calls[0][0]).not.toHaveProperty('proposal');
 });
 
-test('UC-53 checks the fixture cap, requires evidence, and sends MSG147 without a final result', async () => {
-  const api = fixture({ ...item, billing: { status: 'AVAILABLE', basis: 'EXPECTED', basisAmountVnd: 769500, remainingVnd: 45000 } });
+test('UC-53 ST-CAS-10 checks paid/refunded/remaining cap, allows optional evidence, and sends MSG147 without a final result', async () => {
+  const api = fixture({ ...item, billing: { status: 'AVAILABLE', basis: 'ISSUED', basisAmountVnd: 300000, approvedTotalVnd: 100000, remainingVnd: 200000 } });
   api.resolve.mockResolvedValue({ data: { state: 'OPEN', messageCode: 'MSG147' } });
   const imageApi = { upload: jest.fn(async () => ({ id: 'b'.repeat(64) })) };
   show(api, { imageApi });
   await enterRequired();
+  expect(screen.getByText(/Khách đã trả 300\.000.*Đã hoàn 100\.000.*Còn lại 200\.000/)).toBeVisible();
   const amount = screen.getByLabelText('Số tiền đề xuất hoàn');
-  fireEvent.change(amount, { target: { value: '45001' } });
+  fireEvent.change(amount, { target: { value: '200001' } });
   fireEvent.click(screen.getByRole('button', { name: 'Giải quyết' }));
-  expect(screen.getByText(/không được vượt quá 45.000/)).toBeVisible();
+  expect(screen.getByText(/không được vượt quá 200\.000/)).toBeVisible();
   expect(api.resolve).not.toHaveBeenCalled();
-  fireEvent.change(amount, { target: { value: '45000' } });
+  fireEvent.change(amount, { target: { value: '150000' } });
   fireEvent.click(screen.getByRole('button', { name: 'Giải quyết' }));
-  expect(screen.getAllByText('Trường này là bắt buộc.')).toHaveLength(2);
-  fireEvent.change(screen.getByLabelText('Lý do và bằng chứng'), { target: { value: 'Có ảnh minh chứng.' } });
+  expect(screen.getAllByText('Trường này là bắt buộc.')).toHaveLength(1);
+  fireEvent.change(screen.getByLabelText('Lý do và bằng chứng'), { target: { value: 'Hoàn theo xác minh thực tế.' } });
   const pdf = new globalThis.File(['document'], 'evidence.pdf', { type: 'application/pdf' });
   fireEvent.change(screen.getByLabelText('Thêm tệp'), { target: { files: [pdf] } });
   expect(screen.getByText('Chọn ảnh PNG hoặc JPEG không quá 5 MB.')).toBeVisible();
   expect(imageApi.upload).not.toHaveBeenCalled();
-  const file = new globalThis.File(['image'], 'evidence.png', { type: 'image/png' });
-  fireEvent.change(screen.getByLabelText('Thêm tệp'), { target: { files: [file] } });
+  // Submit without any file attached (evidence files are optional)
   fireEvent.click(screen.getByRole('button', { name: 'Giải quyết' }));
   expect(await screen.findByText(/Đã gửi khoản đề xuất cho quản trị viên/)).toBeVisible();
-  expect(imageApi.upload).toHaveBeenCalledWith(file, expect.objectContaining({ idempotencyKey: expect.any(String) }));
+  expect(imageApi.upload).not.toHaveBeenCalled();
   expect(api.resolve).toHaveBeenCalledWith(expect.objectContaining({
-    proposal: { amountVnd: 45000, reason: 'Có ảnh minh chứng.', evidenceRefs: ['b'.repeat(64)] }
+    proposal: { amountVnd: 150000, reason: 'Hoàn theo xác minh thực tế.', evidenceRefs: [] }
   }));
+});
+
+test('UC-53 ST-CAS-10 shows lowered amount and rejection reason decided by Admin to Staff', async () => {
+  const reducedItem = {
+    ...item, state: 'RESOLVED', customerResult: 'Hoàn một phần.',
+    proposal: { status: 'REDUCED', amountVnd: 150000, reason: 'Đề xuất ban đầu.', evidenceRefs: [] },
+    moneyDecision: { outcome: 'REDUCE', amountVnd: 120000 },
+    approvedAmountVnd: 120000
+  };
+  show(fixture(reducedItem));
+  expect(await screen.findByText(/Quản trị viên đã hạ số tiền duyệt xuống/)).toBeVisible();
+  expect(screen.getAllByText(/120\.000/).length).toBeGreaterThanOrEqual(1);
 });
 
 test.each(['STAFF', 'ADMIN'])('UC-53 deep link opens the escalated complaint for %s', async role => {

@@ -51,6 +51,19 @@ function savedPrice(booking, visits) {
   };
 }
 
+function savedPolicies(booking) {
+  const snapshot = booking.checkoutSnapshot;
+  const items = snapshot?.quote?.items;
+  if (!snapshot?.consentAt || !Array.isArray(items)) return [];
+  return items.slice(0, 60).flatMap((item, index) => {
+    const { servicePolicy, servicePolicyVersion, visitCount } = item ?? {};
+    if (!Number.isSafeInteger(servicePolicyVersion) || servicePolicyVersion < 1
+      || typeof servicePolicy?.title !== 'string' || typeof servicePolicy.body !== 'string') return [];
+    return [{ item: index + 1, version: servicePolicyVersion, title: servicePolicy.title, body: servicePolicy.body,
+      visitCount: Number.isSafeInteger(visitCount) && visitCount > 0 ? visitCount : null }];
+  });
+}
+
 export function createBookingDetailsService({ connection, clock = Date.now }) {
   async function project(booking, { includeCustomerName = false } = {}) {
     const original = booking.checkoutSnapshot?.customerVisits ?? [];
@@ -105,6 +118,7 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
       ...(includeCustomerName ? { customerName: personName(names, booking.customerId) } : {}),
       details: {
         consentAt: booking.checkoutSnapshot?.consentAt ?? null,
+        servicePolicies: savedPolicies(booking),
         terms: original.map(visit => {
           const saved = savedTerms(visit, names, areaNames);
           const actual = visits.filter(row => row.customerVisitId === String(visit._id));
