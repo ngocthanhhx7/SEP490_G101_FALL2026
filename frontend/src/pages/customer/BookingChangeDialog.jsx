@@ -7,12 +7,14 @@ import './booking-change.css';
 
 const unknownResult = new Set(['NETWORK_ERROR', 'TIMEOUT', 'HTTP_ERROR', 'INVALID_RESPONSE']);
 
-function DateTimeField({ label, type, value, display, onChange }) {
+const MIN_NEW_VISIT_LEAD_MS = 2 * 3600000;
+
+function DateTimeField({ label, type, value, min, display, onChange }) {
   const id = useId();
   return <label className="booking-change-field" htmlFor={id}>
     <span>{label} *</span>
     <span className="booking-change-field__input">
-      <input id={id} className="pwc-control" type={type} value={value} required
+      <input id={id} className="pwc-control" type={type} value={value} min={min} required
         onChange={event => onChange(event.target.value)} />
       <span className="booking-change-field__display" aria-hidden="true">{display}</span>
       <ChevronDown size={16} aria-hidden="true" />
@@ -20,9 +22,13 @@ function DateTimeField({ label, type, value, display, onChange }) {
   </label>;
 }
 
+function earliestNewDate(serverNow) {
+  return bookingChangeInputDate(Date.parse(serverNow) + MIN_NEW_VISIT_LEAD_MS);
+}
+
 function defaultDate(visit, serverNow) {
   const visitDay = bookingChangeInputDate(visit.startAt);
-  const firstNewDay = bookingChangeInputDate(Date.parse(serverNow) + 24 * 3600000);
+  const firstNewDay = earliestNewDate(serverNow);
   return visitDay < firstNewDay ? firstNewDay : visitDay;
 }
 
@@ -124,6 +130,7 @@ export function BookingChangeDialog({ booking, options, initialVisitId, api, onC
         </section>}
         <div className="booking-change-fields">
           <DateTimeField label={single ? 'Ngày mới' : 'Ngày đầu mới'} type="date" value={date}
+            min={earliestNewDate(options.serverNow)}
             display={bookingChangeDateLabel(date)} onChange={value => { setDate(value); setError(''); }} />
           {slots.map(slot => <DateTimeField key={slot} label={single ? 'Giờ mới' : 'Giờ mới buổi ' + slot}
             type="time" value={times[slot] ?? ''} display={bookingChangeTimeLabel(date, times[slot], single ? selected : null)}
@@ -135,7 +142,7 @@ export function BookingChangeDialog({ booking, options, initialVisitId, api, onC
         <strong>{bookingChangePrice(single ? [selected] : selectable)}</strong>
         <p>{bookingChangeLeadTime} Mỗi buổi chỉ đổi giờ được một lần.</p>
       </div>
-      <p className="booking-change-deadline">Nhân viên trả lời trước giờ cũ hoặc giờ mới 6 giờ (giờ nào đến trước). Nếu không có trả lời, buổi giữ giờ cũ và bạn được báo.</p>
+      <p className="booking-change-deadline">Nhân viên trả lời trước giờ cũ 6 giờ. Nếu không có trả lời, buổi giữ giờ cũ và bạn được báo.</p>
     </form>
   </Dialog>;
 }
