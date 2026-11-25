@@ -6,7 +6,13 @@ and snapshot hash; private access notes require that acknowledgement, an active
 booking/assignment, confirmed replacement handover and the existing one-hour
 window. It does not rebuild legacy visits from mutable owner profiles. Owner
 declarations remain unverified medical information. This read/acknowledgement
-runtime does not replace the instruction-revision/handover adapters below.
+runtime does not replace the legacy instruction-revision adapter below.
+
+`visit-handover.service.js` owns UC-41 for the assigned replacement. It reads the
+checkout care snapshot and prior visit summaries, and records handover and care
+acknowledgements in one versioned, idempotent scheduling transaction.
+`visit-handover-policy.service.js` owns the shared flag/reset and urgent-replacement
+rules. Entry-note authorization stays in the existing private route.
 
 This folder owns the P26 business boundaries for WBS-035 and WBS-036:
 

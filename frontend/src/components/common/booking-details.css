@@ -340,3 +340,6 @@
     padding: var(--pwc-space-4);
   }
 }
+
+.booking-details__saved-policies summary { min-height: 48px; padding-block: .7rem; cursor: pointer; font-weight: 750; }
+.booking-details__policy-body { white-space: pre-wrap; overflow-wrap: anywhere; }

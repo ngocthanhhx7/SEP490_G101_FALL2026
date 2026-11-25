@@ -174,7 +174,10 @@ export function EmployeeInvitationsPage({
     {assignments.status === 'success' && assignments.data?.items?.length > 0 && <OperationsTable label="Ca đã nhận" rows={assignments.data?.items ?? []} empty="Chưa có ca đã nhận." columns={[...baseColumns, {
       key: 'actions',
       label: 'Thao tác',
-      render: row => <div className="employee-scheduling__actions"><Link className="sitter-workspace-link" to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>{row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
+      render: row => <div className="employee-scheduling__actions"><Link className="sitter-workspace-link" to={'/sitter/visits/' + row.id} state={{ mobileBack: '/sitter/invitations' }}>Xem chi tiết</Link>
+        {row.state === 'ASSIGNED' && row.handoverRequired === true && row.handoverAccepted !== true &&
+          <Link className="sitter-workspace-link" to={'/sitter/visits/' + row.id + '/handover'}>Cần xác nhận bàn giao</Link>}
+        {row.canWithdraw && <Button variant="ghost" disabled={locked} onClick={() => {
           setWithdrawalResult(null);
           setWithdrawalVisit(row.id);
         }}>Rút khỏi buổi</Button>}</div>

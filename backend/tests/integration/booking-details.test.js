@@ -49,7 +49,8 @@ beforeAll(async () => {
   await connection.db.collection('bookings').insertOne({ _id: bookingId, customerId: owner, state: 'ASSIGNED', paymentMode: 'PREPAY',
     paymentState: 'PAID', paymentSnapshot: { amountVnd: 171000, currency: 'VND' }, visitIds: [visitId, nextId], originalVisitCount: 2,
     checkoutSnapshot: { consentAt: originalTime, customerVisits: [original, { ...original, _id: nextId }],
-      quote: { visitCount: 2, discountVnd: 9000, totalVnd: 171000 } } });
+      quote: { visitCount: 2, discountVnd: 9000, totalVnd: 171000,
+        items: [{ visitCount: 2, servicePolicyVersion: 3, servicePolicy: { title: 'Điều kiện đã đồng ý', body: 'Nội dung đã chốt khi đặt.' } }] } } });
   await connection.db.collection('visits').insertMany([
     { ...original, sitterId, startAt: newTime, endAt: new Date('2026-11-11T02:30:00Z'), state: 'COMPLETED' },
     { ...original, _id: nextId, startAt: new Date('2026-11-12T00:00:00Z'), endAt: new Date('2026-11-12T00:30:00Z') }
@@ -84,6 +85,9 @@ test('UC-27 / GBR-02: Customer retains ownership, other roles and missing sessio
   const instance = app();
   const result = await request(instance).get(path('checkout')).set('x-test-actor', 'owner').expect(200);
   expect(result.body.data.details.terms[0].serviceAddress).toBe('Địa chỉ lúc đặt');
+  expect(result.body.data.details.servicePolicies).toEqual([
+    { item: 1, version: 3, visitCount: 2, title: 'Điều kiện đã đồng ý', body: 'Nội dung đã chốt khi đặt.' }
+  ]);
   expect(result.body.data).not.toHaveProperty('customerName');
   expect(result.text).not.toMatch(/privateAccessNotes|DOOR_CODE_TEST/);
   await request(instance).get(path('checkout')).set('x-test-actor', 'other').expect(404);

@@ -51,6 +51,19 @@ function savedPrice(booking, visits) {
   };
 }
 
+function savedPolicies(booking) {
+  const snapshot = booking.checkoutSnapshot;
+  const items = snapshot?.quote?.items;
+  if (!snapshot?.consentAt || !Array.isArray(items)) return [];
+  return items.slice(0, 60).flatMap((item, index) => {
+    const { servicePolicy, servicePolicyVersion, visitCount } = item ?? {};
+    if (!Number.isSafeInteger(servicePolicyVersion) || servicePolicyVersion < 1
+      || typeof servicePolicy?.title !== 'string' || typeof servicePolicy.body !== 'string') return [];
+    return [{ item: index + 1, version: servicePolicyVersion, title: servicePolicy.title, body: servicePolicy.body,
+      visitCount: Number.isSafeInteger(visitCount) && visitCount > 0 ? visitCount : null }];
+  });
+}
+
 export function createBookingDetailsService({ connection, clock = Date.now }) {
   async function project(booking, { includeCustomerName = false } = {}) {
     const original = booking.checkoutSnapshot?.customerVisits ?? [];
@@ -78,14 +91,14 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
         { _id: { $in: changeIds }, state: 'APPROVED' },
         { projection: { items: 1 }, maxTimeMS: 2000 }
       ).limit(changeIds.length).toArray() : Promise.resolve([]),
-      unassignedVisitIds.length ? connection.db.collection('employeevisitoffers').find(
+      unassignedVisitIds.length ? connection.db.collection('employeevisitoffers').distinct('visitId',
         { visitId: { $in: unassignedVisitIds }, state: 'PENDING', deadline: { $gt: new Date(clock()) } },
-        { projection: { visitId: 1 }, maxTimeMS: 2000 }
-      ).toArray() : Promise.resolve([])
+        { maxTimeMS: 2000 }
+      ) : Promise.resolve([])
     ]);
     const names = new Map(users.map(user => [String(user._id), user.displayName]));
     const changesById = new Map(approvedChanges.map(change => [String(change._id), change]));
-    const pendingOfferVisitIds = new Set(pendingOffers.map(offer => String(offer.visitId)));
+    const pendingOfferVisitIds = new Set(pendingOffers.map(String));
     const bookingCode = booking.bookingCode ?? booking.code ?? null;
     const previousSlotFor = visit => {
       if (!visit.bookingChangeRequestId) return {};
@@ -105,6 +118,7 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
       ...(includeCustomerName ? { customerName: personName(names, booking.customerId) } : {}),
       details: {
         consentAt: booking.checkoutSnapshot?.consentAt ?? null,
+        servicePolicies: savedPolicies(booking),
         terms: original.map(visit => {
           const saved = savedTerms(visit, names, areaNames);
           const actual = visits.filter(row => row.customerVisitId === String(visit._id));

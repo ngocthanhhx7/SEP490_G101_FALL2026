@@ -281,6 +281,18 @@ describe('UC-74 Staff sitter list', () => {
     await request(app).get(root).query({ sort: 'rating' }).set(headers(staff)).expect(422);
   });
 
+  test('UC-41 GBR-29 excludes an urgent replacement and counts an equally late first assignment', async () => {
+    const startAt = new Date(+fixtureTime - 2 * 86400000), checkInAt = new Date(+startAt + 10 * 60000), assignedAt = new Date(+startAt - 40 * 60000);
+    const common = { sitterId: ids[0], startAt, checkInAt, assignedAt, state: 'COMPLETED' };
+    const result = await col('visits').insertMany([{ ...common, handoverRequired: true, handoverAccepted: true, handoverLateCheckInExempt: true }, common]);
+    try {
+      const response = await read({ search: 'NV-TEST-001' }, staff).expect(200);
+      expect(response.body.data.items).toContainEqual(expect.objectContaining({ id: String(ids[0]), lateCheckIns: 3 }));
+    } finally {
+      await col('visits').deleteMany({ _id: { $in: Object.values(result.insertedIds) } });
+    }
+  });
+
   test('UC-74 leaves withdrawals unknown and rejects withdrawal sorting when the event collection is absent', async () => {
     await col('employeescheduleevents').drop();
     try {

@@ -166,6 +166,16 @@ describe('UC-28 Visit Schedule page', () => {
     expect(within(board).queryByRole('link')).toBeNull();
   });
 
+  test.each(['05', '10'])('does not describe separated dates as daily (03/11 and %s/11)', async day => {
+    const visits = ['03', day].map(d => ({ id: 'v-' + d, state: 'SCHEDULED',
+      startAt: '2026-11-' + d + 'T00:00:00Z', endAt: '2026-11-' + d + 'T00:30:00Z' }));
+    const api = { booking: jest.fn().mockResolvedValue(sampleBooking({ details: {
+      terms: [{ serviceName: 'Dắt chó đi dạo' }], visits
+    } })) };
+    mountSchedule(api);
+    expect(await screen.findByText('Dắt chó đi dạo · 03/11 – ' + day + '/11/2026 · 07:00 · 2 buổi')).toBeVisible();
+  });
+
   test('shows error notice when another customer booking returns 404', async () => {
     const api = { booking: jest.fn().mockRejectedValue(new ApiError('RESOURCE_NOT_FOUND', 404)) };
     mountSchedule(api);

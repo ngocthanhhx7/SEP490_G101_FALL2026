@@ -313,3 +313,6 @@
     min-width: 0;
   }
 }
+
+.visit-board__actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--pwc-space-1) var(--pwc-space-3); }
+.visit-board__reassign { display: inline-block; text-decoration: none; }

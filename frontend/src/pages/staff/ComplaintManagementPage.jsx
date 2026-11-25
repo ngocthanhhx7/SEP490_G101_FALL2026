@@ -108,6 +108,15 @@ function ComplaintDetail({ item, api, imageApi, isAdmin, getCsrfToken, onComplet
       <p>{bookingMoney(item.proposal.amountVnd)}</p><p>{item.proposal.reason}</p>
       <Evidence complaintId={item.id} items={item.proposal.evidenceRefs} label="Ảnh bằng chứng của Staff" getCsrfToken={getCsrfToken} />
     </section>}
+    {!pending && item.proposal && item.moneyDecision && <section className="complaint-management__statement">
+      <h3>Quyết định hoàn tiền</h3>
+      <p>Số tiền đề xuất: {bookingMoney(item.proposal.amountVnd)}</p>
+      {item.moneyDecision.outcome === 'REJECT'
+        ? <p>Quản trị viên đã từ chối đề xuất hoàn tiền.{item.moneyDecision.reason ? ' Lý do: ' + item.moneyDecision.reason : ''}</p>
+        : item.moneyDecision.outcome === 'REDUCE'
+          ? <p>Quản trị viên đã hạ số tiền duyệt xuống <strong>{bookingMoney(item.moneyDecision.amountVnd)}</strong> (đề xuất ban đầu {bookingMoney(item.proposal.amountVnd)}).</p>
+          : <p>Quản trị viên đã duyệt <strong>{bookingMoney(item.moneyDecision.amountVnd)}</strong>.</p>}
+    </section>}
     {item.objectionReason && <section className="complaint-management__statement">
       <h3>Lý do khách không đồng ý</h3><p>{item.objectionReason}</p>
     </section>}

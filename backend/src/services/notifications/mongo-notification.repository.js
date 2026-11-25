@@ -15,7 +15,7 @@ export function createMongoNotificationRepository({ connection, cursorSecret, cl
       if (!/^[a-f0-9]{24}$/i.test(recipientId)) return { to: null };
       const booking = /^\/account\/bookings\/([a-f0-9]{24})(?:\/visits\/([a-f0-9]{24}))?$/.exec(row.deepLink);
       const offer = /^\/sitter\/invitations\?offerId=([a-f0-9]{24})$/.exec(row.deepLink);
-      const assigned = /^\/sitter\/visits\/([a-f0-9]{24})$/.exec(row.deepLink);
+      const assigned = /^\/sitter\/visits\/([a-f0-9]{24})(\/handover)?$/.exec(row.deepLink);
       const db = connection.db;
       const projection = { projection: { _id: 1 }, maxTimeMS: 2000 };
       const owner = new Types.ObjectId(recipientId);
@@ -35,7 +35,7 @@ export function createMongoNotificationRepository({ connection, cursorSecret, cl
       if (assigned && roles.includes('PET_SITTER')) {
         const visit = await db.collection('visits').findOne({ _id: new Types.ObjectId(assigned[1]), sitterId: owner,
           state: { $in: ['ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED'] } }, projection);
-        return { to: visit ? '/sitter/visits/' + assigned[1] : null };
+        return { to: visit ? '/sitter/visits/' + assigned[1] + (assigned[2] ?? '') : null };
       }
       return { to: null };
     },

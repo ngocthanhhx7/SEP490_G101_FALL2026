@@ -194,7 +194,9 @@ export function formatBookingScheduleSummary(booking, dayColumns) {
   const perDayTimes = (dayColumns ?? []).map(col =>
     [...new Set(col.visits.map(item => vietnamTime(item.startAt)).filter(value => value !== '—'))].sort()
   ).filter(list => list.length > 0);
-  if (perDayTimes.length >= 2 && perDayTimes.every(list => list.join('|') === perDayTimes[0].join('|'))) {
+  const consecutiveDays = validDays.length === perDayTimes.length && validDays.every((key, i) =>
+    i === 0 || Date.parse(key) - Date.parse(validDays[i - 1]) === 86_400_000);
+  if (perDayTimes.length >= 2 && consecutiveDays && perDayTimes.every(list => list.join('|') === perDayTimes[0].join('|'))) {
     timeSummary = `${joinVietnameseTimes(perDayTimes[0])} mỗi ngày`;
   } else {
     const uniqueTimes = [...new Set(perDayTimes.flat())].sort();

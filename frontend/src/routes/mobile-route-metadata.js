@@ -35,7 +35,7 @@ const metadata = [
   ["M30","/install","Cài ứng dụng","account","task",["GUEST","CUSTOMER","PET_SITTER"]],
   ["M31","/","Trang chủ","home","root",["GUEST","CUSTOMER"]],
   ["M32","/about","Về chúng tôi","account","detail",["GUEST","CUSTOMER"]],
-  ["M33","/contact","Hỗ trợ","account","detail",["GUEST","CUSTOMER"]],
+  ["M33","/contact","Hỗ trợ","account","detail",["GUEST","CUSTOMER","PET_SITTER"]],
   ["M34","/services","Dịch vụ","services","root",["GUEST","CUSTOMER"]],
   ["M35","/services/:serviceId","Chi tiết dịch vụ","services","detail",["GUEST","CUSTOMER"]],
   ["M36","/booking/:serviceId","Đặt dịch vụ","services","task",["CUSTOMER"]],
@@ -55,6 +55,7 @@ const metadata = [
   ["M50","/policies/:slug/:version","Phiên bản chính sách","account","detail",["GUEST","CUSTOMER","PET_SITTER"]],
   ["N01","/sitter/schedule","Ca làm","schedule","root",["PET_SITTER"]],
   ["N02","/sitter/visits/:visitId","Buổi chăm sóc","schedule","task",["PET_SITTER"]],
+  ["N03","/sitter/visits/:visitId/handover","Xác nhận bàn giao","schedule","task",["PET_SITTER"]],
 ];
 
 export const mobileRoutes = metadata.map(([id, path, title, tab, kind, roles]) =>
