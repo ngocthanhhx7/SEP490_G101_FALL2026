@@ -121,12 +121,12 @@ test('notifications persist, preserve owner/role scope and support replayable re
   expect((await request(app).get('/api/v1/notifications').set(headers(owner)).expect(200)).body.data.unreadCount).toBe(0);
 });
 
-test('booking history projects expired prepayment consistently with checkout without mutating storage', async () => {
+test('booking history does not report payment expiry without verified provider status or mutate storage', async () => {
   const row = { customerId: new mongoose.Types.ObjectId(owner.user.id), state: 'AWAITING_PAYMENT', paymentState: 'UNPAID',
     paymentDeadlineAt: new Date(Date.now() - 60000) };
   const inserted = await connection.db.collection('bookings').insertOne(row);
   const result = await request(app).get('/api/v1/bookings').set(headers(owner)).expect(200);
-  expect(result.body.data.items.find(item => item.id === String(inserted.insertedId)).state).toBe('PAYMENT_EXPIRED');
+  expect(result.body.data.items.find(item => item.id === String(inserted.insertedId)).state).toBe('AWAITING_PAYMENT');
   expect((await connection.db.collection('bookings').findOne({ _id: inserted.insertedId })).state).toBe('AWAITING_PAYMENT');
 });
 

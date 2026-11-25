@@ -44,12 +44,12 @@ test('dry-run never creates storage and apply requires matching data and index m
   expect(await c.countDocuments()).toBe(4000);
 });
 
-test('indexed pages preserve ownership, cursor context, expired-payment DTO and bounded scan', async () => {
+test('indexed pages preserve ownership, cursor context, authoritative payment state and bounded scan', async () => {
   const c = await fixture(), service = createCustomerBookingsService({ connection, clock,
     cursorSecret: 'synthetic-booking-cursor-secret-at-least32', enabled: true });
   const first = await service.list(actor(owner), { limit: 20 });
   expect(first.items).toHaveLength(20);
-  expect(first.items.every(row => row.state === 'PAYMENT_EXPIRED')).toBe(true);
+  expect(first.items.every(row => row.state === 'AWAITING_PAYMENT')).toBe(true);
   expect(JSON.stringify(first)).not.toContain('privateAccessNotes');
   expect(JSON.stringify(first)).not.toContain('privateMedicalField');
   expect(first.items[0]).toMatchObject({ serviceName: 'Synthetic care', petNames: ['Milo'], visitCount: 1, totalVnd: 120000, firstVisitAt: new Date(clock()+86400000) });
