@@ -25,7 +25,7 @@ export function createProductOrderReceipts({ connection }) {
   return Object.freeze({
     // The payment intent of the order that owns a payOS order code, in the shape the webhook service reads.
     async findIntent(providerReference) {
-      const order = await ProductOrder.findOne({ 'payment.providerReferences': providerReference, channel: { $ne: COUNTER_CHANNEL } })
+      const order = await ProductOrder.findOne({ 'payment.providerReferences': { $eq: providerReference, $type: 'string' }, channel: { $ne: COUNTER_CHANNEL } })
         .select('status paid total version paymentDeadlineAt').lean();
       if (!order) return null;
       return {
