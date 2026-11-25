@@ -5,7 +5,7 @@ import { Notice, Button, Pagination } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
 import { MarkReturningDialog, ConfirmReturnedDialog } from '../../components/product/OrderReturnDialogs.jsx';
 import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_RETURN_REASON_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
-import { formatPhone, formatVnd, isUncertainOutcome, productErrorText, productMessage } from '../../utils/product-format.js';
+import { formatOrderDateTime, formatPhone, formatVnd, isUncertainOutcome, productErrorText, productMessage } from '../../utils/product-format.js';
 import '../../components/product/product-shop.css';
 
 const TABS = [
@@ -17,8 +17,13 @@ const SEARCH_DELAY_MS = 300;
 function paymentSummary(order) {
   if (order.paid) return 'Đã thanh toán';
   if (order.paymentMethod === 'COD') return 'Thu khi giao';
+  if (order.paymentMethod === 'PREPAID') return 'Chờ thanh toán';
   return order.paymentMethod === 'PAY_AT_SHOP' ? 'Trả khi lấy' : 'Chưa thanh toán';
 }
+
+// A prepaid order is prepared only after it is paid; until then it waits for payOS or is cancelled at the payment deadline.
+const awaitsPayment = (order) => order.paymentMethod === 'PREPAID' && !order.paid;
+const PAYMENT_WAIT_HINT = 'Đơn trả trước qua payOS chưa được thanh toán. Chờ khách thanh toán; quá hạn đơn sẽ tự huỷ và hàng được mở bán lại.';
 
 // Which step the Admin can take next depends only on the receive method and the status the backend reports.
 // `inline` keeps an error in the dialog that asked for the change instead of on the page behind it.
@@ -30,6 +35,9 @@ function OrderActions({ order, busy, run, api }) {
     if (!failure) setDialog(null);
     return failure;
   };
+  if (awaitsPayment(order) && order.status === 'PLACED') {
+    return <div className="pwc-shop-actions"><p className="pwc-shop-hint">{PAYMENT_WAIT_HINT}</p></div>;
+  }
   if (order.receiveMethod === 'DELIVERY' && order.status === 'PLACED') {
     return <div className="pwc-shop-actions">
       <label htmlFor="tracking-code"><strong>Mã vận đơn</strong></label>
@@ -67,7 +75,7 @@ function OrderActions({ order, busy, run, api }) {
   }
   if (order.receiveMethod === 'PICKUP' && order.status === 'READY') {
     return <div className="pwc-shop-actions">
-      {!order.paid && <>
+      {!order.paid && order.paymentMethod !== 'PREPAID' && <>
         <p className="pwc-shop-hint">Thu đủ {formatVnd(order.total)} tại cửa hàng trước khi giao hàng cho khách.</p>
         <button type="button" className="pwc-shop-outline-button" disabled={busy}
           onClick={() => run(() => api.recordPayment(order.id))}>Đã thu tiền</button>
@@ -89,11 +97,15 @@ function OrderDetail({ order, busy, run, api }) {
       <dt>Cách nhận</dt><dd>{PRODUCT_RECEIVE_LABELS[order.receiveMethod]}</dd>
       {order.deliveryAddress && <><dt>Địa chỉ</dt><dd>{order.deliveryAddress.location}</dd></>}
       <dt>Thanh toán</dt><dd>{PRODUCT_PAYMENT_LABELS[order.paymentMethod].title} · {order.paid ? 'đã thu' : 'chưa thu'}</dd>
+      {order.paymentMethod === 'PREPAID' && order.paymentDeadlineAt && !order.paid && order.status === 'PLACED'
+        && <><dt>Hạn thanh toán</dt><dd>{formatOrderDateTime(order.paymentDeadlineAt)}</dd></>}
       {order.trackingCode && <><dt>Mã vận đơn</dt><dd>{order.trackingCode}</dd></>}
       {order.carrierReturnReason && <><dt>Lý do của hãng</dt><dd>{order.carrierReturnReason}</dd></>}
       {order.returnReason && <><dt>Lý do hoàn về</dt><dd>{PRODUCT_RETURN_REASON_LABELS[order.returnReason] ?? order.returnReason}</dd></>}
       {order.returnNote && <><dt>Ghi chú</dt><dd>{order.returnNote}</dd></>}
-      {order.refundMarked && <><dt>Hoàn tiền</dt><dd>Cần hoàn lại tiền thanh toán trước cho khách</dd></>}
+      {order.refundMarked && <><dt>Hoàn tiền</dt><dd>{Number.isSafeInteger(order.refundAmountVnd)
+        ? `Cần hoàn ${formatVnd(order.refundAmountVnd)} cho khách (thanh toán trước qua payOS). Kế toán hoàn ngoài hệ thống.`
+        : 'Cần hoàn lại tiền thanh toán trước cho khách'}</dd></>}
     </dl>
     <div style={{ borderTop: '1px solid var(--shop-border)', marginTop: '1rem', paddingTop: '.75rem' }}>
       {order.lines.map((line) => <div key={line.productId} className="pwc-shop-summary-row">

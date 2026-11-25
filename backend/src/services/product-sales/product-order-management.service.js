@@ -1,3 +1,4 @@
+import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
@@ -10,12 +11,20 @@ import { parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { toOrderView } from './product-order.service.js';
 import { readProductOrderTabCounts } from './product-order-tab-counts.js';
+import { productOrderRefundAmount } from './product-order-pricing.js';
 import { productSalesErrors, requireOnlineOrderCanceller, requireOrderHandler } from './product-sales-errors.js';
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const NAME_MATCH_LIMIT = 100;
 const PICKUP_EXPIRY_BATCH_SIZE = 100;
 const HOUR_MS = 3_600_000;
+
+// A prepaid order is paid through payOS before anything leaves the shop (GBR-36). Cash orders are not asked.
+const isUnpaidPrepaid = (order) => order.paymentMethod === 'PREPAID' && !order.paid;
+// A paid prepaid order that is cancelled or returned is marked for a refund with the amount of GBR-37; accounting pays it
+// outside PWC. Nothing else is marked: an unpaid order has nothing to give back.
+const refundChanges = (order, options) => PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid
+  ? { refundMarked: true, refundAmountVnd: productOrderRefundAmount(order, options) } : {};
 // Oldest first where staff work through a queue; newest first elsewhere.
 const OLDEST_FIRST_TABS = new Set(['PREPARE', 'AWAITING_PICKUP']);
 
@@ -32,6 +41,7 @@ function toAdminOrderView(doc, customer) {
     returnNote: doc.returnNote ?? null,
     returnedAt: doc.returnedAt ?? null,
     refundMarked: doc.refundMarked === true,
+    refundAmountVnd: doc.refundAmountVnd ?? null,
     customer: { id: String(doc.customerId), displayName: customer?.displayName ?? null, phone: customer?.phone ?? null }
   };
 }
@@ -59,7 +69,7 @@ function createOrderTransition({ connection, Product, ProductOrder, clock }) {
   // One guarded status change plus its stock effect, all in one transaction.
   // The update only matches the status and version that were read, so two writers cannot both apply a change.
   // `effects` runs after the status change, in the same transaction, for writes that must stand or fall with it.
-  return (id, { allowed, check, changes, stock, effects, expiryFilter, pickupExpired = false }) => {
+  return (id, { allowed, check, changes, stock, effects, expiryFilter, pickupExpired = false, paymentExpired = false }) => {
     const filter = { _id: id, channel: { $ne: COUNTER_CHANNEL }, ...expiryFilter };
     return unitOfWork.run(async (session) => {
       const order = await ProductOrder.findOne(filter).session(session).lean();
@@ -88,65 +98,108 @@ function createOrderTransition({ connection, Product, ProductOrder, clock }) {
         }
       }
       await effects?.(order, session);
-      await notifications.productOrder({ order: result, previous: order, pickupExpired }, session);
+      await notifications.productOrder({ order: result, previous: order, pickupExpired, paymentExpired }, session);
       return result;
     });
   };
 }
 
-// The scheduler is the only caller. Recheck eligibility and the version selected by the batch inside
+// The scheduler is the only caller (JOB-04). Recheck eligibility and the version selected by the batch inside
 // the transaction so a concurrent payment, handover or another worker wins at most once.
-export function createProductPickupExpiryService({ connection, clock = Date.now, logger = () => {} }) {
+// `payments` (route composition) asks payOS whether an overdue prepaid order was paid after all (R3 JOB-04, step 1).
+export function createProductOrderExpiryService({ connection, clock = Date.now, logger = () => {}, payments = null }) {
   const { Product, ProductOrder, ProductCustomerRefusal } = productSalesModels(connection);
   const updateOrder = createOrderTransition({ connection, Product, ProductOrder, clock });
 
+  // Pick-up orders not collected by the deadline: a refusal against the customer; a paid one is marked for a refund.
+  async function cancelUncollectedPickups(summary) {
+    const cutoff = new Date(clock());
+    const filter = {
+      status: 'READY',
+      receiveMethod: 'PICKUP',
+      channel: { $ne: COUNTER_CHANNEL },
+      pickupDeadlineAt: { $lte: cutoff },
+      $nor: [{ paymentMethod: 'PAY_AT_SHOP', paid: true }]
+    };
+    const candidates = await ProductOrder.find(filter).select('_id version')
+      .sort({ pickupDeadlineAt: 1, _id: 1 }).limit(PICKUP_EXPIRY_BATCH_SIZE).lean();
+    for (const candidate of candidates) {
+      try {
+        const updated = await updateOrder(candidate._id, {
+          expiryFilter: { ...filter, version: candidate.version },
+          changes: (order) => ({ status: 'CANCELLED', cancelledAt: cutoff, ...refundChanges(order) }),
+          stock: 'RELEASE',
+          pickupExpired: true,
+          effects: async (order, session) => {
+            await ProductCustomerRefusal.create([{
+              customerId: order.customerId, orderId: order._id, reason: 'NOT_COLLECTED', occurredAt: cutoff
+            }], { session });
+          }
+        });
+        if (updated) summary.cancelled += 1;
+      } catch {
+        summary.failed += 1;
+        logger({ event: 'product_pickup_expiry_order_failed', orderId: String(candidate._id) });
+      }
+    }
+  }
+
+  // Prepaid orders not paid by the payment deadline (GBR-36): cancelled unless payOS knows a payment.
+  async function cancelUnpaidPrepaid(summary) {
+    const cutoff = new Date(clock());
+    const filter = {
+      status: 'PLACED',
+      paymentMethod: 'PREPAID',
+      paid: false,
+      channel: { $ne: COUNTER_CHANNEL },
+      paymentDeadlineAt: { $lte: cutoff }
+    };
+    const candidates = await ProductOrder.find(filter).select('_id version payment.providerReferences payment.receipts')
+      .sort({ paymentDeadlineAt: 1, _id: 1 }).limit(PICKUP_EXPIRY_BATCH_SIZE).lean();
+    for (const candidate of candidates) {
+      try {
+        // A payOS error throws and leaves the order for the next run, so a paid order is never cancelled by mistake.
+        if (!payments && candidate.payment?.providerReferences?.length) {
+          summary.kept += 1;
+          continue;
+        }
+        const outcome = await checkProductPayment(candidate, payments);
+        if (outcome !== 'UNPAID') { summary.kept += 1; continue; }
+        // The cancellation only applies while the order is still unpaid and unchanged. A late payment is no refusal
+        // (GBR-36), so no refusal record is written.
+        const updated = await updateOrder(candidate._id, {
+          expiryFilter: { ...filter, version: candidate.version },
+          changes: () => ({ status: 'CANCELLED', cancelledAt: cutoff }),
+          stock: 'RELEASE',
+          paymentExpired: true
+        });
+        if (updated) summary.cancelled += 1;
+      } catch (error) {
+        summary.failed += 1;
+        logger({ event: 'product_payment_expiry_order_failed', orderId: String(candidate._id), code: error?.code ?? error?.name });
+      }
+    }
+  }
+
   return Object.freeze({
     async runBatch() {
-      const cutoff = new Date(clock());
-      const filter = {
-        status: 'READY',
-        receiveMethod: 'PICKUP',
-        channel: { $ne: COUNTER_CHANNEL },
-        pickupDeadlineAt: { $lte: cutoff },
-        $nor: [{ paymentMethod: 'PAY_AT_SHOP', paid: true }]
-      };
-      const candidates = await ProductOrder.find(filter).select('_id version')
-        .sort({ pickupDeadlineAt: 1, _id: 1 }).limit(PICKUP_EXPIRY_BATCH_SIZE).lean();
-      const summary = { cancelled: 0, failed: 0 };
-      for (const candidate of candidates) {
-        try {
-          const updated = await updateOrder(candidate._id, {
-            expiryFilter: { ...filter, version: candidate.version },
-            changes: (order) => ({
-              status: 'CANCELLED',
-              cancelledAt: cutoff,
-              ...(PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid ? { refundMarked: true } : {})
-            }),
-            stock: 'RELEASE',
-            pickupExpired: true,
-            effects: async (order, session) => {
-              await ProductCustomerRefusal.create([{
-                customerId: order.customerId, orderId: order._id, reason: 'NOT_COLLECTED', occurredAt: cutoff
-              }], { session });
-            }
-          });
-          if (updated) summary.cancelled += 1;
-        } catch {
-          summary.failed += 1;
-          logger({ event: 'product_pickup_expiry_order_failed', orderId: String(candidate._id) });
-        }
-      }
+      const summary = { cancelled: 0, failed: 0, kept: 0 };
+      await cancelUncollectedPickups(summary);
+      await cancelUnpaidPrepaid(summary);
       return summary;
     }
   });
 }
+
+// The earlier name of the job service, kept so existing callers keep working.
+export const createProductPickupExpiryService = createProductOrderExpiryService;
 
 // Order handling (R3 Order Management) for whoever PRODUCT_PERMISSIONS allows. Stock follows GBR-35:
 // goods leaving the shop release the hold and reduce the real stock; cancelling only releases the hold;
 // a confirmed return puts back only what can be sold again.
 // phones is the customer phone directory; it is injected by route composition.
 export function createProductOrderManagementService({
-  connection, phones, clock = Date.now, pickupDeadlineHours = DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS
+  connection, phones, payments = null, clock = Date.now, pickupDeadlineHours = DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS
 }) {
   if (typeof phones?.userIdsByPhone !== 'function' || typeof phones?.phonesOf !== 'function') {
     throw new TypeError('A customer phone directory is required');
@@ -214,6 +267,8 @@ export function createProductOrderManagementService({
       }
       return transition(actor, orderId, {
         allowed: (order) => order.receiveMethod === 'DELIVERY' && order.status === 'PLACED',
+        // A prepaid order waits for its payment or is cancelled at the payment deadline (GBR-36, UC-64 step 1.1).
+        check: (order) => { if (isUnpaidPrepaid(order)) throw productSalesErrors.orderNotPaid(); },
         changes: () => ({ status: 'HANDED_TO_CARRIER', trackingCode }),
         stock: 'LEAVE'
       });
@@ -224,6 +279,8 @@ export function createProductOrderManagementService({
       const pickupDeadlineAt = new Date(new Date(clock()).getTime() + pickupDeadlineHours * HOUR_MS);
       return transition(actor, orderId, {
         allowed: (order) => order.receiveMethod === 'PICKUP' && order.status === 'PLACED',
+        // An unpaid prepaid order is not made ready: it would start the pick-up deadline before the payment is in.
+        check: (order) => { if (isUnpaidPrepaid(order)) throw productSalesErrors.orderNotPaid(); },
         changes: () => ({ status: 'READY', pickupDeadlineAt })
       });
     },
@@ -270,7 +327,8 @@ export function createProductOrderManagementService({
           returnReason: input.reason,
           ...(input.note ? { returnNote: input.note } : {}),
           returnedAt: new Date(clock()),
-          ...(PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid ? { refundMarked: true } : {})
+          // A customer who refuses the goods without a reason gets the price of the goods back (GBR-37).
+          ...refundChanges(order, { goodsOnly: input.reason === 'CUSTOMER_REFUSED' })
         }),
         effects: async (order, session) => {
           for (const line of lines) {
@@ -290,17 +348,23 @@ export function createProductOrderManagementService({
     recordPayment(actor, orderId, body) {
       parseNoBody(body);
       return transition(actor, orderId, {
-        allowed: (order) => order.receiveMethod === 'PICKUP' && ['PLACED', 'READY'].includes(order.status) && !order.paid,
+        // Cash is taken for a pick-up paid at the shop; a prepaid order is paid through payOS only.
+        allowed: (order) => order.receiveMethod === 'PICKUP' && ['PLACED', 'READY'].includes(order.status) && !order.paid
+          && order.paymentMethod !== 'PREPAID',
         changes: () => ({ paid: true })
       });
     },
     // Orders that have not left the shop: release the hold only; real stock is unchanged.
-    cancel(actor, orderId, body) {
+    async cancel(actor, orderId, body) {
       parseNoBody(body);
       requireOnlineOrderCanceller(actor);
+      const current = await ProductOrder.findOne({ _id: parseObjectId(orderId, 'orderId'), channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (!current) throw productSalesErrors.notFound();
+      if (!current.paid) requireUnpaidProductOutcome(await checkProductPayment(current, payments));
       return transition(actor, orderId, {
+        check: order => { if (order.version !== current.version) throw productSalesErrors.orderStateConflict(order.status); },
         allowed: (order) => ['PLACED', 'READY'].includes(order.status),
-        changes: () => ({ status: 'CANCELLED' }),
+        changes: (order) => ({ status: 'CANCELLED', ...refundChanges(order) }),
         stock: 'RELEASE'
       });
     }

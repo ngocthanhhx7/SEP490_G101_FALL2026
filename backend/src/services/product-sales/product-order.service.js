@@ -5,11 +5,14 @@ import { productSalesModels } from '../../models/product.model.js';
 import { createProductPricingEligibility } from './product-pricing-eligibility.service.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
+import { DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS } from '../../constants/product-fields.js';
 import { createProductOrderCodeService } from './product-order-code.service.js';
 import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { priceProductOrder, sellableQuantity } from './product-order-pricing.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
+
+const HOUR_MS = 3_600_000;
 
 export function toOrderView(doc) {
   return {
@@ -19,6 +22,9 @@ export function toOrderView(doc) {
     receiveMethod: doc.receiveMethod,
     paymentMethod: doc.paymentMethod,
     paid: doc.paid,
+    // Prepaid orders only: when the payment is due and, once paid, when it was recorded.
+    paymentDeadlineAt: doc.paymentDeadlineAt ?? null,
+    paidAt: doc.payment?.paidAt ?? null,
     status: doc.status,
     trackingCode: doc.trackingCode ?? null,
     deliveryAddress: doc.deliveryAddress
@@ -46,7 +52,10 @@ const fingerprintOf = (customerId, input) =>
   createHash('sha256').update(JSON.stringify([customerId, input.receiveMethod, input.paymentMethod, input.addressId ?? null])).digest('hex');
 
 // serviceAreas is injected by route composition (the same demo work areas used by Customer addresses).
-export function createProductOrderService({ connection, serviceAreas = [], eligibility = createProductPricingEligibility({ connection }) }) {
+export function createProductOrderService({
+  connection, serviceAreas = [], eligibility = createProductPricingEligibility({ connection }),
+  clock = Date.now, paymentDeadlineHours = DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS
+}) {
   const { Product, ProductCart, ProductOrder } = productSalesModels(connection);
   const { CustomerAddress } = petCareModels(connection);
   const unitOfWork = createUnitOfWork(connection);
@@ -113,7 +122,8 @@ export function createProductOrderService({ connection, serviceAreas = [], eligi
           const cart = await ProductCart.findOne({ customerId }).session(session).lean();
           if (!cart || cart.lines.length === 0) throw productSalesErrors.cartEmpty();
           const pricing = await eligibility.read(customerId, { session });
-          if (pricing.prepaidOnly) throw productSalesErrors.prepayRequired();
+          // Over the refusal limit only payment in advance is offered (GBR-36); the order itself is still welcome.
+          if (pricing.prepaidOnly && input.paymentMethod !== 'PREPAID') throw productSalesErrors.prepayRequired();
           const lines = [];
           // Stable order avoids lock-order surprises between concurrent carts.
           for (const line of [...cart.lines].sort((a, b) => String(a.productId).localeCompare(String(b.productId)))) {
@@ -128,7 +138,10 @@ export function createProductOrderService({ connection, serviceAreas = [], eligi
             lines: lines.map((line, index) => ({ ...line, unitDiscount: totals.unitDiscounts[index] })),
             ...(deliveryAddress ? { deliveryAddress } : {}), subtotal: totals.subtotal, shippingFee: totals.shippingFee,
             tierDiscount: totals.tierDiscount, tierCode: pricing.tierCode, tierPolicyVersion: pricing.tierPolicyVersion,
-            total: totals.total, paid: false, status: 'PLACED', idempotencyKey: key, requestFingerprint: fingerprint
+            total: totals.total, paid: false, status: 'PLACED', idempotencyKey: key, requestFingerprint: fingerprint,
+            // The payment deadline counts from the time of ordering (GBR-36).
+            ...(input.paymentMethod === 'PREPAID'
+              ? { paymentDeadlineAt: new Date(clock() + paymentDeadlineHours * HOUR_MS), payment: { providerReferences: [], receipts: [] } } : {})
           }], { session });
           await notifications.productOrder({ order: created, placed: true }, session);
           await ProductCart.updateOne({ customerId }, { $set: { lines: [] }, $inc: { version: 1 } }, { session });

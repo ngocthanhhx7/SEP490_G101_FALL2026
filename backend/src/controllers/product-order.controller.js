@@ -7,3 +7,9 @@ export function createProductOrderController(service) {
     read: controllerAction(200, (req) => service.read(req.auth, req.params.orderId))
   };
 }
+
+export function createProductOrderPaymentController(service) {
+  return {
+    paymentLink: controllerAction(200, (req) => service.createLink(req.auth, req.params.orderId))
+  };
+}

@@ -23,7 +23,7 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
     return rows.map(row => ({ id: row._id, to }));
   }
   return {
-    async productOrder({ order, previous, placed = false, pickupExpired = false }, session) {
+    async productOrder({ order, previous, placed = false, pickupExpired = false, paymentExpired = false }, session) {
       const id = String(order._id), eventId = `product-order:${id}:${order.version ?? 0}`;
       const states = { PLACED: 'đã được tiếp nhận', READY: 'đã sẵn sàng để nhận tại cửa hàng',
         PICKED_UP: 'đã giao cho bạn', HANDED_TO_CARRIER: 'đã bàn giao cho đơn vị vận chuyển',
@@ -32,12 +32,19 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       let message = `Đơn ${order.code} ${states[order.status] ?? 'vừa được cập nhật'}.`;
       if (pickupExpired && order.status === 'CANCELLED') {
         message = `Đơn ${order.code} đã huỷ vì quá hạn lấy hàng.`;
+      } else if (paymentExpired && order.status === 'CANCELLED') {
+        message = `Đơn ${order.code} đã huỷ vì quá hạn thanh toán.`;
       } else if (previous && !previous.paid && order.paid) {
         message = `Đơn ${order.code} đã được ghi nhận thanh toán.`;
       } else if (order.status === 'READY' && previous?.status !== 'READY' && order.pickupDeadlineAt) {
         const parts = pickupDeadlineFormat.formatToParts(order.pickupDeadlineAt);
         const { hour, minute, day, month, year } = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
         message += ` Vui lòng đến lấy trước ${hour}:${minute} ${day}/${month}/${year}.`;
+      }
+      if (placed && order.paymentMethod === 'PREPAID' && !order.paid && order.paymentDeadlineAt) {
+        const { hour, minute, day, month, year } = Object.fromEntries(
+          pickupDeadlineFormat.formatToParts(order.paymentDeadlineAt).map(({ type, value }) => [type, value]));
+        message += ` Vui lòng thanh toán trước ${hour}:${minute} ${day}/${month}/${year}.`;
       }
       await write(eventId, placed ? 'ProductOrderPlaced' : 'ProductOrderUpdated',
         [{ id: order.customerId, role: 'CUSTOMER', to: `/customer/product-orders?order=${id}` }],
