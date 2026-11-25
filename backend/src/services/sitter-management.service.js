@@ -199,16 +199,14 @@ export function createSitterManagementService({ connection, cursorSecret, contac
     const today = dayKey(asOf);
     const limitDay = dayKey(new Date(new Date(today + 'T00:00:00+07:00').getTime() + DAY_OFF_LOOKAHEAD_DAYS * 86400000));
     const objectIds = sitterIds.filter(value => /^[a-f0-9]{24}$/i.test(value)).map(oid);
-    const [availabilities, capabilities] = await Promise.all([
-      aggregate('employeeavailabilities', [
-        { $match: { _id: { $in: sitterIds } } },
-        { $project: fields(['dayOffDates']) }
-      ], session),
-      objectIds.length ? aggregate('aisitterprofiles', [
-        { $match: { userId: { $in: objectIds } } },
-        { $project: fields(['userId', 'dayOffDates']) }
-      ], session) : Promise.resolve([])
-    ]);
+    const availabilities = await aggregate('employeeavailabilities', [
+      { $match: { _id: { $in: sitterIds } } },
+      { $project: fields(['dayOffDates']) }
+    ], session);
+    const capabilities = objectIds.length ? await aggregate('aisitterprofiles', [
+      { $match: { userId: { $in: objectIds } } },
+      { $project: fields(['userId', 'dayOffDates']) }
+    ], session) : [];
     const collected = new Map(sitterIds.map(sitterId => [sitterId, new Set()]));
     const addDates = (sitterId, dates) => {
       const bucket = collected.get(sitterId);
@@ -276,10 +274,8 @@ export function createSitterManagementService({ connection, cursorSecret, contac
         if (batch.length) await consume();
       } finally { await population.close(); }
       const page = best.slice(0, query.limit);
-      const [hours, daysOff] = await Promise.all([
-        staffWorkingHours(page, asOf, session),
-        staffUpcomingDaysOff(page, asOf, session)
-      ]);
+      const hours = await staffWorkingHours(page, asOf, session);
+      const daysOff = await staffUpcomingDaysOff(page, asOf, session);
       return {
         items: page.map(item => ({
           ...item,
