@@ -159,3 +159,37 @@ test('UC-51 exposes Hoàn tiền in Admin menu at /admin/refunds and blocks Staf
     globalThis.fetch = originalFetch;
   }
 });
+
+test('UC-39 ST-BKG-30 shows Hoàn tiền lịch đặt tab with recorded booking cancellation refunds', async () => {
+  const api = {
+    ...createApi(),
+    bookingRefunds: jest.fn(async () => ({
+      data: {
+        total: 1,
+        items: [{
+          id: 'cancel:' + '1'.repeat(24),
+          bookingId,
+          visitId: '1'.repeat(24),
+          sourceType: 'BOOKING_CANCELLATION',
+          state: 'RECORDED',
+          amountVnd: 114000,
+          lateFeeVnd: 0,
+          comboDiscountAdjustmentVnd: 2400,
+          reason: 'Thay đổi kế hoạch',
+          recordedAt: '2026-11-26T02:05:00.000Z',
+          customer: { id: 'cust-1', displayName: 'Trần Thị Lan' },
+          booking: { id: bookingId, state: 'DISPATCH_PENDING', serviceName: 'Chăm sóc tại gia', paidTotalVnd: 349200 },
+          visit: { id: '1'.repeat(24), startAt: '2026-11-28T02:00:00.000Z', endAt: '2026-11-28T03:00:00.000Z', state: 'CANCELLED' }
+        }]
+      }
+    }))
+  };
+  show(api);
+
+  fireEvent.click(await screen.findByRole('tab', { name: /Hoàn tiền lịch đặt/ }));
+  expect(await screen.findByRole('heading', { name: 'Chăm sóc tại gia' })).toBeVisible();
+  expect(screen.getByText(/^114\.000\s*₫$/)).toBeVisible();
+  expect(screen.getByText(/2\.400/)).toBeVisible();
+  expect(screen.getByText('Thay đổi kế hoạch')).toBeVisible();
+  expect(api.bookingRefunds).toHaveBeenCalledTimes(1);
+});

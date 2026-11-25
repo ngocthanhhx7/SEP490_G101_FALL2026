@@ -11,13 +11,15 @@ import './refund-processing.css';
 
 const tabs = [
   ['PENDING', 'Chờ duyệt'],
-  ['DECIDED', 'Đã quyết']
+  ['DECIDED', 'Đã quyết'],
+  ['BOOKING_REFUNDS', 'Hoàn tiền lịch đặt']
 ];
 const proposalStatusLabels = {
   PENDING: 'Chờ duyệt',
   APPROVED: 'Đã duyệt',
   REDUCED: 'Đã hạ số tiền',
-  REJECTED: 'Đã từ chối'
+  REJECTED: 'Đã từ chối',
+  RECORDED: 'Đã ghi nhận'
 };
 const successMessages = {
   MSG134: 'Đã duyệt số tiền hoàn. Nhân viên và khách hàng đã được thông báo.',
@@ -245,6 +247,32 @@ function ProposalDetail({ item, api, getCsrfToken, onDecided, focus }) {
   </>;
 }
 
+function BookingRefundDetail({ item }) {
+  const hasBookingRoute = typeof item.bookingId === 'string' && /^[a-f0-9]{24}$/i.test(item.bookingId);
+  return <>
+    <header className="refund-processing__detail-header">
+      <h2>{item.booking?.serviceName || 'Hoàn tiền huỷ lịch đặt'}</h2>
+      <StatusBadge status={item.state || 'RECORDED'} />
+    </header>
+    <dl className="refund-processing__facts">
+      <div><dt>Khách hàng</dt><dd>{item.customer?.displayName || '—'}</dd></div>
+      <div><dt>Mã lịch đặt</dt><dd><code>{item.bookingId || '—'}</code></dd></div>
+      <div><dt>Buổi chăm sóc</dt><dd>{item.visit?.startAt ? complaintDeadline(item.visit.startAt) : '—'}</dd></div>
+      <div><dt>Số tiền hoàn</dt><dd><strong>{bookingMoney(item.amountVnd)}</strong></dd></div>
+      {item.lateFeeVnd > 0 && <div><dt>Phí huỷ muộn (30%)</dt><dd>{bookingMoney(item.lateFeeVnd)}</dd></div>}
+      {item.comboDiscountAdjustmentVnd > 0 && <div><dt>Điều chỉnh giảm giá combo</dt><dd>− {bookingMoney(item.comboDiscountAdjustmentVnd)}</dd></div>}
+      <div><dt>Ghi nhận lúc</dt><dd>{item.recordedAt ? complaintDeadline(item.recordedAt) : '—'}</dd></div>
+      <div><dt>Lý do huỷ</dt><dd>{item.reason || 'Không ghi nhận lý do'}</dd></div>
+    </dl>
+    <p className="refund-processing__note">
+      Khoản hoàn tiền từ huỷ lịch đặt đã được ghi nhận tự động theo GBR-15/GBR-17 để kế toán Paw World chi trả ngoài hệ thống.
+    </p>
+    <div className="refund-processing__links">
+      {hasBookingRoute && <Link to={'/staff/bookings/' + item.bookingId}>Xem lịch đặt</Link>}
+    </div>
+  </>;
+}
+
 export function RefundProcessingPage({ api: suppliedApi } = {}) {
   const [params, setParams] = useSearchParams();
   const { getCsrfToken } = useSession();
@@ -252,17 +280,33 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
   const [status, setStatus] = useState('PENDING');
   const [cursors, setCursors] = useState([undefined]);
   const [message, setMessage] = useState(null);
+  const [selectedBookingRefundId, setSelectedBookingRefundId] = useState(null);
+  const [savedCounts, setSavedCounts] = useState(null);
   const tabRefs = useRef([]);
   const selectedParam = params.get('complaint');
   const cursor = cursors.at(-1);
+  const isBookingRefundTab = status === 'BOOKING_REFUNDS';
 
-  const list = useApiResource(useCallback(({ signal }) => api.refundProposals({
-    status, sort: status === 'PENDING' ? 'oldest' : 'newest', cursor, signal
-  }), [api, status, cursor]));
+  const list = useApiResource(useCallback(({ signal }) => !isBookingRefundTab
+    ? api.refundProposals({
+      status, sort: status === 'PENDING' ? 'oldest' : 'newest', cursor, signal
+    })
+    : Promise.resolve({ data: null }), [api, isBookingRefundTab, status, cursor]));
+
+  useEffect(() => {
+    if (list.data?.proposalCounts) setSavedCounts(list.data.proposalCounts);
+  }, [list.data]);
+
+  const bookingRefunds = useApiResource(useCallback(({ signal }) => isBookingRefundTab && typeof api.bookingRefunds === 'function'
+    ? api.bookingRefunds({ signal })
+    : Promise.resolve({ data: { items: [], total: 0 } }), [api, isBookingRefundTab]));
 
   const items = list.data?.items ?? [];
-  const counts = list.data?.proposalCounts;
-  const selectedId = selectedParam || items[0]?.id;
+  const counts = list.data?.proposalCounts ?? savedCounts;
+  const selectedId = !isBookingRefundTab ? (selectedParam || items[0]?.id) : null;
+
+  const bookingRefundItems = bookingRefunds.data?.items ?? [];
+  const activeBookingRefund = bookingRefundItems.find(item => item.id === selectedBookingRefundId) ?? bookingRefundItems[0] ?? null;
 
   const detail = useApiResource(useCallback(({ signal }) => selectedId
     ? api.refundProposal({ complaintId: selectedId, signal })
@@ -276,6 +320,7 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
     setMessage(null);
     setStatus(nextStatus);
     setCursors([undefined]);
+    setSelectedBookingRefundId(null);
     select(null);
   }
 
@@ -296,10 +341,19 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
     detail.retry();
   }
 
+  function tabLabel(tabKey, label) {
+    if (tabKey === 'BOOKING_REFUNDS') {
+      return Number.isSafeInteger(bookingRefunds.data?.total) && isBookingRefundTab
+        ? `${label} (${bookingRefunds.data.total})`
+        : label;
+    }
+    return `${label} (${counts?.[tabKey] ?? (list.status === 'success' ? 0 : '…')})`;
+  }
+
   return <section className="refund-processing" aria-labelledby="refund-processing-title">
     <header className="refund-processing__header">
       <h1 id="refund-processing-title">Hoàn tiền</h1>
-      <p>Xem và quyết định các khoản hoàn tiền do nhân viên đề xuất cho khiếu nại.</p>
+      <p>Xem và quyết định các khoản hoàn tiền từ khiếu nại và theo dõi hoàn tiền huỷ lịch đặt.</p>
     </header>
     {message && <Notice state="success" title={message} />}
     <div className="refund-processing__tabs" role="tablist" aria-label="Trạng thái đề xuất hoàn tiền">
@@ -307,10 +361,37 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
         ref={element => { tabRefs.current[index] = element; }} type="button" role="tab"
         aria-controls="refund-tab-panel" aria-selected={status === tabKey} tabIndex={status === tabKey ? 0 : -1}
         onClick={() => changeTab(tabKey)} onKeyDown={event => tabKeyboard(event, index)}>
-        {label} ({counts?.[tabKey] ?? (list.status === 'success' ? 0 : '…')})
+        {tabLabel(tabKey, label)}
       </button>)}
     </div>
-    <div className="refund-processing__columns">
+    {isBookingRefundTab ? <div className="refund-processing__columns">
+      <section id="refund-tab-panel" role="tabpanel" aria-labelledby="refund-tab-BOOKING_REFUNDS"
+        className="refund-processing__list">
+        {bookingRefunds.status !== 'success' && <ResourceNotice resource={bookingRefunds}
+          title={bookingRefunds.status === 'loading' ? 'Đang tải hoàn tiền lịch đặt…' : 'Chưa tải được danh sách hoàn tiền lịch đặt'} />}
+        {bookingRefunds.status === 'success' && (bookingRefundItems.length
+          ? <ul>{bookingRefundItems.map(item => <li key={item.id}>
+            <button type="button" aria-current={activeBookingRefund?.id === item.id || undefined}
+              onClick={() => setSelectedBookingRefundId(item.id)}>
+              <span className="refund-processing__row-title">
+                <strong>{[item.customer?.displayName || 'Khách hàng', bookingMoney(item.amountVnd)].join(' · ')}</strong>
+                <StatusBadge status={item.state || 'RECORDED'} />
+              </span>
+              <span className="refund-processing__muted">
+                {[
+                  item.booking?.serviceName || item.bookingId,
+                  item.lateFeeVnd > 0 ? 'Phí huỷ muộn ' + bookingMoney(item.lateFeeVnd) : 'Huỷ miễn phí',
+                  item.recordedAt ? complaintDeadline(item.recordedAt) : null
+                ].filter(Boolean).join(' · ')}
+              </span>
+            </button>
+          </li>)}</ul>
+          : <p className="refund-processing__empty">Chưa có khoản hoàn tiền nào từ huỷ lịch đặt.</p>)}
+      </section>
+      {activeBookingRefund && <section className="refund-processing__detail" aria-label="Chi tiết hoàn tiền lịch đặt">
+        <BookingRefundDetail item={activeBookingRefund} />
+      </section>}
+    </div> : <div className="refund-processing__columns">
       <section id="refund-tab-panel" role="tabpanel" aria-labelledby={'refund-tab-' + status}
         className="refund-processing__list">
         {list.status !== 'success' && <ResourceNotice resource={list}
@@ -349,6 +430,6 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
           : <ResourceNotice resource={detail} title={detail.status === 'loading' || detail.status === 'success'
             ? 'Đang tải đề xuất…' : 'Chưa mở được chi tiết đề xuất'} />}
       </section>}
-    </div>
+    </div>}
   </section>;
 }

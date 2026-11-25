@@ -106,6 +106,18 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       const to = /^[a-f0-9]{24}$/.test(bookingId ?? '') && /^[a-f0-9]{24}$/.test(visitId ?? '')
         ? '/account/bookings/' + bookingId + '/visits/' + visitId : '/account/bookings';
       await write(`visit:${visitId}:${version}`, `Visit${operation}`, [{ id: customerId, to }], ...labels[operation], session);
+    },
+    async bookingCancelled({ eventId, sitters }, session) {
+      for (const row of sitters ?? []) {
+        const count = row.visitIds?.length ?? 1;
+        await write(eventId, 'VisitCancelledByCustomer',
+          [{ id: row.sitterId, role: 'PET_SITTER', to: '/sitter/visits' }],
+          'Khách hàng đã huỷ buổi chăm sóc',
+          count > 1
+            ? `Khách hàng đã huỷ ${count} buổi chăm sóc mà bạn đã nhận.`
+            : 'Khách hàng đã huỷ một buổi chăm sóc mà bạn đã nhận.',
+          session);
+      }
     }
   };
 }

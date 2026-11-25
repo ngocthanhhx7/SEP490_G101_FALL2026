@@ -55,8 +55,13 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
     const visits = await connection.db.collection('visits').find({
       bookingId: booking._id, state: { $ne: 'SUPERSEDED' },
       ...(booking.visitIds?.length ? { _id: { $in: booking.visitIds } } : {})
-    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, checkInAt: 1, checkOutAt: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, workflowResults: 1, location: 1, evidenceRefs: 1 }, maxTimeMS: 2000 })
+    }, { projection: { startAt: 1, endAt: 1, state: 1, sitterId: 1, customerVisitId: 1, checkInAt: 1, checkOutAt: 1, cancelledAt: 1, cancellationFeeVnd: 1, cancellationReason: 1, checklist: 1, 'snapshots.checklistItems': 1, 'snapshots.workflow': 1, 'snapshots.pets': 1, workflowResults: 1, location: 1, evidenceRefs: 1 }, maxTimeMS: 2000 })
       .sort({ startAt: 1, _id: 1 }).limit(60).toArray();
+    const refundRows = await connection.db.collection('refunds').find({
+      bookingId: booking._id,
+      state: { $in: ['RECORDED', 'APPROVED', 'TRANSFER_PENDING', 'PAID'] }
+    }, { projection: { visitId: 1, sourceType: 1, state: 1, amountVnd: 1, lateFeeVnd: 1, comboDiscountAdjustmentVnd: 1, reason: 1, recordedAt: 1 }, maxTimeMS: 2000 })
+      .sort({ recordedAt: -1, _id: -1 }).limit(60).toArray();
     const ids = [...new Set([
       ...(includeCustomerName ? [booking.customerId] : []),
       ...original.map(visit => visit.requestedSitterId),
@@ -82,9 +87,23 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
             status: item.status, ...(item.reason ? { reason: item.reason } : {}) })),
           evidence: (visit.evidenceRefs ?? []).filter(item => ['CHECK_IN','CHECK_OUT'].includes(item.kind) && /^[a-f0-9]{64}$/.test(item.mediaId)).slice(0,2)
             .map(({kind,mediaId}) => ({kind,mediaId})),
-          state: visit.state, sitterName: personName(names, visit.sitterId)
+          state: visit.state, sitterName: personName(names, visit.sitterId),
+          ...(visit.cancelledAt ? { cancelledAt: visit.cancelledAt } : {}),
+          ...(Number.isSafeInteger(visit.cancellationFeeVnd) ? { cancellationFeeVnd: visit.cancellationFeeVnd } : {}),
+          ...(visit.cancellationReason ? { cancellationReason: visit.cancellationReason } : {})
         })),
-        price: savedPrice(booking, original)
+        price: savedPrice(booking, original),
+        refunds: refundRows.map(row => ({
+          id: String(row._id),
+          visitId: row.visitId ? String(row.visitId) : null,
+          sourceType: row.sourceType ?? 'COMPLAINT',
+          state: row.state ?? 'RECORDED',
+          amountVnd: money(row.amountVnd) ?? 0,
+          lateFeeVnd: money(row.lateFeeVnd) ?? 0,
+          comboDiscountAdjustmentVnd: money(row.comboDiscountAdjustmentVnd) ?? 0,
+          reason: row.reason ?? null,
+          recordedAt: row.recordedAt ?? null
+        }))
       }
     };
   }

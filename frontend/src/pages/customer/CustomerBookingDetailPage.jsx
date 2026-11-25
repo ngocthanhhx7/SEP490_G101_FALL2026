@@ -13,8 +13,13 @@ import { complaintDeadline, complaintSubmitPath, complaintVisitStart, visitLabel
 import { BookingConfirmation } from '../public/BookingCheckout.jsx';
 import { BookingDetailsContent } from '../../components/common/BookingDetailsContent.jsx';
 import { BookingChangeDialog } from './BookingChangeDialog.jsx';
+import { BookingCancelDialog } from './BookingCancelDialog.jsx';
 import { bookingChangeSent, bookingChangeVisitLabel } from '../../utils/booking-change-format.js';
 import './customer-bookings.css';
+
+const CANCELLABLE_VISIT_STATES = new Set(['SCHEDULED', 'OFFERED', 'ASSIGNED']);
+const NON_CANCELLABLE_BOOKING_STATES = new Set(['CANCELLED', 'CLOSED', 'PAYMENT_EXPIRED', 'OVERDUE']);
+const CANCEL_SUCCESS_MSG28 = 'Đã huỷ. Người chăm sóc thú cưng của bạn đã được thông báo.';
 
 function ComplaintListAction({ resource, bookingId }) {
   if (resource.status === 'loading' || resource.status === 'empty') return <p role="status">Đang tải điều kiện khiếu nại…</p>;
@@ -70,18 +75,48 @@ function CustomerBookingDetail({ bookingId }) {
     ? changeApi.options(bookingId, { signal }) : Promise.resolve({ data: null }), [booking, bookingId, changeApi]));
   const [changeDialog, setChangeDialog] = useState(null);
   const [changeSent, setChangeSent] = useState(false);
+  const [cancelDialog, setCancelDialog] = useState(null);
+  const [cancelMessage, setCancelMessage] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const options = changeOptions.status === 'success' ? changeOptions.data : null;
   const changeable = options?.visits.filter(visit => visit.canSelect) ?? [];
+  const referenceNowMs = Number.isFinite(Date.parse(options?.serverNow)) ? Date.parse(options.serverNow) : Date.now();
+  const cancellableVisits = useMemo(() => {
+    if (!booking?.details?.visits?.length || NON_CANCELLABLE_BOOKING_STATES.has(booking.state)) return [];
+    return booking.details.visits.filter(visit =>
+      CANCELLABLE_VISIT_STATES.has(visit.state)
+      && Number.isFinite(Date.parse(visit.startAt))
+      && Date.parse(visit.startAt) > referenceNowMs
+    );
+  }, [booking, referenceNowMs]);
+  const cancellableIds = useMemo(() => new Set(cancellableVisits.map(visit => visit.id)), [cancellableVisits]);
+
   function openBookingChange(visitId) {
     setChangeSent(false);
+    setCancelMessage('');
     setChangeDialog({ booking, options, initialVisitId: visitId });
   }
 
+  function openBookingCancel(visitId = null) {
+    setChangeSent(false);
+    setCancelMessage('');
+    setCancelDialog({ booking, visits: cancellableVisits, initialVisitId: visitId });
+  }
+
+  const canShowBookingActions = (options?.canChangeBooking && changeable.length > 0) || cancellableVisits.length > 0;
   const visitActions = {
     reportForVisit: visit => <BookingVisitReport visit={visit} readEvidence={images.read} />,
-    booking: options?.canChangeBooking && changeable.length > 0 && <section className="booking-change-actions">
+    booking: canShowBookingActions && <section className="booking-change-actions">
       <h3>Thao tác</h3>
-      <Button aria-label="Đổi giờ cho cả lịch đặt" onClick={() => openBookingChange()}>Đổi giờ</Button>
+      <div className="customer-booking-detail__action-buttons">
+        {options?.canChangeBooking && changeable.length > 0 && (
+          <Button aria-label="Đổi giờ cho cả lịch đặt" onClick={() => openBookingChange()}>Đổi giờ</Button>
+        )}
+        {cancellableVisits.length > 0 && (
+          <Button variant="secondary" className="customer-booking-detail__cancel-button"
+            onClick={() => openBookingCancel(null)}>Huỷ lịch đặt</Button>
+        )}
+      </div>
     </section>,
     beforeList: <>
       {changeOptions.status === 'loading' && <p role="status">Đang kiểm tra điều kiện đổi giờ…</p>}
@@ -90,16 +125,20 @@ function CustomerBookingDetail({ bookingId }) {
       </p>}
       {options && !changeable.length && <p>Hiện không có buổi đủ điều kiện đổi giờ.</p>}
       {changeSent && <p className="booking-change-sent" role="status">{bookingChangeSent}</p>}
+      {cancelMessage && <p className="booking-change-sent" role="status">{cancelMessage}</p>}
       <ComplaintListAction resource={eligibility} bookingId={bookingId} />
     </>,
-    columnLabel: changeable.length > 0 ? 'Thao tác' : undefined,
+    columnLabel: (changeable.length > 0 || cancellableVisits.length > 0) ? 'Thao tác' : undefined,
     forVisit: row => {
       const visit = changeable.find(item => item.id === row.id || item.customerVisitId === row.id);
+      const canCancelRow = cancellableIds.has(row.id);
       return <>
         <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
         {visit && <Button variant="ghost" className="booking-change-visit-action"
           aria-label={'Đổi giờ buổi ' + bookingChangeVisitLabel(visit)}
           onClick={() => openBookingChange(visit.id)}>Đổi giờ</Button>}
+        {canCancelRow && <Button variant="ghost" className="booking-change-visit-action"
+          onClick={() => openBookingCancel(row.id)}>Huỷ buổi</Button>}
       </>;
     }
   };
@@ -112,13 +151,21 @@ function CustomerBookingDetail({ bookingId }) {
       {deadline && <p>Hạn thanh toán: {deadline}</p>}
     </div>}
     <div className={overdue ? 'customer-booking-detail__confirmation--overdue' : undefined}>
-      <BookingConfirmation bookingId={bookingId} api={api} Details={BookingDetailsContent} visitActions={visitActions} />
+      <BookingConfirmation key={bookingId + ':' + reloadKey} bookingId={bookingId} api={api} Details={BookingDetailsContent} visitActions={visitActions} />
     </div>
     {changeDialog && <BookingChangeDialog {...changeDialog} api={changeApi}
       onClose={() => setChangeDialog(null)} onSent={() => {
         setChangeDialog(null);
         setChangeSent(true);
         changeOptions.retry();
+      }} />}
+    {cancelDialog && <BookingCancelDialog {...cancelDialog} api={api}
+      onClose={() => setCancelDialog(null)} onCancelled={() => {
+        setCancelDialog(null);
+        setCancelMessage(CANCEL_SUCCESS_MSG28);
+        setReloadKey(prev => prev + 1);
+        changeOptions.retry();
+        eligibility.retry();
       }} />}
   </section>;
 }
