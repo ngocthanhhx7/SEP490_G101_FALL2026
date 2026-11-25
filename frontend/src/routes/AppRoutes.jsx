@@ -11,7 +11,6 @@ import { VisitSchedulePage } from '../pages/customer/visit-schedule/VisitSchedul
 import { VisitStatusTrackerPage } from '../pages/customer/visit-status-tracker/VisitStatusTrackerPage.jsx';
 import { ComplaintSubmitPage } from '../pages/customer/ComplaintSubmitPage.jsx';
 import { CustomerBookingsPage } from '../pages/customer/CustomerBookingsPage.jsx';
-import { SitterRecommendationsPage } from '../pages/customer/SitterRecommendationsPage.jsx';
 import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx';
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
@@ -160,7 +159,8 @@ function IncidentRoute({ view }) {
   const params = useParams();
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createIncidentApi({ request: createApiClient({ getCsrfToken }) }), [getCsrfToken]);
-  if (view === 'report') return <IncidentReportPage key={`${user?.id}:${params.visitId}`} api={api} />;
+  const imageApi = useMemo(() => createPrivateImageApi({ getCsrfToken }), [getCsrfToken]);
+  if (view === 'report') return <IncidentReportPage key={`${user?.id}:${params.visitId}`} api={api} imageApi={imageApi} />;
   if (view === 'detail') return <IncidentDetailsPage key={`${user?.id}:${params.caseId}`} api={api} />;
   return <IncidentListPage key={user?.id} api={api} />;
 }
@@ -267,8 +267,7 @@ const navigationByRole = {
     ['Đơn chăm sóc', '/account/bookings', 'Dịch vụ của tôi'],
     ['Thông báo', '/account/notifications', 'Dịch vụ của tôi'],
     ['Đơn mua sản phẩm', '/customer/product-orders', 'Mua sắm'],
-    ['Người chăm sóc', '/sitters', 'Khám phá'],
-    ['Tìm sitter phù hợp', '/account/sitter-recommendations', 'Khám phá']
+    ['Người chăm sóc', '/sitters', 'Khám phá']
   ],
   PET_SITTER: [
     ['Công việc của tôi', '/sitter', 'Công việc'],
@@ -435,7 +434,6 @@ export function AppRoutes({
           <Route path="account/bookings/:bookingId/visits/:visitId" element={<VisitStatusTrackerPage />} />
           <Route path="account/bookings/:bookingId/complaints/new" element={<ComplaintSubmitPage />} />
           <Route path="account/schedule-proposals/:proposalId" element={<EmployeeScheduleRoute view="proposal" />} />
-          <Route path="account/sitter-recommendations" element={<SitterRecommendationsPage />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['PET_SITTER']} />}>

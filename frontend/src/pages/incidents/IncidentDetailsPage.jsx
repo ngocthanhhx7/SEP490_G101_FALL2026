@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button, Input, Notice, Select } from '../../components/ui/index.js';
+import { VisitEvidencePreview } from '../../components/common/VisitEvidencePreview.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { incidentApi } from '../../services/incident-api.js';
@@ -20,6 +21,7 @@ export function IncidentDetailsPage({ api = incidentApi, caseId: suppliedCaseId 
   const [form, setForm] = useState({ targetState: 'UNDER_REVIEW', summary: '', actionsTaken: '', followUp: '', staffNotes: '' });
   const [command, setCommand] = useState({ state: 'idle' });
   const load = useCallback(({ signal }) => api.get({ caseId, signal }), [api, caseId]);
+  const readEvidence = useCallback((mediaId, { signal }) => api.readEvidence({ caseId, mediaId, signal }), [api, caseId]);
   const resource = useApiResource(load);
   const item = resource.data;
   const roles = session.user?.roles || session.user?.role ? (session.user.roles || [session.user.role]) : [];
@@ -44,7 +46,10 @@ export function IncidentDetailsPage({ api = incidentApi, caseId: suppliedCaseId 
     {command.state !== 'idle' && <Notice state={command.state} title={command.state === 'success' ? 'Đã xác nhận' : 'Trạng thái yêu cầu'}>{command.message}</Notice>}
     <section className="incident-card"><h2>Thông tin ghi nhận</h2><dl className="incident-facts"><div><dt>Loại</dt><dd>{label(item.category)}</dd></div><div><dt>Thời điểm</dt><dd>{formatDate(item.createdAt)}</dd></div><div><dt>Mô tả</dt><dd>{item.description}</dd></div><div><dt>Việc đã làm ngay</dt><dd>{item.immediateAction || 'Chưa có'}</dd></div></dl></section>
     <section className="incident-card"><h2>Dòng thời gian</h2>{item.timeline?.length ? <ol className="incident-timeline">{item.timeline.map((event, index) => <li key={`${event.type}-${index}`}><strong>{event.type}</strong><p>{event.note}</p><time dateTime={event.occurredAt}>{formatDate(event.occurredAt)}</time></li>)}</ol> : <Notice state="empty" title="Chưa có cập nhật">Dòng thời gian sẽ xuất hiện khi Staff ghi nhận thao tác.</Notice>}</section>
-    {item.evidenceRefs?.length > 0 && <section className="incident-card"><h2>Bằng chứng riêng tư</h2><ul>{item.evidenceRefs.map(ref => <li key={ref.mediaId}>{ref.mediaId}{ref.caption ? ` · ${ref.caption}` : ''}</li>)}</ul></section>}
+    {item.evidenceRefs?.length > 0 && <section className="incident-card"><h2>Bằng chứng riêng tư</h2><ul>{item.evidenceRefs.map((ref, index) => <li key={ref.mediaId}>
+      <VisitEvidencePreview mediaId={ref.mediaId} read={readEvidence} label={ref.caption || `Ảnh sự cố ${index + 1}`} />
+      {ref.caption && <p>{ref.caption}</p>}
+    </li>)}</ul></section>}
     {canResolve && item.state !== 'CLOSED' && <form className="incident-card incident-form" onSubmit={submit}><h2>Ghi nhận xử lý</h2><Select label="Chuyển trạng thái" value={form.targetState} onChange={event => setForm({ ...form, targetState: event.target.value })} disabled={['saving','pending'].includes(command.state)}><option value="UNDER_REVIEW">Đang xem xét</option><option value="RESOLVED">Đã giải quyết</option>{roles.includes('ADMIN') && <option value="CLOSED">Đóng case</option>}</Select><Input label="Tóm tắt xử lý" required maxLength={4000} value={form.summary} onChange={event => setForm({ ...form, summary: event.target.value })} disabled={['saving','pending'].includes(command.state)} /><label className="incident-field"><span>Việc đã thực hiện</span><textarea value={form.actionsTaken} onChange={event => setForm({ ...form, actionsTaken: event.target.value })} rows={3} maxLength={4000} disabled={['saving','pending'].includes(command.state)} /></label><label className="incident-field"><span>Việc cần theo dõi</span><textarea value={form.followUp} onChange={event => setForm({ ...form, followUp: event.target.value })} rows={3} maxLength={2000} disabled={['saving','pending'].includes(command.state)} /></label><label className="incident-field"><span>Ghi chú nội bộ Staff</span><textarea value={form.staffNotes} onChange={event => setForm({ ...form, staffNotes: event.target.value })} rows={3} maxLength={8000} disabled={['saving','pending'].includes(command.state)} /></label><p className="incident-form__hint">Quyết định tiền, giữ tiền hoặc hoàn tiền phải đi qua Admin và contract tài chính; màn này không tự tính hoặc tự giải ngân.</p><label><input type="checkbox" checked={noImpact} disabled={['saving','pending'].includes(command.state)} onChange={event=>setNoImpact(event.target.checked)} />Admin xác nhận không có ảnh hưởng tài chính khi đóng case. Nếu cần đối soát, giữ case chờ xử lý.</label><Button type="submit" disabled={form.targetState==='CLOSED'&&!noImpact} loading={command.state === 'saving'}>{command.state==='pending'?'Kiểm tra lại xử lý':'Lưu xử lý'}</Button></form>}
   </section>;
 }
