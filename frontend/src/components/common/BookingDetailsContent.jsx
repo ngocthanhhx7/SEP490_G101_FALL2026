@@ -26,13 +26,24 @@ const visitStatus = {
   ARRIVED: 'Đã đến', IN_PROGRESS: 'Đang làm', COMPLETED: 'Đã xong', STAFF_CLOSED: 'Đã đóng', CANCELLED: 'Đã huỷ', SUPERSEDED: 'Đã thay thế'
 };
 const paymentStatus = { PAID: 'Đã thanh toán', UNPAID: 'Chưa thanh toán' };
+const refundSourceLabels = {
+  BOOKING_CANCELLATION: 'Huỷ lịch đặt',
+  COMPLAINT: 'Khiếu nại',
+  INCIDENT: 'Sự cố'
+};
+const refundStateLabels = {
+  RECORDED: 'Đã ghi nhận (kế toán chi trả ngoài hệ thống)',
+  APPROVED: 'Đã duyệt hoàn tiền',
+  TRANSFER_PENDING: 'Đang chờ chuyển khoản',
+  PAID: 'Đã hoàn tiền'
+};
 
 function Row({ label, children }) {
   return <div><dt>{label}</dt><dd>{children}</dd></div>;
 }
 
 export function BookingDetailsContent({ booking, visitActions }) {
-  const { terms, visits, price, consentAt, servicePolicies } = booking.details;
+  const { terms, visits, price, consentAt, servicePolicies, refunds = [] } = booking.details;
   const prepay = booking.paymentMode === 'PREPAY';
   const postpay = booking.paymentMode === 'POSTPAY';
   const payment = prepay
@@ -94,6 +105,16 @@ export function BookingDetailsContent({ booking, visitActions }) {
           {postpay && <Row label="Hoá đơn">Chưa có dữ liệu</Row>}
         </dl>
         {postpay && <p className="booking-details__note">Bạn trả tiền sau khi chăm sóc xong. Hoá đơn được gửi khi buổi cuối kết thúc, hạn trả là 48 giờ sau khi hoá đơn được chốt.</p>}
+        {refunds.length > 0 && <div className="booking-details__refunds">
+          <h4>Hoàn tiền đã ghi nhận</h4>
+          <ul>
+            {refunds.map(row => <li key={row.id}>
+              <strong>{amount(row.amountVnd)}</strong> · {refundSourceLabels[row.sourceType] ?? 'Hoàn tiền'} · {refundStateLabels[row.state] ?? 'Đã ghi nhận'}
+              {row.lateFeeVnd > 0 ? ` (phí huỷ muộn: ${amount(row.lateFeeVnd)})` : ''}
+              {row.recordedAt ? ` · ${time(row.recordedAt)} ${date(row.recordedAt)}` : ''}
+            </li>)}
+          </ul>
+        </div>}
         {visitActions?.booking}
       </section>
       <section className="booking-details__card booking-details__visits">

@@ -129,6 +129,17 @@ export function createComplaintApi({ request, fetchImpl, getCsrfToken, onUnautho
         'expectedVersion', 'outcome', 'amountVnd', 'reason'
       ], true);
       return complaintView(result, complaintId);
+    },
+    async bookingRefunds(input = {}) {
+      const params = new globalThis.URLSearchParams();
+      if (input.limit !== undefined && input.limit !== '') params.set('limit', String(input.limit));
+      if (input.bookingId) params.set('bookingId', id(input.bookingId, 'bookingId'));
+      const result = await send(`/admin/booking-refunds${params.toString() ? `?${params}` : ''}`, { signal: input.signal });
+      if (result?.pending) return result;
+      if (!result?.data || !Array.isArray(result.data.items)) {
+        throw new ApiError('INVALID_RESPONSE', result?.status || 0);
+      }
+      return result;
     }
   };
   api.create = api.submit; api.createComplaint = api.submit; api.object = api.disagree; api.finalize = api.decide;
