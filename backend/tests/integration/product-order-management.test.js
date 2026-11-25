@@ -179,13 +179,14 @@ describe('UC-94 Sale Staff dashboard', () => {
     expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1 });
   });
 
-  test('IT-FE25-UC71-18 keeps the UC-94 Low Stock count consistent with UC-71', async () => {
+  test('IT-FE25-UC71-18 shows Sale Staff a Low Stock count consistent with the Low Stock tab', async () => {
     await models.Product.updateMany({}, { $set: { stockOnHand: 100, quantityHeld: 0 } });
     await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 0 } });
     const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
     expect(stock.counts.LOW_STOCK).toBe(1);
-    const dashboard = (await api('saleStaff').get(DASHBOARD).expect(200)).body.data;
-    expect(dashboard.counts.LOW_STOCK).toBe(stock.counts.LOW_STOCK);
+    const lowStock = (await api('saleStaff').get('/api/v1/admin/stock-levels?tab=LOW_STOCK').expect(200)).body.data;
+    expect(lowStock.total).toBe(stock.counts.LOW_STOCK);
+    expect(lowStock.items).toEqual([expect.objectContaining({ code: 'SP-0012', status: 'OUT_OF_STOCK' })]);
   });
 
   test.each([[null, 401], ['a', 403], ['sitter', 403], ['staff', 403], ['admin', 403]])(
