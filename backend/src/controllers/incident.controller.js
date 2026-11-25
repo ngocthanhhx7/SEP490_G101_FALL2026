@@ -7,6 +7,14 @@ function send(res, req, data, status = 200) {
 
 export function createIncidentController({ service } = {}) {
   return {
+    getIncidentConfig: async (req, res) =>
+      send(
+        res,
+        req,
+        typeof service.config === 'function'
+          ? await service.config({ actor: req.auth })
+          : { hotline: null }
+      ),
     createIncidents: async (req, res) => {
       const input = body(req, [
         'visitId',

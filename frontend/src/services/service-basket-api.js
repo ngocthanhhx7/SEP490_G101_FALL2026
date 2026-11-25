@@ -32,6 +32,16 @@ export function createServiceBasketApi(options) {
     async paymentLink(id, idempotencyKey) {
       return (await request(`/checkout/bookings/${encodeURIComponent(id)}/payment-link`, { method: 'POST', body: {}, idempotencyKey })).data;
     },
+    async previewCancellation(id, body, { signal } = {}) {
+      const response = await request(`/checkout/bookings/${encodeURIComponent(id)}/cancellation-preview`, { method: 'POST', body, signal });
+      if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
+      return response.data;
+    },
+    async cancelBooking(id, body, idempotencyKey) {
+      const response = await request(`/checkout/bookings/${encodeURIComponent(id)}/cancellations`, { method: 'POST', body, idempotencyKey });
+      if (response.pending) throw new ApiError('COMMAND_PENDING', 202);
+      return response.data;
+    },
     async pets({ signal } = {}) {
       const response = await request('/pet-care/pets', { signal });
       if (!Array.isArray(response.data)) throw new ApiError('INVALID_RESPONSE');

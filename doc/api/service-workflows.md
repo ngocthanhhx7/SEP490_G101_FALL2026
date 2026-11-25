@@ -41,6 +41,8 @@ Blocked tasks and open incidents enter the existing Visit Board **Cần xử lý
 
 Existing booking details/report include role-filtered tasks, progress, values, notes and private photo previews. Customer sees only customerVisible tasks. Existing uploads do not become visible just because their media ID is known; binding, Visit evidence and ownership must agree. Staff has no general private-image bypass; extended access is only for bound workflow evidence. Reassignment does not remove prior uploader/audit records.
 
+Incident detail can load a referenced private image with `GET /api/v1/cases/:caseId/evidence/:mediaId/content`. The route applies the same participant or Staff access as case detail and preserves customer visibility for workflow evidence. Responses are private and are not cached.
+
 ## Legacy and rollout
 
 Missing snapshot is explicit LEGACY and never loads today's workflow. Boarding captures the definition per <=8-hour care shift, with independent task results; it does not treat a daily care shift as whole-stay checkout. `node scripts/seeds/service-workflows.js` previews the exact 13 demo service proposals. `--apply` requires an existing explicitly selected Admin, a non-production `_dev` database and provisioned history; it creates DRAFT only and skips existing definitions. No sample publication or production data is automatic.

@@ -141,6 +141,9 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       !capability.species?.includes(pet.species) || !Number.isFinite(pet.weightKg) || pet.weightKg > capability.maxWeightKg ||
       !Array.isArray(pet.traits) || pet.traits.some(trait => !capability.allowedTraits?.includes(trait))))
       fail('PET_CAPABILITY_MISMATCH', 'Employee capability does not cover the pets on this visit', 409);
+    if (catalog) await catalog.assertOpen(visit.areaCode, session);
+    const currentAreas = await getCoverageAreas({ session });
+    if (!workAreaKeys(visit.areaCode, currentAreas).some(code => record?.areas.includes(code))) fail('WORK_AREA_MISMATCH', 'Visit is outside registered work areas', 409);
     const offDates = [...(record?.dayOffDates ?? []), ...(capability.dayOffDates ?? [])];
     if (offDates.some(day => day >= date && day <= schedulingDate(new Date(end.getTime() - 1))))
       fail('DAY_OFF', 'Employee has approved time off', 409);
@@ -148,9 +151,6 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       $or: [{ state: 'CONFIRMED' }, { state: 'HOLD', holdExpiresAt: { $gt: new Date(clock()) } }] }, { session }))
       fail('SLOT_UNAVAILABLE', 'Employee has another confirmed schedule block', 409);
     const revision = await revisionAt(sitterId, date, session);
-    if (catalog) await catalog.assertOpen(visit.areaCode, session);
-    const currentAreas = await getCoverageAreas({ session });
-    if (!workAreaKeys(visit.areaCode, currentAreas).some(code => record?.areas.includes(code))) fail('WORK_AREA_MISMATCH', 'Visit is outside registered work areas', 409);
     if (!windowsCover(revision?.workingWindows, start, end)) fail('OUTSIDE_WORKING_HOURS', 'Visit is outside registered shifts', 409);
     const lastDate = schedulingDate(new Date(end.getTime() - 1));
     if (lastDate !== date) {

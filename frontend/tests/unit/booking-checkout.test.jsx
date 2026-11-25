@@ -1,6 +1,12 @@
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { beforeAll } from '@jest/globals';
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BookingCheckoutForm, BookingConfirmation } from '../../src/pages/public/BookingCheckout.jsx';
+import { mobileRoutes } from '../../src/routes/mobile-route-metadata.js';
+beforeAll(() => {
+  window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
+  window.HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
+});
 afterEach(cleanup);
 const service = { id: 'service', name: 'Chăm sóc tại gia', details: { locations: ['HOME'] } };
 const quote = { quoteId: 'quote', items: [{ serviceId: 'service', visitCount: 1, servicePolicy: { title: 'Điều kiện dịch vụ', body: 'Synthetic published policy' } }] };
@@ -34,6 +40,40 @@ test('unknown booking acknowledgement retains the same payload and key while sch
   fireEvent.submit(screen.getByText('Xác nhận lại').closest('form'));
   await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(2));
   expect(api.confirm.mock.calls[0]).toEqual(api.confirm.mock.calls[1]);
+});
+
+test('checkout accepts only confirmed unavailable visits and reuses the last command after a timeout', async () => {
+  const api = apiFixture();
+  api.availability = jest.fn(async ({ visit }) => ({ sitters: [{ id: 'sitter', displayName: 'Sitter đã chăm',
+    eligible: !visit.startAt.startsWith('2098-11-03'), unavailableReason: 'DAY_OFF' }] }));
+  api.confirm.mockRejectedValueOnce({ status: 409, code: 'SITTER_AVAILABILITY_CONSENT_REQUIRED', lineFields: {
+    1: { acceptUnavailableSitter: 'SLOT_UNAVAILABLE' }
+  } }).mockRejectedValueOnce({ code: 'TIMEOUT' });
+  const multiQuote = { ...quote, items: [{ ...quote.items[0], visitCount: 2 }] };
+  render(<MemoryRouter><BookingCheckoutForm quote={multiQuote} services={[service]} api={api} onConfirmed={jest.fn()} /></MemoryRouter>);
+  await screen.findAllByText('Nhà đã xác nhận');
+  screen.getAllByLabelText('Bắt đầu (giờ Việt Nam)').forEach((el, i) => fireEvent.change(el, { target: { value: `2098-11-0${i + 3}T09:00` } }));
+  screen.getAllByLabelText('Địa chỉ đã lưu').forEach(el => fireEvent.change(el, { target: { value: 'address' } }));
+  (await screen.findAllByLabelText('Người chăm sóc mong muốn')).forEach(el => fireEvent.change(el, { target: { value: 'sitter' } }));
+  fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
+  fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+  const first = await screen.findByRole('dialog');
+  expect(first).toHaveTextContent('Buổi 1');
+  expect(first).not.toHaveTextContent('Buổi 2');
+  expect(api.confirm).not.toHaveBeenCalled();
+  fireEvent.click(within(first).getByRole('button', { name: 'Vẫn đặt lịch' }));
+  await screen.findByText(/Buổi 2 \(2098/);
+  const [initialBody, initialKey] = api.confirm.mock.calls[0];
+  expect(initialBody.visits[0].acceptUnavailableSitter).toBe(true);
+  expect(initialBody.visits[1]).not.toHaveProperty('acceptUnavailableSitter');
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Vẫn đặt lịch' }));
+  await screen.findByText('Xác nhận lại');
+  const [updatedBody, updatedKey] = api.confirm.mock.calls[1];
+  expect(updatedBody.visits.map(visit => visit.acceptUnavailableSitter)).toEqual([true, true]);
+  expect(updatedKey).not.toBe(initialKey);
+  fireEvent.submit(screen.getByText('Xác nhận lại').closest('form'));
+  await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(3));
+  expect(api.confirm.mock.calls[2]).toEqual([updatedBody, updatedKey]);
 });
 
 test('return URL reads actual unpaid state; a disabled provider never creates a fake payment link', async () => {
@@ -75,4 +115,13 @@ test('explicit account detail id loads the owned order and presents recognizable
   expect(screen.getByText('Buổi 1 · Milo')).toBeVisible();
   expect(screen.getByText('Chờ người chăm sóc')).toBeVisible();
   expect(api.booking).toHaveBeenCalledWith('saved-order', expect.any(Object));
+});
+
+test('ST-BKG-21: empty address link points to /account/addresses and sitter recommendations mobile route M16 is hidden', async () => {
+  const api = apiFixture();
+  api.addresses.mockResolvedValue({ data: [] });
+  render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={jest.fn()} /></MemoryRouter>);
+  const link = await screen.findByRole('link', { name: 'Thêm địa chỉ chăm sóc' });
+  expect(link).toHaveAttribute('href', '/account/addresses');
+  expect(mobileRoutes.some(row => row.path === '/account/sitter-recommendations' || row.id === 'M16')).toBe(false);
 });

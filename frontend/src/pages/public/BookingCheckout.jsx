@@ -10,6 +10,7 @@ import { BookingDateTime } from '../../components/calendar/BookingDateTime.jsx';
 import { vietnamDate, vietnamDateTime } from '../../utils/calendar-date.js';
 import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { VerifiedVisitRating } from '../customer/VerifiedVisitRating.jsx';
+import { Button, Dialog } from '../../components/ui/index.js';
 import './booking-checkout.css';
 
 const money = value => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
@@ -21,9 +22,28 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   VISIT_SCHEDULE_OVERLAP: 'Lịch của cùng thú cưng đang bị trùng giờ.', BOARDING_CARE_PLAN_REQUIRED: 'Lịch lưu trú cần được nhân viên xác nhận kế hoạch ca chăm sóc.',
   PAYMENT_PROVIDER_UNAVAILABLE: 'Chưa thể tạo link thanh toán. Đơn vẫn đang chờ thanh toán.',
   PAYMENT_LINK_RECONCILIATION_REQUIRED: 'Yêu cầu thanh toán đang cần đối soát. Vui lòng liên hệ Paw World Care.',
+  PREFERRED_SITTER_HISTORY_REQUIRED: 'Bạn chỉ có thể chọn người chăm sóc đã từng chăm thú cưng này trước đó.',
+  SITTER_AVAILABILITY_CONSENT_REQUIRED: 'Lịch của người chăm sóc đã thay đổi. Vui lòng kiểm tra lại từng buổi.',
   HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
   COMMAND_PENDING: 'Yêu cầu đang được xử lý.', INVALID_STATE: 'Đơn không còn ở trạng thái có thể thanh toán.',
   VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[error.code] || apiErrorFeedback(error, 'Chưa xác nhận được thao tác. Vui lòng thử lại.');
+
+const busyReasons = new Set(['DAY_OFF', 'OUTSIDE_WORKING_HOURS', 'SLOT_UNAVAILABLE']);
+
+function PreviousSitterField({ api, quoteId, itemIndex, index, start, location, addressId }) {
+  const load = useCallback(async ({ signal }) => {
+    const visit = { itemIndex, startAt: start + ':00+07:00', location, ...(location !== 'FACILITY' && { addressId }) };
+    return { data: (await api.availability({ quoteId, visit }, { signal })).sitters };
+  }, [api, quoteId, itemIndex, start, location, addressId]);
+  const result = useApiResource(load);
+  if (result.status === 'error') return <p role="alert">Chưa tải được người chăm sóc mong muốn. <button type="button" onClick={result.retry}>Thử lại</button></p>;
+  if (!result.data?.length) return null;
+  return <label>Người chăm sóc mong muốn<select name={`sitter:${index}`} defaultValue="">
+    <option value="">Paw World Care sắp xếp</option>
+    {result.data.map(s => <option key={s.id} value={s.id} data-busy={s.eligible === false && busyReasons.has(s.unavailableReason)}
+      disabled={s.eligible === false && !busyReasons.has(s.unavailableReason)}>{s.displayName}</option>)}
+  </select></label>;
+}
 
 export function BookingCheckoutForm({ quote, services, api, onConfirmed, recommendation, onEditQuote }) {
   const addresses = useApiResource(api.addresses), options = useApiResource(api.checkoutOptions), [busy, setBusy] = useState(false), [error, setError] = useState(null), [uncertain, setUncertain] = useState(false);
@@ -32,6 +52,8 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     service: services.find(service => service.id === item.serviceId) })));
   const [selectedLocations, setSelectedLocations] = useState(() => visits.map(row => recommendation ? 'HOME' : row.service?.details?.locations?.[0] || 'HOME'));
   const [starts, setStarts] = useState(() => visits.map(() => recommendation ? vietnamDateTime(new Date(recommendation.startAt)) : ''));
+  const [addressIds, setAddressIds] = useState(() => visits.map(() => recommendation?.addressId ?? ''));
+  const [busySlots, setBusySlots] = useState([]);
   const today = vietnamDate();
   const minimumFor = location => vietnamDateTime(new Date(Math.ceil((Date.now() + (location === 'HOME'
     ? 2 * 3600000 : quote.paymentMode === 'PREPAY' ? 15 * 60000 : 1)) / 60000) * 60000));
@@ -47,10 +69,33 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
           addressId: recommendation.addressId, startAt: recommendation.startAt, location: 'HOME' } : {}) })) };
       const fingerprint = JSON.stringify(body);
       if (command.current?.fingerprint !== fingerprint) command.current = { body, fingerprint, key: `checkout:${globalThis.crypto.randomUUID()}` };
+      const conflicts = visits.flatMap((_, index) => event.currentTarget.elements.namedItem(`sitter:${index}`)?.selectedOptions?.[0]?.dataset.busy === 'true'
+        && !command.current.body.visits[index].acceptUnavailableSitter ? [index] : []);
+      if (conflicts.length) { setError(null); setBusySlots(conflicts); return; }
+    }
+    return confirmCommand();
+  };
+  const confirmCommand = async (accepted = []) => {
+    if (locked.current) return;
+    if (accepted.length) {
+      const current = command.current;
+      const body = { ...current.body, visits: current.body.visits.map((row, index) =>
+        accepted.includes(index) ? { ...row, acceptUnavailableSitter: true } : row) };
+      command.current = { ...current, body, key: `checkout:${globalThis.crypto.randomUUID()}` };
+      setBusySlots([]);
     }
     locked.current = true; setBusy(true); setError(null);
     try { const response = await api.confirm(command.current.body, command.current.key); onConfirmed(response); }
-    catch (failure) { setError(errorText(failure)); setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(failure.code) || failure.status >= 500); }
+    catch (failure) {
+      if (failure.status === 409 && failure.code === 'SITTER_AVAILABILITY_CONSENT_REQUIRED') {
+        const conflicts = command.current.body.visits.flatMap((row, index) => row.requestedSitterId && !row.acceptUnavailableSitter
+          && failure.lineFields?.[index]?.acceptUnavailableSitter ? [index] : []);
+        setUncertain(false);
+        if (conflicts.length) { setBusySlots(conflicts); return; }
+      }
+      setError(errorText(failure));
+      setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(failure.code) || failure.status >= 500);
+    }
     finally { locked.current = false; setBusy(false); }
   };
   return <form className="pwc-booking-checkout" onSubmit={submit}><h3>Lịch chăm sóc</h3>
@@ -64,19 +109,19 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
         <label>Địa điểm<select disabled={Boolean(recommendation)} value={selectedLocations[index]} onChange={event => setSelectedLocations(current => current.map((value, i) => i === index ? event.target.value : value))}>
           {(row.service?.details?.locations || ['HOME']).map(value => <option key={value} value={value}>{locations[value]}</option>)}
         </select></label>
-        <label>Nhân viên chăm sóc<select name={`sitter:${index}`} disabled={Boolean(recommendation)} defaultValue={recommendation?.requestedSitterId ?? ''}>
-          {recommendation && <option value={recommendation.requestedSitterId}>{recommendation.displayName}</option>}
-          <option value="">Paw World Care sắp xếp</option>
-          {(options.data?.sitters || []).map(sitter => <option key={sitter.id} value={sitter.id}>{sitter.displayName}</option>)}
-        </select></label>
+        {recommendation ? <label>Người chăm sóc mong muốn<select disabled value={recommendation.requestedSitterId}>
+          <option value={recommendation.requestedSitterId}>{recommendation.displayName}</option></select></label>
+          : api.availability && starts[index] && (selectedLocations[index] === 'FACILITY' || addressIds[index]) &&
+            <PreviousSitterField key={[starts[index],selectedLocations[index],addressIds[index]].join('|')} api={api} quoteId={quote.quoteId}
+              itemIndex={row.itemIndex} index={index} start={starts[index]} location={selectedLocations[index]} addressId={addressIds[index]} />}
         {selectedLocations[index] === 'FACILITY' && <p>{options.data?.facilityAddress || 'Chưa có địa chỉ cơ sở được xác nhận.'}</p>}
         {selectedLocations[index] !== 'FACILITY' && <label>Địa chỉ đã lưu<select name={`address:${index}`} required disabled={Boolean(recommendation)}
-          value={recommendation?.addressId} defaultValue={recommendation ? undefined : ''}>
+          value={addressIds[index]} onChange={event => setAddressIds(current => current.map((value, i) => i === index ? event.target.value : value))}>
           <option value="">Chọn địa chỉ</option>{(addresses.data || []).map(address => <option key={address.id || address._id} value={address.id || address._id}>{address.label}</option>)}
         </select></label>}
       </div>)}
       {addresses.status === 'error' && <p role="alert">Chưa tải được địa chỉ. <button type="button" onClick={addresses.retry}>Tải lại địa chỉ</button></p>}
-      {selectedLocations.some(value => value !== 'FACILITY') && addresses.status === 'empty' && <p><Link to="/account/sitter-recommendations">Thêm địa chỉ chăm sóc</Link></p>}
+      {selectedLocations.some(value => value !== 'FACILITY') && addresses.status === 'empty' && <p><Link to="/account/addresses">Thêm địa chỉ chăm sóc</Link></p>}
       {quote.items.map((item, index) => item.servicePolicy && <details key={index}><summary>{item.servicePolicy.title}</summary><p className="pwc-checkout-policy">{item.servicePolicy.body}</p></details>)}
       <label className="pwc-checkout-consent"><input type="checkbox" name="consent" required />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.</label>
     </fieldset>
@@ -85,7 +130,12 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     {options.status === 'error' && <p role="alert">Đặt lịch hiện chưa khả dụng. <button type="button" onClick={options.retry}>Thử lại</button></p>}
     {onEditQuote && <button type="button" disabled={busy || uncertain} onClick={onEditQuote}>Quay lại báo giá</button>}
     <button type="submit" disabled={busy || options.status !== 'success'}><CalendarCheck size={18} />{busy ? 'Đang xác nhận…' : uncertain ? 'Xác nhận lại' : 'Xác nhận đặt dịch vụ'}</button>
+    <Dialog open={busySlots.length > 0} onClose={() => setBusySlots([])} title="Người chăm sóc mong muốn không rảnh"
+      description={busySlots.map(index => `Buổi ${index + 1} (${starts[index].replace('T', ' ')})`).join(', ')}
+      footer={<><Button type="button" onClick={() => { command.current = null; setBusySlots([]); }}>Đổi ngày</Button>
+        <Button type="button" onClick={() => void confirmCommand(busySlots)}>Vẫn đặt lịch</Button></>} />
   </form>;
+
 }
 
 export function BookingConfirmation({ api, bookingId: suppliedBookingId, Details, visitActions }) {
