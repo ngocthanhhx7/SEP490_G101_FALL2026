@@ -78,14 +78,14 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
         { _id: { $in: changeIds }, state: 'APPROVED' },
         { projection: { items: 1 }, maxTimeMS: 2000 }
       ).limit(changeIds.length).toArray() : Promise.resolve([]),
-      unassignedVisitIds.length ? connection.db.collection('employeevisitoffers').find(
+      unassignedVisitIds.length ? connection.db.collection('employeevisitoffers').distinct('visitId',
         { visitId: { $in: unassignedVisitIds }, state: 'PENDING', deadline: { $gt: new Date(clock()) } },
-        { projection: { visitId: 1 }, maxTimeMS: 2000 }
-      ).toArray() : Promise.resolve([])
+        { maxTimeMS: 2000 }
+      ) : Promise.resolve([])
     ]);
     const names = new Map(users.map(user => [String(user._id), user.displayName]));
     const changesById = new Map(approvedChanges.map(change => [String(change._id), change]));
-    const pendingOfferVisitIds = new Set(pendingOffers.map(offer => String(offer.visitId)));
+    const pendingOfferVisitIds = new Set(pendingOffers.map(String));
     const bookingCode = booking.bookingCode ?? booking.code ?? null;
     const previousSlotFor = visit => {
       if (!visit.bookingChangeRequestId) return {};
