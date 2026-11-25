@@ -42,6 +42,26 @@
 .booking-details__payment { grid-area: payment; }
 .booking-details__visits { grid-area: visits; }
 
+.booking-details__visits-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem 1rem;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+
+.booking-details__visits-header h3 {
+  margin: 0;
+}
+
+.booking-details__schedule-link {
+  color: #603388;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .booking-details dl { margin: 0; }
 
 .booking-details dl > div {
