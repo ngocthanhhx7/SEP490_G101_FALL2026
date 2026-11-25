@@ -1,6 +1,5 @@
 import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
-import { Types } from 'mongoose';
-import { readDirectedSitterPage } from './directed-sitter-directory.service.js';
+import { listPreviousPetSitters } from '../customer-care-history.service.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { bookingCheckoutInput } from '../../validators/booking-checkout.validator.js';
@@ -10,12 +9,9 @@ import { readServicePresentation } from '../service-presentation.service.js';
 
 export function createCheckoutAvailabilityService({ connection, repository, clock = Date.now, facilityAddress, facilityCoordinates }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
-  const col = name => connection.collection(name), oid = value => new Types.ObjectId(value);
   async function guard(actor, visit, session) {
     if (!repository) fail('SCHEDULING_UNAVAILABLE', 'Employee scheduling unavailable', 503);
     const sitterId = String(visit.requestedSitterId);
-    const published = await col('sitterpublicprofiles').findOne({ userId: oid(sitterId), state: 'APPROVED' }, { session });
-    if (!published) fail('SITTER_NOT_ELIGIBLE', 'Employee is no longer publicly available', 409);
     await repository.employeeGuard(sitterId, session);
     await repository.eligible(sitterId, visit, session);
   }
@@ -47,35 +43,27 @@ export function createCheckoutAvailabilityService({ connection, repository, cloc
         areaCode: address?.areaCode ?? 'DISTRICT_HAI_BA_TRUNG', snapshots: { pets, serviceAddress: facilityAddress,
           point: address?.point ?? (facilityCoordinates ? { type: 'Point', coordinates: facilityCoordinates } : undefined) } };
       if (row.location === 'FACILITY' && !facilityAddress) fail('FACILITY_ADDRESS_REQUIRED', 'Facility address unavailable', 409);
-      if (body.directory === true) {
-        const result = await readDirectedSitterPage(connection.db, oid(selection.serviceId), body.page ?? 1);
-        const sitters = [], deadline = Date.now() + 10000;
-        for (const sitter of result.sitters) {
-          if (Date.now() >= deadline) { sitters.push({ ...sitter, eligible: false, unavailableReason: 'SCHEDULING_UNAVAILABLE' }); continue; }
-          try { await repository.eligible(sitter.id, visit); sitters.push({ ...sitter, eligible: true, unavailableReason: null }); }
-          catch (error) {
-            if (error.status !== 409) throw error;
-            sitters.push({ ...sitter, eligible: false, unavailableReason: error.code });
-          }
-        }
-        return { sitters, nextPage: result.nextPage, complete: result.nextPage === null, status: 'DIRECTORY' };
-      }
-      const profiles = await col('sitterpublicprofiles').find({ state: 'APPROVED' }, { projection: { userId: 1 } }).sort({ userId: 1 }).limit(101).toArray();
+      const previousSitters = await listPreviousPetSitters(connection.db, actor.userId, selection.petIds);
       const sitters = [], deadline = Date.now() + 10000;
-      let scanned = 0;
-      for (const profile of profiles.slice(0, 100)) {
-        if (Date.now() >= deadline) break;
-        scanned++;
-        const user = await col('users').findOne({ _id: profile.userId, state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } }, { projection: { displayName: 1 } });
-        const status = await col('sitterstatuses').findOne({ userId: profile.userId, status: 'ACTIVE' });
-        if (!user || !status) continue;
+      for (const sitter of previousSitters) {
+        if (Date.now() >= deadline) {
+          sitters.push({ ...sitter, eligible: false, unavailableReason: 'SCHEDULING_UNAVAILABLE' });
+          continue;
+        }
         try {
-          await repository.eligible(String(user._id), visit);
-          sitters.push({ id: String(user._id), displayName: user.displayName });
-        } catch (error) { if (error.status !== 409) throw error; }
+          await repository.eligible(sitter.id, visit);
+          sitters.push({ ...sitter, eligible: true, unavailableReason: null });
+        } catch (error) {
+          if (error.status !== 409) throw error;
+          sitters.push({ ...sitter, eligible: false, unavailableReason: error.code });
+        }
       }
-      const complete = profiles.length <= 100 && scanned === profiles.length;
-      return { sitters, complete, status: sitters.length ? 'AVAILABLE' : complete ? 'NO_ELIGIBLE_SITTER' : 'SEARCH_INCOMPLETE' };
+      return {
+        sitters,
+        nextPage: null,
+        complete: true,
+        status: sitters.length ? 'PREFERRED_SITTERS' : 'NO_PREVIOUS_SITTER'
+      };
     }
   };
 }

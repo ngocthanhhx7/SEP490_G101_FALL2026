@@ -107,11 +107,11 @@ export function createPrivateImageService({ connection, media, secret, maxImages
       { $set: { state: 'READY', contentDigest: digest(image), byteLength: image.length, contentType } });
     return { id, state: 'READY', replayed: false };
   }
-  async function read({ actor, id }) {
+  async function readWithAccess({ actor, id }, canRead) {
     if (!/^[a-f0-9]{64}$/.test(id ?? '') || !Types.ObjectId.isValid(actor?.userId)) throw notFound();
     const record = await PrivateImage.findOne({ _id: id, state: 'READY' })
       .select('+storageRef +contentDigest').lean();
-    if (!record || String(record.ownerId) !== actor.userId && !(await authorizeEvidenceRead?.({ actor, image: record }))) throw notFound(); // No Admin/Staff bypass.
+    if (!record || !(await canRead(record))) throw notFound();
     let result;
     try { result = await media.read({ storageRef: record.storageRef }); }
     catch { throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private media is unavailable'); }
@@ -121,5 +121,8 @@ export function createPrivateImageService({ connection, media, secret, maxImages
     }
     return result;
   }
-  return Object.freeze({ upload, read });
+  const read = ({ actor, id }) => readWithAccess({ actor, id }, image =>
+    String(image.ownerId) === actor.userId || authorizeEvidenceRead?.({ actor, image }));
+  const readScoped = ({ actor, id, authorize }) => readWithAccess({ actor, id }, authorize);
+  return Object.freeze({ upload, read, readScoped });
 }

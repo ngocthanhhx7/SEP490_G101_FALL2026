@@ -6,6 +6,12 @@
 .incident-card { display: grid; gap: var(--pwc-space-3); padding: var(--pwc-space-5); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-card); background: var(--pwc-surface); box-shadow: var(--pwc-shadow-soft); }
 .incident-form { max-width: 46rem; }
 .incident-field { display: grid; gap: .4rem; font-weight: 700; }
+.incident-field__error { color: var(--pwc-danger, #b82438); font-size: var(--pwc-text-small); font-weight: 700; }
+.incident-photos__controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.incident-photos__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.incident-photos__list { list-style: none; margin: .25rem 0 0; padding: 0; display: grid; gap: .4rem; }
+.incident-photos__item { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .45rem .75rem; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); background: var(--pwc-lavender-soft); font-weight: 600; }
+.incident-photos__remove { border: 0; background: transparent; color: var(--pwc-danger, #b82438); font: inherit; font-weight: 700; cursor: pointer; }
 .incident-field textarea { width: 100%; min-height: 3rem; box-sizing: border-box; resize: vertical; border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-control); padding: .75rem; color: var(--pwc-ink); background: var(--pwc-surface); font: inherit; line-height: var(--pwc-leading); }
 .incident-field textarea:focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
 .incident-form__hint { margin: 0; color: var(--pwc-ink-muted); font-size: var(--pwc-text-small); line-height: var(--pwc-leading); }

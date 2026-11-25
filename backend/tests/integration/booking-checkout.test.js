@@ -173,6 +173,11 @@ test('binds advisory selection to owned current match and immutable care snapsho
   await connection.collection('sitterpublicprofiles').insertOne({ userId: sitterId, state: 'APPROVED' });
   await connection.collection('sitterstatuses').insertOne({ userId: sitterId, status: 'ACTIVE' });
   await employeeForCheckout(sitterId, item('home-care').serviceId);
+  await connection.collection('visits').insertOne({
+    _id: oid(), customerId: new mongoose.Types.ObjectId(owner.userId), sitterId, petIds: [pet._id], state: 'COMPLETED',
+    startAt: new Date(at.getTime() - 86400000), endAt: new Date(at.getTime() - 82800000),
+    snapshots: { pets: [{ id: String(pet._id), name: pet.name }] }
+  });
   await connection.models.Pet.updateOne({ _id: pet._id }, { $set: { ageMonths: 12, careProfile: { allergies: { status: 'UNKNOWN' } } } });
   await connection.models.CustomerAddress.updateOne({ _id: address._id }, { $set: { privateAccessNotes: 'Synthetic secret entry' } });
   const currentPet = await connection.models.Pet.findById(pet._id).lean(), q = await quote('home-care', 1), body = input(q);
@@ -203,28 +208,55 @@ test('binds advisory selection to owned current match and immutable care snapsho
   await expect(checkout.confirm(owner, { ...body, quoteId: another.quoteId }, 'match-another-quote')).rejects.toMatchObject({ code: 'MATCH_ALREADY_USED' });
 });
 
-test('directed availability uses authoritative eligibility and checkout rejects an employee who became unavailable', async () => {
-  const sitterId = oid();
-  await connection.collection('users').insertOne({ _id: sitterId, displayName: 'Synthetic available sitter', state: 'ACTIVE', roles: ['PET_SITTER'] });
-  await connection.collection('sitterpublicprofiles').insertOne({ userId: sitterId, state: 'APPROVED' });
-  await connection.collection('sitterstatuses').insertOne({ userId: sitterId, status: 'ACTIVE' });
-  await employeeForCheckout(sitterId, item('home-care').serviceId);
+test('ST-BKG-21 / GBR-12: preferred sitter lists only sitters who cared for chosen pets, blocks strangers, and allows booking busy preferred sitter', async () => {
+  const previousSitterId = oid(), strangerSitterId = oid();
+  await connection.collection('users').insertMany([
+    { _id: previousSitterId, displayName: 'Synthetic previous sitter', state: 'ACTIVE', roles: ['PET_SITTER'] },
+    { _id: strangerSitterId, displayName: 'Synthetic stranger sitter', state: 'ACTIVE', roles: ['PET_SITTER'] }
+  ]);
+  await connection.collection('sitterpublicprofiles').insertMany([
+    { userId: previousSitterId, state: 'APPROVED' },
+    { userId: strangerSitterId, state: 'APPROVED' }
+  ]);
+  await connection.collection('sitterstatuses').insertMany([
+    { userId: previousSitterId, status: 'ACTIVE' },
+    { userId: strangerSitterId, status: 'ACTIVE' }
+  ]);
+  await employeeForCheckout(previousSitterId, item('home-care').serviceId);
+  await employeeForCheckout(strangerSitterId, item('home-care').serviceId);
+  await connection.collection('visits').insertOne({
+    _id: oid(), customerId: new mongoose.Types.ObjectId(owner.userId), sitterId: previousSitterId, petIds: [pet._id], state: 'COMPLETED',
+    startAt: new Date(at.getTime() - 172800000), endAt: new Date(at.getTime() - 169200000),
+    snapshots: { pets: [{ id: String(pet._id), name: pet.name }] }
+  });
+
   const q = await quote('home-care', 1), body = input(q), visit = body.visits[0];
   const result = await availability.search(owner, { quoteId: q.quoteId, visit });
-  expect(result.sitters).toContainEqual({ id: String(sitterId), displayName: 'Synthetic available sitter' });
-  const directory = await availability.search(owner, { quoteId: q.quoteId, visit, directory: true, page: 1 });
-  expect(directory.sitters).toContainEqual(expect.objectContaining({ id: String(sitterId), eligible: true, rating: null, reviewCount: 0 }));
+  expect(result.sitters).toContainEqual(expect.objectContaining({ id: String(previousSitterId), displayName: 'Synthetic previous sitter', eligible: true }));
+  expect(result.sitters.map(row => row.id)).not.toContain(String(strangerSitterId));
   await expect(availability.search(other, { quoteId: q.quoteId, visit })).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
-  const before = await connection.collection('bookings').countDocuments();
-  await connection.collection('visits').insertOne({ _id: oid(), sitterId, state: 'ASSIGNED', startAt: new Date(visit.startAt),
-    endAt: new Date(Date.parse(visit.startAt)+3600000), location: 'HOME', addressId: address._id, snapshots: { point: address.point } });
+
+  // Stranger sitter is rejected at checkout even if called directly via API (GBR-12).
+  await expect(
+    checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(strangerSitterId) }] }, 'directed-stranger-blocked')
+  ).rejects.toMatchObject({ code: 'PREFERRED_SITTER_HISTORY_REQUIRED', status: 409 });
+
+  // Previous sitter becomes busy: availability flags ineligible for MSG162, yet "Book anyway" succeeds with requestedSitterId preserved.
+  await connection.collection('visits').insertOne({ _id: oid(), sitterId: previousSitterId, state: 'ASSIGNED', startAt: new Date(visit.startAt),
+    endAt: new Date(Date.parse(visit.startAt) + 3600000), location: 'HOME', addressId: address._id, snapshots: { point: address.point } });
   const unavailable = await availability.search(owner, { quoteId: q.quoteId, visit });
-  expect(unavailable.sitters.map(row => row.id)).not.toContain(String(sitterId));
-  const full = await availability.search(owner, { quoteId: q.quoteId, visit, directory: true });
-  expect(full.sitters).toContainEqual(expect.objectContaining({ id: String(sitterId), eligible: false, unavailableReason: 'SLOT_UNAVAILABLE' }));
-  await expect(checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(sitterId) }] }, 'directed-became-unavailable')).rejects.toMatchObject({ code: 'SLOT_UNAVAILABLE' });
-  expect(await connection.collection('bookings').countDocuments()).toBe(before);
-  expect((await checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'SYSTEM' }] }, 'system-without-selected-sitter')).state).toBe('DISPATCH_PENDING');
+  expect(unavailable.sitters).toContainEqual(expect.objectContaining({ id: String(previousSitterId), eligible: false, unavailableReason: 'SLOT_UNAVAILABLE' }));
+  await connection.collection('aisitterprofiles').updateOne({ userId: previousSitterId }, { $set: { active: false } });
+  await expect(checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(previousSitterId) }] }, 'directed-capability-lost'))
+    .rejects.toMatchObject({ code: 'SERVICE_CAPABILITY_REQUIRED', status: 409 });
+  await connection.collection('aisitterprofiles').updateOne({ userId: previousSitterId }, { $set: { active: true } });
+  const directedVisit = { ...visit, bookingMode: 'DIRECT', requestedSitterId: String(previousSitterId) };
+  await expect(checkout.confirm(owner, { ...body, visits: [directedVisit] }, 'directed-no-consent'))
+    .rejects.toMatchObject({ code: 'SITTER_AVAILABILITY_CONSENT_REQUIRED', status: 409,
+      details: { lineFields: { 0: { acceptUnavailableSitter: 'SLOT_UNAVAILABLE' } } } });
+  const booked = await checkout.confirm(owner, { ...body, visits: [{ ...directedVisit, acceptUnavailableSitter: true }] }, 'directed-book-anyway');
+  expect(booked.state).toBe('DISPATCH_PENDING');
+  expect(booked.visits[0].requestedSitterId).toBe(String(previousSitterId));
 });
 
 test('system checkout preserves advisory candidate order without directing an employee', async () => {
@@ -362,12 +394,16 @@ test('expired and uncertain provider requests never create another link or reviv
 });
 
 
-test('checkout options offer recommendations only before the Customer has completed care', async () => {
-  expect((await checkout.options(owner)).recommendationAllowed).toBe(true);
-  await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(other.userId), state: 'COMPLETED' });
-  expect((await checkout.options(owner)).recommendationAllowed).toBe(true);
-  await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(owner.userId), state: 'COMPLETED' });
+test('ST-BKG-21 / GBR-12: checkout options disable AI recommendations and list only sitters who previously cared for the customer', async () => {
   expect((await checkout.options(owner)).recommendationAllowed).toBe(false);
+  const priorSitter = oid();
+  await connection.collection('users').insertOne({ _id: priorSitter, displayName: 'Prior Care Sitter', state: 'ACTIVE', roles: ['PET_SITTER'] });
+  await connection.collection('sitterstatuses').insertOne({ userId: priorSitter, status: 'ACTIVE' });
+  expect((await checkout.options(owner)).sitters.map(s => s.id)).not.toContain(String(priorSitter));
+  await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(owner.userId), sitterId: priorSitter, state: 'COMPLETED' });
+  const after = await checkout.options(owner);
+  expect(after.recommendationAllowed).toBe(false);
+  expect(after.sitters).toContainEqual({ id: String(priorSitter), displayName: 'Prior Care Sitter' });
 });
 
 test('owned detail exposes saved pet names and assigned sitter name without contacts or private care notes', async () => {
