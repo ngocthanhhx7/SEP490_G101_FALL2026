@@ -130,9 +130,9 @@ export function IncidentReportPage({
 
     setStatus({ state: 'saving' });
     setPhotoError('');
+    const evidenceRefs = [];
+    const updatedPhotos = [...photos];
     try {
-      const evidenceRefs = [];
-      const updatedPhotos = [...photos];
       for (let index = 0; index < updatedPhotos.length; index += 1) {
         const item = updatedPhotos[index];
         if (item.mediaId) {
@@ -145,8 +145,17 @@ export function IncidentReportPage({
         updatedPhotos[index] = { ...item, mediaId };
         evidenceRefs.push(mediaId);
       }
+    } catch {
+      setStatus({
+        state: 'error',
+        message: 'Chưa thể tải ảnh lên kho riêng tư. Bạn có thể bỏ ảnh để gửi báo cáo hoặc thử lại sau.'
+      });
+      return;
+    } finally {
       if (updatedPhotos.length) setPhotos(updatedPhotos);
+    }
 
+    try {
       operation.current ??= {
         key: globalThis.crypto.randomUUID(),
         body: {
@@ -170,11 +179,10 @@ export function IncidentReportPage({
     } catch (error) {
       const uncertain = !error.status || error.status >= 500;
       if (!uncertain) operation.current = null;
-      const uploadFailed = error.code === 'PROVIDER_UNAVAILABLE' || error.message === 'UPLOAD_FAILED';
       setStatus({
-        state: uploadFailed ? 'error' : uncertain ? 'pending' : error.status === 403 ? 'forbidden' : 'error',
-        message: uploadFailed
-          ? 'Chưa thể tải ảnh lên kho riêng tư. Bạn có thể bỏ ảnh để gửi báo cáo hoặc thử lại sau.'
+        state: uncertain ? 'pending' : error.status === 403 ? 'forbidden' : 'error',
+        message: uncertain
+          ? 'Yêu cầu đang chờ máy chủ xác nhận. Chưa coi sự cố là đã gửi.'
           : error.code === 'VERSION_CONFLICT'
             ? 'Visit đã thay đổi. Tải lại trước khi gửi.'
             : 'Không thể gửi sự cố. Kiểm tra dữ liệu và thử lại.'

@@ -122,13 +122,25 @@ export function createMongoIncidentRepository({
                     !uploaded ||
                     uploaded.careVisitId ||
                     uploaded.transferEvidenceRequestId ||
-                    (uploaded.uploadVisitId && uploaded.uploadVisitId !== record.visitId) ||
+                    (uploaded.uploadVisitId !== undefined && uploaded.uploadVisitId !== record.visitId) ||
                     !/^[a-f0-9]{64}$/.test(uploaded.contentDigest ?? '') ||
                     !Number.isSafeInteger(uploaded.byteLength) ||
                     uploaded.byteLength < 1 ||
                     uploaded.byteLength > 5 * 1024 * 1024
                   )
                     fail('EVIDENCE_NOT_READY');
+                  if (uploaded.uploadVisitId === undefined) {
+                    // Generic uploads keep their existing quota. Bind the image when
+                    // the first incident is saved, in the same transaction as the case.
+                    const bound = await col('privateimages').updateOne(
+                      { _id: photo.mediaId, ownerId: oid(actor.userId), state: 'READY',
+                        uploadVisitId: { $exists: false }, careVisitId: { $exists: false },
+                        transferEvidenceRequestId: { $exists: false } },
+                      { $set: { uploadVisitId: record.visitId } },
+                      { session }
+                    );
+                    if (!bound.matchedCount) fail('EVIDENCE_NOT_READY');
+                  }
                 }
               }
               const _id = new Types.ObjectId(),

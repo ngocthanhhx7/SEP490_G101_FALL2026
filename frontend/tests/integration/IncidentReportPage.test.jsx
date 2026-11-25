@@ -121,4 +121,31 @@ describe('IncidentReportPage (ST-CAS-01, UC-47)', () => {
     );
     expect(await screen.findByText('Đã gửi báo cáo. Nhân viên đã được thông báo.')).toBeInTheDocument();
   });
+
+  test('lets the reporter remove a failed optional photo without uploading successful photos again', async () => {
+    const api = { report: jest.fn().mockResolvedValue({ data: { id: 'case-3' } }) };
+    const mediaId = 'a'.repeat(64);
+    const imageApi = {
+      upload: jest.fn()
+        .mockResolvedValueOnce({ id: mediaId, state: 'READY' })
+        .mockRejectedValueOnce(Object.assign(new Error('busy'), { code: 'MEDIA_BUSY', status: 503 }))
+    };
+    renderReport({ api, imageApi });
+    fireEvent.change(screen.getByLabelText('Loại sự cố'), { target: { value: 'PROPERTY' } });
+    fireEvent.change(screen.getByPlaceholderText(/Điều gì đã xảy ra/i), {
+      target: { value: 'Làm vỡ bát ăn của thú cưng.' }
+    });
+    const files = ['bowl.png', 'broken.png'].map((name) => new window.File(['img'], name, { type: 'image/png' }));
+    fireEvent.change(screen.getByLabelText('Chọn ảnh sự cố'), { target: { files } });
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi báo cáo sự cố' }));
+    expect(await screen.findByText(/Chưa thể tải ảnh/)).toBeInTheDocument();
+    expect(api.report).not.toHaveBeenCalled();
+    expect(screen.queryByText('Đang chờ máy chủ')).not.toBeInTheDocument();
+    const removeFailed = screen.getAllByRole('button', { name: 'Bỏ ảnh' })[1];
+    expect(removeFailed).toBeEnabled();
+    fireEvent.click(removeFailed);
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi báo cáo sự cố' }));
+    await waitFor(() => expect(api.report).toHaveBeenCalledWith(expect.objectContaining({ evidenceRefs: [mediaId] })));
+    expect(imageApi.upload).toHaveBeenCalledTimes(2);
+  });
 });

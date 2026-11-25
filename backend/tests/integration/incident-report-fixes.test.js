@@ -143,6 +143,8 @@ test('ST-CAS-01: Pet sitter incident with uploaded private photo notifies Staff 
     .expect(201);
 
   const caseId = res.body.data.incident.id;
+  const image = await connection.db.collection('privateimages').findOne({ _id: sitterPhotoId });
+  expect(image.uploadVisitId).toBe(String(visitId));
   const notices = await connection.db.collection('notifications').find({ deepLink: `/cases/${caseId}` }).toArray();
   const recipients = notices.map((n) => ({ recipientId: n.recipientId, role: n.role }));
   expect(recipients).toEqual(
