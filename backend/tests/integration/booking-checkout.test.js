@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import express from 'express';
 import request from 'supertest';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
+import { createBookingPaymentExpiryService } from '../../src/services/booking-proposals/booking-payment-expiry.service.js';
 import { bookingCheckoutRuntimeModule } from '../../src/routes/booking-checkout.routes.js';
 import { createPricingRepository } from '../../src/services/pricing/pricing.repository.js';
 import { createPricingService } from '../../src/services/pricing/pricing.service.js';
@@ -45,6 +46,8 @@ beforeAll(async () => {
   availability = createCheckoutAvailabilityService({ connection, repository: scheduling, clock: () => at.getTime(), facilityAddress: 'Synthetic facility address' });
   checkout = createBookingCheckoutService({ connection, clock: () => at.getTime(), selectionGuard: availability.guard, provider, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
   for (const model of Object.values(connection.models)) { await model.createCollection(); await model.createIndexes(); }
+  for (const actor of [owner, other]) await connection.db.collection('users').updateOne(
+    { _id: new mongoose.Types.ObjectId(actor.userId) }, { $set: { roles: ['CUSTOMER'], state: 'ACTIVE' } }, { upsert: true });
   services = await connection.models.Service.find().lean();
   await repository.models.PetBreed.create({ code: 'synthetic-checkout-dog', name: 'Synthetic dog', species: 'DOG', active: true, source: 'Synthetic fixture' });
   pet = await repository.models.Pet.create({ ownerId: owner.userId, name: 'Synthetic dog', species: 'DOG', breedCode: 'synthetic-checkout-dog', weightKg: 4, traits: [], careNeedsConfirmed: true });
@@ -167,6 +170,39 @@ test('confirms one immutable booking for concurrent identical retries and preser
   await expect(checkout.read(other, results[0].id)).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
 });
 
+test('ST-BKG-01 applies the approved booking-day tier discount and allocates every paid visit exactly', async () => {
+  const db = connection.db;
+  const tiers = db.collection('customer_tiers'), policies = db.collection('customer_tier_policies');
+  await tiers.updateOne({ _id: new mongoose.Types.ObjectId(owner.userId) }, { $set: { tier: 'SILVER' } }, { upsert: true });
+  await policies.updateOne({ _id: 'current' }, { $set: {
+    version: 1, state: 'APPROVED', approvedAt: new Date(at.getTime() - 1000),
+    approvedBy: 'synthetic-reviewer', approvalReference: 'synthetic-tier-policy',
+    discountsBps: { MEMBER: 0, SILVER: 300, GOLD: 500 }
+  } }, { upsert: true });
+  try {
+    const q = await quote('home-care', 3);
+    expect(q.tier).toMatchObject({ code: 'SILVER', discountBps: 300, policyVersion: 1 });
+    expect(q.orderFeeVnd).toBe(0);
+    expect(q.tierDiscountVnd).toBe(Math.floor(q.subtotalVnd * 300 / 10000));
+    expect(q.totalVnd).toBe(q.subtotalVnd - q.tierDiscountVnd);
+    const booking = await checkout.confirm(owner, input(q), 'tier-booking-silver-001');
+    const saved = await connection.collection('bookings').findOne({ _id: new mongoose.Types.ObjectId(booking.id) });
+    const visits = saved.checkoutSnapshot.customerVisits;
+    expect(visits.reduce((sum, visit) => sum + visit.snapshots.tierDiscountVnd, 0)).toBe(q.tierDiscountVnd);
+    expect(visits.reduce((sum, visit) => sum + visit.snapshots.employeeServiceNetVnd, 0)).toBe(q.totalVnd);
+    expect(saved.paymentSnapshot.amountVnd).toBe(q.totalVnd);
+    const detail = await checkout.read(owner, booking.id);
+    expect(detail.details.price).toMatchObject({
+      tierCode: 'SILVER', tierDiscountVnd: q.tierDiscountVnd, totalVnd: q.totalVnd
+    });
+    await tiers.updateOne({ _id: new mongoose.Types.ObjectId(owner.userId) }, { $set: { tier: 'GOLD' } });
+    expect((await checkout.read(owner, booking.id)).details.price.tierCode).toBe('SILVER');
+  } finally {
+    await tiers.deleteOne({ _id: new mongoose.Types.ObjectId(owner.userId) });
+    await policies.deleteOne({ _id: 'current' });
+  }
+});
+
 test('binds advisory selection to owned current match and immutable care snapshot without exposing care to checkout views', async () => {
   const sitterId = oid();
   await connection.collection('users').insertOne({ _id: sitterId, state: 'ACTIVE', roles: ['PET_SITTER'] });
@@ -255,7 +291,7 @@ test('ST-BKG-21 / GBR-12: preferred sitter lists only sitters who cared for chos
     .rejects.toMatchObject({ code: 'SITTER_AVAILABILITY_CONSENT_REQUIRED', status: 409,
       details: { lineFields: { 0: { acceptUnavailableSitter: 'SLOT_UNAVAILABLE' } } } });
   const booked = await checkout.confirm(owner, { ...body, visits: [{ ...directedVisit, acceptUnavailableSitter: true }] }, 'directed-book-anyway');
-  expect(booked.state).toBe('DISPATCH_PENDING');
+  expect(booked.state).toBe('AWAITING_PAYMENT');
   expect(booked.visits[0].requestedSitterId).toBe(String(previousSitterId));
 });
 
@@ -305,14 +341,14 @@ test('rejects changed price/policy/pets, expired quote, missing consent, overlap
   expect(await connection.models.Notification.countDocuments()).toBe(notificationsBefore);
 });
 
-test('single visit postpay can await dispatch without a payment intent; guarded HTTP endpoints enforce session and CSRF', async () => {
+test('single visit also requires prepaid payOS before dispatch; guarded HTTP endpoints enforce session and CSRF', async () => {
   const q = await quote('home-care', 1), body = input(q);
   const path = '/api/v1/checkout/bookings';
   const confirm = payload => request(app).post(path).set('Host', 'localhost').set('Origin', 'http://localhost')
     .set('x-test-actor', 'owner').set('x-csrf-token', 'synthetic-csrf')
     .set('Idempotency-Key', 'checkout-postpay-001').send(payload);
   const result = (await confirm(body).expect(201)).body.data;
-  expect(result).toMatchObject({ state: 'DISPATCH_PENDING', paymentMode: 'POSTPAY', paymentState: 'UNPAID', totalVnd: q.totalVnd });
+  expect(result).toMatchObject({ state: 'AWAITING_PAYMENT', paymentMode: 'PREPAY', paymentState: 'UNPAID', totalVnd: q.totalVnd });
   expect((await confirm(body).expect(201)).body.data).toEqual(result);
   const later = new Date(Date.parse(body.visits[0].startAt) + 3600000).toISOString();
   const conflict = await confirm({ ...body, visits: [{ ...body.visits[0], startAt: later }] }).expect(409);
@@ -327,7 +363,7 @@ test('single visit postpay can await dispatch without a payment intent; guarded 
   expect(read.body.data.details.price).toMatchObject({ visitCount: 1, totalVnd: q.totalVnd });
   const bookingId = new mongoose.Types.ObjectId(result.id);
   expect(await connection.collection('bookings').countDocuments()).toBe(1);
-  expect(await connection.collection('paymentintents').countDocuments({ bookingId })).toBe(0);
+  expect(await connection.collection('paymentintents').countDocuments({ bookingId })).toBe(1);
   const savedVisits = await connection.collection('visits').find({ bookingId }).toArray();
   expect(savedVisits).toHaveLength(1);
   expect(savedVisits[0].startAt.toISOString()).toBe(body.visits[0].startAt);
@@ -338,7 +374,9 @@ test('provider link is created once from server amount and replayed without auth
   const first = await checkout.paymentLink(owner, booking.id, 'payment-link-stable');
   expect(await checkout.paymentLink(owner, booking.id, 'payment-link-stable')).toEqual(first);
   expect(provider.createPaymentLink).toHaveBeenCalledTimes(1);
-  expect(provider.createPaymentLink.mock.calls[0][0]).toMatchObject({ amount: q.totalVnd, description: 'PAWWORLD', returnUrl: `http://127.0.0.1:5188/services?booking=${booking.id}` });
+  expect(provider.createPaymentLink.mock.calls[0][0]).toMatchObject({ amount: q.totalVnd, description: 'PAWWORLD',
+    returnUrl: `http://127.0.0.1:5188/services?booking=${booking.id}&payment=returned`,
+    cancelUrl: `http://127.0.0.1:5188/services?booking=${booking.id}&payment=cancelled` });
   expect((await checkout.read(owner, booking.id)).paymentState).toBe('UNPAID');
   const finance = createBookingFinanceSourceService({ connection });
   const repository = createMongoPaymentWebhookRepository({ connection, finance });
@@ -372,7 +410,7 @@ test('approved zero-fee handling policy repairs quoting and automatically plans 
   const dispatch = createEmployeeDispatchService({ repository: scheduling, clock: () => at.getTime() });
   const saved = await connection.collection('bookings').findOne({ _id: new mongoose.Types.ObjectId(booked.id) });
   expect(saved).toMatchObject({ carePlanState: 'APPROVED', carePlanSnapshot: { source: 'SYSTEM_CHECKOUT', approvedBy: 'SYSTEM_DISPATCH' } });
-  expect((await dispatch.queue(staff)).items.some(row => row.bookingId === booked.id)).toBe(true);
+  expect((await dispatch.queue(staff)).items.some(row => row.bookingId === booked.id)).toBe(false);
   expect(await connection.collection('visits').countDocuments({ bookingId: new mongoose.Types.ObjectId(booked.id), sitterId: { $ne: null } })).toBe(0);
   await connection.models.Pet.updateOne({ _id: ownPet._id }, { $set: { traits: ['unapproved-care-need'] } });
   await expect(pricing.basket(owner.userId, selections)).rejects.toMatchObject({ code: 'PRICING_REVIEW_REQUIRED' });
@@ -389,9 +427,102 @@ test('expired and uncertain provider requests never create another link or reviv
   const webhook = createPayosPaymentWebhookService({ provider: { verifyWebhook: value => value }, repository, clock: () => at });
   expect(await webhook.handleWebhook({ orderCode: Number(intent.providerReference), reference: 'synthetic-late-bank', amount: intent.amountVnd, currency: 'VND', code: '00' }))
     .toMatchObject({ status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_EXPIRED' });
-  // GBR-18: elapsed local time alone is not provider confirmation of non-payment.
+  // The wall clock alone cannot expire a booking; JOB-03 requires confirmed
+  // unpaid payOS state before persisting PAYMENT_EXPIRED.
   expect((await checkout.read(owner, booking.id)).state).toBe('AWAITING_PAYMENT');
   await expect(checkout.paymentLink(owner, booking.id, 'link-expired-001')).rejects.toMatchObject({ code: 'INVALID_STATE' });
+});
+
+test('GBR-18 replaces a cancelled unpaid payOS link while booking is within its 15-minute window', async () => {
+  const q = await quote(), booking = await checkout.confirm(owner, input(q), 'checkout-cancelled-link');
+  const initial = await checkout.paymentLink(owner, booking.id, 'link-cancelled-first');
+  expect(initial.checkoutUrl).toContain('pay.payos.vn');
+  const original = await connection.collection('paymentintents').findOne({ bookingId: new mongoose.Types.ObjectId(booking.id) });
+  const recoverable = createBookingCheckoutService({ connection, clock: () => at.getTime(), provider: {
+    createPaymentLink: provider.createPaymentLink,
+    getPaymentLink: async orderCode => ({ orderCode, amount: original.amountVnd, amountPaid: 0,
+      amountRemaining: original.amountVnd, providerStatus: 'CANCELLED' })
+  }, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
+  const fresh = await recoverable.paymentLink(owner, booking.id, 'link-cancelled-next');
+  expect(fresh.checkoutUrl).toContain('pay.payos.vn');
+  expect(await connection.collection('paymentintents').countDocuments({ bookingId: original.bookingId })).toBe(2);
+  expect((await connection.collection('paymentintents').findOne({ _id: original._id })).state).toBe('CANCELLED');
+  const next = await connection.collection('paymentintents').findOne({ bookingId: original.bookingId, state: 'PENDING' });
+  expect(next.providerReference).not.toBe(original.providerReference);
+  expect(next.expiresAt).toEqual(original.expiresAt);
+  const replaced = await connection.collection('paymentintents').findOne({ _id: original._id });
+  expect(replaced.version).toBeGreaterThan(original.version);
+  const guardedBooking = await connection.collection('bookings').findOne({ _id: original.bookingId });
+  expect(guardedBooking.version).toBe(booking.version + 1);
+  expect(guardedBooking.financeGuardVersion).toBe(1);
+});
+
+test('ST-BKG-17 retries link creation with the original order code after payOS confirms 404', async () => {
+  const q = await quote('home-care', 1), booking = await checkout.confirm(owner, input(q), 'recover-creation-error');
+  const failed = createBookingCheckoutService({ connection, clock: () => at.getTime(),
+    provider: { createPaymentLink: async () => { throw { code: 'PAYOS_TIMEOUT', details: { uncertain: true } }; } },
+    webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
+  await expect(failed.paymentLink(owner, booking.id, 'link-failed-creation'))
+    .rejects.toMatchObject({ code: 'PAYOS_TIMEOUT' });
+  const id = new mongoose.Types.ObjectId(booking.id);
+  const original = await connection.collection('paymentintents').findOne({ bookingId: id, state: 'PENDING' });
+  expect(original.linkState).toBe('RECONCILIATION_REQUIRED');
+  const recovered = createBookingCheckoutService({ connection, clock: () => at.getTime(),
+    provider: {
+      getPaymentLink: async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; },
+      createPaymentLink: provider.createPaymentLink
+    }, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
+  const next = await recovered.paymentLink(owner, booking.id, 'link-retry-after-404');
+  expect(next.checkoutUrl).toContain('https://pay.payos.vn/web/');
+  const after = await connection.collection('paymentintents').findOne({ _id: original._id });
+  expect(after.providerReference).toBe(original.providerReference);
+  expect(after.linkState).toBe('READY');
+  expect(await connection.collection('paymentintents').countDocuments({ bookingId: id })).toBe(1);
+});
+
+test('ST-BKG-14 blocks a new home booking for a handed-back grooming amount still unpaid', async () => {
+  const ownerId = new mongoose.Types.ObjectId(owner.userId);
+  await connection.db.collection('groomingappointments').insertOne({
+    _id: oid(), customerId: ownerId, handedBackAt: new Date(at.getTime() - 24 * 3600000),
+    pricing: { totalVnd: 150000 }, payment: { amountVnd: 50000 }
+  });
+  const q = await quote();
+  await expect(checkout.confirm(owner, input(q), 'grooming-debt-block-001'))
+    .rejects.toMatchObject({ code: 'GROOMING_PAYMENT_OUTSTANDING' });
+  await connection.db.collection('groomingappointments').deleteMany({ customerId: ownerId });
+});
+
+test('ST-BKG-12 accepts 30 occupied Vietnam calendar days and rejects 31 with MSG20', async () => {
+  const q = await quote('home-care', 2);
+  const allowed = input(q);
+  allowed.visits[0].startAt = '2026-12-01T09:00:00+07:00';
+  allowed.visits[1].startAt = '2026-12-30T09:00:00+07:00';
+  const created = await checkout.confirm(owner, allowed, 'booking-span-30-days');
+  expect(created.id).toBeTruthy();
+  const nextQuote = await quote('home-care', 2);
+  const rejected = input(nextQuote);
+  rejected.visits[0].startAt = '2026-12-01T09:00:00+07:00';
+  rejected.visits[1].startAt = '2026-12-31T09:00:00+07:00';
+  await expect(checkout.confirm(owner, rejected, 'booking-span-31-days'))
+    .rejects.toMatchObject({ code: 'MSG20' });
+});
+
+test('JOB-03 expires an unpaid booking only after payOS verifies its terminal unpaid state', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-with-proof');
+  const intent = await connection.collection('paymentintents').findOne({ bookingId: new mongoose.Types.ObjectId(booking.id) });
+  const started = await createBookingPaymentExpiryService({ connection,
+    provider: { getPaymentLink: async orderCode => ({ orderCode, amount: intent.amountVnd,
+      amountPaid: 0, providerStatus: 'PENDING' }) },
+    clock: () => intent.expiresAt.getTime() + 1000 }).runBatch();
+  expect(started).toMatchObject({ expired: 0, deferred: expect.any(Number) });
+  expect((await checkout.read(owner, booking.id)).state).toBe('AWAITING_PAYMENT');
+  const result = await createBookingPaymentExpiryService({ connection,
+    provider: { getPaymentLink: async orderCode => ({ orderCode, amount: intent.amountVnd,
+      amountPaid: 0, providerStatus: 'EXPIRED' }) },
+    clock: () => intent.expiresAt.getTime() + 1000 }).runBatch();
+  expect(result.expired).toBe(1);
+  expect((await checkout.read(owner, booking.id)).state).toBe('PAYMENT_EXPIRED');
 });
 
 

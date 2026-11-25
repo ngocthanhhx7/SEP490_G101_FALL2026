@@ -3,7 +3,7 @@ import { fail } from '../../validators/pet-care.validator.js';
 export const CHECKOUT_POLICY_VERSION = 'PWC-CHECKOUT-2026-10-30-v1';
 export const PREPAY_WINDOW_MS = 15 * 60000;
 
-// Largest-remainder allocation keeps the order discount exact across individual visits.
+// Largest-remainder allocation keeps both visit-count and customer-tier discounts exact.
 // Stable item/visit order resolves ties; no customer fee or disbursement enters commission.
 export function checkoutVisitMoney(result) {
   const rows = result.items.flatMap((item, itemIndex) => {
@@ -25,7 +25,23 @@ export function checkoutVisitMoney(result) {
   }
   const allocated = rows.map((row, index) => ({ ...row, discountVnd: Number(amounts[index].value),
     employeeServiceNetVnd: row.baseVnd + row.surchargeVnd - Number(amounts[index].value) }));
-  if (allocated.reduce((sum, row) => sum + BigInt(row.employeeServiceNetVnd), 0n) !== BigInt(result.subtotalVnd) ||
-    BigInt(result.subtotalVnd) + BigInt(result.orderFeeVnd) !== BigInt(result.totalVnd)) fail('QUOTE_REVIEW_REQUIRED', 'Quote total does not reconcile', 409);
-  return allocated;
+  const subtotal = allocated.reduce((sum, row) => sum + BigInt(row.employeeServiceNetVnd), 0n);
+  const tierDiscount = result.tierDiscountVnd ?? 0;
+  if (subtotal !== BigInt(result.subtotalVnd) || !Number.isSafeInteger(tierDiscount) || tierDiscount < 0 ||
+    BigInt(tierDiscount) > subtotal || BigInt(result.subtotalVnd) - BigInt(tierDiscount) !== BigInt(result.totalVnd))
+    fail('QUOTE_REVIEW_REQUIRED', 'Quote total does not reconcile', 409);
+  if (tierDiscount === 0) return allocated.map(row => ({ ...row, tierDiscountVnd: 0 }));
+  if (subtotal === 0n) fail('QUOTE_REVIEW_REQUIRED', 'Invalid tier discount basis', 409);
+  const shares = allocated.map((row, index) => ({ index,
+    value: BigInt(row.employeeServiceNetVnd) * BigInt(tierDiscount) / subtotal,
+    remainder: BigInt(row.employeeServiceNetVnd) * BigInt(tierDiscount) % subtotal }));
+  let left = BigInt(tierDiscount) - shares.reduce((sum, row) => sum + row.value, 0n);
+  for (const row of [...shares].sort((a, b) => a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1)) {
+    if (!left) break;
+    row.value++; left--;
+  }
+  return allocated.map((row, index) => ({
+    ...row, tierDiscountVnd: Number(shares[index].value),
+    employeeServiceNetVnd: row.employeeServiceNetVnd - Number(shares[index].value)
+  }));
 }

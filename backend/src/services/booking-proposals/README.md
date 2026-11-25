@@ -1,15 +1,17 @@
 # Booking proposals
 
-`payment-expiry.service.js` implements JOB-03 for checkout's unpaid bookings.
-Runtime checks every minute while checkout is enabled. Created links require a
-signed payOS terminal unpaid result before expiry; unavailable, partial or
-uncertain results remain for retry. An intent with no provider request can expire
-only while the transaction confirms no request has started. A signed PAID result
-with an exact full amount and usable bank reference records one verified receipt
-and moves the booking to dispatch; incomplete paid evidence is deferred.
-Expiry, visit release and one MSG67 in-app notification commit together and
-recheck current state/version against concurrent webhooks. Booking reads show the
-persisted state rather than deriving expiry solely from the local deadline.
+`payment-expiry.service.js` is only a compatibility re-export of the canonical
+`booking-payment-expiry.service.js`; it has no separate worker or financial path.
+JOB-03 uses signed provider lookups for every attempt, including local CANCELLED,
+EXPIRED and FAILED records. Money received, partial payment, an open link or an
+unavailable provider defers expiry to webhook/reconciliation; a lookup alone never
+marks a booking paid. No provider means no expiry worker.
+The transaction rechecks every attempt's identity, state, version and provider
+binding, plus existing receipts and assigned visits. Replacing a link writes the
+same booking guard and increments intent versions. Batches cap attempts and defer
+over-limit bookings, rotating checked timestamps so uncertainty does not starve
+later bookings. Expiry, visit release, one domain event and one MSG67 in-app
+notification commit together. Reads use the persisted booking state.
 
 `checkout-availability.service.js` loads an owned current quote and checks
 published employees against the shared authoritative contract, capability,
@@ -45,3 +47,18 @@ Directed availability accepts optional `directory: true, page` to read every act
 Booking details resolve saved area codes through a bounded `_id` lookup in the existing service-area registry, including closed historical areas; legacy demo labels remain a fallback. The read never changes checkout snapshots, coverage policy or financial state.
 
 `booking-cancellation.service.js` handles customer preview and transactional cancellation of a whole booking or a single unstarted visit (`startAt > now`) under GBR-15, GBR-17 and GBR-19: late fees (30% of pre-discount visit price when `< 24h` and accepted by a pet sitter), multi-visit combo discount recalculation on remaining visits using the snapshotted `pricingPolicyVersion`, offer revocation, pending booking-change reconciliation, `finalizeExceptionalBooking`, `refunds` (`RECORDED`, `BOOKING_CANCELLATION`) with GBR-30 cap enforcement, in-app sitter notifications, and Admin read listing for booking cancellation refunds.
+
+GBR-09 checkout uses `booking-span-policy.js` to require at most 30 inclusive
+Vietnam calendar days across the first and last occupied service day. The
+checkout service enforces this after constructing each visit with its actual
+service duration; rescheduling uses the corresponding full schedule policy.
+The booking quote and checkout apply the approved, versioned customer-tier
+discount and retain an immutable snapshot with integer-VND allocation.
+
+GBR-17 requires PREPAY for every newly created checkout booking, including
+one-visit bookings. Every order creates a payOS intent with the original
+15-minute deadline and stays out of dispatch until verified payment.
+`booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch
+and requires authenticated payOS proof of terminal unpaid attempts before
+atomically expiring an order and releasing its scheduled visits. Missing or
+ambiguous provider evidence defers expiry for reconciliation.

@@ -1,12 +1,14 @@
 import { beforeAll, beforeEach, afterAll, expect, test, jest } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import { Types } from 'mongoose';
+import { createHmac } from 'node:crypto';
 import { connectDatabase } from '../../src/config/database.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { startRuntime } from '../../src/runtime.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { createVisitRemindersService } from '../../src/services/employee-scheduling/visit-reminders.service.js';
 import { createPaymentExpiryService } from '../../src/services/booking-proposals/payment-expiry.service.js';
+import { createBookingPaymentExpiryService } from '../../src/services/booking-proposals/booking-payment-expiry.service.js';
 
 let replica, connection, runtime, now;
 const env = { NODE_ENV: 'test', PORT: '0', MONGO_DB: 'pwc_notification_jobs', AUTH_ENABLED: 'true',
@@ -54,6 +56,24 @@ test('JOB-01: both recipients get each 120/30 minute reminder once, including co
   expect(await col('notifications').countDocuments()).toBe(4);
   expect((await col('visits').findOne({ _id: visit._id })).state).toBe('ASSIGNED');
 });
+
+test.each(['PENDING', 'CANCELLED', 'EXPIRED', 'FAILED'])('JOB-03 regression: an older %s attempt has money at payOS, so the newer unpaid link cannot expire the booking', async state => {
+  const { booking, intent } = await unpaid('READY');
+  const older = { ...intent, _id: new Types.ObjectId(), providerReference: String(Number(intent.providerReference) + 1), state };
+  await col('paymentintents').insertOne(older);
+  const provider = { getPaymentLink: jest.fn(async orderCode => ({ orderCode, amount: intent.amountVnd,
+    amountPaid: orderCode === Number(older.providerReference) ? intent.amountVnd : 0,
+    amountRemaining: orderCode === Number(older.providerReference) ? 0 : intent.amountVnd,
+    providerStatus: orderCode === Number(older.providerReference) ? 'PAID' : 'EXPIRED' })) };
+  await createBookingPaymentExpiryService({ connection, provider, clock: () => now }).runBatch();
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+  expect((await col('visits').findOne({ bookingId: booking._id })).state).toBe('SCHEDULED');
+  expect(await col('notifications').countDocuments()).toBe(0);
+  expect(await col('payments').countDocuments()).toBe(0);
+  expect(provider.getPaymentLink.mock.calls.map(([reference]) => reference).sort()).toEqual([
+    Number(intent.providerReference), Number(older.providerReference)
+  ].sort());
+});
 test('JOB-01: unassigned, cancelled, started and more-than-two-hours-away visits do not get reminders', async () => {
   const visit = await assigned(121);
   const service = createVisitRemindersService({ connection, clock: () => now });
@@ -87,14 +107,14 @@ test.each(['PAID', 'PENDING', 'PARTIALLY_PAID', 'UNAVAILABLE', 'WRONG_AMOUNT'])(
   expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
   expect(await col('notifications').countDocuments()).toBe(0);
 });
-test('JOB-03: signed PAID lookup with a bank reference records one receipt and releases booking to dispatch', async () => {
+test('JOB-03: signed PAID lookup defers to webhook/reconciliation and never creates a second payment path', async () => {
   const { booking } = await unpaid('READY');
   const provider = { async getPaymentLink(orderCode) { return { orderCode, amount: 100000, amountPaid: 100000, amountRemaining: 0,
     providerStatus: 'PAID', transactions: [{ reference: 'synthetic-bank-reference-1', amount: 100000 }] }; } };
   const service = createPaymentExpiryService({ connection, provider, clock: () => now });
   await Promise.all([service.runBatch(), service.runBatch()]); await service.runBatch();
-  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('DISPATCH_PENDING');
-  expect(await col('payments').countDocuments({ state: 'VERIFIED' })).toBe(1);
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+  expect(await col('payments').countDocuments()).toBe(0);
   expect(await col('notifications').countDocuments({ eventType: 'BOOKING_PAYMENT_EXPIRED' })).toBe(0);
 });
 test('JOB-03: a webhook committing payment during the provider lookup wins the state guard', async () => {
@@ -108,11 +128,104 @@ test('JOB-03: a webhook committing payment during the provider lookup wins the s
   expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('DISPATCH_PENDING');
   expect(await col('notifications').countDocuments()).toBe(0);
 });
-test('server startup runs both jobs with real MongoDB and graceful shutdown awaits them', async () => {
-  await assigned(); await unpaid();
+test('server startup keeps reminders active but does not expire payments without a payOS provider', async () => {
+  await assigned(); const { booking } = await unpaid();
   runtime = await startRuntime({ env: { ...env, EMPLOYEE_SCHEDULING_ENABLED: 'true', BOOKING_CHECKOUT_ENABLED: 'true' }, clock: () => now });
   const end = Date.now() + 5000;
-  while (await col('notifications').countDocuments() < 3 && Date.now() < end) await new Promise(resolve => setTimeout(resolve, 20));
-  expect(await col('notifications').countDocuments()).toBe(3);
+  while (await col('notifications').countDocuments() < 2 && Date.now() < end) await new Promise(resolve => setTimeout(resolve, 20));
+  expect(await col('notifications').countDocuments()).toBe(2);
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
   await runtime.stop(); runtime = null;
+});
+
+test('server startup schedules exactly one JOB-03 alongside reminders and shutdown stops it', async () => {
+  await assigned(); const { intent } = await unpaid('READY');
+  const checksumKey = 'synthetic-job03-checksum', originalFetch = globalThis.fetch;
+  const fetchImpl = jest.fn(async () => {
+    const data = { orderCode: Number(intent.providerReference), amount: intent.amountVnd,
+      amountPaid: 0, amountRemaining: intent.amountVnd, status: 'EXPIRED' };
+    const canonical = Object.keys(data).sort().map(key => `${key}=${data[key]}`).join('&');
+    return { ok: true, status: 200, json: async () => ({ code: '00', data,
+      signature: createHmac('sha256', checksumKey).update(canonical).digest('hex') }) };
+  });
+  globalThis.fetch = fetchImpl;
+  try {
+    runtime = await startRuntime({ env: { ...env, EMPLOYEE_SCHEDULING_ENABLED: 'true', BOOKING_CHECKOUT_ENABLED: 'true',
+      PAYOS_ENABLED: 'true', PAYOS_CLIENT_ID: 'synthetic-client', PAYOS_API_KEY: 'synthetic-key', PAYOS_CHECKSUM_KEY: checksumKey }, clock: () => now });
+    const end = Date.now() + 5000;
+    while (await col('notifications').countDocuments() < 3 && Date.now() < end) await new Promise(resolve => setTimeout(resolve, 20));
+    await runtime.stop(); runtime = null;
+    expect(await col('notifications').countDocuments()).toBe(3);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0][0]).toBe(`https://api-merchant.payos.vn/v2/payment-requests/${intent.providerReference}`);
+  } finally { await runtime?.stop(); runtime = null; globalThis.fetch = originalFetch; }
+});
+
+test('JOB-03 checks all replaced attempts and atomically expires only an entirely unpaid booking once', async () => {
+  const { booking, intent } = await unpaid('READY');
+  const old = { ...intent, _id: new Types.ObjectId(), providerReference: String(Number(intent.providerReference) + 1), state: 'CANCELLED' };
+  await col('paymentintents').insertOne(old);
+  const provider = { getPaymentLink: jest.fn(async orderCode => ({ orderCode, amount: intent.amountVnd, amountPaid: 0,
+    amountRemaining: intent.amountVnd, providerStatus: 'EXPIRED' })) };
+  const service = createBookingPaymentExpiryService({ connection, provider, clock: () => now });
+  await Promise.all([service.runBatch(), service.runBatch()]); await service.runBatch();
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('PAYMENT_EXPIRED');
+  expect((await col('paymentintents').findOne({ _id: old._id })).state).toBe('CANCELLED');
+  expect((await col('paymentintents').findOne({ _id: intent._id })).state).toBe('EXPIRED');
+  expect(await col('notifications').countDocuments({ 'metadata.messageCode': 'MSG67' })).toBe(1);
+  expect(await col('financesourceevents').countDocuments({ _id: `booking-payment-expired:${booking._id}` })).toBe(1);
+});
+
+test.each(['PARTIAL', 'PENDING', 'UNAVAILABLE'])('JOB-03 defers when an older replaced attempt is %s, even with a terminal unpaid current intent', async status => {
+  const { booking, intent } = await unpaid('READY');
+  const older = { ...intent, _id: new Types.ObjectId(), providerReference: String(Number(intent.providerReference) + 1), state: 'CANCELLED' };
+  await col('paymentintents').insertOne(older);
+  const provider = { async getPaymentLink(orderCode) {
+    if (orderCode === Number(older.providerReference) && status === 'UNAVAILABLE') throw new Error('Synthetic outage');
+    return { orderCode, amount: intent.amountVnd, amountPaid: orderCode === Number(older.providerReference) && status === 'PARTIAL' ? 1 : 0,
+      providerStatus: orderCode === Number(older.providerReference) && status === 'PENDING' ? 'PENDING' : 'EXPIRED' };
+  } };
+  await createBookingPaymentExpiryService({ connection, provider, clock: () => now }).runBatch();
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+  expect(await col('notifications').countDocuments()).toBe(0);
+});
+
+test('JOB-03 defers if a new attempt appears while collecting provider evidence', async () => {
+  const { booking, intent } = await unpaid('READY');
+  const provider = { async getPaymentLink(orderCode) {
+    await col('paymentintents').insertOne({ ...intent, _id: new Types.ObjectId(), providerReference: String(orderCode + 1) });
+    return { orderCode, amount: intent.amountVnd, amountPaid: 0, providerStatus: 'EXPIRED' };
+  } };
+  expect(await createBookingPaymentExpiryService({ connection, provider, clock: () => now }).runBatch()).toMatchObject({ expired: 0, deferred: 1 });
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+  expect(await col('notifications').countDocuments()).toBe(0);
+});
+
+test('JOB-03 rechecks provider-binding fields even when legacy code did not increment intent version', async () => {
+  const { booking, intent } = await unpaid('READY');
+  const provider = { async getPaymentLink(orderCode) {
+    await col('paymentintents').updateOne({ _id: intent._id }, { $set: { providerReference: String(orderCode + 1) } });
+    return { orderCode, amount: intent.amountVnd, amountPaid: 0, providerStatus: 'EXPIRED' };
+  } };
+  expect(await createBookingPaymentExpiryService({ connection, provider, clock: () => now }).runBatch()).toMatchObject({ expired: 0, deferred: 1 });
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+});
+
+test('JOB-03 preserves a booking that already has a receipt requiring reconciliation', async () => {
+  const { booking } = await unpaid('READY');
+  await col('payments').insertOne({ bookingId: booking._id, state: 'RECONCILIATION_REQUIRED' });
+  const provider = { async getPaymentLink(orderCode) { return { orderCode, amount: 100000, amountPaid: 0, providerStatus: 'EXPIRED' }; } };
+  expect(await createBookingPaymentExpiryService({ connection, provider, clock: () => now }).runBatch()).toMatchObject({ expired: 0, deferred: 1 });
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+});
+
+test('JOB-03 defers an over-limit booking rather than accepting only the first twenty unpaid attempts', async () => {
+  const { booking, intent } = await unpaid('READY');
+  await col('paymentintents').insertMany(Array.from({ length: 20 }, (_, index) => ({ ...intent,
+    _id: new Types.ObjectId(), providerReference: String(Number(intent.providerReference) + index + 1), state: 'CANCELLED' })));
+  const provider = { getPaymentLink: jest.fn() };
+  expect(await createBookingPaymentExpiryService({ connection, provider, clock: () => now }).runBatch()).toMatchObject({ expired: 0, deferred: 1 });
+  expect(provider.getPaymentLink).not.toHaveBeenCalled();
+  expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+  expect(await col('notifications').countDocuments()).toBe(0);
 });

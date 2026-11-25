@@ -289,12 +289,14 @@ export function createReviewService({
         ['findReview', 'getReview', 'findRating'],
         {
           visitId,
+          bookingId: idOf(visit.bookingId),
+          sitterId: sitterIdOf(visit),
           direction: 'CUSTOMER_TO_SITTER',
           customerId: actor.userId
         }
       );
       if (existing)
-        fail(409, 'REVIEW_ALREADY_EXISTS', 'This visit has already been rated');
+        fail(409, 'REVIEW_ALREADY_EXISTS', 'This pet sitter has already been rated for this booking');
       const now = new Date(nowValue(clock)).toISOString();
       const saved = await callFirst(
         tx,
@@ -303,6 +305,7 @@ export function createReviewService({
           id: randomUUID(),
           kind: 'REVIEW',
           direction: 'CUSTOMER_TO_SITTER',
+          bookingId: idOf(visit.bookingId),
           visitId,
           customerId: actor.userId,
           sitterId: sitterIdOf(visit),

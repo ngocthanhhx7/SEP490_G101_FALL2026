@@ -1,11 +1,18 @@
 # Visit reminder job
 
-`booking-notifications.job.js` starts JOB-01 (15 minutes) and JOB-03 (one minute)
-from runtime's enabled scheduling/checkout modules, runs an initial sweep, skips
+`booking-notifications.job.js` starts JOB-01 (15 minutes)
+from runtime's enabled scheduling module, runs an initial sweep, skips
 overlapping ticks and waits for active work at shutdown. Domain services own
 transactional state guards and in-app delivery. No new provider flags are enabled.
 
 This directory contains bounded background jobs. `visit-reminder.job.js` sweeps server-authoritative visit snapshots, evaluates reminder deadlines using timezone-aware instants and emits stable idempotency keys. The job does not mutate visit state; repository integration owns durable schedule-version invalidation and delivery records.
+
+`booking-payment-expiry.job.js` schedules JOB-03 every 30 seconds when
+authenticated checkout has a configured payOS status provider. The backend
+service checks every payment attempt, including replaced/cancelled attempts,
+before expiring a booking. Any money, uncertain response, changed attempt or
+receipt requiring reconciliation defers expiry. Expiry, release, one domain
+event and one MSG67 notification commit together. No second JOB-03 is registered.
 
 `application-mail.job.js` runs the application mail queue only when runtime
 EMAIL_ENABLED is true. It bounds each batch, avoids overlapping ticks and awaits

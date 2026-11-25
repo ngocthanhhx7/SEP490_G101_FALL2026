@@ -46,6 +46,9 @@ function savedPrice(booking, visits) {
     visitCount: money(quote?.visitCount) ?? money(booking.originalVisitCount) ?? (visits.length || null),
     visitPricesVnd: prices.includes(null) ? [] : [...new Set(prices)].sort((a, b) => a - b),
     discountVnd: money(quote?.discountVnd),
+    tierDiscountVnd: money(quote?.tierDiscountVnd),
+    tierCode: quote?.tier?.code ?? null,
+    subtotalVnd: money(quote?.subtotalVnd),
     orderFeeVnd: money(quote?.orderFeeVnd),
     totalVnd: money(quote?.totalVnd) ?? money(booking.paymentSnapshot?.amountVnd)
   };

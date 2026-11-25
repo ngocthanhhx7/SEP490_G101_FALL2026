@@ -115,6 +115,7 @@ export function createApp({
     ? sitterManagementModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
+  app.locals.bookingPaymentExpiry = checkout?.paymentExpiry ?? null;
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
   const bookingChange = auth && checkout && employeeScheduling
     ? bookingChangeRuntimeModule({ ...context, sessionService: auth.sessionService,
@@ -124,7 +125,6 @@ export function createApp({
   app.locals.bookingChange = bookingChange?.service ?? null;
   app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
   app.locals.visitReminders = employeeScheduling?.visitReminders ?? null;
-  app.locals.paymentExpiry = checkout?.paymentExpiry ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
