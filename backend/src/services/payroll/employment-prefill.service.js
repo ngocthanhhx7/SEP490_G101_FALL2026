@@ -27,6 +27,7 @@ export function createEmploymentPrefillService({ connection, crypto, lookupSecre
         put('employeeEmail', applicantContacts.EMAIL, 'APPLICANT_VERIFIED_CONTACT');
         put('employeePhone', applicantContacts.PHONE, 'APPLICANT_VERIFIED_CONTACT');
         if (application.contactCiphertext) put(application.contactChannel === 'EMAIL' ? 'employeeEmail' : 'employeePhone', crypto.decrypt(application.contactCiphertext), 'APPLICATION');
+        if (application.phoneCiphertext) put('employeePhone', crypto.decrypt(application.phoneCiphertext), 'APPLICATION');
         if (application.applicantParticularsCiphertext) {
           const particulars = JSON.parse(crypto.decrypt(application.applicantParticularsCiphertext));
           if (typeof particulars.identityNumber !== 'string' || createHmac('sha256', lookupSecret).update('applicant-identity\0' + particulars.identityNumber).digest('hex') !== application.identityLookupKey)

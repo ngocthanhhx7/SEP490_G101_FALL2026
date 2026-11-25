@@ -1,5 +1,16 @@
 # Booking proposals
 
+`payment-expiry.service.js` implements JOB-03 for checkout's unpaid bookings.
+Runtime checks every minute while checkout is enabled. Created links require a
+signed payOS terminal unpaid result before expiry; unavailable, partial or
+uncertain results remain for retry. An intent with no provider request can expire
+only while the transaction confirms no request has started. A signed PAID result
+with an exact full amount and usable bank reference records one verified receipt
+and moves the booking to dispatch; incomplete paid evidence is deferred.
+Expiry, visit release and one MSG67 in-app notification commit together and
+recheck current state/version against concurrent webhooks. Booking reads show the
+persisted state rather than deriving expiry solely from the local deadline.
+
 `checkout-availability.service.js` loads an owned current quote and checks
 published employees against the shared authoritative contract, capability,
 work-area, shift, leave, occupancy and travel rules. Its bounded search is an

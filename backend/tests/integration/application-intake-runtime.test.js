@@ -15,6 +15,7 @@ import { identityModels } from '../../src/models/identity.model.js';
 import { privateImageModels, applicantDocumentModels } from '../../src/models/private-image.model.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { createEmailDelivery } from '../../src/services/email-delivery.service.js';
+import { sitterApplicationModule } from '../../src/routes/sitter-application.routes.js';
 
 const env = { NODE_ENV: 'test', AUTH_ENABLED: 'true', RATE_LIMIT_MAX: '1000',
   OTP_HMAC_SECRET: 'a'.repeat(32), SESSION_TOKEN_SECRET: 'b'.repeat(32), SESSION_CSRF_SECRET: 'c'.repeat(32),
@@ -66,7 +67,10 @@ beforeAll(async () => {
   const objects = new Map();
   const email = createEmailDelivery({ from: 'noreply@example.test', clock: () => clockNow,
     createAttempt: () => ({ sendMail: async mail => { mailSent.push(mail); return { accepted: [mail.to], rejected: [] }; }, close() {} }) });
-  app = createApp({ config: loadConfig(env), connection, lifecycle: { draining: false }, env, clock: () => clockNow, portOverrides: {
+  // Retain regression coverage for already-owned historical applications. The
+  // default Guest runtime is exercised separately in application-guest-runtime.
+  app = createApp({ config: loadConfig(env), connection, lifecycle: { draining: false }, env, clock: () => clockNow,
+    moduleFactories: [context => sitterApplicationModule({ ...context, authenticatedSubmission: true, uploadsAvailable: true })], portOverrides: {
     contactDelivery: { send: async command => { const result = await email.send(command); if (result.status === 'ACCEPTED') sent.push(command); return result; } },
     applicantDocuments: {
       upload: async ({ storageRef, body, contentType }) => { if (unavailable) throw new Error('synthetic unavailable'); writes++; objects.set(storageRef, { body, contentType }); },

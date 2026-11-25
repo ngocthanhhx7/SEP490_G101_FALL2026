@@ -9,6 +9,7 @@ import { createCheckoutAvailabilityService } from '../services/booking-proposals
 import { createEmployeeScheduleRepository } from '../services/employee-scheduling/employee-schedule.repository.js';
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
 import { rateLimit } from 'express-rate-limit';
+import { createPaymentExpiryService } from '../services/booking-proposals/payment-expiry.service.js';
 
 export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, provider }) {
   if (env.BOOKING_CHECKOUT_ENABLED !== undefined && !['true', 'false'].includes(env.BOOKING_CHECKOUT_ENABLED)) throw new TypeError('Invalid BOOKING_CHECKOUT_ENABLED');
@@ -29,7 +30,8 @@ export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clo
   const availability = createCheckoutAvailabilityService({ connection, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, facilityCoordinates,
     repository: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' ? createEmployeeScheduleRepository({ connection, clock,
       routingProvider: createConfiguredRoutingProvider({ env, config, clock }) }) : null });
-  const service = createBookingCheckoutService({ connection, clock, selectionGuard: availability.guard, provider: provider ?? (payos ? createPayosProvider(payos) : null),
+  const paymentProvider = provider ?? (payos ? createPayosProvider(payos) : null);
+  const service = createBookingCheckoutService({ connection, clock, selectionGuard: availability.guard, provider: paymentProvider,
     webOrigin, facilityAddress: env.BOOKING_FACILITY_ADDRESS, facilityCoordinates });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const router = Router(), c = createBookingCheckoutController(service), csrf = requireCsrf(session);
@@ -40,5 +42,6 @@ export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clo
   router.get('/options', c.options);
   router.get('/bookings/:id', c.read);
   router.post('/bookings/:id/payment-link', csrf, c.paymentLink);
-  return { name: 'booking-checkout', mount: '/api/v1/checkout', router, service };
+  return { name: 'booking-checkout', mount: '/api/v1/checkout', router, service,
+    paymentExpiry: createPaymentExpiryService({ connection, clock, provider: paymentProvider }) };
 }

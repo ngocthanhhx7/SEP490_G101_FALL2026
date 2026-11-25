@@ -1,5 +1,10 @@
 # Visit reminder job
 
+`booking-notifications.job.js` starts JOB-01 (15 minutes) and JOB-03 (one minute)
+from runtime's enabled scheduling/checkout modules, runs an initial sweep, skips
+overlapping ticks and waits for active work at shutdown. Domain services own
+transactional state guards and in-app delivery. No new provider flags are enabled.
+
 This directory contains bounded background jobs. `visit-reminder.job.js` sweeps server-authoritative visit snapshots, evaluates reminder deadlines using timezone-aware instants and emits stable idempotency keys. The job does not mutate visit state; repository integration owns durable schedule-version invalidation and delivery records.
 
 `application-mail.job.js` runs the application mail queue only when runtime

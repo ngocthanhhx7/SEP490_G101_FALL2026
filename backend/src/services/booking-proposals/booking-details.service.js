@@ -45,7 +45,7 @@ function savedPrice(booking, visits) {
   };
 }
 
-export function createBookingDetailsService({ connection, clock = Date.now }) {
+export function createBookingDetailsService({ connection }) {
   async function project(booking, { includeCustomerName = false } = {}) {
     const original = booking.checkoutSnapshot?.customerVisits ?? [];
     const codes = [...new Set(original.map(visit => visit.areaCode).filter(code => typeof code === 'string'))];
@@ -100,10 +100,9 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
       const booking = await connection.db.collection('bookings').findOne({ _id: oid(bookingId) },
         { maxTimeMS: 2000 });
       if (!booking) fail('RESOURCE_NOT_FOUND', 'Booking unavailable', 404);
-      const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt <= new Date(clock());
       return {
         id: String(booking._id),
-        state: expired ? 'PAYMENT_EXPIRED' : booking.state,
+        state: booking.state,
         paymentMode: booking.paymentMode,
         paymentState: booking.paymentState,
         ...(booking.paymentMode === 'PREPAY' ? { paymentDeadlineAt: booking.paymentDeadlineAt } : {}),

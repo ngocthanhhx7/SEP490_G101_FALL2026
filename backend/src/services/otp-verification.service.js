@@ -6,6 +6,7 @@ import { identityModels } from '../models/identity.model.js';
 import { userModel as createUserModel } from '../models/user.model.js';
 import { createContactChangeAuditService } from './contact-change-audit.service.js';
 import { canonicalizeContact } from './contact-crypto.service.js';
+import { createApplicationOnboardingService } from './applications/application-onboarding.service.js';
 
 const CODE_LIFETIME_MS = 5 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
@@ -44,6 +45,7 @@ export function createOtpService({ connection, User, models = identityModels(con
   verificationHandlers = {}, logger = () => {} }) {
   const hmacKey = secret(otpSecret);
   const userStore = User ?? createUserModel(connection);
+  const onboarding = createApplicationOnboardingService({ connection });
   const contactAudit = createContactChangeAuditService({ connection });
   if (typeof contactDelivery?.send !== 'function' || typeof sessionService?.issueInTransaction !== 'function'
     || typeof contactCrypto?.lookup !== 'function' || typeof contactCrypto?.encrypt !== 'function'
@@ -70,7 +72,8 @@ export function createOtpService({ connection, User, models = identityModels(con
       const registered = await models.Contact.exists({
         channel, lookupKey: identity.contactLookup, state: 'VERIFIED'
       });
-      if (!registered) throw new AppError(409, 'REGISTRATION_REQUIRED', 'Register an account before signing in');
+      if (!registered && !await onboarding.findApproved({ channel, lookupKey: identity.contactLookup }))
+        throw new AppError(409, 'REGISTRATION_REQUIRED', 'Register an account before signing in');
     }
     if (purpose === 'APPLICATION_STATUS' && !Types.ObjectId.isValid(applicationId)) {
       throw new AppError(422, 'VALIDATION_FAILED', 'Application scope is required');
@@ -229,8 +232,16 @@ export function createOtpService({ connection, User, models = identityModels(con
       }
 
       if (purpose === 'LOGIN') {
-        const contactRecord = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })
+        let contactRecord = await models.Contact.findOne({ channel, lookupKey: contactLookup, state: 'VERIFIED' })
           .select('+lookupKey').session(mongoSession).lean();
+        if (!contactRecord) {
+          const application = await onboarding.findApproved({ channel, lookupKey: contactLookup, session: mongoSession });
+          if (application) {
+            const owner = await userStore.findOne({ _id: application.provisionedUserId, roles: ['PET_SITTER'], state: 'ACTIVE', synthetic: false }).session(mongoSession).lean();
+            if (owner) [contactRecord] = await models.Contact.create([{ userId: owner._id, channel,
+              lookupKey: contactLookup, canonicalCiphertext: contactCrypto.encrypt(canonicalValue), state: 'VERIFIED', verifiedAt: new Date(now) }], { session: mongoSession });
+          }
+        }
         if (!contactRecord) return { result: Object.freeze({ status: 'VERIFIED', authenticated: false, reason: 'REGISTRATION_REQUIRED' }) };
         const user = await userStore.findById(contactRecord.userId).session(mongoSession);
         // Reveal account state only after proving possession. Return the failure

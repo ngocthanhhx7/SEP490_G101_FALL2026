@@ -7,21 +7,20 @@ import { SitterApplicationPage } from './SitterApplicationPage.jsx';
 import { sitterApplicationApi } from '../../services/sitter-application-api.js';
 import './auth-public.css';
 
-function VerifiedSitterApplication({ api, displayName }) {
+function GuestSitterApplication({ api }) {
   const load = useCallback(({ signal }) => api.loadIntake({ signal }), [api]);
   const resource = useApiResource(load);
   if (resource.status === 'loading') return <p className="pwc-registration-state" role="status">Đang tải thông tin ứng tuyển…</p>;
   if (resource.status !== 'success') return <div className="pwc-registration-state" role="alert">
     <h2>Chưa thể mở hồ sơ ứng tuyển</h2>
-    <p>Vui lòng đăng nhập bằng email đã xác minh, rồi thử lại.</p>
-    <button type="button" onClick={resource.retry}>Thử lại</button> <Link to="/sign-in">Đăng nhập</Link>
+    <p>Chưa tải được biểu mẫu. Vui lòng thử lại.</p>
+    <button type="button" onClick={resource.retry}>Thử lại</button>
   </div>;
   const intake = resource.data;
   const previous = intake.application;
-  if(previous && previous.state!=='REJECTED')return <Navigate to="/sitter/application-status" replace/>;
+  if (previous && previous.state !== 'REJECTED') return <Navigate to="/sitter/application-status" replace />;
   const canReapply = previous?.state === 'REJECTED' && previous.canReapply === true;
-  return <SitterApplicationPage key={`${intake.contactValue}:${previous?.applicationCode ?? ''}:${canReapply}`} api={api}
-    initialValues={{ displayName, contactChannel: 'EMAIL', contactValue: intake.contactValue }}
+  return <SitterApplicationPage key={`${previous?.applicationCode ?? ''}:${canReapply}`} api={api}
     uploadsAvailable={intake.uploadsAvailable} previousApplication={canReapply ? null : previous}
     onRefreshApplication={resource.retry} />;
 }
@@ -36,8 +35,6 @@ export function RegistrationPage({ initialSitter = false, registrationApi, appli
   useEffect(() => {
     if (authenticated && !sitter) navigate('/', { replace: true });
   }, [authenticated, sitter, navigate]);
-  const eligible = authenticated && session.user.roles.includes('CUSTOMER')
-    && !session.user.roles.some(role => ['ADMIN', 'STAFF', 'PET_SITTER'].includes(role));
   return <div className="pwc-registration-hub">
     <div className="pwc-registration-shell">
       <header className="pwc-auth-welcome">
@@ -50,19 +47,22 @@ export function RegistrationPage({ initialSitter = false, registrationApi, appli
         <button type="button" aria-pressed={!sitter} onClick={() => initialSitter ? navigate('/register') : setParams({})}>Khách hàng</button>
         <button type="button" aria-pressed={sitter} onClick={() => setParams({ role: 'sitter' })}>Pet Sitter</button>
       </div>
-      <ol className="pwc-registration-steps" aria-label="Các bước đăng ký">
+      {sitter ? <ol className="pwc-registration-steps" aria-label="Các bước ứng tuyển">
+        <li className="is-current"><span>1</span>Nộp hồ sơ</li>
+        <li><span>2</span>Xét duyệt và phỏng vấn</li>
+        <li><span>3</span>Cấp tài khoản khi được duyệt</li>
+      </ol> : <ol className="pwc-registration-steps" aria-label="Các bước đăng ký">
         <li className={authenticated || phase === 'otp' ? 'is-done' : 'is-current'}><span>1</span>Thông tin tài khoản</li>
         <li className={authenticated ? 'is-done' : phase === 'otp' ? 'is-current' : ''}><span>2</span>Xác minh email</li>
-        {sitter && <li className={authenticated ? 'is-current' : ''}><span>3</span>Hồ sơ ứng tuyển</li>}
-      </ol>
-      {sitter && eligible ? <VerifiedSitterApplication api={applicationApi} displayName={session.user.displayName} />
+      </ol>}
+      {sitter ? <GuestSitterApplication api={applicationApi} />
           : authenticated ? <div className="pwc-registration-state">
             <h2>{sitter ? 'Bạn đã có tài khoản PawWorld' : `Xin chào, ${session.user.displayName}`}</h2>
             <p>{sitter ? 'Tài khoản hiện tại không cần tạo thêm hồ sơ ứng tuyển Pet Sitter.' : 'Tài khoản của bạn đã sẵn sàng. Hãy bắt đầu chăm sóc bé yêu cùng PawWorld.'}</p>
             <Link className="registration-submit" to="/">Về trang chủ</Link>
           </div>
             : <CustomerRegistrationPage key={sitter ? 'sitter' : 'customer'} intent={sitter ? 'PET_SITTER' : 'CUSTOMER'} api={registrationApi} onPhaseChange={setPhase} />}
-      {sitter && !authenticated && <p className="pwc-registration-fineprint">Xác minh email để tiếp tục hồ sơ. Quyền Pet Sitter được cấp sau khi PawWorld xét duyệt.</p>}
+      {sitter && <p className="pwc-registration-fineprint">Bạn có thể ứng tuyển khi chưa có tài khoản. Tài khoản Pet Sitter được tạo sau khi Admin duyệt hồ sơ.</p>}
       {sitter && <Link className="pwc-application-lookup" to="/sitter/application-status">Đã nộp hồ sơ? Tra cứu trạng thái →</Link>}
     </div>
   </div>;

@@ -312,6 +312,9 @@ export function createPayosProvider(options = {}) {
       amountPaid: data.amountPaid,
       amountRemaining: data.amountRemaining,
       providerStatus: data.status,
+      ...(data.status === 'PAID' && Array.isArray(data.transactions) ? { transactions: data.transactions.map(transaction => ({
+        reference: transaction?.reference, amount: transaction?.amount
+      })) } : {}),
       ...(typeof data.createdAt === 'string' ? { createdAt: data.createdAt } : {})
     });
   }

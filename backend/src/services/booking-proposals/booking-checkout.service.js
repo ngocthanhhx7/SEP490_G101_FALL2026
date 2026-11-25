@@ -57,8 +57,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       projection: { _id: 1, state: 1, expiresAt: 1 } }).sort({ _id: -1 }).limit(20).toArray();
     const sitterIds = [...new Set(careShifts.filter(row => row.sitterId && Types.ObjectId.isValid(String(row.sitterId))).map(row => String(row.sitterId)))];
     const sitterUsers = sitterIds.length ? await col('users').find({ _id: { $in: sitterIds.map(oid) } }, { session, projection: { displayName: 1 } }).limit(200).toArray() : [];
-    const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt <= now();
-    return { id: String(booking._id), state: expired ? 'PAYMENT_EXPIRED' : booking.state, version: booking.version,
+    return { id: String(booking._id), state: booking.state, version: booking.version,
       paymentState: booking.paymentState, paymentMode: booking.paymentMode, totalVnd: booking.paymentSnapshot.amountVnd,
       currency: 'VND', createdAt: booking.createdAt ?? null, paymentDeadlineAt: booking.paymentDeadlineAt, quoteId: String(booking.quoteId),
       scheduleProposals: proposals.map(row => ({ id: String(row._id), state: row.state, expiresAt: row.expiresAt })),

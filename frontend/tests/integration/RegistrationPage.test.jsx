@@ -23,6 +23,9 @@ function view({ adapter = { resolve: async () => ({ status: 'authenticated', use
 async function fillApplication() {
   const region = await screen.findByRole('region', { name: 'Kể chúng mình nghe về bạn' });
   const page = within(region);
+  fireEvent.change(page.getByLabelText(/^Họ và tên/), { target: { value: user.displayName } });
+  fireEvent.change(page.getByLabelText(/^Email/), { target: { value: 'sitter@example.test' } });
+  fireEvent.change(page.getByLabelText(/^Số điện thoại/), { target: { value: '0912345678' } });
   fireEvent.click(page.getByRole('radio', { name: 'Bán thời gian (Part-time)' }));
   fireEvent.change(page.getByLabelText(/^Ngày sinh/), { target: { value: '1998-04-12' } });
   fireEvent.change(page.getByLabelText(/^Số CCCD/), { target: { value: 'TEST12345678' } });
@@ -52,32 +55,27 @@ test('names the invalid identity side rather than the selected filename', async 
   expect(api.uploadDocument).not.toHaveBeenCalled();
 });
 
-test('guest sitter registers and verifies email before opening the private application form', async () => {
+test('Guest opens the application directly without registering an account or verifying email first', async () => {
   const adapter = { resolve: jest.fn().mockResolvedValueOnce({ status: 'guest' }).mockResolvedValue({ status: 'authenticated', user }) };
   const registrationApi = { requestOtp: jest.fn(async () => ({ challengeId: 'synthetic-challenge', resendAfterSeconds: 60, expiresInSeconds: 300 })),
     verifyAndRegister: jest.fn(async () => ({ authenticated: true, user })) };
   const api = view({ adapter, registrationApi });
-  await screen.findByRole('heading', { name: 'Đăng ký tài khoản mới' });
-  expect(api.loadIntake).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByLabelText('Họ và tên của bạn'), { target: { value: user.displayName } });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'sitter@example.test' } });
-  fireEvent.click(screen.getByRole('checkbox'));
-  fireEvent.click(screen.getByRole('button', { name: 'Đăng ký', exact: true }));
-  fireEvent.change(await screen.findByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '004201' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & hoàn tất đăng ký' }));
   expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
-  expect(screen.getByLabelText(/^Email/)).toHaveAttribute('readonly');
+  expect(screen.getByLabelText(/^Email/)).not.toHaveAttribute('readonly');
+  expect(screen.getByLabelText(/^Số điện thoại/)).toBeRequired();
+  expect(registrationApi.requestOtp).not.toHaveBeenCalled();
+  expect(registrationApi.verifyAndRegister).not.toHaveBeenCalled();
   expect(api.loadIntake).toHaveBeenCalled();
 });
 
-test('uses the verified email, selected services and private upload references to submit once', async () => {
+test('uses both submitted contacts, selected services and private upload references to submit once', async () => {
   const api = view();
   const page = await fillApplication();
   fireEvent.click(page.getByRole('checkbox', { name: 'Ghé thăm và chơi cùng bé' }));
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   expect(await screen.findByRole('heading', { name: 'Đã tiếp nhận hồ sơ' })).toBeVisible();
   expect(api.submit).toHaveBeenCalledTimes(1);
-  expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ employmentType: 'PART_TIME', contactChannel: 'EMAIL', contactValue: 'sitter@example.test',
+  expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ employmentType: 'PART_TIME', email: 'sitter@example.test', phone: '0912345678',
     requestedServices: ['Dắt chó đi dạo', 'Ghé thăm và chơi cùng bé'], documents: ['IDENTITY_FRONT','IDENTITY_BACK','PORTRAIT'].map(documentType=>({documentId:'synthetic-doc-id',storageRef:'synthetic-storage-ref',documentType})) }), { key: 'synthetic-application-key' });
   expect(screen.getByText('synthetic-secret-receipt-code')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Theo dõi hồ sơ →' })).toHaveAttribute('href', '/sitter/application-status');

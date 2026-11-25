@@ -357,7 +357,8 @@ test('expired and uncertain provider requests never create another link or reviv
   const webhook = createPayosPaymentWebhookService({ provider: { verifyWebhook: value => value }, repository, clock: () => at });
   expect(await webhook.handleWebhook({ orderCode: Number(intent.providerReference), reference: 'synthetic-late-bank', amount: intent.amountVnd, currency: 'VND', code: '00' }))
     .toMatchObject({ status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_EXPIRED' });
-  expect((await checkout.read(owner, booking.id)).state).toBe('PAYMENT_EXPIRED');
+  // GBR-18: elapsed local time alone is not provider confirmation of non-payment.
+  expect((await checkout.read(owner, booking.id)).state).toBe('AWAITING_PAYMENT');
   await expect(checkout.paymentLink(owner, booking.id, 'link-expired-001')).rejects.toMatchObject({ code: 'INVALID_STATE' });
 });
 

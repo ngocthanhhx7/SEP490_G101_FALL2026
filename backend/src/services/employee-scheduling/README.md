@@ -1,5 +1,14 @@
 # Employee Scheduling
 
+`visit-reminders.service.js` connects the reminder policy to real visits and
+in-app notifications for JOB-01 / GBR-47. Runtime starts it every 15 minutes when
+employee scheduling is enabled. Assigned future visits receive separate 120/30
+minute reminders for Customer and Pet Sitter. Schedule/start/version/assignee are
+rechecked in the notification transaction; per-start markers and deterministic
+notification IDs prevent duplicate delivery across ticks and server instances.
+`visit-reminder.policy.js` holds the existing pure deadline/job policy; the old
+jobs import path remains a compatibility re-export.
+
 Availability windows may explicitly register `workLocation: SHOP`; legacy/omitted
 location remains HOME. `grooming-occupancy.service.js` reads bounded native shop
 reservations without registering optional models while Grooming is disabled.

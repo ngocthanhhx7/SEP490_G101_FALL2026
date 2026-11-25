@@ -117,6 +117,8 @@ export function createApp({
   if (bookingChange) auth.router.use(bookingChange.router);
   app.locals.bookingChange = bookingChange?.service ?? null;
   app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
+  app.locals.visitReminders = employeeScheduling?.visitReminders ?? null;
+  app.locals.paymentExpiry = checkout?.paymentExpiry ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
