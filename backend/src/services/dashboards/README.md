@@ -60,6 +60,9 @@ with `{ ready, scope, sourceVersion, asOf, metrics, items, nextCursor }`.
 The Mongo payroll reader uses snapshot read concern across requests and user joins;
 its source timestamp includes both request and joined sitter updates.
 Scope is echoed exactly; repository queries must constrain ownership BEFORE counts, search or pagination.
+Customer agenda rows may include the booked visit's `location` and a
+`serviceDisplayName` for the legacy home-care package. `serviceName` retains
+the booking snapshot name. These fields use the existing visit page read.
 Query dates are inclusive Vietnam calendar dates; convert to [from 00:00 +07:00,
 day-after-to 00:00 +07:00). Cursors must be opaque, signed, query/scope-bound and use
 stable `(sortKey,id)` ordering; expired/foreign/filter-mismatched cursors are rejected.

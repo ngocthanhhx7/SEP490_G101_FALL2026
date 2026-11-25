@@ -82,7 +82,7 @@ test('UC-84 hides the visit action at 23 hours 59 minutes and submits another vi
   expect(dialog.getByLabelText(/Buổi cần đổi/)).toHaveValue(sampleVisits[2].id);
   expect(dialog.getByText('Giá không đổi: 90.000 đ mỗi buổi.')).toBeVisible();
   submitSingle(dialog);
-  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Bạn sẽ được báo khi nhân viên trả lời.')).toBeVisible();
+  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Giờ hiện tại vẫn được giữ cho đến khi yêu cầu được duyệt.')).toBeVisible();
   expect(screen.queryByRole('dialog', { name: 'Gửi yêu cầu đổi giờ' })).toBeNull();
   const [request] = submitted();
   expect(JSON.parse(request.body)).toEqual({ scope: 'VISIT', visitId: sampleVisits[2].id, startAt: '2026-11-07T18:00:00+07:00' });
@@ -125,7 +125,7 @@ test('UC-84 hides both change entry points when boarding options are unavailable
 
 test.each([
   ['MSG148', { time: '2026-11-07T00:30:00.000Z' }, 'Buổi 2 phải bắt đầu từ 07:30, khi buổi 1 kết thúc.'],
-  ['MSG54', {}, 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 24 giờ.'],
+  ['MSG54', {}, 'Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 2 giờ.'],
   ['MSG55', {}, 'Buổi này đã được đổi giờ một lần và không thể đổi lại.'],
   ['MSG149', {}, 'Buổi này đã có yêu cầu đổi giờ đang chờ nhân viên duyệt.'],
   ['BOOKING_CHANGE_STAFF_PROPOSAL_PENDING', {}, 'Buổi này đang có đề xuất đổi giờ của nhân viên chờ bạn xác nhận.'],
@@ -140,6 +140,26 @@ test.each([
   expect(dialog.getByLabelText(/Giờ mới/)).toHaveValue('18:00');
 });
 
+test('UC-84 shows the 2-hour new-time rule and allows picking today when at least 2 hours remain', async () => {
+  show();
+  const dialog = await openSingle();
+  expect(dialog.getByText(/Gửi yêu cầu trước giờ cũ ít nhất 24 giờ, cho giờ mới cách bây giờ ít nhất 2 giờ\./)).toBeVisible();
+  expect(dialog.getByText(/Nhân viên trả lời trước giờ cũ 6 giờ\./)).toBeVisible();
+  const dateInput = dialog.getByLabelText(/Ngày mới/);
+  expect(dateInput).toHaveAttribute('min', '2026-11-03');
+  fireEvent.change(dateInput, { target: { value: '2026-11-03' } });
+  fireEvent.change(dialog.getByLabelText(/Giờ mới/), { target: { value: '20:00' } });
+  fireEvent.click(dialog.getByRole('button', { name: 'Gửi yêu cầu' }));
+  await waitFor(() => expect(submitted()).toHaveLength(1));
+  expect(JSON.parse(submitted()[0].body)).toEqual({ scope: 'VISIT', visitId: sampleVisits[2].id, startAt: '2026-11-03T20:00:00+07:00' });
+});
+
+test('UC-84 moves earliest selectable date to tomorrow after 22:00 Vietnam time', async () => {
+  show({ options: { ...eligibleOptions, serverNow: '2026-11-03T15:01:00.000Z' } });
+  const dialog = await openSingle();
+  expect(dialog.getByLabelText(/Ngày mới/)).toHaveAttribute('min', '2026-11-04');
+});
+
 test('UC-84 retries an uncertain send with the same payload and idempotency key', async () => {
   let attempts = 0;
   show({ submit: () => {
@@ -151,7 +171,7 @@ test('UC-84 retries an uncertain send with the same payload and idempotency key'
   expect(await dialog.findByRole('alert')).toHaveTextContent('Chưa nhận được xác nhận');
   expect(dialog.getByLabelText(/Giờ mới/)).toBeDisabled();
   fireEvent.click(dialog.getByRole('button', { name: 'Kiểm tra lại yêu cầu' }));
-  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Bạn sẽ được báo khi nhân viên trả lời.')).toBeVisible();
+  expect(await screen.findByText('Đã gửi yêu cầu đổi giờ. Giờ hiện tại vẫn được giữ cho đến khi yêu cầu được duyệt.')).toBeVisible();
   const [first, second] = submitted();
   expect(second.body).toBe(first.body);
   expect(second.headers.get('Idempotency-Key')).toBe(first.headers.get('Idempotency-Key'));
