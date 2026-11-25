@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
 import { AppError } from '../../utils/app-error.js';
+import { workflowTasks } from '../care/workflow-snapshot.service.js';
 
 export const INCIDENT_STATES = Object.freeze([
   'OPEN',
@@ -339,7 +340,18 @@ function safeTimeline(value) {
     )
     .filter(Boolean);
 }
-function safeCase(record, actor) {
+function workflowPhoto(visit, mediaId) {
+  const result = visit.workflowResults?.find(row => row.evidence?.some(ref => ref.mediaId === mediaId));
+  if (!result) return null;
+  const task = workflowTasks(visit.snapshots?.workflow, visit.snapshots?.pets, visit.location)
+    .find(row => row.taskKey === result.taskKey);
+  return { photo: result.evidence.find(ref => ref.mediaId === mediaId), task };
+}
+function customerMaySeeEvidence(visit, ref) {
+  const workflow = workflowPhoto(visit, ref.mediaId);
+  return !workflow || workflow.task?.step.customerVisible === true;
+}
+function safeCase(record, actor, visit) {
   if (!record || typeof record !== 'object') return null;
   const result = {
     id: safeId(record.id ?? record._id, 'id'),
@@ -366,6 +378,8 @@ function safeCase(record, actor) {
     contactPreference: record.contactPreference || 'STAFF_REVIEW',
     evidenceRefs: Array.isArray(record.evidenceRefs)
       ? record.evidenceRefs
+          .filter(ref => operational(actor) || !(visit ? customerIdOf(visit) === actor.userId : hasRole(actor.roles, 'CUSTOMER'))
+            || (visit && ref && customerMaySeeEvidence(visit, ref)))
           .map((item) => safeEvidence(item, false))
           .filter(Boolean)
       : [],
@@ -480,7 +494,8 @@ function runner(repository, actor, resourceId, work, resourceKind = 'visit') {
 export function createIncidentService({
   repository,
   clock = () => new Date(),
-  hotline = null
+  hotline = null,
+  readImage
 } = {}) {
   if (
     !repository ||
@@ -635,7 +650,7 @@ export function createIncidentService({
           ? saved.version
           : record.version
       };
-      const incident = safeCase(savedRecord, actor);
+      const incident = safeCase(savedRecord, actor, visit);
       const result = {
         id: incident?.id,
         caseId: incident?.id,
@@ -768,7 +783,7 @@ export function createIncidentService({
       fail(503, 'INCIDENT_UNAVAILABLE', 'Incident cursor is invalid');
     return { items, nextCursor };
   }
-  async function detail({ actor, caseId, incidentId } = {}) {
+  async function withAuthorizedCase({ actor, caseId, incidentId }, project) {
     const id = identifier(caseId ?? incidentId, 'caseId');
     return transaction(
       actor,
@@ -791,13 +806,41 @@ export function createIncidentService({
           fail(503, 'INCIDENT_UNAVAILABLE', 'Incident visit is unavailable');
         const visit = await getVisit(tx, visitId);
         authorizeVisit(actor, visit);
-        const view = safeCase(record, actor);
-        if (!view)
-          fail(503, 'INCIDENT_UNAVAILABLE', 'Incident response is invalid');
-        return view;
+        return project(record, visit, visitId);
       },
       'case'
     );
+  }
+
+  async function detail(input = {}) {
+    return withAuthorizedCase(input, (record, visit) => safeCase(record, input.actor, visit));
+  }
+
+  async function evidence({ actor, caseId, mediaId } = {}) {
+    if (!/^[a-f0-9]{64}$/.test(mediaId ?? ''))
+      fail(404, 'RESOURCE_NOT_FOUND', 'Incident image not found');
+    const authorize = await withAuthorizedCase({ actor, caseId }, (record, visit, visitId) => {
+      if (!record.evidenceRefs?.some(ref => ref.mediaId === mediaId))
+        fail(404, 'RESOURCE_NOT_FOUND', 'Incident image not found');
+      const reporter = record.timeline?.find(event => event.type === 'INCIDENT_REPORTED')?.actorId;
+      const legacy = visit.evidenceRefs?.find(ref => ref.mediaId === mediaId);
+      const { photo, task } = workflowPhoto(visit, mediaId) ?? {};
+      return image => {
+        if (photo) {
+          return Boolean(task && image.careVisitId === visitId && image.careKind === photo.kind
+            && String(image.ownerId) === photo.uploadedBy && image.contentDigest === photo.contentDigest
+            && (operational(actor) || customerIdOf(visit) !== actor.userId || task.step.customerVisible === true));
+        }
+        if (legacy) {
+          return image.careVisitId === visitId && image.careKind === legacy.kind
+            && (!legacy.contentDigest || image.contentDigest === legacy.contentDigest);
+        }
+        return Boolean(reporter && String(image.ownerId) === String(reporter) && !image.careVisitId
+          && !image.transferEvidenceRequestId && (!image.uploadVisitId || image.uploadVisitId === visitId));
+      };
+    });
+    if (!readImage) fail(503, 'PROVIDER_UNAVAILABLE', 'Private media is unavailable');
+    return readImage({ actor, id: mediaId, authorize });
   }
   async function resolve({
     actor,
@@ -954,6 +997,7 @@ export function createIncidentService({
     listIncidents: list,
     detail,
     get: detail,
+    evidence,
     resolve,
     resolveIncident: resolve
   });

@@ -200,7 +200,7 @@ export function BookingFlow({ service, api, onBooked }) {
     [available, selected]
   );
 
-  async function executeConfirm() {
+  async function executeConfirm(acceptedVisits = []) {
     if (locked.current) return;
     if (!uncertain) {
       if (!quoteAlive) { setError('Báo giá đã hết hạn. Vui lòng lấy báo giá mới.'); return; }
@@ -210,10 +210,11 @@ export function BookingFlow({ service, api, onBooked }) {
         body: {
           quoteId: quote.quoteId,
           acceptServicePolicies: consent,
-          visits: schedule().map(visit => ({
+          visits: schedule().map((visit, index) => ({
             ...visit,
             bookingMode,
-            ...(selected ? { requestedSitterId: selected } : {})
+            ...(selected ? { requestedSitterId: selected } : {}),
+            ...(selected && acceptedVisits.includes(index) ? { acceptUnavailableSitter: true } : {})
           }))
         }
       };
@@ -225,6 +226,19 @@ export function BookingFlow({ service, api, onBooked }) {
       const value = await api.confirm(command.current.body, command.current.key);
       onBooked(value);
     } catch (failure) {
+      if (failure.status === 409 && failure.code === 'SITTER_AVAILABILITY_CONSENT_REQUIRED' && selectedSitter) {
+        const visits = Object.entries(failure.lineFields ?? {}).flatMap(([key, fields]) => {
+          const index = Number(key);
+          return Number.isInteger(index) && starts[index] && fields?.acceptUnavailableSitter
+            ? [{ index, start: starts[index] }] : [];
+        });
+        if (visits.length) {
+          const accepted = command.current.body.visits.flatMap((row, index) => row.acceptUnavailableSitter ? [index] : []);
+          setUncertain(false);
+          setMsg162Dialog({ sitterName: selectedSitter.displayName, visits, accepted });
+          return;
+        }
+      }
       const pending = uncertainResponse(failure);
       setUncertain(pending);
       setError(pending ? 'Chưa xác định đơn đã được tạo hay chưa. Kiểm tra lại bằng cùng yêu cầu trước khi đặt mới.' : errorText(failure));
@@ -407,7 +421,7 @@ export function BookingFlow({ service, api, onBooked }) {
             disabled={busy}
             onClick={() => {
               setMsg162Dialog(null);
-              void executeConfirm();
+              void executeConfirm([...(msg162Dialog.accepted ?? []), ...msg162Dialog.visits.map(visit => visit.index)]);
             }}
           >
             Vẫn đặt lịch

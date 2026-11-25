@@ -250,7 +250,11 @@ test('ST-BKG-21 / GBR-12: preferred sitter lists only sitters who cared for chos
   await expect(checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(previousSitterId) }] }, 'directed-capability-lost'))
     .rejects.toMatchObject({ code: 'SERVICE_CAPABILITY_REQUIRED', status: 409 });
   await connection.collection('aisitterprofiles').updateOne({ userId: previousSitterId }, { $set: { active: true } });
-  const booked = await checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(previousSitterId) }] }, 'directed-book-anyway');
+  const directedVisit = { ...visit, bookingMode: 'DIRECT', requestedSitterId: String(previousSitterId) };
+  await expect(checkout.confirm(owner, { ...body, visits: [directedVisit] }, 'directed-no-consent'))
+    .rejects.toMatchObject({ code: 'SITTER_AVAILABILITY_CONSENT_REQUIRED', status: 409,
+      details: { lineFields: { 0: { acceptUnavailableSitter: 'SLOT_UNAVAILABLE' } } } });
+  const booked = await checkout.confirm(owner, { ...body, visits: [{ ...directedVisit, acceptUnavailableSitter: true }] }, 'directed-book-anyway');
   expect(booked.state).toBe('DISPATCH_PENDING');
   expect(booked.visits[0].requestedSitterId).toBe(String(previousSitterId));
 });

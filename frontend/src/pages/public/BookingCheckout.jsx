@@ -23,6 +23,7 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   PAYMENT_PROVIDER_UNAVAILABLE: 'Chưa thể tạo link thanh toán. Đơn vẫn đang chờ thanh toán.',
   PAYMENT_LINK_RECONCILIATION_REQUIRED: 'Yêu cầu thanh toán đang cần đối soát. Vui lòng liên hệ Paw World Care.',
   PREFERRED_SITTER_HISTORY_REQUIRED: 'Bạn chỉ có thể chọn người chăm sóc đã từng chăm thú cưng này trước đó.',
+  SITTER_AVAILABILITY_CONSENT_REQUIRED: 'Lịch của người chăm sóc đã thay đổi. Vui lòng kiểm tra lại từng buổi.',
   HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
   COMMAND_PENDING: 'Yêu cầu đang được xử lý.', INVALID_STATE: 'Đơn không còn ở trạng thái có thể thanh toán.',
   VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[error.code] || apiErrorFeedback(error, 'Chưa xác nhận được thao tác. Vui lòng thử lại.');
@@ -69,16 +70,32 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
       const fingerprint = JSON.stringify(body);
       if (command.current?.fingerprint !== fingerprint) command.current = { body, fingerprint, key: `checkout:${globalThis.crypto.randomUUID()}` };
       const conflicts = visits.flatMap((_, index) => event.currentTarget.elements.namedItem(`sitter:${index}`)?.selectedOptions?.[0]?.dataset.busy === 'true'
-        ? [`Buổi ${index + 1} (${starts[index].replace('T', ' ')})`] : []);
-      if (conflicts.length) { setBusySlots(conflicts); return; }
+        && !command.current.body.visits[index].acceptUnavailableSitter ? [index] : []);
+      if (conflicts.length) { setError(null); setBusySlots(conflicts); return; }
     }
     return confirmCommand();
   };
-  const confirmCommand = async () => {
+  const confirmCommand = async (accepted = []) => {
     if (locked.current) return;
+    if (accepted.length) {
+      const current = command.current;
+      const body = { ...current.body, visits: current.body.visits.map((row, index) =>
+        accepted.includes(index) ? { ...row, acceptUnavailableSitter: true } : row) };
+      command.current = { ...current, body, key: `checkout:${globalThis.crypto.randomUUID()}` };
+      setBusySlots([]);
+    }
     locked.current = true; setBusy(true); setError(null);
     try { const response = await api.confirm(command.current.body, command.current.key); onConfirmed(response); }
-    catch (failure) { setError(errorText(failure)); setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(failure.code) || failure.status >= 500); }
+    catch (failure) {
+      if (failure.status === 409 && failure.code === 'SITTER_AVAILABILITY_CONSENT_REQUIRED') {
+        const conflicts = command.current.body.visits.flatMap((row, index) => row.requestedSitterId && !row.acceptUnavailableSitter
+          && failure.lineFields?.[index]?.acceptUnavailableSitter ? [index] : []);
+        setUncertain(false);
+        if (conflicts.length) { setBusySlots(conflicts); return; }
+      }
+      setError(errorText(failure));
+      setUncertain(['TIMEOUT', 'NETWORK_ERROR', 'HTTP_ERROR', 'COMMAND_PENDING', 'INVALID_RESPONSE', 'ABORTED'].includes(failure.code) || failure.status >= 500);
+    }
     finally { locked.current = false; setBusy(false); }
   };
   return <form className="pwc-booking-checkout" onSubmit={submit}><h3>Lịch chăm sóc</h3>
@@ -114,8 +131,9 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
     {onEditQuote && <button type="button" disabled={busy || uncertain} onClick={onEditQuote}>Quay lại báo giá</button>}
     <button type="submit" disabled={busy || options.status !== 'success'}><CalendarCheck size={18} />{busy ? 'Đang xác nhận…' : uncertain ? 'Xác nhận lại' : 'Xác nhận đặt dịch vụ'}</button>
     <Dialog open={busySlots.length > 0} onClose={() => setBusySlots([])} title="Người chăm sóc mong muốn không rảnh"
-      description={busySlots.join(', ')} footer={<><Button type="button" onClick={() => setBusySlots([])}>Đổi ngày</Button>
-        <Button type="button" onClick={() => { setBusySlots([]); void confirmCommand(); }}>Vẫn đặt lịch</Button></>} />
+      description={busySlots.map(index => `Buổi ${index + 1} (${starts[index].replace('T', ' ')})`).join(', ')}
+      footer={<><Button type="button" onClick={() => { command.current = null; setBusySlots([]); }}>Đổi ngày</Button>
+        <Button type="button" onClick={() => void confirmCommand(busySlots)}>Vẫn đặt lịch</Button></>} />
   </form>;
 
 }

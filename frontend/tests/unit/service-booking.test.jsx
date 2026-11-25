@@ -116,9 +116,10 @@ test('ST-BKG-21 / GBR-12: unavailable preferred sitter triggers MSG162 allowing 
   fireEvent.click(within(dialog).getByRole('button', { name: 'Vẫn đặt lịch' }));
   await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
   expect(api.confirm.mock.calls[0][0].visits).toEqual([
-    expect.objectContaining({ bookingMode: 'DIRECT', requestedSitterId: 'sitter1' }),
+    expect.objectContaining({ bookingMode: 'DIRECT', requestedSitterId: 'sitter1', acceptUnavailableSitter: true }),
     expect.objectContaining({ bookingMode: 'DIRECT', requestedSitterId: 'sitter1' })
   ]);
+  expect(api.confirm.mock.calls[0][0].visits[1]).not.toHaveProperty('acceptUnavailableSitter');
   expect(booked).toHaveBeenCalledWith({ id: 'booking' });
 });
 

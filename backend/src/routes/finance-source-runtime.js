@@ -38,18 +38,19 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
   const bookingCancellation = createBookingCancellationService({ connection, clock });
   const controller = createFinanceSourceController({ service, webhook, bookingCancellation });
   const router = Router();
+  const r2 = loadR2Config(env);
+  const images = r2 && ports?.privateMedia ? createPrivateImageService({ connection, media: ports.privateMedia,
+    secret: config.auth.tokenSecret, maxImagesPerUser: r2.maxImagesPerUser }) : null;
   const incidentHotline = env.PAWWORLD_HOTLINE?.trim() || env.GROOMING_SHOP_HOTLINE?.trim() || null;
   const incidents = createIncidentService({
     repository: createMongoIncidentRepository({ connection, finance: service, clock, compensationModel }),
     clock,
-    hotline: incidentHotline
+    hotline: incidentHotline,
+    readImage: images?.readScoped
   });
   router.use(createIncidentRouter({ service: incidents, sessionPort: session, clock }));
   router.use(createServiceWorkflowRouter({ templates: createServiceWorkflowService({ connection, clock }),
     execution: createVisitWorkflowService({ connection, clock }), sessionService: session, clock }));
-  const r2 = loadR2Config(env);
-  const images = r2 && ports?.privateMedia ? createPrivateImageService({ connection, media: ports.privateMedia,
-    secret: config.auth.tokenSecret, maxImagesPerUser: r2.maxImagesPerUser }) : null;
   const { contactLookupSecret, contactEncryptionKey } = config.auth;
   const phones = contactLookupSecret && contactEncryptionKey ? createCustomerPhoneDirectory({ connection,
     contactCrypto: createContactCrypto({ lookupSecret: contactLookupSecret, encryptionKey: contactEncryptionKey }) }) : null;

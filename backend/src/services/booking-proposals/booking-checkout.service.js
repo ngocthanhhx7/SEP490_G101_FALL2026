@@ -7,6 +7,7 @@ import { Types } from 'mongoose';
 import { bookingCheckoutInput } from '../../validators/booking-checkout.validator.js';
 import { validatePricingSelection } from '../../validators/pricing-selection.validator.js';
 import { fail, id, digest } from '../../validators/pet-care.validator.js';
+import { AppError } from '../../utils/app-error.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
 import { financeSourceModels } from '../../models/finance-source.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
@@ -103,6 +104,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         const visible = await Setting.findOne({ key: 'SERVICE_CATALOG_VISIBLE', effectiveAt: { $lte: at } }).sort({ effectiveAt: -1 }).session(session).lean();
         if (visible?.enabled !== true) fail('SERVICE_UNAVAILABLE', 'Catalogue unavailable', 409);
         const bookingId = new Types.ObjectId(), visits = [], seenPets = new Set(), seenAddresses = new Set();
+        const inputIndex = new Map(input.visits.map((row, index) => [row, index])), visitInputs = [];
         for (let itemIndex = 0; itemIndex < selections.length; itemIndex++) {
           const selection = selections[itemIndex], quoted = result.items[itemIndex];
           const filter = { serviceId: oid(selection.serviceId), effectiveAt: { $lte: at } };
@@ -158,6 +160,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             const boarding = pricing.billingMode === 'PER_DAY';
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
             const matchReference = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
+            visitInputs.push(row);
             visits.push({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), serviceId: oid(selection.serviceId),
               petIds: pets.map(p => p._id), sitterId: null, state: 'SCHEDULED', version: 0, sequence: visits.length,
               areaCode, requestedSitterId: row.requestedSitterId ? oid(row.requestedSitterId) : null,
@@ -192,14 +195,19 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });
           if (conflict) fail('VISIT_SCHEDULE_OVERLAP', 'A pet already has an overlapping visit', 409);
         }
-        for (const visit of visits.filter(row => row.requestedSitterId)) {
+        const unavailableVisits = {};
+        for (const [index, visit] of visits.entries()) {
+          if (!visit.requestedSitterId) continue;
           if (!selectionGuard) fail('SCHEDULING_UNAVAILABLE', 'Employee eligibility must be checked before directed checkout', 503);
           try { await selectionGuard(actor, visit, session); }
           catch (error) {
-            // Retain the nomination for staff when the sitter cannot work this time slot.
             if (error.status !== 409 || !['DAY_OFF', 'OUTSIDE_WORKING_HOURS', 'SLOT_UNAVAILABLE'].includes(error.code)) throw error;
+            if (visitInputs[index].acceptUnavailableSitter === true) visit.sitterAvailabilityConsentAt = at;
+            else unavailableVisits[inputIndex.get(visitInputs[index])] = { acceptUnavailableSitter: error.code };
           }
         }
+        if (Object.keys(unavailableVisits).length) throw new AppError(409, 'SITTER_AVAILABILITY_CONSENT_REQUIRED',
+          'Confirm each visit outside the selected employee availability', { lineFields: unavailableVisits });
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
           paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },
