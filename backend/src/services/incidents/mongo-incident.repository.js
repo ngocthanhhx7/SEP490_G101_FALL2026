@@ -116,10 +116,13 @@ export function createMongoIncidentRepository({
                 if (!onVisit) {
                   const uploaded = await col('privateimages').findOne(
                     { _id: photo.mediaId, ownerId: oid(actor.userId), state: 'READY' },
-                    { session, projection: { _id: 1, contentDigest: 1, byteLength: 1 } }
+                    { session, projection: { contentDigest: 1, byteLength: 1, careVisitId: 1, transferEvidenceRequestId: 1, uploadVisitId: 1 } }
                   );
                   if (
                     !uploaded ||
+                    uploaded.careVisitId ||
+                    uploaded.transferEvidenceRequestId ||
+                    (uploaded.uploadVisitId && uploaded.uploadVisitId !== record.visitId) ||
                     !/^[a-f0-9]{64}$/.test(uploaded.contentDigest ?? '') ||
                     !Number.isSafeInteger(uploaded.byteLength) ||
                     uploaded.byteLength < 1 ||

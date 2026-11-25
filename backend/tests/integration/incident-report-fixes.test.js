@@ -247,3 +247,29 @@ test('ST-CAS-01: Rejects private image owned by another user', async () => {
 
   expect(res.body.error.code).toBe('EVIDENCE_NOT_READY');
 });
+
+test.each([
+  ['other-visit', '1', { uploadVisitId: String(oid()) }, 409],
+  ['care-evidence', '2', { careVisitId: String(visitId) }, 409],
+  ['transfer-proof', '3', { transferEvidenceRequestId: String(oid()) }, 409],
+  ['current-visit', '4', { uploadVisitId: String(visitId) }, 201]
+])('incident attachment respects image scope: %s', async (label, digit, scope, status) => {
+  const mediaId = digit.repeat(64);
+  await connection.db.collection('privateimages').insertOne({
+    _id: mediaId, ownerId: sitterId, state: 'READY', contentDigest: imageDigest, byteLength: imageBytes.length, ...scope
+  });
+  const response = await request(makeApp())
+    .post('/api/v1/incidents')
+    .set('Host', '127.0.0.1')
+    .set('Origin', 'http://127.0.0.1')
+    .set('x-test-actor', 'sitter')
+    .set('X-CSRF-Token', 'synthetic-csrf')
+    .set('Idempotency-Key', `incident-photo-${label}`)
+    .send({
+      visitId: String(visitId), category: 'PROPERTY', severity: 'MEDIUM', urgency: 'ROUTINE',
+      description: 'Ảnh mới cho báo cáo sự cố.', evidenceRefs: [mediaId]
+    })
+    .expect(status);
+  if (status === 201) expect(response.body.data.incident.evidenceRefs).toEqual([{ mediaId, kind: 'INCIDENT', caption: null, recordedAt: null }]);
+  else expect(response.body.error.code).toBe('EVIDENCE_NOT_READY');
+});
