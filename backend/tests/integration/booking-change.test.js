@@ -234,7 +234,7 @@ describe('UC-84 customer requests', () => {
     const record = await booking([BASE + DAY - MINUTE]);
     const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
     expect(options).toMatchObject({
-      canChangeBooking: false, slotNumbers: [], visits: [{ canSelect: false, keepsOldTime: true }]
+      canChangeBooking: false, unavailableReason: 'LEAD_TIME', slotNumbers: [], visits: [{ canSelect: false, keepsOldTime: true }]
     });
     const result = await submit(record, whole('2030-01-06', '08:00')).expect(422);
     expect(result.body.error).toMatchObject({ code: 'MSG54', message: LEAD_MESSAGE });
@@ -275,6 +275,11 @@ describe('UC-84 customer requests', () => {
     const record = await booking([BASE + DAY, BASE + 2 * DAY]);
     const payload = single(record.visits[0], BASE + 3 * DAY), key = 'replay-same-booking-change';
     const first = (await submit(record, payload, owner, key).expect(201)).body.data;
+    const options = (await request(app).get(customerPath(record._id) + '/change-options').set(headers(owner)).expect(200)).body.data;
+    expect(options.visits).toMatchObject([
+      { id: String(record.visits[0]._id), pendingChange: true },
+      { id: String(record.visits[1]._id), pendingChange: false }
+    ]);
     const replay = (await submit(record, payload, owner, key).expect(201)).body.data;
     expect(replay).toEqual(first);
     expect(errorCode(await submit(record, whole('2030-01-06', '09:00')).expect(409))).toBe('MSG149');
@@ -347,6 +352,9 @@ describe('UC-85 decisions and expiry', () => {
     const record = await booking([BASE + 25 * HOUR], { assigned: true });
     await readySitter(record.serviceId, [{ weekday: 4, startLocalTime: '06:30', endLocalTime: '19:00' }]);
     const visit = record.visits[0], newStart = BASE + DAY + 8 * HOUR;
+    // UC-41: recompute a retained replacement's previously stored exemption against the new schedule.
+    await col('visits').updateOne({ _id: visit._id }, { $set: { handoverRequired: true, handoverAccepted: true,
+      handoverLateCheckInExempt: true, assignedAt: new Date(BASE - 40 * MINUTE) } });
     const change = (await submit(record, single(visit, newStart)).expect(201)).body.data;
     now = BASE + 5 * HOUR;
     expect((await detail(change).expect(200)).body.data.items[0].availability).toBe('AVAILABLE');
@@ -356,7 +364,7 @@ describe('UC-85 decisions and expiry', () => {
     expect(results.find(result => result.status === 200).body.data).toMatchObject({ state: 'APPROVED', messageCode: 'MSG126' });
     const moved = await col('visits').findOne({ _id: visit._id });
     expect(moved).toMatchObject({ state: 'ASSIGNED', sitterId: visit.sitterId, snapshots: visit.snapshots,
-      startAt: new Date(newStart), endAt: new Date(newStart + HOUR / 2) });
+      startAt: new Date(newStart), endAt: new Date(newStart + HOUR / 2), handoverAccepted: true, handoverLateCheckInExempt: false });
     expect((await col('bookings').findOne({ _id: record._id })).paymentSnapshot.amountVnd).toBe(90000);
     await app.locals.bookingChange.runBatch();
     expect(await col('notifications').countDocuments({ eventType: 'BookingChangeApproved' })).toBe(2);
@@ -375,6 +383,7 @@ describe('UC-85 decisions and expiry', () => {
     await decision(change, 'APPROVE', admin).expect(200);
     expect(await col('visits').findOne({ _id: visit._id })).toMatchObject({
       state: 'SCHEDULED', sitterId: null, startAt: new Date(newStart), handoverRequired: true,
+      handoverNote: { reasonCode: 'BOOKING_RESCHEDULED', previousSitterId: visit.sitterId },
       dispatchReview: { code: 'INSUFFICIENT_DISPATCH_CANDIDATES' },
       dispatchRanking: { eligibleCount: 1, candidates: [{ sitterId: replacement.user.id }] }
     });
