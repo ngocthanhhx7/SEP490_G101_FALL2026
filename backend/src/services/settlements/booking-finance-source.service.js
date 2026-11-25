@@ -91,11 +91,11 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       return result;
     });
   }
-  async function visitContext(current, visitId, session) {
+  async function visitContext(current, visitId, session, { allowCompletedSuspendedRead = false } = {}) {
     const visit = await col('visits').findOne({ _id: oid(visitId), sitterId: oid(current.userId) }, { session });
     if (!visit) fail(404, 'RESOURCE_NOT_FOUND');
     const status = await statuses.findOne({ userId: oid(current.userId), status: 'ACTIVE' }).session(session).lean();
-    if (!status) fail(403, 'SITTER_NOT_ACTIVE');
+    if (!status && !(allowCompletedSuspendedRead && visit.state === 'COMPLETED')) fail(403, 'SITTER_NOT_ACTIVE');
     const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
     const careVisitCount = compensationModel === 'EMPLOYEE' && booking?.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? booking.careVisitCount : booking?.originalVisitCount;
     if (!booking || !Array.isArray(booking.visitIds) || booking.visitIds.length !== careVisitCount
@@ -141,10 +141,10 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
     await enqueue(completed, session);
     await event('BookingCompleted', completed, null, String(booking._id), session);
   }
-  async function executeVisit({ actor: current, visitId, expectedVersion, idempotencyKey, operation, mediaId, items }) {
+  async function executeVisit({ actor: current, visitId, expectedVersion, idempotencyKey, operation, mediaId, items, customerNote }) {
     actor(current, 'PET_SITTER'); oid(visitId);
     return command({ actor: current, operation, resourceId: visitId, expectedVersion, idempotencyKey,
-      payload: { mediaId, items }, authorize: session => visitContext(current, visitId, session),
+      payload: { mediaId, items, ...(customerNote !== undefined ? { customerNote } : {}) }, authorize: session => visitContext(current, visitId, session),
       work: async ({ visit, booking }, session) => {
         if (!['ASSIGNED', 'IN_PROGRESS', ...(booking.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? ['DISPATCH_PENDING'] : [])].includes(booking.state)) fail(409, 'INVALID_STATE');
         if (visit.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
@@ -157,6 +157,10 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
           if (at.getTime() < visit.startAt.getTime() - CHECK_IN_EARLY_MS) fail(409, 'CHECK_IN_TOO_EARLY');
           if (at > visit.endAt) fail(409, 'INVALID_STATE');
           if (handoverPending(visit)) fail(409, 'HANDOVER_REQUIRED');
+          if (Number.isInteger(visit.currentInstructionVersion)
+            && (visit.acknowledgedInstructionVersion ?? 0) < visit.currentInstructionVersion) {
+            fail(409, 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED');
+          }
           if (booking.originalVisitCount > 1 || booking.paymentMode === 'PREPAY') {
             const receipt = await col('payments').find({ bookingId: booking._id, state: 'VERIFIED' }, { session }).limit(2).toArray();
             if (receipt.length !== 1) fail(409, 'PREPAYMENT_REQUIRED');
@@ -184,12 +188,16 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             if (visit.snapshots?.workflow) fail(409, 'WORKFLOW_TASKS_REQUIRED');
             const required = visit.snapshots?.checklistItemIds;
             if (!Array.isArray(required) || required.length > 100 || new Set(required).size !== required.length
-              || !Array.isArray(items) || items.length !== required.length
+              || !Array.isArray(items) || items.length < 1 || items.length > required.length
               || new Set(items.map(row => row?.itemId)).size !== items.length
               || items.some(row => !required.includes(row?.itemId) || !['DONE', 'SKIPPED'].includes(row.status)
-                || (row.status === 'SKIPPED' && (typeof row.reason !== 'string' || !row.reason.trim() || row.reason.length > 1000)))) fail(422, 'CHECKLIST_INVALID');
-            fields = { checklist: items.map(row => ({ itemId: row.itemId, status: row.status,
-              ...(row.status === 'SKIPPED' ? { reason: row.reason.trim() } : {}) })) };
+                || (row.status === 'SKIPPED' && (typeof row.reason !== 'string' || !row.reason.trim() || row.reason.length > 1000)))
+              || (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote)))) fail(422, 'CHECKLIST_INVALID');
+            fields = {
+              checklist: items.map(row => ({ itemId: row.itemId, status: row.status,
+                ...(row.status === 'SKIPPED' ? { reason: row.reason.trim() } : {}) })),
+              ...(customerNote !== undefined ? { customerNote: customerNote.trim() } : {})
+            };
           } else {
             if (!(visit.endAt instanceof Date) || at.getTime() > visit.endAt.getTime() + CHECK_OUT_GRACE_MS
               || at < visit.checkInAt) fail(409, 'CHECK_OUT_DEADLINE_PASSED');
@@ -199,6 +207,11 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             if (!visit.snapshots?.workflow && (!Array.isArray(required) || !Array.isArray(visit.checklist) || required.length !== visit.checklist.length
               || required.some(id => !visit.checklist.some(row => row.itemId === id && ['DONE', 'SKIPPED'].includes(row.status)
                 && (row.status !== 'SKIPPED' || row.reason?.trim()))))) fail(409, 'CHECKLIST_REQUIRED');
+            if (!visit.snapshots?.workflow && Array.isArray(visit.checklistPhotoIds) && visit.checklistPhotoIds.length === 0
+              && !(visit.evidenceRefs ?? []).some(row => row.kind === 'CHECKLIST')
+              && !(visit.checklist ?? []).some(row => row.photoSkipReason?.trim() || row.reason?.trim())) {
+              fail(409, 'CHECKLIST_PHOTO_REQUIRED');
+            }
             await bindMedia(mediaId, visit, current, operation, session);
             fields = { state: 'COMPLETED', checkOutAt: at, completedAt: at };
           }
@@ -276,7 +289,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
     async readVisit(current, visitId) {
       actor(current, 'PET_SITTER');
       return unitOfWork.run(async session => {
-        const { visit } = await visitContext(current, visitId, session);
+        const { visit } = await visitContext(current, visitId, session, { allowCompletedSuspendedRead: true });
         if (visit.snapshots?.workflow && handoverPending(visit)) fail(409, 'HANDOVER_REQUIRED');
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
           workflow: workflowProjection(visit),

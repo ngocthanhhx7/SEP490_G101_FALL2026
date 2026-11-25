@@ -300,6 +300,11 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
             lookupKey: contact.lookupKey, state: 'VERIFIED' }).session(session);
           const owner = await User.exists({ _id: actor.userId, state: 'ACTIVE', roles: ['CUSTOMER'], synthetic: false }).session(session);
           if (!verified || !owner) throw new AppError(403, 'FORBIDDEN', 'Applicant account or contact is no longer eligible');
+        } else if (typeof connection.db?.collection === 'function') {
+          const existingContact = await connection.db.collection('contacts')?.findOne?.({
+            channel: contactChannel, lookupKey: contact.lookupKey, state: 'VERIFIED'
+          }, { session });
+          if (existingContact) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact is already registered to an account');
         }
         const [created] = await Applicant.create([{
           ownerUserId: actor?.userId ?? null,
@@ -640,6 +645,16 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         }, { $set: { status: nextStatus, statusReason: reason, changedAt: new Date(now) }, $inc: { version: 1 } },
         { returnDocument: 'after', session });
         if (!status) throw new AppError(409, 'VERSION_CONFLICT', 'Sitter status changed before this decision');
+        if (action === 'SUSPEND' && typeof connection.db?.collection === 'function') {
+          const visitsCol = connection.db.collection('visits');
+          if (typeof visitsCol?.updateMany === 'function') {
+            await visitsCol.updateMany(
+              { sitterId: status.userId, state: 'ASSIGNED' },
+              { $set: { sitterId: null, state: 'SCHEDULED', handoverRequired: true }, $inc: { version: 1 } },
+              { session }
+            );
+          }
+        }
         await Audit.create([{
           actorId: new Types.ObjectId(actor.userId), actorRoles: [...actor.roles],
           action: action === 'SUSPEND' ? 'SITTER_SUSPENDED' : 'SITTER_REINSTATED',

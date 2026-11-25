@@ -192,13 +192,16 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
     return Object.freeze({ items: Object.freeze(items), nextCursor: result.nextCursor ?? null, limit: filter.limit });
   }
 
-  async function decide(actor, offerId, expectedVersion, idempotencyKey, decision) {
+  async function decide(actor, offerId, expectedVersion, idempotencyKey, decision, reason) {
     const sitterId = activeSitter(actor);
     const id = identifier(offerId, 'offerId');
     const expected = version(expectedVersion);
     const key = requireKey(idempotencyKey);
     if (!['ACCEPT', 'DECLINE'].includes(decision)) fail(422, 'VALIDATION_FAILED', 'Offer decision is invalid');
-    const payload = { offerId: id, sitterId, expectedVersion: expected, decision };
+    const hasReasonArg = reason !== undefined;
+    const declineReason = typeof reason === 'string' ? reason.trim()
+      : typeof (reason?.reasonCode ?? reason?.reason) === 'string' ? (reason.reasonCode ?? reason.reason).trim() : '';
+    const payload = { offerId: id, sitterId, expectedVersion: expected, decision, ...(hasReasonArg ? { reason: declineReason } : {}) };
     return repository.runOfferCommand({ actor, sitterId, offerId: id, expectedVersion: expected,
       idempotencyKey: key, payload, execute: async transaction => {
         assertCommandPorts(transaction);
@@ -227,11 +230,14 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
           return Object.freeze({ offerId: id, visitId: offer.visitId, assignmentId: saved.assignmentId ?? null,
             state: 'ASSIGNED', sitterId, version: saved.version });
         }
+        if (hasReasonArg && (!declineReason || declineReason.length > 500 || /[\x00-\x1f\x7f]/.test(declineReason))) {
+          fail(422, 'VALIDATION_FAILED', 'Decline reason is required');
+        }
         if (typeof transaction.declineOffer !== 'function') fail(503, 'OFFER_COMMAND_UNAVAILABLE', 'Offer command is unavailable');
-        const saved = await transaction.declineOffer({ offer, sitterId, expectedVersion: expected });
+        const saved = await transaction.declineOffer({ offer, sitterId, expectedVersion: expected, ...(hasReasonArg ? { reason: declineReason } : {}) });
         if (!saved || saved.state !== 'DECLINED') fail(503, 'OFFER_COMMAND_UNAVAILABLE', 'Offer decline was not confirmed');
         await transaction.appendAuditAndOutbox?.({ type: 'OfferDeclined', actorId: sitterId, offerId: id,
-          visitId: offer.visitId, at: new Date(clock()).toISOString() });
+          visitId: offer.visitId, ...(hasReasonArg ? { reason: declineReason } : {}), at: new Date(clock()).toISOString() });
         return Object.freeze({ offerId: id, visitId: offer.visitId, state: 'DECLINED', sitterId, version: saved.version });
       }
     });
@@ -239,6 +245,6 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
 
   return Object.freeze({ list, detail, assignments,
     accept: (actor, offerId, expectedVersion, idempotencyKey) => decide(actor, offerId, expectedVersion, idempotencyKey, 'ACCEPT'),
-    decline: (actor, offerId, expectedVersion, idempotencyKey) => decide(actor, offerId, expectedVersion, idempotencyKey, 'DECLINE')
+    decline: (actor, offerId, expectedVersion, idempotencyKey, reason) => decide(actor, offerId, expectedVersion, idempotencyKey, 'DECLINE', reason)
   });
 }
