@@ -127,10 +127,9 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           if (scheduled.length !== quoted.visitCount) fail('VALIDATION_FAILED', 'Visit count must match each service');
           for (const [index, row] of scheduled.entries()) {
             if (row.requestedSitterId) {
-              const published = await col('sitterpublicprofiles').findOne({ userId: oid(row.requestedSitterId), state: 'APPROVED' }, { session });
-              const employee = await col('users').findOne({ _id: oid(row.requestedSitterId), state: 'ACTIVE', roles: 'PET_SITTER' }, { session });
+              const employee = await col('users').findOne({ _id: oid(row.requestedSitterId), state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } }, { session });
               const status = await col('sitterstatuses').findOne({ userId: oid(row.requestedSitterId), status: 'ACTIVE' }, { session });
-              if (!published || !employee || !status) fail('RESOURCE_NOT_FOUND', 'Selected employee is not available publicly', 404);
+              if (!employee || !status) fail('RESOURCE_NOT_FOUND', 'Selected employee is not available', 404);
               const caredBefore = await hasPreviousPetSitter(connection.db, actor.userId, row.requestedSitterId, selection.petIds, session);
               if (!caredBefore) fail('PREFERRED_SITTER_HISTORY_REQUIRED', 'Preferred pet sitter must have previously cared for one of the chosen pets', 409);
             }
