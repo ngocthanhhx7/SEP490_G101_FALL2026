@@ -156,7 +156,8 @@ function IncidentRoute({ view }) {
   const params = useParams();
   const { getCsrfToken, user } = useSession();
   const api = useMemo(() => createIncidentApi({ request: createApiClient({ getCsrfToken }) }), [getCsrfToken]);
-  if (view === 'report') return <IncidentReportPage key={`${user?.id}:${params.visitId}`} api={api} />;
+  const imageApi = useMemo(() => createPrivateImageApi({ getCsrfToken }), [getCsrfToken]);
+  if (view === 'report') return <IncidentReportPage key={`${user?.id}:${params.visitId}`} api={api} imageApi={imageApi} />;
   if (view === 'detail') return <IncidentDetailsPage key={`${user?.id}:${params.caseId}`} api={api} />;
   return <IncidentListPage key={user?.id} api={api} />;
 }

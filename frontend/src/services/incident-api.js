@@ -30,6 +30,10 @@ export function createIncidentApi({ request, fetchImpl, getCsrfToken, onUnauthor
     return defaultRequest(...args);
   };
   const api = {
+    async config({ signal } = {}) {
+      const result = await send('/incidents/config', { signal });
+      return result?.data ?? { hotline: null };
+    },
     async report(input = {}) {
       const visitId = id(input.visitId, 'visitId');
       if (input.expectedVersion !== undefined) version(input.expectedVersion);

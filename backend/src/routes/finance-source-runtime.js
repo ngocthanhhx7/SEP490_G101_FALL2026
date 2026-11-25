@@ -35,7 +35,12 @@ export function financeSourceRuntime({ config, connection, ports, env = {}, cloc
     repository: createMongoPaymentWebhookRepository({ connection, finance: service }), clock: () => new Date(clock()) }) : null;
   const controller = createFinanceSourceController({ service, webhook });
   const router = Router();
-  const incidents = createIncidentService({ repository: createMongoIncidentRepository({ connection, finance: service, clock, compensationModel }), clock });
+  const incidentHotline = env.PAWWORLD_HOTLINE?.trim() || env.GROOMING_SHOP_HOTLINE?.trim() || null;
+  const incidents = createIncidentService({
+    repository: createMongoIncidentRepository({ connection, finance: service, clock, compensationModel }),
+    clock,
+    hotline: incidentHotline
+  });
   router.use(createIncidentRouter({ service: incidents, sessionPort: session, clock }));
   router.use(createServiceWorkflowRouter({ templates: createServiceWorkflowService({ connection, clock }),
     execution: createVisitWorkflowService({ connection, clock }), sessionService: session, clock }));

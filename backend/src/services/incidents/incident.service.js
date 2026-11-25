@@ -479,7 +479,8 @@ function runner(repository, actor, resourceId, work, resourceKind = 'visit') {
 
 export function createIncidentService({
   repository,
-  clock = () => new Date()
+  clock = () => new Date(),
+  hotline = null
 } = {}) {
   if (
     !repository ||
@@ -939,7 +940,14 @@ export function createIncidentService({
       'case'
     );
   }
+  function config({ actor } = {}) {
+    active(actor, clock);
+    return {
+      hotline: typeof hotline === 'string' && hotline.trim() ? hotline.trim() : null
+    };
+  }
   return Object.freeze({
+    config,
     report,
     create: report,
     list,

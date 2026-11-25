@@ -67,6 +67,12 @@ export function createIncidentRouter({
     createIncidentController({ service }).createVisitsByVisitIdIncidents
   );
   router.get(
+    '/incidents/config',
+    auth,
+    read,
+    createIncidentController({ service }).getIncidentConfig
+  );
+  router.get(
     '/incidents',
     auth,
     read,
