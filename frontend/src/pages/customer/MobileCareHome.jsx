@@ -44,6 +44,8 @@ export function MobileCareHome({ api = customerDashboardApi, loadCatalog, groomi
     {result.status === 'loading' && <p role="status">Đang tìm buổi chăm sóc cần xem…</p>}
     {['pending','error','forbidden'].includes(result.status) &&
       <p role="alert">Chưa cập nhật được lịch chăm sóc. <Button onClick={() => { result.retry(); grooming.reload(); }}>Thử lại</Button></p>}
+    {grooming.status === 'loading' && <p role="status">Đang tải lịch grooming…</p>}
+    {grooming.status === 'error' && <p role="alert">Chưa tải được lịch grooming. <Button onClick={grooming.reload}>Thử lại</Button></p>}
     {urgentVisit && <section>
       <h2>{urgentVisit.state === 'IN_PROGRESS' ? 'Đang chăm sóc' : 'Buổi cần theo dõi'}</h2>
       <ul className="pwc-mobile-rows"><MobileVisitCard row={urgentVisit} headingAs="h3" mobileBack="/customer" actionLabel={urgentVisit.state === 'IN_PROGRESS' ? 'Theo dõi buổi chăm sóc' : undefined} /></ul>
@@ -63,7 +65,7 @@ export function MobileCareHome({ api = customerDashboardApi, loadCatalog, groomi
     </section>}
     {typeof awaitingPayment === 'number' && awaitingPayment > 0 &&
       <p><Link to="/account/bookings?view=orders">{awaitingPayment} đơn đang chờ thanh toán</Link></p>}
-    {['success', 'empty'].includes(result.status) && !hasAny && <CompactEmpty icon={CalendarDays} title="Chưa có lịch hẹn sắp tới"
+    {['success', 'empty'].includes(result.status) && !hasAny && !['loading', 'error'].includes(grooming.status) && <CompactEmpty icon={CalendarDays} title="Chưa có lịch hẹn sắp tới"
       action={<Link className="pwc-compact-cta pwc-compact-cta--quiet" to="/account/bookings">Xem lịch hẹn</Link>}>
       Lịch chăm sóc sẽ xuất hiện ở đây sau khi bạn đặt dịch vụ.
     </CompactEmpty>}
