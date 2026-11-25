@@ -8,16 +8,8 @@ const page = (items, over = {}) => envelope({ items, page: 1, limit: 20, total: 
 
 const api = (fetchImpl, getCsrfToken = () => 'csrf-token') => createProductManagementApi({ fetchImpl, getCsrfToken });
 
-test('deletes with CSRF and a reason/version; validates acknowledgement and database overview', async () => {
-  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope({ id: 'p1', deleted: true })));
-  await api(fetchImpl).deleteProduct('p1', { version: 2, reason: 'Ngừng kinh doanh mẫu sản phẩm này.' });
-  const [url, request] = fetchImpl.mock.calls[0];
-  expect(url).toBe('/api/v1/admin/products/p1');
-  expect(request.method).toBe('DELETE');
-  expect(request.headers.get('X-CSRF-Token')).toBe('csrf-token');
-  expect(JSON.parse(request.body)).toEqual({ version: 2, reason: 'Ngừng kinh doanh mẫu sản phẩm này.' });
-  await expect(api(jest.fn().mockResolvedValue(reply(200, envelope({ id: 'p2', deleted: true })))).deleteProduct('p1', {}))
-    .rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+test('validates database overview and does not expose product deletion (ST-GRN-06)', async () => {
+  expect(api(jest.fn()).deleteProduct).toBeUndefined();
   await expect(api(jest.fn().mockResolvedValue(reply(200, page([], { summary: { total: 2, visible: 3, hidden: 0, outOfStock: 0 } })))).listProducts())
     .rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });
