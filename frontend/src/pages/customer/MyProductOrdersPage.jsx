@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useProductCart } from '../../hooks/useProductCart.js';
-import { Notice, Button, Pagination } from '../../components/ui/index.js';
+import { Notice, Button, Pagination, Toast } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
 import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import { formatOrderDate, formatOrderDateTime, formatVnd, productErrorText, productMessage } from '../../utils/product-format.js';
@@ -44,7 +44,7 @@ function PaymentStatus({ order, api, notice }) {
 
 function OrderDetail({ order, api, notice }) {
   const { pathname, search } = useLocation();
-  return <aside className="pwc-shop-panel" aria-label={`Chi tiết đơn ${order.code}`}>
+  return <aside className="pwc-shop-panel pwc-shop-orders-panel" aria-label={`Chi tiết đơn ${order.code}`}>
     <p><Link to="/contact" state={{ helpFrom: pathname + search }}>Hỗ trợ đơn mua</Link></p>
     <h2>Đơn {order.code} <OrderStatusBadge status={order.status} /></h2>
     <dl className="pwc-shop-facts">
@@ -71,13 +71,18 @@ export function MyProductOrdersPage() {
   const { api } = useProductCart();
   const compact = usePhoneApp();
   const location = useLocation();
-  const placed = location.state?.placed;
+  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const requested = /^[a-f0-9]{24}$/i.test(params.get('order') ?? '') ? params.get('order') : null;
+  const [toastMessage, setToastMessage] = useState('');
+  const [linkErrorNotice, setLinkErrorNotice] = useState(null);
+  const shownPaidReturn = useRef(null);
+  const dismissToast = useCallback(() => setToastMessage(''), []);
   // payOS sends the customer back with cancel=true when the payment was cancelled on its page (MSG32). The return
   // itself proves nothing: only the payOS result the shop receives marks an order paid. MSG33 comes from the checkout.
   const noticeFor = (order) => (order.id === requested && params.get('cancel') === 'true' ? productMessage('MSG32')
-    : (order.code === placed && location.state?.paymentLinkError) || '');
+    : (linkErrorNotice?.code === order.code ? linkErrorNotice.message : '')
+      || (order.code === location.state?.placed && location.state?.paymentLinkError) || '');
   const [desktopPage, setDesktopPage] = useState(1);
   const page = compact ? Math.max(1, Number.parseInt(params.get('page'), 10) || 1) : desktopPage;
   const listUrl = page > 1 ? `/customer/product-orders?page=${page}` : '/customer/product-orders';
@@ -90,14 +95,32 @@ export function MyProductOrdersPage() {
   const orders = resource.data ?? [];
   const selected = orders.find((order) => order.id === selectedId) ?? (requestedOrder.data?.id === requested ? requestedOrder.data : null) ?? (!requested ? orders[0] : null);
 
-  // Back from payOS after paying (UC-62 step 8): MSG59 once the order itself says it is paid. The return address alone proves nothing.
+  // Show MSG59 once as an auto-hiding toast after checkout, then clear location.state so reload/back never repeats it.
+  useEffect(() => {
+    const placedCode = location.state?.placed;
+    if (!placedCode) return;
+    setToastMessage(productMessage('MSG59', { code: placedCode }));
+    if (location.state?.paymentLinkError) {
+      setLinkErrorNotice({ code: placedCode, message: location.state.paymentLinkError });
+    }
+    navigate(location.pathname + location.search, { replace: true, state: null });
+  }, [location.pathname, location.search, location.state, navigate]);
+
+  // Back from payOS after paying (UC-62 step 8): MSG59 once the order itself says it is paid, then strip status from URL.
   const paidReturn = selected?.id === requested && selected.paid && selected.paymentMethod === 'PREPAID' && params.get('status') === 'PAID';
-  const placedCode = placed ?? (paidReturn ? selected.code : null);
+  useEffect(() => {
+    if (!paidReturn || shownPaidReturn.current === selected.id) return;
+    shownPaidReturn.current = selected.id;
+    setToastMessage(productMessage('MSG59', { code: selected.code }));
+    const next = new globalThis.URLSearchParams(params);
+    next.delete('status');
+    setParams(next, { replace: true });
+  }, [paidReturn, selected?.id, selected?.code, params, setParams]);
 
   if (compact && requested) return <section className="pwc-shop" aria-labelledby="orders-title">
     <h1 id="orders-title" data-duplicate-title>Chi tiết đơn mua</h1>
     <Link data-page-back to={listUrl}>Về đơn mua hàng</Link>
-    {placedCode && <p className="pwc-shop-alert pwc-shop-alert--ok" role="status">{productMessage('MSG59', { code: placedCode })}</p>}
+    <Toast message={toastMessage} onClose={dismissToast} />
     {selected?.id === requested ? <OrderDetail order={selected} api={api} notice={noticeFor(selected)} /> : requestedOrder.status === 'loading'
       ? <Notice state="loading" title="Đang tải chi tiết đơn…" />
       : <Notice state="error" title="Chưa mở được chi tiết đơn" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}
@@ -106,7 +129,7 @@ export function MyProductOrdersPage() {
   return <section className="pwc-shop" aria-labelledby="orders-title">
     <h1 id="orders-title" data-duplicate-title>Đơn mua sản phẩm</h1>
     <p className="pwc-shop-lead">Các đơn mua sản phẩm của bạn. Chọn một đơn để xem chi tiết.</p>
-    {placedCode && <p className="pwc-shop-alert pwc-shop-alert--ok" role="status">{productMessage('MSG59', { code: placedCode })}</p>}
+    <Toast message={toastMessage} onClose={dismissToast} />
     {resource.status === 'loading' && <Notice state="loading" title="Đang tải đơn hàng…" />}
     {resource.status === 'error' && <Notice state="error" title="Chưa tải được đơn hàng"
       action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>} />}
@@ -123,9 +146,9 @@ export function MyProductOrdersPage() {
           state={{ mobileBack: listUrl }}>Xem đơn {order.code}</Link>
       </li>)}
     </ul>}
-    {!compact && (resource.status === 'success' || (requestedOrder.status === 'success' && selected)) && <div className="pwc-shop-split">
-      <div className="pwc-shop-panel pwc-shop-table-wrap">
-        <table className="pwc-shop-table pwc-shop-table--wide">
+    {!compact && (resource.status === 'success' || (requestedOrder.status === 'success' && selected)) && <div className="pwc-shop-split pwc-shop-split--orders">
+      <div className="pwc-shop-panel pwc-shop-orders-panel pwc-shop-table-wrap">
+        <table className="pwc-shop-table pwc-shop-table--orders">
           <thead><tr><th>Mã đơn</th><th>Ngày đặt</th><th>Cách nhận</th><th>Tổng tiền</th><th>Trạng thái</th><th><span className="pwc-visually-hidden">Xem</span></th></tr></thead>
           <tbody>{orders.map((order) => <tr key={order.id} className={order.id === selected?.id ? 'is-selected' : undefined}>
             <td><strong>{order.code}</strong></td><td>{formatOrderDate(order.createdAt)}</td>

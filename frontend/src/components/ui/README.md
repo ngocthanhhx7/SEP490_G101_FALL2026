@@ -9,3 +9,5 @@ Pagination is the shared "Hiển thị a–b trên N" line with Trước/Sau for
 `Pagination` and `CursorPagination` share Figma 2:3124 round controls. Numbered lists keep server page/limit/total and can recover after results shrink. Cursor lists keep caller-owned history and write/loading locks, without inventing an unknown last page.
 
 `SiteBrandMark` is the shared PawWorldCare wordmark for the public header and role workspace header. Role navigation remains owned by the layout; the mark only renders the same icon and full brand name.
+
+`Toast` renders ephemeral action feedback (`role="status"`, auto-hide with hover/focus pause and a close button) for one-shot confirmation messages such as placing or receiving an order.
