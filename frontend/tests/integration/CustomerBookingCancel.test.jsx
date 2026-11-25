@@ -111,20 +111,45 @@ test('ST-BKG-30 & ST-BKG-31 shows only unstarted visits in dialog, previews MSG2
         return jsonResponse({
           scope: 'VISIT',
           visitId: body.visitId,
+          serverNow,
           isPaid: true,
           lateFeeTotalVnd: 0,
           comboDiscountAdjustmentVnd: 2400,
           refundTotalVnd: 114000,
-          freeCancellation: true
+          freeCancellation: true,
+          items: [{
+            visitId: body.visitId,
+            startAt: '2026-11-28T02:00:00.000Z',
+            endAt: '2026-11-28T03:00:00.000Z',
+            lateFeeVnd: 0,
+            refundVnd: 114000
+          }]
         });
       }
       return jsonResponse({
         scope: 'BOOKING',
+        serverNow,
         isPaid: true,
         lateFeeTotalVnd: 36000,
         comboDiscountAdjustmentVnd: 0,
         refundTotalVnd: 199200,
-        freeCancellation: false
+        freeCancellation: false,
+        items: [
+          {
+            visitId: visitUpcoming1Id,
+            startAt: '2026-11-26T20:00:00.000Z',
+            endAt: '2026-11-26T21:00:00.000Z',
+            lateFeeVnd: 36000,
+            refundVnd: 82000
+          },
+          {
+            visitId: visitUpcoming2Id,
+            startAt: '2026-11-29T02:00:00.000Z',
+            endAt: '2026-11-29T03:00:00.000Z',
+            lateFeeVnd: 0,
+            refundVnd: 117200
+          }
+        ]
       });
     },
     cancelHandler: (body, req) => {
@@ -180,8 +205,13 @@ test('ST-BKG-30 & ST-BKG-31 shows only unstarted visits in dialog, previews MSG2
   fireEvent.click(cancelButton);
 
   const dialog = within(await screen.findByRole('dialog', { name: 'Xác nhận huỷ lịch đặt' }));
-  // Default BOOKING preview shows late fee MSG27
-  expect(await dialog.findByText(/Huỷ bây giờ sẽ giữ 36\.000.*30% giá buổi trước giảm giá.*199\.200.*sẽ được hoàn lại/)).toBeVisible();
+  // Default BOOKING preview lists each visit to cancel with date/time, time remaining and per-visit fee, plus MSG27 total
+  expect(await dialog.findByText('Các buổi sẽ huỷ (2)')).toBeVisible();
+  expect(dialog.getByText('Còn 18 giờ')).toBeVisible();
+  expect(dialog.getByText(/Phí huỷ muộn 36\.000/)).toBeVisible();
+  expect(dialog.getByText('Còn 3 ngày')).toBeVisible();
+  expect(dialog.getByText('Miễn phí')).toBeVisible();
+  expect(dialog.getByText(/Huỷ bây giờ sẽ giữ 36\.000.*30% giá buổi trước giảm giá.*199\.200.*sẽ được hoàn lại/)).toBeVisible();
 
   // Switch to single visit: started visit must NOT appear in the select options
   fireEvent.click(dialog.getByRole('button', { name: 'Một buổi' }));
@@ -190,8 +220,11 @@ test('ST-BKG-30 & ST-BKG-31 shows only unstarted visits in dialog, previews MSG2
   expect(optionValues).toEqual([visitUpcoming1Id, visitUpcoming2Id]);
   expect(optionValues).not.toContain(visitStartedId);
 
-  // Single visit preview shows free MSG27 + combo discount adjustment
-  expect(await dialog.findByText(/Huỷ bây giờ được miễn phí: 114\.000.*sẽ được hoàn lại/)).toBeVisible();
+  // Single visit preview lists the 1 visit with remaining time + Miễn phí, plus free MSG27 + combo discount adjustment
+  expect(await dialog.findByText('Các buổi sẽ huỷ (1)')).toBeVisible();
+  expect(dialog.getByText('Còn 2 ngày')).toBeVisible();
+  expect(dialog.getByText('Miễn phí')).toBeVisible();
+  expect(dialog.getByText(/Huỷ bây giờ được miễn phí: 114\.000.*sẽ được hoàn lại/)).toBeVisible();
   expect(dialog.getByText(/Điều chỉnh giảm giá nhiều buổi trên các buổi còn lại: − 2\.400/)).toBeVisible();
 
   // Optional reason selection & confirm

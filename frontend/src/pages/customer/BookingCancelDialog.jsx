@@ -25,6 +25,30 @@ function formatVisitOption(visit) {
   return [start, visit.sitterName].filter(Boolean).join(' · ');
 }
 
+function formatVisitStart(startAt) {
+  return startAt && Number.isFinite(Date.parse(startAt))
+    ? dateFormatter.format(new Date(startAt))
+    : 'Chưa rõ giờ';
+}
+
+function formatTimeRemaining(startAt, serverNow) {
+  const startMs = Date.parse(startAt);
+  const nowMs = Number.isFinite(Date.parse(serverNow)) ? Date.parse(serverNow) : Date.now();
+  if (!Number.isFinite(startMs)) return '—';
+  const diffMinutes = Math.max(0, Math.floor((startMs - nowMs) / 60000));
+  if (diffMinutes < 60) {
+    return diffMinutes <= 1 ? 'Còn dưới 1 phút' : `Còn ${diffMinutes} phút`;
+  }
+  const totalHours = Math.floor(diffMinutes / 60);
+  const minutes = diffMinutes % 60;
+  if (totalHours < 24) {
+    return minutes > 0 ? `Còn ${totalHours} giờ ${minutes} phút` : `Còn ${totalHours} giờ`;
+  }
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return hours > 0 ? `Còn ${days} ngày ${hours} giờ` : `Còn ${days} ngày`;
+}
+
 function cancelErrorMessage(error) {
   if (error?.code === 'VISIT_ALREADY_STARTED') return 'Buổi chăm sóc đã tới giờ bắt đầu nên không thể huỷ.';
   if (error?.code === 'VISIT_NOT_CANCELLABLE' || error?.code === 'BOOKING_NOT_CANCELLABLE') {
@@ -164,6 +188,20 @@ export function BookingCancelDialog({ booking, visits, initialVisitId, api, onCl
           <Button type="button" variant="secondary" onClick={previewResource.retry}>Thử lại</Button>
         </div>}
         {preview && <>
+          {Array.isArray(preview.items) && preview.items.length > 0 && <div className="booking-cancel-visits">
+            <strong>Các buổi sẽ huỷ ({preview.items.length})</strong>
+            <ul>
+              {preview.items.map(item => <li key={item.visitId} className="booking-cancel-visits__row">
+                <span className="booking-cancel-visits__time">
+                  <span>{formatVisitStart(item.startAt)}</span>
+                  <span className="booking-cancel-visits__remaining">{formatTimeRemaining(item.startAt, preview.serverNow)}</span>
+                </span>
+                <span className={item.lateFeeVnd > 0 ? 'booking-cancel-visits__fee booking-cancel-visits__fee--late' : 'booking-cancel-visits__fee'}>
+                  {item.lateFeeVnd > 0 ? `Phí huỷ muộn ${bookingMoney(item.lateFeeVnd)}` : 'Miễn phí'}
+                </span>
+              </li>)}
+            </ul>
+          </div>}
           <strong>{formatMsg27(preview)}</strong>
           {preview.comboDiscountAdjustmentVnd > 0 && <p>
             Điều chỉnh giảm giá nhiều buổi trên các buổi còn lại: − {bookingMoney(preview.comboDiscountAdjustmentVnd)}.
