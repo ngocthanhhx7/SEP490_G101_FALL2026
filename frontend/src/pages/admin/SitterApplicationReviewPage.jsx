@@ -175,9 +175,6 @@ export function SitterApplicationReviewPage({ api = sitterApplicationAdminApi, a
               ? <Button variant="danger" loading={busy} onClick={() => changeSitterStatus('SUSPEND')}>Tạm ngưng Sitter</Button>
               : <Button loading={busy} onClick={() => changeSitterStatus('REINSTATE')}>Khôi phục Sitter</Button>}
           </div>
-          <Notice state="pending" title="Offer check đang chờ P21">
-            Trạng thái này không khóa phiên hoặc lịch sử. P21 phải kiểm tra trạng thái trước khi phát offer.
-          </Notice>
         </section>}
       </section>
       {notice && <Notice state={notice.state} title="Kết quả thao tác"><p>{notice.message}</p></Notice>}

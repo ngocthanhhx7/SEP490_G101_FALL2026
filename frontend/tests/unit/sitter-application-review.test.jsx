@@ -58,7 +58,7 @@ describe('Admin sitter application review', () => {
       applicationId: application.id, action: 'SUSPEND', reason: 'Đang rà soát hồ sơ cập nhật.', expectedVersion: 0
     }));
     expect(await screen.findByRole('button', { name: 'Khôi phục Sitter' })).toBeInTheDocument();
-    expect(screen.getByText(/P21 phải kiểm tra trạng thái trước khi phát offer/)).toBeInTheDocument();
+    expect(screen.queryByText(/Offer check đang chờ P21/)).not.toBeInTheDocument();
   });
 });
 

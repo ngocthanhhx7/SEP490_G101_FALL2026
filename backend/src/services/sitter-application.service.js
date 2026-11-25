@@ -8,6 +8,7 @@ import { AppError } from '../utils/app-error.js';
 import { isSingleRole } from '../utils/roles.js';
 import { identityModels } from '../models/identity.model.js';
 import { createDomainNotifications } from './notifications/domain-notifications.service.js';
+import { releaseSuspendedSitterWork } from './employee-scheduling/visit-withdrawal.service.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REAPPLY_DELAY_MS = 30 * DAY_MS;
@@ -207,7 +208,7 @@ function applicationView(application, contactValue, { includePrivate = false } =
 }
 
 export function createSitterApplicationService({ connection, Applicant, User, Audit, DownloadQuota, SitterStatus,
-  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, employmentDocuments, clock = Date.now }) {
+  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, employmentDocuments, requeueVisit, clock = Date.now }) {
   if (typeof employmentDocuments?.activate !== 'function' || !connection?.transaction || !Applicant || !User || !Audit || !DownloadQuota || !SitterStatus
     || typeof contactCrypto?.lookup !== 'function' || typeof contactCrypto?.encrypt !== 'function'
     || typeof contactCrypto?.decrypt !== 'function' || typeof lookupSecret !== 'string'
@@ -626,8 +627,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
 
     const expectedStatus = action === 'SUSPEND' ? 'ACTIVE' : 'SUSPENDED';
     const nextStatus = action === 'SUSPEND' ? 'SUSPENDED' : 'ACTIVE';
+    let requeueTargets = [];
     try {
-      return await connection.transaction(async session => {
+      const committed = await connection.transaction(async session => {
         const application = await Applicant.findOne({ _id: id, state: 'APPROVED', provisionedUserId: { $ne: null } })
           .session(session).lean();
         if (!application) {
@@ -647,9 +649,28 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           idempotencyDigest, payloadDigest, resultVersion: status.version, resultUserId: status.userId,
           correlationId: correlationId ?? null
         }], { session });
+        const released = action === 'SUSPEND'
+          ? await releaseSuspendedSitterWork({
+            connection,
+            sitterId: status.userId,
+            actorId: actor.userId,
+            reason,
+            at: new Date(now),
+            session,
+            autoRequeue: typeof requeueVisit === 'function'
+          })
+          : null;
+        requeueTargets = released?.requeueTargets ?? [];
         return { applicationId: id.toString(), userId: status.userId.toString(),
-          status: status.status, version: status.version, replayed: false };
+          status: status.status, version: status.version, replayed: false,
+          ...(released ? { withdrawnOfferCount: released.withdrawnOfferCount, requeuedVisitCount: released.requeueTargets.length } : {}) };
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+      if (action === 'SUSPEND' && requeueTargets.length && typeof requeueVisit === 'function') {
+        for (const target of requeueTargets) {
+          await requeueVisit(target.visitId, target.version);
+        }
+      }
+      return committed;
     } catch (error) {
       const replay = await Audit.findOne({ resourceId: id, idempotencyDigest })
         .select('+idempotencyDigest +payloadDigest').lean();

@@ -91,10 +91,15 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       return result;
     });
   }
-  async function visitContext(current, visitId, session) {
+  async function visitContext(current, visitId, session, { operation = 'READ' } = {}) {
     const visit = await col('visits').findOne({ _id: oid(visitId), sitterId: oid(current.userId) }, { session });
     if (!visit) fail(404, 'RESOURCE_NOT_FOUND');
-    const status = await statuses.findOne({ userId: oid(current.userId), status: 'ACTIVE' }).session(session).lean();
+    const canFinishInProgress = (operation === 'CHECK_OUT' || operation === 'CHECKLIST')
+      && visit.state === 'IN_PROGRESS' && visit.checkInAt instanceof Date;
+    const canReadOwnActiveOrPast = operation === 'READ'
+      && ['IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CLOSED', 'CANCELLED'].includes(visit.state);
+    const allowedStatuses = canFinishInProgress || canReadOwnActiveOrPast ? ['ACTIVE', 'SUSPENDED'] : ['ACTIVE'];
+    const status = await statuses.findOne({ userId: oid(current.userId), status: { $in: allowedStatuses } }).session(session).lean();
     if (!status) fail(403, 'SITTER_NOT_ACTIVE');
     const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
     const careVisitCount = compensationModel === 'EMPLOYEE' && booking?.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? booking.careVisitCount : booking?.originalVisitCount;
@@ -144,7 +149,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
   async function executeVisit({ actor: current, visitId, expectedVersion, idempotencyKey, operation, mediaId, items }) {
     actor(current, 'PET_SITTER'); oid(visitId);
     return command({ actor: current, operation, resourceId: visitId, expectedVersion, idempotencyKey,
-      payload: { mediaId, items }, authorize: session => visitContext(current, visitId, session),
+      payload: { mediaId, items }, authorize: session => visitContext(current, visitId, session, { operation }),
       work: async ({ visit, booking }, session) => {
         if (!['ASSIGNED', 'IN_PROGRESS', ...(booking.checkoutSnapshot?.policyVersion === 'PWC-CHECKOUT-2026-10-30-v1' ? ['DISPATCH_PENDING'] : [])].includes(booking.state)) fail(409, 'INVALID_STATE');
         if (visit.version !== expectedVersion) fail(409, 'VERSION_CONFLICT');
