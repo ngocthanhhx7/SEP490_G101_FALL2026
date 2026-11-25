@@ -36,3 +36,11 @@
 .booking-details__refunds { margin-top: 1rem; padding-top: .85rem; border-top: 1px solid #e6dced; }
 .booking-details__refunds h4 { margin: 0 0 .5rem; font-size: .95rem; }
 .booking-details__refunds ul { margin: 0; padding-inline-start: 1.1rem; display: grid; gap: .35rem; font-size: .875rem; }
+.booking-cancel-visits { margin-bottom: .75rem; padding-bottom: .75rem; border-bottom: 1px solid #dccbe9; }
+.booking-cancel-visits > strong { margin-bottom: .45rem; }
+.booking-cancel-visits ul { margin: 0; padding: 0; list-style: none; display: grid; gap: .45rem; max-height: 11rem; overflow-y: auto; }
+.booking-cancel-visits__row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .25rem .75rem; font-size: .875rem; }
+.booking-cancel-visits__time { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .5rem; }
+.booking-cancel-visits__remaining { color: #655773; font-size: .8125rem; }
+.booking-cancel-visits__fee { font-weight: 700; color: #185d40; white-space: nowrap; }
+.booking-cancel-visits__fee--late { color: #8e2342; }
