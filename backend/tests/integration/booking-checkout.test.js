@@ -246,6 +246,10 @@ test('ST-BKG-21 / GBR-12: preferred sitter lists only sitters who cared for chos
     endAt: new Date(Date.parse(visit.startAt) + 3600000), location: 'HOME', addressId: address._id, snapshots: { point: address.point } });
   const unavailable = await availability.search(owner, { quoteId: q.quoteId, visit });
   expect(unavailable.sitters).toContainEqual(expect.objectContaining({ id: String(previousSitterId), eligible: false, unavailableReason: 'SLOT_UNAVAILABLE' }));
+  await connection.collection('aisitterprofiles').updateOne({ userId: previousSitterId }, { $set: { active: false } });
+  await expect(checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(previousSitterId) }] }, 'directed-capability-lost'))
+    .rejects.toMatchObject({ code: 'SERVICE_CAPABILITY_REQUIRED', status: 409 });
+  await connection.collection('aisitterprofiles').updateOne({ userId: previousSitterId }, { $set: { active: true } });
   const booked = await checkout.confirm(owner, { ...body, visits: [{ ...visit, bookingMode: 'DIRECT', requestedSitterId: String(previousSitterId) }] }, 'directed-book-anyway');
   expect(booked.state).toBe('DISPATCH_PENDING');
   expect(booked.visits[0].requestedSitterId).toBe(String(previousSitterId));

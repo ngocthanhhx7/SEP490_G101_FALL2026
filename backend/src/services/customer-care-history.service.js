@@ -37,7 +37,7 @@ export async function hasPreviousPetSitter(db, customerId, sitterId, petIds, ses
   return Boolean(await db.collection('visits').findOne(query, options));
 }
 
-export async function listPreviousPetSitters(db, customerId, petIds = null, session = null) {
+export async function listPreviousPetSitters(db, customerId, petIds = null) {
   if (!HEX24.test(String(customerId))) return [];
   const query = {
     customerId: oid(customerId),
@@ -45,7 +45,7 @@ export async function listPreviousPetSitters(db, customerId, petIds = null, sess
     sitterId: { $type: 'objectId' },
     ...petMatchFilter(petIds)
   };
-  const sitterOids = await db.collection('visits').distinct('sitterId', query, { maxTimeMS: 5000, ...(session ? { session } : {}) });
+  const sitterOids = await db.collection('visits').distinct('sitterId', query, { maxTimeMS: 5000 });
   if (!sitterOids.length) return [];
 
   const [users, statuses] = await Promise.all([
@@ -53,14 +53,14 @@ export async function listPreviousPetSitters(db, customerId, petIds = null, sess
       .collection('users')
       .find(
         { _id: { $in: sitterOids }, state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } },
-        { projection: { displayName: 1 }, maxTimeMS: 5000, ...(session ? { session } : {}) }
+        { projection: { displayName: 1 }, maxTimeMS: 5000 }
       )
       .toArray(),
     db
       .collection('sitterstatuses')
       .find(
         { userId: { $in: sitterOids }, status: 'ACTIVE' },
-        { projection: { userId: 1 }, maxTimeMS: 5000, ...(session ? { session } : {}) }
+        { projection: { userId: 1 }, maxTimeMS: 5000 }
       )
       .toArray()
   ]);
