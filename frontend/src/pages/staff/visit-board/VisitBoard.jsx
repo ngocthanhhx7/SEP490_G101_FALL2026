@@ -33,9 +33,10 @@ function Tab({ id, tab, onTab, children }) {
 // The "Buổi hôm nay" tab is the existing section of the page; the page decides what to show for it.
 // openableIds: ids of the visits whose dispatch dialog the page can open; without it every visit counts as openable.
 export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openableIds, onOpenDispatch, onChanged, onState,
-  initialWorkflowId, initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey, initialClosureId, canVerifyClosure = false }) {
+  initialHandoverVisitId, initialWorkflowId, initialWithdrawalId, requestedWithdrawalId, onWithdrawalDismiss, refreshKey, initialClosureId, canVerifyClosure = false }) {
   const [workflowId,setWorkflowId]=useState(initialWorkflowId??null);
   const hasBoard = typeof api.visitBoard === 'function';
+  const [handoverVisitId, setHandoverVisitId] = useState(initialHandoverVisitId);
   const [text, setText] = useState('');
   const [areaCode, setAreaCode] = useState('');
   const [reason, setReason] = useState('');
@@ -46,6 +47,7 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
     ...(reason ? { reason } : {})
   }), [query, areaCode, reason]);
   const filtering = Object.keys(filters).length > 0;
+  const allFilters = useMemo(() => handoverVisitId ? { visitId: handoverVisitId } : filters, [handoverVisitId, filters]);
   const [notice, setNotice] = useState(null);
   const [closing, setClosing] = useState(null);
   useEffect(() => { if (/^[a-f0-9]{24}$/i.test(initialClosureId ?? '')) setClosing(initialClosureId); }, [initialClosureId]);
@@ -89,7 +91,8 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
       <Tab id="today" tab={tab} onTab={onTab}>Buổi hôm nay{count(todayTotal)}</Tab>
       {hasBoard && <Tab id="all" tab={tab} onTab={onTab}>Tất cả buổi</Tab>}
     </div>
-    {hasBoard && tab !== 'today' && <div className="ops-toolbar visit-board__filters">
+    {hasBoard && tab === 'all' && handoverVisitId && <Button variant="secondary" onClick={() => setHandoverVisitId(null)}>Xem tất cả buổi</Button>}
+    {hasBoard && tab !== 'today' && !(tab === 'all' && handoverVisitId) && <div className="ops-toolbar visit-board__filters">
       <input type="search" aria-label="Tìm buổi" placeholder="Tìm theo tên khách, người chăm sóc, mã lịch đặt" value={text} maxLength={50}
         onChange={event => setText(event.target.value)} />
       <select aria-label="Khu vực phục vụ" value={areaCode} onChange={event => setAreaCode(event.target.value)}>
@@ -106,7 +109,7 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
     {hasBoard && tab === 'needs' && <NeedsActionTable list={needs} rows={needsRows} filtering={filtering} api={api} workAreas={workAreas} openableIds={openableIds} onAction={onAction} />}
     {hasBoard && tab === 'needs' && pages.moreStatus === 'error' && <p role="alert">Chưa tải thêm được các buổi. Bạn có thể thử lại.</p>}
     {hasBoard && tab === 'needs' && pages.next && <Button variant="secondary" loading={pages.moreStatus === 'loading'} onClick={pages.loadMore}>Tải thêm buổi cần xử lý</Button>}
-    {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={filters} workAreas={workAreas} onWorkflow={setWorkflowId} />}
+    {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={allFilters} workAreas={workAreas} onWorkflow={setWorkflowId} />}
     {workflowId && api.visitWorkflow && <VisitWorkflowReview visitId={workflowId} api={api} onClose={()=>setWorkflowId(null)} onChanged={()=>{needs.retry();onChanged?.();}} />}
     {closing && <CloseVisitDialog key={closing} visitId={closing} api={api} canVerify={canVerifyClosure} onClose={() => setClosing(null)} onClosed={afterClosed} />}
     {withdrawal && api.withdrawalReview && <WithdrawalReviewDialog visitId={withdrawal} api={api} onClose={() => {

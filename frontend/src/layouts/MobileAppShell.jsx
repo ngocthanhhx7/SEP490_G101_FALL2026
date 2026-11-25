@@ -51,7 +51,7 @@ export function MobileAppShell({ route, children, lookupRoute }) {
   const path = pathname.replace(/\/+$/, '').toLowerCase() || '/';
   const serviceBooking = route?.id === 'M36' && /^\/booking\/([a-f0-9]{24})$/i.exec(path);
   const parent = route?.id === 'M36' ? (serviceBooking ? '/services/' + serviceBooking[1] : '/services')
-    : ['M13', 'M14'].includes(route?.id) ? pathname.split('/').slice(0, 4).join('/')
+    : ['M13', 'M14', 'N03'].includes(route?.id) ? pathname.split('/').slice(0, 4).join('/')
     : backRoutes[route?.id] ?? (role && !['M30', 'M43'].includes(route?.id) ? '/account' : home);
   const fallback = parent === path ? home : parent;
   const source = state?.mobileBack;

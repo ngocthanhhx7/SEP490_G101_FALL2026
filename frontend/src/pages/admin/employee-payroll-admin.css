@@ -1,0 +1,295 @@
+/* Scoped strictly to EmployeePayrollAdminPage. Mockup-aligned Round 1 tokens live in local custom properties. */
+.payroll-admin-page,
+.pwc-dialog.payroll-admin-dialog {
+  --pa-ink-strong: #19112b;
+  --pa-card-border: #ebe3f4;
+  --pa-input-border: #dfd4ec;
+  --pa-divider: #f1eaf8;
+  --pa-link: #583188;
+  --pa-shadow: 0 8px 24px rgb(63 42 107 / 6%);
+  --pa-dialog-shadow: 0 12px 38px rgb(22 17 38 / 14%);
+  --pa-backdrop: rgb(22 17 38 / 30%);
+  --pa-badge-done-bg: #dff5e8;
+  --pa-badge-done-ink: #16653d;
+  --pa-badge-active-bg: #dceeff;
+  --pa-badge-active-ink: #1553a8;
+  --pa-badge-waiting-bg: #fdf0c6;
+  --pa-badge-waiting-ink: #8c5a00;
+  --pa-badge-danger-bg: #fde8ec;
+  --pa-badge-danger-ink: #a52232;
+  --pa-badge-neutral-bg: #efeaf4;
+  --pa-badge-neutral-ink: #6b5e7a;
+}
+
+.payroll-admin-page {
+  color: var(--pa-ink-strong);
+  font-family: var(--pwc-font-body);
+}
+
+.payroll-admin-page > header {
+  border-bottom-color: var(--pa-divider);
+}
+
+.payroll-admin-page > header h1 {
+  margin: 0 0 var(--pwc-space-1);
+  color: var(--pa-ink-strong);
+  font-family: var(--pwc-font-display);
+  font-size: clamp(1.85rem, 3.4vw, 2.4rem);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.payroll-admin-page > header .ops-muted {
+  color: var(--pwc-ink-muted);
+  font-size: 0.95rem;
+}
+
+.payroll-workspace.payroll-admin-page > header > button {
+  min-height: var(--pwc-target);
+  padding: 0.55rem 1.2rem;
+  border: 1.5px solid var(--pwc-ink);
+  border-radius: 999px;
+  background: var(--pwc-surface);
+  color: var(--pwc-ink);
+  font: 800 0.9rem/1.3 var(--pwc-font-body);
+  cursor: pointer;
+}
+
+.payroll-admin-page .ops-metrics > div {
+  background: var(--pwc-surface);
+  border: 1px solid var(--pa-card-border);
+  border-radius: var(--pwc-radius-panel);
+  box-shadow: var(--pa-shadow);
+  padding: 1.15rem 1.35rem;
+}
+
+.payroll-admin-page .ops-metrics dt {
+  color: var(--pwc-ink-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.payroll-admin-page .ops-metrics dd {
+  color: var(--pa-link);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder,
+.payroll-workspace.payroll-admin-page .ops-section {
+  background: var(--pwc-surface);
+  border: 1px solid var(--pa-card-border);
+  border-radius: var(--pwc-radius-panel);
+  box-shadow: var(--pa-shadow);
+  padding: clamp(1.15rem, 2.4vw, 1.65rem);
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder {
+  padding: 0.9rem 1.35rem;
+  margin: 0.85rem 0;
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder details {
+  margin: 0;
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder summary {
+  padding: 0;
+  color: var(--pa-ink-strong);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.payroll-workspace.payroll-admin-page .ops-builder details[open] > summary,
+.payroll-workspace.payroll-admin-page details.ops-builder[open] > summary {
+  margin-bottom: var(--pwc-space-4);
+}
+
+.payroll-workspace.payroll-admin-page > details.ops-builder + p {
+  margin: -0.45rem 0 0.9rem;
+  color: var(--pwc-ink-muted);
+  font-size: 0.825rem;
+  line-height: 1.5;
+}
+
+.payroll-admin-page .ops-section > header h2 {
+  color: var(--pa-ink-strong);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.payroll-admin-page .ops-table-scroll {
+  border: 1px solid var(--pa-card-border);
+  border-radius: 1rem;
+  overflow-x: auto;
+}
+
+.payroll-admin-page .ops-table thead th {
+  background: var(--pwc-lavender-soft);
+  color: var(--pwc-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--pa-divider);
+  white-space: nowrap;
+}
+
+.payroll-admin-page .ops-table tbody td {
+  padding: 0.9rem 0.95rem;
+  border-bottom: 1px solid var(--pa-divider);
+  color: var(--pa-ink-strong);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.payroll-admin-page .ops-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Right-align numeric currency columns and highlight payable total in deep purple */
+.payroll-admin-page table[aria-label="Đề nghị tạm ứng"] :is(th, td):nth-child(2),
+.payroll-admin-page table[aria-label="Danh sách phiếu lương"] :is(th, td):nth-child(4),
+.payroll-admin-page table[aria-label="Danh sách phiếu lương"] :is(th, td):nth-child(5),
+.payroll-admin-page table[aria-label="Danh sách điều chỉnh"] :is(th, td):nth-child(3) {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.payroll-admin-page table[aria-label="Danh sách phiếu lương"] tbody td:nth-child(5) {
+  color: var(--pa-link);
+  font-weight: 800;
+}
+
+.payroll-admin-page .ops-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.payroll-admin-page .ops-badge--success {
+  background: var(--pa-badge-done-bg);
+  color: var(--pa-badge-done-ink);
+}
+
+.payroll-admin-page .ops-badge--info {
+  background: var(--pa-badge-active-bg);
+  color: var(--pa-badge-active-ink);
+}
+
+.payroll-admin-page .ops-badge--warning {
+  background: var(--pa-badge-waiting-bg);
+  color: var(--pa-badge-waiting-ink);
+}
+
+.payroll-admin-page .ops-badge--danger {
+  background: var(--pa-badge-danger-bg);
+  color: var(--pa-badge-danger-ink);
+}
+
+.payroll-admin-page .ops-badge--neutral {
+  background: var(--pa-badge-neutral-bg);
+  color: var(--pa-badge-neutral-ink);
+}
+
+.payroll-workspace.payroll-admin-page .ops-table td button {
+  min-height: var(--pwc-target);
+  padding: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--pa-link);
+  font: 800 0.875rem/1.3 var(--pwc-font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.payroll-workspace.payroll-admin-page .ops-table td button:hover,
+.payroll-workspace.payroll-admin-page .ops-table td button:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.payroll-workspace.payroll-admin-page :is(input:not([type="checkbox"]), select, textarea),
+.payroll-admin-dialog :is(input:not([type="checkbox"]), select, textarea) {
+  min-height: var(--pwc-target);
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--pa-input-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface);
+  color: var(--pa-ink-strong);
+  font: inherit;
+}
+
+.payroll-admin-page input[type="checkbox"],
+.payroll-admin-dialog input[type="checkbox"] {
+  accent-color: var(--pwc-ink);
+}
+
+.payroll-workspace.payroll-admin-page form button[type="submit"],
+.payroll-admin-dialog form button[type="submit"] {
+  min-height: var(--pwc-target);
+  padding: 0.6rem 1.35rem;
+  border: 1px solid var(--pwc-sun);
+  border-radius: 999px;
+  background: var(--pwc-sun);
+  color: var(--pa-ink-strong);
+  font: 800 0.9rem/1.3 var(--pwc-font-body);
+  cursor: pointer;
+}
+
+.payroll-workspace.payroll-admin-page form button[type="submit"]:enabled:hover,
+.payroll-admin-dialog form button[type="submit"]:enabled:hover {
+  border-color: var(--pwc-sun-hover);
+  background: var(--pwc-sun-hover);
+}
+
+.payroll-workspace.payroll-admin-page form button[type="button"],
+.payroll-admin-dialog button[type="button"] {
+  min-height: var(--pwc-target);
+  padding: 0.55rem 1.15rem;
+  border: 1.5px solid var(--pwc-ink);
+  border-radius: 999px;
+  background: var(--pwc-surface);
+  color: var(--pwc-ink);
+  font: 800 0.875rem/1.3 var(--pwc-font-body);
+  cursor: pointer;
+}
+
+.pwc-dialog.payroll-admin-dialog {
+  border: 0;
+  border-radius: 1.5rem;
+  padding: clamp(1.25rem, 3.5vw, 2rem);
+  box-shadow: var(--pa-dialog-shadow);
+  color: var(--pa-ink-strong);
+  font-family: var(--pwc-font-body);
+}
+
+.pwc-dialog.payroll-admin-dialog::backdrop {
+  background: var(--pa-backdrop);
+}
+
+.payroll-admin-dialog .pwc-dialog-header h2 {
+  color: var(--pa-ink-strong);
+  font: 800 1.45rem/1.3 var(--pwc-font-body);
+}
+
+.payroll-admin-dialog fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .payroll-admin-page > header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--pwc-space-3);
+  }
+}

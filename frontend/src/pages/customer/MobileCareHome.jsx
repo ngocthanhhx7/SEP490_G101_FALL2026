@@ -46,7 +46,7 @@ export function MobileCareHome({ api = customerDashboardApi, loadCatalog, groomi
       <p role="alert">Chưa cập nhật được lịch chăm sóc. <Button onClick={() => { result.retry(); grooming.reload(); }}>Thử lại</Button></p>}
     {urgentVisit && <section>
       <h2>{urgentVisit.state === 'IN_PROGRESS' ? 'Đang chăm sóc' : 'Buổi cần theo dõi'}</h2>
-      <ul className="pwc-mobile-rows"><MobileVisitCard row={urgentVisit} actionLabel={urgentVisit.state === 'IN_PROGRESS' ? 'Theo dõi buổi chăm sóc' : undefined} /></ul>
+      <ul className="pwc-mobile-rows"><MobileVisitCard row={urgentVisit} headingAs="h3" mobileBack="/customer" actionLabel={urgentVisit.state === 'IN_PROGRESS' ? 'Theo dõi buổi chăm sóc' : undefined} /></ul>
     </section>}
     {comingUp.length > 0 && <section>
       <h2>Sắp tới</h2>

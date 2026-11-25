@@ -1,0 +1,286 @@
+/* Scoped strictly to SitterProfileReviewsPage; leaves SitterPublicProfilePage untouched. */
+.sitter-profile-reviews-page,
+.pwc-dialog.sitter-profile-review-dialog {
+  --spr-ink-strong: #19112b;
+  --spr-card-border: #ebe3f4;
+  --spr-input-border: #dfd4ec;
+  --spr-divider: #f1eaf8;
+  --spr-link: #583188;
+  --spr-shadow: 0 8px 24px rgb(63 42 107 / 6%);
+  --spr-dialog-shadow: 0 12px 38px rgb(22 17 38 / 14%);
+  --spr-backdrop: rgb(22 17 38 / 30%);
+  --spr-badge-done-bg: #dff5e8;
+  --spr-badge-done-ink: #16653d;
+  --spr-badge-waiting-bg: #fdf0c6;
+  --spr-badge-waiting-ink: #8c5a00;
+  --spr-badge-danger-bg: #fde8ec;
+  --spr-badge-danger-ink: #a52232;
+}
+
+.sitter-profile-reviews-page {
+  color: var(--spr-ink-strong);
+  font-family: var(--pwc-font-body);
+}
+
+.sitter-profile-reviews-page > header h1 {
+  margin: 0 0 var(--pwc-space-1);
+  color: var(--spr-ink-strong);
+  font-family: var(--pwc-font-display);
+  font-size: clamp(1.85rem, 3.4vw, 2.4rem);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.sitter-profile-reviews-page > header .ops-muted {
+  color: var(--pwc-ink-muted);
+  font-size: 0.95rem;
+}
+
+.sitter-profile-reviews-page > header > button {
+  min-height: var(--pwc-target);
+  padding: 0.55rem 1.2rem;
+  border: 1.5px solid var(--pwc-ink);
+  border-radius: 999px;
+  background: var(--pwc-surface);
+  color: var(--pwc-ink);
+  font: 800 0.9rem/1.3 var(--pwc-font-body);
+  cursor: pointer;
+}
+
+.sitter-profile-reviews-page > p a {
+  color: var(--spr-link);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.sitter-profile-reviews-page > p a:hover,
+.sitter-profile-reviews-page > p a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sitter-profile-reviews-page .ops-metrics > div {
+  background: var(--pwc-surface);
+  border: 1px solid var(--spr-card-border);
+  border-radius: var(--pwc-radius-panel);
+  box-shadow: var(--spr-shadow);
+  padding: 1.15rem 1.35rem;
+}
+
+.sitter-profile-reviews-page .ops-metrics dt {
+  color: var(--pwc-ink-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sitter-profile-reviews-page .ops-metrics dd {
+  color: var(--spr-ink-strong);
+  font-weight: 800;
+}
+
+.sitter-profile-reviews-page .ops-section {
+  background: var(--pwc-surface);
+  border: 1px solid var(--spr-card-border);
+  border-radius: var(--pwc-radius-panel);
+  box-shadow: var(--spr-shadow);
+  padding: clamp(1.15rem, 2.4vw, 1.75rem);
+}
+
+.sitter-profile-reviews-page .ops-section > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--pwc-space-3);
+  margin-bottom: var(--pwc-space-4);
+}
+
+.sitter-profile-reviews-page .ops-section > header h2 {
+  margin: 0;
+  color: var(--spr-ink-strong);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.sitter-profile-reviews-page .ops-section > header label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pwc-space-2);
+  color: var(--pwc-ink-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.sitter-profile-reviews-page .ops-section > header select {
+  min-height: var(--pwc-target);
+  padding: 0.55rem 0.95rem;
+  border: 1px solid var(--spr-input-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface);
+  color: var(--spr-ink-strong);
+  font: 700 0.9rem/1.3 var(--pwc-font-body);
+}
+
+.sitter-profile-reviews-page .ops-table-scroll {
+  border: 1px solid var(--spr-card-border);
+  border-radius: 1rem;
+  overflow-x: auto;
+}
+
+.sitter-profile-reviews-page .ops-table thead th {
+  background: var(--pwc-lavender-soft);
+  color: var(--pwc-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  padding: 0.85rem 0.95rem;
+  border-bottom: 1px solid var(--spr-divider);
+  white-space: nowrap;
+}
+
+.sitter-profile-reviews-page .ops-table tbody td {
+  padding: 0.95rem;
+  border-bottom: 1px solid var(--spr-divider);
+  color: var(--spr-ink-strong);
+  font-size: 0.9rem;
+}
+
+.sitter-profile-reviews-page .ops-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.sitter-profile-reviews-page .ops-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sitter-profile-reviews-page .ops-badge--warning {
+  background: var(--spr-badge-waiting-bg);
+  color: var(--spr-badge-waiting-ink);
+}
+
+.sitter-profile-reviews-page .ops-badge--success {
+  background: var(--spr-badge-done-bg);
+  color: var(--spr-badge-done-ink);
+}
+
+.sitter-profile-reviews-page .ops-badge--danger {
+  background: var(--spr-badge-danger-bg);
+  color: var(--spr-badge-danger-ink);
+}
+
+.sitter-profile-reviews-page .ops-table td button {
+  min-height: var(--pwc-target);
+  padding: 0.35rem 0.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--spr-link);
+  font: 800 0.875rem/1.3 var(--pwc-font-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sitter-profile-reviews-page .ops-table td button:hover,
+.sitter-profile-reviews-page .ops-table td button:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pwc-dialog.sitter-profile-review-dialog {
+  --pwc-dialog-width: 36rem;
+  border: 0;
+  border-radius: 1.5rem;
+  padding: clamp(1.25rem, 3.5vw, 2rem);
+  box-shadow: var(--spr-dialog-shadow);
+  color: var(--spr-ink-strong);
+  font-family: var(--pwc-font-body);
+}
+
+.pwc-dialog.sitter-profile-review-dialog::backdrop {
+  background: var(--spr-backdrop);
+}
+
+.sitter-profile-review-dialog .pwc-dialog-header h2 {
+  color: var(--spr-ink-strong);
+  font: 800 1.45rem/1.3 var(--pwc-font-body);
+}
+
+.sitter-profile-review-dialog article {
+  display: grid;
+  gap: var(--pwc-space-4);
+}
+
+.sitter-profile-review-dialog article h2 {
+  margin: 0;
+  color: var(--spr-ink-strong);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.sitter-profile-review-dialog .profile-bio {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--spr-card-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-lavender-soft);
+  color: var(--spr-ink-strong);
+  line-height: var(--pwc-leading);
+}
+
+.sitter-profile-review-dialog fieldset {
+  display: grid;
+  gap: var(--pwc-space-4);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.sitter-profile-review-dialog label {
+  display: grid;
+  gap: var(--pwc-space-2);
+  color: var(--spr-ink-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.sitter-profile-review-dialog :is(select, textarea) {
+  min-height: var(--pwc-target);
+  padding: 0.7rem 0.95rem;
+  border: 1px solid var(--spr-input-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface);
+  color: var(--spr-ink-strong);
+  font: inherit;
+  font-weight: 500;
+}
+
+.sitter-profile-review-dialog button[type="submit"] {
+  justify-self: start;
+  min-height: var(--pwc-target);
+  padding: 0.65rem 1.5rem;
+  border: 1px solid var(--pwc-sun);
+  border-radius: 999px;
+  background: var(--pwc-sun);
+  color: var(--spr-ink-strong);
+  font: 800 0.925rem/1.3 var(--pwc-font-body);
+  cursor: pointer;
+}
+
+.sitter-profile-review-dialog button[type="submit"]:enabled:hover {
+  border-color: var(--pwc-sun-hover);
+  background: var(--pwc-sun-hover);
+}
+
+@media (max-width: 640px) {
+  .sitter-profile-reviews-page > header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--pwc-space-3);
+  }
+}

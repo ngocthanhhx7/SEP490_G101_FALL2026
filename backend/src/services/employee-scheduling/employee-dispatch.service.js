@@ -1,6 +1,7 @@
 import { createDispatchWorkspaceService } from './dispatch-workspace.service.js';
 import { dispatchVisitPresentation } from './dispatch-visit-presentation.js';
 import { createVisitWithdrawalService, hasPendingWithdrawal } from './visit-withdrawal.service.js';
+import { handoverPending, urgentReplacement } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../../utils/app-error.js';
 import { createSitterOfferService } from '../sitter-offer.service.js';
@@ -88,6 +89,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       const areas = await areaNames(rows);
       return { items: rows.slice(0, limit).map(row => ({ areaLabel: areas.find(area => area._id === row.areaCode)?.label ?? row.areaCode, id: String(row._id), sitterId, state: row.state, version: row.version,
         canWithdraw: row.state === 'ASSIGNED' && !row.checkInAt && !hasPendingWithdrawal(row),
+        handoverRequired: row.handoverRequired, handoverAccepted: row.handoverAccepted,
         startAt: row.startAt, endAt: row.endAt, serviceName: row.snapshots.serviceName, serviceAddress: row.snapshots.serviceAddress, areaCode: row.areaCode, pets: row.snapshots.pets })),
       nextCursor: rows.length > limit ? String(rows[limit - 1]._id) : null };
     },
@@ -124,8 +126,11 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           const accepted = await models.EmployeeVisitOffer.findOneAndUpdate({ _id: offerId, sitterId, state: 'PENDING', version: expectedVersion, deadline: { $gt: new Date(clock()) } },
             { $set: { state: 'ACCEPTED', decidedAt: new Date(clock()) }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).select('+featureSnapshot').lean();
           if (!accepted) fail('VERSION_CONFLICT', 'Offer changed', 409);
+          const assignedAt = new Date(clock());
+          const needsHandover = handoverPending(visit);
           const assigned = await col('visits').updateOne({ _id: visit._id, sitterId: null, state: 'SCHEDULED', version: visit.version },
-            { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt: new Date(clock()),
+            { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt,
+              ...(needsHandover && { handoverLateCheckInExempt: urgentReplacement(visit, assignedAt) }),
               ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) },
               $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 }, $inc: { version: 1 } }, { session });
           if (!assigned.matchedCount) fail('SLOT_UNAVAILABLE', 'Visit changed', 409);
@@ -133,6 +138,8 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           const pending = await col('visits').countDocuments({ bookingId: visit.bookingId, state: 'SCHEDULED' }, { session });
           if (!pending) await col('bookings').updateOne({ _id: visit.bookingId, state: 'DISPATCH_PENDING' }, { $set: { state: 'ASSIGNED' } }, { session });
           await models.EmployeeVisitOffer.updateMany({ visitId: visit._id, state: 'PENDING', _id: { $ne: offer._id } }, { $set: { state: 'REVOKED' }, $inc: { version: 1 } }, { session });
+          if (needsHandover) await event({ type: 'VisitHandoverRequired', visitId: String(visit._id), sitterId,
+            actorId: sitterId, offerId, detail: { version: visit.version + 1 } }, session);
           return { state: 'ACCEPTED', sitterId, version: accepted.version, assignmentId: String(visit._id) };
         },
         declineOffer: async ({ expectedVersion }) => {

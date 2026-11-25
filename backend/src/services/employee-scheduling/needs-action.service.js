@@ -1,3 +1,4 @@
+import { HANDOVER_WINDOW_MS, handoverPending } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { fail } from '../../validators/pet-care.validator.js';
 import { visitBoardQuery, NEEDS_ACTION_REASONS } from '../../validators/needs-action.validator.js';
@@ -23,6 +24,8 @@ export function reasonsOfVisit(row, now) {
   const noSitter = row.state === 'SCHEDULED' && !row.sitterId, code = row.dispatchReview?.code;
   if (noSitter && code && code !== 'SHIFT_START_REACHED') out.push(reasonOf('NO_SITTER_TO_OFFER', start - now));
   if (noSitter && start - now <= NO_SITTER_WINDOW_MS) out.push(reasonOf('NO_SITTER_24H', start - now));
+  if (row.state === 'ASSIGNED' && row.sitterId && !row.checkInAt && handoverPending(row) && now >= start - HANDOVER_WINDOW_MS)
+    out.push(reasonOf('HANDOVER_NOT_CONFIRMED_1H', start - HANDOVER_WINDOW_MS - now));
   if (row.state === 'ASSIGNED' && !row.checkInAt && now >= start + CHECK_IN_GRACE_MS) out.push(lateReason('NOT_CHECKED_IN_30M', now - start));
   if (row.state === 'ASSIGNED' && !row.checkInAt && hasPendingWithdrawal(row)) out.push(reasonOf('WITHDRAWAL_UNDER_12H', start - now));
   if (row.state === 'IN_PROGRESS' && row.checkInAt instanceof Date && !row.checkOutAt && now >= end + CHECK_OUT_GRACE_MS)
@@ -62,7 +65,7 @@ export function createNeedsActionService({ repository, clock = Date.now, cursorS
     async list(actor, rawQuery) {
       if (actor?.state !== 'ACTIVE' || !actor.roles?.some(role => ['STAFF', 'ADMIN'].includes(role))) fail('FORBIDDEN', 'Staff required', 403);
       const query = visitBoardQuery(rawQuery), needs = query.tab === 'needs-action';
-      const context = { actor: actor.userId, tab: query.tab, search: query.search ?? null, areaCode: query.areaCode ?? null, reason: query.reason ?? null };
+      const context = { actor: actor.userId, tab: query.tab, search: query.search ?? null, areaCode: query.areaCode ?? null, reason: query.reason ?? null, ...(query.visitId && { visitId: query.visitId }) };
       const position = query.cursor ? cursor().decode(query.cursor, context) : null;
       if (position && (!Number.isSafeInteger(position.a) || position.a < 0 || position.a > clock()
         || !Number.isSafeInteger(position.s) || !/^[a-f0-9]{24}$/u.test(position.i ?? '')
