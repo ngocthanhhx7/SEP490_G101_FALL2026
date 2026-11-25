@@ -174,9 +174,10 @@ test('ST-BKG-30 & ST-BKG-31 shows only unstarted visits in dialog, previews MSG2
     }
   });
 
-  // Only 2 upcoming visits should have "Huỷ buổi" buttons (started visit excluded)
-  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Huỷ buổi' })).toHaveLength(2));
-  fireEvent.click(screen.getByRole('button', { name: 'Huỷ lịch đặt' }));
+  // Single "Huỷ lịch đặt" entry point (no per-visit "Huỷ buổi" buttons)
+  const cancelButton = await screen.findByRole('button', { name: 'Huỷ lịch đặt' });
+  expect(screen.queryByRole('button', { name: 'Huỷ buổi' })).toBeNull();
+  fireEvent.click(cancelButton);
 
   const dialog = within(await screen.findByRole('dialog', { name: 'Xác nhận huỷ lịch đặt' }));
   // Default BOOKING preview shows late fee MSG27

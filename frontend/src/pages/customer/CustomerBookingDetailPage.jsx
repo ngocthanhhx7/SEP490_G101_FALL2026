@@ -81,15 +81,15 @@ function CustomerBookingDetail({ bookingId }) {
   const options = changeOptions.status === 'success' ? changeOptions.data : null;
   const changeable = options?.visits.filter(visit => visit.canSelect) ?? [];
   const referenceNowMs = Number.isFinite(Date.parse(options?.serverNow)) ? Date.parse(options.serverNow) : Date.now();
+  const changeOptionsReady = options?.bookingId === bookingId || ['error', 'pending', 'forbidden'].includes(changeOptions.status);
   const cancellableVisits = useMemo(() => {
-    if (!booking?.details?.visits?.length || NON_CANCELLABLE_BOOKING_STATES.has(booking.state)) return [];
+    if (!changeOptionsReady || !booking?.details?.visits?.length || NON_CANCELLABLE_BOOKING_STATES.has(booking.state)) return [];
     return booking.details.visits.filter(visit =>
       CANCELLABLE_VISIT_STATES.has(visit.state)
       && Number.isFinite(Date.parse(visit.startAt))
       && Date.parse(visit.startAt) > referenceNowMs
     );
-  }, [booking, referenceNowMs]);
-  const cancellableIds = useMemo(() => new Set(cancellableVisits.map(visit => visit.id)), [cancellableVisits]);
+  }, [booking, changeOptionsReady, referenceNowMs]);
 
   function openBookingChange(visitId) {
     setChangeSent(false);
@@ -97,10 +97,10 @@ function CustomerBookingDetail({ bookingId }) {
     setChangeDialog({ booking, options, initialVisitId: visitId });
   }
 
-  function openBookingCancel(visitId = null) {
+  function openBookingCancel() {
     setChangeSent(false);
     setCancelMessage('');
-    setCancelDialog({ booking, visits: cancellableVisits, initialVisitId: visitId });
+    setCancelDialog({ booking, visits: cancellableVisits, initialVisitId: null });
   }
 
   const canShowBookingActions = (options?.canChangeBooking && changeable.length > 0) || cancellableVisits.length > 0;
@@ -114,7 +114,7 @@ function CustomerBookingDetail({ bookingId }) {
         )}
         {cancellableVisits.length > 0 && (
           <Button variant="secondary" className="customer-booking-detail__cancel-button"
-            onClick={() => openBookingCancel(null)}>Huỷ lịch đặt</Button>
+            onClick={openBookingCancel}>Huỷ lịch đặt</Button>
         )}
       </div>
     </section>,
@@ -128,17 +128,14 @@ function CustomerBookingDetail({ bookingId }) {
       {cancelMessage && <p className="booking-change-sent" role="status">{cancelMessage}</p>}
       <ComplaintListAction resource={eligibility} bookingId={bookingId} />
     </>,
-    columnLabel: (changeable.length > 0 || cancellableVisits.length > 0) ? 'Thao tác' : undefined,
+    columnLabel: changeable.length > 0 ? 'Thao tác' : undefined,
     forVisit: row => {
       const visit = changeable.find(item => item.id === row.id || item.customerVisitId === row.id);
-      const canCancelRow = cancellableIds.has(row.id);
       return <>
         <ComplaintVisitActions visits={visitsByRow.get(row.id) ?? []} bookingId={bookingId} />
         {visit && <Button variant="ghost" className="booking-change-visit-action"
           aria-label={'Đổi giờ buổi ' + bookingChangeVisitLabel(visit)}
           onClick={() => openBookingChange(visit.id)}>Đổi giờ</Button>}
-        {canCancelRow && <Button variant="ghost" className="booking-change-visit-action"
-          onClick={() => openBookingCancel(row.id)}>Huỷ buổi</Button>}
       </>;
     }
   };
