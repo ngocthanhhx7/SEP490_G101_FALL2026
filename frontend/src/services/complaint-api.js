@@ -95,6 +95,51 @@ export function createComplaintApi({ request, fetchImpl, getCsrfToken, onUnautho
         'expectedVersion', 'customerResult', 'amountVnd', 'summary', 'decision', 'actionsTaken', 'financialHold', 'financialDecision'
       ], true);
       return complaintView(result, complaintId);
+    },
+    async refundProposals(input = {}) {
+      if (input.status !== undefined && !['PENDING', 'DECIDED'].includes(input.status)) {
+        throw new ApiError('INVALID_STATUS', 422);
+      }
+      const params = new globalThis.URLSearchParams();
+      for (const field of ['status', 'limit', 'cursor', 'q', 'sort']) {
+        if (input[field] !== undefined && input[field] !== '') params.set(field, String(input[field]));
+      }
+      const result = await send(`/complaints/refund-proposals${params.toString() ? `?${params}` : ''}`, { signal: input.signal });
+      if (result?.pending) return result;
+      if (!result?.data || !Array.isArray(result.data.items)
+        || result.data.items.some(item => item.kind !== 'COMPLAINT' || !STATES.has(item.state))) {
+        throw new ApiError('INVALID_RESPONSE', result?.status || 0);
+      }
+      return result;
+    },
+    async refundProposal(input = {}) {
+      const complaintId = id(typeof input === 'string' ? input : input.complaintId, 'complaintId');
+      return complaintView(await send(`/complaints/${complaintId}/refund-proposal`, {
+        signal: typeof input === 'object' ? input.signal : undefined
+      }), complaintId);
+    },
+    async decideRefund(input = {}) {
+      const complaintId = id(input.complaintId, 'complaintId');
+      if (!['APPROVE', 'REDUCE', 'REJECT'].includes(input.outcome)) throw new ApiError('INVALID_OUTCOME', 422);
+      if (input.outcome === 'REJECT') text(input.reason, 'reason');
+      if (input.outcome === 'REDUCE' && (!Number.isSafeInteger(input.amountVnd) || input.amountVnd < 1)) {
+        throw new ApiError('INVALID_AMOUNT', 422);
+      }
+      const result = await command(`/complaints/${complaintId}/refund-decision`, input, [
+        'expectedVersion', 'outcome', 'amountVnd', 'reason'
+      ], true);
+      return complaintView(result, complaintId);
+    },
+    async bookingRefunds(input = {}) {
+      const params = new globalThis.URLSearchParams();
+      if (input.limit !== undefined && input.limit !== '') params.set('limit', String(input.limit));
+      if (input.bookingId) params.set('bookingId', id(input.bookingId, 'bookingId'));
+      const result = await send(`/admin/booking-refunds${params.toString() ? `?${params}` : ''}`, { signal: input.signal });
+      if (result?.pending) return result;
+      if (!result?.data || !Array.isArray(result.data.items)) {
+        throw new ApiError('INVALID_RESPONSE', result?.status || 0);
+      }
+      return result;
     }
   };
   api.create = api.submit; api.createComplaint = api.submit; api.object = api.disagree; api.finalize = api.decide;

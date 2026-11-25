@@ -47,26 +47,45 @@ function enforceEligibility(eligibility) {
   conflict(reason, messageCode ? { messageCode } : undefined);
 }
 
-function deadline(at, asOf, open, ineligible) {
+function deadline(at, asOf, open, ineligible, deadlineSource = null) {
   if (ineligible) return { eligible: false, reason: ineligible, deadlineAt: null };
   if (!at) return { eligible: false, reason: 'COMPLAINT_UNAVAILABLE', deadlineAt: null };
   const deadlineAt = new Date(+at + COMPLAINT_WINDOW_MS).toISOString();
-  if (asOf < at) return { eligible: false, reason: 'VISIT_NOT_COMPLETE', deadlineAt };
+  const source = deadlineSource ? { deadlineSource } : {};
+  if (asOf < at) return { eligible: false, reason: 'VISIT_NOT_COMPLETE', deadlineAt, ...source };
   if (+asOf > Date.parse(deadlineAt)) {
-    return { eligible: false, reason: 'COMPLAINT_WINDOW_EXPIRED', messageCode: 'MSG41', deadlineAt };
+    return { eligible: false, reason: 'COMPLAINT_WINDOW_EXPIRED', messageCode: 'MSG41', deadlineAt, ...source };
   }
-  if (open) return { eligible: false, reason: 'COMPLAINT_ALREADY_OPEN', messageCode: 'MSG42', deadlineAt };
-  return { eligible: true, reason: null, deadlineAt };
+  if (open) return { eligible: false, reason: 'COMPLAINT_ALREADY_OPEN', messageCode: 'MSG42', deadlineAt, ...source };
+  return { eligible: true, reason: null, deadlineAt, ...source };
 }
 
 function isOpen(records, visitId, asOf) {
   return records.some(record => (record.visitId ?? null) === visitId && !complaintFinalAt(record, asOf));
 }
 
-function visitEligibility(visit, records, asOf) {
+function incidentResultAt(incident) {
+  if (!incident || !['RESOLVED', 'CLOSED'].includes(incident.state)) return null;
+  if (incident.proposal?.status === 'PENDING') return null;
+  return instant(incident.resultDeliveredAt ?? incident.resolvedAt
+    ?? incident.resolution?.resolvedAt ?? incident.resolution?.recordedAt ?? incident.closedAt);
+}
+
+function visitEligibility(visit, records, asOf, incidents = []) {
   const completion = visitCompletion(visit);
-  return deadline(completion?.at, asOf, isOpen(records, visit.id, asOf),
-    isHomeCare(visit) && completion?.done ? null : 'VISIT_NOT_ELIGIBLE');
+  if (!isHomeCare(visit) || !completion?.done) {
+    return deadline(completion?.at, asOf, isOpen(records, visit.id, asOf), 'VISIT_NOT_ELIGIBLE');
+  }
+  const incidentTimes = incidents
+    .filter(item => String(item.visitId) === visit.id)
+    .map(incidentResultAt)
+    .filter(Boolean);
+  const latestIncidentAt = incidentTimes.length ? new Date(Math.max(...incidentTimes.map(Number))) : null;
+  const fromIncident = Boolean(latestIncidentAt && (!completion.at || +latestIncidentAt > +completion.at));
+  const anchorAt = fromIncident ? latestIncidentAt : completion.at;
+  const deadlineSource = fromIncident ? 'INCIDENT_RESULT'
+    : visit.state === 'STAFF_CLOSED' ? 'VISIT_CLOSED' : 'VISIT_END';
+  return deadline(anchorAt, asOf, isOpen(records, visit.id, asOf), null, deadlineSource);
 }
 
 function checkCap(basis, amountVnd) {
@@ -181,7 +200,8 @@ export function createComplaintService({ repository, billing, readImage, clock =
       if (prior) return prior;
       if (expected !== null && (visit ?? booking).version !== expected) conflict('VERSION_CONFLICT');
       const records = await tx.bookingComplaints(booking.id);
-      const eligibility = visit ? visitEligibility(visit, records, asOf)
+      const incidents = visit ? (await tx.bookingIncidents?.(booking.id) ?? []) : [];
+      const eligibility = visit ? visitEligibility(visit, records, asOf, incidents)
         : await bookingEligibility(tx, booking, await tx.getVisits(booking), records, asOf);
       enforceEligibility(eligibility);
       await tx.assertEvidence(payload.evidenceRefs, actor.userId);
@@ -206,12 +226,13 @@ export function createComplaintService({ repository, billing, readImage, clock =
       if (booking.customerId !== actor.userId) notFound();
       const visits = await tx.getVisits(booking);
       const records = await tx.bookingComplaints(booking.id);
+      const incidents = await tx.bookingIncidents?.(booking.id) ?? [];
       const whole = await bookingEligibility(tx, booking, visits, records, asOf);
       return {
         booking: bookingSummary(booking, visits), wholeBooking: { ...whole, aboveVisitTable: whole.eligible
           && visits.every(visit => !visitCompletion(visit)?.done) },
         visits: visits.map(visit => {
-          const entry = visitEligibility(visit, records, asOf);
+          const entry = visitEligibility(visit, records, asOf, incidents);
           return { ...visitSummary(visit), ...(visit.customerVisitId ? { customerVisitId: String(visit.customerVisitId) } : {}),
             eligibility: entry, canSubmit: entry.eligible
             || (entry.reason === 'COMPLAINT_ALREADY_OPEN' && whole.eligible) };
@@ -231,6 +252,9 @@ export function createComplaintService({ repository, billing, readImage, clock =
       const options = {};
       if (hasRole(actor.roles, 'STAFF')) {
         details.customerName = await tx.getCustomerName(booking.customerId);
+        if (record.proposal?.createdBy) {
+          details.proposerName = await tx.getCustomerName(record.proposal.createdBy);
+        }
         options.customerPhone = await tx.getPhone(booking.customerId);
         try {
           const basis = await readBasis(tx, booking.id, record.moneyDecision?.amountVnd ?? 0);
@@ -346,7 +370,8 @@ export function createComplaintService({ repository, billing, readImage, clock =
           : await applyMoney(tx, booking, record, asOf, actor, amountVnd, 0);
         const status = { APPROVE: 'APPROVED', REDUCE: 'REDUCED', REJECT: 'REJECTED' }[outcome];
         return { changes: { ...publish(proposal.customerResult, asOf), proposal: { ...proposal, status },
-          moneyDecision: { ...payment, outcome, reason } }, event: 'ComplaintRefundDecided' };
+          moneyDecision: { ...payment, outcome, reason } }, event: 'ComplaintRefundDecided',
+          messageCode: outcome === 'REJECT' ? 'MSG135' : 'MSG134' };
       });
   }
 

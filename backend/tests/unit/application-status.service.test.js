@@ -80,10 +80,23 @@ describe('application status service', () => {
       .rejects.toMatchObject({ status: 401, code: 'APPLICATION_STATUS_VERIFICATION_FAILED', message: 'Application status could not be verified' });
 
     statusOtp.beginForApplication.mockRejectedValue(Object.assign(new Error('private throttle detail'), {
-      status: 429, code: 'OTP_RATE_LIMITED', details: { retryAfterSeconds: 7210 }
+      status: 429, code: 'OTP_RATE_LIMITED', details: { retryAfterSeconds: 7210, reason: 'UNKNOWN_PRIVATE_REASON' }
     }));
-    await expect(service.requestVerification({ applicationCode: APPLICATION_CODE }))
-      .rejects.toMatchObject({ status: 429, code: 'RATE_LIMITED', message: 'Please wait before trying again', details: { retryAfterSeconds: 3600 } });
+    const throttled = await service.requestVerification({ applicationCode: APPLICATION_CODE }).catch(err => err);
+    expect(throttled).toMatchObject({ status: 429, code: 'RATE_LIMITED', message: 'Please wait before trying again', details: { retryAfterSeconds: 3600 } });
+    expect(throttled.details.reason).toBeUndefined();
+
+    const retryAfterAt = '2026-11-24T10:15:00.000Z';
+    statusOtp.verifyForApplication.mockRejectedValue(Object.assign(new Error('locked'), {
+      status: 429, code: 'OTP_RATE_LIMITED', details: { retryAfterSeconds: 900, reason: 'TOO_MANY_WRONG_CODES', retryAfterAt }
+    }));
+    await expect(service.verifyAndReadStatus({ applicationCode: APPLICATION_CODE, challengeId: CHALLENGE_ID, code: '012345' }))
+      .rejects.toMatchObject({
+        status: 429,
+        code: 'RATE_LIMITED',
+        message: 'Please wait before trying again',
+        details: { retryAfterSeconds: 900, reason: 'TOO_MANY_WRONG_CODES', retryAfterAt }
+      });
   });
 
   test('fails closed for an unsupported state or inconsistent rejection deadline', async () => {

@@ -45,12 +45,18 @@ test('accepts session only when registration response explicitly confirms it', a
   });
 });
 
-test('maps HTTP rate limits and hides response details from the public error', async () => {
+test('maps HTTP rate limits and OTP feedback fields while hiding response details from the public error', async () => {
+  const retryAfterAt = '2026-11-24T04:15:00.000Z';
   const api = createCustomerRegistrationApi({ fetchImpl: async () => response(429, {
-    error: { code: 'OTP_RATE_LIMITED', message: 'Private message', retryAfterSeconds: 60 }, meta: { schemaVersion: 1 },
+    error: { code: 'OTP_RATE_LIMITED', message: 'Private message', retryAfterSeconds: 60, retryAfterAt, reason: 'HOURLY_LIMIT' }, meta: { schemaVersion: 1 },
   }) });
   await expect(api.requestOtp({ channel: 'PHONE', contact: '+84912345678' }))
-    .rejects.toMatchObject({ code: 'OTP_RATE_LIMITED', status: 429, retryAfterSeconds: 60 });
+    .rejects.toMatchObject({ code: 'OTP_RATE_LIMITED', status: 429, retryAfterSeconds: 60, retryAfterAt, reason: 'HOURLY_LIMIT' });
+  const wrongApi = createCustomerRegistrationApi({ fetchImpl: async () => response(400, {
+    error: { code: 'OTP_INCORRECT', message: 'Private message', remainingAttempts: 2 }, meta: { schemaVersion: 1 },
+  }) });
+  await expect(wrongApi.verifyAndRegister({ challengeId: 'id', channel: 'EMAIL', contact: 'a@example.invalid', code: '012345', displayName: 'Sample' }))
+    .rejects.toMatchObject({ code: 'OTP_INCORRECT', status: 400, remainingAttempts: 2 });
 });
 
 test('rejects malformed envelopes and maps network failure safely', async () => {

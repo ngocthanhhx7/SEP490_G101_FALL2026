@@ -1,9 +1,12 @@
+import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { createHash } from 'node:crypto';
 import { AppError } from '../../utils/app-error.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
 import { identityModels } from '../../models/identity.model.js';
-import { COUNTER_CHANNEL, COUNTER_OPEN_STATUSES } from '../../constants/counter-sale-fields.js';
+import {
+  COUNTER_CHANNEL, COUNTER_OPEN_STATUSES, COUNTER_PAYMENT_METHOD, COUNTER_VIETQR_PAYMENT_METHOD
+} from '../../constants/counter-sale-fields.js';
 import { PRODUCT_PERMISSIONS } from '../../constants/product-permissions.js';
 import { parseCounterCreate, parseCounterPage } from '../../validators/counter-sale.validator.js';
 import { parseIdempotencyKey, parseObjectId } from '../../validators/product-order.validator.js';
@@ -18,14 +21,25 @@ import { productSalesErrors, requireCounterSeller } from './product-sales-errors
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const sorted = lines => [...lines].sort((a, b) => String(a.productId).localeCompare(String(b.productId)));
 export function toCounterOrderView(doc) {
+  const verifiedReceipt = doc.payment?.receipts?.find(row => row.state === 'VERIFIED') ?? null;
+  const vietqrPayment = doc.paymentMethod === COUNTER_VIETQR_PAYMENT_METHOD && doc.paid && doc.payment?.paidAt
+    ? { amount: verifiedReceipt?.amountVnd ?? doc.total, paidAt: doc.payment.paidAt,
+      providerOrderCode: verifiedReceipt?.providerOrderCode ?? null }
+    : null;
+  const paymentLink = doc.payment?.linkState
+    ? { state: doc.payment.linkState, checkoutUrl: doc.payment.checkoutUrl ?? null,
+      expiresAt: doc.payment.linkExpiresAt ?? null, orderCode: doc.payment.providerReferences?.at(-1) ?? null }
+    : null;
   return { ...toOrderView(doc), channel: COUNTER_CHANNEL,
     customer: doc.customerId ? { id: String(doc.customerId), displayName: doc.counterCustomerName, tierCode: doc.tierCode ?? null } : null,
     createdBy: { id: String(doc.counterCreatedBy), displayName: doc.counterCreatedByName },
     cashPayment: doc.cashPayment ? { amount: doc.cashPayment.amount, receivedAt: doc.cashPayment.receivedAt,
       receivedBy: String(doc.cashPayment.receivedBy) } : null,
+    vietqrPayment,
+    paymentLink,
     completedAt: doc.completedAt ?? null, cancelledAt: doc.cancelledAt ?? null };
 }
-export function createCounterSaleService({ connection, clock = Date.now, eligibility }) {
+export function createCounterSaleService({ connection, clock = Date.now, eligibility, payments = null }) {
   const { Product, ProductOrder } = productSalesModels(connection);
   const User = userModel(connection), { Contact } = identityModels(connection);
   const uow = createUnitOfWork(connection), codes = createProductOrderCodeService({ connection });
@@ -34,7 +48,7 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
     if (doc && doc.requestFingerprint !== fingerprint) throw productSalesErrors.idempotencyConflict();
     return doc;
   }
-  async function transition(actor, orderId, body, action) {
+  async function transition(actor, orderId, body, action, checkedVersion) {
     const actorId = requireCounterSeller(actor), id = parseObjectId(orderId, 'orderId');
     parseNoBody(body);
     const result = await uow.run(async session => {
@@ -42,11 +56,13 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       if (!order) throw productSalesErrors.notFound();
       if ((action === 'record-cash' && order.paid && ['PAID', 'COMPLETED'].includes(order.status))
         || (action === 'complete' && order.status === 'COMPLETED') || (action === 'cancel' && order.status === 'CANCELLED')) return order;
+      if (action !== 'complete' && checkedVersion !== order.version) throw productSalesErrors.orderStateConflict(order.status);
       if (action === 'complete' && order.status === 'AWAITING_PAYMENT') throw productSalesErrors.orderNotPaid();
       const allowed = action === 'complete' ? order.status === 'PAID' && order.paid : order.status === 'AWAITING_PAYMENT' && !order.paid;
       if (!allowed) throw productSalesErrors.orderStateConflict(order.status);
       const now = new Date(clock());
-      const changes = action === 'record-cash' ? { status: 'PAID', paid: true, cashPayment: { amount: order.total, receivedAt: now, receivedBy: actorId } }
+      const changes = action === 'record-cash'
+        ? { status: 'PAID', paid: true, paymentMethod: COUNTER_PAYMENT_METHOD, cashPayment: { amount: order.total, receivedAt: now, receivedBy: actorId } }
         : action === 'complete' ? { status: 'COMPLETED', completedAt: now } : { status: 'CANCELLED', cancelledAt: now };
       const updated = await ProductOrder.findOneAndUpdate({ _id: id, channel: COUNTER_CHANNEL, status: order.status, paid: order.paid, version: order.version },
         { $set: changes, $inc: { version: 1 } }, { session, returnDocument: 'after', runValidators: true }).lean();
@@ -61,6 +77,22 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       return updated;
     });
     return toCounterOrderView(result);
+  }
+  async function changeUnpaid(actor, id, body, action) {
+    requireCounterSeller(actor);
+    parseNoBody(body);
+    const orderId = parseObjectId(id, 'orderId');
+    const current = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
+    if (!current) throw productSalesErrors.notFound();
+    if (current.status === 'AWAITING_PAYMENT' && !current.paid) {
+      const outcome = await checkProductPayment(current, payments);
+      if (outcome === 'PAID' && action === 'record-cash') {
+        const settled = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL, paid: true }).lean();
+        if (settled) return toCounterOrderView(settled);
+      }
+      requireUnpaidProductOutcome(outcome);
+    }
+    return transition(actor, id, body, action, current.version);
   }
   return Object.freeze({
     async create(actor, body, rawKey) {
@@ -129,8 +161,8 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       if (!doc) throw productSalesErrors.notFound();
       return toCounterOrderView(doc);
     },
-    recordCash: (actor, id, body) => transition(actor, id, body, 'record-cash'),
+    recordCash: (actor, id, body) => changeUnpaid(actor, id, body, 'record-cash'),
     complete: (actor, id, body) => transition(actor, id, body, 'complete'),
-    cancel: (actor, id, body) => transition(actor, id, body, 'cancel')
+    cancel: (actor, id, body) => changeUnpaid(actor, id, body, 'cancel')
   });
 }

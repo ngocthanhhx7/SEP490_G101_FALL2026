@@ -33,9 +33,13 @@ function invalidOtp() {
   return new AppError(400, 'OTP_INVALID_OR_EXPIRED', 'Verification could not be completed');
 }
 
-function limitedOtp(retryAfterMs) {
+function limitedOtp(retryAfterMs, reason, now) {
+  const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
+  const retryAfterAt = Number.isFinite(now) ? new Date(now + Math.max(1000, retryAfterMs)).toISOString() : undefined;
   throw new AppError(429, 'OTP_RATE_LIMITED', 'Please wait before requesting or entering another code', {
-    retryAfterSeconds: Math.max(1, Math.ceil(retryAfterMs / 1000))
+    retryAfterSeconds,
+    ...(reason ? { reason } : {}),
+    ...(retryAfterAt ? { retryAfterAt } : {})
   });
 }
 
@@ -91,7 +95,7 @@ export function createOtpService({ connection, User, models = identityModels(con
     }
     const now = clock();
     const challengeId = createId();
-    const code = createCode();
+    const code = createCode({ purpose, channel, contact: canonicalValue });
     if (typeof challengeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(challengeId)
       || typeof code !== 'string' || !/^\d{6}$/.test(code)) throw new Error('Secure OTP generation failed');
     const expiresAt = new Date(now + CODE_LIFETIME_MS);
@@ -100,12 +104,12 @@ export function createOtpService({ connection, User, models = identityModels(con
       return connection.transaction(async mongoSession => {
         const throttle = await models.OtpThrottle.findOne({ contactLookup }).select('+contactLookup').session(mongoSession).lean();
         const lockedUntil = throttle?.lockedUntil?.getTime?.() ?? 0;
-        if (lockedUntil > now) limitedOtp(lockedUntil - now);
+        if (lockedUntil > now) limitedOtp(lockedUntil - now, 'TOO_MANY_WRONG_CODES', now);
         const priorFailureCount = lockedUntil && lockedUntil <= now ? 0 : (throttle?.failedCount ?? 0);
         const sentAt = (throttle?.sentAt ?? []).map(value => new Date(value).getTime()).filter(value => value > now - HOURLY_WINDOW_MS);
         const lastSentAt = throttle?.lastSentAt ? new Date(throttle.lastSentAt).getTime() : 0;
-        if (lastSentAt && lastSentAt + RESEND_COOLDOWN_MS > now) limitedOtp(lastSentAt + RESEND_COOLDOWN_MS - now);
-        if (sentAt.length >= MAX_CODES_PER_HOUR) limitedOtp(sentAt[0] + HOURLY_WINDOW_MS - now);
+        if (lastSentAt && lastSentAt + RESEND_COOLDOWN_MS > now) limitedOtp(lastSentAt + RESEND_COOLDOWN_MS - now, 'RESEND_COOLDOWN', now);
+        if (sentAt.length >= MAX_CODES_PER_HOUR) limitedOtp(sentAt[0] + HOURLY_WINDOW_MS - now, 'HOURLY_LIMIT', now);
 
         await models.OtpChallenge.updateMany({
           contactLookup, purpose, usedAt: null
@@ -183,7 +187,7 @@ export function createOtpService({ connection, User, models = identityModels(con
       outcome = await connection.transaction(async mongoSession => {
       const throttle = await models.OtpThrottle.findOne({ contactLookup }).select('+contactLookup').session(mongoSession).lean();
       const lockedUntil = throttle?.lockedUntil?.getTime?.() ?? 0;
-      if (lockedUntil > now) return { failure: 'RATE_LIMITED', retryAfterMs: lockedUntil - now };
+      if (lockedUntil > now) return { failure: 'RATE_LIMITED', reason: 'TOO_MANY_WRONG_CODES', retryAfterMs: lockedUntil - now };
       const challenge = await models.OtpChallenge.findOne({
         challengeId, contactLookup, purpose
       }).select('+contactLookup +codeDigest +requesterSessionId +requesterUserId').session(mongoSession).lean();
@@ -202,7 +206,8 @@ export function createOtpService({ connection, User, models = identityModels(con
       }
       const expected = codeDigest({ challengeId, contactLookup, purpose, code });
       if (!safeEqual(challenge.codeDigest, expected)) {
-        const failedCount = (throttle?.failedCount ?? 0) + 1;
+        const priorFailedCount = lockedUntil && lockedUntil <= now ? 0 : (throttle?.failedCount ?? 0);
+        const failedCount = priorFailedCount + 1;
         const locked = failedCount >= MAX_FAILED_ATTEMPTS;
         const lockedUntilAt = locked ? new Date(now + CONTACT_LOCK_MS) : null;
         await models.OtpChallenge.updateOne({ _id: challenge._id, usedAt: null }, {
@@ -215,8 +220,9 @@ export function createOtpService({ connection, User, models = identityModels(con
           await models.OtpChallenge.updateMany({ contactLookup, usedAt: null }, {
             $set: { usedAt: new Date(now), invalidationReason: 'LOCKED' }
           }, { session: mongoSession });
+          return { failure: 'RATE_LIMITED', reason: 'TOO_MANY_WRONG_CODES', retryAfterMs: CONTACT_LOCK_MS };
         }
-        return { failure: 'INCORRECT' };
+        return { failure: 'INCORRECT', remainingAttempts: MAX_FAILED_ATTEMPTS - failedCount };
       }
 
       const consumed = await models.OtpChallenge.updateOne({ _id: challenge._id, usedAt: null }, {
@@ -312,11 +318,16 @@ export function createOtpService({ connection, User, models = identityModels(con
     if (outcome.failure === 'CONTACT_UNAVAILABLE') {
       throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Contact verification could not be completed');
     }
-    if (outcome.failure === 'RATE_LIMITED') limitedOtp(outcome.retryAfterMs);
+    if (outcome.failure === 'RATE_LIMITED') limitedOtp(outcome.retryAfterMs, outcome.reason ?? 'TOO_MANY_WRONG_CODES', now);
     if (outcome.failure === 'ACCOUNT_LOCKED') {
       throw new AppError(403, 'ACCOUNT_LOCKED', 'Account is locked; contact support');
     }
-    const failureCodes = { INCORRECT: 'OTP_INCORRECT', EXPIRED: 'OTP_EXPIRED', USED: 'OTP_ALREADY_USED', REPLACED: 'OTP_REPLACED', DELIVERY_FAILED: 'OTP_DELIVERY_UNAVAILABLE' };
+    if (outcome.failure === 'INCORRECT') {
+      throw new AppError(400, 'OTP_INCORRECT', 'Verification could not be completed', {
+        remainingAttempts: outcome.remainingAttempts
+      });
+    }
+    const failureCodes = { EXPIRED: 'OTP_EXPIRED', USED: 'OTP_ALREADY_USED', REPLACED: 'OTP_REPLACED', DELIVERY_FAILED: 'OTP_DELIVERY_UNAVAILABLE' };
     if (failureCodes[outcome.failure]) throw new AppError(400, failureCodes[outcome.failure], 'Verification could not be completed');
     if (outcome.failure) throw invalidOtp();
     return outcome.result;

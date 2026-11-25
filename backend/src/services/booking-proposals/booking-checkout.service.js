@@ -1,12 +1,13 @@
 import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { createServiceAreaCatalog } from '../service-area-catalog.service.js';
-import { hasCompletedCustomerCare } from '../customer-care-history.service.js';
+import { hasPreviousPetSitter, listPreviousPetSitters } from '../customer-care-history.service.js';
 import { randomInt } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
 import { Types } from 'mongoose';
 import { bookingCheckoutInput } from '../../validators/booking-checkout.validator.js';
 import { validatePricingSelection } from '../../validators/pricing-selection.validator.js';
 import { fail, id, digest } from '../../validators/pet-care.validator.js';
+import { AppError } from '../../utils/app-error.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
 import { financeSourceModels } from '../../models/finance-source.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
@@ -72,14 +73,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
   return {
     async options(actor) {
       customer(actor);
-      const sitters = await col('sitterpublicprofiles').aggregate([
-        { $match: { state: 'APPROVED' } }, { $sort: { userId: 1 } }, { $limit: 100 },
-        { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } }, { $unwind: '$user' },
-        { $match: { 'user.state': 'ACTIVE', 'user.roles': 'PET_SITTER' } },
-        { $lookup: { from: 'sitterstatuses', localField: 'userId', foreignField: 'userId', as: 'status' } }, { $unwind: '$status' },
-        { $match: { 'status.status': 'ACTIVE' } }, { $project: { _id: 0, id: { $toString: '$userId' }, displayName: '$user.displayName' } }
-      ]).toArray();
-      return { recommendationAllowed: !await hasCompletedCustomerCare(connection.db, actor.userId), facilityAddress: facilityAddress ?? null, sitters, paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
+      const sitters = await listPreviousPetSitters(connection.db, actor.userId);
+      return { recommendationAllowed: false, facilityAddress: facilityAddress ?? null, sitters, paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
     },
     async confirm(actor, body, key) {
       customer(actor); const input = bookingCheckoutInput(body);
@@ -108,6 +103,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         const visible = await Setting.findOne({ key: 'SERVICE_CATALOG_VISIBLE', effectiveAt: { $lte: at } }).sort({ effectiveAt: -1 }).session(session).lean();
         if (visible?.enabled !== true) fail('SERVICE_UNAVAILABLE', 'Catalogue unavailable', 409);
         const bookingId = new Types.ObjectId(), visits = [], seenPets = new Set(), seenAddresses = new Set();
+        const inputIndex = new Map(input.visits.map((row, index) => [row, index])), visitInputs = [];
         for (let itemIndex = 0; itemIndex < selections.length; itemIndex++) {
           const selection = selections[itemIndex], quoted = result.items[itemIndex];
           const filter = { serviceId: oid(selection.serviceId), effectiveAt: { $lte: at } };
@@ -132,10 +128,11 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           if (scheduled.length !== quoted.visitCount) fail('VALIDATION_FAILED', 'Visit count must match each service');
           for (const [index, row] of scheduled.entries()) {
             if (row.requestedSitterId) {
-              const published = await col('sitterpublicprofiles').findOne({ userId: oid(row.requestedSitterId), state: 'APPROVED' }, { session });
-              const employee = await col('users').findOne({ _id: oid(row.requestedSitterId), state: 'ACTIVE', roles: 'PET_SITTER' }, { session });
+              const employee = await col('users').findOne({ _id: oid(row.requestedSitterId), state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } }, { session });
               const status = await col('sitterstatuses').findOne({ userId: oid(row.requestedSitterId), status: 'ACTIVE' }, { session });
-              if (!published || !employee || !status) fail('RESOURCE_NOT_FOUND', 'Selected employee is not available publicly', 404);
+              if (!employee || !status) fail('RESOURCE_NOT_FOUND', 'Selected employee is not available', 404);
+              const caredBefore = await hasPreviousPetSitter(connection.db, actor.userId, row.requestedSitterId, selection.petIds, session);
+              if (!caredBefore) fail('PREFERRED_SITTER_HISTORY_REQUIRED', 'Preferred pet sitter must have previously cared for one of the chosen pets', 409);
             }
             if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
             if (row.startAt <= (prepay ? deadline : at)) fail('VALIDATION_FAILED', 'Visit must start after payment window');
@@ -162,6 +159,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             const boarding = pricing.billingMode === 'PER_DAY';
             const endAt = new Date(row.startAt.getTime() + (boarding ? selection.dayCount * 1440 : selection.durationMinutes) * 60000);
             const matchReference = await assertMatchSelection({ DecisionSnapshot, actor, row, selection, pets, address: selectedAddress, endAt, at, session });
+            visitInputs.push(row);
             visits.push({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), serviceId: oid(selection.serviceId),
               petIds: pets.map(p => p._id), sitterId: null, state: 'SCHEDULED', version: 0, sequence: visits.length,
               areaCode, requestedSitterId: row.requestedSitterId ? oid(row.requestedSitterId) : null,
@@ -196,10 +194,19 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });
           if (conflict) fail('VISIT_SCHEDULE_OVERLAP', 'A pet already has an overlapping visit', 409);
         }
-        for (const visit of visits.filter(row => row.requestedSitterId)) {
+        const unavailableVisits = {};
+        for (const [index, visit] of visits.entries()) {
+          if (!visit.requestedSitterId) continue;
           if (!selectionGuard) fail('SCHEDULING_UNAVAILABLE', 'Employee eligibility must be checked before directed checkout', 503);
-          await selectionGuard(actor, visit, session);
+          try { await selectionGuard(actor, visit, session); }
+          catch (error) {
+            if (error.status !== 409 || !['DAY_OFF', 'OUTSIDE_WORKING_HOURS', 'SLOT_UNAVAILABLE'].includes(error.code)) throw error;
+            if (visitInputs[index].acceptUnavailableSitter === true) visit.sitterAvailabilityConsentAt = at;
+            else unavailableVisits[inputIndex.get(visitInputs[index])] = { acceptUnavailableSitter: error.code };
+          }
         }
+        if (Object.keys(unavailableVisits).length) throw new AppError(409, 'SITTER_AVAILABILITY_CONSENT_REQUIRED',
+          'Confirm each visit outside the selected employee availability', { lineFields: unavailableVisits });
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
           paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },

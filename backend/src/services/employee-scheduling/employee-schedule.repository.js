@@ -125,9 +125,10 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       await models.EmployeeScheduleEvent.create([{ type: 'WorkAreasChanged', sitterId, actorId: sitterId, at: new Date(clock()), detail: { areas } }], { session });
       return result;
     }) });
-  async function eligible(sitterId, visit, session, { requireOrigin = false, excludeVisitIds = [], proposedVisits = [] } = {}) {
+  // allowStarted is only for staff replacing the sitter of a visit that has not ended; invitations and automatic dispatch never set it.
+  async function eligible(sitterId, visit, session, { requireOrigin = false, excludeVisitIds = [], proposedVisits = [], allowStarted = false } = {}) {
     const start = new Date(visit.startAt), end = new Date(visit.endAt), date = schedulingDate(start);
-    if (start <= new Date(clock()) || end <= start || end - start > 480 * 60000) fail('SHIFT_REVIEW_REQUIRED', 'Future care shifts must not exceed eight hours', 409);
+    if ((allowStarted ? end <= new Date(clock()) : start <= new Date(clock())) || end <= start || end - start > 480 * 60000) fail('SHIFT_REVIEW_REQUIRED', 'Future care shifts must not exceed eight hours', 409);
     const contract = await contractAt(sitterId, start, end, session), record = await find(sitterId, session);
     const capabilityFilter = { userId: oid(sitterId), active: true };
     const capability = session
@@ -140,6 +141,9 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       !capability.species?.includes(pet.species) || !Number.isFinite(pet.weightKg) || pet.weightKg > capability.maxWeightKg ||
       !Array.isArray(pet.traits) || pet.traits.some(trait => !capability.allowedTraits?.includes(trait))))
       fail('PET_CAPABILITY_MISMATCH', 'Employee capability does not cover the pets on this visit', 409);
+    if (catalog) await catalog.assertOpen(visit.areaCode, session);
+    const currentAreas = await getCoverageAreas({ session });
+    if (!workAreaKeys(visit.areaCode, currentAreas).some(code => record?.areas.includes(code))) fail('WORK_AREA_MISMATCH', 'Visit is outside registered work areas', 409);
     const offDates = [...(record?.dayOffDates ?? []), ...(capability.dayOffDates ?? [])];
     if (offDates.some(day => day >= date && day <= schedulingDate(new Date(end.getTime() - 1))))
       fail('DAY_OFF', 'Employee has approved time off', 409);
@@ -147,9 +151,6 @@ export function createEmployeeScheduleRepository({ connection, clock = Date.now,
       $or: [{ state: 'CONFIRMED' }, { state: 'HOLD', holdExpiresAt: { $gt: new Date(clock()) } }] }, { session }))
       fail('SLOT_UNAVAILABLE', 'Employee has another confirmed schedule block', 409);
     const revision = await revisionAt(sitterId, date, session);
-    if (catalog) await catalog.assertOpen(visit.areaCode, session);
-    const currentAreas = await getCoverageAreas({ session });
-    if (!workAreaKeys(visit.areaCode, currentAreas).some(code => record?.areas.includes(code))) fail('WORK_AREA_MISMATCH', 'Visit is outside registered work areas', 409);
     if (!windowsCover(revision?.workingWindows, start, end)) fail('OUTSIDE_WORKING_HOURS', 'Visit is outside registered shifts', 409);
     const lastDate = schedulingDate(new Date(end.getTime() - 1));
     if (lastDate !== date) {

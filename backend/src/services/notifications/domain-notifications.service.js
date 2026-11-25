@@ -23,7 +23,7 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
     return rows.map(row => ({ id: row._id, to }));
   }
   return {
-    async productOrder({ order, previous, placed = false, pickupExpired = false }, session) {
+    async productOrder({ order, previous, placed = false, pickupExpired = false, paymentExpired = false }, session) {
       const id = String(order._id), eventId = `product-order:${id}:${order.version ?? 0}`;
       const states = { PLACED: 'đã được tiếp nhận', READY: 'đã sẵn sàng để nhận tại cửa hàng',
         PICKED_UP: 'đã giao cho bạn', HANDED_TO_CARRIER: 'đã bàn giao cho đơn vị vận chuyển',
@@ -32,12 +32,19 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       let message = `Đơn ${order.code} ${states[order.status] ?? 'vừa được cập nhật'}.`;
       if (pickupExpired && order.status === 'CANCELLED') {
         message = `Đơn ${order.code} đã huỷ vì quá hạn lấy hàng.`;
+      } else if (paymentExpired && order.status === 'CANCELLED') {
+        message = `Đơn ${order.code} đã huỷ vì quá hạn thanh toán.`;
       } else if (previous && !previous.paid && order.paid) {
         message = `Đơn ${order.code} đã được ghi nhận thanh toán.`;
       } else if (order.status === 'READY' && previous?.status !== 'READY' && order.pickupDeadlineAt) {
         const parts = pickupDeadlineFormat.formatToParts(order.pickupDeadlineAt);
         const { hour, minute, day, month, year } = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
         message += ` Vui lòng đến lấy trước ${hour}:${minute} ${day}/${month}/${year}.`;
+      }
+      if (placed && order.paymentMethod === 'PREPAID' && !order.paid && order.paymentDeadlineAt) {
+        const { hour, minute, day, month, year } = Object.fromEntries(
+          pickupDeadlineFormat.formatToParts(order.paymentDeadlineAt).map(({ type, value }) => [type, value]));
+        message += ` Vui lòng thanh toán trước ${hour}:${minute} ${day}/${month}/${year}.`;
       }
       await write(eventId, placed ? 'ProductOrderPlaced' : 'ProductOrderUpdated',
         [{ id: order.customerId, role: 'CUSTOMER', to: `/customer/product-orders?order=${id}` }],
@@ -77,7 +84,9 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       if (notification) {
         const [roles, title, message] = notification;
         const area = roles.includes('ADMIN') ? 'admin' : 'staff';
-        const to = '/' + area + '/complaints?complaint=' + encodeURIComponent(record.id);
+        const to = event === 'ComplaintRefundProposed'
+          ? '/admin/refunds?complaint=' + encodeURIComponent(record.id)
+          : '/' + area + '/complaints?complaint=' + encodeURIComponent(record.id);
         await write(eventId, event, await operators(roles, to, session), title, message, session);
       }
       if (['ComplaintResolved', 'ComplaintRefundDecided', 'ComplaintDecided'].includes(event)) {
@@ -104,6 +113,18 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       const to = /^[a-f0-9]{24}$/.test(bookingId ?? '') && /^[a-f0-9]{24}$/.test(visitId ?? '')
         ? '/account/bookings/' + bookingId + '/visits/' + visitId : '/account/bookings';
       await write(`visit:${visitId}:${version}`, `Visit${operation}`, [{ id: customerId, to }], ...labels[operation], session);
+    },
+    async bookingCancelled({ eventId, sitters }, session) {
+      for (const row of sitters ?? []) {
+        const count = row.visitIds?.length ?? 1;
+        await write(eventId, 'VisitCancelledByCustomer',
+          [{ id: row.sitterId, role: 'PET_SITTER', to: '/sitter/visits' }],
+          'Khách hàng đã huỷ buổi chăm sóc',
+          count > 1
+            ? `Khách hàng đã huỷ ${count} buổi chăm sóc mà bạn đã nhận.`
+            : 'Khách hàng đã huỷ một buổi chăm sóc mà bạn đã nhận.',
+          session);
+      }
     }
   };
 }

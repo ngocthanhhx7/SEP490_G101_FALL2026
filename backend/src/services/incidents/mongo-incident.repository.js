@@ -1,3 +1,4 @@
+import { handoverPending } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { createBookingFinancialHolds } from '../settlements/booking-financial-holds.service.js';
@@ -45,7 +46,7 @@ export function createMongoIncidentRepository({
       (!staff && String(booking.customerId) !== actor.userId && String(row.sitterId) !== actor.userId)
     )
       fail('RESOURCE_NOT_FOUND', 404);
-    if (actor.roles.includes('PET_SITTER') && row.handoverRequired && !row.handoverAccepted) fail('HANDOVER_REQUIRED');
+    if (actor.roles.includes('PET_SITTER') && handoverPending(row)) fail('HANDOVER_REQUIRED');
     return {
       ...row,
       id: visitId,
@@ -106,14 +107,41 @@ export function createMongoIncidentRepository({
               );
               if (existing >= 100) fail('INCIDENT_REVIEW_BUDGET_EXCEEDED');
               for (const photo of record.evidenceRefs) {
-                if (
-                  !/^[a-f0-9]{64}$/.test(photo.mediaId) ||
-                  (!(visit.evidenceRefs ?? []).some((ref) => ref.mediaId === photo.mediaId) &&
-                    !(visit.workflowResults ?? []).some((result) =>
-                      result.evidence?.some((ref) => ref.mediaId === photo.mediaId)
-                    ))
-                )
-                  fail('EVIDENCE_NOT_READY');
+                if (!/^[a-f0-9]{64}$/.test(photo.mediaId)) fail('EVIDENCE_NOT_READY');
+                const onVisit =
+                  (visit.evidenceRefs ?? []).some((ref) => ref.mediaId === photo.mediaId) ||
+                  (visit.workflowResults ?? []).some((result) =>
+                    result.evidence?.some((ref) => ref.mediaId === photo.mediaId)
+                  );
+                if (!onVisit) {
+                  const uploaded = await col('privateimages').findOne(
+                    { _id: photo.mediaId, ownerId: oid(actor.userId), state: 'READY' },
+                    { session, projection: { contentDigest: 1, byteLength: 1, careVisitId: 1, transferEvidenceRequestId: 1, uploadVisitId: 1 } }
+                  );
+                  if (
+                    !uploaded ||
+                    uploaded.careVisitId ||
+                    uploaded.transferEvidenceRequestId ||
+                    (uploaded.uploadVisitId !== undefined && uploaded.uploadVisitId !== record.visitId) ||
+                    !/^[a-f0-9]{64}$/.test(uploaded.contentDigest ?? '') ||
+                    !Number.isSafeInteger(uploaded.byteLength) ||
+                    uploaded.byteLength < 1 ||
+                    uploaded.byteLength > 5 * 1024 * 1024
+                  )
+                    fail('EVIDENCE_NOT_READY');
+                  if (uploaded.uploadVisitId === undefined) {
+                    // Generic uploads keep their existing quota. Bind the image when
+                    // the first incident is saved, in the same transaction as the case.
+                    const bound = await col('privateimages').updateOne(
+                      { _id: photo.mediaId, ownerId: oid(actor.userId), state: 'READY',
+                        uploadVisitId: { $exists: false }, careVisitId: { $exists: false },
+                        transferEvidenceRequestId: { $exists: false } },
+                      { $set: { uploadVisitId: record.visitId } },
+                      { session }
+                    );
+                    if (!bound.matchedCount) fail('EVIDENCE_NOT_READY');
+                  }
+                }
               }
               const _id = new Types.ObjectId(),
                 row = {
@@ -227,20 +255,69 @@ export function createMongoIncidentRepository({
                 .toArray();
               if (users.length > 100) fail('INCIDENT_UNAVAILABLE', 503);
               for (const user of users)
-                await col('notifications').insertOne(
+                await col('notifications').updateOne(
+                  { _id: workflowHash(['INCIDENT_EVENT', event, String(user._id)]) },
                   {
-                    _id: workflowHash(['INCIDENT_EVENT', event, String(user._id)]),
-                    recipientId: String(user._id),
-                    role: user.roles[0],
-                    eventType: event.type,
-                    title: 'Cập nhật sự cố chăm sóc',
-                    message: 'Có sự cố cần đối chiếu theo quy trình vận hành.',
-                    deepLink: `/cases/${event.caseId}`,
-                    createdAt: new Date(clock()),
-                    readAt: null
+                    $setOnInsert: {
+                      recipientId: String(user._id),
+                      role: user.roles[0],
+                      eventType: event.type,
+                      title: 'Cập nhật sự cố chăm sóc',
+                      message: 'Có sự cố cần đối chiếu theo quy trình vận hành.',
+                      deepLink: `/cases/${event.caseId}`,
+                      createdAt: new Date(clock()),
+                      readAt: null
+                    }
                   },
-                  { session }
+                  { upsert: true, session }
                 );
+              if (event.type === 'IncidentReported' && event.visitId && /^[a-f0-9]{24}$/i.test(event.visitId)) {
+                const visitDoc = await col('visits').findOne(
+                  { _id: oid(event.visitId) },
+                  { session, projection: { bookingId: 1, sitterId: 1 } }
+                );
+                const bookingDoc =
+                  visitDoc &&
+                  (await col('bookings').findOne(
+                    { _id: visitDoc.bookingId },
+                    { session, projection: { customerId: 1 } }
+                  ));
+                const otherRecipients = [];
+                if (bookingDoc?.customerId && String(bookingDoc.customerId) !== actor.userId) {
+                  otherRecipients.push({
+                    id: String(bookingDoc.customerId),
+                    role: 'CUSTOMER',
+                    title: 'Có báo cáo sự cố trong buổi chăm sóc',
+                    message: 'Người chăm sóc vừa gửi báo cáo sự cố cho buổi chăm sóc của thú cưng. Vui lòng xem chi tiết.'
+                  });
+                }
+                if (visitDoc?.sitterId && String(visitDoc.sitterId) !== actor.userId) {
+                  otherRecipients.push({
+                    id: String(visitDoc.sitterId),
+                    role: 'PET_SITTER',
+                    title: 'Có báo cáo sự cố trong buổi chăm sóc',
+                    message: 'Khách hàng vừa gửi báo cáo sự cố cho buổi chăm sóc của bạn. Vui lòng xem chi tiết.'
+                  });
+                }
+                for (const recipient of otherRecipients) {
+                  await col('notifications').updateOne(
+                    { _id: workflowHash(['INCIDENT_EVENT', event, recipient.id, recipient.role]) },
+                    {
+                      $setOnInsert: {
+                        recipientId: recipient.id,
+                        role: recipient.role,
+                        eventType: event.type,
+                        title: recipient.title,
+                        message: recipient.message,
+                        deepLink: `/cases/${event.caseId}`,
+                        createdAt: new Date(clock()),
+                        readAt: null
+                      }
+                    },
+                    { upsert: true, session }
+                  );
+                }
+              }
             }
           };
           return work(tx);

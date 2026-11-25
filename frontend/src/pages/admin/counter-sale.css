@@ -39,6 +39,10 @@
 .counter-actions { display: grid; gap: .65rem; }
 .counter-actions .pwc-shop-outline-button { width: 100%; }
 .counter-cash { color: var(--pwc-success); background: var(--pwc-success-surface); padding: .8rem; border-radius: .75rem; font-weight: 800; }
+.counter-vietqr { display: grid; gap: .6rem; padding: .9rem; border: 1px solid var(--shop-border); border-radius: 1rem; background: var(--pwc-lavender-soft); }
+.counter-vietqr-title { margin: 0; font-size: .95rem; }
+.counter-vietqr-link { text-align: center; text-decoration: none; display: block; }
+.counter-vietqr-tools { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
 .counter-open { margin-top: 1.5rem; }
 .counter-open-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; border-top: 1px solid var(--shop-border); padding: .6rem 0; }
 .counter-open-row span { display: block; color: var(--shop-muted); font-size: .85rem; }

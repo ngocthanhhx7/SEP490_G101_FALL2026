@@ -44,3 +44,24 @@ test('returns server pending without claiming a complaint was saved', async () =
   const request = jest.fn().mockResolvedValue({ pending: true, status: 202 }); const api = createComplaintApi({ request, createIdempotencyKey: () => 'complaint-key-4' });
   await expect(api.submit({ visitId: 'visit-1', summary: 'x', description: 'y' })).resolves.toMatchObject({ pending: true });
 });
+
+test('UC-51 calls refund proposal list, detail and decision endpoints with validation', async () => {
+  const request = jest.fn()
+    .mockResolvedValueOnce({ data: { items: [complaint], proposalCounts: { PENDING: 1, DECIDED: 0 } } })
+    .mockResolvedValueOnce({ data: complaint })
+    .mockResolvedValueOnce(envelope);
+  const api = createComplaintApi({ request, createIdempotencyKey: () => 'refund-key-1' });
+  await api.refundProposals({ status: 'PENDING', sort: 'oldest' });
+  expect(request.mock.calls[0][0]).toBe('/complaints/refund-proposals?status=PENDING&sort=oldest');
+  await api.refundProposal({ complaintId: 'case-1' });
+  expect(request.mock.calls[1][0]).toBe('/complaints/case-1/refund-proposal');
+  await api.decideRefund({ complaintId: 'case-1', expectedVersion: 1, outcome: 'REDUCE', amountVnd: 50000 });
+  expect(request.mock.calls[2]).toEqual(['/complaints/case-1/refund-decision', {
+    method: 'POST',
+    body: { expectedVersion: 1, outcome: 'REDUCE', amountVnd: 50000 },
+    idempotencyKey: 'refund-key-1'
+  }]);
+  await expect(api.refundProposals({ status: 'BAD' })).rejects.toMatchObject({ code: 'INVALID_STATUS' });
+  await expect(api.decideRefund({ complaintId: 'case-1', expectedVersion: 1, outcome: 'REJECT', reason: ' ' }))
+    .rejects.toMatchObject({ code: 'INVALID_REASON' });
+});

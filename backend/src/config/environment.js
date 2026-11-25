@@ -4,7 +4,7 @@ import { loadSmtpConfig } from './smtp.js';
 import { isMailbox } from '../utils/mailbox.js';
 import { loadR2Config, loadApplicantDocumentConfig } from './r2.js';
 import { parseRoutingBounds } from '../validators/routing.validator.js';
-import { DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS } from '../constants/product-fields.js';
+import { DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS } from '../constants/product-fields.js';
 
 export class ConfigurationError extends Error {
   constructor(fields) {
@@ -121,6 +121,8 @@ export function loadConfig(env = process.env) {
     customerTierJobEnabled: env.CUSTOMER_TIER_JOB_ENABLED === 'true',
     productPickupExpiryJobEnabled: env.PRODUCT_PICKUP_EXPIRY_JOB_ENABLED === 'true',
     pickupDeadlineHours: integer('PRODUCT_PICKUP_DEADLINE_HOURS', DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS, 1,
+      Math.floor((8.64e15 - Date.now()) / 3_600_000)),
+    paymentDeadlineHours: integer('PRODUCT_PAYMENT_DEADLINE_HOURS', DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, 1,
       Math.floor((8.64e15 - Date.now()) / 3_600_000)),
     ai: Object.freeze({ enabled: aiEnabled === 'true', routingUrl, routingBounds }),
     nodeEnv,

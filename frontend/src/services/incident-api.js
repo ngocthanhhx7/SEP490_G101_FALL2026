@@ -1,4 +1,5 @@
 import { ApiError, createApiClient } from './api-client.js';
+import { createPrivateImageApi } from './private-image-api.js';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 const STATES = new Set(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'CLOSED']);
@@ -30,6 +31,16 @@ export function createIncidentApi({ request, fetchImpl, getCsrfToken, onUnauthor
     return defaultRequest(...args);
   };
   const api = {
+    readEvidence({ caseId, mediaId, signal }) {
+      const casePath = encodeURIComponent(id(caseId, 'caseId'));
+      return createPrivateImageApi({ fetchImpl, onUnauthorized, timeoutMs,
+        readPath: imageId => `/cases/${casePath}/evidence/${imageId}/content`
+      }).read(mediaId, { signal });
+    },
+    async config({ signal } = {}) {
+      const result = await send('/incidents/config', { signal });
+      return result?.data ?? { hotline: null };
+    },
     async report(input = {}) {
       const visitId = id(input.visitId, 'visitId');
       if (input.expectedVersion !== undefined) version(input.expectedVersion);

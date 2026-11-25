@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterOperationsApi } from '../../services/sitter-operations-api.js';
@@ -102,7 +103,8 @@ export function SitterAssignmentsPage({ api = sitterOperationsApi, createOperati
     </div>
     <section className="sitter-assignments__schedule" aria-labelledby="sitter-schedule-heading"><h2 id="sitter-schedule-heading">Lịch đã phân công</h2><ListNotice resource={assignments} retry={assignments.retry} kind="lịch đã nhận" />
       {assignments.status === 'success' && (assignments.data?.items ?? []).length === 0 && <Notice state="empty" title="Chưa có lịch đã nhận">Các ca sẽ xuất hiện khi điều phối xác nhận.</Notice>}
-      {assignments.status === 'success' && (assignments.data?.items ?? []).length > 0 && <ul className="sitter-assignments__schedule-list">{(assignments.data?.items ?? []).map(item => <li key={item.visitId}><article><h3>{item.serviceName}</h3><p>{stateText(item.state)} · {item.areaCode}</p><time dateTime={item.startAt}>{time(item.startAt)} – {time(item.endAt)}</time>{item.handoverRequired && <p>{item.handoverAccepted ? 'Đã xác nhận bàn giao' : 'Chờ xác nhận bàn giao để xem ghi chú riêng'}</p>}</article></li>)}</ul>}
+      {assignments.status === 'success' && (assignments.data?.items ?? []).length > 0 && <ul className="sitter-assignments__schedule-list">{(assignments.data?.items ?? []).map(item => <li key={item.visitId}><article><h3>{item.serviceName}</h3><p>{stateText(item.state)} · {item.areaCode}</p><time dateTime={item.startAt}>{time(item.startAt)} – {time(item.endAt)}</time>{item.state === 'ASSIGNED' && item.handoverRequired === true && item.handoverAccepted !== true &&
+        <Link className="sitter-workspace-link" to={'/sitter/visits/' + item.visitId + '/handover'}>Cần xác nhận bàn giao</Link>}</article></li>)}</ul>}
     </section>
   </section>;
 }

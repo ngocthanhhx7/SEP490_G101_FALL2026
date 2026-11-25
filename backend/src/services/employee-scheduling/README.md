@@ -20,7 +20,8 @@ board with database-side filtering, exact counts and signed keyset pagination at
 a fixed reference time. Both tabs can continue beyond50/500 visits. Search does
 not truncate matching people. Reads have explicit execution deadlines; metadata
 and contact lookup stay separate. Dispatch detail is addressed by visit ID rather
-than relying on the first queue page.
+than relying on the first queue page. UC-41 adds the pending handover deadline to
+Needs action and uses an exact visit filter on the All tab for the Staff notification.
 
 `withdrawal-review.service.js` handles pending late withdrawals. Staff/Admin must
 provide a reason to reject or release. A release serializes with employee/visit

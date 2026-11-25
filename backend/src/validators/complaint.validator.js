@@ -95,7 +95,7 @@ export function normalizeResolution(input) {
     proposal: {
       amountVnd: amount(proposal.amountVnd),
       reason: text(proposal.reason, 'reason'),
-      evidenceRefs: evidence(proposal.evidenceRefs, true)
+      evidenceRefs: evidence(proposal.evidenceRefs, false)
     }
   };
 }
@@ -121,15 +121,19 @@ export function normalizeRefundDecision(input) {
 }
 
 export function normalizeList(query, { sitter, proposals }) {
-  fields(query, ['visitId', 'state', 'category', 'q', 'sort', 'limit', 'cursor']);
+  fields(query, proposals
+    ? ['visitId', 'state', 'category', 'q', 'sort', 'limit', 'cursor', 'status']
+    : ['visitId', 'state', 'category', 'q', 'sort', 'limit', 'cursor']);
   const visitId = query.visitId ? complaintId(query.visitId, 'visitId') : null;
   const state = query.state ? oneOf(query.state, sitter ? LEGACY_STATES : STATES, 'state') : null;
   const category = query.category ? oneOf(query.category, CATEGORIES, 'category') : null;
-  const sort = oneOf(query.sort ?? 'newest', ['newest', 'oldest'], 'sort');
+  const proposalStatus = proposals ? oneOf(query.status ?? 'PENDING', ['PENDING', 'DECIDED'], 'status') : null;
+  const defaultSort = proposals ? (proposalStatus === 'PENDING' ? 'oldest' : 'newest') : 'newest';
+  const sort = oneOf(query.sort ?? defaultSort, ['newest', 'oldest'], 'sort');
   const q = text(query.q, 'q', 100, true);
   const limit = query.limit === undefined ? 20 : Number(query.limit);
   if (Array.isArray(query.limit) || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) invalid('limit');
   const cursor = query.cursor ?? null;
   if (cursor !== null && (typeof cursor !== 'string' || !/^[A-Za-z0-9_-]{1,512}$/.test(cursor))) invalid('cursor');
-  return { filter: { visitId, state, category, sort, q, proposals }, limit, cursor };
+  return { filter: { visitId, state, category, sort, q, proposals, proposalStatus }, limit, cursor };
 }

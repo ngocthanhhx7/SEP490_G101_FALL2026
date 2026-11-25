@@ -12,6 +12,8 @@ import { requireSession, requireRoles, requireCsrf } from '../middlewares/sessio
 import { rateLimit } from 'express-rate-limit';
 import { createVisitTravelService } from '../services/employee-scheduling/visit-travel.service.js';
 import { createVisitTravelController } from '../controllers/visit-travel.controller.js';
+import { createVisitHandoverService } from '../services/care/visit-handover.service.js';
+import { createVisitHandoverController } from '../controllers/visit-handover.controller.js';
 import { createAssignedCareService } from '../services/care/assigned-care.service.js';
 import { createAssignedCareController } from '../controllers/assigned-care.controller.js';
 import { createOperationalRanker } from '../services/sitter-matching/operational-ranker.service.js';
@@ -60,6 +62,9 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.get('/visits/:id/care', sitter, care.get);
   router.post('/visits/:id/care/acknowledgements', sitter, csrf, care.acknowledge);
   router.get('/visits/:id/access-notes', sitter, care.accessNotes);
+  const handover = createVisitHandoverController(createVisitHandoverService({ repository, clock }));
+  router.get('/visits/:id/handover', sitter, handover.get);
+  router.post('/visits/:id/handover-confirmations', sitter, csrf, handover.confirm);
   router.post('/offers/:id/acceptances', sitter, csrf, c.accept);
   router.post('/offers/:id/declines', sitter, csrf, c.decline);
   router.get('/dispatch', staff, c.queue);
@@ -70,6 +75,8 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.post('/visits/:id/withdrawal-decisions', staff, csrf, withdrawalReview.decide);
   router.get('/visits/:id/candidates', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.candidates);
   router.post('/visits/:id/invitations', staff, csrf, c.invite);
+  router.get('/visits/:id/reassignment', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.reassignmentDetails);
+  router.post('/visits/:id/reassignments', staff, csrf, c.reassign);
   const closures = createVisitClosureController(createVisitClosureService({ repository, clock }));
   router.get('/closable-visits', staff, closures.list);
   router.get('/visits/:id/closure', staff, closures.details);
