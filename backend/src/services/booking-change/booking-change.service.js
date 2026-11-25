@@ -5,7 +5,7 @@ import { schedulingKey } from '../../validators/employee-scheduling.validator.js
 import { bookingChangeDecision, bookingChangeInput, bookingChangeQuery } from '../../validators/booking-change.validator.js';
 import { activeItems, createBookingChangeStore, oid, RECHECK_MS } from './booking-change-store.js';
 import { assertSchedule, BOOKING_CHANGE_STATES, buildChangeItems, changeDeadline, checkLeadTime, chooseChange,
-  futureVisit, hasOldVisitChangeLeadTime, resultingSchedule, scheduleViolation, visitSlots } from './booking-change-policy.js';
+  futureVisit, hasOldVisitChangeLeadTime, newVisitLeadViolation, resultingSchedule, scheduleViolation, visitSlots } from './booking-change-policy.js';
 import { assessAssignments, hasChanged, moveVisits, visitChanged } from './booking-change-assignments.js';
 
 const BATCH_SIZE = 25;
@@ -263,6 +263,7 @@ export function createBookingChangeService({ connection, repository, cursorSecre
           if (!await canChange(booking, rows, session) || items.some((item, index) => hasChanged(oldVisits[index], item, at)))
             throw visitChanged();
           const resulting = resultingSchedule(rows, items);
+          assertSchedule(newVisitLeadViolation(items, at), true);
           assertSchedule(scheduleViolation(resulting), true);
           assertSchedule(await checkPetOverlap(resulting, movedIds, session, { writeGuard: true }), true);
           const assessments = await assessAssignments(repository, rows, items, { now: at, session });
