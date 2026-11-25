@@ -45,7 +45,11 @@ discount and retain an immutable snapshot with integer-VND allocation.
 GBR-17 requires PREPAY for every newly created checkout booking, including
 one-visit bookings. Every order creates a payOS intent with the original
 15-minute deadline and stays out of dispatch until verified payment.
-`booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch
-and requires authenticated payOS proof of terminal unpaid attempts before
-atomically expiring an order and releasing its scheduled visits. Missing or
-ambiguous provider evidence defers expiry for reconciliation.
+`booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch.
+An expired order whose intents have no payOS submission markers can expire
+locally because no payment link request was ever started. The service checks
+those markers again inside the same guarded transaction that expires the
+booking and releases the visits, and refuses expiry if a verified payment
+exists. For any attempted payment link, it requires authenticated payOS proof
+of terminal unpaid state. Missing or ambiguous provider evidence defers
+expiry for reconciliation.
