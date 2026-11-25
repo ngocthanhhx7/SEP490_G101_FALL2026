@@ -509,7 +509,7 @@ describe('UC-38 Giao lại entry points', () => {
 
   test('the all-visits list offers it for an accepted visit that has a sitter, with the board view to return to', async () => {
     const api = board({ visitWorkflow: jest.fn(), visitBoard: jest.fn(async params => (params.tab === 'all' ? allPage([visit('1'), visit('2', { state: 'SCHEDULED', sitterId: null, sitterName: null })]) : needsPage([]))) });
-    render(<MemoryRouter><Harness api={api} /></MemoryRouter>);
+    render(<Harness api={api} />);
     fireEvent.click(tabNamed('Tất cả buổi'));
     const table = within(await screen.findByRole('region', { name: 'Tất cả buổi' }));
     const links = table.getAllByRole('link', { name: 'Giao lại' });
@@ -521,7 +521,7 @@ describe('UC-38 Giao lại entry points', () => {
     const onReassign = jest.fn();
     const api = board({ withdrawalReview: jest.fn().mockResolvedValue({ data: { visitId: 'v-38', version: 3, serviceName: 'Chăm sóc tại nhà', sitterName: 'Đoàn Minh Khôi',
       startAt: '2026-11-04T07:30:00Z', endAt: '2026-11-04T08:30:00Z', reasonCode: 'SICK', note: null } }) });
-    render(<MemoryRouter><Harness api={api} onReassign={onReassign} initialWithdrawalId={'a'.repeat(24)} /></MemoryRouter>);
+    render(<Harness api={api} onReassign={onReassign} initialWithdrawalId={'a'.repeat(24)} />);
     const dialog = within(await screen.findByRole('dialog'));
     await dialog.findByText(/Đoàn Minh Khôi/);
     expect(dialog.getByRole('option', { name: 'Chấp nhận rút, sắp xếp lại ca' })).toBeInTheDocument();
