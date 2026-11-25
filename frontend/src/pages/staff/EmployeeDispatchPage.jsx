@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { RefreshCw, Send } from 'lucide-react';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
-import { Button, Dialog } from '../../components/ui/index.js';
+import { Button, Dialog, Notice } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
 import { DispatchRanking } from './DispatchRanking.jsx';
@@ -39,7 +39,7 @@ const reviewLabel = (code) =>
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, initialHandoverVisitId, canVerifyClosure = false }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, initialHandoverVisitId, initialTab, initialFilters, reassignedNotice, onReassign, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const [bookingChangesRevision, setBookingChangesRevision] = useState(0);
@@ -51,7 +51,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
     return result;
   }, [api]);
   const queue = useApiResource(load);
-  const [tab, setTab] = useState(initialHandoverVisitId ? 'all' : 'needs');
+  const [tab, setTab] = useState(initialHandoverVisitId ? 'all' : initialTab ?? 'needs');
   const [board, setBoard] = useState({ ids: new Set(), filtering: false });
   const [selected, setSelected] = useState(initialVisitId ?? null);
   const [addingInvitation, setAddingInvitation] = useState(false);
@@ -128,9 +128,10 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
           Kiểm tra lại yêu cầu
         </Button>
       )}
+      {reassignedNotice && <Notice state="success" title="Đã đổi người chăm sóc">{reassignedNotice}</Notice>}
       {proposal && <p role="status">Đã gửi đề xuất lịch mới, đang chờ khách xác nhận.</p>}
       {queue.status === 'loading' && <p role="status">Đang tải ca…</p>}
-      <VisitBoard initialHandoverVisitId={initialHandoverVisitId} initialWorkflowId={initialWorkflowId} api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
+      <VisitBoard initialFilters={initialFilters} onReassign={onReassign} initialHandoverVisitId={initialHandoverVisitId} initialWorkflowId={initialWorkflowId} api={api} tab={tab} onTab={setTab} todayTotal={today?.summary?.total} workAreas={queue.data?.workAreas}
         openableIds={queue.data && new Set(rows.map((row) => row.id))} onOpenDispatch={setSelected} onChanged={queue.retry} onState={setBoard}
         initialWithdrawalId={initialWithdrawalId} initialClosureId={initialClosureId} canVerifyClosure={canVerifyClosure} requestedWithdrawalId={withdrawalToReview} onWithdrawalDismiss={() => setWithdrawalToReview(null)} refreshKey={queue.data} />
       {['error', 'forbidden', 'pending'].includes(queue.status) && (

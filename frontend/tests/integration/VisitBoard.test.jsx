@@ -484,3 +484,32 @@ describe('format helpers', () => {
     expect(actionFor({ reasons: [] })).toBeNull();
   });
 });
+
+// UC-38: Giao lại from "Tất cả buổi" and from the withdrawal review dialog.
+describe('UC-38 Giao lại entry points', () => {
+  const visit = (id, extra = {}) => ({ ...base, id, bookingId: `6720a1b2c3d4e5f6a7b8c${id.padStart(3, '0')}`, bookingCode: `BK-${id.padStart(4, '0')}`, startAt: '2026-11-04T01:30:00Z', endAt: '2026-11-04T02:30:00Z',
+    customerName: 'Ngô Minh Đức', sitterId: 's-1', sitterName: 'Trịnh Văn Hoà', ...extra });
+
+  test('the all-visits list offers it for an accepted visit that has a sitter, with the board view to return to', async () => {
+    const api = board({ visitWorkflow: jest.fn(), visitBoard: jest.fn(async params => (params.tab === 'all' ? allPage([visit('1'), visit('2', { state: 'SCHEDULED', sitterId: null, sitterName: null })]) : needsPage([]))) });
+    render(<MemoryRouter><Harness api={api} /></MemoryRouter>);
+    fireEvent.click(tabNamed('Tất cả buổi'));
+    const table = within(await screen.findByRole('region', { name: 'Tất cả buổi' }));
+    const links = table.getAllByRole('link', { name: 'Giao lại' });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute('href', expect.stringMatching(/^\/staff\/visits\/1\/reassign$/));
+  });
+
+  test('the withdrawal review dialog keeps its two choices and adds Giao lại', async () => {
+    const onReassign = jest.fn();
+    const api = board({ withdrawalReview: jest.fn().mockResolvedValue({ data: { visitId: 'v-38', version: 3, serviceName: 'Chăm sóc tại nhà', sitterName: 'Đoàn Minh Khôi',
+      startAt: '2026-11-04T07:30:00Z', endAt: '2026-11-04T08:30:00Z', reasonCode: 'SICK', note: null } }) });
+    render(<MemoryRouter><Harness api={api} onReassign={onReassign} initialWithdrawalId={'a'.repeat(24)} /></MemoryRouter>);
+    const dialog = within(await screen.findByRole('dialog'));
+    await dialog.findByText(/Đoàn Minh Khôi/);
+    expect(dialog.getByRole('option', { name: 'Chấp nhận rút, sắp xếp lại ca' })).toBeInTheDocument();
+    expect(dialog.getByRole('option', { name: 'Chưa chấp nhận, giữ phân công' })).toBeInTheDocument();
+    fireEvent.click(dialog.getByRole('button', { name: 'Giao lại' }));
+    expect(onReassign).toHaveBeenCalledWith('a'.repeat(24), '/staff/dispatch?tab=needs');
+  });
+});

@@ -4,8 +4,14 @@ import { digest } from '../../validators/pet-care.validator.js';
 
 const handoverDeadline = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', hourCycle: 'h23' });
 
+// Recipient-specific wording where one event reaches people with different roles.
+const roleMessages = {
+  VisitReassigned: { PET_SITTER: 'Điều phối đã giao buổi này cho người chăm sóc khác. Bạn không cần thực hiện buổi này.' }
+};
+
 const messages = {
   VisitHandoverRequired: ['Cần xác nhận bàn giao', 'Hãy đọc và xác nhận bàn giao trước khi check-in.'],
+  VisitReassigned: ['Đã đổi người chăm sóc', 'Điều phối đã sắp xếp người chăm sóc khác cho buổi này. Thời gian và địa điểm không đổi.'],
   VisitHandoverConfirmed: ['Đã xác nhận bàn giao', 'Người chăm sóc thay thế đã xác nhận bàn giao buổi.'],
   VisitWithdrawalRequested: ['Yêu cầu rút ca cần xử lý', 'Người chăm sóc gửi yêu cầu rút ca cận giờ. Ca vẫn giữ người phụ trách đến khi được xử lý.'],
   VisitWithdrawn: ['Ca đang được sắp xếp lại', 'Người chăm sóc đã rút ca. Lịch chỉ định cần khách xác nhận người thay thế.'],
@@ -40,6 +46,10 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
       to: /^[a-f0-9]{24}$/.test(event.offerId ?? '') ? '/sitter/invitations?offerId=' + event.offerId : '/sitter/invitations' });
     if (['OfferAccepted', 'ScheduleProposed'].includes(event.type) && booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER',
       to: event.type === 'ScheduleProposed' ? '/account/schedule-proposals/' + event.detail.proposalId : '/account/bookings/' + String(booking._id) });
+    if (event.type === 'VisitReassigned') {
+      if (event.detail?.previousSitterId) recipients.push({ id: String(event.detail.previousSitterId), role: 'PET_SITTER', to: '/sitter/schedule' });
+      if (booking?.customerId) recipients.push({ id: String(booking.customerId), role: 'CUSTOMER', to: '/account/bookings/' + String(booking._id) });
+    }
     if (event.type === 'VisitHandoverRequired') recipients.push({ id: event.sitterId, role: 'PET_SITTER',
       to: '/sitter/visits/' + String(visit._id) + '/handover' });
     if (['DispatchReviewRequired', 'VisitCompletionReviewRequired', 'VisitClosureVerificationRequired', 'VisitWithdrawalRequested', 'VisitHandoverConfirmed'].includes(event.type)) {
@@ -59,8 +69,8 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
     for (const recipient of recipients) {
       await col('notifications').updateOne({ _id: digest([eventId, recipient.id, recipient.role]) }, { $setOnInsert: {
         eventId, recipientId: recipient.id, role: recipient.role, eventType: event.type, title,
-        message: recipient.role === 'PET_SITTER' && ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'].includes(event.type)
-          ? `${message} Lý do: ${event.detail.reason}` : message,
+        message: roleMessages[event.type]?.[recipient.role] ?? (recipient.role === 'PET_SITTER' && ['VisitWithdrawalApproved', 'VisitWithdrawalRejected'].includes(event.type)
+          ? `${message} Lý do: ${event.detail.reason}` : message),
         channel: 'IN_APP', deepLink: recipient.to, metadata: { visitId: String(event.visitId), ...(event.offerId ? { offerId: String(event.offerId) } : {}) }, createdAt: new Date(clock()), readAt: null
       } }, { upsert: true, session });
     }

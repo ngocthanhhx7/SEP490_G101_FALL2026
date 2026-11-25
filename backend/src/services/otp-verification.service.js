@@ -88,7 +88,7 @@ export function createOtpService({ connection, User, models = identityModels(con
     }
     const now = clock();
     const challengeId = createId();
-    const code = createCode();
+    const code = createCode({ purpose, channel, contact: canonicalValue });
     if (typeof challengeId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(challengeId)
       || typeof code !== 'string' || !/^\d{6}$/.test(code)) throw new Error('Secure OTP generation failed');
     const expiresAt = new Date(now + CODE_LIFETIME_MS);

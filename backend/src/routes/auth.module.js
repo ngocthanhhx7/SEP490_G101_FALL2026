@@ -7,7 +7,7 @@ import { createRegistrationPolicyService } from '../services/registration-policy
 import { requireCsrf, requireSession } from '../middlewares/session.js';
 import { authModule } from './auth.routes.js';
 
-export function authenticationModule({ config, connection, ports, logger = () => {}, clock = Date.now }) {
+export function authenticationModule({ config, connection, ports, logger = () => {}, clock = Date.now, createOtpCode }) {
   if (!config.auth?.enabled) return null;
 
   const sessionService = createSessionService({
@@ -37,6 +37,7 @@ export function authenticationModule({ config, connection, ports, logger = () =>
     contactCrypto,
     verificationHandlers: { REGISTER: registerHandler },
     otpSecret: config.auth.otpSecret,
+    createCode: createOtpCode,
     logger
   });
 

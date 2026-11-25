@@ -40,3 +40,26 @@ test('UC-41 GBR-24 an urgent assignment asks the sitter to confirm immediately',
   show(apiFor(true));
   expect(await screen.findByText('Buổi được giao cho bạn khi còn chưa đầy 1 giờ. Hãy đọc và xác nhận ngay, trước khi check-in.')).toBeInTheDocument();
 });
+
+describe('the line under the confirm button names only the times that have not passed yet', () => {
+  // accessOpensAt 07:00 and checkInOpensAt 07:30 (Vietnam time) on 24/11/2026.
+  const at = iso => jest.spyOn(Date, 'now').mockReturnValue(Date.parse(iso));
+  afterEach(() => jest.restoreAllMocks());
+
+  test('both times still ahead: both are shown', async () => {
+    at('2026-11-23T05:00:00Z'); show(apiFor());
+    expect(await screen.findByText('Sau khi xác nhận, ghi chú vào nhà hiện từ 07:00 và bạn check-in được từ 07:30.')).toBeInTheDocument();
+  });
+
+  test('both times already passed (urgent or replaced after the start): the sitter can use both at once', async () => {
+    at('2026-11-24T01:10:00Z'); show(apiFor(true));
+    expect(await screen.findByText('Sau khi xác nhận, bạn xem ghi chú vào nhà và check-in được ngay.')).toBeInTheDocument();
+    expect(screen.queryByText(/hiện từ 07:00/)).not.toBeInTheDocument();
+  });
+
+  test('only the house note time has passed: the check-in time is kept', async () => {
+    at('2026-11-24T00:10:00Z'); show(apiFor(true));
+    expect(await screen.findByText('Sau khi xác nhận, bạn xem ghi chú vào nhà được ngay và bạn check-in được từ 07:30.')).toBeInTheDocument();
+  });
+});
+
