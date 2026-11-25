@@ -341,7 +341,9 @@ export function BookingFlow({ service, api, onBooked }) {
             </label>
             {previousSitters.map(sitter => (
               <label key={sitter.id}>
-                <input type="radio" name="preferred-sitter" value={sitter.id} checked={selected === sitter.id} onChange={() => { setSelected(sitter.id); setError(''); }} />
+                <input type="radio" name="preferred-sitter" value={sitter.id} checked={selected === sitter.id}
+                  disabled={sitter.unavailableVisits.some(v => !['DAY_OFF', 'OUTSIDE_WORKING_HOURS', 'SLOT_UNAVAILABLE'].includes(v.reason))}
+                  onChange={() => { setSelected(sitter.id); setError(''); }} />
                 <span>
                   <strong>{sitter.displayName}</strong>
                   {!sitter.eligible && (

@@ -1,5 +1,4 @@
 import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
-import { Types } from 'mongoose';
 import { listPreviousPetSitters } from '../customer-care-history.service.js';
 import { decisionSnapshotModels } from '../../models/decision-snapshot.model.js';
 import { petCareModels } from '../../models/pet-care.model.js';
@@ -10,12 +9,9 @@ import { readServicePresentation } from '../service-presentation.service.js';
 
 export function createCheckoutAvailabilityService({ connection, repository, clock = Date.now, facilityAddress, facilityCoordinates }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
-  const col = name => connection.collection(name), oid = value => new Types.ObjectId(value);
   async function guard(actor, visit, session) {
     if (!repository) fail('SCHEDULING_UNAVAILABLE', 'Employee scheduling unavailable', 503);
     const sitterId = String(visit.requestedSitterId);
-    const published = await col('sitterpublicprofiles').findOne({ userId: oid(sitterId), state: 'APPROVED' }, { session });
-    if (!published) fail('SITTER_NOT_ELIGIBLE', 'Employee is no longer publicly available', 409);
     await repository.employeeGuard(sitterId, session);
     await repository.eligible(sitterId, visit, session);
   }
