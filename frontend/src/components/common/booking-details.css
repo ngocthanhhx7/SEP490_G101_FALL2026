@@ -23,6 +23,7 @@
 .staff-booking-detail__back {
   display: inline-flex;
   align-items: center;
+  min-height: var(--pwc-target);
   gap: var(--pwc-space-2);
   margin-bottom: var(--pwc-space-3);
   color: var(--pwc-ink-muted);
@@ -149,6 +150,9 @@
 }
 
 .booking-details__schedule-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--pwc-target);
   color: var(--bd-link);
   font-size: 0.9375rem;
   font-weight: 800;
@@ -297,6 +301,9 @@
 }
 
 .booking-details td .booking-visit-track-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--pwc-target);
   color: var(--bd-link);
   font-size: 0.875rem;
   font-weight: 700;

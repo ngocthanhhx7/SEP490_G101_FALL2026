@@ -164,7 +164,9 @@
 }
 
 .visit-board__booking-link {
-  display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--pwc-target);
   white-space: nowrap;
 }
 
