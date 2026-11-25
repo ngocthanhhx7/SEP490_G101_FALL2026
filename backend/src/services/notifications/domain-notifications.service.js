@@ -84,7 +84,9 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       if (notification) {
         const [roles, title, message] = notification;
         const area = roles.includes('ADMIN') ? 'admin' : 'staff';
-        const to = '/' + area + '/complaints?complaint=' + encodeURIComponent(record.id);
+        const to = event === 'ComplaintRefundProposed'
+          ? '/admin/refunds?complaint=' + encodeURIComponent(record.id)
+          : '/' + area + '/complaints?complaint=' + encodeURIComponent(record.id);
         await write(eventId, event, await operators(roles, to, session), title, message, session);
       }
       if (['ComplaintResolved', 'ComplaintRefundDecided', 'ComplaintDecided'].includes(event)) {

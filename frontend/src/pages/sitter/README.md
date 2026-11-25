@@ -1,5 +1,9 @@
 # Sitter pages
 
+`HandoverConfirmationPage.jsx` is the UC-41 route for the assigned replacement.
+The visit and assignment views link to it while handover is pending. Home access
+notes still use the time-windowed access in `AssignedCare.jsx`.
+
 The mounted employee invitation screen composes `AssignedCare.jsx` for active
 assignments. Private care lives only in memory and is discarded on close/reload;
 entry notes require server authorization and expire at shift end. Legacy P24/P26

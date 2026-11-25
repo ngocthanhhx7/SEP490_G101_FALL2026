@@ -23,7 +23,8 @@ const reasons = {
   PET_OVERLAP: 'thú cưng đã có lịch khác vào giờ đó',
   VISIT_BEFORE_PREVIOUS_END: 'buổi 2 bắt đầu trước khi buổi 1 kết thúc',
   TOO_MANY_VISITS: 'một ngày có quá hai buổi',
-  BOOKING_TOO_LONG: 'lịch đặt kéo dài quá 30 ngày'
+  BOOKING_TOO_LONG: 'lịch đặt kéo dài quá 30 ngày',
+  NEW_TIME_TOO_SOON: 'giờ mới không còn cách hiện tại ít nhất 2 giờ'
 };
 
 export const staffChangeMoment = value => time.format(new Date(value)) + ', ' + day.format(new Date(value));

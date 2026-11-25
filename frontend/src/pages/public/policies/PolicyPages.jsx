@@ -1,15 +1,18 @@
 import { ArrowLeft, ArrowRight, ChevronRight, Link2, Search, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   findPolicy,
   isUnpublishedPolicyPath,
   policyHref,
   publicPolicies
 } from './policy-catalog.js';
-import { usePublicPolicyCatalog } from '../../../contexts/PublicPolicyContext.jsx';
+import { usePublicPolicyState } from '../../../contexts/PublicPolicyContext.jsx';
+import { useApiResource } from '../../../hooks/useApiResource.js';
+import { loadPublicPolicyVersion } from '../../../services/public-policy-api.js';
 import './public-policies.css';
 
+const normalize = value => value.normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/đ/gi, 'd').toLowerCase();
 const policyDate = new Intl.DateTimeFormat('vi-VN', {
   day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh'
 });
@@ -30,6 +33,7 @@ function PolicyBackLink({ children = 'Xem danh sách chính sách' }) {
 }
 
 function PolicyCard({ policy }) {
+  const { search } = useLocation();
   return (
     <li className="policy-card">
       <div>
@@ -42,6 +46,7 @@ function PolicyCard({ policy }) {
       <Link
         className="policy-action"
         to={policyHref(policy.slug, policy.versionPath)}
+        state={{ policyFrom: '/policies' + search }}
         aria-label={`Đọc ${policy.title}`}
       >
         Đọc chính sách <ArrowRight size={17} aria-hidden="true" />
@@ -51,15 +56,19 @@ function PolicyCard({ policy }) {
 }
 
 export function PolicyIndexPage({ policies = publicPolicies }) {
-  const loadedPolicies = usePublicPolicyCatalog();
-  const resolvedPolicies =
-    policies === publicPolicies && loadedPolicies.length
-      ? loadedPolicies
-      : policies;
-  const [query, setQuery] = useState('');
+  const state = usePublicPolicyState();
+  const resolvedPolicies = policies === publicPolicies ? state.catalog : policies;
+  const [params, setParams] = useSearchParams();
+  const query = params.get('q') ?? '';
+  const setQuery = value => setParams(current => {
+    const next = new globalThis.URLSearchParams(current);
+    if (value) next.set('q', value);
+    else next.delete('q');
+    return next;
+  }, { replace: true });
   const searchInput = useRef(null);
   const filteredPolicies = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('vi');
+    const normalizedQuery = normalize(query.trim());
     if (!normalizedQuery) return resolvedPolicies;
     return resolvedPolicies.filter((policy) => {
       const bodyText = policy.sections.flatMap((section) => [
@@ -67,19 +76,19 @@ export function PolicyIndexPage({ policies = publicPolicies }) {
         ...(section.paragraphs || []),
         ...(section.items || [])
       ]);
-      return [
+      return normalize([
         policy.title,
         policy.summary,
         policy.purpose,
         policy.keywords,
         ...bodyText
       ]
-        .join(' ')
-        .toLocaleLowerCase('vi')
+        .join(' '))
         .includes(normalizedQuery);
     });
   }, [resolvedPolicies, query]);
 
+  if (policies === publicPolicies && state.status !== 'ready') return <PolicyStatus state={state} />;
   return (
     <section className="public-policies" aria-labelledby="policy-index-title">
       <header className="policy-page-header">
@@ -176,7 +185,7 @@ function PolicyContent({ content }) {
 }
 
 function PolicyArticle({ policy, versioned }) {
-  const { hash } = useLocation();
+  const { hash, pathname } = useLocation();
 
   useEffect(() => {
     if (!/^#policy-section-\d+$/.test(hash)) return;
@@ -191,10 +200,11 @@ function PolicyArticle({ policy, versioned }) {
       <header className="policy-page-header">
         <h1 id="policy-article-title">{policy.title}</h1>
         <p>{policy.summary}</p>
+        {policy.archived && <p>Phiên bản lưu trữ</p>}
         {policy.purpose !== policy.summary && <p>{policy.purpose}</p>}
       </header>
       <div className="policy-publication">
-        <dl className="policy-metadata">
+        <details className="policy-version-row"><summary>Thông tin phiên bản</summary><dl className="policy-metadata">
           <div>
             <dt>Ngày hiệu lực</dt>
             <dd><EffectiveDate policy={policy} /></dd>
@@ -203,7 +213,7 @@ function PolicyArticle({ policy, versioned }) {
             <dt>Phiên bản</dt>
             <dd>{policy.version}</dd>
           </div>
-        </dl>
+        </dl></details>
         {!versioned && <Link className="policy-action" to={policyHref(policy.slug, policy.versionPath)}>
           <Link2 size={17} aria-hidden="true" />
           Mở bản cố định
@@ -232,23 +242,79 @@ function PolicyArticle({ policy, versioned }) {
           ))}
         </div>
       </div>
+      <Link to="/contact" state={{ helpFrom: pathname }}>Cần giải thích thêm?</Link>
     </article>
   );
 }
 
-export function PolicyArticlePage({ policies = publicPolicies }) {
-  const loadedPolicies = usePublicPolicyCatalog();
-  const resolvedPolicies =
-    policies === publicPolicies && loadedPolicies.length
-      ? loadedPolicies
-      : policies;
+function PolicyStatus({ state }) {
+  return state.status === 'loading' ? <p role="status">Đang tải chính sách…</p> : <div role="alert">
+    <p>Chưa tải được chính sách. Hãy kiểm tra kết nối.</p>
+    <button type="button" className="pwc-button pwc-button--secondary" onClick={state.retry}>Thử lại</button>
+  </div>;
+}
+
+function effectiveDate(policy) {
+  return Number.isFinite(Date.parse(policy.effectiveAt)) ? policyDate.format(new Date(policy.effectiveAt)) : policy.effectiveDate;
+}
+
+function EmbeddedArticle({ policy, embedded }) {
+  const key = useId();
+  const headingId = index => key + '-policy-section-' + index;
+  const formattedDate = effectiveDate(policy);
+  const location = useLocation();
+  const Title = embedded ? 'h2' : 'h1';
+  return <article className="policy-article" aria-labelledby={key + '-title'}>
+    <header className="policy-page-header policy-page-header--article">
+      <Title id={key + '-title'}>{policy.title}</Title>
+      {formattedDate && <p>Ngày hiệu lực <time dateTime={policy.effectiveAt}>{formattedDate}</time></p>}
+      {policy.archived && <p><strong>Phiên bản lưu trữ</strong>{!embedded && policy.currentVersionId && <> ·
+        <Link to={policyHref(policy.slug, policy.currentVersionId)}>Đọc phiên bản hiện hành</Link></>}</p>}
+      <p>{policy.summary ?? policy.purpose}</p>
+      {policy.purpose && policy.summary && policy.purpose !== policy.summary && <p>{policy.purpose}</p>}
+    </header>
+    <nav className="policy-contents" aria-label="Mục lục bài viết">
+      <h2>Mục lục</h2>
+      <ol>{policy.sections.map((section, index) => <li key={index}>
+        <a href={'#' + headingId(index)} onClick={event => {
+          const target = document.getElementById(headingId(index));
+          if (target) { event.preventDefault(); target.focus({ preventScroll: true }); target.scrollIntoView?.(); }
+        }}>{section.heading}</a>
+      </li>)}</ol>
+    </nav>
+    <div className="policy-article-content">{policy.sections.map((section, index) => <section key={index}>
+      <h2 id={headingId(index)} tabIndex={-1}>{section.heading}</h2>
+      <PolicyContent content={section} />
+    </section>)}</div>
+    <details className="policy-version-row"><summary>Thông tin phiên bản</summary>
+      <p>{policy.version}</p>
+      {!embedded && <Link to={policyHref(policy.slug, policy.versionPath)}>Mở liên kết phiên bản cố định</Link>}
+    </details>
+    {!embedded && <p><Link to="/contact" state={{ helpFrom: location.pathname }}>Cần giải thích thêm?</Link></p>}
+  </article>;
+}
+
+export function PolicyReader({ slug, version, policies = publicPolicies, embedded = false }) {
+  const state = usePublicPolicyState();
+  const resolved = policies === publicPolicies ? state.catalog : policies;
+  const current = findPolicy(slug, version, resolved);
+  const archived = Boolean(version && version !== 'draft-v1' && !current && policies === publicPolicies);
+  const load = useCallback(({ signal }) => archived
+    ? loadPublicPolicyVersion(slug, version, { signal }) : Promise.resolve({ data: null }), [archived, slug, version]);
+  const resource = useApiResource(load);
+  if (current) return embedded ? <EmbeddedArticle policy={current} embedded /> : <PolicyArticle policy={current} versioned={Boolean(version)} />;
+  if (archived) {
+    if (resource.status === 'success' && resource.data?.versionId === version && resource.data.slug === slug)
+      return embedded ? <EmbeddedArticle policy={resource.data} embedded /> : <PolicyArticle policy={resource.data} versioned={Boolean(version)} />;
+    if (resource.status !== 'empty') return <PolicyStatus state={resource} />;
+    return embedded ? <p>Không tìm thấy phiên bản này.</p> : <PolicyNotFound />;
+  }
+  if (policies === publicPolicies && state.status !== 'ready') return <PolicyStatus state={state} />;
+  if (embedded) return <p>Chính sách chưa được xuất bản.</p>;
+  return isUnpublishedPolicyPath(slug, version) ? <PolicyUnpublished /> : <PolicyNotFound />;
+}
+
+export function PolicyArticlePage({ policies }) {
   const { slug, version } = useParams();
-  const policy = findPolicy(slug, version, resolvedPolicies);
-  if (policy)
-    return <PolicyArticle policy={policy} versioned={Boolean(version)} />;
-  return isUnpublishedPolicyPath(slug, version) ? (
-    <PolicyUnpublished />
-  ) : (
-    <PolicyNotFound />
-  );
+  return <div className="public-policies"><PolicyReader key={slug + ':' + (version ?? '')} slug={slug} version={version} policies={policies} /></div>;
 }

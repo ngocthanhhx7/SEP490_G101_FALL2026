@@ -4,6 +4,7 @@ export const REASON_LABELS = {
   NO_SITTER_TO_OFFER: 'Hết người để mời',
   NO_SITTER_24H: 'Chưa có người 24 giờ trước',
   NOT_CHECKED_IN_30M: 'Chưa check-in sau 30 phút',
+  HANDOVER_NOT_CONFIRMED_1H: 'Chưa xác nhận bàn giao',
   WITHDRAWAL_UNDER_12H: 'Rút buổi dưới 12 giờ',
   NOT_CHECKED_OUT_2H: 'Cần xác minh kết thúc',
   COMPLETION_VERIFICATION_PENDING: 'Chờ quản trị xác minh',
@@ -39,7 +40,7 @@ export function actionFor(row) {
   if (code === 'NO_SITTER_TO_OFFER' || code === 'NO_SITTER_24H') {
     return row.reviewCode === 'SHIFT_START_REACHED' ? { kind: 'dispatch', label: 'Đổi lịch với khách' } : { kind: 'dispatch', label: 'Giao người' };
   }
-  if (code === 'NOT_CHECKED_IN_30M') return { kind: 'call', label: 'Gọi người chăm sóc', party: 'sitter' };
+  if (['NOT_CHECKED_IN_30M', 'HANDOVER_NOT_CONFIRMED_1H'].includes(code)) return { kind: 'call', label: 'Gọi người chăm sóc', party: 'sitter' };
   if (code === 'WITHDRAWAL_UNDER_12H') return { kind: 'withdrawal', label: 'Xem yêu cầu rút' };
   if (code === 'NOT_CHECKED_OUT_2H') return { kind: 'close', label: 'Đóng buổi' };
   if (['COMPLETION_VERIFICATION_PENDING', 'FINANCIAL_RECONCILIATION_REQUIRED'].includes(code)) return { kind: 'close', label: 'Đối chiếu buổi' };

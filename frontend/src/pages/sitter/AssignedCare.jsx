@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button } from '../../components/ui/index.js';
@@ -19,7 +20,7 @@ function CareDetails({ api, visitId }) {
     try { const result = await api.accessNotes(visitId); setNotes(result.data); }
     catch (failure) { setError(failure.code === 'ACCESS_WINDOW_CLOSED' ? 'Chưa trong thời gian xem ghi chú. Chỉ mở từ 1 giờ trước ca đến lúc kết thúc ca.'
       : failure.code === 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED' ? 'Cần xác nhận đã đọc hồ sơ chăm sóc hiện tại trước khi mở ghi chú.'
-        : failure.code === 'HANDOVER_REQUIRED' ? 'Ca cần được điều phối xác nhận bàn giao trước khi xem ghi chú.'
+        : failure.code === 'HANDOVER_REQUIRED' ? 'HANDOVER_REQUIRED'
           : 'Chưa mở được ghi chú ra vào. Hãy tải lại hồ sơ hoặc liên hệ điều phối.'); }
   }
   useEffect(() => {
@@ -28,6 +29,8 @@ function CareDetails({ api, visitId }) {
     return () => clearTimeout(timer);
   }, [notes]);
   if (care.status === 'loading') return <p role="status">Đang tải hồ sơ chăm sóc…</p>;
+  const handoverLink = <Link className="sitter-workspace-link" to={'/sitter/visits/' + visitId + '/handover'}>Xác nhận bàn giao</Link>;
+  if (care.code === 'HANDOVER_REQUIRED') return <div><p role="alert">Bạn cần xác nhận bàn giao trước khi xem ghi chú.</p>{handoverLink}</div>;
   if (care.status !== 'success') return <p role="alert">Hồ sơ chưa khả dụng cho ca này.</p>;
   return <section className="assigned-care" aria-label="Hồ sơ chăm sóc đã bàn giao">
     <p>Thông tin chủ nuôi cung cấp lúc đặt lịch: {new Date(care.data.capturedAt).toLocaleString('vi-VN')}</p>
@@ -44,7 +47,8 @@ function CareDetails({ api, visitId }) {
     </p>
     <Button variant="secondary" aria-describedby="care-access-help" disabled={!care.data.acknowledged} onClick={access}>Mở ghi chú ra vào</Button>
     {notes && <p>{notes.privateAccessNotes || 'Không có ghi chú ra vào.'}</p>}
-    {error && <p role="alert">{error}</p>}
+    {error === 'HANDOVER_REQUIRED' ? <div><p role="alert">Bạn cần xác nhận bàn giao trước khi xem ghi chú.</p>{handoverLink}</div>
+      : error && <p role="alert">{error}</p>}
   </section>;
 }
 export function AssignedCare({ api, visitId }) {

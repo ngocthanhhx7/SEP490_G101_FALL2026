@@ -1,4 +1,5 @@
 import { createReferenceCatalogFacade } from './reference-catalog.service.js';
+import { lateCheckInExemptExpression } from './care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
 import { hasRole } from '../utils/roles.js';
@@ -160,7 +161,8 @@ export function createSitterManagementService({ connection, cursorSecret, contac
           sitterId: { $in: ids }, state: { $ne: 'SUPERSEDED' }, startAt: { $type: 'date' },
           checkInAt: { $type: 'date', $gte: from, $lte: asOf }
         } }, { $group: { _id: { $toString: '$sitterId' }, count: { $sum: {
-          $cond: [{ $gt: [{ $subtract: ['$checkInAt', '$startAt'] }, LATE_THRESHOLD_MS] }, 1, 0]
+          $cond: [{ $and: [{ $gt: [{ $subtract: ['$checkInAt', '$startAt'] }, LATE_THRESHOLD_MS] },
+            { $not: [lateCheckInExemptExpression()] }] }, 1, 0]
         } } } }], session);
         for (const record of checkedIn) late.set(record._id, record.count);
       }

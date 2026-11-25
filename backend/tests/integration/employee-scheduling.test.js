@@ -1,13 +1,14 @@
 import { digest } from '../../src/validators/pet-care.validator.js';
 import { createSitterCapabilityService } from '../../src/services/sitter-capability.service.js';
 import { createOperationalRanker } from '../../src/services/sitter-matching/operational-ranker.service.js';
-import { beforeAll, afterAll, test, expect } from '@jest/globals';
+import { beforeAll, afterAll, describe, test, expect } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
 import express from 'express';
 import request from 'supertest';
 import { employeeSchedulingRuntimeModule } from '../../src/routes/employee-scheduling.routes.js';
 import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
+import { recordEmployeeServiceCompletion } from '../../src/services/payroll/completion-payroll-source.service.js';
 import { payrollModels } from '../../src/models/payroll.model.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { CHECKOUT_POLICY_VERSION } from '../../src/services/booking-proposals/checkout-snapshot.service.js';
@@ -756,7 +757,10 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   expect(assigned.assignedFeatureSnapshot.sitterId).toBe(sitter.userId);
   expect(await matching.SitterVisitOutcome.countDocuments({ sitterId: new mongoose.Types.ObjectId(sitter.userId) })).toBe(0);
 
-  let at = row.startAt.getTime();
+  // UC-41 GBR-24: the completed visit carries an acknowledged urgent replacement assignment.
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { handoverRequired: true,
+    handoverAccepted: true, handoverLateCheckInExempt: true, assignedAt: new Date(+row.startAt - 40 * 60000) } });
+  let at = +row.startAt + 10 * 60000;
   const finance = createBookingFinanceSourceService({ connection, clock: () => new Date(at) });
   const stored = new Map();
   const images = createPrivateImageService({ connection, secret: 'isolated-replay-example-media-key', media: {
@@ -796,7 +800,8 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   expect((await rate()).body.data).toEqual(accepted.body.data);
   const outcomes = await matching.SitterVisitOutcome.find({ visitId: row._id }).select('+provenance').lean();
   expect(outcomes).toHaveLength(1);
-  expect(outcomes[0]).toMatchObject({ rating: 4, occurredAt: new Date(at),
+  expect(await payroll.PayrollServiceCredit.findOne({ visitId: row._id }).lean()).toMatchObject({ onTime: true });
+  expect(outcomes[0]).toMatchObject({ rating: 4, onTime: true, occurredAt: new Date(at),
     provenance: { labelVersion: 'VERIFIED_CUSTOMER_SATISFACTION_V1' } });
 });
 
@@ -934,7 +939,9 @@ test('directed withdrawal waits for customer replacement consent and retains the
   const sitter = await employee(), replacement = await employee();
   const row = await visit({ start: '2026-11-23T02:00:00Z', requestedSitterId: sitter.userId });
   const dedicatedService = oid();
-  await connection.collection('visits').updateOne({ _id: row._id }, { $set: { serviceId: dedicatedService } });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    serviceId: dedicatedService, 'snapshots.care': { schemaVersion: 1, capturedAt: new Date(clock()), pets: row.snapshots.pets }
+  } });
   await connection.collection('aisitterprofiles').updateMany({
     userId: { $in: [sitter.userId, replacement.userId].map(value => new mongoose.Types.ObjectId(value)) }
   }, { $set: { serviceIds: [dedicatedService] } });
@@ -975,6 +982,9 @@ test('directed withdrawal waits for customer replacement consent and retains the
   await module.dispatch.offers.accept(replacement, confirmed.offer.id, 0, 'withdraw-replacement-accept');
   expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({ state: 'ASSIGNED', handoverRequired: true, handoverAccepted: false });
   await request(app).get(`${withdrawalPath(row)}/care`).set('x-test-actor', replacement.userId).expect(403);
+  const handover = (await request(app).get(`${withdrawalPath(row)}/handover`).set('x-test-actor', replacement.userId).expect(200)).body.data;
+  expect(handover).toMatchObject({ state: 'PENDING', note: { reasonCode: 'FAMILY_EMERGENCY' }, assignedAt: new Date(clock()).toISOString() });
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'VisitHandoverRequired', recipientId: replacement.userId, 'metadata.visitId': String(row._id) })).toBe(1);
 });
 
 
@@ -1154,4 +1164,144 @@ test('signed upcoming contract permits onboarding preparation but does not autho
  expect((await module.repository.contractAt(sitter.userId,effectiveAt,effectiveAt)).employmentType).toBe('PART_TIME');
  await connection.collection('employmentcontracts').updateOne({employeeId:new mongoose.Types.ObjectId(sitter.userId)},{$unset:{verifiedBy:''}});
  await expect(module.repository.areas.replaceMine({actor:sitter,areas:[],expectedVersion:2,idempotencyKey:'unverified-contract-areas'})).rejects.toMatchObject({code:'CONTRACT_REQUIRED'});
+});
+
+test('UC-41 GBR-24 confirms an urgent assignment once and returns the MSG81 check-in time', async () => {
+  const sitter = await employee(), other = await employee();
+  const row = await assignedForWithdrawal(sitter, '2026-10-30T03:20:00Z');
+  const visits = connection.collection('visits'), path = withdrawalPath(row);
+  await visits.updateOne({ _id: row._id }, { $set: {
+    handoverRequired: true, handoverAccepted: false, assignedAt: new Date(clock()),
+    handoverLateCheckInExempt: true, 'snapshots.care': { schemaVersion: 1, capturedAt: new Date(clock()),
+      pets: row.snapshots.pets, privateAccessNotes: 'synthetic access note' }
+  } });
+  const get = () => request(app).get(path + '/handover');
+  await get().expect(401);
+  await get().set('x-test-actor', customer.userId).expect(403);
+  await get().set('x-test-actor', other.userId).expect(404);
+  const current = (await get().set('x-test-actor', sitter.userId).expect(200)).body.data;
+  expect(current).toMatchObject({ state: 'PENDING', urgent: true });
+  expect(JSON.stringify(current)).not.toContain('synthetic access note');
+  const access = () => request(app).get(path + '/access-notes').set('x-test-actor', sitter.userId);
+  await access().expect(403);
+  const mediaId = 'd'.repeat(64);
+  await connection.collection('privateimages').insertOne({ _id: mediaId, ownerId: new mongoose.Types.ObjectId(sitter.userId),
+    state: 'READY', byteLength: 100, contentDigest: 'a'.repeat(64) });
+  const finance = createBookingFinanceSourceService({ connection, clock: () => new Date(clock()) });
+  const checkIn = (expectedVersion, idempotencyKey) => finance.checkIn({ actor: sitter, visitId: String(row._id), expectedVersion, idempotencyKey, mediaId });
+  await expect(checkIn(current.version, 'check-in-before-handover')).rejects.toMatchObject({ code: 'HANDOVER_REQUIRED' });
+  const send = (input, key = 'test-handover-confirmation') => request(app).post(path + '/handover-confirmations')
+    .set({ 'x-test-actor': sitter.userId, 'X-CSRF-Token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' }).send(input);
+  const input = { expectedVersion: current.version, careVersion: current.care.version, acknowledged: true };
+  await send({ ...input, acknowledged: false }).expect(422);
+  await send({ ...input, expectedVersion: current.version + 1 }).expect(409);
+  await send({ ...input, careVersion: 'a'.repeat(64) }, 'test-handover-stale-care').expect(409);
+  const first = (await send(input).expect(200)).body.data;
+  expect(first).toMatchObject({ state: 'CONFIRMED', checkInOpensAt: '2026-10-30T02:50:00.000Z', version: current.version + 1 });
+  expect((await send(input).expect(200)).body.data).toEqual(first);
+  await send({ ...input, careVersion: 'a'.repeat(64) }).expect(409);
+  await send(input, 'test-handover-second-command').expect(409);
+  expect(await visits.findOne({ _id: row._id })).toMatchObject({
+    handoverAccepted: true, handoverAcceptedBy: expect.anything(), handoverAcceptedAt: new Date(clock()),
+    careAcknowledgement: { sitterId: sitter.userId, version: input.careVersion, acknowledgedAt: new Date(clock()) }
+  });
+  expect((await access().expect(200)).body.data.privateAccessNotes).toBe('synthetic access note');
+  await expect(checkIn(first.version, 'check-in-after-handover')).resolves.toMatchObject({ state: 'IN_PROGRESS' });
+  expect(await connection.collection('notifications').countDocuments({ eventType: 'VisitHandoverConfirmed', recipientId: staff.userId, 'metadata.visitId': String(row._id) })).toBe(1);
+});
+
+test('UC-41 GBR-24 payroll onTime treats equally late first assignments and replacements differently', async () => {
+  const sitterId = oid(), startAt = new Date(clock()), checkInAt = new Date(clock() + 10 * 60000), assignedAt = new Date(clock() - 40 * 60000);
+  const checkOutAt = new Date(clock() + 30 * 60000), common = { bookingId: oid(), sitterId, state: 'COMPLETED',
+    startAt, checkInAt, assignedAt, checkOutAt, completedAt: checkOutAt, version: 4, snapshots: { employeeServiceNetVnd: 100000 } };
+  const ordinary = { ...common, _id: oid() }, urgent = { ...common, _id: oid(), handoverRequired: true, handoverAccepted: true };
+  await connection.transaction(session => recordEmployeeServiceCompletion({ connection, visits: [ordinary, urgent], session }));
+  expect(await payroll.PayrollServiceCredit.findOne({ visitId: ordinary._id }).lean()).toMatchObject({ onTime: false });
+  expect(await payroll.PayrollServiceCredit.findOne({ visitId: urgent._id }).lean()).toMatchObject({ onTime: true });
+});
+
+describe('UC-41 GBR-24 accepting an offer stores the late check-in exemption', () => {
+  const startIn = minutes => new Date(clock() + minutes * 60000).toISOString();
+  const waiting = { handoverRequired: true, handoverAccepted: false };
+  const storedVisit = row => connection.collection('visits').findOne({ _id: row._id });
+  // Staff invitation: Staff picks the sitter, the sitter accepts the resulting offer.
+  async function acceptStaffInvitation(minutes, handover) {
+    const sitter = await employee(), row = await visit({ start: startIn(minutes) });
+    if (handover) await connection.collection('visits').updateOne({ _id: row._id }, { $set: handover });
+    const invitation = await module.dispatch.invite(staff, String(row._id), { expectedVersion: 0, sitterId: sitter.userId }, `exempt-staff-invite-${row._id}`);
+    await module.dispatch.offers.accept(sitter, invitation.offerId, 0, `exempt-staff-accept-${row._id}`);
+    return storedVisit(row);
+  }
+  // Automatic invitation: the dispatch batch offers the visit, the sitter accepts it.
+  async function acceptAutomaticInvitation(minutes, handover) {
+    // Earlier tests leave many sitters in the same area; the automatic search refuses more than 100 candidates.
+    await module.repository.models.EmployeeAvailability.deleteMany({});
+    const { row, workers, dispatch, offers, first } = await sequentialFixture({ scores: [5, 4, 3, 2, 1], start: startIn(minutes) });
+    if (handover) await connection.collection('visits').updateOne({ _id: row._id }, { $set: handover });
+    await first(`exempt-auto-invite-${row._id}`);
+    const [offer] = await offers('PENDING');
+    await dispatch.offers.accept(workers[0], String(offer._id), 0, `exempt-auto-accept-${row._id}`);
+    return storedVisit(row);
+  }
+  const paths = [['Staff invitation', acceptStaffInvitation], ['automatic invitation', acceptAutomaticInvitation]];
+
+  describe.each(paths)('%s', (_name, accept) => {
+    test.each([[30, true], [59, true], [60, false], [90, false]])(
+      'a replacement accepted %i minutes before the visit stores handoverLateCheckInExempt=%s', async (minutes, exempt) => {
+        const stored = await accept(minutes, waiting);
+        expect(stored).toMatchObject({ state: 'ASSIGNED', handoverRequired: true, handoverAccepted: false, handoverLateCheckInExempt: exempt,
+          assignedAt: new Date(clock()) });
+      });
+
+    test('a first assignment stays non-exempt even when it is accepted 30 minutes before the visit', async () => {
+      const stored = await accept(30, undefined);
+      expect(stored).toMatchObject({ state: 'ASSIGNED' });
+      expect(stored).not.toHaveProperty('handoverLateCheckInExempt');
+      expect(stored.handoverRequired).not.toBe(true);
+    });
+
+    test('a visit whose handover is already confirmed does not get a new flag', async () => {
+      const stored = await accept(30, { handoverRequired: true, handoverAccepted: true });
+      expect(stored).toMatchObject({ state: 'ASSIGNED', handoverRequired: true, handoverAccepted: true });
+      expect(stored).not.toHaveProperty('handoverLateCheckInExempt');
+    });
+  });
+});
+
+describe('UC-41 GBR-24 monthly bonus on-time threshold counts urgent replacements as on time', () => {
+  const admin = actor('ADMIN'), monthClose = Date.parse('2026-11-02T03:00:00Z');
+  const month = { periodStart: '2026-10-01T08:00:00+07:00', periodEnd: '2026-11-01T00:00:00+07:00', dueAt: '2026-11-02T00:00:00+07:00' };
+  // 20 completed 30-minute visits in October, all with a complete report. Check-in is 10 minutes late on `late` of them;
+  // `urgent` of those late visits were replacements accepted 40 minutes before the start.
+  async function credits({ late, urgent }) {
+    const sitter = await employee(), sitterId = new mongoose.Types.ObjectId(sitter.userId);
+    const visits = Array.from({ length: 20 }, (_, index) => {
+      const startAt = new Date(Date.parse('2026-10-10T02:00:00Z') + index * 3600000), lateCheckIn = index < late;
+      const checkInAt = new Date(+startAt + (lateCheckIn ? 10 : 0) * 60000), checkOutAt = new Date(+checkInAt + 30 * 60000);
+      return { _id: oid(), bookingId: oid(), sitterId, state: 'COMPLETED', startAt, checkInAt, checkOutAt, completedAt: checkOutAt,
+        assignedAt: new Date(+startAt - 3 * 86400000), version: 4, snapshots: { employeeServiceNetVnd: 100000 },
+        ...(index < urgent ? { handoverRequired: true, handoverAccepted: true, assignedAt: new Date(+startAt - 40 * 60000) } : {}) };
+    });
+    await connection.transaction(session => recordEmployeeServiceCompletion({ connection, visits, session }));
+    return sitter;
+  }
+  const assess = sitter => ({ employeeId: sitter.userId, ...month, scheduledMonthMinutes: 4800, paidPeriodMinutes: 4800, kpiTargetMinutes: 600,
+    seriousViolationConfirmed: false, includeMonthlyBonus: true, overtimeVnd: 0, employeeInsuranceVnd: 0, incomeTaxVnd: 0, otherLawfulDeductionsVnd: 0,
+    assessmentReference: 'synthetic-approved-timecard-tax-assessment', deductionConsentReference: 'synthetic-no-deductions', advanceRepayments: [] });
+
+  test.each([
+    // [late visits, urgent replacements among them, on-time credits, onTimeBps, bonus]
+    [1, 0, 19, 9500, 300000],
+    [2, 0, 18, 9000, 0],
+    [2, 1, 19, 9500, 300000],
+    [2, 2, 20, 10000, 300000],
+    [3, 1, 18, 9000, 0]
+  ])('%i late check-ins, %i of them urgent replacements: %i on-time credits, %i bps, bonus %i VND', async (late, urgent, onTime, bps, bonusVnd) => {
+    const sitter = await credits({ late, urgent });
+    expect(await payroll.PayrollServiceCredit.countDocuments({ employeeId: new mongoose.Types.ObjectId(sitter.userId), onTime: true })).toBe(onTime);
+    expect(Math.floor(onTime * 10000 / 20)).toBe(bps);
+    const bonusPayroll = createPayrollService({ connection, policy: employeePayrollPolicyResolver, clock: () => monthClose });
+    const statement = await bonusPayroll.prepareStatement(admin, assess(sitter), `monthly-bonus-${late}-${urgent}-${sitter.userId}`);
+    expect(statement.breakdown).toMatchObject({ bonusVnd });
+  });
 });
