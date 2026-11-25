@@ -266,7 +266,7 @@ describe('payOS result (UC-62 step 8, GBR-18)', () => {
     expect(await receive(order)).toEqual({ status: 'PAYMENT_VERIFIED' });
     expect(await receive(order)).toEqual({ status: 'DUPLICATE' });
     const doc = await orderDoc(order);
-    expect(doc).toMatchObject({ paid: true, status: 'PLACED', version: 1 });
+    expect(doc).toMatchObject({ paid: true, status: 'PLACED', version: 2 });
     expect(doc.payment.receipts).toHaveLength(1);
     expect(doc.payment.receipts[0]).toMatchObject({ state: 'VERIFIED', amountVnd: order.total });
     expect(await connection.db.collection('financesourcecommands').countDocuments()).toBe(1);
@@ -294,23 +294,25 @@ describe('payOS result (UC-62 step 8, GBR-18)', () => {
     expect((await act(order, 'hand-to-customer')).body.data).toMatchObject({ status: 'PICKED_UP', paid: true });
   });
 
-  test('MSG32: a failed or wrong payment leaves the order unpaid and it can be paid again', async () => {
+  test('MSG32: a failed payment can be retried; money already received holds a wrong-amount order for reconciliation', async () => {
     const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
     await link('a', order).expect(200);
     expect(await receive(order, { code: '01' })).toMatchObject({ status: 'RECONCILIATION_REQUIRED', reason: 'PROVIDER_PAYMENT_NOT_SUCCESSFUL' });
+    await link('a', order).expect(200);
     expect(await receive(order, { amount: order.total - 1, reference: 'BANK-SHORT' })).toMatchObject({ reason: 'AMOUNT_MISMATCH' });
     expect(await orderDoc(order)).toMatchObject({ paid: false, status: 'PLACED' });
     // A payment that did not go through is not for staff to reconcile; money that cannot be placed is (one notice, for the wrong amount).
     expect(await connection.db.collection('notifications').countDocuments({ eventType: 'PaymentReconciliationRequired' })).toBe(1);
     links.get(Number(await reference(order))).status = 'CANCELLED';
-    await link('a', order).expect(200);
-    expect(await receive(order)).toEqual({ status: 'PAYMENT_VERIFIED' });
-    expect(await orderDoc(order)).toMatchObject({ paid: true });
+    await link('a', order).expect(409);
+    await act(order, 'cancel').expect(409);
+    expect(await orderDoc(order)).toMatchObject({ paid: false, status: 'PLACED' });
   });
 
   test('money that arrives after the order was cancelled is kept for reconciliation and never reopens the order', async () => {
     const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
     await link('a', order).expect(200);
+    links.get(Number(await reference(order))).status = 'CANCELLED';
     await act(order, 'cancel').expect(200);
     expect(await receive(order)).toEqual({ status: 'RECONCILIATION_REQUIRED', reason: 'ORDER_NOT_PAYABLE' });
     const doc = await orderDoc(order);
@@ -349,6 +351,8 @@ describe('ST-ORD-11 JOB-04 prepaid order not paid in time', () => {
     expect(await expiry(settler()).runBatch()).toMatchObject({ cancelled: 0, failed: 0 });
     expect(await orderDoc(order)).toMatchObject({ status: 'PLACED' });
     now = START + HOUR;
+    expect(await expiry(settler()).runBatch()).toMatchObject({ cancelled: 0, kept: 1 });
+    links.get(Number(await reference(order))).status = 'EXPIRED';
     expect(await expiry(settler()).runBatch()).toMatchObject({ cancelled: 1, failed: 0, kept: 0 });
     expect(await orderDoc(order)).toMatchObject({ status: 'CANCELLED', paid: false, refundMarked: false });
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 15, quantityHeld: 0 });
@@ -388,6 +392,19 @@ describe('ST-ORD-11 JOB-04 prepaid order not paid in time', () => {
     expect(await receive(order)).toMatchObject({ status: 'RECONCILIATION_REQUIRED' });
     expect((await orderDoc(order)).payment.receipts.map(receipt => receipt.state))
       .toEqual(['VERIFIED', 'RECONCILIATION_REQUIRED']);
+  });
+
+  test.each(['PENDING', 'EXPIRED'])('holds a partial transfer on a %s link without charging twice or releasing stock', async status => {
+    const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
+    await link('a', order).expect(200);
+    const ref = Number(await reference(order));
+    Object.assign(links.get(ref), { status, amountPaid: 1 });
+    await link('a', order).expect(409);
+    await act(order, 'cancel').expect(409);
+    now = START + 2 * HOUR;
+    expect(await expiry(settler()).runBatch()).toMatchObject({ cancelled: 0, kept: 1 });
+    expect(await orderDoc(order)).toMatchObject({ paid: false, status: 'PLACED', payment: { providerReferences: [String(ref)] } });
+    expect(await product('SP-0012')).toMatchObject({ quantityHeld: 1 });
   });
 
   test('keeps an issued payment link for reconciliation while payOS is disabled', async () => {

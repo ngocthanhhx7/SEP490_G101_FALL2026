@@ -1,3 +1,4 @@
+import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { createHash } from 'node:crypto';
 import { AppError } from '../../utils/app-error.js';
 import { productSalesModels } from '../../models/product.model.js';
@@ -47,7 +48,7 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
     if (doc && doc.requestFingerprint !== fingerprint) throw productSalesErrors.idempotencyConflict();
     return doc;
   }
-  async function transition(actor, orderId, body, action) {
+  async function transition(actor, orderId, body, action, checkedVersion) {
     const actorId = requireCounterSeller(actor), id = parseObjectId(orderId, 'orderId');
     parseNoBody(body);
     const result = await uow.run(async session => {
@@ -55,6 +56,7 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       if (!order) throw productSalesErrors.notFound();
       if ((action === 'record-cash' && order.paid && ['PAID', 'COMPLETED'].includes(order.status))
         || (action === 'complete' && order.status === 'COMPLETED') || (action === 'cancel' && order.status === 'CANCELLED')) return order;
+      if (action !== 'complete' && checkedVersion !== order.version) throw productSalesErrors.orderStateConflict(order.status);
       if (action === 'complete' && order.status === 'AWAITING_PAYMENT') throw productSalesErrors.orderNotPaid();
       const allowed = action === 'complete' ? order.status === 'PAID' && order.paid : order.status === 'AWAITING_PAYMENT' && !order.paid;
       if (!allowed) throw productSalesErrors.orderStateConflict(order.status);
@@ -75,6 +77,22 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       return updated;
     });
     return toCounterOrderView(result);
+  }
+  async function changeUnpaid(actor, id, body, action) {
+    requireCounterSeller(actor);
+    parseNoBody(body);
+    const orderId = parseObjectId(id, 'orderId');
+    const current = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
+    if (!current) throw productSalesErrors.notFound();
+    if (current.status === 'AWAITING_PAYMENT' && !current.paid) {
+      const outcome = await checkProductPayment(current, payments);
+      if (outcome === 'PAID' && action === 'record-cash') {
+        const settled = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL, paid: true }).lean();
+        if (settled) return toCounterOrderView(settled);
+      }
+      requireUnpaidProductOutcome(outcome);
+    }
+    return transition(actor, id, body, action, current.version);
   }
   return Object.freeze({
     async create(actor, body, rawKey) {
@@ -143,29 +161,8 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       if (!doc) throw productSalesErrors.notFound();
       return toCounterOrderView(doc);
     },
-    async recordCash(actor, id, body) {
-      requireCounterSeller(actor);
-      const orderId = parseObjectId(id, 'orderId');
-      parseNoBody(body);
-      const current = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
-      if (current && current.status === 'AWAITING_PAYMENT' && !current.paid
-          && current.payment?.providerReferences?.length > 0) {
-        if (!payments) throw new AppError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Check the VietQR payment before recording cash.');
-        let outcome;
-        try {
-          outcome = await payments.settleIfPaid(current);
-        } catch {
-          throw new AppError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Check the VietQR payment before recording cash.');
-        }
-        if (outcome === 'PAID') {
-          const settled = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
-          if (settled) return toCounterOrderView(settled);
-        }
-        if (outcome !== 'UNPAID') throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'The VietQR payment requires reconciliation.');
-      }
-      return transition(actor, id, body, 'record-cash');
-    },
+    recordCash: (actor, id, body) => changeUnpaid(actor, id, body, 'record-cash'),
     complete: (actor, id, body) => transition(actor, id, body, 'complete'),
-    cancel: (actor, id, body) => transition(actor, id, body, 'cancel')
+    cancel: (actor, id, body) => changeUnpaid(actor, id, body, 'cancel')
   });
 }

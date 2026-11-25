@@ -204,6 +204,7 @@ describe('UC-68 counter VietQR payment link creation', () => {
     expect(provider.createPaymentLink).toHaveBeenCalledTimes(1);
 
     // Cancelled or paid orders cannot create a link.
+    links.get(Number(await lastRef(order.id))).status = 'CANCELLED';
     await call('post', `${ROOT}/${order.id}/cancel`, 'SALE_STAFF').send({}).expect(200);
     expect((await call('post', `${ROOT}/${order.id}/payment-link`, 'SALE_STAFF').send({}).expect(409)).body.error.code).toBe('ORDER_STATE_CONFLICT');
   });
@@ -272,6 +273,7 @@ describe('ST-CTR-02 / GBR-18 counter VietQR webhook and completion', () => {
 
     // Stock stays held until Sale Staff clicks Complete sale (GBR-38).
     expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 10, quantityHeld: 2 });
+    links.get(Number(await lastRef(order.id))).status = 'CANCELLED';
     await call('post', `${ROOT}/${order.id}/cancel`, 'SALE_STAFF').send({}).expect(409);
     const completed = (await call('post', `${ROOT}/${order.id}/complete`, 'SALE_STAFF').send({}).expect(200)).body.data;
     expect(completed).toMatchObject({ status: 'COMPLETED', paid: true, paymentMethod: 'COUNTER_VIETQR' });
@@ -290,6 +292,8 @@ describe('ST-CTR-04 failed VietQR, switching to cash, settler guard and late rec
     const failedView = (await call('get', `${ROOT}/${order.id}`, 'SALE_STAFF').expect(200)).body.data;
     expect(failedView).toMatchObject({ status: 'AWAITING_PAYMENT', paid: false, paymentLink: { state: 'FAILED' } });
 
+    await call('post', `${ROOT}/${order.id}/record-cash`, 'SALE_STAFF').send({}).expect(409);
+    links.get(Number(await lastRef(order.id))).status = 'CANCELLED';
     const cash = (await call('post', `${ROOT}/${order.id}/record-cash`, 'SALE_STAFF').send({}).expect(200)).body.data;
     expect(cash).toMatchObject({ status: 'PAID', paid: true, paymentMethod: 'COUNTER_CASH', cashPayment: { amount: order.total } });
   });
@@ -317,6 +321,8 @@ describe('ST-CTR-04 failed VietQR, switching to cash, settler guard and late rec
     expect(await orderDoc(order.id)).toMatchObject({ status: 'AWAITING_PAYMENT', paid: false });
     failLookup = false;
 
+    await call('post', `${ROOT}/${order.id}/record-cash`, 'SALE_STAFF').send({}).expect(409);
+    links.get(Number(await lastRef(order.id))).status = 'CANCELLED';
     const cash = (await call('post', `${ROOT}/${order.id}/record-cash`, 'SALE_STAFF').send({}).expect(200)).body.data;
     expect(cash).toMatchObject({ status: 'PAID', paid: true, paymentMethod: 'COUNTER_CASH', cashPayment: { amount: order.total } });
 
@@ -338,6 +344,7 @@ describe('ST-CTR-04 failed VietQR, switching to cash, settler guard and late rec
     Object.assign(links.get(Number(reference)), { status: 'PENDING', amountPaid: 1 });
     const cashAction = kind === 'counter' ? '/record-cash' : '/record-payment';
     await call('post', path + cashAction).send({}).expect(409);
+    await call('post', path + '/cancel', 'ADMIN').send({}).expect(409);
     now += COUNTER_VIETQR_LINK_TTL_MS + 1;
     await call('post', path + '/payment-link').send({}).expect(409);
     expect(await orderDoc(order.id)).toMatchObject({ paid: false, payment: { providerReferences: [reference] } });
@@ -347,6 +354,7 @@ describe('ST-CTR-04 failed VietQR, switching to cash, settler guard and late rec
     const p = await product();
     const order = await createCounterOrder(p, 2);
     await call('post', `${ROOT}/${order.id}/payment-link`, 'SALE_STAFF').send({}).expect(200);
+    links.get(Number(await lastRef(order.id))).status = 'CANCELLED';
     await call('post', `${ROOT}/${order.id}/cancel`, 'SALE_STAFF').send({}).expect(200);
 
     expect(await receive(order)).toEqual({ status: 'RECONCILIATION_REQUIRED', reason: 'ORDER_NOT_PAYABLE' });
@@ -377,6 +385,7 @@ describe('regression: online PREPAID order webhook behavior (#445) is unchanged'
     // Cancelled online PREPAID order still reconciles without reopening.
     const cancelledOnline = await placeOnlinePrepaid(p, 1);
     await call('post', `${ONLINE}/${cancelledOnline.id}/payment-link`, 'CUSTOMER').send({}).expect(200);
+    links.get(Number(await lastRef(cancelledOnline.id))).status = 'CANCELLED';
     await call('post', `${MANAGE}/${cancelledOnline.id}/cancel`, 'ADMIN').send({}).expect(200);
     expect(await receive(cancelledOnline)).toEqual({ status: 'RECONCILIATION_REQUIRED', reason: 'ORDER_NOT_PAYABLE' });
     expect(await orderDoc(cancelledOnline.id)).toMatchObject({ status: 'CANCELLED', paid: false });
@@ -434,7 +443,8 @@ describe('UC-67 branch 4.1 pick-up order PAY_AT_SHOP VietQR payment at the shop'
     expect((await call('get', `${MANAGE}/${pickup1.id}`, 'SALE_STAFF').expect(200)).body.data).toMatchObject({
       status: 'READY', paid: false, paymentLink: { state: 'FAILED' }
     });
-    // Can still record cash and hand over.
+    // Only a closed link can be replaced by cash.
+    links.get(Number(await lastRef(pickup1.id))).status = 'CANCELLED';
     await call('post', `${MANAGE}/${pickup1.id}/record-payment`, 'SALE_STAFF').send({}).expect(200);
     await call('post', `${MANAGE}/${pickup1.id}/hand-to-customer`, 'SALE_STAFF').send({}).expect(200);
 
