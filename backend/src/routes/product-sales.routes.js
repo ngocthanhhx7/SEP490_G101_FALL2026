@@ -19,8 +19,10 @@ import { createStockListService } from '../services/product-sales/stock-list.ser
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
-import { createProductOrderPaymentService } from '../services/product-sales/product-order-payment.service.js';
+import { createProductOrderPaymentService, createProductOrderPaymentSettler } from '../services/product-sales/product-order-payment.service.js';
 import { loadPayosConfig, createPayosProvider } from '../services/providers/payos/payos.provider.js';
+import { createPayosPaymentWebhookService } from '../services/providers/payos/payment-webhook.service.js';
+import { createMongoPaymentWebhookRepository } from '../services/providers/payos/mongo-payment-webhook.repository.js';
 import { parseWebOrigin } from '../config/web-origin.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
 import { createSaleStaffDashboardService } from '../services/product-sales/sale-staff-dashboard.service.js';
@@ -76,8 +78,10 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   const orders = createProductOrderController(createProductOrderService({
     connection, serviceAreas: DEMO_WORK_AREAS, eligibility, clock, paymentDeadlineHours: config.paymentDeadlineHours }));
   const payos = provider ? null : loadPayosConfig(env);
-  const payments = createProductOrderPaymentController(createProductOrderPaymentService({
-    connection, clock, provider: provider ?? (payos ? createPayosProvider(payos) : null), webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) }));
+  const payosProvider = provider ?? (payos ? createPayosProvider(payos) : null);
+  const orderPayments = createProductOrderPaymentService({
+    connection, clock, provider: payosProvider, webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) });
+  const payments = createProductOrderPaymentController(orderPayments);
   const orderRouter = Router();
   orderRouter.use(noStore, requireSession(session, { clock }), customer);
   orderRouter.get('/', orders.list);
@@ -91,9 +95,20 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     encryptionKey: config.auth.contactEncryptionKey
   });
   const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
+  const orderSettler = payosProvider && typeof payosProvider.getPaymentLink === 'function'
+    && typeof payosProvider.verifyWebhook === 'function'
+    ? createProductOrderPaymentSettler({
+      provider: payosProvider,
+      handleVerifiedPayment: createPayosPaymentWebhookService({
+        provider: payosProvider,
+        clock: () => new Date(clock()),
+        repository: createMongoPaymentWebhookRepository({ connection })
+      }).handleVerifiedPayment
+    })
+    : null;
   const management = createProductOrderManagementController(createProductOrderManagementService({
-    connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours
-  }));
+    connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours, payments: orderSettler
+  }), orderPayments);
   const managementRouter = Router();
   managementRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_ORDERS));
   managementRouter.get('/', management.list);
@@ -104,6 +119,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   managementRouter.post('/:orderId/confirm-returned', csrf, management.confirmReturned);
   managementRouter.post('/:orderId/mark-ready', csrf, management.markReady);
   managementRouter.post('/:orderId/hand-to-customer', csrf, management.handToCustomer);
+  managementRouter.post('/:orderId/payment-link', csrf, management.paymentLink);
   managementRouter.post('/:orderId/record-payment', csrf, management.recordPayment);
   managementRouter.post('/:orderId/cancel', requireRoles(...PRODUCT_PERMISSIONS.CANCEL_ONLINE_ORDERS), csrf, management.cancel);
 
@@ -145,8 +161,11 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   supplierRouter.post('/:supplierId/stop', csrf, supplierManagement.stop);
   supplierRouter.post('/:supplierId/resume', csrf, supplierManagement.resume);
 
-  const counter = createCounterSaleController(createCounterSaleService({ connection, clock, eligibility }),
-    createCounterCatalogService({ connection, contacts: phones, eligibility }));
+  const counter = createCounterSaleController(
+    createCounterSaleService({ connection, clock, eligibility, payments: orderSettler }),
+    createCounterCatalogService({ connection, contacts: phones, eligibility }),
+    orderPayments
+  );
   const counterRouter = Router();
   counterRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.SELL_AT_COUNTER));
   counterRouter.get('/products', counter.products);
@@ -155,6 +174,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   counterRouter.get('/', counter.list);
   counterRouter.post('/', csrf, counter.create);
   counterRouter.get('/:orderId', counter.read);
+  counterRouter.post('/:orderId/payment-link', csrf, counter.paymentLink);
   counterRouter.post('/:orderId/record-cash', csrf, counter.recordCash);
   counterRouter.post('/:orderId/complete', csrf, counter.complete);
   counterRouter.post('/:orderId/cancel', csrf, counter.cancel);

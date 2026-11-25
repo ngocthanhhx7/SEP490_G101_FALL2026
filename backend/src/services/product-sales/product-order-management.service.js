@@ -29,6 +29,11 @@ const OLDEST_FIRST_TABS = new Set(['PREPARE', 'AWAITING_PICKUP']);
 
 function toAdminOrderView(doc, customer) {
   const view = toOrderView(doc);
+  const vietqrPaid = Boolean(doc.paid && doc.payment?.receipts?.some((row) => row.state === 'VERIFIED'));
+  const paymentLink = doc.payment?.linkState
+    ? { state: doc.payment.linkState, checkoutUrl: doc.payment.checkoutUrl ?? null,
+      expiresAt: doc.payment.linkExpiresAt ?? null, orderCode: doc.payment.providerReferences?.at(-1) ?? null }
+    : null;
   return {
     ...view,
     // How many of each line went back on sale once the return was confirmed (null before that).
@@ -41,6 +46,8 @@ function toAdminOrderView(doc, customer) {
     returnedAt: doc.returnedAt ?? null,
     refundMarked: doc.refundMarked === true,
     refundAmountVnd: doc.refundAmountVnd ?? null,
+    vietqrPaid,
+    paymentLink,
     customer: { id: String(doc.customerId), displayName: customer?.displayName ?? null, phone: customer?.phone ?? null }
   };
 }
@@ -194,7 +201,7 @@ export const createProductPickupExpiryService = createProductOrderExpiryService;
 // a confirmed return puts back only what can be sold again.
 // phones is the customer phone directory; it is injected by route composition.
 export function createProductOrderManagementService({
-  connection, phones, clock = Date.now, pickupDeadlineHours = DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS
+  connection, phones, clock = Date.now, pickupDeadlineHours = DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS, payments = null
 }) {
   if (typeof phones?.userIdsByPhone !== 'function' || typeof phones?.phonesOf !== 'function') {
     throw new TypeError('A customer phone directory is required');
@@ -340,8 +347,26 @@ export function createProductOrderManagementService({
       });
     },
     // Records the money taken at the shop for a pickup order, so it can then be handed over.
-    recordPayment(actor, orderId, body) {
+    async recordPayment(actor, orderId, body) {
+      requireOrderHandler(actor);
+      const id = parseObjectId(orderId, 'orderId');
       parseNoBody(body);
+      if (payments) {
+        const current = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+        if (current && current.receiveMethod === 'PICKUP' && current.status === 'READY'
+          && current.paymentMethod === 'PAY_AT_SHOP' && !current.paid
+          && current.payment?.linkState === 'READY' && current.payment?.providerReferences?.length > 0) {
+          try {
+            const outcome = await payments.settleIfPaid(current);
+            if (outcome === 'PAID') {
+              const settled = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+              if (settled) return viewOf(settled);
+            }
+          } catch {
+            // payOS unavailable: allow recording cash; any late VietQR result goes to reconciliation.
+          }
+        }
+      }
       return transition(actor, orderId, {
         // Cash is taken for a pick-up paid at the shop; a prepaid order is paid through payOS only.
         allowed: (order) => order.receiveMethod === 'PICKUP' && ['PLACED', 'READY'].includes(order.status) && !order.paid

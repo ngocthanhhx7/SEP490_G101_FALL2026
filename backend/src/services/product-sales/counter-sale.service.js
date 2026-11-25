@@ -3,7 +3,9 @@ import { AppError } from '../../utils/app-error.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
 import { identityModels } from '../../models/identity.model.js';
-import { COUNTER_CHANNEL, COUNTER_OPEN_STATUSES } from '../../constants/counter-sale-fields.js';
+import {
+  COUNTER_CHANNEL, COUNTER_OPEN_STATUSES, COUNTER_PAYMENT_METHOD, COUNTER_VIETQR_PAYMENT_METHOD
+} from '../../constants/counter-sale-fields.js';
 import { PRODUCT_PERMISSIONS } from '../../constants/product-permissions.js';
 import { parseCounterCreate, parseCounterPage } from '../../validators/counter-sale.validator.js';
 import { parseIdempotencyKey, parseObjectId } from '../../validators/product-order.validator.js';
@@ -18,14 +20,25 @@ import { productSalesErrors, requireCounterSeller } from './product-sales-errors
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const sorted = lines => [...lines].sort((a, b) => String(a.productId).localeCompare(String(b.productId)));
 export function toCounterOrderView(doc) {
+  const verifiedReceipt = doc.payment?.receipts?.find(row => row.state === 'VERIFIED') ?? null;
+  const vietqrPayment = doc.paymentMethod === COUNTER_VIETQR_PAYMENT_METHOD && doc.paid && doc.payment?.paidAt
+    ? { amount: verifiedReceipt?.amountVnd ?? doc.total, paidAt: doc.payment.paidAt,
+      providerOrderCode: verifiedReceipt?.providerOrderCode ?? null }
+    : null;
+  const paymentLink = doc.payment?.linkState
+    ? { state: doc.payment.linkState, checkoutUrl: doc.payment.checkoutUrl ?? null,
+      expiresAt: doc.payment.linkExpiresAt ?? null, orderCode: doc.payment.providerReferences?.at(-1) ?? null }
+    : null;
   return { ...toOrderView(doc), channel: COUNTER_CHANNEL,
     customer: doc.customerId ? { id: String(doc.customerId), displayName: doc.counterCustomerName, tierCode: doc.tierCode ?? null } : null,
     createdBy: { id: String(doc.counterCreatedBy), displayName: doc.counterCreatedByName },
     cashPayment: doc.cashPayment ? { amount: doc.cashPayment.amount, receivedAt: doc.cashPayment.receivedAt,
       receivedBy: String(doc.cashPayment.receivedBy) } : null,
+    vietqrPayment,
+    paymentLink,
     completedAt: doc.completedAt ?? null, cancelledAt: doc.cancelledAt ?? null };
 }
-export function createCounterSaleService({ connection, clock = Date.now, eligibility }) {
+export function createCounterSaleService({ connection, clock = Date.now, eligibility, payments = null }) {
   const { Product, ProductOrder } = productSalesModels(connection);
   const User = userModel(connection), { Contact } = identityModels(connection);
   const uow = createUnitOfWork(connection), codes = createProductOrderCodeService({ connection });
@@ -46,7 +59,8 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       const allowed = action === 'complete' ? order.status === 'PAID' && order.paid : order.status === 'AWAITING_PAYMENT' && !order.paid;
       if (!allowed) throw productSalesErrors.orderStateConflict(order.status);
       const now = new Date(clock());
-      const changes = action === 'record-cash' ? { status: 'PAID', paid: true, cashPayment: { amount: order.total, receivedAt: now, receivedBy: actorId } }
+      const changes = action === 'record-cash'
+        ? { status: 'PAID', paid: true, paymentMethod: COUNTER_PAYMENT_METHOD, cashPayment: { amount: order.total, receivedAt: now, receivedBy: actorId } }
         : action === 'complete' ? { status: 'COMPLETED', completedAt: now } : { status: 'CANCELLED', cancelledAt: now };
       const updated = await ProductOrder.findOneAndUpdate({ _id: id, channel: COUNTER_CHANNEL, status: order.status, paid: order.paid, version: order.version },
         { $set: changes, $inc: { version: 1 } }, { session, returnDocument: 'after', runValidators: true }).lean();
@@ -129,7 +143,27 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       if (!doc) throw productSalesErrors.notFound();
       return toCounterOrderView(doc);
     },
-    recordCash: (actor, id, body) => transition(actor, id, body, 'record-cash'),
+    async recordCash(actor, id, body) {
+      requireCounterSeller(actor);
+      const orderId = parseObjectId(id, 'orderId');
+      parseNoBody(body);
+      if (payments) {
+        const current = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
+        if (current && current.status === 'AWAITING_PAYMENT' && !current.paid
+          && current.payment?.linkState === 'READY' && current.payment?.providerReferences?.length > 0) {
+          try {
+            const outcome = await payments.settleIfPaid(current);
+            if (outcome === 'PAID') {
+              const settled = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
+              if (settled) return toCounterOrderView(settled);
+            }
+          } catch {
+            // payOS unavailable: allow recording cash; any late VietQR result goes to reconciliation.
+          }
+        }
+      }
+      return transition(actor, id, body, 'record-cash');
+    },
     complete: (actor, id, body) => transition(actor, id, body, 'complete'),
     cancel: (actor, id, body) => transition(actor, id, body, 'cancel')
   });

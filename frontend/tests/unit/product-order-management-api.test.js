@@ -99,3 +99,16 @@ test('accepts an advance payment order', async () => {
   const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope({ items: [{ ...order, paymentMethod: 'PREPAID', paid: true }], counts })));
   expect((await api(fetchImpl).listOrders()).data[0].paymentMethod).toBe('PREPAID');
 });
+
+test('UC-67 creates a validated payOS VietQR link and reads a single order', async () => {
+  const fetchImpl = jest.fn()
+    .mockResolvedValueOnce(reply(200, envelope({ checkoutUrl: 'https://pay.payos.vn/web/7777', expiresAt: '2026-11-25T03:35:00Z', orderCode: '7777' })))
+    .mockResolvedValueOnce(reply(200, envelope({ checkoutUrl: 'https://evil.example/web/7777' })))
+    .mockResolvedValueOnce(reply(200, envelope(order)));
+  const client = api(fetchImpl);
+  const link = await client.createPaymentLink('o1');
+  expect(link.checkoutUrl).toBe('https://pay.payos.vn/web/7777');
+  expect(fetchImpl.mock.calls[0][0]).toBe('/api/v1/admin/product-orders/o1/payment-link');
+  await expect(client.createPaymentLink('o1')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  expect(await client.readOrder('o1')).toEqual(order);
+});

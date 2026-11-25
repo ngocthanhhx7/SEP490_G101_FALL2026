@@ -1,10 +1,11 @@
 import { randomInt } from 'node:crypto';
 import { productSalesModels } from '../../models/product.model.js';
-import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
+import { COUNTER_CHANNEL, COUNTER_VIETQR_LINK_TTL_MS } from '../../constants/counter-sale-fields.js';
 import { PRODUCT_PAYMENT_LIMITS } from '../../constants/product-fields.js';
 import { AppError } from '../../utils/app-error.js';
 import { parseObjectId } from '../../validators/product-order.validator.js';
-import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
+import { parseNoBody } from '../../validators/product-order-management.validator.js';
+import { productSalesErrors, requireCounterSeller, requireCustomer, requireOrderHandler } from './product-sales-errors.js';
 
 // A payment link that was asked for more than this long ago and never answered no longer blocks a new request.
 const STALE_LINK_REQUEST_MS = 60_000;
@@ -14,8 +15,8 @@ const DEAD_LINK_STATES = new Set(['CANCELLED', 'EXPIRED', 'FAILED']);
 // MSG33: payOS cannot make the payment link right now.
 const providerUnavailable = () => new AppError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'We cannot open the payment page right now. Please try again in a few minutes.');
 
-// The payOS payment link of a prepaid product order (R3 UC-62 steps 7 and 8). `provider` and `webOrigin` come from route
-// composition; without them the order is still placed and the customer can pay when payOS is back, within the deadline.
+// The payOS payment link of a product order (online prepaid UC-62 steps 7-8, and counter VietQR UC-68).
+// `provider` and `webOrigin` come from route composition; without them the order stays unpaid and can be retried later.
 export function createProductOrderPaymentService({ connection, provider = null, webOrigin = null, clock = Date.now }) {
   const { ProductOrder } = productSalesModels(connection);
 
@@ -26,18 +27,18 @@ export function createProductOrderPaymentService({ connection, provider = null, 
 
   // Every payment link has its own payOS order code (payOS does not take a code twice), so paying again after a failed
   // or cancelled link is a new code. The code is saved before payOS is asked, so a result for it always finds this order.
-  async function reserveReference(order, at) {
+  async function reserveReference(order, at, guard) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const reference = String(randomInt(1_000_000_000_000, 200_000_000_000_000));
       try {
         const reserved = await ProductOrder.findOneAndUpdate({
-          _id: order._id, status: 'PLACED', paid: false, paymentMethod: 'PREPAID', version: order.version,
+          _id: order._id, ...guard, version: order.version,
           [`payment.providerReferences.${PRODUCT_PAYMENT_LIMITS.maxReferences - 1}`]: { $exists: false },
           $or: [{ 'payment.linkState': { $ne: 'CREATING' } },
             { 'payment.linkRequestedAt': { $lt: new Date(at.getTime() - STALE_LINK_REQUEST_MS) } }]
         }, { $push: { 'payment.providerReferences': reference },
           $set: { 'payment.linkState': 'CREATING', 'payment.linkRequestedAt': at },
-          $unset: { 'payment.checkoutUrl': '', 'payment.paymentLinkId': '' } },
+          $unset: { 'payment.checkoutUrl': '', 'payment.paymentLinkId': '', 'payment.linkExpiresAt': '' } },
         { returnDocument: 'after' }).lean();
         if (!reserved) throw new AppError(409, 'COMMAND_PENDING', 'A payment link is already being made for this order.');
         return reference;
@@ -46,6 +47,48 @@ export function createProductOrderPaymentService({ connection, provider = null, 
       }
     }
     throw new AppError(409, 'COMMAND_PENDING', 'A payment link is already being made for this order.');
+  }
+
+  async function issueLink({ order, at, guard, expiresAt, returnPath, persistExpiresAt = false }) {
+    if (!provider || !webOrigin) throw providerUnavailable();
+
+    const payment = order.payment ?? {};
+    const references = payment.providerReferences ?? [];
+    if (payment.linkState === 'READY' && payment.checkoutUrl && references.length > 0) {
+      const currentExpiry = persistExpiresAt ? payment.linkExpiresAt : expiresAt;
+      const notExpiredLocally = !persistExpiresAt || (currentExpiry instanceof Date && currentExpiry > at);
+      if (notExpiredLocally) {
+        // Reuse the same link while it still works; once it failed, expired or was cancelled, a new one is made.
+        const status = String((await lookup(references.at(-1))).providerStatus).toUpperCase();
+        if (status === 'PAID') {
+          throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'Your payment was received and is being recorded.');
+        }
+        if (!DEAD_LINK_STATES.has(status)) {
+          return { checkoutUrl: payment.checkoutUrl, expiresAt: currentExpiry, ...(persistExpiresAt ? { orderCode: references.at(-1) } : {}) };
+        }
+      }
+    }
+
+    const reference = await reserveReference(order, at, guard);
+    const back = new URL(returnPath, webOrigin).href;
+    try {
+      const link = await provider.createPaymentLink({ orderCode: Number(reference), amount: order.total,
+        description: 'PAWWORLD', expiredAt: Math.floor(expiresAt.getTime() / 1000),
+        returnUrl: back, cancelUrl: back });
+      const url = new URL(link.checkoutUrl);
+      if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/') || link.orderCode !== Number(reference)
+        || link.amount !== order.total || link.currency !== 'VND') throw new Error('Provider link does not match the order');
+      await ProductOrder.updateOne({ _id: order._id, 'payment.linkState': 'CREATING' },
+        { $set: { 'payment.linkState': 'READY', 'payment.checkoutUrl': url.href, 'payment.paymentLinkId': link.paymentLinkId,
+          ...(persistExpiresAt ? { 'payment.linkExpiresAt': expiresAt } : {}) } });
+      return { checkoutUrl: url.href, expiresAt, ...(persistExpiresAt ? { orderCode: reference } : {}) };
+    } catch {
+      // The link was never delivered, so nothing can be paid on it: the code is dropped and the caller may try again (MSG33).
+      // A late result for a code that is gone would still reach staff as an unknown reference.
+      await ProductOrder.updateOne({ _id: order._id },
+        { $pull: { 'payment.providerReferences': reference }, $set: { 'payment.linkState': 'FAILED' } });
+      throw providerUnavailable();
+    }
   }
 
   return Object.freeze({
@@ -61,38 +104,50 @@ export function createProductOrderPaymentService({ connection, provider = null, 
       if (!order.paymentDeadlineAt || order.paymentDeadlineAt <= at) {
         throw new AppError(409, 'ORDER_PAYMENT_EXPIRED', 'The payment time of this order has passed.');
       }
-      if (!provider || !webOrigin) throw providerUnavailable();
+      return issueLink({
+        order, at, expiresAt: order.paymentDeadlineAt,
+        guard: { status: 'PLACED', paid: false, paymentMethod: 'PREPAID' },
+        returnPath: `/customer/product-orders?order=${String(order._id)}`
+      });
+    },
 
-      const payment = order.payment ?? {};
-      const references = payment.providerReferences ?? [];
-      if (payment.linkState === 'READY' && payment.checkoutUrl && references.length > 0) {
-        // The customer comes back to the same link while it still works; once it failed or was cancelled, a new one is made.
-        const status = String((await lookup(references.at(-1))).providerStatus).toUpperCase();
-        if (status === 'PAID') {
-          throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'Your payment was received and is being recorded.');
-        }
-        if (!DEAD_LINK_STATES.has(status)) return { checkoutUrl: payment.checkoutUrl, expiresAt: order.paymentDeadlineAt };
+    // R3 UC-68 / GBR-38: VietQR payment link for an unpaid counter order. Uses a short link lifetime instead of
+    // online paymentDeadlineAt so counter orders are never mixed with JOB-04 prepaid expiry.
+    async createCounterLink(actor, orderId, body) {
+      requireCounterSeller(actor);
+      const id = parseObjectId(orderId, 'orderId');
+      parseNoBody(body);
+      const order = await ProductOrder.findOne({ _id: id, channel: COUNTER_CHANNEL }).lean();
+      if (!order) throw productSalesErrors.notFound();
+      if (order.status !== 'AWAITING_PAYMENT' || order.paid) {
+        throw productSalesErrors.orderStateConflict(order.status);
       }
+      const at = new Date(clock());
+      const expiresAt = new Date(at.getTime() + COUNTER_VIETQR_LINK_TTL_MS);
+      return issueLink({
+        order, at, expiresAt, persistExpiresAt: true,
+        guard: { channel: COUNTER_CHANNEL, status: 'AWAITING_PAYMENT', paid: false },
+        returnPath: `/admin/counter-sale?order=${String(order._id)}`
+      });
+    },
 
-      const reference = await reserveReference(order, at);
-      const back = new URL(`/customer/product-orders?order=${String(order._id)}`, webOrigin).href;
-      try {
-        const link = await provider.createPaymentLink({ orderCode: Number(reference), amount: order.total,
-          description: 'PAWWORLD', expiredAt: Math.floor(order.paymentDeadlineAt.getTime() / 1000),
-          returnUrl: back, cancelUrl: back });
-        const url = new URL(link.checkoutUrl);
-        if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/') || link.orderCode !== Number(reference)
-          || link.amount !== order.total || link.currency !== 'VND') throw new Error('Provider link does not match the order');
-        await ProductOrder.updateOne({ _id: order._id, 'payment.linkState': 'CREATING' },
-          { $set: { 'payment.linkState': 'READY', 'payment.checkoutUrl': url.href, 'payment.paymentLinkId': link.paymentLinkId } });
-        return { checkoutUrl: url.href, expiresAt: order.paymentDeadlineAt };
-      } catch {
-        // The customer never got this link, so nothing can be paid on it: the code is dropped and the customer may try
-        // again within the deadline (MSG33). A late result for a code that is gone would still reach staff as an unknown reference.
-        await ProductOrder.updateOne({ _id: order._id },
-          { $pull: { 'payment.providerReferences': reference }, $set: { 'payment.linkState': 'FAILED' } });
-        throw providerUnavailable();
+    // R3 UC-67 branch 4.1: VietQR payment link when collecting an unpaid PAY_AT_SHOP pick-up order at the shop.
+    async createPickupShopLink(actor, orderId, body) {
+      requireOrderHandler(actor);
+      const id = parseObjectId(orderId, 'orderId');
+      parseNoBody(body);
+      const order = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (!order) throw productSalesErrors.notFound();
+      if (order.receiveMethod !== 'PICKUP' || order.status !== 'READY' || order.paymentMethod !== 'PAY_AT_SHOP' || order.paid) {
+        throw productSalesErrors.orderStateConflict(order.status);
       }
+      const at = new Date(clock());
+      const expiresAt = new Date(at.getTime() + COUNTER_VIETQR_LINK_TTL_MS);
+      return issueLink({
+        order, at, expiresAt, persistExpiresAt: true,
+        guard: { channel: { $ne: COUNTER_CHANNEL }, receiveMethod: 'PICKUP', status: 'READY', paymentMethod: 'PAY_AT_SHOP', paid: false },
+        returnPath: `/admin/product-orders?tab=AWAITING_PICKUP&order=${String(order._id)}`
+      });
     }
   });
 }

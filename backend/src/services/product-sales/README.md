@@ -33,3 +33,21 @@ prepared, handed to the carrier or marked ready. A paid prepaid order that is
 cancelled or returned gets `refundMarked` and `refundAmountVnd` (GBR-37): the
 whole amount, or the price of the goods when the customer refused them without a
 reason. PWC does not call payOS to refund; accounting pays outside the system.
+
+## Counter VietQR (payOS)
+
+Counter orders (`channel: 'COUNTER'`, `status: 'AWAITING_PAYMENT'`) reuse the same
+payOS payment-link and webhook path. `createCounterLink` reserves a payOS order code
+in `payment.providerReferences` with a 15-minute `payment.linkExpiresAt` (separate
+from online `paymentDeadlineAt`). A verified webhook transitions the order to `PAID`
+with `paymentMethod: 'COUNTER_VIETQR'` and records the receipt once in
+`payment.receipts` without sending an online-order notification. Before recording
+cash on an order with a `READY` payOS link, `recordCash` checks payOS through
+`createProductOrderPaymentSettler`; if payOS already reports paid it settles as
+VietQR once, otherwise cash proceeds and any late VietQR transfer is kept as
+`RECONCILIATION_REQUIRED`.
+
+Unpaid `PAY_AT_SHOP` pick-up orders in `READY` (UC-67 branch 4.1) reuse the same
+link creation (`createPickupShopLink`), webhook receipt and settler flow while
+keeping `paymentMethod: 'PAY_AT_SHOP'` and storing VietQR receipts in
+`payment.receipts`.

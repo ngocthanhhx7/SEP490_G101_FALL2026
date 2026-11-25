@@ -149,6 +149,33 @@ describe('Order Management', () => {
     await waitFor(() => expect(api.handToCustomer).toHaveBeenCalledWith('o3'));
   });
 
+  test('UC-67 branch 4.1 offers VietQR on an unpaid READY PAY_AT_SHOP pick-up order, handles MSG32/MSG33 and polls until paid', async () => {
+    const readyOrder = pickup({ status: 'READY', paid: false });
+    const paidOrder = pickup({ status: 'READY', paid: true, vietqrPaid: true });
+    const api = fakeApi({
+      listOrders: jest.fn().mockResolvedValueOnce({ data: [readyOrder], meta: { counts: COUNTS } })
+        .mockResolvedValue({ data: [paidOrder], meta: { counts: COUNTS } }),
+      readOrder: jest.fn().mockResolvedValue(paidOrder),
+      createPaymentLink: jest.fn()
+        .mockRejectedValueOnce(new ApiError('PAYMENT_PROVIDER_UNAVAILABLE', 503))
+        .mockResolvedValue({ checkoutUrl: 'https://pay.payos.vn/web/8888', expiresAt: '2026-11-25T03:35:00Z', orderCode: '8888' })
+    });
+    render(<MemoryRouter initialEntries={['/admin/product-orders?tab=AWAITING_PICKUP&order=o3&cancel=true']}>
+      <ProductOrderManagementPage api={api} />
+    </MemoryRouter>);
+    expect(await screen.findByText('Thanh toán chưa thành công. Vui lòng thử lại.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo mã VietQR mới' }));
+    expect(await screen.findByText('Chưa thể mở trang thanh toán lúc này. Vui lòng thử lại sau vài phút.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo mã VietQR mới' }));
+    const link = await screen.findByRole('link', { name: 'Mở trang VietQR payOS' });
+    expect(link).toHaveAttribute('href', 'https://pay.payos.vn/web/8888');
+    expect(link).not.toHaveAttribute('target', '_blank');
+    fireEvent(window, new window.Event('focus'));
+    expect(await screen.findByText(/đã thu \(VietQR\)/)).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Giao cho khách' }));
+    await waitFor(() => expect(api.handToCustomer).toHaveBeenCalledWith('o3'));
+  });
+
   test('offers no step for an order that is finished', async () => {
     const api = fakeApi({ listOrders: jest.fn().mockResolvedValue({ data: [order({ status: 'DELIVERED', paid: true, trackingCode: 'VN7290018342' })], meta: { counts: COUNTS } }) });
     renderOrderManagement(api);
