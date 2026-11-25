@@ -1,0 +1,140 @@
+/* Scoped strictly to ProductCheckoutPage (does not modify shared product-shop.css). Mockup-measured colors live in local custom properties. */
+.product-checkout-page {
+  --pc-ink-strong: #19112b;
+  --pc-card-border: #ebe3f4;
+  --pc-input-border: #dfd4ec;
+  --pc-divider: #f1eaf8;
+  --pc-selected-bg: #f3eafc;
+  --pc-total-accent: #583188;
+  --pc-shadow: 0 8px 24px rgb(63 42 107 / 6%);
+  color: var(--pc-ink-strong);
+  font-family: var(--pwc-font-body);
+}
+
+.product-checkout-page .pwc-shop-back {
+  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.product-checkout-page .pwc-shop-back:hover {
+  color: var(--pwc-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.product-checkout-page h1 {
+  color: var(--pc-ink-strong);
+  font-family: var(--pwc-font-display);
+  font-weight: 400;
+}
+
+.product-checkout-page .pwc-shop-split {
+  gap: var(--pwc-space-6);
+  align-items: start;
+}
+
+.product-checkout-page .pwc-shop-panel {
+  background: var(--pwc-surface);
+  border: 1px solid var(--pc-card-border);
+  border-radius: var(--pwc-radius-panel);
+  box-shadow: var(--pc-shadow);
+  padding: clamp(1.25rem, 2.5vw, 1.9rem);
+}
+
+.product-checkout-page .pwc-shop-panel h2 {
+  color: var(--pc-ink-strong);
+  font-size: 1.3rem;
+  font-weight: 800;
+  margin-bottom: var(--pwc-space-4);
+}
+
+.product-checkout-page .pwc-shop-option {
+  border: 1px solid var(--pc-card-border);
+  border-radius: 1rem;
+  padding: 1rem 1.15rem;
+  background: var(--pwc-surface);
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.product-checkout-page .pwc-shop-option:has(input:checked),
+.product-checkout-page .pwc-shop-option.is-selected {
+  border: 1.5px solid var(--pwc-ink);
+  background: var(--pc-selected-bg);
+}
+
+.product-checkout-page .pwc-shop-option input[type="radio"] {
+  accent-color: var(--pwc-ink);
+  width: 1.1rem;
+  height: 1.1rem;
+  vertical-align: middle;
+}
+
+.product-checkout-page .pwc-shop-option strong {
+  color: var(--pc-ink-strong);
+}
+
+.product-checkout-page .pwc-shop-option small {
+  color: var(--pwc-ink-muted);
+}
+
+.product-checkout-page .pwc-shop-label {
+  color: var(--pc-ink-strong);
+  font-size: 0.9375rem;
+  font-weight: 800;
+}
+
+.product-checkout-page .pwc-shop-field {
+  min-height: 3rem;
+  border: 1px solid var(--pc-input-border);
+  border-radius: 0.9rem;
+  background: var(--pwc-surface);
+  color: var(--pc-ink-strong);
+  padding: 0.7rem 0.95rem;
+}
+
+.product-checkout-page .pwc-shop-lead {
+  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+}
+
+.product-checkout-page .pwc-shop-summary-row {
+  padding: 0.5rem 0;
+  color: var(--pc-ink-strong);
+}
+
+.product-checkout-page .pwc-shop-summary-row > span:first-child {
+  color: var(--pwc-ink-muted);
+}
+
+.product-checkout-page .pwc-shop-summary-total {
+  border-top: 1px solid var(--pc-divider);
+  margin-top: var(--pwc-space-2);
+  padding-top: var(--pwc-space-3);
+}
+
+.product-checkout-page .pwc-shop-summary-total > span {
+  color: var(--pc-ink-strong);
+  font-weight: 800;
+}
+
+.product-checkout-page .pwc-shop-summary-total strong {
+  color: var(--pc-total-accent);
+  font-size: 1.45rem;
+  font-weight: 800;
+}
+
+.product-checkout-page .pwc-shop-primary-button {
+  min-height: 3rem;
+  border-radius: 999px;
+  border: 1px solid var(--pwc-sun);
+  background: var(--pwc-sun);
+  color: var(--pc-ink-strong);
+  font-weight: 800;
+}
+
+.product-checkout-page .pwc-shop-primary-button:enabled:hover {
+  border-color: var(--pwc-sun-hover);
+  background: var(--pwc-sun-hover);
+}
