@@ -25,7 +25,7 @@ import { captureServiceWorkflow } from '../care/workflow-snapshot.service.js';
 import { boardingCarePlan } from './boarding-care-plan.service.js';
 import { createBookingDetailsService } from './booking-details.service.js';
 
-export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates }) {
+export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
   const { Notification } = notificationModels(connection);
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
@@ -193,8 +193,14 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });
           if (conflict) fail('VISIT_SCHEDULE_OVERLAP', 'A pet already has an overlapping visit', 409);
         }
-        // GBR-12: a preferred pet sitter who cared for the pet before may be booked even when busy on some visits;
-        // dispatch offers eligible visits only to that sitter and routes unavailable visits to Staff's Needs action list.
+        for (const visit of visits.filter(row => row.requestedSitterId)) {
+          if (!selectionGuard) fail('SCHEDULING_UNAVAILABLE', 'Employee eligibility must be checked before directed checkout', 503);
+          try { await selectionGuard(actor, visit, session); }
+          catch (error) {
+            // Retain the nomination for staff when the sitter cannot work this time slot.
+            if (error.status !== 409 || !['DAY_OFF', 'OUTSIDE_WORKING_HOURS', 'SLOT_UNAVAILABLE'].includes(error.code)) throw error;
+          }
+        }
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
           paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },

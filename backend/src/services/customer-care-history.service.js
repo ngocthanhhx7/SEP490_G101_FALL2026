@@ -45,9 +45,7 @@ export async function listPreviousPetSitters(db, customerId, petIds = null, sess
     sitterId: { $type: 'objectId' },
     ...petMatchFilter(petIds)
   };
-  const options = { projection: { sitterId: 1 }, maxTimeMS: 5000, ...(session ? { session } : {}) };
-  const visits = await db.collection('visits').find(query, options).limit(500).toArray();
-  const sitterOids = [...new Map(visits.map((row) => [String(row.sitterId), row.sitterId])).values()];
+  const sitterOids = await db.collection('visits').distinct('sitterId', query, { maxTimeMS: 5000, ...(session ? { session } : {}) });
   if (!sitterOids.length) return [];
 
   const [users, profiles, statuses] = await Promise.all([
