@@ -211,6 +211,31 @@ describe('payment link (UC-62 step 7, MSG33)', () => {
     expect(provider.createPaymentLink).toHaveBeenLastCalledWith(expect.objectContaining({ expiredAt: Math.floor((START + HOUR) / 1000) }));
   });
 
+  test.each([true, false])('a superseded provider response cannot change the newer link (success: %s)', async success => {
+    const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
+    const started = Promise.withResolvers();
+    const delayed = Promise.withResolvers();
+    const createLink = provider.createPaymentLink.getMockImplementation();
+    provider.createPaymentLink.mockImplementationOnce(async input => {
+      started.resolve();
+      await delayed.promise;
+      if (!success) throw new Error('Provider timeout');
+      return createLink(input);
+    });
+    const first = Promise.resolve(link('a', order));
+    await started.promise;
+    now += 61_000;
+    let next;
+    try {
+      next = await link('a', order);
+    } finally {
+      delayed.resolve();
+    }
+    expect(next.status).toBe(200);
+    expect((await first).status).toBe(success ? 409 : 503);
+    expect((await orderDoc(order)).payment).toMatchObject({ linkState: 'READY', checkoutUrl: next.body.data.checkoutUrl });
+  });
+
   test('MSG33: when payOS cannot make the link the order stays placed and can be paid within the deadline', async () => {
     const order = await placed('a', 'SP-0012', 1, delivery('PREPAID'));
     failCreate = true;

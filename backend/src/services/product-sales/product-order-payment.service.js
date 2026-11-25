@@ -76,23 +76,31 @@ export function createProductOrderPaymentService({ connection, provider = null, 
 
       const reference = await reserveReference(order, at);
       const back = new URL(`/customer/product-orders?order=${String(order._id)}`, webOrigin).href;
+      const reservation = {
+        _id: order._id, status: 'PLACED', paid: false, version: order.version,
+        'payment.linkState': 'CREATING',
+        $expr: { $eq: [{ $arrayElemAt: ['$payment.providerReferences', -1] }, reference] }
+      };
+      let link;
+      let url;
       try {
-        const link = await provider.createPaymentLink({ orderCode: Number(reference), amount: order.total,
+        link = await provider.createPaymentLink({ orderCode: Number(reference), amount: order.total,
           description: 'PAWWORLD', expiredAt: Math.floor(order.paymentDeadlineAt.getTime() / 1000),
           returnUrl: back, cancelUrl: back });
-        const url = new URL(link.checkoutUrl);
+        url = new URL(link.checkoutUrl);
         if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/') || link.orderCode !== Number(reference)
           || link.amount !== order.total || link.currency !== 'VND') throw new Error('Provider link does not match the order');
-        await ProductOrder.updateOne({ _id: order._id, 'payment.linkState': 'CREATING' },
-          { $set: { 'payment.linkState': 'READY', 'payment.checkoutUrl': url.href, 'payment.paymentLinkId': link.paymentLinkId } });
-        return { checkoutUrl: url.href, expiresAt: order.paymentDeadlineAt };
       } catch {
         // The customer never got this link, so nothing can be paid on it: the code is dropped and the customer may try
         // again within the deadline (MSG33). A late result for a code that is gone would still reach staff as an unknown reference.
-        await ProductOrder.updateOne({ _id: order._id },
+        await ProductOrder.updateOne(reservation,
           { $pull: { 'payment.providerReferences': reference }, $set: { 'payment.linkState': 'FAILED' } });
         throw providerUnavailable();
       }
+      const saved = await ProductOrder.updateOne(reservation,
+        { $set: { 'payment.linkState': 'READY', 'payment.checkoutUrl': url.href, 'payment.paymentLinkId': link.paymentLinkId } });
+      if (!saved.matchedCount) throw new AppError(409, 'COMMAND_PENDING', 'The order or payment link has changed.');
+      return { checkoutUrl: url.href, expiresAt: order.paymentDeadlineAt };
     }
   });
 }
