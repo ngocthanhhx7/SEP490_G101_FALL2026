@@ -1,50 +1,393 @@
-.grooming-page { max-width: 1180px; margin: auto; padding-bottom: 4rem; }
-.pwc-page.grooming-page h1 { font-family: var(--pwc-font-display); color: var(--pwc-ink); font-size: clamp(1.75rem, 4vw, 2.25rem); line-height: 1.2; margin: .5rem 0 0; overflow-wrap: anywhere; }
-.pwc-page.grooming-page .grooming-lead { color: var(--pwc-ink-muted); margin: .5rem 0 2rem; }
-.grooming-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 23rem); gap: 1.5rem; align-items: start; }
-.grooming-steps { display: grid; gap: 1.25rem; min-width: 0; }
-fieldset.grooming-steps { border: 0; padding: 0; margin: 0; }
-.grooming-card { background: var(--pwc-surface); border: 1px solid #e2d9f0; border-radius: var(--pwc-radius-panel); padding: 1.5rem; box-sizing: border-box; min-width: 0; }
-.pwc-page .grooming-card h2 { font: 800 1.35rem/1.3 var(--pwc-font-body); color: var(--pwc-ink); margin: 0 0 .4rem; }
-.pwc-page .grooming-card h3 { font: 800 1.05rem/1.4 var(--pwc-font-body); color: var(--pwc-ink); margin: 1.25rem 0 .5rem; }
-.pwc-page .grooming-card > p:not([class]) { color: var(--pwc-ink-muted); margin: 0 0 1rem; }
-.pwc-page .grooming-hint { color: var(--pwc-ink-muted); margin: .75rem 0 0; }
-.grooming-pet { border: 1px solid #e2d9f0; border-radius: var(--pwc-radius-control); padding: 1rem; margin-top: .75rem; }
-.grooming-pet.is-picked { border-color: var(--pwc-ink); background: var(--pwc-lavender-soft); }
-.grooming-pet-head { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; cursor: pointer; }
-.grooming-pet-head span { color: var(--pwc-ink-muted); }
-.grooming-pet-head input, .grooming-chip input { accent-color: var(--pwc-ink); width: 1.1rem; height: 1.1rem; flex: none; }
-.grooming-chips { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .75rem; }
-.grooming-chip { display: inline-flex; align-items: center; gap: .35rem; min-height: var(--pwc-target); box-sizing: border-box; padding: 0 1rem; border: 1px solid #cfc3e3;
-  border-radius: 999px; background: var(--pwc-surface); color: var(--pwc-ink); font-weight: 700; cursor: pointer; }
-.grooming-chip input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-.grooming-chip:focus-within { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: 2px; }
-.grooming-chip.is-on { background: #efe6ff; border-color: var(--pwc-ink); }
-.grooming-chip.is-off { background: var(--pwc-disabled-surface); color: var(--pwc-disabled-ink); cursor: not-allowed; font-weight: 600; }
-.grooming-questions fieldset { border: 0; padding: 0; margin: .75rem 0 0; min-width: 0; }
-.grooming-questions legend { color: var(--pwc-ink); font-weight: 600; padding: 0; }
-.pwc-page .grooming-inline { margin: .75rem 0 0; padding: .65rem .9rem; border-radius: var(--pwc-radius-control); background: var(--pwc-error-surface); color: var(--pwc-error); }
-.pwc-page .grooming-inline-warn { background: var(--pwc-warning-surface); color: var(--pwc-warning); }
-.pwc-page .grooming-inline button { background: none; border: 0; color: inherit; text-decoration: underline; cursor: pointer; font: inherit; }
-.pwc-page .grooming-note { display: flex; gap: .5rem; align-items: flex-start; margin: 1rem 0 0; padding: .75rem .9rem; border-radius: var(--pwc-radius-control);
-  background: var(--pwc-warning-surface); color: var(--pwc-warning); font-size: var(--pwc-text-small); }
-.pwc-page .grooming-note svg { flex: none; margin-top: .15rem; }
-.grooming-summary { position: sticky; top: 1rem; }
-.pwc-page .grooming-pet-price h3 { margin: 1rem 0 .4rem; }
-.grooming-card dl { margin: 0; }
-.grooming-card dl > div { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem 0; }
-.grooming-card dd { margin: 0; text-align: right; white-space: nowrap; }
-.grooming-line-total { font-weight: 800; border-top: 1px solid #ece5f6; }
-.grooming-totals { border-top: 1px solid #ece5f6; margin-top: .75rem !important; padding-top: .5rem; }
-.grooming-grand { align-items: baseline; font-weight: 800; }
-.grooming-grand dd { font-size: 1.5rem; color: var(--pwc-ink); }
-.grooming-when { margin-top: 1rem; padding: .75rem .9rem; border-radius: var(--pwc-radius-control); background: var(--pwc-lavender-soft); display: grid; gap: .2rem; overflow-wrap: anywhere; }
-.grooming-summary .pwc-button { width: 100%; margin-top: 1rem; }
-.grooming-summary .pwc-button:disabled { background: var(--pwc-disabled-surface); color: var(--pwc-disabled-ink); cursor: not-allowed; }
-.pwc-page .grooming-success { display: flex; gap: .6rem; align-items: center; padding: .9rem 1rem; border-radius: var(--pwc-radius-control); background: var(--pwc-success-surface); color: var(--pwc-success); font-weight: 700; margin: 0 0 1rem; }
-.grooming-done-list > div { border-bottom: 1px solid #ece5f6; }
-.grooming-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+/* Scoped to Customer Grooming Booking page. Mockup-measured colors live in local custom properties. */
+.grooming-page {
+  --gb-ink-strong: #19112b;
+  --gb-card-border: #ebe3f4;
+  --gb-input-border: #dfd4ec;
+  --gb-divider: #f1eaf8;
+  --gb-chip-border: #d8cce9;
+  --gb-chip-on-bg: #efe4fc;
+  --gb-price-accent: #583188;
+  --gb-shadow: 0 8px 24px rgb(63 42 107 / 6%);
+  max-width: 1180px;
+  margin: auto;
+  padding-bottom: 4rem;
+  color: var(--gb-ink-strong);
+  font-family: var(--pwc-font-body);
+}
+
+.pwc-page.grooming-page .pwc-service-page-back {
+  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.pwc-page.grooming-page .pwc-service-page-back:hover {
+  color: var(--pwc-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.pwc-page.grooming-page h1 {
+  font-family: var(--pwc-font-display);
+  color: var(--gb-ink-strong);
+  font-size: clamp(1.85rem, 4vw, 2.4rem);
+  font-weight: 400;
+  line-height: 1.2;
+  margin: 0.5rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.pwc-page.grooming-page .grooming-lead {
+  color: var(--pwc-ink-muted);
+  font-size: 0.95rem;
+  margin: 0.55rem 0 1.75rem;
+}
+
+.grooming-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18.5rem, 23.5rem);
+  gap: var(--pwc-space-6);
+  align-items: start;
+}
+
+.grooming-steps {
+  display: grid;
+  gap: var(--pwc-space-6);
+  min-width: 0;
+}
+
+fieldset.grooming-steps {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.grooming-card {
+  background: var(--pwc-surface);
+  border: 1px solid var(--gb-card-border);
+  border-radius: var(--pwc-radius-panel);
+  box-shadow: var(--gb-shadow);
+  padding: clamp(1.25rem, 2.5vw, 1.9rem);
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.pwc-page .grooming-card h2 {
+  font: 800 1.3rem/1.3 var(--pwc-font-body);
+  color: var(--gb-ink-strong);
+  margin: 0 0 0.45rem;
+}
+
+.pwc-page .grooming-card h3 {
+  font: 800 1.02rem/1.4 var(--pwc-font-body);
+  color: var(--gb-ink-strong);
+  margin: 1.25rem 0 0.5rem;
+}
+
+.pwc-page .grooming-card > p:not([class]) {
+  color: var(--pwc-ink-muted);
+  font-size: 0.925rem;
+  margin: 0 0 var(--pwc-space-4);
+}
+
+.pwc-page .grooming-hint {
+  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+  margin: var(--pwc-space-3) 0 0;
+}
+
+.grooming-pet {
+  border: 1px solid var(--gb-card-border);
+  border-radius: 1rem;
+  background: var(--pwc-surface);
+  padding: var(--pwc-space-4) 1.1rem;
+  margin-top: var(--pwc-space-3);
+  transition: border-color 140ms ease;
+}
+
+.grooming-pet.is-picked {
+  border: 1.5px solid var(--pwc-ink);
+  background: var(--pwc-surface);
+}
+
+.grooming-pet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--pwc-space-3);
+  flex-wrap: wrap;
+  cursor: pointer;
+  color: var(--gb-ink-strong);
+}
+
+.grooming-pet-head span {
+  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+}
+
+.grooming-pet-head input,
+.grooming-chip input {
+  accent-color: var(--pwc-ink);
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+}
+
+.grooming-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: var(--pwc-space-3);
+}
+
+.grooming-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: var(--pwc-target);
+  box-sizing: border-box;
+  padding: 0 1.05rem;
+  border: 1px solid var(--gb-chip-border);
+  border-radius: 999px;
+  background: var(--pwc-surface);
+  color: var(--gb-ink-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.grooming-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.grooming-chip:focus-within {
+  outline: var(--pwc-focus-width) solid var(--pwc-focus);
+  outline-offset: 2px;
+}
+
+.grooming-chip.is-on {
+  background: var(--gb-chip-on-bg);
+  border-color: var(--pwc-ink);
+  color: var(--pwc-ink);
+}
+
+.grooming-chip.is-off {
+  background: var(--pwc-disabled-surface);
+  border-color: var(--gb-card-border);
+  color: var(--pwc-disabled-ink);
+  cursor: not-allowed;
+  font-weight: 600;
+}
+
+.grooming-page .pwc-week-calendar__toolbar button {
+  border-color: var(--gb-input-border);
+  color: var(--pwc-ink);
+}
+
+.grooming-page .pwc-week-calendar__days button {
+  border-color: var(--gb-card-border);
+  border-radius: 0.9rem;
+  color: var(--gb-ink-strong);
+}
+
+.grooming-page .pwc-week-calendar__days button[aria-pressed="true"] {
+  background: var(--gb-chip-on-bg);
+  border: 1.5px solid var(--pwc-ink);
+  color: var(--pwc-ink);
+}
+
+.grooming-page .pwc-week-calendar__days button[aria-pressed="true"] span,
+.grooming-page .pwc-week-calendar__days button[aria-pressed="true"] time {
+  color: var(--pwc-ink);
+}
+
+.grooming-questions fieldset {
+  border: 0;
+  padding: 0;
+  margin: var(--pwc-space-3) 0 0;
+  min-width: 0;
+}
+
+.grooming-questions legend {
+  color: var(--pwc-ink-muted);
+  font-size: 0.925rem;
+  font-weight: 700;
+  padding: 0;
+}
+
+.pwc-page .grooming-inline {
+  margin: var(--pwc-space-3) 0 0;
+  padding: 0.7rem 0.95rem;
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-error-surface);
+  color: var(--pwc-error);
+}
+
+.pwc-page .grooming-inline-warn {
+  background: var(--pwc-warning-surface);
+  color: var(--pwc-warning);
+}
+
+.pwc-page .grooming-inline button {
+  background: none;
+  border: 0;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pwc-page .grooming-note {
+  display: flex;
+  gap: var(--pwc-space-2);
+  align-items: flex-start;
+  margin: var(--pwc-space-4) 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.95rem;
+  background: var(--pwc-warning-surface);
+  color: var(--pwc-warning);
+  font-size: var(--pwc-text-small);
+  line-height: 1.5;
+}
+
+.pwc-page .grooming-note svg {
+  flex: none;
+  margin-top: 0.15rem;
+}
+
+.grooming-summary {
+  position: sticky;
+  top: var(--pwc-space-4);
+}
+
+.pwc-page .grooming-pet-price h3 {
+  margin: var(--pwc-space-4) 0 0.4rem;
+}
+
+.grooming-card dl {
+  margin: 0;
+}
+
+.grooming-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--pwc-space-4);
+  padding: 0.35rem 0;
+}
+
+.grooming-card dt {
+  color: var(--pwc-ink-muted);
+}
+
+.grooming-card dd {
+  margin: 0;
+  color: var(--gb-ink-strong);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.grooming-line-total {
+  font-weight: 800;
+  border-top: 1px solid var(--gb-divider);
+}
+
+.grooming-line-total dt {
+  color: var(--gb-ink-strong);
+}
+
+.grooming-totals {
+  border-top: 1px solid var(--gb-divider);
+  margin-top: var(--pwc-space-3) !important;
+  padding-top: var(--pwc-space-2);
+}
+
+.grooming-grand {
+  align-items: baseline;
+  font-weight: 800;
+}
+
+.grooming-grand dt {
+  color: var(--gb-ink-strong);
+}
+
+.grooming-grand dd {
+  font-size: 1.5rem;
+  color: var(--gb-price-accent);
+}
+
+.grooming-when {
+  margin-top: var(--pwc-space-4);
+  padding: 0.85rem 1rem;
+  border-radius: 0.95rem;
+  background: var(--pwc-lavender-soft);
+  display: grid;
+  gap: 0.2rem;
+  overflow-wrap: anywhere;
+}
+
+.grooming-summary .pwc-button {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: var(--pwc-space-4);
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.grooming-summary .pwc-button:enabled {
+  border-color: var(--pwc-sun);
+  background: var(--pwc-sun);
+  color: var(--gb-ink-strong);
+}
+
+.grooming-summary .pwc-button:enabled:hover {
+  border-color: var(--pwc-sun-hover);
+  background: var(--pwc-sun-hover);
+}
+
+.grooming-summary .pwc-button:disabled {
+  background: var(--pwc-disabled-surface);
+  border-color: var(--gb-card-border);
+  color: var(--pwc-disabled-ink);
+  cursor: not-allowed;
+}
+
+.pwc-page .grooming-success {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-success-surface);
+  color: var(--pwc-success);
+  font-weight: 700;
+  margin: 0 0 var(--pwc-space-4);
+}
+
+.grooming-done-list > div {
+  border-bottom: 1px solid var(--gb-divider);
+}
+
+.grooming-actions {
+  display: flex;
+  gap: var(--pwc-space-3);
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.grooming-actions .pwc-button {
+  border-radius: 999px;
+  font-weight: 800;
+}
+
 @media (max-width: 900px) {
-  .grooming-layout { grid-template-columns: minmax(0, 1fr); }
-  .grooming-summary { position: static; }
+  .grooming-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .grooming-summary {
+    position: static;
+  }
 }

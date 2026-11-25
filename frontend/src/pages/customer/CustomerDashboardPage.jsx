@@ -75,7 +75,9 @@ function CustomerCareOverview({ api, groomingApi, createGroomingApi }) {
       onCancel={grooming.requestCancel}
     />))}</ul>}
     {resource.status === 'success' && <>
-      {comingUp.length === 0 && <div className="customer-home__empty"><CalendarDays size={32} aria-hidden="true" /><h3>Chưa có lịch chăm sóc</h3><p>{filters.from || filters.to ? 'Không có buổi chăm sóc trong khoảng ngày đã chọn.' : 'Lịch hẹn của bé sẽ xuất hiện tại đây sau khi bạn đặt dịch vụ.'}</p><Link to={filters.from || filters.to ? '/account/bookings' : '/services'}>{filters.from || filters.to ? 'Xem tất cả đơn chăm sóc' : 'Khám phá dịch vụ'}<ArrowRight size={15} aria-hidden="true" /></Link></div>}
+      {grooming.status === 'error' && <Notice state="error" title="Chưa tải được lịch grooming" action={<Button onClick={refreshAll}>Thử lại</Button>}>Thông tin lịch hẹn grooming chưa được máy chủ xác nhận.</Notice>}
+      {grooming.status === 'loading' && <Notice state="loading" title="Đang tải lịch grooming">Thông tin lịch hẹn grooming đang được cập nhật.</Notice>}
+      {comingUp.length === 0 && !['loading', 'error'].includes(grooming.status) && <div className="customer-home__empty"><CalendarDays size={32} aria-hidden="true" /><h3>Chưa có lịch chăm sóc</h3><p>{filters.from || filters.to ? 'Không có buổi chăm sóc trong khoảng ngày đã chọn.' : 'Lịch hẹn của bé sẽ xuất hiện tại đây sau khi bạn đặt dịch vụ.'}</p><Link to={filters.from || filters.to ? '/account/bookings' : '/services'}>{filters.from || filters.to ? 'Xem tất cả đơn chăm sóc' : 'Khám phá dịch vụ'}<ArrowRight size={15} aria-hidden="true" /></Link></div>}
       {(history.length > 0 || data.nextCursor) && <CursorPagination page={history.length + 1} label="lịch chăm sóc" hasNext onFirst={() => { setCursor(''); setHistory([]); }}
  onPrevious={() => { setCursor(history.at(-1)); setHistory(history.slice(0, -1)); }} onNext={() => { setHistory([...history, cursor]); setCursor(data.nextCursor); }}
  previousDisabled={!history.length} nextDisabled={!data.nextCursor}

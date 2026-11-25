@@ -8,6 +8,7 @@ import { Notice, Button } from '../../components/ui/index.js';
 import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import { formatVnd, isUncertainOutcome, productErrorText, productMessage } from '../../utils/product-format.js';
 import '../../components/product/product-shop.css';
+import './product-checkout.css';
 
 // The ways to pay each way to receive offers (R3 23.1.2), payOS in advance first. A customer over the refusal limit sees only payOS.
 const PAYMENT_BY_RECEIVE = { DELIVERY: ['PREPAID', 'COD'], PICKUP: ['PREPAID', 'PAY_AT_SHOP'] };
@@ -78,13 +79,13 @@ export function ProductCheckoutPage() {
   }
 
   const back = <Link className="pwc-shop-back" data-page-back to="/customer/cart"><ArrowLeft aria-hidden="true" size={18} />Quay lại giỏ hàng</Link>;
-  if (!cart && status === 'error') return <section className="pwc-shop">{back}<Notice state="error" title="Chưa tải được giỏ hàng"
+  if (!cart && status === 'error') return <section className="pwc-shop product-checkout-page">{back}<Notice state="error" title="Chưa tải được giỏ hàng"
     action={<Button variant="secondary" onClick={() => refresh().catch(() => {})}>Thử lại</Button>} /></section>;
-  if (!cart) return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải đơn hàng…" /></section>;
-  if (cart.lineCount === 0) return <section className="pwc-shop">{back}<h1>Thanh toán đơn hàng</h1>
+  if (!cart) return <section className="pwc-shop product-checkout-page">{back}<Notice state="loading" title="Đang tải đơn hàng…" /></section>;
+  if (cart.lineCount === 0) return <section className="pwc-shop product-checkout-page">{back}<h1>Thanh toán đơn hàng</h1>
     <Notice state="empty" title={productMessage('MSG100')} action={<Link className="pwc-shop-outline-button" to="/products">Xem sản phẩm</Link>} /></section>;
 
-  return <section className="pwc-shop" aria-labelledby="checkout-title">
+  return <section className="pwc-shop product-checkout-page" aria-labelledby="checkout-title">
     {back}
     <h1 id="checkout-title">Thanh toán đơn hàng</h1>
     <PolicyContextLinks context="productOrder" />

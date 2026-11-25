@@ -173,7 +173,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCl
               label: 'Buổi chăm sóc',
               render: (r) => <VisitBoardSummary row={r} />,
             },
-            { key: 'customerName', label: 'Khách hàng', render: (r) => r.customerName ?? 'Chưa có tên' },
+            { key: 'customerName', label: 'Khách hàng', render: (r) => <VisitBoardCustomer row={r} /> },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
             {
               key: 'reason',
