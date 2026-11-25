@@ -46,6 +46,9 @@ function savedPrice(booking, visits) {
     visitCount: money(quote?.visitCount) ?? money(booking.originalVisitCount) ?? (visits.length || null),
     visitPricesVnd: prices.includes(null) ? [] : [...new Set(prices)].sort((a, b) => a - b),
     discountVnd: money(quote?.discountVnd),
+    tierDiscountVnd: money(quote?.tierDiscountVnd),
+    tierCode: quote?.tier?.code ?? null,
+    subtotalVnd: money(quote?.subtotalVnd),
     orderFeeVnd: money(quote?.orderFeeVnd),
     totalVnd: money(quote?.totalVnd) ?? money(booking.paymentSnapshot?.amountVnd)
   };
@@ -171,10 +174,9 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
       const booking = await connection.db.collection('bookings').findOne({ _id: oid(bookingId) },
         { maxTimeMS: 2000 });
       if (!booking) fail('RESOURCE_NOT_FOUND', 'Booking unavailable', 404);
-      const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt <= new Date(clock());
       return {
         id: String(booking._id),
-        state: expired ? 'PAYMENT_EXPIRED' : booking.state,
+        state: booking.state,
         paymentMode: booking.paymentMode,
         paymentState: booking.paymentState,
         ...(booking.paymentMode === 'PREPAY' ? { paymentDeadlineAt: booking.paymentDeadlineAt } : {}),

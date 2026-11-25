@@ -38,8 +38,7 @@ export function createCustomerBookingsService({ connection, cursorSecret, clock 
         firstByBooking.set(key, visit.startAt);
       }
     }
-    const asOf = new Date(clock());
-    return { items: page.map(row => ({ id: String(row._id), state: row.state === 'AWAITING_PAYMENT' && row.paymentDeadlineAt <= asOf ? 'PAYMENT_EXPIRED' : row.state,
+    return { items: page.map(row => ({ id: String(row._id), state: row.state,
       createdAt: row.createdAt ?? null, paymentState: row.paymentState ?? null,
       totalVnd: Number.isSafeInteger(row.paymentSnapshot?.amountVnd) && row.paymentSnapshot.amountVnd >= 0 ? row.paymentSnapshot.amountVnd : null,
       visitCount: row.checkoutSnapshot?.customerVisits?.length ?? null,

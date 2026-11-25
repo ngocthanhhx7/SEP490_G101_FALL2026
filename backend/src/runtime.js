@@ -20,13 +20,14 @@ import { assertRuntimeStorageProfile } from './config/storage-profile.js';
 import { referenceCatalogSource } from './models/reference-catalog-source.js';
 import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
 import { startVisitCompletionMonitor } from './jobs/visit-completion-monitor.job.js';
+import { startBookingPaymentExpiryWorker } from './jobs/booking-payment-expiry.job.js';
 
 export async function startRuntime({ env = process.env, logger = () => {}, ...appOptions } = {}) {
   const config = loadConfig(env);
   const connection = await connectDatabase(config);
   const lifecycle = { draining: false };
   let webPushWorker;
-  let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, productPickupExpiryWorker, completionMonitor, bookingChangeWorker;
+  let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, productPickupExpiryWorker, completionMonitor, bookingChangeWorker, bookingPaymentExpiryWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
     if (config.nodeEnv === 'production') await assertRuntimeStorageProfile(connection, app.locals.compensationProfile);
@@ -43,6 +44,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     if (app.locals.visitCompletionMonitor) completionMonitor = startVisitCompletionMonitor({ service: app.locals.visitCompletionMonitor, logger });
     if (app.locals.webPush) webPushWorker = startWebPushWorker({ service: app.locals.webPush, logger });
     if (app.locals.bookingChange) bookingChangeWorker = startBookingChangeWorker({ service: app.locals.bookingChange, logger });
+    if (app.locals.bookingPaymentExpiry) bookingPaymentExpiryWorker = startBookingPaymentExpiryWorker({ service: app.locals.bookingPaymentExpiry, logger });
     if (app.locals.applicationMail) applicationMailWorker = startApplicationMailWorker({ service: app.locals.applicationMail, logger });
     customerTierWorker = startCustomerTierWorker({ enabled: config.customerTierJobEnabled, createService: () =>
       createCustomerTierService({ repository: createMongoCustomerTierRepository(connection), logger }) });
@@ -71,6 +73,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
         await customerTierWorker?.stop();
         await applicationMailWorker?.stop();
         await bookingChangeWorker?.stop();
+        await bookingPaymentExpiryWorker?.stop();
         await dispatchWorker?.stop();
         await accrualWorker?.stop();
         await connection.close();

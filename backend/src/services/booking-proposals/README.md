@@ -34,3 +34,18 @@ Directed availability accepts optional `directory: true, page` to read every act
 Booking details resolve saved area codes through a bounded `_id` lookup in the existing service-area registry, including closed historical areas; legacy demo labels remain a fallback. The read never changes checkout snapshots, coverage policy or financial state.
 
 `booking-cancellation.service.js` handles customer preview and transactional cancellation of a whole booking or a single unstarted visit (`startAt > now`) under GBR-15, GBR-17 and GBR-19: late fees (30% of pre-discount visit price when `< 24h` and accepted by a pet sitter), multi-visit combo discount recalculation on remaining visits using the snapshotted `pricingPolicyVersion`, offer revocation, pending booking-change reconciliation, `finalizeExceptionalBooking`, `refunds` (`RECORDED`, `BOOKING_CANCELLATION`) with GBR-30 cap enforcement, in-app sitter notifications, and Admin read listing for booking cancellation refunds.
+
+GBR-09 checkout uses `booking-span-policy.js` to require at most 30 inclusive
+Vietnam calendar days across the first and last occupied service day. The
+checkout service enforces this after constructing each visit with its actual
+service duration; rescheduling uses the corresponding full schedule policy.
+The booking quote and checkout apply the approved, versioned customer-tier
+discount and retain an immutable snapshot with integer-VND allocation.
+
+GBR-17 requires PREPAY for every newly created checkout booking, including
+one-visit bookings. Every order creates a payOS intent with the original
+15-minute deadline and stays out of dispatch until verified payment.
+`booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch
+and requires authenticated payOS proof of terminal unpaid attempts before
+atomically expiring an order and releasing its scheduled visits. Missing or
+ambiguous provider evidence defers expiry for reconciliation.

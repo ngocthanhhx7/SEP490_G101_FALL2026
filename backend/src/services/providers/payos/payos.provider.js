@@ -312,6 +312,9 @@ export function createPayosProvider(options = {}) {
       amountPaid: data.amountPaid,
       amountRemaining: data.amountRemaining,
       providerStatus: data.status,
+      ...(typeof data.paymentLinkId === 'string' ? { paymentLinkId: data.paymentLinkId } : {}),
+      ...(validHttpUrl(data.checkoutUrl) && new URL(data.checkoutUrl).hostname === 'pay.payos.vn'
+        && new URL(data.checkoutUrl).pathname.startsWith('/web/') ? { checkoutUrl: data.checkoutUrl } : {}),
       ...(typeof data.createdAt === 'string' ? { createdAt: data.createdAt } : {})
     });
   }
