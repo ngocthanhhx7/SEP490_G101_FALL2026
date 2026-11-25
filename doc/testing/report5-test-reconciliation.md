@@ -1,0 +1,15 @@
+# Đối chiếu bộ kiểm thử Report 5
+
+PR [#379](https://github.com/ngocthanhhx7/SEP490_G101_FALL2026/pull/379) là bản nháp của Hải. Khi chạy trên develop, một số fixture giả MongoDB thiếu điều kiện của giao dịch hiện tại (ví dụ index tài chính của checkout), một số expected dùng luật hoặc trạng thái cũ, và ba suite vẫn import model registry đã gỡ. Bản thay thế giữ các ca có giá trị trên mã hiện tại, đồng thời dùng lại các suite đang kiểm giao dịch và quyền. Nhánh gốc giữ bộ test để tiếp tục đối chiếu từng ca.
+
+| Phạm vi | Kiểm tra trên develop |
+| --- | --- |
+| Lịch và đầu vào checkout | [Schedule policy](../../backend/tests/unit/schedule-policy.test.js) kiểm biên giờ, giờ nghỉ, khung giờ liền nhau, qua nửa đêm và phút bận. [Checkout input](../../backend/tests/unit/booking-checkout-input.test.js) kiểm DTO, số lượt, chính sách và cách gửi lựa chọn phân công. |
+| Xác nhận và thanh toán | [Checkout](../../backend/tests/integration/booking-checkout.test.js) kiểm cùng key trả lại kết quả cũ, thay payload trả 409, đọc lại đúng booking, chỉ lưu một lượt và không tạo payment intent cho ca trả sau. Suite cũng có các ca trả trước, chống trùng lịch và xác nhận thanh toán bằng webhook giả lập. |
+| Matching, điều phối và offer | [Match selection](../../backend/tests/unit/assert-match-selection.test.js) kiểm chủ sở hữu, hạn dùng, lịch, thay đổi dữ liệu và người chăm sóc được đề xuất. [Fixed policy](../../backend/tests/unit/ai.test.js), [dispatch](../../backend/tests/unit/dispatch.service.test.js) và [sitter offer](../../backend/tests/unit/sitter-offer.service.test.js) kiểm xếp hạng theo quy tắc, tính đủ điều kiện và việc kiểm lại khi nhận lời mời. Không chạy test model registry đã nghỉ. |
+| OTP, tài khoản và phân quyền | [Registration](../../backend/tests/integration/customer-registration.test.js) kiểm 429, `Retry-After`, mã bị thay thế và không tạo tài khoản/session khi bị từ chối. [OTP](../../backend/tests/integration/otp-auth.test.js) kiểm hạn theo giờ, khóa khi nhập sai và chống replay. [Service price](../../backend/tests/integration/service-price.test.js) gửi payload/CSRF hợp lệ từ Staff, kiểm 403 và xác nhận không sinh version giá. |
+| Ứng viên, SOP và mua hàng | [Sitter applications](../../backend/tests/integration/sitter-applications.test.js), [service workflow](../../backend/tests/integration/service-workflow.test.js), [product orders](../../backend/tests/integration/product-order-management.test.js) và [pricing](../../backend/tests/unit/product-order-pricing.test.js) là điểm đối chiếu hiện hành cho các nhóm dùng fixture cũ. |
+
+Liên kết trên chỉ ra nơi kiểm từng nhóm. Chúng không xác nhận từng ca của #379 có một test tương đương. Ca chưa đối chiếu assertion, luồng trình duyệt đầy đủ, nhà cung cấp thật và thiết bị thật vẫn cần nghiệm thu riêng.
+
+Mốc 24 giờ của luồng gợi ý và mốc tạo booking trả sau cần được phân biệt. Audit quan sát checkout cách ly nhận lịch trước 2 giờ, trong khi Report A và C ghi 24 giờ cho tạo lịch. Bản thay thế giữ nguyên nghiệp vụ và không ghi kết quả quan sát đó thành kỳ vọng hồi quy khi PO chưa xác nhận.

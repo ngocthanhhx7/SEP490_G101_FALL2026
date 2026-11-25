@@ -69,3 +69,9 @@ Wide viewports keep `HomePage`.
 On compact screens, `ServiceBasket` opens in a dialog and separates quote editing
 from selecting a time and address for each visit. `BookingCheckoutForm` owns
 confirmation and replays the same command when the server result is uncertain.
+
+The booking calendar shows a Monday-first Vietnam-local time grid with a month
+navigator on wide screens and a single-day timeline on phones. A time cell
+sets the draft start of the selected visit. Availability and checkout validate
+the selected schedule. The basket opens the same timetable on demand. Grooming
+uses the shared date navigator with the server-provided date range and slots.

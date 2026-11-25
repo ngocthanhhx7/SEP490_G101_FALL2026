@@ -35,7 +35,7 @@ export function IncidentReportPage({ api = incidentApi, visitId: suppliedVisitId
       setStatus({ state: uncertain ? 'pending' : error.status === 403 ? 'forbidden' : 'error', message: error.code === 'VERSION_CONFLICT' ? 'Visit đã thay đổi. Tải lại trước khi gửi.' : 'Không thể gửi sự cố. Kiểm tra dữ liệu và thử lại.' });
     }
   };
-  return <main className="incident-page incident-report" aria-labelledby="incident-report-title">
+  return <section className="incident-page incident-report" aria-labelledby="incident-report-title">
     <header className="incident-page__header"><p className="incident-page__eyebrow">VISIT {visitId || '—'}</p><h1 id="incident-report-title">Báo cáo sự cố</h1><p>Ghi nhận điều đã quan sát, bằng chứng riêng tư và mức khẩn cấp. Paw World Care không chẩn đoán hoặc kê đơn tự động.</p></header>
     {status.state === 'success' && <Notice state="success" title="Đã ghi nhận">{status.message}</Notice>}
     {status.state === 'pending' && <Notice state="pending" title="Đang chờ máy chủ">{status.message}</Notice>}
@@ -51,7 +51,7 @@ export function IncidentReportPage({ api = incidentApi, visitId: suppliedVisitId
       <p className="incident-form__hint">Staff sẽ tiếp nhận theo giờ vận hành đã được xác nhận và quyết định có cần liên hệ Customer hoặc cơ sở thú y hay không.</p>
       <Button type="submit" loading={status.state === 'saving'} loadingLabel="Đang gửi…" disabled={!visitId || status.state === 'success'}>{status.state === 'pending' ? 'Kiểm tra lại báo cáo' : 'Gửi báo cáo sự cố'}</Button>
     </form>
-  </main>;
+  </section>;
 }
 
 export const ReportIncidentPage = IncidentReportPage;

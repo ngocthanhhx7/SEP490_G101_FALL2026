@@ -1,3 +1,4 @@
+import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { fail, instant, number } from '../../validators/pet-care.validator.js';
 export const SCHEDULE_RULES = Object.freeze({
   handoverMinutes: 15,
@@ -24,15 +25,16 @@ export function localMinute(at) {
 export function validateSlot(slot, now) {
   const start = instant(slot.startAt),
     end = instant(slot.endAt);
+  const noticeMs = slot.clinicAddressId ? 24 * 3600000 : HOME_BOOKING_NOTICE_MS;
   if (
-    start < now + 24 * 3600000 ||
+    start < now + noticeMs ||
     end <= start ||
     end - start > 6 * 3600000 ||
     localDay(start) !== localDay(end - 1)
   )
     fail(
       'SLOT_INVALID',
-      'Slot must be same local day, 24h ahead and at most 6h'
+      'Slot must be on the same local day, at most 6h and meet the advance booking requirement'
     );
   if (start % 60000 || end % 60000)
     fail('SLOT_INVALID', 'Whole-minute slots required');

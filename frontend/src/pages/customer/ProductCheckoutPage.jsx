@@ -63,7 +63,7 @@ export function ProductCheckoutPage() {
     } finally { locked.current = false; setBusy(false); }
   }
 
-  const back = <Link className="pwc-shop-back" to="/customer/cart"><ArrowLeft aria-hidden="true" size={18} />Quay lại giỏ hàng</Link>;
+  const back = <Link className="pwc-shop-back" data-page-back to="/customer/cart"><ArrowLeft aria-hidden="true" size={18} />Quay lại giỏ hàng</Link>;
   if (!cart && status === 'error') return <section className="pwc-shop">{back}<Notice state="error" title="Chưa tải được giỏ hàng"
     action={<Button variant="secondary" onClick={() => refresh().catch(() => {})}>Thử lại</Button>} /></section>;
   if (!cart) return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải đơn hàng…" /></section>;
@@ -93,7 +93,7 @@ export function ProductCheckoutPage() {
             </select>
             {addresses.status === 'error' && <p role="alert">Chưa tải được địa chỉ. <button type="button" className="pwc-shop-link-button" onClick={addresses.retry}>Tải lại địa chỉ</button></p>}
             {addresses.status === 'empty' && <p>Bạn chưa có địa chỉ. <Link to="/account/addresses">Thêm địa chỉ</Link></p>}
-            <p className="pwc-shop-lead" style={{ marginTop: '.5rem' }}>Phí giao hàng tính theo khu vực phục vụ của địa chỉ này.</p>
+            <p className="pwc-shop-lead" style={{ marginTop: '.5rem' }}>Xem phí giao hàng trong tổng tiền bên dưới trước khi đặt.</p>
           </>}
         </div>
         <div className="pwc-shop-panel">

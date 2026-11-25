@@ -92,3 +92,14 @@
 }
 .pwc-phone-home .pwc-phone-home__button--resume { background: #f3e9fa; color: #3f1461; }
 .pwc-phone-home__button > svg { flex: none; }
+
+.pwc-care-banner { display: grid; position: relative; isolation: isolate; align-items: end; overflow: clip; min-height: 13rem; border-radius: 1rem; background: #39274a; color: white; }
+.pwc-care-banner > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 42%; z-index: -2; }
+.pwc-care-banner::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(0deg, #211427 2%, #211427d9 35%, transparent 100%); }
+.pwc-care-banner__copy { padding: 1rem; }
+.pwc-care-banner__copy h1 { margin: 0; color: inherit; font: 850 1.4rem/1.2 var(--pwc-font-body); text-wrap: balance; }
+.pwc-care-banner__copy p { margin: .4rem 0 .75rem; font-size: .9375rem; }
+.pwc-care-banner .pwc-compact-cta { color: #29201f; }
+.pwc-phone-services__copy > span { color: #625b6a; }
+.pwc-phone-services__card { color: #28242c; }
+.pwc-home-greeting { font-weight: 750; overflow-wrap: anywhere; }

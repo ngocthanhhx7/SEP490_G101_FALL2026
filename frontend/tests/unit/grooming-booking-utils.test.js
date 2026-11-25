@@ -1,24 +1,15 @@
 import { GROOMING_TIERS, MSG64, msg63, msg65 } from '../../src/constants/grooming-messages.js';
 import {
-  appointmentLabel, dayChipLabel, isAnswered, isReferred, orderReady, orderedPets, petKindLabel, quotePets, slotPets, windowDates
+  appointmentLabel, isAnswered, isReferred, orderReady, orderedPets, petKindLabel, quotePets, slotPets
 } from '../../src/utils/grooming-booking.js';
 
 const answers = (biteOrScratch, skinCondition) => ({ biteOrScratch, skinCondition });
 const choice = (serviceIds, biteOrScratch = 'NO', skinCondition = 'NO') => ({ serviceIds, answers: answers(biteOrScratch, skinCondition) });
 
 describe('dates', () => {
-  test('day chips and the appointment label use the Vietnam local date as given', () => {
-    expect(dayChipLabel('2026-11-05')).toBe('T5 · 05/11');
-    expect(dayChipLabel('2026-11-08')).toBe('CN · 08/11');
-    expect(dayChipLabel('2026-11-07')).toBe('T7 · 07/11');
+  test('the appointment label uses the Vietnam local date as given', () => {
     expect(appointmentLabel('2026-11-05', '10:00')).toBe('Thứ Năm 05/11/2026 · 10:00');
     expect(appointmentLabel('2026-11-08', '08:00')).toBe('Chủ nhật 08/11/2026 · 08:00');
-  });
-
-  test('the window lists every day from the first to the last, across a month end', () => {
-    expect(windowDates('2026-11-05', '2026-11-11')).toHaveLength(7);
-    expect(windowDates('2026-11-28', '2026-12-02')).toEqual(['2026-11-28', '2026-11-29', '2026-11-30', '2026-12-01', '2026-12-02']);
-    expect(windowDates('2026-11-05', '2026-11-04')).toEqual([]);
   });
 });
 

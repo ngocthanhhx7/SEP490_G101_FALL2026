@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { VisitTravel } from '../../src/components/common/VisitTravel.jsx';
 
 jest.mock('../../src/components/common/VietmapView.jsx', () => ({ VietmapView: () => <div data-testid="employee-map" /> }));
@@ -61,8 +61,24 @@ test('fresh position disappears automatically after ninety seconds even without 
       .mockImplementation(() => new Promise(() => {}));
     render(<VisitTravel api={api} visitId="visit" startAt={startAt} endAt={endAt} />); open();
     await screen.findByTestId('employee-map');
-    const { act } = await import('@testing-library/react');
     act(() => jest.advanceTimersByTime(91000));
     expect(screen.queryByTestId('employee-map')).not.toBeInTheDocument();
+  } finally { cleanup(); jest.useRealTimers(); }
+});
+
+test('an open sitter page shows travel at T−30 and hides it at the end without reloading', () => {
+  jest.useFakeTimers();
+  try {
+    const api = fixture();
+    const startAt = new Date(Date.now() + 30 * 60000 + 1000).toISOString();
+    const endAt = new Date(Date.parse(startAt) + 60000).toISOString();
+    const summary = 'Hành trình đến điểm chăm sóc';
+    render(<VisitTravel api={api} visitId="visit" employee startAt={startAt} endAt={endAt} />);
+    expect(screen.queryByText(summary)).not.toBeInTheDocument();
+    act(() => jest.advanceTimersByTime(1000));
+    expect(screen.getByText(summary)).toBeVisible();
+    expect(api.travel).not.toHaveBeenCalled();
+    act(() => jest.advanceTimersByTime(31 * 60000));
+    expect(screen.queryByText(summary)).not.toBeInTheDocument();
   } finally { cleanup(); jest.useRealTimers(); }
 });

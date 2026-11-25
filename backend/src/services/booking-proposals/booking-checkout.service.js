@@ -1,3 +1,4 @@
+import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { createServiceAreaCatalog } from '../service-area-catalog.service.js';
 import { hasCompletedCustomerCare } from '../customer-care-history.service.js';
 import { randomInt } from 'node:crypto';
@@ -139,6 +140,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
             }
             if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
             if (row.startAt <= (prepay ? deadline : at)) fail('VALIDATION_FAILED', 'Visit must start after payment window');
+            if (row.location === 'HOME' && row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS)
+              fail('HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance');
             let privateAccessNotes = '', selectedAddress;
             let serviceAddress = facilityAddress, areaCode = 'DISTRICT_HAI_BA_TRUNG', point = facilityCoordinates ? { type: 'Point', coordinates: [...facilityCoordinates] } : undefined;
             if (row.location !== 'FACILITY') {

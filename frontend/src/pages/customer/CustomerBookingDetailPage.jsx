@@ -105,6 +105,11 @@ function CustomerBookingDetail({ bookingId }) {
       <Link to="/contact" state={{ helpFrom: location.pathname }}>Hỗ trợ lịch hẹn</Link>
     </section>,
     beforeList: <>
+      {changeOptions.status === 'loading' && <p role="status">Đang kiểm tra điều kiện đổi giờ…</p>}
+      {['pending', 'error', 'forbidden'].includes(changeOptions.status) && <p role="alert">
+        Chưa kiểm tra được điều kiện đổi giờ. <Button onClick={changeOptions.retry}>Thử lại</Button>
+      </p>}
+      {options && !changeable.length && <p>Hiện không có buổi đủ điều kiện đổi giờ.</p>}
       {changeSent && <p className="booking-change-sent" role="status">{bookingChangeSent}</p>}
       <ComplaintListAction resource={eligibility} bookingId={bookingId} />
     </>,
@@ -121,7 +126,7 @@ function CustomerBookingDetail({ bookingId }) {
   };
   const overdue = booking?.state === 'OVERDUE';
   const deadline = overdue ? complaintDeadline(booking.paymentDeadlineAt) : null;
-  return <section className="customer-booking-detail"><Link className="customer-booking-detail__back" to="/account/bookings"><ArrowLeft size={17} />Danh sách đơn chăm sóc</Link>
+  return <section className="customer-booking-detail"><Link className="customer-booking-detail__back" data-page-back to="/account/bookings"><ArrowLeft size={17} />Danh sách đơn chăm sóc</Link>
     <h1>Chi tiết đơn chăm sóc</h1><p>Lịch đã đặt, người chăm sóc, thanh toán và tiến độ từng buổi.</p>
     {overdue && <div className="customer-booking-detail__payment">
       <strong className="customer-bookings__status customer-bookings__status--payment_expired">Quá hạn</strong>

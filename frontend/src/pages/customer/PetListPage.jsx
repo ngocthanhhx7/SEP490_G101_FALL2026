@@ -287,7 +287,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
     <header className="pet-list__header">
       <div>
         <p className="pet-list__eyebrow">Paw World Care · Khách hàng</p>
-        <h1 id="pet-list-title">Thú cưng của tôi</h1>
+        <h1 id="pet-list-title" data-duplicate-title>Thú cưng của tôi</h1>
         <p className="pet-list__intro">Quản lý hồ sơ chó và mèo của bạn. Bạn có thể bắt đầu chỉ với tên và loài.</p>
       </div>
       <Button onClick={openCreateForm} disabled={mutationPending}>Thêm thú cưng</Button>

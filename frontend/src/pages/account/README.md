@@ -7,6 +7,7 @@ primary role from multiple memberships or expose role editing to the account own
 
 The page does not look up an account by ID, expose full contact values or combine accounts. The contact list is part of the authenticated `/me` projection. Live mutation actions stay disabled until the session adapter supplies an in-memory CSRF token.
 
-P34 owns registration of `/account/settings` in the root route table and its account-navigation link. This page is prepared for that integration; route wiring is not included in the WBS-004 feature branch.
-
-`AccountPage` shows the signed-in user's own session identity and role. It does not look up an account by ID or read contact, booking, payment or case history. Profile and contact changes require the verified account-settings flows owned by the relevant identity package.
+`AccountPage` shows the signed-in user's name and role. It links to
+`/account/profile`, where the shared profile editor handles personal details and
+avatar. All signed-in roles can edit their own profile. Managing other users remains in the Admin workspace. See the
+[navigation rules](../../../../doc/ui-ux/navigation-notifications-2026-10-30.md).

@@ -85,11 +85,14 @@ function CustomerAddressPage({ api: suppliedApi }) {
     start({ type: 'save', id: editor.id, body });
   }
   return <section className="customer-care">
-    <header><h1>Địa chỉ phục vụ</h1><Button onClick={() => edit()} disabled={!catalog || busy || uncertain}><Plus size={18} />Thêm {noun}</Button></header>
+    <header><h1 data-duplicate-title>Địa chỉ phục vụ</h1>{catalog && visible.length > 0 && !editor && <Button onClick={() => edit()} disabled={busy || uncertain}><Plus size={18} />Thêm {noun}</Button>}</header>
     {saved && <Notice state="success" title={saved} />}
     {resource.status === 'loading' && <Notice state="loading" title={`Đang tải ${noun}`} />}
     {['error', 'forbidden', 'pending'].includes(resource.status) && <Notice state={resource.status} title={`Chưa tải được ${noun}`} action={<Button onClick={resource.retry}>Tải lại</Button>}>{errorMessage({ code: resource.code })}</Notice>}
-    {catalog && visible.length === 0 && <Notice state="empty" title={`Chưa có ${noun}`} />}
+    {catalog && visible.length === 0 && !editor && <Notice state="empty" title="Chọn nơi chăm sóc bé"
+      action={<Button onClick={() => edit()} disabled={busy || uncertain}><Plus size={18} aria-hidden="true" />Thêm {noun}</Button>}>
+      Lưu địa chỉ để dùng lại khi đặt dịch vụ tại nhà.
+    </Notice>}
     {catalog && !catalog.workAreas.length && <Notice state="warning" title="Chưa có khu vực phục vụ">Chưa thể lưu địa chỉ cho lịch mới. Vui lòng thử lại sau.</Notice>}
     <ul className="customer-care__list">{visible.map(row => <li key={row.id}>
       <h2><MapPin size={18} />{row.label}</h2><p>{row.location}</p>

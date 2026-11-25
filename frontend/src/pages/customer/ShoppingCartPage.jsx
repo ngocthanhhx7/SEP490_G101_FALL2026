@@ -24,7 +24,7 @@ export function ShoppingCartPage() {
     } finally { setBusyId(null); }
   }
 
-  const back = <Link className="pwc-shop-back" to="/products"><ArrowLeft aria-hidden="true" size={18} />Tiếp tục mua sắm</Link>;
+  const back = <Link className="pwc-shop-back" data-page-back to="/products"><ArrowLeft aria-hidden="true" size={18} />Tiếp tục mua sắm</Link>;
   if (!cart && status === 'error') return <section className="pwc-shop">{back}<Notice state="error" title="Chưa tải được giỏ hàng"
     action={<Button variant="secondary" onClick={() => refresh().catch(() => {})}>Thử lại</Button>} /></section>;
   if (!cart) return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải giỏ hàng…" /></section>;
@@ -64,7 +64,7 @@ export function ShoppingCartPage() {
         {cart.tierDiscount > 0 && <div className="pwc-shop-summary-row">
           <span>Giảm giá hạng {PRODUCT_TIER_LABELS[cart.tierCode]}</span><span>− {formatVnd(cart.tierDiscount)}</span></div>}
         <div className="pwc-shop-summary-row pwc-shop-summary-total"><span>Tổng</span><strong>{formatVnd(cart.total)}</strong></div>
-        <p className="pwc-shop-note"><Info aria-hidden="true" size={16} /> Phí giao hàng được tính ở bước thanh toán, theo khu vực phục vụ của địa chỉ nhận hàng.</p>
+        <p className="pwc-shop-note"><Info aria-hidden="true" size={16} /> Phí giao hàng được hiển thị trước khi xác nhận đặt hàng.</p>
         {cart.hasUnavailable
           ? <button type="button" className="pwc-shop-primary-button" disabled>Thanh toán</button>
           : <Link className="pwc-shop-primary-button" to="/customer/product-checkout">Thanh toán</Link>}

@@ -3,6 +3,7 @@ import { NEEDS_ACTION_REASONS } from '../../validators/needs-action.validator.js
 export const VISIT_BOARD_FIELDS = { _id: 1, bookingId: 1, customerId: 1, sitterId: 1, state: 1, version: 1,
   startAt: 1, endAt: 1, areaCode: 1, checkInAt: 1, checkOutAt: 1, assignedAt: 1, withdrawalRequest: 1,
   incidentOpen: 1, workflowProgress: 1, 'dispatchReview.code': 1, 'snapshots.serviceName': 1, 'completionAttention.code': 1 };
+const displayFields = { location: 1, 'snapshots.serviceScope': 1, 'snapshots.pets.name': 1 };
 const MINUTE = 60000, HOUR = 60 * MINUTE;
 const and = (...conditions) => ({ $and: conditions });
 const eq = (left, right) => ({ $eq: [left, right] });
@@ -86,7 +87,7 @@ export function visitBoardPageStages({ query, now, position, oid, limit }) {
     const local = new Date(now + 7 * HOUR).toISOString().slice(0, 10);
     initial.startAt.$gte = new Date(`${local}T00:00:00+07:00`);
   }
-  const stages = [{ $match: initial }, { $project: VISIT_BOARD_FIELDS }, ...visitReasonStages(now)];
+  const stages = [{ $match: initial }, { $project: { ...VISIT_BOARD_FIELDS, ...displayFields } }, ...visitReasonStages(now)];
   if (needs) stages.push({ $match: { '__codes.0': { $exists: true } } });
   if (query.reason) stages.push({ $match: { __codes: query.reason } });
   if (query.search) stages.push(...searchStages(query.search));
@@ -100,6 +101,6 @@ export function visitBoardPageStages({ query, now, position, oid, limit }) {
     stages.push({ $match: { $or: after } });
   }
   stages.push({ $sort: needs ? { __at: 1, __order: 1, startAt: 1, _id: 1 } : { startAt: direction, _id: direction } },
-    { $limit: limit + 1 }, { $project: { ...VISIT_BOARD_FIELDS, __at: 1, __order: 1 } });
+    { $limit: limit + 1 }, { $project: { ...VISIT_BOARD_FIELDS, ...displayFields, __at: 1, __order: 1 } });
   return stages;
 }

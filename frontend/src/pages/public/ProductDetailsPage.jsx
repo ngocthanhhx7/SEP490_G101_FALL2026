@@ -60,10 +60,16 @@ export function ProductDetailsPage() {
     } finally { setBusy(false); }
   }
 
-  const back = <Link className="pwc-shop-back" to="/products"><ArrowLeft aria-hidden="true" size={18} />Quay lại Sản phẩm</Link>;
+  const back = <Link className="pwc-shop-back" data-page-back to="/products"><ArrowLeft aria-hidden="true" size={18} />Quay lại Sản phẩm</Link>;
   if (resource.status === 'loading') return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải sản phẩm…" /></section>;
-  if (!product) return <section className="pwc-shop">{back}<Notice state="error" title="Không tìm thấy sản phẩm"
-    action={<Button variant="secondary" onClick={resource.retry}>Thử lại</Button>}>Sản phẩm không tồn tại hoặc không còn được bán.</Notice></section>;
+  if (!product) {
+    const missing = resource.httpStatus === 404 || resource.status === 'empty';
+    return <section className="pwc-shop">{back}<Notice state={missing ? 'empty' : 'error'}
+      title={missing ? 'Không tìm thấy sản phẩm' : 'Chưa tải được sản phẩm'}
+      action={missing ? undefined : <Button variant="secondary" onClick={resource.retry}>Thử lại</Button>}>
+      {missing ? 'Sản phẩm không tồn tại hoặc không còn được bán.' : 'Kiểm tra kết nối rồi thử lại.'}
+    </Notice></section>;
+  }
 
   return <section className="pwc-shop" aria-labelledby="product-title">
     {back}

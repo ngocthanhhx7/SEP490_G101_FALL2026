@@ -179,6 +179,15 @@ test('Admin filters, opens account details and confirms an audited state change 
   await waitFor(() => expect(screen.getAllByText('Đã khóa').length).toBeGreaterThan(0));
 });
 
+test('embedded account management preserves a single main landmark and a named section', async () => {
+  const apiRequest = jest.fn(async () => ({ data: { users: [], nextCursor: null }, status: 200 }));
+  render(<MemoryRouter><SessionProvider adapter={{ resolve: async () => ({ status: 'authenticated', user: admin }) }}>
+    <main><AdminUsersPage embedded apiRequest={apiRequest} /></main>
+  </SessionProvider></MemoryRouter>);
+  expect(await screen.findByRole('region', { name: 'Quản lý tài khoản' })).toBeVisible();
+  expect(screen.getAllByRole('main')).toHaveLength(1);
+});
+
 test('customer and Staff sessions cannot open the Admin route', async () => {
   for (const role of ['CUSTOMER', 'STAFF']) {
     const adapter = { resolve: async () => ({ status: 'authenticated', user: { ...admin, roles: [role] } }) };

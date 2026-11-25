@@ -27,7 +27,6 @@ function Booked({ appointment, onAnother }) {
       <div className="grooming-grand"><dt>Tổng</dt><dd>{formatVnd(pricing.totalVnd)}</dd></div>
     </dl>
     <div className="grooming-actions">
-      <Link className="pwc-button pwc-button-secondary" to="/services">Về danh mục dịch vụ</Link>
       <button type="button" className="pwc-button pwc-button-primary" onClick={onAnother}>Đặt lịch khác</button>
     </div>
   </section>;
@@ -63,7 +62,7 @@ export function GroomingBookingPage({ createApi = createGroomingBookingApi }) {
   const api = useMemo(() => createApi({ getCsrfToken: session.getCsrfToken }), [createApi, session.getCsrfToken]);
   const customer = session.status === 'authenticated' && hasRole(session.user, 'CUSTOMER');
   return <main className="pwc-page grooming-page">
-    <nav aria-label="Đường dẫn"><Link to="/services">Dịch vụ</Link> / Đặt lịch tại cửa hàng</nav>
+    <Link className="pwc-service-page-back" data-page-back to="/services">← Tất cả dịch vụ</Link>
     <h1>Đặt lịch tắm và cắt tỉa tại cửa hàng</h1>
     <p className="grooming-lead">Chọn thú cưng, dịch vụ và giờ hẹn. Bạn xem giá cuối của từng thú trước khi xác nhận.</p>
     {customer ? <GroomingBooking key={`${session.user.id}-${round}`} api={api} serviceId={params.get('serviceId')} onAnother={() => setRound(value => value + 1)} />

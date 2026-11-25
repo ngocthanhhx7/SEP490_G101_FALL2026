@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { loadVietmap, loadVietmapStyle, mapRequest } from '../../services/vietmap-display.js';
+import { Button } from '../ui/index.js';
 import './vietmap-view.css';
 
 const valid = point => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite) && Math.abs(point[0]) <= 180 && Math.abs(point[1]) <= 90;
@@ -8,6 +9,7 @@ const hanoiCenter = [105.85, 21.03];
 export function VietmapView({ coordinates, onSelect, disabled = false, label = 'Bản đồ địa chỉ', loadSdk = loadVietmap, loadStyle = loadVietmapStyle }) {
   const container = useRef(null), map = useRef(null), marker = useRef(null), latest = useRef({});
   const [error, setError] = useState(false), [ready, setReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   latest.current = { coordinates, onSelect, disabled };
   useEffect(() => {
     let cancelled = false;
@@ -34,7 +36,7 @@ export function VietmapView({ coordinates, onSelect, disabled = false, label = '
       instance.on('error', () => { if (!cancelled) setError(true); });
     }).catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; instance?.remove(); map.current = null; marker.current = null; };
-  }, [loadSdk, loadStyle]);
+  }, [loadSdk, loadStyle, attempt]);
   const longitude = coordinates?.[0], latitude = coordinates?.[1];
   useEffect(() => {
     if (!marker.current || !map.current) return;
@@ -44,8 +46,8 @@ export function VietmapView({ coordinates, onSelect, disabled = false, label = '
       map.current.easeTo({ center: [longitude, latitude], zoom: Math.max(map.current.getZoom?.() ?? 11, 15), duration: 300 });
     } else marker.current.remove();
   }, [longitude, latitude, disabled, onSelect, ready]);
-  return <div className="pwc-vietmap">
+  return <div className="pwc-vietmap" data-failed={error && !ready ? true : undefined}>
     <div ref={container} className="pwc-vietmap__canvas" role="region" aria-label={label} />
-    {error ? <p role="status">Chưa tải được bản đồ Vietmap.</p> : !ready && <p role="status">Đang tải bản đồ…</p>}
+    {error ? <div className="pwc-vietmap__status"><p role="status">Chưa tải được bản đồ Vietmap.</p><Button variant="secondary" onClick={() => { setError(false); setReady(false); setAttempt(value => value + 1); }}>Thử tải bản đồ</Button></div> : !ready && <p role="status">Đang tải bản đồ…</p>}
   </div>;
 }

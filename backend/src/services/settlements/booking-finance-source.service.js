@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { visitServiceDisplayName } from '../employee-scheduling/dispatch-visit-presentation.js';
 import { assertWorkflowGate, workflowProjection } from '../care/workflow-snapshot.service.js';
 import { createVisitWorkflowService } from '../care/visit-workflow.service.js';
 import { Types } from 'mongoose';
@@ -263,7 +264,10 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         const { visit } = await visitContext(current, visitId, session);
         const address = visit.snapshots?.serviceAddress;
         const canSeeAddress = ['ASSIGNED', 'IN_PROGRESS'].includes(visit.state) && typeof address === 'string';
+        const serviceDisplayName = visitServiceDisplayName({ ...visit.snapshots, location: visit.location });
         return { visitId, state: visit.state, startAt: visit.startAt, endAt: visit.endAt,
+          ...(serviceDisplayName && { serviceDisplayName }),
+          ...(visit.location && { location: visit.location }),
           serviceName: visit.snapshots?.serviceName ?? null, serviceAddress: canSeeAddress ? address.slice(0, 500) : null };
       });
     },

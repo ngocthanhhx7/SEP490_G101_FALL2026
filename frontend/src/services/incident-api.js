@@ -49,13 +49,14 @@ export function createIncidentApi({ request, fetchImpl, getCsrfToken, onUnauthor
     },
     async list(input = {}) {
       const params = new globalThis.URLSearchParams();
+      const present = value => value !== undefined && value !== null && value !== '';
       for (const field of ['visitId', 'state', 'severity', 'urgency', 'limit', 'cursor']) {
-        if (input[field] !== undefined && input[field] !== null && input[field] !== '') params.set(field, String(input[field]));
+        if (present(input[field])) params.set(field, String(input[field]));
       }
-      if (input.visitId !== undefined) id(input.visitId, 'visitId');
-      if (input.state !== undefined && !STATES.has(input.state)) throw new ApiError('INVALID_STATE', 422);
-      if (input.severity !== undefined && !SEVERITIES.has(input.severity)) throw new ApiError('INVALID_SEVERITY', 422);
-      if (input.urgency !== undefined && !URGENCIES.has(input.urgency)) throw new ApiError('INVALID_URGENCY', 422);
+      if (present(input.visitId)) id(input.visitId, 'visitId');
+      if (present(input.state) && !STATES.has(input.state)) throw new ApiError('INVALID_STATE', 422);
+      if (present(input.severity) && !SEVERITIES.has(input.severity)) throw new ApiError('INVALID_SEVERITY', 422);
+      if (present(input.urgency) && !URGENCIES.has(input.urgency)) throw new ApiError('INVALID_URGENCY', 422);
       const result = await send(`/incidents${params.toString() ? `?${params}` : ''}`, { signal: input.signal });
       return listView(result);
     },

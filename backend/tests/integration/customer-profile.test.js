@@ -18,6 +18,9 @@ const SECRETS = {
 const sessions = new Map([
   ['customer-a', { userId: 'aaaaaaaaaaaaaaaaaaaaaaaa', sessionId: 'session-a', state: 'ACTIVE', roles: ['CUSTOMER'], expiresAt: Date.now() + 3_600_000 }],
   ['customer-b', { userId: 'bbbbbbbbbbbbbbbbbbbbbbbb', sessionId: 'session-b', state: 'ACTIVE', roles: ['CUSTOMER'], expiresAt: Date.now() + 3_600_000 }],
+  ['sitter', { userId: 'dddddddddddddddddddddddd', sessionId: 'session-sitter', state: 'ACTIVE', roles: ['PET_SITTER'], expiresAt: Date.now() + 3_600_000 }],
+  ['admin', { userId: 'eeeeeeeeeeeeeeeeeeeeeeee', sessionId: 'session-admin', state: 'ACTIVE', roles: ['ADMIN'], expiresAt: Date.now() + 3_600_000 }],
+  ['sale-staff', { userId: 'ffffffffffffffffffffffff', sessionId: 'session-sale', state: 'ACTIVE', roles: ['SALE_STAFF'], expiresAt: Date.now() + 3_600_000 }],
   ['staff', { userId: 'cccccccccccccccccccccccc', sessionId: 'session-staff', state: 'ACTIVE', roles: ['STAFF'], expiresAt: Date.now() + 3_600_000 }]
 ]);
 let replica, connection, User, models, contactCrypto, app;
@@ -72,6 +75,57 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P14 customer profile service against isolated MongoDB', () => {
+  test('preserves the legacy name, stores explicit personal fields and rejects a stale write', async () => {
+    const path = '/api/v1/me/profile';
+    const { data: initial } = (await request(app).get(path).set(customerRequest()).expect(200)).body;
+    expect(initial).toMatchObject({ displayName: 'Linh Customer', familyAndMiddleName: null, givenName: null, birthDate: null, gender: null });
+    const fields = { familyAndMiddleName: 'Nguyễn  Ngọc', givenName: 'An Nhiên', birthDate: '2000-02-29', gender: 'UNDISCLOSED', expectedVersion: 0 };
+    await request(app).patch(path).set(customerRequest()).send({ ...fields, birthDate: '2001-02-29' }).expect(422);
+    await request(app).patch(path).set(customerRequest()).send(fields).expect(200);
+    await request(app).patch(path).set(customerRequest()).send(fields).expect(409);
+    const { data } = (await request(app).get(path).set(customerRequest()).expect(200)).body;
+    expect(data).toMatchObject({ displayName: 'Nguyễn Ngọc An Nhiên', familyAndMiddleName: 'Nguyễn Ngọc', givenName: 'An Nhiên',
+      birthDate: '2000-02-29', gender: 'UNDISCLOSED', version: 1 });
+    await request(app).patch(path).set(customerRequest()).send({ birthDate: null, gender: null, expectedVersion: 1 }).expect(200);
+  });
+
+  test('uses a separate owner-only Pet Sitter profile capability', async () => {
+    await User.create({ _id: sessions.get('sitter').userId, displayName: 'Sitter demo', roles: ['PET_SITTER'], state: 'ACTIVE' });
+    const path = '/api/v1/me/sitter-personal-profile';
+    await request(app).get('/api/v1/me/profile').set(customerRequest('sitter')).expect(403);
+    await request(app).get(path).set(customerRequest()).expect(403);
+    await request(app).patch(path).set(customerRequest('staff')).send({ gender: 'OTHER', expectedVersion: 0 }).expect(403);
+    const { data } = (await request(app).patch(path).set(customerRequest('sitter'))
+      .send({ birthDate: '1998-07-03', expectedVersion: 0 }).expect(200)).body;
+    expect(data).toMatchObject({ displayName: 'Sitter demo', birthDate: '1998-07-03', version: 1 });
+  });
+  test.each([
+    ['admin', 'ADMIN', 'staff'], ['staff', 'STAFF', 'admin'], ['sale-staff', 'SALE_STAFF', 'staff']
+  ])('%s can only read and edit its own personal profile', async (name, role, wrongRole) => {
+    const actorId = sessions.get(name).userId;
+    if (role !== 'STAFF') await User.create({ _id: actorId, displayName: 'Legacy Name', roles: [role], state: 'ACTIVE' });
+    const path = '/api/v1/me/' + name + '-personal-profile';
+    await request(app).get(path).expect(401);
+    await request(app).get(path).set(customerRequest(wrongRole)).expect(403);
+    const fields = { familyAndMiddleName: 'Nguyễn', givenName: 'An', birthDate: '2000-02-29', gender: 'OTHER', expectedVersion: 0 };
+    await request(app).patch(path).set(customerRequest(wrongRole)).send(fields).expect(403);
+    const withCsrf = customerRequest(name);
+    const withoutCsrf = { ...withCsrf, 'X-CSRF-Token': 'invalid' };
+    await request(app).patch(path).set(withoutCsrf).send(fields).expect(403);
+    await request(app).patch(path).set(withCsrf).send({ ...fields, userId: sessions.get('customer-a').userId }).expect(422);
+    await request(app).patch(path).set(withCsrf).send({ ...fields, roles: ['ADMIN'] }).expect(422);
+    await request(app).patch(path).set(withCsrf).send(fields).expect(200);
+    await request(app).patch(path).set(withCsrf).send(fields).expect(409);
+    const result = await request(app).get(path).set(withCsrf).expect(200);
+    expect(result.headers['cache-control']).toBe('private, no-store');
+    expect(result.body.data).toMatchObject({
+      id: actorId, displayName: 'Nguyễn An', version: 1, birthDate: fields.birthDate, gender: fields.gender
+    });
+    expect(result.body.data).not.toHaveProperty('roles');
+    expect(await User.findById(actorId).select('roles').lean()).toMatchObject({ roles: [role] });
+    expect(await User.findById(sessions.get('customer-a').userId).select('displayName').lean()).toMatchObject({ displayName: 'Linh Customer' });
+  });
+
   test('returns only the authenticated customer projection and masks verified contacts', async () => {
     const response = await request(app).get('/api/v1/me/profile').set(customerRequest()).expect(200);
     expect(response.body.data).toMatchObject({

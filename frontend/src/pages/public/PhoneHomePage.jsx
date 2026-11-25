@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom';
 import { ArrowDownToLine, ChevronRight, FileText, LifeBuoy, LogIn, MapPin, ShoppingBag } from 'lucide-react';
 import { useInstallGuideOffer } from '../../hooks/useWebAppInstall.js';
 import { MobileServiceChoices } from './MobileServiceChoices.jsx';
+import { CareHomeBanner } from '../../components/common/CareHomeBanner.jsx';
 
 export function PhoneHomePage({ loadCatalog }) {
   const showInstallGuide = useInstallGuideOffer();
 
   return <div className="pwc-phone-home">
-    <MobileServiceChoices as="h1" loadCatalog={loadCatalog} />
+    <CareHomeBanner title="Chăm bé theo lịch của bạn" supporting="Chăm tại nhà, đi dạo và các dịch vụ dành cho chó mèo." />
+    <MobileServiceChoices loadCatalog={loadCatalog} />
 
     <div className="pwc-phone-home__secondary">
       <Link className="pwc-phone-home__row" to="/service-areas">

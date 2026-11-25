@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { CustomerProfilePage } from '../../src/pages/customer/CustomerProfilePage.jsx';
 import { SessionProvider } from '../../src/contexts/SessionContext.jsx';
@@ -39,7 +39,7 @@ test('loads the self profile with masked contacts and saves using the current ve
   renderProfile(apiRequest);
 
   expect(await screen.findByRole('heading', { name: 'Hồ sơ của tôi' })).toBeVisible();
-  expect(screen.getByRole('link', { name: 'Thay đổi' })).toHaveAttribute('href', '/account/settings');
+  expect(screen.getByRole('link', { name: 'Quản lý liên hệ' })).toHaveAttribute('href', '/account/settings');
   expect(screen.getByText('l•••@example.test')).toBeVisible();
   expect(screen.queryByText('linh@example.test')).not.toBeInTheDocument();
   const name = await screen.findByRole('textbox', { name: 'Họ và tên' });
@@ -67,6 +67,24 @@ test('shows forbidden and server-pending states without fake profile data', asyn
   expect(screen.queryByRole('textbox', { name: 'Họ và tên' })).not.toBeInTheDocument();
 });
 
+test.each([true, false])('keeps the active name draft when compact layout changes from %s', async (compact) => {
+  const descriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+  const media = new window.EventTarget();
+  media.matches = compact;
+  Object.defineProperty(window, 'matchMedia', { configurable: true, value: () => media });
+  const label = compact ? 'Họ và tên đệm' : 'Họ và tên';
+  const view = renderProfile(async () => ({ data: initialProfile, meta: { schemaVersion: 1 } }));
+  try {
+    fireEvent.change(await screen.findByRole('textbox', { name: label }), { target: { value: 'Tên đang chỉnh' } });
+    act(() => { media.matches = !compact; media.dispatchEvent(new window.Event('change')); });
+    expect(screen.getByRole('textbox', { name: label })).toHaveValue('Tên đang chỉnh');
+  } finally {
+    view.unmount();
+    if (descriptor) Object.defineProperty(window, 'matchMedia', descriptor);
+    else Reflect.deleteProperty(window, 'matchMedia');
+  }
+});
+
 test('shows a retryable load error and keeps server detail out of the interface', async () => {
   const failure = Object.assign(new Error('synthetic internal detail'), { status: 503, code: 'PROFILE_UNAVAILABLE' });
   const apiRequest = jest.fn(async () => { throw failure; });
@@ -76,4 +94,31 @@ test('shows a retryable load error and keeps server detail out of the interface'
   fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
   await waitFor(() => expect(apiRequest).toHaveBeenCalledTimes(2));
   expect(await screen.findByRole('heading', { name: 'Không tải được hồ sơ' })).toBeVisible();
+});
+
+test.each([
+  ['ADMIN', '/me/admin-personal-profile'],
+  ['STAFF', '/me/staff-personal-profile'],
+  ['SALE_STAFF', '/me/sale-staff-personal-profile'],
+  ['PET_SITTER', '/me/sitter-personal-profile']
+])('%s saves structured personal data and reads it back from its profile API', async (role, path) => {
+  let current = initialProfile;
+  const api = jest.fn(async (_path, options = {}) => {
+    if (options.method === 'PATCH') {
+      current = { ...current, ...options.body, displayName: 'Nguyễn An', version: 1 };
+    }
+    return { data: current, meta: { schemaVersion: 1 } };
+  });
+  renderProfile(api, { status: 'authenticated', user: { roles: [role] } });
+  const family = await screen.findByRole('textbox', { name: 'Họ và tên đệm' });
+  expect(family).toHaveValue('');
+  fireEvent.change(family, { target: { value: 'Nguyễn' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Tên' }), { target: { value: 'An' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
+  expect(await screen.findByRole('heading', { name: 'Đã lưu thay đổi' })).toBeVisible();
+  expect(await screen.findByRole('textbox', { name: 'Tên' })).toHaveValue('An');
+  expect(api).toHaveBeenCalledWith(path, { method: 'PATCH', body: {
+    familyAndMiddleName: 'Nguyễn', givenName: 'An', expectedVersion: 0
+  } });
+  await waitFor(() => expect(api.mock.calls.filter(([url, opts]) => url === path && !opts?.method)).toHaveLength(2));
 });

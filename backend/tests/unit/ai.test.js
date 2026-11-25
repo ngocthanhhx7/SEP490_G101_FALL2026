@@ -214,7 +214,15 @@ test('checks both neighboring visits including handover and road buffer', async 
     reason: 'ROUTE_UNAVAILABLE'
   });
 });
-test('refuses days off, conflicts and slots without the 24h booking lead', async () => {
+test('at-home matching accepts exactly 120 minutes but rejects 119; clinic matching keeps its lead', () => {
+  const now = Date.parse('2026-10-25T03:00:00Z');
+  const endAt = '2026-10-25T06:00:00Z';
+  expect(() => validateSlot({ startAt: '2026-10-25T04:59:00Z', endAt }, now)).toThrow();
+  expect(validateSlot({ startAt: '2026-10-25T05:00:00Z', endAt }, now).start).toBe(now + 2 * 3600000);
+  expect(() => validateSlot({ startAt: '2026-10-25T05:00:00Z', endAt, clinicAddressId: 'clinic' }, now)).toThrow();
+});
+
+test('refuses days off, conflicts and slots without the booking lead', async () => {
   expect(() =>
     validateSlot(
       { startAt: day + 'T10:00:00+07:00', endAt: day + 'T10:30:00+07:00' },

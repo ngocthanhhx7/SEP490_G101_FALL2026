@@ -11,3 +11,7 @@
 .pwc-projection__pagination { display: flex; flex-wrap: wrap; gap: 1rem; }
 .pwc-projection :focus-visible { outline: var(--pwc-focus-width) solid var(--pwc-focus); outline-offset: var(--pwc-focus-offset); }
 @media (max-width: 30rem) { .pwc-projection__filters { display: grid; } .pwc-projection input { width: 100%; } }
+
+.sitter-profile-preview h1 { font-family: inherit; font-weight: 800; }
+.sitter-profile-preview .pwc-projection__items > li { border-color: #e8def0; border-radius: .875rem; overflow-wrap: anywhere; }
+.pwc-phone-app .sitter-profile-preview { padding-inline: 0; }

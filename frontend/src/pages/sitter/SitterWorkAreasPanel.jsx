@@ -179,8 +179,7 @@ export function SitterWorkAreasPanel({ api }) {
   }
 
   const heading = <header className="sitter-work-areas__header">
-    <p className="sitter-work-areas__eyebrow">Hồ sơ Pet Sitter</p>
-    <h1 id="sitter-work-areas-title">Khu vực phục vụ</h1>
+    <h1 id="sitter-work-areas-title" data-duplicate-title>Khu vực phục vụ</h1>
     {resource.data?.registrationContract?.state === 'UPCOMING' && <Notice state="pending" title="Hợp đồng đã ký, sắp có hiệu lực">
       Bạn có thể chuẩn bị khu vực ngay. Chỉ nhận ca từ {new Date(resource.data.registrationContract.effectiveAt).toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}; lịch làm việc và năng lực vẫn cần được đăng ký, xác minh đầy đủ.
     </Notice>}

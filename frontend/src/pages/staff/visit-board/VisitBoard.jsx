@@ -103,7 +103,7 @@ export function VisitBoard({ api, tab, onTab, todayTotal, workAreas = [], openab
       {text.trim().length === 1 && <small className="ops-muted">Nhập ít nhất 2 ký tự để tìm.</small>}
     </div>}
     {notice && <p role="status" className="visit-board__notice">{notice}</p>}
-    {hasBoard && tab === 'needs' && <NeedsActionTable list={needs} rows={needsRows} filtering={filtering} api={api} openableIds={openableIds} onAction={onAction} />}
+    {hasBoard && tab === 'needs' && <NeedsActionTable list={needs} rows={needsRows} filtering={filtering} api={api} workAreas={workAreas} openableIds={openableIds} onAction={onAction} />}
     {hasBoard && tab === 'needs' && pages.moreStatus === 'error' && <p role="alert">Chưa tải thêm được các buổi. Bạn có thể thử lại.</p>}
     {hasBoard && tab === 'needs' && pages.next && <Button variant="secondary" loading={pages.moreStatus === 'loading'} onClick={pages.loadMore}>Tải thêm buổi cần xử lý</Button>}
     {hasBoard && tab === 'all' && <AllVisitsTable api={api} filters={filters} workAreas={workAreas} onWorkflow={setWorkflowId} />}

@@ -364,7 +364,7 @@ describe('UC-85 decisions and expiry', () => {
     expect(errorCode(await submit(record, single(moved, BASE + 2 * DAY)).expect(409))).toBe('MSG55');
   });
 
-  test('requeues a busy sitter, revokes old offers and saves the approved slot', async () => {
+  test('requeues a busy sitter, revokes old offers and flags the approved slot when fewer than five can be invited', async () => {
     const record = await booking([BASE + DAY], { assigned: true });
     await readySitter(record.serviceId);
     await readySitter(record.serviceId, [{ weekday: 4, startLocalTime: '06:30', endLocalTime: '19:00' }], replacement);
@@ -374,12 +374,12 @@ describe('UC-85 decisions and expiry', () => {
     expect((await detail(change).expect(200)).body.data.items[0].availability).toBe('BUSY');
     await decision(change, 'APPROVE', admin).expect(200);
     expect(await col('visits').findOne({ _id: visit._id })).toMatchObject({
-      state: 'SCHEDULED', sitterId: null, startAt: new Date(newStart), handoverRequired: true
+      state: 'SCHEDULED', sitterId: null, startAt: new Date(newStart), handoverRequired: true,
+      dispatchReview: { code: 'INSUFFICIENT_DISPATCH_CANDIDATES' },
+      dispatchRanking: { eligibleCount: 1, candidates: [{ sitterId: replacement.user.id }] }
     });
     expect(await col('employeevisitoffers').findOne({ _id: insertedId })).toMatchObject({ state: 'REVOKED' });
-    expect(await col('employeevisitoffers').findOne({ visitId: visit._id, state: 'PENDING' })).toMatchObject({
-      sitterId: replacement.user.id, startAt: new Date(newStart)
-    });
+    expect(await col('employeevisitoffers').countDocuments({ visitId: visit._id, state: 'PENDING' })).toBe(0);
     expect(await col('bookings').findOne({ _id: record._id })).toMatchObject({ state: 'DISPATCH_PENDING' });
   });
 

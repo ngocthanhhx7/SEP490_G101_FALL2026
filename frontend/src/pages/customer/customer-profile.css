@@ -7,23 +7,32 @@
 .customer-profile-card-heading h2 { margin: 0; font: 700 16px/1.5 var(--pwc-font-body); }
 .customer-profile-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 16px; }
 .customer-profile-form > * { min-width: 0; }
+.customer-profile-form[data-structured] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.customer-profile-form[data-structured] > :is(p, button) { grid-column: 1 / -1; }
+.customer-profile-form[data-structured] > button { justify-self: start; }
+.customer-profile-hint { margin: 0; color: var(--pwc-ink-muted); font-size: .875rem; }
 .customer-profile-form > .pwc-button { min-height: 44px; margin-bottom: 0; }
 .customer-profile-contacts { display: grid; padding: 0; margin: 0; list-style: none; }
-.customer-profile-contacts li { display: grid; grid-template-columns: 24px minmax(100px, 1fr) minmax(0, 1.3fr) auto; align-items: center; gap: 12px; padding: 18px 0; border-bottom: 1px solid #eae8ee; font-size: 14px; }
+.customer-profile-contacts li { display: grid; grid-template-columns: 24px minmax(100px, 1fr) minmax(0, 1.3fr); align-items: center; gap: 12px; padding: 18px 0; border-bottom: 1px solid #eae8ee; font-size: 14px; }
 .customer-profile-contact-icon { display: grid; color: #827489; }
 .customer-profile-contacts li > span:nth-child(2) { display: grid; gap: 3px; min-width: 0; }
 .customer-profile-contacts small { font-size: 11px; color: var(--pwc-ink-muted); }
 .customer-profile-contacts b { font-weight: 500; overflow-wrap: anywhere; }
-.customer-profile-contacts a { color: #655091; font-size: 13px; text-underline-offset: 3px; }
+.customer-profile-contact-link { justify-self: start; color: #655091; font-size: 13px; text-underline-offset: 3px; }
 .customer-profile-private-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; color: var(--pwc-ink-muted); font-size: 12px; line-height: 1.7; }
 .customer-profile-private-note svg { flex: 0 0 18px; margin-top: 1px; color: #298477; }
 .customer-profile-loading { display: grid; gap: 16px; max-width: 42rem; }
 .customer-profile-loading span { display: block; height: 3.5rem; background: #f2eff6; }
 .customer-profile .pwc-notice { margin-block: 16px; }
-@media (max-width: 600px) {
-  .customer-profile-form { grid-template-columns: minmax(0, 1fr); }
-  .customer-profile-form > .pwc-button { justify-self: start; }
-  .customer-profile-contacts li { grid-template-columns: 24px minmax(0, 1fr) auto; }
-  .customer-profile-contacts b { grid-column: 2; grid-row: 2; }
-  .customer-profile-contacts a { grid-column: 3; grid-row: 1 / span 2; }
+@media (max-width: 768px) {
+  .customer-profile { padding-inline: 0; }
 }
+
+@media (max-width: 600px) {
+  .customer-profile-form, .customer-profile-form[data-structured] { grid-template-columns: minmax(0, 1fr); }
+  .customer-profile-form > .pwc-button { justify-self: start; }
+  .customer-profile-contacts li { grid-template-columns: 24px minmax(0, 1fr); }
+  .customer-profile-contacts b { grid-column: 2; grid-row: 2; }
+}
+
+.customer-profile-back { display: inline-flex; align-items: center; width: fit-content; min-height: var(--pwc-target); color: var(--pwc-ink); font-weight: 700; }

@@ -15,7 +15,7 @@ import { NotificationsPage } from '../pages/notifications/NotificationsPage.jsx'
 import { createNotificationsApi } from '../services/notifications-api.js';
 import { createApiClient } from '../services/api-client.js';
 import { CustomerProfilePage } from '../pages/customer/CustomerProfilePage.jsx';
-import { Link, Navigate, Route, Routes, useSearchParams, useParams } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useSearchParams, useParams } from 'react-router-dom';
 import { InstallAppPage } from '../pages/public/InstallAppPage.jsx';
 import { FoundationLayout } from '../layouts/FoundationLayout.jsx';
 import { PublicSiteLayout } from '../layouts/PublicSiteLayout.jsx';
@@ -161,6 +161,11 @@ function IncidentRoute({ view }) {
   return <IncidentListPage key={user?.id} api={api} />;
 }
 
+function LegacyDispatchRoute() {
+  const { search, hash } = useLocation();
+  return <Navigate replace to={{ pathname: '/staff/dispatch', search, hash }} />;
+}
+
 function EmployeeScheduleRoute({ view }) {
   const [params, setParams] = useSearchParams();
   const { visitId } = useParams();
@@ -172,7 +177,14 @@ function EmployeeScheduleRoute({ view }) {
     ? <SitterVisitPage key={user?.id + ':' + visitId} api={api} visitId={visitId} />
     : <p role="alert">Mã buổi chăm sóc không hợp lệ.</p>;
   if (view === 'areas') return <SitterWorkAreasPanel key={user?.id} api={api} />;
-  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id} api={api} selectedSitter={params.get('sitterId') || undefined}
+  if (view === 'dispatch') return <EmployeeDispatchPage key={user?.id + ':' + params.toString()} api={api}
+    onCloseVisit={() => {
+      if (!params.has('visitId')) return;
+      const query = new globalThis.URLSearchParams(params);
+      query.delete('visitId');
+      setParams(query, { replace: true });
+    }}
+    initialVisitId={/^[a-f0-9]{24}$/i.test(params.get('visitId') ?? '') ? params.get('visitId') : undefined} selectedSitter={params.get('sitterId') || undefined}
     initialWorkflowId={params.get('workflowId') || undefined} initialWithdrawalId={params.get('withdrawalId') || undefined} initialClosureId={params.get('closureId') || undefined} canVerifyClosure={user?.roles?.includes('ADMIN')} />;
   if (view === 'invitations' && /^[a-f\d]{24}$/i.test(params.get('visitId') ?? ''))
     return <Navigate replace to={'/sitter/visits/' + params.get('visitId')} />;
@@ -244,12 +256,14 @@ const navigationByRole = {
   PET_SITTER: [
     ['Công việc của tôi', '/sitter', 'Công việc'],
     ['Lời mời nhận việc', '/sitter/invitations', 'Công việc'],
-    ['Lịch làm việc', '/sitter/availability', 'Công việc'],
+    ['Ca làm', '/sitter/schedule', 'Công việc'],
+    ['Giờ nhận việc', '/sitter/availability', 'Công việc'],
     ['Khu vực làm việc', '/sitter/work-areas', 'Công việc'],
     ['Lương và tạm ứng', '/sitter/payroll', 'Tài chính'],
     ['Hồ sơ người chăm sóc', '/sitter/profile', 'Hồ sơ của tôi'],
     ['Hồ sơ công khai', '/sitter/public-profile', 'Hồ sơ của tôi'],
     ['Tài khoản của tôi', '/account', 'Cá nhân'],
+    ['Thông tin cá nhân', '/account/profile', 'Cá nhân'],
     ['Liên hệ & bảo mật', '/account/settings', 'Cá nhân'],
     ['Thông báo', '/account/notifications', 'Cá nhân']
   ],
@@ -292,6 +306,11 @@ function AccountWorkspace() {
   const { user } = useSession();
   const role = primaryRole(user);
   return <Workspace role={role} />;
+}
+
+function ApplicationStatusLayout() {
+  const { user } = useSession();
+  return primaryRole(user) === 'PET_SITTER' ? <Workspace role="PET_SITTER" /> : <PublicSiteLayout />;
 }
 
 function AccountHome({ mobile }) {
@@ -375,13 +394,13 @@ export function AppRoutes({
           <Route path="account" element={<AccountHome mobile={phoneApp} />} />
           <Route path="account/settings" element={<AccountSettingsPage />} />
           <Route path="account/notifications" element={<CustomerFeaturePage page="notifications" />} />
+          <Route path="account/profile" element={<CustomerProfilePage />} />
         </Route>
       </Route>
       <Route element={<RequireSession roles={['CUSTOMER']} />}>
         <Route element={<Workspace role="CUSTOMER" />}>
           <Route path="customer" element={phoneApp ? <MobileCareHome /> : <CustomerDashboardPage />} />
           <Route path="sitters" element={<SitterListPage />} />
-          <Route path="account/profile" element={<CustomerProfilePage />} />
           <Route path="account/addresses" element={<CustomerCarePage kind="addresses" />} />
           <Route
             path="account/pets"
@@ -431,6 +450,7 @@ export function AppRoutes({
         <Route element={<AccountWorkspace />}>
           <Route path="staff/sitter-profiles" element={<PublicProfileRoute review />} />
           <Route path="staff/dispatch" element={<EmployeeScheduleRoute view="dispatch" />} />
+          <Route path="admin/dispatch" element={<LegacyDispatchRoute />} />
           <Route path="staff/bookings/:bookingId" element={<StaffBookingDetailPage />} />
         </Route>
       </Route>
@@ -465,13 +485,17 @@ export function AppRoutes({
           path="sitter/apply"
           element={<RegistrationPage initialSitter />}
         />
+      </Route>
+      <Route element={<ApplicationStatusLayout />}>
         <Route
           path="sitter/application-status"
           element={<ApplicantWorkspacePage legacyApi={applicationStatusApi} />}
         />
       </Route>
-      <Route element={<FoundationLayout />}>
+      <Route element={<PublicSiteLayout policyReading />}>
         {publicPolicyRouteElements}
+      </Route>
+      <Route element={<FoundationLayout />}>
         <Route
           path="*"
           element={

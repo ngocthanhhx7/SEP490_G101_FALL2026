@@ -38,3 +38,14 @@
 .notification-device h2 { display: flex; align-items: center; gap: .5rem; margin: 0; font-size: 1rem; }
 .notification-device p { margin: .375rem 0 0; font-size: .9rem; }
 .notification-device [role="alert"] { color: var(--pwc-error); }
+
+.notification-device-settings { margin-block: .25rem .75rem; }
+.notification-device-settings summary {
+  width: fit-content;
+  min-height: 44px;
+  align-content: center;
+  color: var(--pwc-ink);
+  cursor: pointer;
+}
+.notification-device-settings > .pwc-button { margin-block: .25rem .5rem; }
+.notification-device-settings [role="alert"] { color: var(--pwc-error); }

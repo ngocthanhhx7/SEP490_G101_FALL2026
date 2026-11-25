@@ -20,7 +20,7 @@ const approvedPolicyFixture = {
   keywords: 'từ-khóa-duyệt',
   version: '1.0',
   versionPath: 'v1',
-  effectiveDate: '01/11/2026',
+  effectiveDate: '2026-10-31T18:00:00.000Z',
   sections: [
     {
       heading: 'Điều khoản ví dụ',
@@ -107,14 +107,14 @@ test('approved catalog entries can be searched and linked to a fixed version', (
     screen.getByRole('heading', { name: 'Chính sách & hướng dẫn' })
   ).toBeVisible();
   expect(
-    screen.getByRole('link', { name: 'Chính sách ví dụ đã phê duyệt' })
+    screen.getByRole('link', { name: 'Đọc Chính sách ví dụ đã phê duyệt' })
   ).toHaveAttribute('href', '/policies/approved-example/v1');
 
   fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm chính sách' }), {
     target: { value: 'từ-khóa-duyệt' }
   });
   expect(
-    screen.getByRole('link', { name: 'Chính sách ví dụ đã phê duyệt' })
+    screen.getByRole('link', { name: 'Đọc Chính sách ví dụ đã phê duyệt' })
   ).toBeVisible();
   fireEvent.change(screen.getByRole('searchbox', { name: 'Tìm chính sách' }), {
     target: { value: 'không khớp' }
@@ -122,11 +122,15 @@ test('approved catalog entries can be searched and linked to a fixed version', (
   expect(
     screen.getByText('Không tìm thấy chính sách phù hợp. Hãy thử từ khóa khác.')
   ).toBeVisible();
+  fireEvent.click(screen.getByRole('button', { name: 'Xóa từ khóa' }));
+  expect(screen.getByRole('searchbox')).toHaveFocus();
+  expect(screen.getByRole('searchbox')).toHaveValue('');
+  expect(screen.getByRole('link', { name: 'Đọc Chính sách ví dụ đã phê duyệt' })).toBeVisible();
 });
 
 test('approved article displays purpose, version, effective date and matching contents order', () => {
   render(
-    <MemoryRouter initialEntries={['/policies/approved-example/v1']}>
+    <MemoryRouter initialEntries={['/policies/approved-example/v1#policy-section-0']}>
       <Routes>
         <Route
           path="/policies/:slug/:version"
@@ -145,14 +149,28 @@ test('approved article displays purpose, version, effective date and matching co
   expect(screen.getByText('1.0')).toBeVisible();
   expect(screen.getByText('01/11/2026')).toBeVisible();
   expect(
-    screen.getByRole('link', { name: /mở liên kết phiên bản/i })
-  ).toHaveAttribute('href', '/policies/approved-example/v1');
+    screen.queryByRole('link', { name: 'Mở bản cố định' })
+  ).not.toBeInTheDocument();
   expect(
     screen.getByRole('navigation', { name: 'Mục lục bài viết' })
   ).toBeVisible();
   expect(
     screen.getByRole('heading', { name: 'Điều khoản ví dụ', level: 2 })
   ).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Điều khoản ví dụ' })).toHaveAttribute('href', '#policy-section-0');
+  expect(screen.getByRole('heading', { name: 'Điều khoản ví dụ', level: 2 })).toHaveFocus();
+});
+
+test('current article shows a stable version link and one return action', () => {
+  render(
+    <MemoryRouter initialEntries={['/policies/approved-example']}>
+      <Routes>
+        <Route path="/policies/:slug" element={<PolicyArticlePage policies={[approvedPolicyFixture]} />} />
+      </Routes>
+    </MemoryRouter>
+  );
+  expect(screen.getByRole('link', { name: 'Mở bản cố định' })).toHaveAttribute('href', '/policies/approved-example/v1');
+  expect(screen.getByRole('link', { name: 'Tất cả chính sách' })).toHaveAttribute('href', '/policies');
 });
 
 test('registration context links point to current published paths without draft placeholders', () => {
