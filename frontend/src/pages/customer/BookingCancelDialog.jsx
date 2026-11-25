@@ -87,7 +87,8 @@ export function BookingCancelDialog({ booking, visits, initialVisitId, api, onCl
   const inFlight = useRef(false);
   const operation = useRef(null);
 
-  const single = scope === 'VISIT';
+  const fullBookingOnly = booking.state === 'PAYMENT_EXPIRED';
+  const single = !fullBookingOnly && scope === 'VISIT';
   const activeVisitId = single ? (visits.some(item => item.id === selectedId) ? selectedId : visits[0]?.id) : null;
   const locked = busy || uncertain;
 
@@ -122,7 +123,7 @@ export function BookingCancelDialog({ booking, visits, initialVisitId, api, onCl
     event.preventDefault();
     if (locked || inFlight.current || !preview) return;
     const body = {
-      scope,
+      scope: single ? 'VISIT' : 'BOOKING',
       ...(single ? { visitId: activeVisitId } : {}),
       ...(reason ? { reason } : {})
     };
@@ -147,7 +148,7 @@ export function BookingCancelDialog({ booking, visits, initialVisitId, api, onCl
     </>}>
     <form id={formId} onSubmit={submit}>
       <fieldset disabled={locked} className="booking-change-form">
-        {visits.length > 1 && <div className="booking-change-field">
+        {!fullBookingOnly && visits.length > 1 && <div className="booking-change-field">
           <span id={formId + '-scope'}>Phạm vi huỷ</span>
           <div role="group" aria-labelledby={formId + '-scope'} className="booking-change-scope">
             <button type="button" aria-pressed={!single} onClick={() => { setScope('BOOKING'); setError(''); }}>

@@ -384,14 +384,18 @@ describe('Customer cancel booking or visit (UC-39, GBR-15, GBR-17, GBR-19)', () 
     ['link can accept payment', 'READY', 'PENDING', 0, false, false],
     ['link has a partial payment', 'READY', 'CANCELLED', 1000, false, false],
     ['closed empty link', 'READY', 'CANCELLED', 0, false, true],
-    ['payment awaiting reconciliation', 'READY', 'CANCELLED', 0, true, false]
-  ])('guards unpaid cancellation: %s', async (_label, linkState, providerStatus, amountPaid, reconcile, allowed) => {
-    const { bookingId, bookingOid, totalVnd } = await seedBooking({
+    ['payment awaiting reconciliation', 'READY', 'CANCELLED', 0, true, false],
+    ['expired link with no funds', 'READY', 'EXPIRED', 0, false, true, true],
+    ['expired link with partial funds', 'READY', 'EXPIRED', 1000, false, false, true]
+  ])('guards unpaid cancellation: %s', async (_label, linkState, providerStatus, amountPaid, reconcile, allowed, expired) => {
+    const { bookingId, bookingOid, totalVnd, visits } = await seedBooking({
       bookingState: 'AWAITING_PAYMENT',
       paymentState: 'UNPAID',
       visitSpecs: [{ startAt: BASE_NOW + 48 * 3600000, state: 'SCHEDULED', baseVnd: 100000 }]
     });
     const intentId = new mongoose.Types.ObjectId();
+    if (expired) await connection.db.collection('bookings').updateOne({ _id: bookingOid },
+      { $set: { paymentDeadlineAt: new Date(BASE_NOW - 1) } });
     await connection.db.collection('paymentintents').insertOne({
       _id: intentId, bookingId: bookingOid, state: 'PENDING', provider: 'PAYOS', providerReference: '123456', amountVnd: totalVnd,
       version: 0, ...(linkState ? { linkState } : {})
@@ -404,6 +408,11 @@ describe('Customer cancel booking or visit (UC-39, GBR-15, GBR-17, GBR-19)', () 
       provider: { getPaymentLink: async orderCode => ({ orderCode, amount: totalVnd, providerStatus, amountPaid }) } });
     const actor = { userId: String(customerId), state: 'ACTIVE', roles: ['CUSTOMER'] };
     const body = { scope: 'BOOKING' };
+    if (expired) {
+      const single = { scope: 'VISIT', visitId: String(visits[0]._id ?? visits[0].id) };
+      await expect(service.preview(actor, bookingId, single)).rejects.toMatchObject({ code: 'BOOKING_NOT_CANCELLABLE' });
+      await expect(service.cancel(actor, bookingId, single, 'guard-expired-single')).rejects.toMatchObject({ code: 'BOOKING_NOT_CANCELLABLE' });
+    }
     if (allowed) {
       await expect(service.preview(actor, bookingId, body)).resolves.toMatchObject({ isPaid: false });
       const result = await service.cancel(actor, bookingId, body, 'guard-unpaid-001');

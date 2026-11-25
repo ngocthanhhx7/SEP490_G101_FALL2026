@@ -27,7 +27,7 @@ const changeRestrictions = {
 };
 
 const CANCELLABLE_VISIT_STATES = new Set(['SCHEDULED', 'OFFERED', 'ASSIGNED']);
-const NON_CANCELLABLE_BOOKING_STATES = new Set(['CANCELLED', 'CLOSED', 'PAYMENT_EXPIRED', 'OVERDUE']);
+const NON_CANCELLABLE_BOOKING_STATES = new Set(['CANCELLED', 'CLOSED', 'OVERDUE']);
 const CANCEL_SUCCESS_MSG28 = 'Đã huỷ. Người chăm sóc thú cưng của bạn đã được thông báo.';
 
 function ComplaintListAction({ resource, bookingId }) {

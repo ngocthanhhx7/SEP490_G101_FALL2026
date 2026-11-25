@@ -127,7 +127,7 @@ export function createBookingCancellationService({ connection, clock = Date.now,
     const options = { session, maxTimeMS: 5000 };
     const reconciliationRequired = () =>
       fail('CANCELLATION_RECONCILIATION_REQUIRED', 'Payment must be reconciled before cancellation', 409);
-    if (await col('payments').findOne({ bookingId: booking._id, state: 'RECONCILIATION_REQUIRED' },
+    if (await col('payments').findOne({ bookingId: booking._id, state: { $in: ['VERIFIED', 'RECONCILIATION_REQUIRED'] } },
       { ...options, projection: { _id: 1 } })) reconciliationRequired();
     const intents = await col('paymentintents').find({ bookingId: booking._id, provider: 'PAYOS', state: 'PENDING' },
       { ...options, projection: { providerReference: 1, amountVnd: 1, linkState: 1, linkRequestedAt: 1, checkoutUrl: 1, paymentLinkId: 1 } })
@@ -167,7 +167,9 @@ export function createBookingCancellationService({ connection, clock = Date.now,
 
   function selectTargetVisits(booking, visits, input, at) {
     const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt && booking.paymentDeadlineAt <= at;
-    if (expired || NON_CANCELLABLE_BOOKING_STATES.has(booking.state)) {
+    const canReleaseExpiredBooking = input.scope === 'BOOKING' &&
+      booking.paymentMode === 'PREPAY' && booking.paymentState === 'UNPAID';
+    if ((expired && !canReleaseExpiredBooking) || NON_CANCELLABLE_BOOKING_STATES.has(booking.state)) {
       fail('BOOKING_NOT_CANCELLABLE', 'Booking can no longer be cancelled', 409);
     }
     if (input.scope === 'VISIT') {
