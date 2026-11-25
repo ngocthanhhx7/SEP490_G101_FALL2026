@@ -2,11 +2,11 @@ export class PublicPolicyApiError extends Error {
   constructor(code, status = 0) { super(code); this.name = 'PublicPolicyApiError'; this.code = code; this.status = status; }
 }
 
-export async function loadPublicPolicies({ fetchImpl = (...args) => fetch(...args) } = {}) {
+export async function loadPublicPolicies({ signal, fetchImpl = (...args) => fetch(...args) } = {}) {
   let response;
   try {
     response = await fetchImpl('/api/v1/public/public-policies', {
-      headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store', redirect: 'error'
+      signal, headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store', redirect: 'error'
     });
   } catch { throw new PublicPolicyApiError('NETWORK_ERROR'); }
   let envelope;
@@ -34,4 +34,20 @@ export async function loadPublicPolicies({ fetchImpl = (...args) => fetch(...arg
       summary: policy.summary ?? policy.purpose,
       effectiveDate: policy.effectiveDate ?? policy.effectiveAt,
     }));
+}
+
+export async function loadPublicPolicyVersion(slug, version, { signal } = {}) {
+  let response;
+  try {
+    response = await fetch('/api/v1/public/public-policies/' + encodeURIComponent(slug) + '/' + encodeURIComponent(version),
+      { signal, headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store', redirect: 'error' });
+  } catch { throw new PublicPolicyApiError('NETWORK_ERROR'); }
+  const envelope = await response.json().catch(() => null);
+  if (response.status === 404 && envelope?.error?.code === 'POLICY_VERSION_NOT_FOUND') return { data: null };
+  const policy = envelope?.data;
+  if (!response.ok || envelope?.meta?.schemaVersion !== 1 || policy?.slug !== slug || policy.versionId !== version
+    || !['APPROVED', 'RETIRED'].includes(policy.status) || !Array.isArray(policy.sections)
+    || typeof policy.archived !== 'boolean' || typeof policy.title !== 'string')
+    throw new PublicPolicyApiError('INVALID_RESPONSE', response.status);
+  return { data: { ...policy, version: policy.versionId, summary: policy.purpose, effectiveDate: policy.effectiveAt } };
 }

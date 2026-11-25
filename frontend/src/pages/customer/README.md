@@ -13,7 +13,10 @@ owner-declared note contract via `utils/pet-vaccinations.js`. No medical inferen
 or migration is performed. Health import retains consent and explicit review.
 
 `CustomerDashboardPage` owns the Customer care overview, separate from operational
-dashboards: authoritative counters, visit list, date filters and server cursors.
+dashboards: authoritative counters, visit list, upcoming shop grooming appointments
+(with customer cancellation via `useUpcomingGrooming`, `GroomingUpcomingRow` and
+`GroomingCancelDialog`), date filters and server cursors. `MobileCareHome` shares the
+same upcoming grooming list and cancellation flow on the mobile Customer home screen.
 `CustomerProfilePage` shares the versioned personal profile form across Customer,
 Pet Sitter, Admin, Staff and Sale Staff. The adapter selects the role-specific API. Verified contacts
 are masked and managed through the separate OTP settings flow. Account navigation/layout

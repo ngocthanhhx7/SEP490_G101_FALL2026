@@ -2,10 +2,12 @@ import { createHash } from 'node:crypto';
 import { Types } from 'mongoose';
 import { groomingModels } from '../../models/grooming-appointment.model.js';
 import {
-  GROOMING_BLOCKING_APPOINTMENT_STATUSES, GROOMING_MIN_LEAD_MINUTES, GROOMING_RELEASED_PET_STATUS
+  GROOMING_BLOCKING_APPOINTMENT_STATUSES, GROOMING_CANCEL_MIN_LEAD_MINUTES, GROOMING_MIN_LEAD_MINUTES, GROOMING_RELEASED_PET_STATUS
 } from '../../constants/grooming.js';
 import { groomingCoveredSlots, groomingLocalDate, groomingLocalTime, groomingSlotKey, groomingWindow } from '../../utils/grooming-slot-time.js';
-import { groomingAppointmentId, groomingBookingInput, groomingIdempotencyKey, groomingListQuery } from '../../validators/grooming-booking.validator.js';
+import {
+  groomingAppointmentId, groomingBookingInput, groomingCancelInput, groomingIdempotencyKey, groomingListQuery
+} from '../../validators/grooming-booking.validator.js';
 import { AppError } from '../../utils/app-error.js';
 import { fail } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
@@ -13,12 +15,18 @@ import { paginate } from '../pagination.service.js';
 import { createEmployeeScheduleRepository } from '../employee-scheduling/employee-schedule.repository.js';
 import { assertGroomingReservations } from './grooming-reservation.service.js';
 import { petCareModels } from '../../models/pet-care.model.js';
+import { payrollModels } from '../../models/payroll.model.js';
 
 const MAX_ATTEMPTS = 4;
+const CANCEL_LEAD_MS = GROOMING_CANCEL_MIN_LEAD_MINUTES * 60000;
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const notFound = () => new AppError(404, 'RESOURCE_NOT_FOUND', 'Appointment not found');
 const slotTaken = startAt => new AppError(409, 'GROOMING_SLOT_TAKEN', 'The time slot is no longer available', { startAt: startAt.toISOString() });
 const idempotencyConflict = () => new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This idempotency key was used for a different request');
+const notCancellable = status => new AppError(409, 'GROOMING_APPOINTMENT_NOT_CANCELLABLE', 'Lịch hẹn này không còn huỷ được.', { status });
+const cancelTooLate = (startAt, hotline) => new AppError(409, 'GROOMING_CANCEL_TOO_LATE', hotline
+  ? `Lịch hẹn này không còn huỷ được tại đây. Vui lòng gọi cửa hàng theo số ${hotline}.`
+  : 'Lịch hẹn này không còn huỷ được tại đây. Vui lòng gọi cửa hàng.', { startAt: startAt.toISOString(), hotline });
 
 // What the customer sees: no check-in photos, notes or staff identities.
 export function toGroomingAppointmentView(doc, hotline = null) {
@@ -34,7 +42,8 @@ export function toGroomingAppointmentView(doc, hotline = null) {
     tier: { code: doc.tier.code ?? null, discountBps: doc.tier.discountBps ?? 0, discountBlockedReason: doc.tier.discountBlockedReason ?? null },
     shop: { address: doc.shop.address, hotline },
     depositRequired: false,
-    bookedAt: doc.bookedAt.toISOString()
+    bookedAt: doc.bookedAt.toISOString(),
+    ...(doc.cancellation?.at ? { cancellation: { at: doc.cancellation.at.toISOString(), byRole: doc.cancellation.byRole } } : {})
   };
 }
 
@@ -46,6 +55,7 @@ export function createGroomingBooking({ connection, clock = Date.now, pricing, s
   const { GroomingAppointment } = groomingModels(connection);
   const employee = createEmployeeScheduleRepository({ connection, clock, coverageAreas: [] });
   const { Pet } = petCareModels(connection);
+  const { PayrollMonthGuard } = payrollModels(connection);
   const uow = createUnitOfWork(connection);
   const address = facilityAddress?.trim() || null;
   const contact = hotline?.trim() || null;
@@ -158,13 +168,78 @@ export function createGroomingBooking({ connection, clock = Date.now, pricing, s
     }
   }
 
+  // Customer cancellation (UC-58 postcondition, GBR-40): free until 2 hours before startAt.
+  // Uses the same customer -> pet -> employee guard order as booking so concurrent bookings
+  // and cancellations serialize cleanly without corrupting held places.
+  async function cancel(customerId, appointmentId, body) {
+    groomingCancelInput(body);
+    const id = groomingAppointmentId(appointmentId);
+    if (!id) throw notFound();
+    const owner = new Types.ObjectId(String(customerId));
+    const run = () => uow.run(async session => {
+      const customer = await connection.db.collection('users').findOneAndUpdate(
+        { _id: owner, state: 'ACTIVE', roles: 'CUSTOMER', synthetic: { $ne: true } },
+        { $inc: { schedulingGuardVersion: 1 } }, { session, returnDocument: 'after' }
+      );
+      if (!customer) fail('FORBIDDEN', 'Current customer account required', 403);
+      const doc = await GroomingAppointment.findOne({ _id: id, customerId: owner }).session(session).lean();
+      if (!doc) throw notFound();
+      if (doc.status !== 'BOOKED') throw notCancellable(doc.status);
+      const now = clock();
+      if (doc.slot.startAt.getTime() - now < CANCEL_LEAD_MS) throw cancelTooLate(doc.slot.startAt, contact);
+      const petIds = [...new Set(doc.pets.map(pet => String(pet.petId)))].sort();
+      for (const petId of petIds) {
+        await Pet.collection.updateOne({ _id: new Types.ObjectId(petId), ownerId: owner }, { $inc: { bookingGuard: 1 } }, { session });
+      }
+      const sitterIds = [...new Set(doc.pets
+        .filter(pet => pet.reservedSitterId && pet.status !== GROOMING_RELEASED_PET_STATUS)
+        .map(pet => String(pet.reservedSitterId)))].sort();
+      for (const sitterId of sitterIds) {
+        await PayrollMonthGuard.findOneAndUpdate({ _id: `employee:${sitterId}` }, { $inc: { version: 1 } }, { upsert: true, session });
+      }
+      const at = new Date(now);
+      const updated = await GroomingAppointment.findOneAndUpdate(
+        { _id: id, customerId: owner, status: 'BOOKED', version: doc.version ?? 0 },
+        {
+          $set: {
+            status: 'CANCELLED',
+            closedAt: at,
+            cancellation: { at, byRole: 'CUSTOMER', byUserId: owner },
+            'pets.$[].status': GROOMING_RELEASED_PET_STATUS
+          },
+          $inc: { version: 1 }
+        },
+        { session, returnDocument: 'after' }
+      ).lean();
+      if (!updated) throw notCancellable(doc.status);
+      return toGroomingAppointmentView(updated, contact);
+    });
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await run();
+      } catch (error) {
+        if (error?.code !== 11000 || attempt >= MAX_ATTEMPTS) throw error;
+      }
+    }
+  }
+
   return {
     book,
+    cancel,
     async list(customerId, query) {
-      const { page, limit, status } = groomingListQuery(query);
-      const result = await paginate(GroomingAppointment, { filter: { customerId: new Types.ObjectId(String(customerId)), ...(status ? { status } : {}) },
-        page, limit, sort: { 'slot.startAt': -1, _id: -1 } });
-      return { ...result, items: result.items.map(doc => toGroomingAppointmentView(doc, contact)) };
+      const { page, limit, status, upcoming } = groomingListQuery(query);
+      const now = clock();
+      const filter = {
+        customerId: new Types.ObjectId(String(customerId)),
+        ...(upcoming ? { status: status ?? 'BOOKED', 'slot.startAt': { $gte: new Date(now) } } : (status ? { status } : {}))
+      };
+      const sort = upcoming ? { 'slot.startAt': 1, _id: 1 } : { 'slot.startAt': -1, _id: -1 };
+      const result = await paginate(GroomingAppointment, { filter, page, limit, sort });
+      return {
+        ...result,
+        items: result.items.map(doc => toGroomingAppointmentView(doc, contact)),
+        ...(upcoming ? { serverNow: new Date(now).toISOString() } : {})
+      };
     },
     async read(customerId, appointmentId) {
       const id = groomingAppointmentId(appointmentId);

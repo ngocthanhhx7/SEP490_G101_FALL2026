@@ -38,3 +38,11 @@ export function schedulingKey(value) {
   if (typeof value !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(value)) fail('VALIDATION_FAILED', 'Idempotency key required');
   return value;
 }
+export const REASSIGNMENT_REASON_MAX = 1000;
+export function reassignmentInput(value) {
+  exact(value, ['expectedVersion', 'sitterId', 'reason'], ['expectedVersion', 'sitterId', 'reason']);
+  number(value.expectedVersion, 0, 1000000, true); id(value.sitterId);
+  if (typeof value.reason !== 'string' || !value.reason.trim()) fail('REASON_REQUIRED', 'Reason is required');
+  if (value.reason.trim().length > REASSIGNMENT_REASON_MAX) fail('VALIDATION_FAILED', 'Reason must be no more than 1000 characters');
+  return { expectedVersion: value.expectedVersion, sitterId: value.sitterId, reason: value.reason.trim() };
+}

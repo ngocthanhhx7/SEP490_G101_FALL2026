@@ -1,0 +1,31 @@
+.grooming-upcoming__toast {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: #eaf6f0;
+  border: 1px solid #b9e1cf;
+  color: #1f6457;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.grooming-upcoming__inline-error {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fdf1ef;
+  border: 1px solid #f0c2bb;
+  color: #962d20;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.grooming-upcoming__code {
+  margin: 2px 0 0;
+  color: #766d80;
+  font-size: 12px;
+}
+
+.grooming-upcoming-mobile-row__actions {
+  margin-top: 8px;
+}

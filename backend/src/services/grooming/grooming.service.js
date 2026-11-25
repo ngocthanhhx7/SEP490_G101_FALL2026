@@ -25,6 +25,7 @@ export function createGroomingService({ shopServices, slots, pricing, booking, f
     slots: (actor, body) => slots.list(customerId(actor), groomingSlotsInput(body)),
     quote: (actor, body) => pricing.quote(customerId(actor), groomingQuoteInput(body)),
     book: (actor, body, idempotencyKey) => booking.book(customerId(actor), body, idempotencyKey),
+    cancelAppointment: (actor, id, body) => booking.cancel(customerId(actor), id, body),
     listAppointments: (actor, query) => booking.list(customerId(actor), query),
     readAppointment: (actor, id) => booking.read(customerId(actor), id)
   };

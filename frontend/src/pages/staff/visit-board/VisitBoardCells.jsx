@@ -1,3 +1,4 @@
+import { Link, useInRouterContext } from 'react-router-dom';
 import { OperationsBadge } from '../../../components/common/OperationsWorkspace.jsx';
 import { formatBookingRef, formatClosureDay, formatClosureSlot, formatClosureTime } from '../../../utils/visit-closure-format.js';
 import { VISIT_STATE_LABELS } from '../../../utils/visit-board-format.js';
@@ -31,4 +32,12 @@ export function VisitBoardStatus({ row }) {
     return <OperationsBadge tone="danger">Quá giờ, chưa phân công</OperationsBadge>;
   const tone = { ASSIGNED: 'info', IN_PROGRESS: 'info', COMPLETED: 'success', SCHEDULED: 'warning' }[row.state];
   return <OperationsBadge tone={tone}>{VISIT_STATE_LABELS[row.state] ?? 'Cần đối chiếu'}</OperationsBadge>;
+}
+
+// UC-38 entry: a visit that has a pet sitter and is not checked in can have its sitter replaced.
+export const canReassign = row => row.state === 'ASSIGNED' && !!row.sitterId;
+export function ReassignLink({ row, returnTo }) {
+  const to = `/staff/visits/${row.id}/reassign`;
+  return useInRouterContext() ? <Link className="ops-link visit-board__reassign" to={to} state={{ returnTo }}>Giao lại</Link>
+    : <a className="ops-link visit-board__reassign" href={to}>Giao lại</a>;
 }

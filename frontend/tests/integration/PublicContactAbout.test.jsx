@@ -49,6 +49,18 @@ test('contact retains the message when delivery is uncertain', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('Thư có thể đã được tiếp nhận');
   expect(screen.getByLabelText('Nội dung')).not.toHaveValue('');
 });
+test('contact keeps form values and focuses a malformed optional phone before sending', () => {
+  const send = jest.fn();
+  render(<MemoryRouter><ContactPage send={send} /></MemoryRouter>);
+  fillForm();
+  const phone = screen.getByLabelText('Số điện thoại (không bắt buộc)');
+  fireEvent.change(phone, { target: { value: '  invalid  ' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Gửi lời nhắn' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Kiểm tra lại số điện thoại');
+  expect(phone).toHaveFocus();
+  expect(phone).toHaveValue('  invalid  ');
+  expect(send).not.toHaveBeenCalled();
+});
 test('contact adapter never reports success on network loss or malformed provider receipt', async () => {
   const original = globalThis.fetch;
   try {
