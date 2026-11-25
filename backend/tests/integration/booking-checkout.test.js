@@ -390,7 +390,6 @@ test('ST-BKG-21 / GBR-12: checkout options disable AI recommendations and list o
   expect((await checkout.options(owner)).recommendationAllowed).toBe(false);
   const priorSitter = oid();
   await connection.collection('users').insertOne({ _id: priorSitter, displayName: 'Prior Care Sitter', state: 'ACTIVE', roles: ['PET_SITTER'] });
-  await connection.collection('sitterpublicprofiles').insertOne({ userId: priorSitter, state: 'APPROVED' });
   await connection.collection('sitterstatuses').insertOne({ userId: priorSitter, status: 'ACTIVE' });
   expect((await checkout.options(owner)).sitters.map(s => s.id)).not.toContain(String(priorSitter));
   await connection.collection('visits').insertOne({ customerId: new mongoose.Types.ObjectId(owner.userId), sitterId: priorSitter, state: 'COMPLETED' });

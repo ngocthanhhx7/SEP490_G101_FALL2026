@@ -50,19 +50,12 @@ export async function listPreviousPetSitters(db, customerId, petIds = null, sess
   const sitterOids = [...new Map(visits.map((row) => [String(row.sitterId), row.sitterId])).values()];
   if (!sitterOids.length) return [];
 
-  const [users, profiles, statuses] = await Promise.all([
+  const [users, statuses] = await Promise.all([
     db
       .collection('users')
       .find(
         { _id: { $in: sitterOids }, state: 'ACTIVE', roles: 'PET_SITTER', synthetic: { $ne: true } },
         { projection: { displayName: 1 }, maxTimeMS: 5000, ...(session ? { session } : {}) }
-      )
-      .toArray(),
-    db
-      .collection('sitterpublicprofiles')
-      .find(
-        { userId: { $in: sitterOids }, state: 'APPROVED' },
-        { projection: { userId: 1 }, maxTimeMS: 5000, ...(session ? { session } : {}) }
       )
       .toArray(),
     db
@@ -74,10 +67,9 @@ export async function listPreviousPetSitters(db, customerId, petIds = null, sess
       .toArray()
   ]);
 
-  const approvedIds = new Set(profiles.map((row) => String(row.userId)));
   const activeIds = new Set(statuses.map((row) => String(row.userId)));
   return users
-    .filter((user) => approvedIds.has(String(user._id)) && activeIds.has(String(user._id)))
+    .filter((user) => activeIds.has(String(user._id)))
     .map((user) => ({ id: String(user._id), displayName: user.displayName }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName, 'vi') || a.id.localeCompare(b.id));
 }
