@@ -52,6 +52,22 @@ const oneHourAway = makeAppointment({
 
 const emptyDashboardApi = () => ({ read: jest.fn(async () => ({ data: { metrics: [{ key: 'upcomingVisits', label: 'Buổi sắp tới', value: 0 }], items: [], nextCursor: null } })) });
 
+test('desktop does not show an empty schedule while grooming is unavailable', async () => {
+  const groomingApi = { listAppointments: jest.fn(async () => { throw new ApiError('NETWORK_ERROR', 503); }) };
+  render(<MemoryRouter><CustomerDashboardPage api={emptyDashboardApi()} groomingApi={groomingApi} /></MemoryRouter>);
+  expect(await screen.findByRole('heading', { name: 'Chưa tải được lịch grooming' })).toBeVisible();
+  expect(screen.queryByText('Chưa có lịch chăm sóc')).not.toBeInTheDocument();
+});
+
+test('mobile offers retry and does not show an empty schedule while grooming is unavailable', async () => {
+  const groomingApi = { listAppointments: jest.fn(async () => { throw new ApiError('NETWORK_ERROR', 503); }) };
+  render(<MemoryRouter><MobileCareHome api={emptyDashboardApi()} loadCatalog={async () => ({ data: { available: true, services: [] } })} groomingApi={groomingApi} /></MemoryRouter>);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Chưa tải được lịch grooming');
+  expect(screen.queryByText('Chưa có lịch hẹn sắp tới')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
+  await waitFor(() => expect(groomingApi.listAppointments).toHaveBeenCalledTimes(2));
+});
+
 beforeEach(() => {
   if (!window.HTMLDialogElement.prototype.showModal) {
     window.HTMLDialogElement.prototype.showModal = function showModal() {
