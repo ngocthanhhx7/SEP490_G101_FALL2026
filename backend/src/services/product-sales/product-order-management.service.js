@@ -30,6 +30,11 @@ const OLDEST_FIRST_TABS = new Set(['PREPARE', 'AWAITING_PICKUP']);
 
 function toAdminOrderView(doc, customer) {
   const view = toOrderView(doc);
+  const vietqrPaid = Boolean(doc.paid && doc.payment?.receipts?.some((row) => row.state === 'VERIFIED'));
+  const paymentLink = doc.payment?.linkState
+    ? { state: doc.payment.linkState, checkoutUrl: doc.payment.checkoutUrl ?? null,
+      expiresAt: doc.payment.linkExpiresAt ?? null, orderCode: doc.payment.providerReferences?.at(-1) ?? null }
+    : null;
   return {
     ...view,
     // How many of each line went back on sale once the return was confirmed (null before that).
@@ -42,6 +47,8 @@ function toAdminOrderView(doc, customer) {
     returnedAt: doc.returnedAt ?? null,
     refundMarked: doc.refundMarked === true,
     refundAmountVnd: doc.refundAmountVnd ?? null,
+    vietqrPaid,
+    paymentLink,
     customer: { id: String(doc.customerId), displayName: customer?.displayName ?? null, phone: customer?.phone ?? null }
   };
 }
