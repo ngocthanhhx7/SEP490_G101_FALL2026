@@ -67,7 +67,7 @@ export function createProductOrderReceipts({ connection }) {
           return { status: 'DUPLICATE' };
         }
         await ProductOrder.updateOne({ _id: order._id },
-          { $push: { 'payment.receipts': keepNewest(entryOf(receipt, at, 'RECONCILIATION_REQUIRED', reason)) } }, { session });
+          { $inc: { version: 1 }, $push: { 'payment.receipts': keepNewest(entryOf(receipt, at, 'RECONCILIATION_REQUIRED', reason)) } }, { session });
         return { status: 'RECONCILIATION_REQUIRED', reason, orderId: String(order._id) };
       }
 
@@ -78,7 +78,7 @@ export function createProductOrderReceipts({ connection }) {
         { returnDocument: 'after', session }).lean();
       if (!paid) {
         await ProductOrder.updateOne({ _id: order._id },
-          { $push: { 'payment.receipts': keepNewest(entryOf(receipt, at, 'RECONCILIATION_REQUIRED', 'INTENT_CHANGED_DURING_WEBHOOK')) } }, { session });
+          { $inc: { version: 1 }, $push: { 'payment.receipts': keepNewest(entryOf(receipt, at, 'RECONCILIATION_REQUIRED', 'INTENT_CHANGED_DURING_WEBHOOK')) } }, { session });
         return { status: 'RECONCILIATION_REQUIRED', reason: 'INTENT_CHANGED_DURING_WEBHOOK', orderId: String(order._id) };
       }
       await notifications.productOrder({ order: paid, previous: order }, session);

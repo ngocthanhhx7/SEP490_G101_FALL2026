@@ -33,3 +33,5 @@ prepared, handed to the carrier or marked ready. A paid prepaid order that is
 cancelled or returned gets `refundMarked` and `refundAmountVnd` (GBR-37): the
 whole amount, or the price of the goods when the customer refused them without a
 reason. PWC does not call payOS to refund; accounting pays outside the system.
+
+A partial transfer, a positive receipt awaiting reconciliation or a still-payable link prevents cancellation and cash substitution. A link with money received is never reissued. Link reservations and reconciliation receipts advance the order version so stale cash/cancellation commands cannot release stock.

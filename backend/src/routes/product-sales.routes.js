@@ -19,7 +19,9 @@ import { createStockListService } from '../services/product-sales/stock-list.ser
 import { createProductCatalogService } from '../services/product-sales/product-catalog.service.js';
 import { createProductCartService } from '../services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../services/product-sales/product-order.service.js';
-import { createProductOrderPaymentService } from '../services/product-sales/product-order-payment.service.js';
+import { createProductOrderPaymentService, createProductOrderPaymentSettler } from '../services/product-sales/product-order-payment.service.js';
+import { createPayosPaymentWebhookService } from '../services/providers/payos/payment-webhook.service.js';
+import { createMongoPaymentWebhookRepository } from '../services/providers/payos/mongo-payment-webhook.repository.js';
 import { loadPayosConfig, createPayosProvider } from '../services/providers/payos/payos.provider.js';
 import { parseWebOrigin } from '../config/web-origin.js';
 import { createProductOrderManagementService } from '../services/product-sales/product-order-management.service.js';
@@ -76,8 +78,9 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   const orders = createProductOrderController(createProductOrderService({
     connection, serviceAreas: DEMO_WORK_AREAS, eligibility, clock, paymentDeadlineHours: config.paymentDeadlineHours }));
   const payos = provider ? null : loadPayosConfig(env);
+  const payosProvider = provider ?? (payos ? createPayosProvider(payos) : null);
   const payments = createProductOrderPaymentController(createProductOrderPaymentService({
-    connection, clock, provider: provider ?? (payos ? createPayosProvider(payos) : null), webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) }));
+    connection, clock, provider: payosProvider, webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) }));
   const orderRouter = Router();
   orderRouter.use(noStore, requireSession(session, { clock }), customer);
   orderRouter.get('/', orders.list);
@@ -91,8 +94,19 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     encryptionKey: config.auth.contactEncryptionKey
   });
   const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
+  const orderSettler = payosProvider && typeof payosProvider.getPaymentLink === 'function'
+    && typeof payosProvider.verifyWebhook === 'function'
+    ? createProductOrderPaymentSettler({
+      provider: payosProvider,
+      handleVerifiedPayment: createPayosPaymentWebhookService({
+        provider: payosProvider,
+        clock: () => new Date(clock()),
+        repository: createMongoPaymentWebhookRepository({ connection })
+      }).handleVerifiedPayment
+    })
+    : null;
   const management = createProductOrderManagementController(createProductOrderManagementService({
-    connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours
+    connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours, payments: orderSettler
   }));
   const managementRouter = Router();
   managementRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_ORDERS));

@@ -35,7 +35,7 @@ export function createProductOrderPaymentService({ connection, provider = null, 
           [`payment.providerReferences.${PRODUCT_PAYMENT_LIMITS.maxReferences - 1}`]: { $exists: false },
           $or: [{ 'payment.linkState': { $ne: 'CREATING' } },
             { 'payment.linkRequestedAt': { $lt: new Date(at.getTime() - STALE_LINK_REQUEST_MS) } }]
-        }, { $push: { 'payment.providerReferences': reference },
+        }, { $inc: { version: 1 }, $push: { 'payment.providerReferences': reference },
           $set: { 'payment.linkState': 'CREATING', 'payment.linkRequestedAt': at },
           $unset: { 'payment.checkoutUrl': '', 'payment.paymentLinkId': '' } },
         { returnDocument: 'after' }).lean();
@@ -65,10 +65,16 @@ export function createProductOrderPaymentService({ connection, provider = null, 
 
       const payment = order.payment ?? {};
       const references = payment.providerReferences ?? [];
+      if (unresolvedProductPayment(order)) throw paymentInProgress();
       if (payment.linkState === 'READY' && payment.checkoutUrl && references.length > 0) {
         // The customer comes back to the same link while it still works; once it failed or was cancelled, a new one is made.
-        const status = String((await lookup(references.at(-1))).providerStatus).toUpperCase();
-        if (status === 'PAID') {
+        for (const previous of references.slice(0, -1)) {
+          const prior = await lookup(previous);
+          if (prior.amountPaid !== 0 || !DEAD_LINK_STATES.has(String(prior.providerStatus).toUpperCase())) throw paymentInProgress();
+        }
+        const link = await lookup(references.at(-1));
+        const status = String(link.providerStatus).toUpperCase();
+        if (link.amountPaid !== 0 || status === 'PAID') {
           throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'Your payment was received and is being recorded.');
         }
         if (!DEAD_LINK_STATES.has(status)) return { checkoutUrl: payment.checkoutUrl, expiresAt: order.paymentDeadlineAt };
@@ -77,7 +83,7 @@ export function createProductOrderPaymentService({ connection, provider = null, 
       const reference = await reserveReference(order, at);
       const back = new URL(`/customer/product-orders?order=${String(order._id)}`, webOrigin).href;
       const reservation = {
-        _id: order._id, status: 'PLACED', paid: false, version: order.version,
+        _id: order._id, status: 'PLACED', paid: false, version: order.version + 1,
         'payment.linkState': 'CREATING',
         $expr: { $eq: [{ $arrayElemAt: ['$payment.providerReferences', -1] }, reference] }
       };
@@ -105,6 +111,23 @@ export function createProductOrderPaymentService({ connection, provider = null, 
   });
 }
 
+const paymentInProgress = () => new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'Check the existing payment before changing this order.');
+
+export const unresolvedProductPayment = order => order.payment?.receipts?.some(
+  receipt => receipt.state === 'RECONCILIATION_REQUIRED' && receipt.reason !== 'PROVIDER_PAYMENT_NOT_SUCCESSFUL' && receipt.amountVnd > 0
+);
+
+export async function checkProductPayment(order, payments) {
+  if (unresolvedProductPayment(order)) return 'RECONCILE';
+  if (!order.payment?.providerReferences?.length) return 'UNPAID';
+  if (!payments) throw providerUnavailable();
+  try { return await payments.settleIfPaid(order); } catch { throw providerUnavailable(); }
+}
+
+export function requireUnpaidProductOutcome(outcome) {
+  if (outcome !== 'UNPAID') throw paymentInProgress();
+}
+
 // R3 JOB-04, step 1: before an unpaid prepaid order is cancelled, payOS is asked whether it was paid after all.
 // `handleVerifiedPayment` is the webhook service's entry for payment data that was not sent by a webhook, so the payment
 // is recorded by the same code, once, whichever of the webhook and this check sees it first.
@@ -116,14 +139,21 @@ export function createProductOrderPaymentSettler({ provider, handleVerifiedPayme
     // 'PAID': recorded (the order is kept); 'RECONCILE': payOS knows a payment staff must look at (the order is kept for
     // them); 'UNPAID': payOS knows none. A payOS error is thrown so the caller leaves the order alone.
     async settleIfPaid(order) {
+      if (unresolvedProductPayment(order)) return 'RECONCILE';
+      let outcome = 'UNPAID';
       for (const reference of [...(order.payment?.providerReferences ?? [])].reverse()) {
         const link = await provider.getPaymentLink(Number(reference));
-        if (String(link.providerStatus).toUpperCase() !== 'PAID' || link.amountPaid <= 0) continue;
+        const status = String(link.providerStatus).toUpperCase();
+        if (status !== 'PAID') {
+          if (!DEAD_LINK_STATES.has(status) || link.amountPaid !== 0) outcome = 'RECONCILE';
+          continue;
+        }
+        if (!Number.isSafeInteger(link.amountPaid) || link.amountPaid <= 0) return 'RECONCILE';
         const result = await handleVerifiedPayment({ orderCode: link.orderCode, amount: link.amountPaid, currency: 'VND',
           code: '00', reference: `LINK-${link.orderCode}`, paymentLinkId: `LINK-${link.orderCode}`, transactionDateTime: null });
-        return result.status === 'PAYMENT_VERIFIED' || result.status === 'DUPLICATE' ? 'PAID' : 'RECONCILE';
+        return result.status === 'PAYMENT_VERIFIED' ? 'PAID' : 'RECONCILE';
       }
-      return 'UNPAID';
+      return outcome;
     }
   });
 }

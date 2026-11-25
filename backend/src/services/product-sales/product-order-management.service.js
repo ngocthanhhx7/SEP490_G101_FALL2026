@@ -1,3 +1,4 @@
+import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
@@ -153,7 +154,7 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
       channel: { $ne: COUNTER_CHANNEL },
       paymentDeadlineAt: { $lte: cutoff }
     };
-    const candidates = await ProductOrder.find(filter).select('_id version payment.providerReferences')
+    const candidates = await ProductOrder.find(filter).select('_id version payment.providerReferences payment.receipts')
       .sort({ paymentDeadlineAt: 1, _id: 1 }).limit(PICKUP_EXPIRY_BATCH_SIZE).lean();
     for (const candidate of candidates) {
       try {
@@ -162,7 +163,7 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
           summary.kept += 1;
           continue;
         }
-        const outcome = payments ? await payments.settleIfPaid(candidate) : 'UNPAID';
+        const outcome = await checkProductPayment(candidate, payments);
         if (outcome !== 'UNPAID') { summary.kept += 1; continue; }
         // The cancellation only applies while the order is still unpaid and unchanged. A late payment is no refusal
         // (GBR-36), so no refusal record is written.
@@ -198,7 +199,7 @@ export const createProductPickupExpiryService = createProductOrderExpiryService;
 // a confirmed return puts back only what can be sold again.
 // phones is the customer phone directory; it is injected by route composition.
 export function createProductOrderManagementService({
-  connection, phones, clock = Date.now, pickupDeadlineHours = DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS
+  connection, phones, payments = null, clock = Date.now, pickupDeadlineHours = DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS
 }) {
   if (typeof phones?.userIdsByPhone !== 'function' || typeof phones?.phonesOf !== 'function') {
     throw new TypeError('A customer phone directory is required');
@@ -354,10 +355,14 @@ export function createProductOrderManagementService({
       });
     },
     // Orders that have not left the shop: release the hold only; real stock is unchanged.
-    cancel(actor, orderId, body) {
+    async cancel(actor, orderId, body) {
       parseNoBody(body);
       requireOnlineOrderCanceller(actor);
+      const current = await ProductOrder.findOne({ _id: parseObjectId(orderId, 'orderId'), channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (!current) throw productSalesErrors.notFound();
+      if (!current.paid) requireUnpaidProductOutcome(await checkProductPayment(current, payments));
       return transition(actor, orderId, {
+        check: order => { if (order.version !== current.version) throw productSalesErrors.orderStateConflict(order.status); },
         allowed: (order) => ['PLACED', 'READY'].includes(order.status),
         changes: (order) => ({ status: 'CANCELLED', ...refundChanges(order) }),
         stock: 'RELEASE'
