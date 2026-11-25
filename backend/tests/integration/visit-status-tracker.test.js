@@ -71,6 +71,24 @@ beforeAll(async () => {
 
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
+test('owner can read only the assigned active sitter approved bio and areas; re-review hides them', async () => {
+  await col('users').updateOne({ _id: sitter }, { $set: { roles: ['PET_SITTER'], state: 'ACTIVE' } });
+  await col('sitterstatuses').insertOne({ userId: sitter, status: 'ACTIVE' });
+  await col('sitterpublicprofiles').insertOne({ userId: sitter, state: 'APPROVED', bio: 'Approved bio', areas: ['Hà Nội'], reason: 'INTERNAL_NOTE' });
+  try {
+    const res = await read(active).expect(200);
+    expect(res.body.data.sitter.profile).toEqual({ bio: 'Approved bio', areas: ['Hà Nội'] });
+    expect(res.body.data.actions.profile).toBe(true);
+    expect(res.text).not.toContain('INTERNAL_NOTE');
+    await col('sitterpublicprofiles').updateOne({ userId: sitter }, { $set: { state: 'SUBMITTED' } });
+    const pending = await read(active).expect(200);
+    expect(pending.body.data.actions.profile).toBe(false);
+    expect(pending.text).not.toContain('Approved bio');
+  } finally {
+    await col('sitterpublicprofiles').deleteOne({ userId: sitter });
+  }
+});
+
 test('UC-78 owner reads live times, first matching checklist and newest updates with private caching', async () => {
   const response = await read(active).expect(200);
   expect(response.headers['cache-control']).toBe('private, no-store');
@@ -132,4 +150,47 @@ test('UC-78 keeps the care report available for a completed visit on an overdue 
   expect(data.visit).toMatchObject({ status: 'REPORT_READY', showProgress: true });
   expect(data.milestones.at(-1)).toMatchObject({ key: 'REPORT_READY', reached: true, at: at('07:31').toISOString() });
   expect(data.actions.careReport).toBe(true);
+});
+
+test('UC-78 offers the travel entry only inside the assigned pre-check-in window', async () => {
+  const bookingId = oid(), visitId = oid();
+  const source = await col('visits').findOne({ _id: active });
+  await col('bookings').insertOne({ _id: bookingId, customerId: owner, state: 'ASSIGNED', visitIds: [visitId] });
+  await col('visits').insertOne({ ...source, _id: visitId, bookingId, state: 'ASSIGNED',
+    checkInAt: null, startAt: at('08:43'), endAt: at('09:15') });
+  const get = () => request(app).get(path(visitId, bookingId)).set('x-test-actor', 'owner').expect(200);
+  expect((await get()).body.data.actions.travel).toBeUndefined();
+  await col('visits').updateOne({ _id: visitId }, { $set: { startAt: at('08:42') } });
+  expect((await get()).body.data.actions.travel).toBe(true);
+  await col('visits').updateOne({ _id: visitId }, { $set: { state: 'IN_PROGRESS', checkInAt: at('08:12') } });
+  expect((await get()).body.data.actions.travel).toBeUndefined();
+});
+
+test('UC-78 shows customer-visible SOP photos during care and makes the report available at checkout', async () => {
+  const bookingId = oid(), visitId = oid(), petId = String(oid());
+  const source = await col('visits').findOne({ _id: arrived });
+  const step = (stepId, customerVisible) => ({ stepId, title: stepId, phase: 'EXECUTION', scope: 'PER_PET',
+    customerVisible, locations: ['HOME'], species: ['DOG'], photoSlots: [{ photoSlotId: 'proof', title: 'Ảnh SOP', maxPhotos: 1 }] });
+  const result = (stepId, mediaId) => ({ taskKey: `${stepId}:${petId}`, status: 'COMPLETED', updatedAt: at('07:15'),
+    evidence: [{ photoSlotId: 'proof', mediaId, uploadedBy: String(sitter) }] });
+  const photo = 'a'.repeat(64), hidden = 'b'.repeat(64);
+  await col('bookings').insertOne({ _id: bookingId, customerId: owner, state: 'IN_PROGRESS', visitIds: [visitId] });
+  await col('visits').insertOne({ ...source, _id: visitId, bookingId, checklist: null, location: 'HOME',
+    snapshots: { ...source.snapshots, pets: [{ id: petId, name: 'Milo', species: 'DOG' }], workflow: {
+      definition: { title: 'SOP', steps: [step('feeding', true), step('internal', false)] }, revision: 2
+    } }, workflowResults: [result('feeding', photo), result('internal', hidden)] });
+  const get = actor => request(app).get(path(visitId, bookingId)).set('x-test-actor', actor);
+  const activeRead = await get('owner').expect(200);
+  expect(activeRead.body.data.visit.status).toBe('IN_PROGRESS');
+  expect(activeRead.body.data.actions.careReport).toBe(false);
+  expect(activeRead.body.data.careUpdates).toEqual([{ taskKey: `feeding:${petId}`, title: 'feeding', petName: 'Milo',
+    status: 'COMPLETED', at: at('07:15').toISOString(), photos: [{ mediaId: photo, label: 'Ảnh SOP' }] }]);
+  expect(activeRead.text).not.toContain(hidden);
+  expect(activeRead.text).not.toContain('uploadedBy');
+  await get('other').expect(404);
+  await col('visits').updateOne({ _id: visitId }, { $set: { state: 'COMPLETED', checkOutAt: at('07:30') } });
+  const done = (await get('owner').expect(200)).body.data;
+  expect(done.visit.status).toBe('REPORT_READY');
+  expect(done.actions.careReport).toBe(true);
+  expect(done.careUpdates).toBeNull();
 });

@@ -1,5 +1,6 @@
 import { beforeAll } from '@jest/globals';
 import { useState } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { VisitBoard } from '../../src/pages/staff/visit-board/VisitBoard.jsx';
 import { EmployeeDispatchPage } from '../../src/pages/staff/EmployeeDispatchPage.jsx';
@@ -14,7 +15,8 @@ beforeAll(() => {
 const MIN = 60000;
 const workAreas = [{ code: 'DISTRICT_CAU_GIAY', label: 'Cầu Giấy' }, { code: 'DISTRICT_DONG_DA', label: 'Đống Đa' }];
 // Synthetic rows. Times are Vietnam time on 04/11/2026.
-const base = { version: 1, areaCode: 'DISTRICT_CAU_GIAY', state: 'ASSIGNED', reviewCode: null, serviceName: 'Chăm sóc tại nhà' };
+const base = { version: 1, areaCode: 'DISTRICT_CAU_GIAY', state: 'ASSIGNED', reviewCode: null, serviceName: 'Chăm sóc tại gia',
+  serviceDisplayName: 'Chăm sóc sinh hoạt thú cưng', petNames: ['Bơ'], location: 'HOME' };
 const rows = {
   notCheckedIn: { ...base, id: 'v-51', bookingId: '6720a1b2c3d4e5f6a7b8c951', bookingCode: 'BK-0051', startAt: '2026-11-04T01:05:00Z', endAt: '2026-11-04T02:05:00Z',
     customerName: 'Ngô Minh Đức', sitterId: 's-1', sitterName: 'Trịnh Văn Hoà', reasons: [{ code: 'NOT_CHECKED_IN_30M', late: true, ms: 35 * MIN }] },
@@ -98,8 +100,14 @@ describe('Cần xử lý table', () => {
   test('shows booking, customer, main reason, time, sitter and an action for each visit', async () => {
     render(<Harness api={board()} />);
     const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
-    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Buổi', 'Khách hàng', 'Lý do', 'Thời gian', 'Người chăm sóc', 'Thao tác']);
+    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Buổi chăm sóc', 'Khách hàng', 'Lý do', 'Thời gian', 'Khu vực', 'Người chăm sóc', 'Thao tác']);
     const row = table.getByText('BK-0051').closest('tr');
+    const [visit, customer] = within(row).getAllByRole('cell');
+    expect(within(row).getByText('Cầu Giấy')).toBeVisible();
+    expect(visit.querySelector('strong')).toHaveTextContent('Chăm sóc sinh hoạt thú cưng');
+    expect(visit).toHaveTextContent('Bơ');
+    expect(visit).toHaveTextContent('Tại nhà');
+    expect(customer).toHaveTextContent('Mã lịch · BK-0051');
     expect(within(row).getByText('Ngô Minh Đức')).toBeInTheDocument();
     expect(within(row).getByText('Chưa check-in sau 30 phút')).toBeInTheDocument();
     expect(within(row).getByText('Trễ 35 phút')).toHaveClass('visit-board__late');
@@ -123,6 +131,16 @@ describe('Cần xử lý table', () => {
     expect(table.getByText('Chưa check-in sau 30 phút')).toBeInTheDocument();
     expect(table.getByText('Rút buổi dưới 12 giờ')).toBeInTheDocument();
     expect(table.getByRole('button', { name: 'Gọi người chăm sóc' })).toBeInTheDocument();
+  });
+
+  test('an overdue unassigned visit shows the overdue label when there are also no eligible sitters', async () => {
+    const overdue = { ...rows.shiftReached, reviewCode: 'NO_ELIGIBLE_CANDIDATES', unassignedOverdue: true,
+      reasons: [{ code: 'NO_SITTER_TO_OFFER', late: true, ms: 50 * MIN }, ...rows.shiftReached.reasons] };
+    const api = board({ visitBoard: jest.fn().mockResolvedValue(needsPage([overdue])) });
+    render(<Harness api={api} />);
+    const table = within(await screen.findByRole('region', { name: 'Buổi cần xử lý' }));
+    expect(table.getByText('Đã qua giờ hẹn, chưa có người nhận')).toBeVisible();
+    expect(table.getByText('Hết người để mời')).toBeVisible();
   });
 
   test('says so when nothing needs action, and when a search matches nothing', async () => {
@@ -288,7 +306,7 @@ describe('Tất cả buổi', () => {
     render(<Harness api={api} />);
     fireEvent.click(tabNamed('Tất cả buổi'));
     const table = within(await screen.findByRole('region', { name: 'Tất cả buổi' }));
-    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Giờ', 'Lịch đặt', 'Dịch vụ', 'Khu vực', 'Người chăm sóc', 'Trạng thái']);
+    expect(table.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Buổi chăm sóc', 'Khách hàng', 'Khu vực', 'Người chăm sóc', 'Trạng thái']);
     expect(table.getByText('Đống Đa')).toBeInTheDocument();
     expect(table.getByText('Chờ phân công')).toBeInTheDocument();
     expect(table.getByText('Đã nhận')).toBeInTheDocument();
@@ -353,6 +371,35 @@ describe('the dispatch page', () => {
   function pageApi(overrides = {}) {
     return { ...board(), queue: jest.fn().mockResolvedValue({ data: { items: [legacy('v-42'), legacy('legacy-only')], workAreas, today: { date: '04/11/2026', asOf: startAt, summary: { total: 7, inProgress: 1, completed: 2, late: 0 } } } }), ...overrides };
   }
+
+  test('shows stored scores and can add an eligible sitter while offers are pending', async () => {
+    const row = { ...legacy('legacy-only'), version: 3, dispatchState: 'AWAITING_RESPONSE',
+      pendingInvitation: { deadline: startAt }, pendingInvitationCount: 5,
+      dispatchRanking: { at: startAt, minimumRequested: 5, eligibleCount: 6, invitedCount: 5,
+        candidates: [{ sitterId: 's-1', displayName: 'Người Có Tâm', invited: true, score: 92.5,
+          breakdown: [{ key: 'fit', points: 25, maximum: 30 }] }] },
+      latestOffers: [{ sitterId: 's-1', offeredAt: startAt, deadline: startAt, state: 'PENDING', displayName: 'Người Có Tâm' }] };
+    const api = pageApi({
+      dispatchDetails: jest.fn().mockResolvedValue({ data: row }),
+      candidates: jest.fn().mockResolvedValue({ data: { items: [{ sitterId: 's-6', displayName: 'Người bổ sung' }], blocked: [] } }),
+      invite: jest.fn().mockResolvedValue({ data: { invitationCount: 1 } })
+    });
+    render(<MemoryRouter><EmployeeDispatchPage api={api} /></MemoryRouter>);
+    fireEvent.click(within((await screen.findByText('Ca legacy-only')).closest('tr')).getByRole('button'));
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(await dialog.findByText('92,5 / 100')).toBeVisible();
+    fireEvent.click(dialog.getByText('Chi tiết điểm'));
+    expect(dialog.getByText('Phù hợp dịch vụ')).toBeVisible();
+    expect(dialog.getByText('25 / 30')).toBeVisible();
+    expect(dialog.getByText('5 lời mời đang chờ phản hồi')).toBeVisible();
+    expect(dialog.getByText(/Hạn gần nhất/)).toBeVisible();
+    expect(dialog.getByText(/Chờ phản hồi đến/)).toBeVisible();
+    fireEvent.click(dialog.getByRole('button', { name: 'Gửi thêm lời mời' }));
+    fireEvent.click(await dialog.findByRole('radio', { name: /Người bổ sung/ }));
+    fireEvent.click(dialog.getByRole('button', { name: 'Gửi lời mời bổ sung', exact: true }));
+    await waitFor(() => expect(api.invite).toHaveBeenCalledWith(row.id, 3, expect.any(String), 's-6'));
+    await waitFor(() => expect(api.dispatchDetails).toHaveBeenCalledTimes(2));
+  });
 
   test('shows the three tabs with the counts, and the legacy queue under its own title without the visits already listed', async () => {
     render(<EmployeeDispatchPage api={pageApi()} />);

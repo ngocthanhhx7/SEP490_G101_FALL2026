@@ -100,7 +100,7 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
         { $sort: { ...(priority.length && { _activePriority: 1 }), startAt: direction, _id: direction } },
         { $limit: query.group === 'next' ? 1 : query.limit + 1 },
         { $project: { _id: 1, state: 1, startAt: 1, endAt: 1, bookingId: 1, sitterId: 1, 'snapshots.serviceName': 1, 'snapshots.pets.name': 1,
-          ...(scope.kind === 'customer-dashboard' && query.group && { location: 1, 'snapshots.serviceScope': 1 }) } }], options).toArray();
+          ...(query.group && { location: 1, 'snapshots.serviceScope': 1 }) } }], options).toArray();
       const page = rows.slice(0, query.limit);
       if (page.some(row => !['SCHEDULED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED', 'STAFF_CLOSED', 'CANCELLED', 'SUPERSEDED'].includes(row.state)
         || !(row.startAt instanceof Date) || !Number.isFinite(row.startAt.getTime()))) invalid();
@@ -117,11 +117,13 @@ export function createMongoOperationalDashboardRepository({ connection, cursorSe
             ...(row.bookingId && { bookingId: String(row.bookingId) }),
             ...(row.endAt instanceof Date && { endsAt: row.endAt.toISOString() }),
             serviceName: row.snapshots?.serviceName,
+            serviceScope: row.snapshots?.serviceScope,
+            location: row.location,
             sitterName: sitterNames.get(String(row.sitterId)),
             petNames: Array.isArray(row.snapshots?.pets) ? row.snapshots.pets.map(pet => pet?.name) : [],
             overdue: open.includes(row.state) && row.startAt < asOf
           } : {}),
-          ...(scope.kind === 'customer-dashboard' ? { customerId: scope.userId, location: row.location, serviceScope: row.snapshots?.serviceScope } : {}),
+          ...(scope.kind === 'customer-dashboard' ? { customerId: scope.userId } : {}),
           ...(scope.kind === 'sitter-dashboard' ? { sitterId: String(row.sitterId) } : {}) })),
         nextCursor: rows.length > query.limit ? codec.encode({ id: String(last._id), startAt: last.startAt.toISOString(),
           ...(query.group && { asOf: asOf.toISOString() }) }, context) : null };

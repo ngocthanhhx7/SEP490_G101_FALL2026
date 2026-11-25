@@ -60,7 +60,7 @@ export function ProductDetailsPage() {
     } finally { setBusy(false); }
   }
 
-  const back = <Link className="pwc-shop-back" to="/products"><ArrowLeft aria-hidden="true" size={18} />Quay lại Sản phẩm</Link>;
+  const back = <Link className="pwc-shop-back" data-page-back to="/products"><ArrowLeft aria-hidden="true" size={18} />Quay lại Sản phẩm</Link>;
   if (resource.status === 'loading') return <section className="pwc-shop">{back}<Notice state="loading" title="Đang tải sản phẩm…" /></section>;
   if (!product) {
     const missing = resource.httpStatus === 404 || resource.status === 'empty';

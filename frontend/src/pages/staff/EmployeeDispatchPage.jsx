@@ -11,8 +11,10 @@ import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { DispatchDiagnostics, DispatchRecoveryPanel } from './DispatchRecoveryPanel.jsx';
 import { DispatchSitterPicker } from './DispatchSitterPicker.jsx';
+import { DispatchRanking } from './DispatchRanking.jsx';
 import { StaffTravelMonitor } from './StaffTravelMonitor.jsx';
 import { VisitBoard } from './visit-board/VisitBoard.jsx';
+import { VisitBoardCustomer, VisitBoardStatus, VisitBoardSummary } from './visit-board/VisitBoardCells.jsx';
 import { StaffBookingChangeRequests } from './booking-change/StaffBookingChangeRequests.jsx';
 import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import '../../styles/employee-scheduling.css';
@@ -25,19 +27,11 @@ const time = (value) =>
     hour: '2-digit',
     minute: '2-digit',
   });
-const visitLabel = {
-  SCHEDULED: 'Chờ phân công',
-  ASSIGNED: 'Đã nhận',
-  IN_PROGRESS: 'Đang chăm sóc',
-  COMPLETED: 'Đã xong',
-  CANCELLED: 'Đã hủy',
-  STAFF_CLOSED: 'Đã đóng',
-};
-const visitTitle = row => `${row.serviceName || 'Ca chăm sóc'}${row.petNames?.length ? ' cho ' + row.petNames.join(', ') : ''}`;
 const short = (id) => (id ? '…' + id.slice(-6) : '—');
 const reviewLabel = (code) =>
   ({
     NO_ELIGIBLE_SITTER: 'Chưa có người chăm sóc đủ điều kiện nhận ca.',
+    INSUFFICIENT_DISPATCH_CANDIDATES: 'Chưa đủ 5 người phù hợp để mời tự động.',
     STAFF_REVIEW_REQUIRED: 'Các lời mời đã bị từ chối hoặc hết hạn.',
     DIRECTED_SCHEDULE_REVIEW_REQUIRED: 'Người được khách chỉ định chưa thể nhận ca.',
     TRAVEL_REVIEW_REQUIRED: 'Cần xác minh khả năng di chuyển.',
@@ -45,7 +39,7 @@ const reviewLabel = (code) =>
     DISPATCH_SEARCH_LIMIT: 'Số lượng hồ sơ vượt giới hạn tìm tự động. Cần điều phối kiểm tra.',
     SHIFT_START_REACHED: 'Đã đến giờ nhưng chưa có người nhận ca. Cần liên hệ khách để sắp xếp lại.',
   })[code] ?? 'Cần kiểm tra và sắp xếp người nhận ca.';
-export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
+export function EmployeeDispatchPage({ api, selectedSitter, initialVisitId, onCloseVisit, initialWorkflowId, initialWithdrawalId, initialClosureId, canVerifyClosure = false }) {
   const validSelection = !selectedSitter || /^[a-f0-9]{24}$/i.test(selectedSitter);
   const [visitTravelEnabled, setVisitTravelEnabled] = useState(false);
   const [bookingChangesRevision, setBookingChangesRevision] = useState(0);
@@ -59,18 +53,28 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
   const queue = useApiResource(load);
   const [tab, setTab] = useState('needs');
   const [board, setBoard] = useState({ ids: new Set(), filtering: false });
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(initialVisitId ?? null);
+  const [addingInvitation, setAddingInvitation] = useState(false);
+  function closeVisit() {
+    setSelected(null);
+    setAddingInvitation(false);
+    onCloseVisit?.();
+  }
   const [withdrawalToReview, setWithdrawalToReview] = useState(null);
   const loadSelected = useCallback(({ signal }) => selected && api.dispatchDetails
     ? api.dispatchDetails(selected, { signal }) : Promise.resolve({ data: null }), [api, selected]);
   const selectedDetails = useApiResource(loadSelected);
   const [proposal, setProposal] = useState(null);
-  const command = useSchedulingCommand(() => queue.retry());
+  const command = useSchedulingCommand(() => {
+    setAddingInvitation(false);
+    queue.retry();
+    if (selected) selectedDetails.retry();
+  });
   const rows = queue.data?.items ?? [],
     active = selectedDetails.data?.id === selected ? selectedDetails.data : rows.find((row) => row.id === selected),
     legacyRows = rows.filter((row) => !board.ids.has(row.id)),
     today = queue.data?.today;
-  const area = (code) => queue.data?.workAreas?.find((a) => a.code === code)?.label ?? code ?? '—';
+  const area = (code) => queue.data?.workAreas?.find((a) => a.code === code)?.label ?? 'Chưa rõ khu vực';
   const action = (row) =>
     row.pendingInvitation
       ? 'Đang chờ phản hồi'
@@ -117,7 +121,7 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
       {selected && !active && selectedDetails.status === 'loading' && <p role="status">Đang tải chi tiết ca…</p>}
       {selected && !active && ['error', 'forbidden', 'pending'].includes(selectedDetails.status) && <p role="alert">
         Chưa tải được ca này. <button onClick={selectedDetails.retry}>Thử lại</button>{' '}
-        <button onClick={() => setSelected(null)}>Đóng</button>
+        <button onClick={closeVisit}>Đóng</button>
       </p>}
       {!active && command.pending && (
         <Button disabled={command.busy} onClick={command.retry}>
@@ -165,15 +169,8 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           columns={[
             {
               key: 'visit',
-              label: 'Buổi',
-              render: (r) => (
-                <>
-                  <strong>{visitTitle(r)}</strong>
-                  <small>
-                    {time(r.startAt)} – {time(r.endAt)}
-                  </small>
-                </>
-              ),
+              label: 'Buổi chăm sóc',
+              render: (r) => <VisitBoardSummary row={r} />,
             },
             { key: 'customerName', label: 'Khách hàng', render: (r) => r.customerName ?? 'Chưa có tên' },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
@@ -227,49 +224,22 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
             </p>
           </div>
         </header>
-        <OperationsTable
+        <div className="visit-board"><OperationsTable
           label="Buổi chăm sóc hôm nay"
           rows={today?.items ?? []}
           empty={today ? 'Chưa có buổi chăm sóc hôm nay.' : 'Chưa có số liệu hôm nay.'}
           columns={[
-            {
-              key: 'time',
-              label: 'Giờ',
-              render: (r) => (
-                <>
-                  {time(r.startAt)}
-                  <small>Đến {time(r.endAt)}</small>
-                </>
-              ),
-            },
-            {
-              key: 'booking',
-              label: 'Lịch đặt',
-              render: (r) => <span>{visitTitle(r)}</span>,
-            },
+            { key: 'visit', label: 'Buổi chăm sóc', render: (r) => <VisitBoardSummary row={r} /> },
+            { key: 'customer', label: 'Khách hàng', render: (r) => <VisitBoardCustomer row={r} /> },
             { key: 'area', label: 'Khu vực', render: (r) => area(r.areaCode) },
             { key: 'sitterName', label: 'Người chăm sóc', render: (r) => r.sitterName ?? 'Chưa phân công' },
             {
               key: 'state',
               label: 'Trạng thái',
-              render: (r) => (
-                <OperationsBadge
-                  tone={
-                    r.late
-                      ? 'danger'
-                      : r.state === 'COMPLETED'
-                        ? 'success'
-                        : r.state === 'IN_PROGRESS'
-                          ? 'info'
-                          : 'neutral'
-                  }
-                >
-                  {r.late ? 'Chưa check-in, cần kiểm tra' : (visitLabel[r.state] ?? 'Cần đối chiếu')}
-                </OperationsBadge>
-              ),
+              render: (r) => r.late ? <OperationsBadge tone="danger">Chưa check-in, cần kiểm tra</OperationsBadge> : <VisitBoardStatus row={r} />,
             },
           ]}
-        />
+        /></div>
         {today?.hasMore && (
           <p className="ops-muted">
             Đang hiển thị 50 buổi đầu tiên trên tổng {today.summary.total} buổi. Báo cáo phía trên tính toàn
@@ -283,9 +253,9 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           title="Chi tiết điều phối"
           className="ops-dialog dispatch-detail-dialog"
           dismissible={!command.busy && !command.pending}
-          onClose={() => setSelected(null)}
+          onClose={closeVisit}
         >
-          <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceName}</h3>
+          <div className="dispatch-detail-layout"><aside className="dispatch-visit-summary"><h3>{active.serviceDisplayName || active.serviceName || 'Chưa rõ dịch vụ'}</h3>
           <p>
             {time(active.startAt)} – {time(active.endAt)} · {area(active.areaCode)}
           </p>
@@ -293,12 +263,18 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
             {active.customerName ?? 'Khách hàng'} ·{' '}
             {active.reviewCode ? reviewLabel(active.reviewCode) : 'Hệ thống đang điều phối'}
           </p>
-          <details><summary>Kết quả tìm tự động gần nhất</summary><DispatchDiagnostics value={active.diagnostics} /><p>Danh sách chỉ định bên dưới được kiểm tra lại theo điều kiện mời thủ công cho lịch hiện tại.</p></details>
+          {active.diagnostics && <details><summary>Kết quả kiểm tra điều kiện</summary><DispatchDiagnostics value={active.diagnostics} /></details>}
           </aside><div className="dispatch-detail-work">{active.pendingInvitation ? (
-            <p>
-              {active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi ·{' '}
-              {time(active.pendingInvitation.deadline)}
-            </p>
+            <div className="dispatch-invitation-header">
+              <div><p>{active.pendingInvitationCount ?? 1} lời mời đang chờ phản hồi</p>
+                <small>Hạn gần nhất {time(active.pendingInvitation.earliestDeadline ?? active.pendingInvitation.deadline)}</small>
+              </div>
+              {!active.requestedSitterId && active.reviewCode !== 'SHIFT_START_REACHED' && api.candidates && (
+                <Button variant="secondary" aria-expanded={addingInvitation} onClick={() => setAddingInvitation(value => !value)}>
+                  {addingInvitation ? 'Đóng danh sách chọn' : 'Gửi thêm lời mời'}
+                </Button>
+              )}
+            </div>
           ) : active.reviewCode === 'SHIFT_START_REACHED' ? (
             <p>Cần khách xác nhận lịch mới trước khi tìm lại.</p>
           ) : active.dispatchState === 'NEEDS_STAFF' && api.candidates ? (
@@ -325,6 +301,13 @@ export function EmployeeDispatchPage({ api, selectedSitter, initialWorkflowId, i
           ) : (
             <p>Hệ thống đang tìm người nhận ca</p>
           )}
+          {addingInvitation && active.pendingInvitation && !active.requestedSitterId && active.reviewCode !== 'SHIFT_START_REACHED' && api.candidates && (
+            <DispatchSitterPicker key={`additional:${active.id}:${active.version}`} row={active} api={api} command={command}
+              selectedSitter={selectedSitter} onProposed={setProposal} additional />
+          )}
+          <DispatchRanking ranking={active.dispatchRanking} latestOffers={active.latestOffers}
+            loading={selectedDetails.status === 'loading'} failed={['error', 'forbidden', 'pending'].includes(selectedDetails.status)}
+            onRetry={selectedDetails.retry} />
           {active.dispatchState === 'NEEDS_STAFF' && !active.pendingInvitation && api.candidates && (
             <DispatchRecoveryPanel
               key={`${active.id}:${active.version}`}

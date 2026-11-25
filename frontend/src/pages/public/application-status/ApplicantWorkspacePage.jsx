@@ -69,6 +69,6 @@ function OwnedApplication({api}) {
     {a.canEdit?<><p>Bạn có thể sửa thông tin và giấy tờ cho đến khi PawWorld bắt đầu thẩm định.</p><button onClick={()=>setEditing(true)}>Sửa hồ sơ</button></>:<p>{a.state==='APPROVED'?'Hồ sơ đã được duyệt. Bạn có thể mở khu vực Pet Sitter.':'Hồ sơ đã được xử lý nên không thể sửa trực tiếp. Nếu cần đính chính, hãy liên hệ PawWorld.'}</p>}
     <button onClick={resource.retry}>Cập nhật trạng thái</button></>}
     {a.timeline?.length>0&&<details><summary>Lịch sử xử lý hồ sơ</summary><ul>{a.timeline.map((t,index)=><li key={index}>{date(t.at)} · {t.action==='APPLICATION_UPDATED'?'Bạn cập nhật hồ sơ':labels[t.state]??t.state}</li>)}</ul></details>}
-    {a.state==='APPROVED'&&<Link to="/sitter">Mở khu vực Pet Sitter</Link>}<Link to="/account">Tài khoản khách hàng</Link>
+    {a.state==='APPROVED'&&<Link to="/sitter">Mở khu vực Pet Sitter</Link>}<Link data-page-back to="/account">Tài khoản</Link>
   </section>;
 }

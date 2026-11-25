@@ -59,3 +59,25 @@ test('changing compact layout preserves the open form', async () => {
   view.rerender(shell(null));
   expect(screen.getByRole('textbox')).toHaveValue('Nội dung đang nhập');
 });
+
+test('Back from an application status deep link does not send a guest into the account guard', async () => {
+  await act(async () => { show({ path: '/sitter/application-status' }); });
+  expect(screen.getByRole('link', { name: 'Quay lại' })).toHaveAttribute('href', '/');
+});
+
+test('a product list never uses itself as the Back destination', async () => {
+  await act(async () => {
+    show({ role: 'CUSTOMER', path: '/customer/product-orders/', search: '?page=3',
+      state: { mobileBack: '/customer/product-orders?page=3' } });
+  });
+  expect(screen.getByRole('link', { name: 'Quay lại' })).toHaveAttribute('href', '/account');
+});
+
+test('booking Back opens the selected service, with the catalog as fallback for an invalid ID', async () => {
+  const id = 'aaaaaaaaaaaaaaaaaaaaaaaa';
+  const booking = show({ role: 'CUSTOMER', path: '/booking/' + id });
+  await waitFor(() => expect(screen.getByRole('link', { name: 'Quay lại' })).toHaveAttribute('href', '/services/' + id));
+  booking.unmount();
+  await act(async () => { show({ role: 'CUSTOMER', path: '/booking/invalid' }); });
+  expect(screen.getByRole('link', { name: 'Quay lại' })).toHaveAttribute('href', '/services');
+});

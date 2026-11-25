@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Button, Dialog, Input, Notice } from '../../components/ui/index.js';
 import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
@@ -211,7 +210,6 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
   </>;
 
   return <section className="account-settings" aria-labelledby="account-settings-title">
-    <div className="account-settings-breadcrumb"><Link to="/account">Tài khoản</Link><span aria-hidden="true">/</span><strong>Cài đặt</strong></div>
     <header className="account-settings-heading">
       <span className="account-settings-eyebrow">BẢO MẬT TÀI KHOẢN</span>
       <h1 id="account-settings-title" data-duplicate-title>Cài đặt tài khoản</h1>
@@ -235,7 +233,7 @@ export function AccountSettingsPage({ api: suppliedApi } = {}) {
           <p>{ROLE_LABELS[role] ?? 'Chưa có thông tin'}</p>
         </div>
       </div>
-      <p className="account-settings-caption">Tên khách hàng được sửa trong hồ sơ cá nhân. Cài đặt này không thay đổi tên hoặc vai trò.</p>
+      <p className="account-settings-caption">Bạn có thể cập nhật tên trong hồ sơ cá nhân. Cài đặt này không thay đổi tên hoặc vai trò.</p>
     </section>
 
     <section className="account-settings-card" aria-labelledby="account-settings-contacts-title">

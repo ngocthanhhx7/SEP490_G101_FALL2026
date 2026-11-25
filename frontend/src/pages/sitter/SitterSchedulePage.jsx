@@ -1,13 +1,13 @@
 import { useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { sitterDashboardApi } from '../../services/sitter-dashboard-api.js';
-import { Button } from '../../components/ui/index.js';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin } from 'lucide-react';
+import { CompactEmpty, CompactRow } from '../../components/common/CompactSurface.jsx';
+import { SitterVisitCard } from './SitterVisitCard.jsx';
+import { Button, Input, Notice } from '../../components/ui/index.js';
 
 const localDay = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
-const localTime = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'medium', timeStyle: 'short' });
-const labels = { ASSIGNED: 'Đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn thành',
-  STAFF_CLOSED: 'Đã đóng ca', CANCELLED: 'Đã hủy', SUPERSEDED: 'Đã thay thế' };
 function todayInVietnam() {
   const parts = Object.fromEntries(localDay.formatToParts(new Date()).map(({ type, value }) => [type, value]));
   return [parts.year, parts.month, parts.day].join('-');
@@ -20,24 +20,43 @@ export function SitterSchedulePage({ api = sitterDashboardApi }) {
   const load = useCallback(({ signal }) => api.read({ group: 'agenda', from: day, to: day, limit: 20, ...(cursor && { cursor }), signal }),
     [api, day, cursor]);
   const result = useApiResource(load);
-  return <section className="pwc-mobile-screen">
+  function shiftDay(amount) {
+    const date = new Date(day + 'T00:00:00Z');
+    if (!Number.isFinite(date.getTime())) return;
+    date.setUTCDate(date.getUTCDate() + amount);
+    setQuery({ day: date.toISOString().slice(0, 10) });
+  }
+  const back = '/sitter/schedule' + (query.size ? '?' + query.toString() : '');
+  return <section className="pwc-mobile-screen sitter-workspace">
     <h1 data-duplicate-title>Ca làm</h1>
-    <label>Ngày xem (giờ Việt Nam) <input type="date" value={day} onChange={event => {
-      if (event.target.value) setQuery({ day: event.target.value });
-    }} /></label>
-    <p><Link to="/sitter/availability">Giờ nhận việc</Link> · <Link to="/sitter/invitations">Lời mời</Link></p>
-    {result.status === 'loading' && <p role="status">Đang tải ca đã giao…</p>}
-    {['pending','error','forbidden'].includes(result.status) && <p role="alert">Chưa tải được ca ngày này. <Button onClick={result.retry}>Thử lại</Button></p>}
-    {result.status === 'success' && (result.data.items.length > 0 ? <ul className="pwc-mobile-rows">
-      {result.data.items.map(visit => <li key={visit.id}><Link to={`/sitter/visits/${visit.id}`}
-        state={{ mobileBack: '/sitter/schedule' + (query.size ? '?' + query.toString() : '') }}>
-        <strong>{visit.serviceName || 'Buổi chăm sóc'}</strong><br /><time dateTime={visit.startsAt}>{localTime.format(new Date(visit.startsAt))}</time> · {labels[visit.state] ?? 'Đang cập nhật'}
-        {visit.petNames?.length > 0 && <span className="pwc-visit-pets">{visit.petNames.join(', ')}</span>}
-      </Link></li>)}
-    </ul> : <p>{cursor ? 'Trang này không còn kết quả.' : 'Không có ca đã giao trong ngày này.'}</p>)}
-    <div className="pwc-mobile-pager">
-      {cursor && <Button onClick={() => setQuery({ day })}>Về trang đầu</Button>}
-      {result.data?.nextCursor && <Button onClick={() => setQuery({ day, cursor: result.data.nextCursor })}>Xem trang tiếp</Button>}
+    <div className="sitter-workspace__filter">
+      <Input label="Ngày xem · Giờ Việt Nam" type="date" value={day} onChange={event => {
+        if (event.target.value) setQuery({ day: event.target.value });
+      }} />
+      <div className="sitter-workspace__controls">
+        <Button variant="secondary" aria-label="Ngày trước" onClick={() => shiftDay(-1)}><ChevronLeft size={18} /></Button>
+        <Button variant="secondary" onClick={() => setQuery({ day: todayInVietnam() })}>Hôm nay</Button>
+        <Button variant="secondary" aria-label="Ngày sau" onClick={() => shiftDay(1)}><ChevronRight size={18} /></Button>
+      </div>
     </div>
+    <section aria-labelledby="sitter-agenda-title">
+      <h2 id="sitter-agenda-title">Ca đã nhận</h2>
+      {result.status === 'loading' && <Notice state="loading" title="Đang tải ca làm" />}
+      {['pending', 'error', 'forbidden'].includes(result.status) && <Notice state="error" title="Chưa tải được ca ngày này"
+        action={<Button variant="secondary" onClick={result.retry}>Thử lại</Button>} />}
+      {result.status === 'success' && result.data.items.length > 0 && <ul className="sitter-workspace__list">
+        {result.data.items.map(visit => <li key={visit.id}><SitterVisitCard visit={visit} back={back} /></li>)}
+      </ul>}
+      {['success', 'empty'].includes(result.status) && !result.data?.items?.length && <CompactEmpty icon={CalendarDays}
+        title={cursor ? 'Trang này không còn ca' : 'Chưa có ca trong ngày này'}>Chọn ngày khác để xem ca đã nhận.</CompactEmpty>}
+      {(cursor || result.data?.nextCursor) && <div className="sitter-workspace__controls">
+        {cursor && <Button variant="secondary" onClick={() => setQuery({ day })}>Về trang đầu</Button>}
+        {result.data?.nextCursor && <Button variant="secondary" onClick={() => setQuery({ day, cursor: result.data.nextCursor })}>Trang tiếp</Button>}
+      </div>}
+    </section>
+    <nav className="sitter-workspace__links" aria-label="Thiết lập lịch">
+      <CompactRow icon={Clock3} to="/sitter/availability" state={{ mobileBack: back }}>Giờ nhận việc và điểm xuất phát</CompactRow>
+      <CompactRow icon={MapPin} to="/sitter/work-areas" state={{ mobileBack: back }}>Khu vực làm việc</CompactRow>
+    </nav>
   </section>;
 }

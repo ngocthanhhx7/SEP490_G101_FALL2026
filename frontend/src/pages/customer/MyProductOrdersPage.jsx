@@ -52,7 +52,7 @@ export function MyProductOrdersPage() {
 
   if (compact && requested) return <section className="pwc-shop" aria-labelledby="orders-title">
     <h1 id="orders-title" data-duplicate-title>Chi tiết đơn mua</h1>
-    <Link to={listUrl}>Về đơn mua hàng</Link>
+    <Link data-page-back to={listUrl}>Về đơn mua hàng</Link>
     {selected?.id === requested ? <OrderDetail order={selected} /> : requestedOrder.status === 'loading'
       ? <Notice state="loading" title="Đang tải chi tiết đơn…" />
       : <Notice state="error" title="Chưa mở được chi tiết đơn" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}

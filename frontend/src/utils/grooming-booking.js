@@ -1,17 +1,8 @@
-const WEEKDAY_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const WEEKDAY_LONG = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
 const weekday = date => new Date(`${date}T00:00:00Z`).getUTCDay();
 
-// "T4 · 04/11" for the day chips; the days come from the server window as YYYY-MM-DD (Vietnam local days).
-export const dayChipLabel = date => `${WEEKDAY_SHORT[weekday(date)]} · ${date.slice(8, 10)}/${date.slice(5, 7)}`;
 // "Thứ Năm 05/11/2026 · 10:00" for the price panel.
 export const appointmentLabel = (date, time) => `${WEEKDAY_LONG[weekday(date)]} ${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)} · ${time}`;
-
-export function windowDates(firstDate, lastDate) {
-  const dates = [];
-  for (let day = Date.parse(`${firstDate}T00:00:00Z`); day <= Date.parse(`${lastDate}T00:00:00Z`) && dates.length < 14; day += 86400000) dates.push(new Date(day).toISOString().slice(0, 10));
-  return dates;
-}
 
 export const petKindLabel = pet => {
   const kind = pet.species === 'CAT' ? 'Mèo' : 'Chó';

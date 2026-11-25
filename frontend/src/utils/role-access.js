@@ -1,6 +1,15 @@
 const ACCOUNT_ROLES = ['ADMIN', 'STAFF', 'SALE_STAFF', 'PET_SITTER', 'CUSTOMER'];
 const LANDINGS = { ADMIN: '/admin/dashboard', STAFF: '/staff', SALE_STAFF: '/sale-staff/dashboard', PET_SITTER: '/sitter', CUSTOMER: '/' };
 
+const ROLE_LABELS = {
+  CUSTOMER: 'Khách hàng', PET_SITTER: 'Pet sitter', STAFF: 'Nhân viên',
+  SALE_STAFF: 'Nhân viên bán hàng', ADMIN: 'Quản trị viên'
+};
+
+export function roleLabel(role) {
+  return Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role] : 'Chưa có thông tin';
+}
+
 export function isSingleRole(roles) {
   return Array.isArray(roles) && roles.length === 1 && ACCOUNT_ROLES.includes(roles[0]);
 }
@@ -35,7 +44,12 @@ export function loginDestination(user, from, { mobile = false } = {}) {
   if (/^\/(?:visits\/[^/]+\/incidents\/new|cases\/[^/]+|incidents)$/.test(path)) {
     return ['CUSTOMER', 'PET_SITTER', 'ADMIN', 'STAFF'].includes(primaryRole(user)) ? from : fallback;
   }
-  if (path === '/sitter/application-status') return hasRole(user, 'CUSTOMER') ? from : fallback;
+  if (/^\/sitter\/application-status\/?$/i.test(path)) {
+    return ['CUSTOMER', 'PET_SITTER'].includes(primaryRole(user)) ? from : fallback;
+  }
+  if (/^\/account\/profile\/?$/i.test(path)) {
+    return primaryRole(user) ? from : fallback;
+  }
   if (['/account', '/account/settings', '/account/notifications'].includes(path)) return from;
   if ((path === LANDINGS.SALE_STAFF || path === '/admin/product-orders') && hasRole(user, 'SALE_STAFF')) return from;
   if (/^\/admin(?:\/|$)/.test(path)) return hasRole(user, 'ADMIN') ? from : fallback;

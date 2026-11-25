@@ -90,6 +90,31 @@ beforeEach(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 
 describe('P07 Customer registration over P06 OTP with isolated MongoDB', () => {
+  test('REGISTER returns the remaining resend cooldown without sending another code or creating an account', async () => {
+    // Keep synthetic challenge expiration ahead of MongoDB's TTL clock.
+    clockNow = Date.now() + 3600000;
+    const { app, sent } = fixture();
+    const first = await startChallenge(app);
+    const resend = () => request(app).post('/api/v1/otp-challenges')
+      .send({ channel: first.channel, contact: first.contact, purpose: 'REGISTER' });
+
+    clockNow += 59001;
+    const limited = await resend().expect(429).expect('Retry-After', '1');
+    expect(limited.body.error).toMatchObject({ code: 'OTP_RATE_LIMITED', retryAfterSeconds: 1 });
+    expect(sent).toHaveLength(1);
+    expect(await models.OtpChallenge.countDocuments()).toBe(1);
+
+    clockNow += 999;
+    const second = await resend().expect(202);
+    expect(second.body.data.challengeId).not.toBe(first.challengeId);
+    expect(sent).toHaveLength(2);
+    const replaced = await request(app).post('/api/v1/otp-verifications').send(verificationBody(first)).expect(400);
+    expect(replaced.body.error.code).toBe('OTP_REPLACED');
+    expect(await User.countDocuments()).toBe(0);
+    expect(await models.Contact.countDocuments()).toBe(0);
+    expect(await models.AuthSession.countDocuments()).toBe(0);
+  });
+
   test.each([false, true])('email login rememberDevice=%s survives reload and logs out with resumed CSRF', async rememberDevice => {
     // Keep synthetic expiry ahead of the real MongoDB TTL monitor's wall clock.
     clockNow = Date.now() + 24 * 60 * 60 * 1000;

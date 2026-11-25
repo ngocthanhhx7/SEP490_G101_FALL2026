@@ -1,4 +1,4 @@
-.visit-board { margin-bottom: var(--pwc-space-4); }
+.visit-board { margin-bottom: var(--pwc-space-4); container: visit-board / inline-size; }
 .visit-board__tabs { display: flex; gap: var(--pwc-space-2); flex-wrap: wrap; border-bottom: 1px solid var(--pwc-border); }
 .visit-board__tabs button {
   padding: var(--pwc-space-2) var(--pwc-space-4); border: 0; border-bottom: 3px solid transparent;
@@ -15,3 +15,22 @@
 .visit-board__phone { font-weight: 700; white-space: nowrap; }
 .visit-board__filters input[type="search"] { flex: 1 1 22rem; min-width: 14rem; max-width: 32rem; }
 .visit-board__locked { display: block; margin-top: 0.25rem; max-width: 16rem; color: var(--pwc-ink-muted, inherit); }
+.visit-board__summary { display: grid; gap: .25rem; overflow-wrap: anywhere; }
+.visit-board__summary > small { margin-top: 0; }
+.visit-board__visit-meta { display: flex; gap: .375rem .5rem; flex-wrap: wrap; align-items: center; }
+.visit-board__visit-meta > span:first-child:not(.ops-badge) { color: var(--pwc-ink-muted, inherit); font-size: .875rem; }
+
+@container visit-board (max-width: 719px) {
+  .visit-board .ops-table-scroll { overflow: visible; border: 0; }
+  .visit-board .ops-table { display: block; min-width: 0; }
+  .visit-board .ops-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .visit-board .ops-table tbody { display: grid; gap: .75rem; }
+  .visit-board .ops-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .625rem 1rem;
+    padding: .875rem; border: 1px solid var(--pwc-border); border-radius: .875rem; background: var(--pwc-surface, #fff); }
+  .visit-board .ops-table td { display: block; padding: 0; max-width: none; border: 0; }
+  .visit-board .ops-table td[data-column]:not(:first-child)::before { display: block; content: attr(data-column);
+    color: var(--pwc-ink-muted, inherit); font-size: .75rem; margin-bottom: .125rem; }
+  .visit-board .ops-table td:first-child { grid-column: 1 / -1; }
+  .visit-board .ops-table td.ops-empty { font-size: inherit; }
+  .visit-board__filters input[type="search"] { min-width: 0; }
+}

@@ -1,13 +1,9 @@
-import { AvatarEditor, ProfileAvatar } from '../../components/common/ProfileAvatar.jsx';
+import { ProfileAvatar } from '../../components/common/ProfileAvatar.jsx';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Notice } from '../../components/ui/index.js';
 import { useSession } from '../../contexts/SessionContext.jsx';
-import { hasRole, primaryRole } from '../../utils/role-access.js';
-
-const ROLE_LABELS = {
-  CUSTOMER: 'Khách hàng', PET_SITTER: 'Pet sitter', STAFF: 'Nhân viên', SALE_STAFF: 'Nhân viên bán hàng', ADMIN: 'Quản trị viên'
-};
+import { primaryRole, roleLabel } from '../../utils/role-access.js';
 
 function initials(name = '') {
   return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toLocaleUpperCase('vi-VN') ?? '').join('') || 'PW';
@@ -32,9 +28,7 @@ export function AccountPage() {
   }
 
   return <section className="account-overview" aria-labelledby="account-overview-title">
-    <div className="account-overview-breadcrumb"><span>Trang cá nhân</span><span aria-hidden="true">/</span><strong>Tài khoản của bạn</strong></div>
     <header className="account-overview-heading">
-      <span className="admin-eyebrow">THÔNG TIN CÁ NHÂN</span>
       <h1 id="account-overview-title">Tài khoản</h1>
       <p>Thông tin bên dưới thuộc về tài khoản đang đăng nhập.</p>
     </header>
@@ -42,23 +36,18 @@ export function AccountPage() {
     <div className="account-overview-card">
       <div className="account-overview-person">
         <ProfileAvatar fallback={initials(user.displayName)} className="account-overview-avatar" />
-        <div><span className="admin-eyebrow">TÀI KHOẢN HIỆN TẠI</span>
+        <div>
           <h2>{user.displayName ?? 'Người dùng'}</h2>
           <span className="account-overview-active"><span aria-hidden="true" />Phiên đang hoạt động</span>
         </div>
       </div>
-      <AvatarEditor fallback={initials(user.displayName)} />
       <dl className="account-overview-fields">
-        <div><dt>Họ và tên</dt><dd>{user.displayName ?? 'Chưa có thông tin'}</dd></div>
-        <div><dt>Vai trò</dt><dd>{ROLE_LABELS[role] ?? 'Chưa có thông tin'}</dd></div>
+        <div><dt>Vai trò</dt><dd>{roleLabel(role)}</dd></div>
         <div><dt>Mã tài khoản</dt><dd className="admin-numeric">{user.id ? user.id.slice(-8).toUpperCase() : 'Chưa có thông tin'}</dd></div>
       </dl>
-      <Notice state="info" title="Thông tin được bảo vệ">
-        Trang này chỉ hiển thị thông tin tài khoản đang đăng nhập. Các thao tác cập nhật hồ sơ hoặc liên hệ cần luồng xác minh riêng.
-      </Notice>
       <div className="account-overview-actions">
-        {hasRole(user, 'CUSTOMER') && <Link className="account-overview-link" to="/account/profile">Quản lý hồ sơ</Link>}
-        {hasRole(user, 'ADMIN') && <Link className="account-overview-link" to="/admin/users">Quản lý tài khoản người dùng</Link>}
+        <Link className="account-overview-link" to="/account/profile">Chỉnh sửa hồ sơ</Link>
+        <Link className="pwc-button pwc-button--secondary" to="/account/settings">Liên hệ &amp; bảo mật</Link>
         <Button variant="secondary" loading={logoutPending} loadingLabel="Đang đăng xuất…" onClick={logout}>Đăng xuất</Button>
       </div>
     </div>

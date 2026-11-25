@@ -1,5 +1,6 @@
 import { beforeAll } from '@jest/globals';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { SitterPublicProfilePage } from '../../src/pages/sitter/SitterPublicProfilePage.jsx';
 import { SitterProfileReviewsPage } from '../../src/pages/staff/SitterProfileReviewsPage.jsx';
 
@@ -19,6 +20,28 @@ test('sitter sends a separate public bio and retries an uncertain submission usi
   await screen.findByText('Đã gửi hồ sơ chờ duyệt.');
   expect(calls[0]).toEqual(calls[1]);
   expect(calls[0][0]).toEqual({ bio: 'Public synthetic bio', areas: ['HN-01', 'HN-02'], expectedVersion: 0 });
+});
+
+test('an approved profile requires a meaningful edit and confirmation before going back to review', async () => {
+  const profile = { bio: 'Giới thiệu hiện tại', areas: ['Hà Nội'], state: 'APPROVED', version: 3 };
+  const submit = jest.fn(async body => ({ ...body, state: 'SUBMITTED', version: 4 }));
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+  try {
+    render(<MemoryRouter><SitterPublicProfilePage api={{ own: async () => ({ profile }), submit }} /></MemoryRouter>);
+    const bio = await screen.findByLabelText('Giới thiệu');
+    fireEvent.change(bio, { target: { value: ' Giới thiệu hiện tại ' } });
+    expect(screen.queryByRole('button', { name: /Gửi duyệt/ })).not.toBeInTheDocument();
+    fireEvent.change(bio, { target: { value: 'Giới thiệu mới' } });
+    expect(screen.getByText('Hồ sơ sẽ tạm ngừng công bố')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt lại' }));
+    expect(submit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Gửi duyệt lại' }));
+    await screen.findByText('Đang chờ duyệt');
+    expect(submit).toHaveBeenCalledWith({ bio: 'Giới thiệu mới', areas: ['Hà Nội'], expectedVersion: 3 }, expect.any(String));
+    expect(screen.queryByRole('button', { name: /Gửi duyệt/ })).not.toBeInTheDocument();
+  } finally {
+    confirm.mockRestore();
+  }
 });
 
 test('review queue has empty/error states and sends versioned reviewer decision', async () => {

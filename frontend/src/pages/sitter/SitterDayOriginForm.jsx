@@ -19,18 +19,18 @@ export function SitterDayOriginForm({ api }) {
       if (error.status && error.status < 500) operation.current = null;
     } finally { setBusy(false); }
   }
-  return <section className="sitter-availability__safety"><h2>Điểm xuất phát theo ngày</h2><p>Khai báo nơi bắt đầu và kết thúc ngày làm việc để hệ thống kiểm tra đường đi khi đề xuất ca. Không thay thế lịch rảnh đã đăng ký.</p>
+  return <section className="sitter-availability__panel sitter-origin"><h2 id="sitter-origin-heading" tabIndex={-1}>Điểm xuất phát theo ngày</h2><p>Khai báo nơi bắt đầu và kết thúc ngày làm việc để hệ thống kiểm tra đường đi khi đề xuất ca. Không thay thế lịch rảnh đã đăng ký.</p>
     {resource.status === 'loading' && <p>Đang tải…</p>}{resource.status === 'error' && <Button variant="secondary" onClick={resource.retry}>Tải lại điểm xuất phát</Button>}
     {resource.data && !resource.data.capabilityReady && <p>Nhờ Staff xác minh năng lực nhận việc trước khi khai báo điểm xuất phát.</p>}
     {resource.data?.capabilityReady && <><ul>{resource.data.items.map(item => <li key={item.localDate}>{item.localDate} · {new Date(item.availableFrom).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' })} – {new Date(item.availableUntil).toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' })}</li>)}</ul>
-    <form onSubmit={save}><fieldset disabled={frozen}><legend>Khai báo hoặc thay thế một ngày</legend>
+    <form onSubmit={save}><fieldset className="sitter-origin__fields" disabled={frozen}><legend>Khai báo hoặc thay thế một ngày</legend>
       <Input label="Ngày làm việc" type="date" required value={date} onChange={e => setDate(e.target.value)} />
       <Input label="Có thể xuất phát từ" type="time" required value={from} onChange={e => setFrom(e.target.value)} />
       <Input label="Cần về điểm xuất phát trước" type="time" required value={until} onChange={e => setUntil(e.target.value)} />
-      <VietmapView coordinates={coordinates} onSelect={setCoordinates} disabled={frozen} label="Chọn điểm xuất phát trên bản đồ" />
-      <p>{coordinates ? 'Đã chọn điểm trên bản đồ.' : 'Bấm bản đồ để chọn đúng điểm xuất phát của bạn.'}</p>
-    </fieldset><Button type="submit" disabled={busy || !coordinates}>{operation.current ? 'Kiểm tra lại thao tác' : 'Lưu điểm xuất phát'}</Button>
-    <Button variant="secondary" disabled={busy} onClick={() => { operation.current = null; resource.retry(); }}>Tải lại dữ liệu</Button></form></>}
+      <div className="sitter-origin__map"><VietmapView coordinates={coordinates} onSelect={setCoordinates} disabled={frozen} label="Chọn điểm xuất phát trên bản đồ" />
+      <p>{coordinates ? 'Đã chọn điểm trên bản đồ.' : 'Bấm bản đồ để chọn đúng điểm xuất phát của bạn.'}</p></div>
+    </fieldset><div className="sitter-workspace__controls"><Button type="submit" disabled={busy || !coordinates}>{operation.current ? 'Kiểm tra lại thao tác' : 'Lưu điểm xuất phát'}</Button>
+    <Button variant="secondary" disabled={busy} onClick={() => { operation.current = null; resource.retry(); }}>Tải lại dữ liệu</Button></div></form></>}
     {message && <p role="status">{message}</p>}
   </section>;
 }

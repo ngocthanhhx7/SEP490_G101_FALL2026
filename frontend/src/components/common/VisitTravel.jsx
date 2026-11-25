@@ -22,14 +22,14 @@ function TravelPanel({ api, visitId, employee }) {
   useEffect(() => { const timer = globalThis.setInterval(() => setNow(Date.now()), 1000); return () => globalThis.clearInterval(timer); }, []);
   const refresh = async () => {
     try { const result = await api.travel(visitId); if (mounted.current) { setData(result.data); setError(''); } }
-    catch (failure) { if (mounted.current) setError(errorText(failure)); }
+    catch (failure) { if (mounted.current) { setData(null); setEta(null); setError(errorText(failure)); } }
   };
   useEffect(() => {
     mounted.current = true;
     let cancelled = false;
     const poll = async () => {
-      try { const result = await api.travel(visitId); if (!cancelled) setData(result.data); }
-      catch (failure) { if (!cancelled) setError(errorText(failure)); }
+      try { const result = await api.travel(visitId); if (!cancelled) { setData(result.data); setError(''); } }
+      catch (failure) { if (!cancelled) { setData(null); setEta(null); setError(errorText(failure)); } }
     };
     poll(); const timer = globalThis.setInterval(poll, 30000);
     return () => {
@@ -104,11 +104,35 @@ function TravelPanel({ api, visitId, employee }) {
     <Button variant="ghost" title="Tải lại hành trình" aria-label="Tải lại hành trình" disabled={busy} onClick={refresh}><RefreshCw size={16} /></Button>
   </div>;
 }
-export function VisitTravel({ api, visitId, employee = false, startAt, endAt }) {
+function TravelDisclosure({ api, visitId, employee }) {
   const [open, setOpen] = useState(false);
-  const now = Date.now();
-  if (!api?.travel || now < Date.parse(startAt) - 120 * 60000 || now >= Date.parse(endAt)) return null;
   return <details onToggle={event => setOpen(event.currentTarget.open)}><summary>Hành trình đến điểm chăm sóc</summary>
     {open && <TravelPanel api={api} visitId={visitId} employee={employee} />}
   </details>;
+}
+
+export function VisitTravel({ api, visitId, employee = false, startAt, endAt, available }) {
+  const [, setWindowTime] = useState(Date.now);
+  const opensAt = Date.parse(startAt) - 30 * 60000;
+  const closesAt = Date.parse(endAt);
+  const hasTravel = Boolean(api?.travel);
+  const hasAvailability = typeof available === 'boolean';
+  useEffect(() => {
+    if (!hasTravel || hasAvailability || !(opensAt < closesAt)) return;
+    let timer;
+    function scheduleBoundary() {
+      const now = Date.now();
+      const next = now < opensAt ? opensAt : closesAt;
+      if (now >= next) return;
+      timer = globalThis.setTimeout(() => {
+        setWindowTime(Date.now());
+        scheduleBoundary();
+      }, Math.min(next - now, 2147483647));
+    }
+    scheduleBoundary();
+    return () => globalThis.clearTimeout(timer);
+  }, [closesAt, hasAvailability, hasTravel, opensAt]);
+  const now = Date.now();
+  const inWindow = available ?? (now >= opensAt && now < closesAt);
+  return hasTravel && inWindow ? <TravelDisclosure key={visitId} api={api} visitId={visitId} employee={employee} /> : null;
 }

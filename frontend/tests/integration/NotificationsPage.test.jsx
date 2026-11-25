@@ -169,3 +169,38 @@ test('keeps the assigned visit link from an existing sitter notice', () => {
   const deepLink = '/sitter/invitations?visitId=' + 'e'.repeat(24);
   expect(notificationTarget({ id: 'a'.repeat(64), deepLink })).toBe(deepLink);
 });
+
+import { activePushRegistration } from '../../src/services/notifications-api.js';
+jest.mock('../../src/services/notifications-api.js', () => ({
+  ...jest.requireActual('../../src/services/notifications-api.js'),
+  createWebPushAdapter: () => ({ supported: () => Boolean(globalThis.Notification) }),
+  activePushRegistration: jest.fn()
+}));
+
+test('collapses enabled device settings and preserves the option to turn push off', async () => {
+  const restore = (target, key, value) => {
+    const previous = Object.getOwnPropertyDescriptor(target, key);
+    Object.defineProperty(target, key, { configurable: true, value });
+    return () => previous ? Object.defineProperty(target, key, previous) : Reflect.deleteProperty(target, key);
+  };
+  const restoreNotification = restore(window, 'Notification', { permission: 'granted' });
+  const restoreWorker = restore(globalThis.navigator, 'serviceWorker', new globalThis.EventTarget());
+  const unsubscribe = jest.fn().mockResolvedValue(true);
+  const disable = jest.fn().mockResolvedValue({});
+  activePushRegistration.mockResolvedValue({ pushManager: { getSubscription: async () => ({ unsubscribe }) } });
+  try {
+    render(<NotificationsPage api={{ list: async () => ({ data: [], meta: {} }),
+      pushStatus: async () => ({ data: { enabled: true, subscribed: true } }), unsubscribe: disable }} />);
+    const settings = await screen.findByText('Cài đặt thông báo thiết bị');
+    expect(settings.closest('details')).not.toHaveAttribute('open');
+    expect(screen.queryByText('Thông báo trên thiết bị')).not.toBeInTheDocument();
+    settings.closest('details').open = true;
+    fireEvent.click(screen.getByRole('button', { name: 'Tắt trên thiết bị này' }));
+    expect(await screen.findByRole('button', { name: 'Bật thông báo' })).toBeInTheDocument();
+    expect(disable).toHaveBeenCalledTimes(1);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  } finally {
+    restoreNotification();
+    restoreWorker();
+  }
+});

@@ -46,3 +46,11 @@ test('GBR-01 Sale Staff has a sales landing and no inherited workspace permissio
   expect(loginDestination(user, '/products/0123456789abcdef01234567')).toBe('/sale-staff/dashboard');
   expect(primaryRole({ roles: ['SALE_STAFF', 'STAFF'] })).toBeUndefined();
 });
+
+test.each(['CUSTOMER', 'PET_SITTER', 'STAFF', 'SALE_STAFF', 'ADMIN'])('%s can return to the personal profile deep link after login', role => {
+  expect(loginDestination({ roles: [role] }, '/account/profile')).toBe('/account/profile');
+});
+
+test('Pet Sitter can return to owned application status after login', () => {
+  expect(loginDestination({ roles: ['PET_SITTER'] }, '/sitter/application-status')).toBe('/sitter/application-status');
+});

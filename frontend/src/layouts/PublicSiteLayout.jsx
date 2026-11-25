@@ -6,7 +6,7 @@ import { primaryRole, roleLanding } from '../utils/role-access.js';
 import { PublicFooter } from '../components/public/PublicFooter.jsx';
 import { PublicHeader } from '../components/public/PublicHeader.jsx';
 
-export function PublicSiteLayout() {
+export function PublicSiteLayout({ policyReading = false }) {
   const session = useSession();
   const location = useLocation();
   const main = useRef(null);
@@ -28,11 +28,11 @@ export function PublicSiteLayout() {
     main.current?.focus({ preventScroll: true });
   }, [location.pathname, location.hash]);
 
-  if (location.pathname !== '/sign-in' && session.status === 'authenticated' && primaryRole(session.user) && primaryRole(session.user) !== 'CUSTOMER') {
+  if (!policyReading && location.pathname !== '/sign-in' && session.status === 'authenticated' && primaryRole(session.user) && primaryRole(session.user) !== 'CUSTOMER') {
     return <Navigate to={roleLanding(session.user)} replace />;
   }
   return (
-    <div className="pwc-public-root">
+    <div className={policyReading ? 'pwc-public-root pwc-public-root--policy' : 'pwc-public-root'}>
       <a className="pwc-skip-link" href="#pwc-public-main">
         Bỏ qua đến nội dung chính
       </a>
@@ -45,7 +45,7 @@ export function PublicSiteLayout() {
       >
         <Outlet />
       </main>
-      <PublicFooter />
+      <PublicFooter policyReading={policyReading} />
     </div>
   );
 }

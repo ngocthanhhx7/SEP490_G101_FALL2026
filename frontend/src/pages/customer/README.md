@@ -14,8 +14,9 @@ or migration is performed. Health import retains consent and explicit review.
 
 `CustomerDashboardPage` owns the Customer care overview, separate from operational
 dashboards: authoritative counters, visit list, date filters and server cursors.
-`CustomerProfilePage` presents the existing versioned profile form and masked
-contacts with links to OTP-protected contact settings. Account navigation/layout
+`CustomerProfilePage` shares the versioned personal profile form across Customer,
+Pet Sitter, Admin, Staff and Sale Staff. The adapter selects the role-specific API. Verified contacts
+are masked and managed through the separate OTP settings flow. Account navigation/layout
 belongs in layouts and routes; see the Customer account UI plan under doc/ui-ux.
 
 ## Current runtime

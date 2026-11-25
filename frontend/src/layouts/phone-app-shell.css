@@ -151,7 +151,9 @@
   padding-block-start: max(1rem, env(safe-area-inset-top));
   padding-block-end: max(1rem, env(safe-area-inset-bottom));
 }
-.pwc-phone-app .account-settings-breadcrumb,
+/* Only the active compact shell supplies the route-level Back action. */
+.pwc-phone-app .pwc-phone-content [data-page-back] { display: none; }
+
 .pwc-phone-app .account-settings-eyebrow { display: none; }
 
 .pwc-mobile-filters { margin-block: .5rem; }
@@ -237,3 +239,10 @@
 .pwc-phone-app :is(.pwc-compact-cta, .pwc-compact-row, .pwc-phone-tabs a):focus-visible { outline: 2px solid #673b91; outline-offset: -2px; }
 .pwc-phone-app .pwc-phone-content :is(.pet-list, .customer-profile, .pwc-install) { max-inline-size: 100%; padding-inline: 0; }
 .pwc-phone-app :is(.pwc-service-list-page .pwc-eyebrow, .pet-list__eyebrow) { display: none; }
+
+.pwc-mobile-account__group h2 { margin: 1.1rem 0 .45rem; font: inherit; font-size: 1rem; font-weight: 800; }
+.pwc-mobile-account__group ul.pwc-mobile-account__links { margin-top: 0; }
+.pwc-mobile-account__group .pwc-mobile-account__links a { gap: .75rem; padding: .65rem .8rem; }
+.pwc-mobile-account__group .pwc-mobile-account__links a > svg { color: #663c8d; }
+.pwc-mobile-account__group .pwc-mobile-account__links a span { min-width: 0; font-weight: 700; }
+.pwc-mobile-account__group small { display: block; font-weight: 400; color: var(--pwc-compact-muted); }

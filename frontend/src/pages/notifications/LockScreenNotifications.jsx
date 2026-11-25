@@ -34,7 +34,7 @@ export function LockScreenNotifications({ api }) {
     return () => { abort.abort(); workers.removeEventListener('controllerchange', load); };
   }, [api, supported]);
 
-  if (!api?.pushStatus) return null;
+  if (!api?.pushStatus || (supported && !status && !error)) return null;
   const blocked = supported && window.Notification.permission === 'denied';
   const subscribed = status?.subscribed && (device?.subscribed || blocked);
 
@@ -46,7 +46,7 @@ export function LockScreenNotifications({ api }) {
       if (subscribed) {
         await api.unsubscribe();
         setStatus(value => ({ ...value, subscribed: false }));
-        const subscription = await manager.getSubscription();
+        const subscription = await manager?.getSubscription();
         await subscription?.unsubscribe();
         setDevice(value => ({ ...value, subscribed: false }));
       } else {
@@ -65,6 +65,14 @@ export function LockScreenNotifications({ api }) {
     }
   }
 
+  if (status?.enabled && subscribed) {
+    return <details className="notification-device-settings">
+      <summary>Cài đặt thông báo thiết bị</summary>
+      <Button variant="secondary" loading={busy} disabled={busy} onClick={toggle}>Tắt trên thiết bị này</Button>
+      {error && <p role="alert">{error}</p>}
+    </details>;
+  }
+
   return <section className="notification-device" aria-labelledby="notification-device-title">
     <div>
       <h2 id="notification-device-title"><BellRing size={18} aria-hidden="true" /> Thông báo trên thiết bị</h2>
@@ -72,14 +80,13 @@ export function LockScreenNotifications({ api }) {
         : status?.enabled === false ? 'Thông báo thiết bị đang tạm thời chưa khả dụng.'
         : blocked ? 'Mở cài đặt thiết bị để cấp quyền cho Paw World Care.'
         : status?.enabled && !device?.registration ? 'Hãy mở lại ứng dụng sau khi cập nhật để bật thông báo.'
-        : subscribed ? 'Đang bật trên thiết bị này. Màn hình khóa chỉ hiển thị lời nhắc chung.'
         : 'Cho phép Paw World Care báo khi có thông báo mới, kể cả khi đã đóng ứng dụng.'}</p>
       {error && <p role="alert">{error}</p>}
     </div>
     {!supported && <Link to="/install">Hướng dẫn cài ứng dụng</Link>}
-    {status?.enabled && device?.registration && (!blocked || subscribed) &&
-      <Button variant={subscribed ? 'secondary' : 'primary'} loading={busy} disabled={busy} onClick={toggle}>
-        {subscribed ? 'Tắt trên thiết bị này' : 'Bật thông báo'}
+    {status?.enabled && device?.registration && !blocked &&
+      <Button variant="primary" loading={busy} disabled={busy} onClick={toggle}>
+        Bật thông báo
       </Button>}
   </section>;
 }
