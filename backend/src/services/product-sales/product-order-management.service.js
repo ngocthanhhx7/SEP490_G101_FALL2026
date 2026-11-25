@@ -121,10 +121,11 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
       pickupDeadlineAt: { $lte: cutoff },
       $nor: [{ paymentMethod: 'PAY_AT_SHOP', paid: true }]
     };
-    const candidates = await ProductOrder.find(filter).select('_id version')
+    const candidates = await ProductOrder.find(filter).select('_id version paid payment.providerReferences payment.receipts')
       .sort({ pickupDeadlineAt: 1, _id: 1 }).limit(PICKUP_EXPIRY_BATCH_SIZE).lean();
     for (const candidate of candidates) {
       try {
+        if (!candidate.paid && await checkProductPayment(candidate, payments) !== 'UNPAID') { summary.kept += 1; continue; }
         const updated = await updateOrder(candidate._id, {
           expiryFilter: { ...filter, version: candidate.version },
           changes: (order) => ({ status: 'CANCELLED', cancelledAt: cutoff, ...refundChanges(order) }),
@@ -345,9 +346,23 @@ export function createProductOrderManagementService({
       });
     },
     // Records the money taken at the shop for a pickup order, so it can then be handed over.
-    recordPayment(actor, orderId, body) {
+    async recordPayment(actor, orderId, body) {
+      requireOrderHandler(actor);
+      const id = parseObjectId(orderId, 'orderId');
       parseNoBody(body);
+      const current = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (current && current.receiveMethod === 'PICKUP' && current.status === 'READY'
+          && current.paymentMethod === 'PAY_AT_SHOP' && !current.paid
+          && current.payment?.providerReferences?.length > 0) {
+        const outcome = await checkProductPayment(current, payments);
+        if (outcome === 'PAID') {
+          const settled = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+          if (settled?.paid) return viewOf(settled);
+        }
+        requireUnpaidProductOutcome(outcome);
+      }
       return transition(actor, orderId, {
+        check: order => { if (order.version !== current?.version) throw productSalesErrors.orderStateConflict(order.status); },
         // Cash is taken for a pick-up paid at the shop; a prepaid order is paid through payOS only.
         allowed: (order) => order.receiveMethod === 'PICKUP' && ['PLACED', 'READY'].includes(order.status) && !order.paid
           && order.paymentMethod !== 'PREPAID',
