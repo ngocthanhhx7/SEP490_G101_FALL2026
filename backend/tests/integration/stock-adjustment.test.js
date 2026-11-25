@@ -11,9 +11,10 @@ import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { createProductCartService } from '../../src/services/product-sales/product-cart.service.js';
 import { createProductOrderService } from '../../src/services/product-sales/product-order.service.js';
 import { createScopedCursor } from '../../src/utils/scoped-cursor.js';
+import { STOCK_LOW_THRESHOLD as T } from '../../src/constants/stock-list-fields.js';
 
 const oid = () => new mongoose.Types.ObjectId();
-const actors = Object.fromEntries(['ADMIN', 'CUSTOMER', 'STAFF', 'PET_SITTER'].map(role =>
+const actors = Object.fromEntries(['ADMIN', 'CUSTOMER', 'STAFF', 'PET_SITTER', 'SALE_STAFF'].map(role =>
   [role, { userId: String(oid()), state: 'ACTIVE', roles: [role] }]));
 const ROOT = '/api/v1/admin/stock-adjustments';
 const CURSOR_SECRET = 'synthetic-stock-adjustment-cursor-secret-012345';
@@ -57,7 +58,32 @@ beforeEach(async () => {
 });
 afterEach(() => jest.restoreAllMocks());
 
-test('AC-33 GBR-50 creates a DC receipt and changes only real stock and stock version', async () => {
+test('IT-FE25-UC95-01 allows Admin to access and use Adjust Stock', async () => {
+  const p = await product();
+  await get(`${ROOT}/products`).expect(200);
+  await get(`${ROOT}/products/${p.id}`).expect(200);
+  await save(values(p)).expect(201);
+  expect(await models.StockAdjustment.countDocuments()).toBe(1);
+});
+
+test('IT-FE25-UC95-02 selects a UC-57 product and shows its current stock information', async () => {
+  const p = await product('SP-0001', { name: 'Synthetic Selected Product', stockOnHand: 12, quantityHeld: 3 });
+  const listed = (await get(`${ROOT}/products`).query({ search: p.code }).expect(200)).body.data.items;
+  expect(listed).toEqual([{ id: p.id, code: p.code, name: p.name, visible: true }]);
+  expect((await get(`${ROOT}/products/${p.id}`).expect(200)).body.data)
+    .toMatchObject({ id: p.id, code: p.code, name: p.name, stockOnHand: 12, quantityHeld: 3, available: 9 });
+});
+
+test('IT-FE25-UC95-03 saves a valid increase and adds it to Stock on Hand', async () => {
+  const p = await product();
+  const saved = (await save(values(p, { type: 'INCREASE', quantity: 3, reason: 'RECEIPT_CORRECTION' })).expect(201)).body.data;
+  expect(saved).toMatchObject({ code: 'DC-0001', productId: p.id, type: 'INCREASE', quantity: 3, quantityChange: 3,
+    reason: 'RECEIPT_CORRECTION', recorderId: actors.ADMIN.userId, recorderName: 'Synthetic Admin' });
+  expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 15, quantityHeld: 0, version: 1, detailsVersion: 2 });
+  expect(await models.StockAdjustment.countDocuments()).toBe(1);
+});
+
+test('IT-FE25-UC95-04 saves a valid decrease and subtracts it from Stock on Hand', async () => {
   const p = await product();
   const saved = (await save(values(p)).expect(201)).body.data;
   expect(saved).toMatchObject({ code: 'DC-0001', productId: p.id, productCode: p.code, productName: p.name,
@@ -65,9 +91,101 @@ test('AC-33 GBR-50 creates a DC receipt and changes only real stock and stock ve
   expect(saved.recordedAt).toEqual(expect.any(String));
   expect(saved.idempotencyKey).toBeUndefined(); expect(saved.requestFingerprint).toBeUndefined();
   expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 10, quantityHeld: 0, version: 1, detailsVersion: 2 });
-  const increased = (await save(values(p, { type: 'INCREASE', quantity: 3 })).expect(201)).body.data;
-  expect([increased.code, increased.quantityChange]).toEqual(['DC-0002', 3]);
-  expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 13, quantityHeld: 0, version: 2, detailsVersion: 2 });
+  expect(await models.StockAdjustment.countDocuments()).toBe(1);
+});
+
+test('IT-FE25-UC71-10 IT-FE25-UC95-08 shows stock after UC-95 increases and decreases it', async () => {
+  const p = await product('SP-0001', { stockOnHand: 12, quantityHeld: 2 });
+  await save(values(p, { type: 'INCREASE', quantity: 5 })).expect(201);
+  await save(values(p, { type: 'DECREASE', quantity: 3 })).expect(201);
+  const item = (await get('/api/v1/admin/stock-levels').query({ search: p.code }).expect(200)).body.data.items[0];
+  expect(item).toMatchObject({ id: p.id, stockOnHand: 14, quantityHeld: 2, available: 12 });
+});
+
+test('IT-FE25-UC71-17 IT-FE25-UC95-09 shows the UC-95 adjustment in product stock history', async () => {
+  const p = await product();
+  const adjustment = (await save(values(p, { type: 'INCREASE', quantity: 3, reason: 'RECEIPT_CORRECTION' })).expect(201)).body.data;
+  const historyData = (await get(history(p)).expect(200)).body.data;
+  expect(historyData.product).toMatchObject({ id: p.id, code: p.code, name: p.name });
+  const items = historyData.items;
+  expect(items).toEqual([expect.objectContaining({
+    kind: 'STOCK_ADJUSTMENT', referenceCode: adjustment.code, quantityChange: 3,
+    reason: 'RECEIPT_CORRECTION', recorderName: 'Synthetic Admin', occurredAt: expect.any(String)
+  })]);
+});
+
+test('IT-FE25-UC95-05 decreases by exactly Quantity Available', async () => {
+  const p = await product('SP-0001', { stockOnHand: 9, quantityHeld: 1 });
+  await save(values(p, { quantity: 8 })).expect(201);
+  expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 1, quantityHeld: 1, version: 1 });
+  expect(await models.StockAdjustment.countDocuments()).toBe(1);
+});
+
+test('IT-FE25-UC95-06 refuses a decrease above Quantity Available without changing stock', async () => {
+  const p = await product('SP-0001', { stockOnHand: 9, quantityHeld: 1 });
+  const before = await models.Product.findById(p.id).lean();
+  const response = await save(values(p, { quantity: 9 })).expect(409);
+  expect(response.body.error).toMatchObject({ code: 'STOCK_ADJUSTMENT_EXCEEDS_AVAILABLE', available: 8 });
+  expect(await models.Product.findById(p.id).lean()).toEqual(before);
+  expect(await models.StockAdjustment.countDocuments()).toBe(0);
+});
+
+test('IT-FE25-UC95-07 rechecks changed Quantity Available when the form is saved', async () => {
+  const p = await product('SP-0001', { stockOnHand: 9 });
+  expect((await get(`${ROOT}/products/${p.id}`).expect(200)).body.data.available).toBe(9);
+  await createProductCartService({ connection }).addLine(actors.CUSTOMER, { productId: p.id, quantity: 2 });
+  await createProductOrderService({ connection }).place(actors.CUSTOMER,
+    { receiveMethod: 'PICKUP', paymentMethod: 'PAY_AT_SHOP' }, 'synthetic-stale-form-order');
+  const response = await save(values(p, { quantity: 8 })).expect(409);
+  expect(response.body.error).toMatchObject({ code: 'STOCK_ADJUSTMENT_EXCEEDS_AVAILABLE', available: 7 });
+  expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 9, quantityHeld: 2 });
+  expect(await models.StockAdjustment.countDocuments()).toBe(0);
+});
+
+test('IT-FE25-UC95-10 corrects UC-70 stock without changing the original Goods Receipt', async () => {
+  const p = await product('SP-0001');
+  const supplier = await models.Supplier.create({ name: 'Synthetic Receipt Supplier', nameKey: 'synthetic receipt supplier',
+    email: 'supplier@example.test', productIds: [p.id] });
+  const receipt = await request(base).post('/api/v1/admin/goods-receipts').set('x-test-role', 'ADMIN').set('Origin', base)
+    .set('X-CSRF-Token', 'synthetic-csrf').set('Idempotency-Key', 'synthetic-uc95-receipt')
+    .send({ supplierId: supplier.id, lines: [{ productId: p.id, quantityReceived: 5, quantityAccepted: 5 }] }).expect(201);
+  const original = await models.GoodsReceipt.findById(receipt.body.data.id).lean();
+  await save(values(p, { type: 'DECREASE', quantity: 1, reason: 'RECEIPT_CORRECTION' })).expect(201);
+  expect(await models.Product.findById(p.id).lean()).toMatchObject({ stockOnHand: 16, quantityHeld: 0 });
+  expect(await models.GoodsReceipt.findById(original._id).lean()).toEqual(original);
+  expect(await models.StockAdjustment.countDocuments()).toBe(1);
+});
+
+test('IT-FE25-UC95-11 keeps the Low Stock count and tab consistent after an adjustment', async () => {
+  const p = await product('SP-0001', { stockOnHand: T + 1 });
+  await save(values(p, { quantity: 1 })).expect(201);
+  const stock = (await get('/api/v1/admin/stock-levels').expect(200)).body.data;
+  expect(stock.items[0]).toMatchObject({ id: p.id, available: T, status: 'LOW_STOCK' });
+  expect(stock.counts.LOW_STOCK).toBe(1);
+  const lowStock = (await get('/api/v1/admin/stock-levels').query({ tab: 'LOW_STOCK' }).expect(200)).body.data;
+  expect(lowStock.total).toBe(stock.counts.LOW_STOCK);
+  expect(lowStock.items).toEqual([expect.objectContaining({ id: p.id, status: 'LOW_STOCK' })]);
+});
+
+test('IT-FE25-UC95-12 stores multiple adjustments independently and lists newest history first', async () => {
+  const p = await product();
+  const saved = [];
+  saved.push((await save(values(p, { type: 'INCREASE', quantity: 3, reason: 'RECEIPT_CORRECTION' })).expect(201)).body.data);
+  saved.push((await save(values(p, { type: 'DECREASE', quantity: 2, reason: 'DAMAGED' })).expect(201)).body.data);
+  saved.push((await save(values(p, { type: 'INCREASE', quantity: 1, reason: 'RECEIPT_CORRECTION' })).expect(201)).body.data);
+  expect(await models.StockAdjustment.countDocuments()).toBe(3);
+  const items = (await get(history(p)).expect(200)).body.data.items;
+  expect(items.map(item => item.referenceCode)).toEqual(saved.map(item => item.code).reverse());
+});
+
+test('IT-FE25-UC95-13 keeps an old adjustment immutable and saves its correction separately', async () => {
+  const p = await product();
+  const first = (await save(values(p, { type: 'DECREASE', quantity: 2, reason: 'DAMAGED' })).expect(201)).body.data;
+  const original = await models.StockAdjustment.findById(first.id).lean();
+  const correction = (await save(values(p, { type: 'INCREASE', quantity: 1, reason: 'RECEIPT_CORRECTION' })).expect(201)).body.data;
+  expect(correction.code).not.toBe(first.code);
+  expect(await models.StockAdjustment.findById(first.id).lean()).toEqual(original);
+  expect(await models.StockAdjustment.countDocuments()).toBe(2);
 });
 
 test('AC-34 guards all stock adjustment endpoints and requires CSRF for saves', async () => {
@@ -100,7 +218,7 @@ test('AC-33 D-266 validates positive integer quantity, mandatory type/reason, en
   expect(await models.StockAdjustment.countDocuments()).toBe(8);
 });
 
-test('AC-33 GBR-50 checks available against a real unfinished order and preserves the held stock and order', async () => {
+test('IT-FE25-UC95-14 preserves Quantity Held and the unfinished order after adjustment', async () => {
   const p = await product('SP-0001', { stockOnHand: 9 });
   await createProductCartService({ connection }).addLine(actors.CUSTOMER, { productId: p.id, quantity: 1 });
   await createProductOrderService({ connection }).place(actors.CUSTOMER, { receiveMethod: 'PICKUP', paymentMethod: 'PAY_AT_SHOP' }, 'synthetic-hold-order');
@@ -167,7 +285,7 @@ test('AC-33 replays identical sequential/concurrent commands, rejects changed co
   expect((await save(values(p), commandKey).expect(201)).body.data.id).toBe(replayed.body.data.id);
 });
 
-test('AC-33 rolls back stock and counter on insert failure, and preserves code continuity beyond four digits', async () => {
+test('IT-FE25-UC95-15 rolls back stock and counter when the adjustment insert fails', async () => {
   const p = await product(), commandKey = key();
   jest.spyOn(models.StockAdjustment.collection, 'insertOne').mockRejectedValueOnce(new Error('Synthetic insert failure'));
   await save(values(p), commandKey).expect(500);

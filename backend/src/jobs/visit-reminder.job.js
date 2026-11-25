@@ -53,7 +53,7 @@ function isEligible(visit, asOf, defaultLeadMinutes) {
   if (reminderAt.getTime() > startAt.getTime() || startAt.getTime() <= asOf.getTime() || reminderAt.getTime() > asOf.getTime()) return null;
   const recipients = Array.isArray(visit.recipients)
     ? [...new Set(visit.recipients.map(item => typeof item === 'string' ? item : item?.recipientId).filter(validRecipient))]
-    : [visit.customerId, visit.sitterId].filter(validRecipient);
+    : validRecipient(visit.sitterId) ? [visit.customerId, visit.sitterId].filter(validRecipient) : [];
   if (recipients.length === 0) return null;
   if (visit.timezone && visit.timezone !== VN_TIMEZONE) return null;
   return Object.freeze({ visitId, bookingId: validRecipient(visit.bookingId) ? visit.bookingId : null,

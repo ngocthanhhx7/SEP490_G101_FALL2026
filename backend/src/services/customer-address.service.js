@@ -246,7 +246,12 @@ export function createCustomerAddressService({ repository, clock = Date.now } = 
           if (!current) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Address not found');
           if (current.version !== command.expectedVersion) conflict();
           const openBookings = await repository.countOpenBookingsUsingAddress({ customerId, addressId: id, transaction });
-          requireConfirmation(openBookings, command.confirmOpenBookingImpact);
+          if (!Number.isSafeInteger(openBookings) || openBookings < 0) {
+            throw new AppError(503, 'ADDRESS_BOOKING_GUARD_UNAVAILABLE', 'Address booking check is unavailable');
+          }
+          if (openBookings > 0) {
+            throw new AppError(409, 'ADDRESS_IN_USE', 'Address with unfinished bookings cannot be archived');
+          }
           const archivedAt = new Date(clock());
           const archived = await repository.archiveAddress({ customerId, addressId: id,
             expectedVersion: command.expectedVersion, archivedAt, transaction });
