@@ -12,6 +12,7 @@ export function createProductOrderManagementController(service, payments) {
     handToCustomer: controllerAction(200, (req) => service.handToCustomer(req.auth, req.params.orderId, req.body)),
     paymentLink: controllerAction(200, (req) => payments.createPickupShopLink(req.auth, req.params.orderId, req.body)),
     recordPayment: controllerAction(200, (req) => service.recordPayment(req.auth, req.params.orderId, req.body)),
-    cancel: controllerAction(200, (req) => service.cancel(req.auth, req.params.orderId, req.body))
+    cancel: controllerAction(200, (req) => service.cancel(req.auth, req.params.orderId, req.body)),
+    listOrderRefunds: controllerAction(200, (req) => service.listOrderRefunds(req.auth, req.query))
   };
 }

@@ -150,6 +150,8 @@ export function productSalesModels(connection) {
         cashPayment: { type: cashPayment },
         completedAt: { type: Date },
         cancelledAt: { type: Date },
+        cancelledBy: { type: String, enum: ['CUSTOMER', 'STAFF', 'SYSTEM'] },
+        cancelIdempotencyKey: { type: String, maxlength: 128 },
         tierDiscount: { ...integer(), default: 0 },
         tierCode: { type: String, enum: [...CUSTOMER_TIERS, null], default: null },
         tierPolicyVersion: { ...integer(1), default: null, validate: value => value === null || Number.isSafeInteger(value) },

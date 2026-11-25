@@ -7,7 +7,7 @@ import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
 import {
   parseManagementListQuery, parseHandToCarrier, parseNoBody, parseMarkReturning, parseConfirmReturned
 } from '../../validators/product-order-management.validator.js';
-import { parseObjectId } from '../../validators/product-order.validator.js';
+import { parseObjectId, parseOrderListQuery } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { toOrderView } from './product-order.service.js';
 import { readProductOrderTabCounts } from './product-order-tab-counts.js';
@@ -23,7 +23,7 @@ const HOUR_MS = 3_600_000;
 const isUnpaidPrepaid = (order) => order.paymentMethod === 'PREPAID' && !order.paid;
 // A paid prepaid order that is cancelled or returned is marked for a refund with the amount of GBR-37; accounting pays it
 // outside PWC. Nothing else is marked: an unpaid order has nothing to give back.
-const refundChanges = (order, options) => PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid
+export const refundChanges = (order, options) => PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid
   ? { refundMarked: true, refundAmountVnd: productOrderRefundAmount(order, options) } : {};
 // Oldest first where staff work through a queue; newest first elsewhere.
 const OLDEST_FIRST_TABS = new Set(['PREPARE', 'AWAITING_PICKUP']);
@@ -135,7 +135,7 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
         if (!candidate.paid && await checkProductPayment(candidate, payments) !== 'UNPAID') { summary.kept += 1; continue; }
         const updated = await updateOrder(candidate._id, {
           expiryFilter: { ...filter, version: candidate.version },
-          changes: (order) => ({ status: 'CANCELLED', cancelledAt: cutoff, ...refundChanges(order) }),
+          changes: (order) => ({ status: 'CANCELLED', cancelledAt: cutoff, cancelledBy: 'SYSTEM', ...refundChanges(order) }),
           stock: 'RELEASE',
           pickupExpired: true,
           effects: async (order, session) => {
@@ -177,7 +177,7 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
         // (GBR-36), so no refusal record is written.
         const updated = await updateOrder(candidate._id, {
           expiryFilter: { ...filter, version: candidate.version },
-          changes: () => ({ status: 'CANCELLED', cancelledAt: cutoff }),
+          changes: () => ({ status: 'CANCELLED', cancelledAt: cutoff, cancelledBy: 'SYSTEM' }),
           stock: 'RELEASE',
           paymentExpired: true
         });
@@ -386,9 +386,31 @@ export function createProductOrderManagementService({
       return transition(actor, orderId, {
         check: order => { if (order.version !== current.version) throw productSalesErrors.orderStateConflict(order.status); },
         allowed: (order) => ['PLACED', 'READY'].includes(order.status),
-        changes: (order) => ({ status: 'CANCELLED', ...refundChanges(order) }),
+        changes: (order) => ({ status: 'CANCELLED', cancelledAt: new Date(clock()), cancelledBy: 'STAFF', ...refundChanges(order) }),
         stock: 'RELEASE'
       });
+    },
+    // Admin tab "Order refunds" on Refund Processing: online orders marked for accounting refund (cancelled/returned prepaid).
+    async listOrderRefunds(actor, query) {
+      if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles)) throw productSalesErrors.unauthenticated();
+      if (!actor.roles.includes('ADMIN')) throw productSalesErrors.forbidden();
+      const { page, limit } = parseOrderListQuery(query);
+      const filter = { channel: { $ne: COUNTER_CHANNEL }, refundMarked: true };
+      const [docs, total] = await Promise.all([
+        ProductOrder.find(filter)
+          .sort({ cancelledAt: -1, returnedAt: -1, updatedAt: -1, _id: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean(),
+        ProductOrder.countDocuments(filter)
+      ]);
+      const customers = await customerDetails([...new Set(docs.map((doc) => String(doc.customerId)))]);
+      return {
+        items: docs.map((doc) => toAdminOrderView(doc, customers.get(String(doc.customerId)))),
+        page,
+        limit,
+        total
+      };
     }
   });
 }

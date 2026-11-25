@@ -5,14 +5,17 @@ import { productSalesModels } from '../../models/product.model.js';
 import { createProductPricingEligibility } from './product-pricing-eligibility.service.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
-import { DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS } from '../../constants/product-fields.js';
+import { DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
 import { createProductOrderCodeService } from './product-order-code.service.js';
-import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseObjectId } from '../../validators/product-order.validator.js';
+import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseCancelOrder, parseObjectId } from '../../validators/product-order.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
-import { priceProductOrder, sellableQuantity } from './product-order-pricing.js';
+import { priceProductOrder, productOrderRefundAmount, sellableQuantity } from './product-order-pricing.js';
+import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
 
 const HOUR_MS = 3_600_000;
+const customerRefundChanges = (order) => PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid
+  ? { refundMarked: true, refundAmountVnd: productOrderRefundAmount(order) } : {};
 
 export function toOrderView(doc) {
   return {
@@ -26,6 +29,9 @@ export function toOrderView(doc) {
     paymentDeadlineAt: doc.paymentDeadlineAt ?? null,
     paidAt: doc.payment?.paidAt ?? null,
     status: doc.status,
+    cancelledAt: doc.cancelledAt ?? null,
+    cancelledBy: doc.cancelledBy ?? null,
+    version: doc.version ?? 0,
     trackingCode: doc.trackingCode ?? null,
     deliveryAddress: doc.deliveryAddress
       ? { label: doc.deliveryAddress.label, location: doc.deliveryAddress.location, areaCode: doc.deliveryAddress.areaCode }
@@ -54,7 +60,7 @@ const fingerprintOf = (customerId, input) =>
 // serviceAreas is injected by route composition (the same demo work areas used by Customer addresses).
 export function createProductOrderService({
   connection, serviceAreas = [], eligibility = createProductPricingEligibility({ connection }),
-  clock = Date.now, paymentDeadlineHours = DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS
+  clock = Date.now, paymentDeadlineHours = DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, payments = null
 }) {
   const { Product, ProductCart, ProductOrder } = productSalesModels(connection);
   const { CustomerAddress } = petCareModels(connection);
@@ -169,6 +175,67 @@ export function createProductOrderService({
       const doc = await ProductOrder.findOne({ _id: parseObjectId(orderId, 'orderId'), customerId, channel: { $ne: COUNTER_CHANNEL } }).lean();
       if (!doc) throw productSalesErrors.notFound();
       return toOrderView(doc);
+    },
+    // Customer cancels own order while still PLACED (UC-63, GBR-36, GBR-37, MSG154-MSG156).
+    // Releases quantityHeld only (stockOnHand unchanged), never writes a refusal record, marks full refund when prepaid & paid.
+    async cancel(actor, orderId, body, idempotencyKey) {
+      const customerId = requireCustomer(actor);
+      const id = parseObjectId(orderId, 'orderId');
+      const input = parseCancelOrder(body);
+      const key = idempotencyKey ? parseIdempotencyKey(idempotencyKey) : null;
+
+      const current = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (!current) throw productSalesErrors.notFound();
+      if (String(current.customerId) !== customerId) throw productSalesErrors.forbidden();
+      if (key && current.status === 'CANCELLED' && current.cancelIdempotencyKey === key) return toOrderView(current);
+      if (current.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(current.status);
+
+      // Reconcile payOS first if a prepaid payment link was opened, so a payment that already succeeded is never lost.
+      if (current.paymentMethod === 'PREPAID' && !current.paid && current.payment?.providerReferences?.length > 0 && payments) {
+        const outcome = await checkProductPayment(current, payments);
+        if (outcome !== 'PAID') requireUnpaidProductOutcome(outcome);
+      }
+
+      const cancelled = await unitOfWork.run(async (session) => {
+        const order = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).session(session).lean();
+        if (!order) throw productSalesErrors.notFound();
+        if (key && order.status === 'CANCELLED' && order.cancelIdempotencyKey === key) return order;
+        if (order.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(order.status);
+        if (input.expectedVersion !== undefined && order.version !== input.expectedVersion) {
+          throw productSalesErrors.versionConflict('order');
+        }
+        const now = new Date(clock());
+        const updated = await ProductOrder.findOneAndUpdate(
+          { _id: id, customerId, channel: { $ne: COUNTER_CHANNEL }, status: 'PLACED', version: order.version },
+          {
+            $set: {
+              status: 'CANCELLED',
+              cancelledAt: now,
+              cancelledBy: 'CUSTOMER',
+              ...(key ? { cancelIdempotencyKey: key } : {}),
+              ...customerRefundChanges(order)
+            },
+            $inc: { version: 1 }
+          },
+          { returnDocument: 'after', session }
+        ).lean();
+        if (!updated) {
+          const latest = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).session(session).lean();
+          if (key && latest?.status === 'CANCELLED' && latest.cancelIdempotencyKey === key) return latest;
+          throw productSalesErrors.orderNotCancellable(latest?.status ?? order.status);
+        }
+        for (const line of [...order.lines].sort((a, b) => String(a.productId).localeCompare(String(b.productId)))) {
+          const applied = await Product.updateOne(
+            { _id: line.productId, quantityHeld: { $gte: line.quantity } },
+            { $inc: { quantityHeld: -line.quantity, version: 1 } },
+            { session }
+          );
+          if (applied.modifiedCount !== 1) throw productSalesErrors.orderStockMismatch(String(id));
+        }
+        await notifications.productOrder({ order: updated, previous: order }, session);
+        return updated;
+      });
+      return toOrderView(cancelled);
     }
   });
 }

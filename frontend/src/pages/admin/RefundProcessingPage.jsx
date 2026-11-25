@@ -5,6 +5,7 @@ import { useSession } from '../../contexts/SessionContext.jsx';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { createComplaintApi } from '../../services/complaint-api.js';
 import { createPrivateImageApi } from '../../services/private-image-api.js';
+import { createProductSalesApi } from '../../services/product-sales-api.js';
 import { bookingMoney } from '../../utils/booking-presentation.js';
 import { complaintDeadline, complaintError, complaintSubject, complaintVisitTime, retryKey, uncertainComplaint } from '../../utils/complaint-presentation.js';
 import './refund-processing.css';
@@ -12,8 +13,13 @@ import './refund-processing.css';
 const tabs = [
   ['PENDING', 'Chờ duyệt'],
   ['DECIDED', 'Đã quyết'],
-  ['BOOKING_REFUNDS', 'Hoàn tiền lịch đặt']
+  ['BOOKING_REFUNDS', 'Hoàn tiền lịch đặt'],
+  ['ORDER_REFUNDS', 'Hoàn tiền đơn hàng']
 ];
+const orderStatusLabels = {
+  CANCELLED: 'Đã huỷ',
+  RETURNED: 'Đã hoàn hàng'
+};
 const proposalStatusLabels = {
   PENDING: 'Chờ duyệt',
   APPROVED: 'Đã duyệt',
@@ -273,25 +279,55 @@ function BookingRefundDetail({ item }) {
   </>;
 }
 
-export function RefundProcessingPage({ api: suppliedApi } = {}) {
+function OrderRefundDetail({ item }) {
+  const markedAt = item.cancelledAt || item.returnedAt || item.updatedAt;
+  return <>
+    <header className="refund-processing__detail-header">
+      <h2>Đơn {item.code}</h2>
+      <StatusBadge status="RECORDED" />
+    </header>
+    <dl className="refund-processing__facts">
+      <div><dt>Khách hàng</dt><dd>{[item.customer?.displayName, item.customer?.phone].filter(Boolean).join(' · ') || '—'}</dd></div>
+      <div><dt>Trạng thái đơn</dt><dd>{orderStatusLabels[item.status] ?? item.status}</dd></div>
+      <div><dt>Tổng đơn hàng</dt><dd>{bookingMoney(item.total)}</dd></div>
+      <div><dt>Số tiền hoàn</dt><dd><strong>{bookingMoney(item.refundAmountVnd)}</strong></dd></div>
+      <div><dt>Thời điểm ghi nhận</dt><dd>{markedAt ? complaintDeadline(markedAt) : '—'}</dd></div>
+    </dl>
+    <p className="refund-processing__note">
+      Đơn hàng trả trước đã được đánh dấu hoàn tiền để kế toán Paw World chi trả ngoài hệ thống.
+    </p>
+    <div className="refund-processing__links">
+      <Link to="/admin/product-orders">Xem quản lý đơn hàng</Link>
+    </div>
+  </>;
+}
+
+export function RefundProcessingPage({ api: suppliedApi, productSalesApi: suppliedProductSalesApi } = {}) {
   const [params, setParams] = useSearchParams();
   const { getCsrfToken } = useSession();
   const api = useMemo(() => suppliedApi ?? createComplaintApi({ getCsrfToken }), [suppliedApi, getCsrfToken]);
+  const productSalesApi = useMemo(
+    () => suppliedProductSalesApi ?? (typeof globalThis.fetch === 'function' ? createProductSalesApi({ getCsrfToken }) : null),
+    [suppliedProductSalesApi, getCsrfToken]
+  );
   const [status, setStatus] = useState('PENDING');
   const [cursors, setCursors] = useState([undefined]);
   const [message, setMessage] = useState(null);
   const [selectedBookingRefundId, setSelectedBookingRefundId] = useState(null);
+  const [selectedOrderRefundId, setSelectedOrderRefundId] = useState(null);
   const [savedCounts, setSavedCounts] = useState(null);
   const tabRefs = useRef([]);
   const selectedParam = params.get('complaint');
   const cursor = cursors.at(-1);
   const isBookingRefundTab = status === 'BOOKING_REFUNDS';
+  const isOrderRefundTab = status === 'ORDER_REFUNDS';
+  const isProposalTab = !isBookingRefundTab && !isOrderRefundTab;
 
-  const list = useApiResource(useCallback(({ signal }) => !isBookingRefundTab
+  const list = useApiResource(useCallback(({ signal }) => isProposalTab
     ? api.refundProposals({
       status, sort: status === 'PENDING' ? 'oldest' : 'newest', cursor, signal
     })
-    : Promise.resolve({ data: null }), [api, isBookingRefundTab, status, cursor]));
+    : Promise.resolve({ data: null }), [api, isProposalTab, status, cursor]));
 
   useEffect(() => {
     if (list.data?.proposalCounts) setSavedCounts(list.data.proposalCounts);
@@ -301,12 +337,19 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
     ? api.bookingRefunds({ signal })
     : Promise.resolve({ data: { items: [], total: 0 } }), [api, isBookingRefundTab]));
 
+  const orderRefunds = useApiResource(useCallback(({ signal }) => isOrderRefundTab && typeof productSalesApi?.listOrderRefunds === 'function'
+    ? productSalesApi.listOrderRefunds({ signal })
+    : Promise.resolve({ data: { items: [], total: 0 } }), [productSalesApi, isOrderRefundTab]));
+
   const items = list.data?.items ?? [];
   const counts = list.data?.proposalCounts ?? savedCounts;
-  const selectedId = !isBookingRefundTab ? (selectedParam || items[0]?.id) : null;
+  const selectedId = isProposalTab ? (selectedParam || items[0]?.id) : null;
 
   const bookingRefundItems = bookingRefunds.data?.items ?? [];
   const activeBookingRefund = bookingRefundItems.find(item => item.id === selectedBookingRefundId) ?? bookingRefundItems[0] ?? null;
+
+  const orderRefundItems = orderRefunds.data?.items ?? [];
+  const activeOrderRefund = orderRefundItems.find(item => item.id === selectedOrderRefundId) ?? orderRefundItems[0] ?? null;
 
   const detail = useApiResource(useCallback(({ signal }) => selectedId
     ? api.refundProposal({ complaintId: selectedId, signal })
@@ -321,6 +364,7 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
     setStatus(nextStatus);
     setCursors([undefined]);
     setSelectedBookingRefundId(null);
+    setSelectedOrderRefundId(null);
     select(null);
   }
 
@@ -347,13 +391,18 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
         ? `${label} (${bookingRefunds.data.total})`
         : label;
     }
+    if (tabKey === 'ORDER_REFUNDS') {
+      return Number.isSafeInteger(orderRefunds.data?.total) && isOrderRefundTab
+        ? `${label} (${orderRefunds.data.total})`
+        : label;
+    }
     return `${label} (${counts?.[tabKey] ?? (list.status === 'success' ? 0 : '…')})`;
   }
 
   return <section className="refund-processing" aria-labelledby="refund-processing-title">
     <header className="refund-processing__header">
       <h1 id="refund-processing-title">Hoàn tiền</h1>
-      <p>Xem và quyết định các khoản hoàn tiền từ khiếu nại và theo dõi hoàn tiền huỷ lịch đặt.</p>
+      <p>Xem và quyết định các khoản hoàn tiền từ khiếu nại, theo dõi hoàn tiền huỷ lịch đặt và hoàn tiền đơn hàng.</p>
     </header>
     {message && <Notice state="success" title={message} />}
     <div className="refund-processing__tabs" role="tablist" aria-label="Trạng thái đề xuất hoàn tiền">
@@ -364,7 +413,34 @@ export function RefundProcessingPage({ api: suppliedApi } = {}) {
         {tabLabel(tabKey, label)}
       </button>)}
     </div>
-    {isBookingRefundTab ? <div className="refund-processing__columns">
+    {isOrderRefundTab ? <div className="refund-processing__columns">
+      <section id="refund-tab-panel" role="tabpanel" aria-labelledby="refund-tab-ORDER_REFUNDS"
+        className="refund-processing__list">
+        {orderRefunds.status !== 'success' && <ResourceNotice resource={orderRefunds}
+          title={orderRefunds.status === 'loading' ? 'Đang tải hoàn tiền đơn hàng…' : 'Chưa tải được danh sách hoàn tiền đơn hàng'} />}
+        {orderRefunds.status === 'success' && (orderRefundItems.length
+          ? <ul>{orderRefundItems.map(item => <li key={item.id}>
+            <button type="button" aria-current={activeOrderRefund?.id === item.id || undefined}
+              onClick={() => setSelectedOrderRefundId(item.id)}>
+              <span className="refund-processing__row-title">
+                <strong>{[item.code, item.customer?.displayName || 'Khách hàng'].join(' · ')}</strong>
+                <StatusBadge status="RECORDED" />
+              </span>
+              <span className="refund-processing__muted">
+                {[
+                  'Hoàn ' + bookingMoney(item.refundAmountVnd),
+                  orderStatusLabels[item.status] ?? item.status,
+                  (item.cancelledAt || item.returnedAt) ? complaintDeadline(item.cancelledAt || item.returnedAt) : null
+                ].filter(Boolean).join(' · ')}
+              </span>
+            </button>
+          </li>)}</ul>
+          : <p className="refund-processing__empty">Chưa có đơn hàng nào được đánh dấu hoàn tiền.</p>)}
+      </section>
+      {activeOrderRefund && <section className="refund-processing__detail" aria-label="Chi tiết hoàn tiền đơn hàng">
+        <OrderRefundDetail item={activeOrderRefund} />
+      </section>}
+    </div> : isBookingRefundTab ? <div className="refund-processing__columns">
       <section id="refund-tab-panel" role="tabpanel" aria-labelledby="refund-tab-BOOKING_REFUNDS"
         className="refund-processing__list">
         {bookingRefunds.status !== 'success' && <ResourceNotice resource={bookingRefunds}

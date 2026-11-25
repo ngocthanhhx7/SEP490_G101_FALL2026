@@ -193,3 +193,44 @@ test('UC-39 ST-BKG-30 shows Hoàn tiền lịch đặt tab with recorded booking
   expect(screen.getByText('Thay đổi kế hoạch')).toBeVisible();
   expect(api.bookingRefunds).toHaveBeenCalledTimes(1);
 });
+
+test('ST-ORD-10 shows Hoàn tiền đơn hàng tab using productSalesApi.listOrderRefunds', async () => {
+  const api = createApi();
+  const productSalesApi = {
+    listOrderRefunds: jest.fn(async () => ({
+      data: {
+        total: 1,
+        items: [{
+          id: 'c'.repeat(24),
+          code: 'DH-2026-0099',
+          status: 'CANCELLED',
+          receiveMethod: 'DELIVERY',
+          paymentMethod: 'PREPAID',
+          paid: true,
+          subtotal: 150000,
+          shippingFee: 25000,
+          total: 175000,
+          refundMarked: true,
+          refundAmountVnd: 175000,
+          cancelledAt: '2026-11-26T02:10:00.000Z',
+          customer: { id: 'cust-1', displayName: 'Trần Thị Lan', phone: '0912345678' },
+          lines: []
+        }]
+      }
+    }))
+  };
+
+  render(
+    <MemoryRouter initialEntries={['/admin/refunds']}>
+      <SessionProvider adapter={session('ADMIN')}>
+        <RefundProcessingPage api={api} productSalesApi={productSalesApi} />
+      </SessionProvider>
+    </MemoryRouter>
+  );
+
+  fireEvent.click(await screen.findByRole('tab', { name: /Hoàn tiền đơn hàng/ }));
+  expect(await screen.findByRole('heading', { name: 'Đơn DH-2026-0099' })).toBeVisible();
+  expect(screen.getAllByText(/175\.000\s*₫/).length).toBeGreaterThanOrEqual(1);
+  expect(screen.getByText('Đã huỷ')).toBeVisible();
+  expect(productSalesApi.listOrderRefunds).toHaveBeenCalledTimes(1);
+});
