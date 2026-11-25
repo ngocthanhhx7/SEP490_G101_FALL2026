@@ -13,6 +13,15 @@ const careLabels = { feeding: 'Cho ăn', handling: 'Hành vi', health: 'Sức kh
   medication: 'Thuốc theo hướng dẫn thú y', vaccination: 'Vaccine', emergencyContact: 'Liên hệ khẩn cấp', veterinaryContact: 'Phòng khám thú y' };
 const reportHeadings = ['Ngày', 'Giờ', 'Người chăm sóc', 'Tóm tắt'];
 
+// A time that has already passed (an urgent handover, or a replacement after the start) is not shown as "from 07:00".
+function afterConfirm(visit, now = Date.now()) {
+  const noteOpen = +new Date(visit.accessOpensAt) <= now, checkInOpen = +new Date(visit.checkInOpensAt) <= now;
+  if (noteOpen && checkInOpen) return 'Sau khi xác nhận, bạn xem ghi chú vào nhà và check-in được ngay.';
+  const note = noteOpen ? 'bạn xem ghi chú vào nhà được ngay' : `ghi chú vào nhà hiện từ ${time(visit.accessOpensAt)}`;
+  const checkIn = checkInOpen ? 'check-in được ngay' : `check-in được từ ${time(visit.checkInOpensAt)}`;
+  return `Sau khi xác nhận, ${note} và bạn ${checkIn}.`;
+}
+
 function Detail({ label, children }) {
   return <div><dt>{label}</dt><dd>{children}</dd></div>;
 }
@@ -149,7 +158,7 @@ export function HandoverConfirmationPage({ api, visitId }) {
           {command.pending
             ? <Button onClick={command.retry} loading={command.busy} loadingLabel="Đang xác nhận…">Thử xác nhận lại</Button>
             : <Button type="submit" disabled={!checked} loading={command.busy} loadingLabel="Đang xác nhận…">Xác nhận bàn giao</Button>}
-          <p className="handover-confirmation__muted">Sau khi xác nhận, ghi chú vào nhà hiện từ {time(visit.accessOpensAt)} và bạn check-in được từ {time(visit.checkInOpensAt)}.</p>
+          <p className="handover-confirmation__muted">{afterConfirm(visit)}</p>
           {command.message && !changed && !confirmed && <p role="status">{command.message}</p>}
         </form>
         </div>

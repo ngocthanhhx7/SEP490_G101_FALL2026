@@ -74,6 +74,8 @@ export function employeeSchedulingRuntimeModule({ config, connection, env = {}, 
   router.post('/visits/:id/withdrawal-decisions', staff, csrf, withdrawalReview.decide);
   router.get('/visits/:id/candidates', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.candidates);
   router.post('/visits/:id/invitations', staff, csrf, c.invite);
+  router.get('/visits/:id/reassignment', staff, rateLimit({ windowMs: 60000, limit: 6, keyGenerator: req => String(req.auth.userId), standardHeaders: 'draft-8', legacyHeaders: false }), c.reassignmentDetails);
+  router.post('/visits/:id/reassignments', staff, csrf, c.reassign);
   const closures = createVisitClosureController(createVisitClosureService({ repository, clock }));
   router.get('/closable-visits', staff, closures.list);
   router.get('/visits/:id/closure', staff, closures.details);
