@@ -442,7 +442,7 @@ export function SitterApplicationPage({
               onChange={event => { setAgreementKey(event.target.checked ? policies.current().key : ''); setErrors(previous => ({ ...previous, agreement: undefined })); }} />
             <label htmlFor="sitter-agreement">Tôi đồng ý với Điều khoản dịch vụ và Chính sách quyền riêng tư của PawWorld.</label>
             <PolicyContextLinks context="sitterApplication" />
-            {!policies.ready && <p role="status">Chính sách đăng ký hiện chưa sẵn sàng. Vui lòng thử lại sau.</p>}
+            {!policies.ready && <p role="status">{policies.status === 'loading' ? 'Đang tải các chính sách áp dụng…' : policies.status === 'error' ? <>Chưa tải được chính sách. <button type="button" onClick={policies.retry}>Thử lại</button></> : 'Chính sách đăng ký hiện chưa sẵn sàng. Vui lòng thử lại sau.'}</p>}
             {errors.agreement && <p className="sitter-application__error" role="alert">{errors.agreement}</p>}
           </div>
         </fieldset>

@@ -1,6 +1,7 @@
 import { Schema } from 'mongoose';
 import {
-  GROOMING_APPOINTMENT_STATUSES, GROOMING_BITE_ANSWERS, GROOMING_DISCOUNT_BLOCK_REASONS, GROOMING_PET_STATUSES, GROOMING_SKIN_ANSWERS
+  GROOMING_APPOINTMENT_STATUSES, GROOMING_BITE_ANSWERS, GROOMING_CANCELLATION_ROLES, GROOMING_DISCOUNT_BLOCK_REASONS, GROOMING_PET_STATUSES,
+  GROOMING_SKIN_ANSWERS
 } from '../constants/grooming.js';
 
 const oid = Schema.Types.ObjectId;
@@ -73,6 +74,12 @@ function appointmentSchema() {
     version: { ...count, default: 0 },
     checkIn: new Schema({ at: Date, byStaffId: oid }, embedded),
     noShow: new Schema({ at: Date, byStaffId: oid }, embedded),
+    cancellation: new Schema({
+      at: { type: Date, required: true },
+      byRole: { type: String, enum: GROOMING_CANCELLATION_ROLES, required: true },
+      byUserId: { type: oid, required: true },
+      reason: { type: String, maxlength: 1000 }
+    }, embedded),
     payment: new Schema({
       method: { type: String, enum: ['CASH', 'VIETQR'] }, paidAt: Date, amountVnd: money, tipVnd: money, cashGivenVnd: money,
       payosOrderCode: { type: String, maxlength: 80 }, receivedBy: oid

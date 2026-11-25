@@ -1,3 +1,4 @@
+import { handoverPending } from '../care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { createBookingFinancialHolds } from '../settlements/booking-financial-holds.service.js';
@@ -45,7 +46,7 @@ export function createMongoIncidentRepository({
       (!staff && String(booking.customerId) !== actor.userId && String(row.sitterId) !== actor.userId)
     )
       fail('RESOURCE_NOT_FOUND', 404);
-    if (actor.roles.includes('PET_SITTER') && row.handoverRequired && !row.handoverAccepted) fail('HANDOVER_REQUIRED');
+    if (actor.roles.includes('PET_SITTER') && handoverPending(row)) fail('HANDOVER_REQUIRED');
     return {
       ...row,
       id: visitId,

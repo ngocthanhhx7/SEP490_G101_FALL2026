@@ -12,13 +12,13 @@ export function parseIdempotencyKey(value) {
   return value;
 }
 
-// Delivery needs an address (MSG101) and is paid on delivery; pickup has no address and is paid in the shop.
+// Delivery needs an address (MSG101); pickup has none. Each receive method offers payOS in advance or one cash way (GBR-36).
 export function parsePlaceOrder(body) {
   requireOnlyKeys(body, ['receiveMethod', 'paymentMethod', 'addressId'], ['receiveMethod', 'paymentMethod']);
   if (!PRODUCT_RECEIVE_METHODS.includes(body.receiveMethod)) {
     throw new AppError(422, 'VALIDATION_FAILED', 'receiveMethod is invalid');
   }
-  if (body.paymentMethod !== PRODUCT_PAYMENT_BY_RECEIVE_METHOD[body.receiveMethod]) {
+  if (!PRODUCT_PAYMENT_BY_RECEIVE_METHOD[body.receiveMethod].includes(body.paymentMethod)) {
     throw new AppError(422, 'VALIDATION_FAILED', 'paymentMethod does not match receiveMethod');
   }
   if (body.receiveMethod === 'PICKUP') {

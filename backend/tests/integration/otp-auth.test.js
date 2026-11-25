@@ -135,7 +135,15 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     const { otpService } = fixture();
     const first = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
     await expect(otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' }))
-      .rejects.toMatchObject({ status: 429, code: 'OTP_RATE_LIMITED' });
+      .rejects.toMatchObject({
+        status: 429,
+        code: 'OTP_RATE_LIMITED',
+        details: {
+          reason: 'RESEND_COOLDOWN',
+          retryAfterSeconds: 60,
+          retryAfterAt: new Date(clockNow + 60000).toISOString()
+        }
+      });
     clockNow += 60000;
     const second = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
     await expect(otpService.verify({ ...first, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
@@ -146,6 +154,7 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
 
   test('limits a contact to five sent codes per rolling hour', async () => {
     const { otpService } = fixture();
+    const firstSentAt = clockNow;
     const first = await otpService.begin({ channel: 'PHONE', contact: '+84912345678', purpose: 'REGISTER' });
     for (let index = 0; index < 4; index += 1) {
       clockNow += 60000;
@@ -153,7 +162,15 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     }
     clockNow += 60000;
     await expect(otpService.begin({ channel: 'PHONE', contact: '+84912345678', purpose: 'REGISTER' }))
-      .rejects.toMatchObject({ status: 429, code: 'OTP_RATE_LIMITED' });
+      .rejects.toMatchObject({
+        status: 429,
+        code: 'OTP_RATE_LIMITED',
+        details: {
+          reason: 'HOURLY_LIMIT',
+          retryAfterSeconds: 3300,
+          retryAfterAt: new Date(firstSentAt + 60 * 60 * 1000).toISOString()
+        }
+      });
     expect(first.challengeId).toBeTruthy();
   });
 
@@ -173,15 +190,36 @@ describe('P06 OTP policy using an isolated MongoDB replica set', () => {
     await createActiveUser();
     const { otpService } = fixture();
     const challenge = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 4; index += 1) {
       await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '999999' }))
-        .rejects.toMatchObject({ status: 400, code: 'OTP_INCORRECT' });
+        .rejects.toMatchObject({
+          status: 400,
+          code: 'OTP_INCORRECT',
+          details: { remainingAttempts: 4 - index }
+        });
     }
+    const lockedUntilIso = new Date(clockNow + 15 * 60 * 1000).toISOString();
+    await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '999999' }))
+      .rejects.toMatchObject({
+        status: 429,
+        code: 'OTP_RATE_LIMITED',
+        details: { reason: 'TOO_MANY_WRONG_CODES', retryAfterSeconds: 900, retryAfterAt: lockedUntilIso }
+      });
     const throttle = await models.OtpThrottle.findOne({}).lean();
     expect(throttle.failedCount).toBe(5);
     expect(throttle.lockedUntil.getTime()).toBe(clockNow + 15 * 60 * 1000);
+    await expect(otpService.verify({ ...challenge, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))
+      .rejects.toMatchObject({
+        status: 429,
+        code: 'OTP_RATE_LIMITED',
+        details: { reason: 'TOO_MANY_WRONG_CODES', retryAfterSeconds: 900, retryAfterAt: lockedUntilIso }
+      });
     await expect(otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' }))
-      .rejects.toMatchObject({ status: 429, code: 'OTP_RATE_LIMITED' });
+      .rejects.toMatchObject({
+        status: 429,
+        code: 'OTP_RATE_LIMITED',
+        details: { reason: 'TOO_MANY_WRONG_CODES', retryAfterSeconds: 900, retryAfterAt: lockedUntilIso }
+      });
     clockNow += 15 * 60 * 1000;
     const recovered = await otpService.begin({ channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN' });
     await expect(otpService.verify({ ...recovered, channel: 'EMAIL', contact: 'person@example.test', purpose: 'LOGIN', code: '004201' }))

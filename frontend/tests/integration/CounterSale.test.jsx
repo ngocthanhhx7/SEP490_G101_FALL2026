@@ -14,7 +14,8 @@ function api(over = {}) {
     preview: jest.fn().mockImplementation(async body => ({ lines: body.lines.map(l => ({ ...line, quantity: l.quantity })),
       customerId: body.customerId ?? null, subtotal: 333000, tierDiscount: 0, total: body.lines.length ? 333000 : 0 })),
     create: jest.fn().mockResolvedValue(order()), read: jest.fn().mockResolvedValue(order()),
-    recordCash: jest.fn().mockResolvedValue(order({ status: 'PAID', paid: true, cashPayment: { amount: 125000, receivedAt: '2026-11-08T03:20:00Z' } })),
+    createPaymentLink: jest.fn().mockResolvedValue({ checkoutUrl: 'https://pay.payos.vn/web/9001', expiresAt: '2026-11-25T03:35:00Z', orderCode: '9001' }),
+    recordCash: jest.fn().mockResolvedValue(order({ status: 'PAID', paid: true, paymentMethod: 'COUNTER_CASH', cashPayment: { amount: 125000, receivedAt: '2026-11-08T03:20:00Z' } })),
     complete: jest.fn().mockResolvedValue(order({ status: 'COMPLETED', paid: true })),
     cancel: jest.fn().mockResolvedValue(order({ status: 'CANCELLED' })), ...over };
 }
@@ -50,12 +51,12 @@ test.each(['AWAITING_PAYMENT', 'PAID', 'COMPLETED', 'CANCELLED'])('AC-27 keeps o
   expect(screen.getByRole('group', { name: 'Cách thanh toán' })).toBeVisible();
 });
 
-test('AC-26 shows product search, backend availability, disabled out-of-stock, cash selected and VietQR disabled', async () => {
+test('AC-26 shows product search, backend availability, disabled out-of-stock, cash selected and VietQR enabled', async () => {
   const service = api(); mount(service);
   expect(await screen.findByRole('button', { name: 'Thêm Hạt cho mèo' })).toBeEnabled();
   expect(screen.getByRole('button', { name: 'Hết hàng Dây dắt' })).toBeDisabled();
   expect(screen.getByRole('radio', { name: 'Tiền mặt' })).toBeChecked();
-  expect(screen.getByRole('radio', { name: 'VietQR' })).toBeDisabled();
+  expect(screen.getByRole('radio', { name: 'VietQR' })).toBeEnabled();
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'SP-0001' } });
   await waitFor(() => expect(service.products).toHaveBeenLastCalledWith({ search: 'SP-0001', page: 1 }, expect.any(Object)));
 });
@@ -188,4 +189,57 @@ test('discards a creation response from the previous account after the private p
   await act(async () => late.resolve(order({ customer: { id: 'old', displayName: 'Khách của tài khoản cũ' } })));
   expect(screen.queryByText('Khách của tài khoản cũ')).not.toBeInTheDocument();
   expect(screen.queryByText('Đơn DH-0010')).not.toBeInTheDocument(); expect(fresh.read).not.toHaveBeenCalled();
+});
+
+test('ST-CTR-02 creates a VietQR payOS link, polls until paid, and completes the sale', async () => {
+  const paidVietqr = order({
+    status: 'PAID', paid: true, paymentMethod: 'COUNTER_VIETQR', cashPayment: null,
+    vietqrPayment: { amount: 125000, paidAt: '2026-11-25T03:20:00Z', providerOrderCode: '9001' }
+  });
+  const read = jest.fn().mockResolvedValueOnce(order()).mockResolvedValue(paidVietqr);
+  const service = api({ read });
+  mount(service, '/admin/counter-sale?order=o1');
+  await screen.findByRole('button', { name: 'Đã nhận đủ tiền mặt' });
+
+  fireEvent.click(screen.getByRole('radio', { name: 'VietQR' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tạo mã VietQR' }));
+  const payLink = await screen.findByRole('link', { name: 'Mở trang VietQR payOS' });
+  expect(payLink).toHaveAttribute('href', 'https://pay.payos.vn/web/9001');
+  expect(payLink).not.toHaveAttribute('target', '_blank');
+
+  // Focus triggers an immediate payment status poll.
+  fireEvent(window, new window.Event('focus'));
+  expect(await screen.findByText('Đã nhận 125.000 đ qua VietQR lúc 10:20')).toBeVisible();
+  expect(screen.getByRole('radio', { name: 'VietQR' })).toBeChecked();
+  expect(screen.getByRole('radio', { name: 'Tiền mặt' })).toBeDisabled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Hoàn tất bán' }));
+  expect(await screen.findByText('Đơn DH-0010 đã hoàn tất.')).toBeVisible();
+});
+
+test('MSG33 shows payOS error when creating a VietQR link fails and keeps order payable', async () => {
+  const service = api({ createPaymentLink: jest.fn().mockRejectedValue(new ApiError('PAYMENT_PROVIDER_UNAVAILABLE', 503)) });
+  mount(service, '/admin/counter-sale?order=o1');
+  await screen.findByRole('button', { name: 'Đã nhận đủ tiền mặt' });
+
+  fireEvent.click(screen.getByRole('radio', { name: 'VietQR' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Tạo mã VietQR' }));
+  expect(await screen.findByText('Chưa thể mở trang thanh toán lúc này. Vui lòng thử lại sau vài phút.')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Tạo mã VietQR' })).toBeEnabled();
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Tiền mặt' }));
+  expect(screen.getByRole('button', { name: 'Đã nhận đủ tiền mặt' })).toBeEnabled();
+});
+
+test('ST-CTR-04 shows MSG32 after cancelling on payOS and lets Sale Staff retry VietQR or switch to cash', async () => {
+  const service = api();
+  mount(service, '/admin/counter-sale?order=o1&cancel=true&status=CANCELLED');
+  expect(await screen.findByText('Thanh toán chưa thành công. Vui lòng thử lại.')).toBeVisible();
+  expect(screen.getByRole('radio', { name: 'VietQR' })).toBeChecked();
+  expect(screen.getByRole('button', { name: 'Tạo mã VietQR mới' })).toBeEnabled();
+
+  fireEvent.click(screen.getByRole('radio', { name: 'Tiền mặt' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Đã nhận đủ tiền mặt' }));
+  expect(await screen.findByText('Đã nhận 125.000 đ tiền mặt lúc 10:20')).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Hoàn tất bán' })).toBeEnabled();
 });

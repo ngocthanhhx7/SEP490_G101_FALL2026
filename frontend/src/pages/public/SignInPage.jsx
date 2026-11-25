@@ -14,7 +14,8 @@ import './sign-in.css';
 const CHANNELS = { EMAIL: 'email', PHONE: 'phone' };
 
 function messageFor(error) {
-  if (otpFeedback(error?.code)) return otpFeedback(error.code);
+  const otpMessage = otpFeedback(error);
+  if (otpMessage) return otpMessage;
   const messages = {
     OTP_RATE_LIMITED: 'Bạn đã yêu cầu quá nhiều mã. Vui lòng thử lại sau.',
     VALIDATION_FAILED: 'Thông tin đăng nhập chưa đúng định dạng.',

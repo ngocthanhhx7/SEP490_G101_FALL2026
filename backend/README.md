@@ -33,6 +33,8 @@ Nền Express/Mongoose ESM được khởi tạo ở P02. Node24.22.1/npm11.19.1
 
 ## Demo Catalogue
 
+Để mở ứng dụng với tài khoản kiểm thử cho giảng viên và hội đồng, xem [demo năm vai trò](../doc/testing/council-demo-accounts.md).
+
 `GET /api/v1/service-areas` exposes the same demo operational zones as employee
 scheduling through `public-service-areas.service.js`. Disabled scheduling returns
 `available: false` and an empty list. This catalog is not a ward-boundary registry

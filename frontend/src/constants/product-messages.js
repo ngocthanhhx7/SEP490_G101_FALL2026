@@ -4,6 +4,11 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG02: 'Vui lòng nhập địa chỉ email hợp lệ.',
   MSG03: 'Vui lòng nhập số điện thoại hợp lệ (10 số, bắt đầu bằng 0).',
   MSG18: 'Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.',
+  MSG32: 'Thanh toán chưa thành công. Vui lòng thử lại.',
+  MSG33: 'Chưa thể mở trang thanh toán lúc này. Vui lòng thử lại sau vài phút.',
+  MSG25: 'Buổi này vừa được giao cho {name}. Trang đã cập nhật thông tin mới nhất.',
+  MSG45: '{name} không còn nhận được buổi này ({reason}). Vui lòng chọn người chăm sóc khác.',
+  MSG46: '{name} đã có buổi khác vào giờ này nên không thể chọn.',
   MSG58: 'Chỉ còn {n} sản phẩm. Vui lòng giảm số lượng.',
   MSG59: 'Đơn hàng {code} đã được đặt.',
   MSG60: 'Đơn hàng này chỉ có thể thanh toán trước.',
@@ -32,6 +37,7 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG122: 'Phiếu nhập {code}: từ chối {n} {product}. Lý do: {reason}.',
   MSG123: 'Số giảm không được lớn hơn số có thể bán ({n}).',
   MSG124: 'Phiếu điều chỉnh {code} đã được lưu.',
+  MSG92: '{name} đã nhận buổi ngày {date} lúc {time}. Khách và cả hai người chăm sóc đã được báo.',
   MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
 });
 
@@ -41,6 +47,7 @@ export const PRODUCT_ERROR_MESSAGE_KEYS = Object.freeze({
   PRODUCT_OUT_OF_STOCK: 'MSG98',
   CART_EMPTY: 'MSG100',
   PRODUCT_ORDER_PREPAY_REQUIRED: 'MSG60',
+  PAYMENT_PROVIDER_UNAVAILABLE: 'MSG33',
   ADDRESS_REQUIRED: 'MSG101',
   ADDRESS_OUT_OF_SERVICE_AREA: 'MSG18',
   TRACKING_CODE_REQUIRED: 'MSG103',

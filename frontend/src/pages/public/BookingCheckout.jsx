@@ -1,3 +1,4 @@
+import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
 import { useCallback, useRef, useState } from 'react';
 import { bookingStatus, bookingDate } from '../../utils/booking-presentation.js';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -79,6 +80,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
       {quote.items.map((item, index) => item.servicePolicy && <details key={index}><summary>{item.servicePolicy.title}</summary><p className="pwc-checkout-policy">{item.servicePolicy.body}</p></details>)}
       <label className="pwc-checkout-consent"><input type="checkbox" name="consent" required />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.</label>
     </fieldset>
+    <PolicyContextLinks context="booking" />
     {error && <p role="alert">{error}</p>}
     {options.status === 'error' && <p role="alert">Đặt lịch hiện chưa khả dụng. <button type="button" onClick={options.retry}>Thử lại</button></p>}
     {onEditQuote && <button type="button" disabled={busy || uncertain} onClick={onEditQuote}>Quay lại báo giá</button>}

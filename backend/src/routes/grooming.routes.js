@@ -34,6 +34,7 @@ export function groomingRuntimeModule({ config, connection, env = {}, clock = Da
   router.post('/slots', csrf, limit, controller.slots);
   router.post('/quotes', csrf, limit, controller.quote);
   router.post('/appointments', csrf, bookLimit, controller.book);
+  router.post('/appointments/:id/cancel', csrf, bookLimit, controller.cancelAppointment);
   router.get('/appointments', controller.listAppointments);
   router.get('/appointments/:id', controller.readAppointment);
   return { name: 'grooming', mount: '/api/v1/grooming', router, service };

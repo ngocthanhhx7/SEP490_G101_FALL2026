@@ -117,6 +117,9 @@ export function createBookingCancellationService({ connection, clock = Date.now 
       { bookingId: booking._id },
       { session, maxTimeMS: 5000 }
     ).limit(1001).toArray();
+    if (visits.length > 60 || refunds.length > 1000 || payments.length > 1) {
+      fail('CANCELLATION_RECONCILIATION_REQUIRED', 'Booking requires reconciliation before cancellation', 409);
+    }
     return { booking, visits, payments, refunds };
   }
 
@@ -136,13 +139,7 @@ export function createBookingCancellationService({ connection, clock = Date.now 
       }
     }
     const quoteComboBps = safeMoney(quote?.comboBps);
-    const originalCount = safeMoney(quote?.visitCount) || safeMoney(booking.originalVisitCount) || visits.length;
-    if (quoteComboBps > 0 && originalCount > 0) {
-      return {
-        comboPerVisitBps: Math.round(quoteComboBps / originalCount),
-        comboMaxBps: Math.max(quoteComboBps, 1000)
-      };
-    }
+    if (quoteComboBps > 0) fail('CANCELLATION_POLICY_UNAVAILABLE', 'Original discount policy is unavailable', 409);
     return { comboPerVisitBps: 0, comboMaxBps: 0 };
   }
 

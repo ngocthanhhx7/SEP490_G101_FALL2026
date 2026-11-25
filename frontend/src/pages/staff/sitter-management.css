@@ -44,41 +44,214 @@
   .sitter-management .sitter-table { min-width: 1040px; }
 }
 
-.staff-sitter-list { min-width: 0; }
-.staff-sitter-tabs { display: flex; flex-wrap: wrap; gap: .65rem; }
+/* Scoped to Staff Pet Sitter List (UC-74). Mockup-measured colors live in local custom properties. */
+.staff-sitter-list {
+  --sm-ink-strong: #19112b;
+  --sm-card-border: #ebe3f4;
+  --sm-input-border: #dfd4ec;
+  --sm-divider: #f1eaf8;
+  --sm-tab-active-bg: #efe4fc;
+  --sm-link: #583188;
+  --sm-shadow: 0 8px 24px rgb(63 42 107 / 6%);
+  --sm-part-time-bg: #e3f0ff;
+  --sm-part-time-ink: #1850a0;
+  --sm-full-time-bg: #efe4fc;
+  --sm-full-time-ink: #582986;
+  min-width: 0;
+  color: var(--sm-ink-strong);
+  font-family: var(--pwc-font-body);
+}
+
+.staff-sitter-list .workspace-page-heading h1 {
+  color: var(--sm-ink-strong);
+  font-family: var(--pwc-font-display);
+  font-size: clamp(1.85rem, 3.4vw, 2.4rem);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.staff-sitter-list .workspace-page-heading p {
+  color: var(--pwc-ink-muted);
+  font-size: 0.95rem;
+}
+
+.staff-sitter-list .workspace-page-heading .pwc-button--secondary {
+  border-radius: 999px;
+  border-color: var(--sm-card-border);
+  color: var(--pwc-ink);
+}
+
+.staff-sitter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
 .staff-sitter-tabs button {
-  min-height: var(--pwc-target); padding: .55rem 1rem; border: 1px solid var(--pwc-border);
-  border-radius: 999px; background: var(--pwc-surface); color: var(--pwc-ink); font: inherit; font-weight: 700; cursor: pointer;
+  min-height: var(--pwc-target);
+  padding: 0.55rem 1.15rem;
+  border: 1px solid var(--sm-card-border);
+  border-radius: 999px;
+  background: var(--pwc-surface);
+  color: var(--pwc-ink);
+  font: 700 0.9rem/1.3 var(--pwc-font-body);
+  cursor: pointer;
 }
-.staff-sitter-tabs button[aria-pressed="true"] { background: var(--pwc-lavender-soft); border-color: var(--pwc-focus); }
+
+.staff-sitter-tabs button[aria-pressed="true"] {
+  background: var(--sm-tab-active-bg);
+  border-color: var(--pwc-lavender);
+  color: var(--pwc-ink);
+  font-weight: 800;
+}
+
 .staff-sitter-filters {
-  display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); gap: .75rem; align-items: end;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--pwc-space-3);
+  align-items: end;
 }
-.staff-sitter-extra { margin-top: .75rem; }
-.staff-sitter-extra summary { cursor: pointer; font-weight: 700; width: fit-content; }
-.staff-sitter-extra__controls { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: .75rem; }
+
+.staff-sitter-list .pwc-control {
+  border-color: var(--sm-input-border);
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-surface);
+  color: var(--sm-ink-strong);
+}
+
+.staff-sitter-extra {
+  margin-top: var(--pwc-space-3);
+}
+
+.staff-sitter-extra summary {
+  cursor: pointer;
+  color: var(--pwc-ink-muted);
+  font-weight: 700;
+  width: fit-content;
+}
+
+.staff-sitter-extra__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--pwc-space-3);
+  margin-top: var(--pwc-space-3);
+}
+
 .staff-sitter-directory {
-  background: var(--pwc-surface); border: 1px solid var(--pwc-border); border-radius: var(--pwc-radius-panel); overflow: hidden;
+  background: var(--pwc-surface);
+  border: 1px solid var(--sm-card-border);
+  border-radius: var(--pwc-radius-panel);
+  box-shadow: var(--sm-shadow);
+  overflow: hidden;
 }
-.staff-sitter-directory .workspace-empty { margin: 0; padding: 1rem; }
-.staff-sitter-directory .pwc-pagination { padding: .65rem .6rem; }
-.staff-sitter-list .staff-sitter-table { min-width: 0; }
-.staff-sitter-table th, .staff-sitter-table td { padding: .65rem .6rem; overflow-wrap: anywhere; }
+
+.staff-sitter-directory .workspace-empty {
+  margin: 0;
+  padding: var(--pwc-space-4);
+}
+
+.staff-sitter-directory .pwc-pagination {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--sm-divider);
+}
+
+.staff-sitter-list .staff-sitter-table {
+  min-width: 0;
+  border-collapse: collapse;
+}
+
+.staff-sitter-table thead th {
+  background: var(--pwc-lavender-soft);
+  color: var(--pwc-ink-muted);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  border-bottom: 1px solid var(--sm-divider);
+}
+
+.staff-sitter-table th,
+.staff-sitter-table td {
+  padding: 0.9rem 0.75rem;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--sm-divider);
+}
+
+.staff-sitter-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .staff-sitter-table th:first-child { width: 17%; }
-.staff-sitter-table th:nth-child(3), .staff-sitter-table th:nth-child(4) { width: 14%; }
-.staff-sitter-table td:first-child small { display: block; margin-top: .25rem; color: var(--pwc-ink-muted); }
-.staff-sitter-table td a { color: var(--pwc-ink); font-weight: 700; text-underline-offset: .2em; }
-.staff-sitter-contract { display: inline-block; padding: .25rem .5rem; border-radius: 999px; background: var(--pwc-lavender-soft); }
-.staff-sitter-contract--PART_TIME { background: #e7efff; color: #204680; }
-.staff-sitter-count--alert { color: var(--pwc-error); }
-.staff-sitter-note { color: var(--pwc-ink-muted); margin: .75rem 0 0; }
-@media (max-width: 1100px) {
-  .staff-sitter-table, .staff-sitter-table tbody { display: block; }
-  .staff-sitter-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .staff-sitter-table tbody tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-bottom: 1px solid var(--pwc-border); }
-  .staff-sitter-table tbody td { display: block; border: 0; white-space: normal; }
-  .staff-sitter-table td::before { display: block; margin-bottom: .2rem; color: var(--pwc-ink-muted); font-weight: 700; content: attr(data-label); }
+.staff-sitter-table th:nth-child(3),
+.staff-sitter-table th:nth-child(4) { width: 14%; }
+
+.staff-sitter-table td strong {
+  color: var(--sm-ink-strong);
 }
+
+.staff-sitter-table td:first-child small {
+  display: block;
+  margin-top: var(--pwc-space-1);
+  color: var(--pwc-ink-muted);
+}
+
+.staff-sitter-table td a {
+  color: var(--sm-link);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.staff-sitter-table td a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.staff-sitter-contract {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: var(--sm-full-time-bg);
+  color: var(--sm-full-time-ink);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.staff-sitter-contract--PART_TIME {
+  background: var(--sm-part-time-bg);
+  color: var(--sm-part-time-ink);
+}
+
+.staff-sitter-count--alert {
+  color: var(--pwc-error);
+  font-weight: 800;
+}
+
+.staff-sitter-note {
+  color: var(--pwc-ink-muted);
+  font-size: var(--pwc-text-small);
+  line-height: 1.5;
+  margin: var(--pwc-space-4) 0 0;
+}
+
+@media (max-width: 1100px) {
+  .staff-sitter-table,
+  .staff-sitter-table tbody { display: block; }
+  .staff-sitter-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .staff-sitter-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border-bottom: 1px solid var(--sm-divider);
+  }
+  .staff-sitter-table tbody td { display: block; border: 0; white-space: normal; }
+  .staff-sitter-table td::before {
+    display: block;
+    margin-bottom: 0.2rem;
+    color: var(--pwc-ink-muted);
+    font-weight: 700;
+    content: attr(data-label);
+  }
+}
+
 @media (max-width: 600px) {
   .staff-sitter-filters { grid-template-columns: minmax(0, 1fr); }
   .staff-sitter-table tbody tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }

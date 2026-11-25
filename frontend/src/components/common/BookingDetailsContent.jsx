@@ -43,7 +43,7 @@ function Row({ label, children }) {
 }
 
 export function BookingDetailsContent({ booking, visitActions }) {
-  const { terms, visits, price, consentAt, refunds = [] } = booking.details;
+  const { terms, visits, price, consentAt, servicePolicies, refunds = [] } = booking.details;
   const prepay = booking.paymentMode === 'PREPAY';
   const postpay = booking.paymentMode === 'POSTPAY';
   const payment = prepay
@@ -80,10 +80,18 @@ export function BookingDetailsContent({ booking, visitActions }) {
           <Row label="Giờ chăm sóc">{summary(terms.map(row => row.startAt && time(row.startAt)))}</Row>
           <Row label="Người chăm sóc mong muốn">{summary(terms.map(row => row.requestedSitterName))}</Row>
           <Row label="Yêu cầu chăm sóc">{summary(terms.flatMap(row => row.careRequirements))}</Row>
-          <Row label="Chính sách trách nhiệm">{consentAt
+          <Row label="Xác nhận điều kiện">{consentAt
             ? `Xác nhận đặt lịch lúc ${time(consentAt)} ngày ${date(consentAt)}`
             : '—'}</Row>
         </dl>
+        <details className="booking-details__saved-policies">
+          <summary>Điều kiện áp dụng cho lịch này</summary>
+          {servicePolicies?.length ? servicePolicies.map(policy => <section key={policy.item}>
+            <h4>{policy.title}</h4>
+            <p>Phiên bản {policy.version}{policy.visitCount && <> · {policy.visitCount} buổi trong báo giá đã xác nhận</>}</p>
+            <p className="booking-details__policy-body">{policy.body}</p>
+          </section>) : <p>Lịch này chưa có bản nội dung điều kiện được lưu để đọc lại.</p>}
+        </details>
       </section>
       <section className="booking-details__card booking-details__payment">
         <h3>Giá và thanh toán</h3>
@@ -110,11 +118,14 @@ export function BookingDetailsContent({ booking, visitActions }) {
         {visitActions?.booking}
       </section>
       <section className="booking-details__card booking-details__visits">
-        <h3>Các buổi chăm sóc ({visits.length})</h3>
+        <div className="booking-details__visits-header">
+          <h3>Các buổi chăm sóc ({visits.length})</h3>
+          {visitActions?.headerAction}
+        </div>
         {visitActions?.beforeList}
         {visits.length > 0 ? <div className="booking-details__table" tabIndex={0} role="region" aria-label="Bảng các buổi chăm sóc">
           <table aria-label="Các buổi chăm sóc">
-            <thead><tr>{['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo', ...(visitActions ? [visitActions.columnLabel ?? 'Khiếu nại'] : [])].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+            <thead><tr>{['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo', ...(visitActions?.forVisit && visitActions.showColumn !== false ? [visitActions.columnLabel ?? 'Khiếu nại'] : [])].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
             <tbody>{visits.map(visit => <tr key={visit.id}>
               <td><time dateTime={visit.startAt ?? undefined} title={date(visit.startAt)}>
                 {visitDay(visit.startAt)}
@@ -123,7 +134,7 @@ export function BookingDetailsContent({ booking, visitActions }) {
               <td>{visit.sitterName ?? '—'}</td>
               <td><span className="booking-details__status" data-state={visit.state}>{visitStatus[visit.state] ?? 'Đang cập nhật'}</span></td>
               <td>{visitActions?.reportForVisit?.(visit) ?? '—'}</td>
-              {visitActions && <td>{visitActions.forVisit?.(visit)}</td>}
+              {visitActions?.forVisit && visitActions.showColumn !== false && <td>{visitActions.forVisit(visit)}</td>}
             </tr>)}</tbody>
           </table>
         </div> : <p>Chưa có dữ liệu buổi chăm sóc.</p>}

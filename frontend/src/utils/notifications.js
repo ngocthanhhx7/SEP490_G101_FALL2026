@@ -3,6 +3,9 @@ export function notificationDate(value) {
   const date = new Date(value);
   return value && Number.isFinite(date.getTime()) ? formatter.format(date) : '';
 }
+export const isNotificationIntentPath = path => typeof path === 'string' &&
+  /^(?:\/account\/bookings\/[a-f0-9]{24}(?:\/visits\/[a-f0-9]{24})?|\/sitter\/visits\/[a-f0-9]{24}(?:\/handover)?|\/sitter\/invitations\?offerId=[a-f0-9]{24})$/.test(path);
+
 export function notificationTarget(item, fallback = '/account/notifications') {
   const path = item?.deepLink;
   if (typeof path !== 'string' || !/^\/(?!\/)/.test(path) || /[\\\u0000-\u0020]/.test(path)) return fallback;
@@ -13,7 +16,7 @@ export function notificationTarget(item, fallback = '/account/notifications') {
       return target + '?visitId=' + visitId;
     return target;
   }
-  if (/^(?:\/account\/bookings\/[a-f0-9]{24}(?:\/visits\/[a-f0-9]{24})?|\/sitter\/(?:visits\/|invitations\?offerId=)[a-f0-9]{24})$/.test(path)
+  if (isNotificationIntentPath(path)
     && typeof item.id === 'string' && /^[a-f0-9]{64}$/.test(item.id)) return '/account/notifications?open=' + item.id;
   return path;
 }

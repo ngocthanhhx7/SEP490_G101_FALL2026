@@ -5,7 +5,7 @@ import { useSchedulingCommand } from '../../hooks/useSchedulingCommand.js';
 import { VISIT_WITHDRAWAL_REASON_LABELS } from '../../constants/visit-withdrawal-messages.js';
 import { formatClosureSlot } from '../../utils/visit-closure-format.js';
 
-export function WithdrawalReviewDialog({ visitId, api, onClose, onDone }) {
+export function WithdrawalReviewDialog({ visitId, api, onClose, onDone, onReassign }) {
   const formId = useId(), [reason, setReason] = useState(''), [decision, setDecision] = useState('RELEASE');
   const load = useCallback(({ signal }) => api.withdrawalReview(visitId, { signal }), [api, visitId]);
   const resource = useApiResource(load), row = resource.data;
@@ -20,6 +20,7 @@ export function WithdrawalReviewDialog({ visitId, api, onClose, onDone }) {
   return <Dialog open title="Xử lý yêu cầu rút ca" onClose={onClose} dismissible={!locked}
     footer={<>
       <Button variant="secondary" disabled={locked} onClick={onClose}>Đóng</Button>
+      {onReassign && row && <Button variant="secondary" disabled={locked} onClick={onReassign}>Giao lại</Button>}
       {command.pending ? <Button onClick={command.retry} loading={command.busy}>Kiểm tra lại yêu cầu</Button>
         : <Button type="submit" form={formId} loading={command.busy} disabled={!row || !reason.trim()}>Ghi nhận quyết định</Button>}
     </>}>
