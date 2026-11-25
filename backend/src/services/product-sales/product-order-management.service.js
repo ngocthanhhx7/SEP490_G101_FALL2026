@@ -165,6 +165,10 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
     for (const candidate of candidates) {
       try {
         // A payOS error throws and leaves the order for the next run, so a paid order is never cancelled by mistake.
+        if (!payments && candidate.payment?.providerReferences?.length) {
+          summary.kept += 1;
+          continue;
+        }
         const outcome = payments ? await payments.settleIfPaid(candidate) : 'UNPAID';
         if (outcome !== 'UNPAID') { summary.kept += 1; continue; }
         // The cancellation only applies while the order is still unpaid and unchanged. A late payment is no refusal
@@ -351,21 +355,22 @@ export function createProductOrderManagementService({
       requireOrderHandler(actor);
       const id = parseObjectId(orderId, 'orderId');
       parseNoBody(body);
-      if (payments) {
-        const current = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
-        if (current && current.receiveMethod === 'PICKUP' && current.status === 'READY'
+      const current = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (current && current.receiveMethod === 'PICKUP' && current.status === 'READY'
           && current.paymentMethod === 'PAY_AT_SHOP' && !current.paid
-          && current.payment?.linkState === 'READY' && current.payment?.providerReferences?.length > 0) {
-          try {
-            const outcome = await payments.settleIfPaid(current);
-            if (outcome === 'PAID') {
-              const settled = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
-              if (settled) return viewOf(settled);
-            }
-          } catch {
-            // payOS unavailable: allow recording cash; any late VietQR result goes to reconciliation.
-          }
+          && current.payment?.providerReferences?.length > 0) {
+        if (!payments) throw new AppError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Check the VietQR payment before recording cash.');
+        let outcome;
+        try {
+          outcome = await payments.settleIfPaid(current);
+        } catch {
+          throw new AppError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Check the VietQR payment before recording cash.');
         }
+        if (outcome === 'PAID') {
+          const settled = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+          if (settled) return viewOf(settled);
+        }
+        if (outcome !== 'UNPAID') throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'The VietQR payment requires reconciliation.');
       }
       return transition(actor, orderId, {
         // Cash is taken for a pick-up paid at the shop; a prepaid order is paid through payOS only.

@@ -73,7 +73,8 @@ export function createProductOrderReceipts({ connection }) {
 
       if (reason) {
         // The same payment reaching us twice (a webhook and a payOS status check) is one payment, not a problem.
-        if (order.paid && receipts.some((row) => row.state === 'VERIFIED' && row.providerOrderCode === receipt.providerOrderCode)) {
+        if (order.paid && receipts.some((row) => row.state === 'VERIFIED' && row.providerOrderCode === receipt.providerOrderCode
+          && row.transactionReference === receipt.providerTransactionReference && row.amountVnd === receipt.amountVnd)) {
           return { status: 'DUPLICATE' };
         }
         const markShopLinkFailed = (isCounter || isPickupAtShop) && reason === 'PROVIDER_PAYMENT_NOT_SUCCESSFUL'

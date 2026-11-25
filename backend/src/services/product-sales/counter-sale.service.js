@@ -147,20 +147,21 @@ export function createCounterSaleService({ connection, clock = Date.now, eligibi
       requireCounterSeller(actor);
       const orderId = parseObjectId(id, 'orderId');
       parseNoBody(body);
-      if (payments) {
-        const current = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
-        if (current && current.status === 'AWAITING_PAYMENT' && !current.paid
-          && current.payment?.linkState === 'READY' && current.payment?.providerReferences?.length > 0) {
-          try {
-            const outcome = await payments.settleIfPaid(current);
-            if (outcome === 'PAID') {
-              const settled = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
-              if (settled) return toCounterOrderView(settled);
-            }
-          } catch {
-            // payOS unavailable: allow recording cash; any late VietQR result goes to reconciliation.
-          }
+      const current = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
+      if (current && current.status === 'AWAITING_PAYMENT' && !current.paid
+          && current.payment?.providerReferences?.length > 0) {
+        if (!payments) throw new AppError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Check the VietQR payment before recording cash.');
+        let outcome;
+        try {
+          outcome = await payments.settleIfPaid(current);
+        } catch {
+          throw new AppError(503, 'PAYMENT_PROVIDER_UNAVAILABLE', 'Check the VietQR payment before recording cash.');
         }
+        if (outcome === 'PAID') {
+          const settled = await ProductOrder.findOne({ _id: orderId, channel: COUNTER_CHANNEL }).lean();
+          if (settled) return toCounterOrderView(settled);
+        }
+        if (outcome !== 'UNPAID') throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'The VietQR payment requires reconciliation.');
       }
       return transition(actor, id, body, 'record-cash');
     },

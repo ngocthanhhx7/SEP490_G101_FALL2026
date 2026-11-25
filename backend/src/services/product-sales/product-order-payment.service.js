@@ -54,41 +54,47 @@ export function createProductOrderPaymentService({ connection, provider = null, 
 
     const payment = order.payment ?? {};
     const references = payment.providerReferences ?? [];
-    if (payment.linkState === 'READY' && payment.checkoutUrl && references.length > 0) {
+    if (references.length > 0 && (payment.linkState === 'READY' || payment.linkState === 'FAILED')) {
       const currentExpiry = persistExpiresAt ? payment.linkExpiresAt : expiresAt;
       const notExpiredLocally = !persistExpiresAt || (currentExpiry instanceof Date && currentExpiry > at);
-      if (notExpiredLocally) {
-        // Reuse the same link while it still works; once it failed, expired or was cancelled, a new one is made.
-        const status = String((await lookup(references.at(-1))).providerStatus).toUpperCase();
-        if (status === 'PAID') {
-          throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'Your payment was received and is being recorded.');
-        }
-        if (!DEAD_LINK_STATES.has(status)) {
-          return { checkoutUrl: payment.checkoutUrl, expiresAt: currentExpiry, ...(persistExpiresAt ? { orderCode: references.at(-1) } : {}) };
-        }
+      const existing = await lookup(references.at(-1));
+      const status = String(existing.providerStatus).toUpperCase();
+      if (existing.amountPaid > 0 || status === 'PAID' || (!notExpiredLocally && !DEAD_LINK_STATES.has(status))) {
+        throw new AppError(409, 'ORDER_PAYMENT_IN_PROGRESS', 'Check the existing payment before creating another link.');
+      }
+      if (payment.linkState === 'READY' && payment.checkoutUrl && notExpiredLocally && !DEAD_LINK_STATES.has(status)) {
+        return { checkoutUrl: payment.checkoutUrl, expiresAt: currentExpiry, ...(persistExpiresAt ? { orderCode: references.at(-1) } : {}) };
       }
     }
 
     const reference = await reserveReference(order, at, guard);
     const back = new URL(returnPath, webOrigin).href;
+    const reservation = {
+      _id: order._id, ...guard, version: order.version,
+      'payment.linkState': 'CREATING',
+      $expr: { $eq: [{ $arrayElemAt: ['$payment.providerReferences', -1] }, reference] }
+    };
+    let link;
+    let url;
     try {
-      const link = await provider.createPaymentLink({ orderCode: Number(reference), amount: order.total,
+      link = await provider.createPaymentLink({ orderCode: Number(reference), amount: order.total,
         description: 'PAWWORLD', expiredAt: Math.floor(expiresAt.getTime() / 1000),
         returnUrl: back, cancelUrl: back });
-      const url = new URL(link.checkoutUrl);
+      url = new URL(link.checkoutUrl);
       if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/') || link.orderCode !== Number(reference)
         || link.amount !== order.total || link.currency !== 'VND') throw new Error('Provider link does not match the order');
-      await ProductOrder.updateOne({ _id: order._id, 'payment.linkState': 'CREATING' },
-        { $set: { 'payment.linkState': 'READY', 'payment.checkoutUrl': url.href, 'payment.paymentLinkId': link.paymentLinkId,
-          ...(persistExpiresAt ? { 'payment.linkExpiresAt': expiresAt } : {}) } });
-      return { checkoutUrl: url.href, expiresAt, ...(persistExpiresAt ? { orderCode: reference } : {}) };
     } catch {
       // The link was never delivered, so nothing can be paid on it: the code is dropped and the caller may try again (MSG33).
       // A late result for a code that is gone would still reach staff as an unknown reference.
-      await ProductOrder.updateOne({ _id: order._id },
+      await ProductOrder.updateOne(reservation,
         { $pull: { 'payment.providerReferences': reference }, $set: { 'payment.linkState': 'FAILED' } });
       throw providerUnavailable();
     }
+    const saved = await ProductOrder.updateOne(reservation,
+      { $set: { 'payment.linkState': 'READY', 'payment.checkoutUrl': url.href, 'payment.paymentLinkId': link.paymentLinkId,
+        ...(persistExpiresAt ? { 'payment.linkExpiresAt': expiresAt } : {}) } });
+    if (!saved.matchedCount) throw new AppError(409, 'COMMAND_PENDING', 'The order or payment link has changed.');
+    return { checkoutUrl: url.href, expiresAt, ...(persistExpiresAt ? { orderCode: reference } : {}) };
   }
 
   return Object.freeze({
@@ -165,7 +171,9 @@ export function createProductOrderPaymentSettler({ provider, handleVerifiedPayme
     async settleIfPaid(order) {
       for (const reference of [...(order.payment?.providerReferences ?? [])].reverse()) {
         const link = await provider.getPaymentLink(Number(reference));
-        if (String(link.providerStatus).toUpperCase() !== 'PAID' || link.amountPaid <= 0) continue;
+        const paid = String(link.providerStatus).toUpperCase() === 'PAID';
+        if (!paid && link.amountPaid === 0) continue;
+        if (!paid || !Number.isSafeInteger(link.amountPaid) || link.amountPaid <= 0) return 'RECONCILE';
         const result = await handleVerifiedPayment({ orderCode: link.orderCode, amount: link.amountPaid, currency: 'VND',
           code: '00', reference: `LINK-${link.orderCode}`, paymentLinkId: `LINK-${link.orderCode}`, transactionDateTime: null });
         return result.status === 'PAYMENT_VERIFIED' || result.status === 'DUPLICATE' ? 'PAID' : 'RECONCILE';

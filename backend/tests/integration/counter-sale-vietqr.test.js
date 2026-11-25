@@ -90,6 +90,11 @@ const placeOnlinePrepaid = async (p, quantity = 1) => {
     .send({ receiveMethod: 'DELIVERY', paymentMethod: 'PREPAID', addressId: String(customerAddress._id) }).expect(201)).body.data;
 };
 
+const placePickupAtShop = async (p, quantity = 1) => {
+  await call('post', '/api/v1/product-cart/lines', 'CUSTOMER').send({ productId: p.id, quantity }).expect(201);
+  return (await call('post', ONLINE, 'CUSTOMER').set('Idempotency-Key', key())
+    .send({ receiveMethod: 'PICKUP', paymentMethod: 'PAY_AT_SHOP' }).expect(201)).body.data;
+};
 const orderDoc = (id) => models.ProductOrder.findById(id).lean();
 const lastRef = async (id) => (await orderDoc(id)).payment.providerReferences.at(-1);
 const payOf = async (order, patch = {}) => {
@@ -228,8 +233,10 @@ describe('UC-68 counter VietQR payment link creation', () => {
     const second = await lastRef(order.id);
     expect(second).not.toBe(first);
 
-    // Local 15-minute link expiry also allocates a new link.
+    // A locally expired link can only be replaced once payOS confirms that it is closed.
     now = START + COUNTER_VIETQR_LINK_TTL_MS + 1000;
+    await call('post', `${ROOT}/${order.id}/payment-link`, 'SALE_STAFF').send({}).expect(409);
+    links.get(Number(second)).status = 'EXPIRED';
     await call('post', `${ROOT}/${order.id}/payment-link`, 'SALE_STAFF').send({}).expect(200);
     const third = await lastRef(order.id);
     expect(third).not.toBe(second);
@@ -296,16 +303,19 @@ describe('ST-CTR-04 failed VietQR, switching to cash, settler guard and late rec
 
     const res = (await call('post', `${ROOT}/${order.id}/record-cash`, 'SALE_STAFF').send({}).expect(200)).body.data;
     expect(res).toMatchObject({ status: 'PAID', paid: true, paymentMethod: 'COUNTER_VIETQR', cashPayment: null, vietqrPayment: { amount: order.total } });
-    // Subsequent webhook for the same payOS orderCode is deduped.
-    expect(await receive(order)).toEqual({ status: 'DUPLICATE' });
+    // Only the same transaction identity counts as a duplicate.
+    expect(await receive(order, { reference: `LINK-${ref}` })).toEqual({ status: 'DUPLICATE' });
     expect((await orderDoc(order.id)).payment.receipts).toHaveLength(1);
   });
 
-  test('record-cash still succeeds when payOS lookup fails, and a late VietQR webhook goes to reconciliation', async () => {
+  test('record-cash waits for payOS when lookup fails, then accepts confirmed unpaid status', async () => {
     const p = await product();
     const order = await createCounterOrder(p, 1);
     await call('post', `${ROOT}/${order.id}/payment-link`, 'SALE_STAFF').send({}).expect(200);
     failLookup = true;
+    await call('post', `${ROOT}/${order.id}/record-cash`, 'SALE_STAFF').send({}).expect(503);
+    expect(await orderDoc(order.id)).toMatchObject({ status: 'AWAITING_PAYMENT', paid: false });
+    failLookup = false;
 
     const cash = (await call('post', `${ROOT}/${order.id}/record-cash`, 'SALE_STAFF').send({}).expect(200)).body.data;
     expect(cash).toMatchObject({ status: 'PAID', paid: true, paymentMethod: 'COUNTER_CASH', cashPayment: { amount: order.total } });
@@ -316,6 +326,21 @@ describe('ST-CTR-04 failed VietQR, switching to cash, settler guard and late rec
     expect(doc.cashPayment).toBeDefined();
     expect(doc.payment.receipts).toMatchObject([{ state: 'RECONCILIATION_REQUIRED', reason: 'INTENT_NOT_PENDING', amountVnd: order.total }]);
     expect(await connection.db.collection('notifications').countDocuments({ eventType: 'PaymentReconciliationRequired' })).toBe(2);
+  });
+
+  test.each(['counter', 'pickup'])('%s holds cash and link replacement for a partial provider payment', async kind => {
+    const p = await product();
+    const order = kind === 'counter' ? await createCounterOrder(p) : await placePickupAtShop(p, 1);
+    const path = (kind === 'counter' ? ROOT : MANAGE) + '/' + order.id;
+    if (kind === 'pickup') await call('post', path + '/mark-ready').send({}).expect(200);
+    await call('post', path + '/payment-link').send({}).expect(200);
+    const reference = await lastRef(order.id);
+    Object.assign(links.get(Number(reference)), { status: 'PENDING', amountPaid: 1 });
+    const cashAction = kind === 'counter' ? '/record-cash' : '/record-payment';
+    await call('post', path + cashAction).send({}).expect(409);
+    now += COUNTER_VIETQR_LINK_TTL_MS + 1;
+    await call('post', path + '/payment-link').send({}).expect(409);
+    expect(await orderDoc(order.id)).toMatchObject({ paid: false, payment: { providerReferences: [reference] } });
   });
 
   test('VietQR arriving after counter order cancellation is recorded for reconciliation without reopening the order', async () => {
@@ -359,11 +384,6 @@ describe('regression: online PREPAID order webhook behavior (#445) is unchanged'
 });
 
 describe('UC-67 branch 4.1 pick-up order PAY_AT_SHOP VietQR payment at the shop', () => {
-  const placePickupAtShop = async (p, quantity = 1) => {
-    await call('post', '/api/v1/product-cart/lines', 'CUSTOMER').send({ productId: p.id, quantity }).expect(201);
-    return (await call('post', ONLINE, 'CUSTOMER').set('Idempotency-Key', key())
-      .send({ receiveMethod: 'PICKUP', paymentMethod: 'PAY_AT_SHOP' }).expect(201)).body.data;
-  };
 
   test('creates a VietQR link only when READY + PAY_AT_SHOP + unpaid, settles once via webhook keeping PAY_AT_SHOP, and allows handover', async () => {
     const p = await product('SP-0088', { stockOnHand: 10 });
@@ -426,6 +446,6 @@ describe('UC-67 branch 4.1 pick-up order PAY_AT_SHOP VietQR payment at the shop'
     Object.assign(links.get(ref2), { status: 'PAID', amountPaid: pickup2.total });
     const settled = (await call('post', `${MANAGE}/${pickup2.id}/record-payment`, 'SALE_STAFF').send({}).expect(200)).body.data;
     expect(settled).toMatchObject({ status: 'READY', paid: true, paymentMethod: 'PAY_AT_SHOP', vietqrPaid: true });
-    expect(await receive(pickup2)).toEqual({ status: 'DUPLICATE' });
+    expect(await receive(pickup2, { reference: `LINK-${ref2}` })).toEqual({ status: 'DUPLICATE' });
   });
 });
