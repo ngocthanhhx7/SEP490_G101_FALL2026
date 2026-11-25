@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { BookingCheckoutForm, BookingConfirmation } from '../../src/pages/public/BookingCheckout.jsx';
+import { mobileRoutes } from '../../src/routes/mobile-route-metadata.js';
 afterEach(cleanup);
 const service = { id: 'service', name: 'Chăm sóc tại gia', details: { locations: ['HOME'] } };
 const quote = { quoteId: 'quote', items: [{ serviceId: 'service', visitCount: 1, servicePolicy: { title: 'Điều kiện dịch vụ', body: 'Synthetic published policy' } }] };
@@ -75,4 +76,13 @@ test('explicit account detail id loads the owned order and presents recognizable
   expect(screen.getByText('Buổi 1 · Milo')).toBeVisible();
   expect(screen.getByText('Chờ người chăm sóc')).toBeVisible();
   expect(api.booking).toHaveBeenCalledWith('saved-order', expect.any(Object));
+});
+
+test('ST-BKG-21: empty address link points to /account/addresses and sitter recommendations mobile route M16 is hidden', async () => {
+  const api = apiFixture();
+  api.addresses.mockResolvedValue({ data: [] });
+  render(<MemoryRouter><BookingCheckoutForm quote={quote} services={[service]} api={api} onConfirmed={jest.fn()} /></MemoryRouter>);
+  const link = await screen.findByRole('link', { name: 'Thêm địa chỉ chăm sóc' });
+  expect(link).toHaveAttribute('href', '/account/addresses');
+  expect(mobileRoutes.some(row => row.path === '/account/sitter-recommendations' || row.id === 'M16')).toBe(false);
 });

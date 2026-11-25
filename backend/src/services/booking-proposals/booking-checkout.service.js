@@ -1,6 +1,6 @@
 import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { createServiceAreaCatalog } from '../service-area-catalog.service.js';
-import { hasCompletedCustomerCare } from '../customer-care-history.service.js';
+import { hasPreviousPetSitter, listPreviousPetSitters } from '../customer-care-history.service.js';
 import { randomInt } from 'node:crypto';
 import { hasRole } from '../../utils/roles.js';
 import { Types } from 'mongoose';
@@ -25,7 +25,7 @@ import { captureServiceWorkflow } from '../care/workflow-snapshot.service.js';
 import { boardingCarePlan } from './boarding-care-plan.service.js';
 import { createBookingDetailsService } from './booking-details.service.js';
 
-export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
+export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
   const { Notification } = notificationModels(connection);
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
@@ -73,14 +73,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
   return {
     async options(actor) {
       customer(actor);
-      const sitters = await col('sitterpublicprofiles').aggregate([
-        { $match: { state: 'APPROVED' } }, { $sort: { userId: 1 } }, { $limit: 100 },
-        { $lookup: { from: 'users', localField: 'userId', foreignField: '_id', as: 'user' } }, { $unwind: '$user' },
-        { $match: { 'user.state': 'ACTIVE', 'user.roles': 'PET_SITTER' } },
-        { $lookup: { from: 'sitterstatuses', localField: 'userId', foreignField: 'userId', as: 'status' } }, { $unwind: '$status' },
-        { $match: { 'status.status': 'ACTIVE' } }, { $project: { _id: 0, id: { $toString: '$userId' }, displayName: '$user.displayName' } }
-      ]).toArray();
-      return { recommendationAllowed: !await hasCompletedCustomerCare(connection.db, actor.userId), facilityAddress: facilityAddress ?? null, sitters, paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
+      const sitters = await listPreviousPetSitters(connection.db, actor.userId);
+      return { recommendationAllowed: false, facilityAddress: facilityAddress ?? null, sitters, paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
     },
     async confirm(actor, body, key) {
       customer(actor); const input = bookingCheckoutInput(body);
@@ -137,6 +131,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               const employee = await col('users').findOne({ _id: oid(row.requestedSitterId), state: 'ACTIVE', roles: 'PET_SITTER' }, { session });
               const status = await col('sitterstatuses').findOne({ userId: oid(row.requestedSitterId), status: 'ACTIVE' }, { session });
               if (!published || !employee || !status) fail('RESOURCE_NOT_FOUND', 'Selected employee is not available publicly', 404);
+              const caredBefore = await hasPreviousPetSitter(connection.db, actor.userId, row.requestedSitterId, selection.petIds, session);
+              if (!caredBefore) fail('PREFERRED_SITTER_HISTORY_REQUIRED', 'Preferred pet sitter must have previously cared for one of the chosen pets', 409);
             }
             if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
             if (row.startAt <= (prepay ? deadline : at)) fail('VALIDATION_FAILED', 'Visit must start after payment window');
@@ -197,10 +193,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });
           if (conflict) fail('VISIT_SCHEDULE_OVERLAP', 'A pet already has an overlapping visit', 409);
         }
-        for (const visit of visits.filter(row => row.requestedSitterId)) {
-          if (!selectionGuard) fail('SCHEDULING_UNAVAILABLE', 'Employee eligibility must be checked before directed checkout', 503);
-          await selectionGuard(actor, visit, session);
-        }
+        // GBR-12: a preferred pet sitter who cared for the pet before may be booked even when busy on some visits;
+        // dispatch offers eligible visits only to that sitter and routes unavailable visits to Staff's Needs action list.
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
           paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },

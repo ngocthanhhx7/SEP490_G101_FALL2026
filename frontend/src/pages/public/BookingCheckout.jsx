@@ -20,6 +20,7 @@ const errorText = error => ({ QUOTE_CHANGED: 'Giá, điều kiện hoặc hồ s
   VISIT_SCHEDULE_OVERLAP: 'Lịch của cùng thú cưng đang bị trùng giờ.', BOARDING_CARE_PLAN_REQUIRED: 'Lịch lưu trú cần được nhân viên xác nhận kế hoạch ca chăm sóc.',
   PAYMENT_PROVIDER_UNAVAILABLE: 'Chưa thể tạo link thanh toán. Đơn vẫn đang chờ thanh toán.',
   PAYMENT_LINK_RECONCILIATION_REQUIRED: 'Yêu cầu thanh toán đang cần đối soát. Vui lòng liên hệ Paw World Care.',
+  PREFERRED_SITTER_HISTORY_REQUIRED: 'Bạn chỉ có thể chọn người chăm sóc đã từng chăm thú cưng này trước đó.',
   HOME_BOOKING_NOTICE_REQUIRED: 'Đặt lịch chăm sóc tại nhà trước ít nhất 2 giờ.',
   COMMAND_PENDING: 'Yêu cầu đang được xử lý.', INVALID_STATE: 'Đơn không còn ở trạng thái có thể thanh toán.',
   VALIDATION_FAILED: 'Kiểm tra ngày giờ và địa điểm của từng buổi; buổi trả trước phải bắt đầu sau hạn thanh toán 15 phút.' })[error.code] || apiErrorFeedback(error, 'Chưa xác nhận được thao tác. Vui lòng thử lại.');
@@ -63,11 +64,11 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
         <label>Địa điểm<select disabled={Boolean(recommendation)} value={selectedLocations[index]} onChange={event => setSelectedLocations(current => current.map((value, i) => i === index ? event.target.value : value))}>
           {(row.service?.details?.locations || ['HOME']).map(value => <option key={value} value={value}>{locations[value]}</option>)}
         </select></label>
-        <label>Nhân viên chăm sóc<select name={`sitter:${index}`} disabled={Boolean(recommendation)} defaultValue={recommendation?.requestedSitterId ?? ''}>
+        {(recommendation || (options.data?.sitters?.length ?? 0) > 0) && <label>Người chăm sóc mong muốn<select name={`sitter:${index}`} disabled={Boolean(recommendation)} defaultValue={recommendation?.requestedSitterId ?? ''}>
           {recommendation && <option value={recommendation.requestedSitterId}>{recommendation.displayName}</option>}
           <option value="">Paw World Care sắp xếp</option>
           {(options.data?.sitters || []).map(sitter => <option key={sitter.id} value={sitter.id}>{sitter.displayName}</option>)}
-        </select></label>
+        </select></label>}
         {selectedLocations[index] === 'FACILITY' && <p>{options.data?.facilityAddress || 'Chưa có địa chỉ cơ sở được xác nhận.'}</p>}
         {selectedLocations[index] !== 'FACILITY' && <label>Địa chỉ đã lưu<select name={`address:${index}`} required disabled={Boolean(recommendation)}
           value={recommendation?.addressId} defaultValue={recommendation ? undefined : ''}>
@@ -75,7 +76,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
         </select></label>}
       </div>)}
       {addresses.status === 'error' && <p role="alert">Chưa tải được địa chỉ. <button type="button" onClick={addresses.retry}>Tải lại địa chỉ</button></p>}
-      {selectedLocations.some(value => value !== 'FACILITY') && addresses.status === 'empty' && <p><Link to="/account/sitter-recommendations">Thêm địa chỉ chăm sóc</Link></p>}
+      {selectedLocations.some(value => value !== 'FACILITY') && addresses.status === 'empty' && <p><Link to="/account/addresses">Thêm địa chỉ chăm sóc</Link></p>}
       {quote.items.map((item, index) => item.servicePolicy && <details key={index}><summary>{item.servicePolicy.title}</summary><p className="pwc-checkout-policy">{item.servicePolicy.body}</p></details>)}
       <label className="pwc-checkout-consent"><input type="checkbox" name="consent" required />Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.</label>
     </fieldset>
