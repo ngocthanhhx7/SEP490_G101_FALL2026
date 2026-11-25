@@ -379,12 +379,12 @@ describe('Customer cancel booking or visit (UC-39, GBR-15, GBR-17, GBR-19)', () 
   });
 
   test.each([
-    ['no link requested', undefined, undefined, 0, false, true],
-    ['request in progress', 'CREATING', 'CANCELLED', 0, false, false],
-    ['link can accept payment', 'READY', 'PENDING', 0, false, false],
-    ['link has a partial payment', 'READY', 'CANCELLED', 1000, false, false],
-    ['closed empty link', 'READY', 'CANCELLED', 0, false, true],
-    ['payment awaiting reconciliation', 'READY', 'CANCELLED', 0, true, false],
+    ['no link requested', undefined, undefined, 0, false, true, false],
+    ['request in progress', 'CREATING', 'CANCELLED', 0, false, false, false],
+    ['link can accept payment', 'READY', 'PENDING', 0, false, false, false],
+    ['link has a partial payment', 'READY', 'CANCELLED', 1000, false, false, false],
+    ['closed empty link', 'READY', 'CANCELLED', 0, false, true, false],
+    ['payment awaiting reconciliation', 'READY', 'CANCELLED', 0, true, false, false],
     ['expired link with no funds', 'READY', 'EXPIRED', 0, false, true, true],
     ['expired link with partial funds', 'READY', 'EXPIRED', 1000, false, false, true]
   ])('guards unpaid cancellation: %s', async (_label, linkState, providerStatus, amountPaid, reconcile, allowed, expired) => {
