@@ -180,13 +180,15 @@ export function createBookingCancellationService({ connection, clock = Date.now 
     const isFullBookingCancel = remainingVisits.length === 0;
     const firstCancellationOnFullOrder = activeBeforeVisits.length === originalCount;
 
-    const verifiedPayment = payments.length === 1 && payments[0]?.receiptMoney?.currency === 'VND'
-      ? safeMoney(payments[0].receiptMoney.amountVnd)
-      : null;
-    const isPaid = verifiedPayment !== null || booking.paymentState === 'PAID';
-    const paidTotalVnd = isPaid
-      ? (verifiedPayment ?? safeMoney(booking.paymentSnapshot?.amountVnd) ?? safeMoney(booking.checkoutSnapshot?.quote?.totalVnd))
-      : 0;
+    const receipt = payments[0]?.receiptMoney;
+    const isPaid = receipt?.currency === 'VND' && Number.isSafeInteger(receipt.amountVnd) && receipt.amountVnd > 0;
+    if (!isPaid && (payments.length || booking.paymentState === 'PAID')) {
+      fail('CANCELLATION_RECONCILIATION_REQUIRED', 'Verified payment amount is unavailable', 409);
+    }
+    const paidTotalVnd = isPaid ? receipt.amountVnd : 0;
+    if (!isPaid && booking.paymentMode === 'PREPAY' && !isFullBookingCancel) {
+      fail('CANCELLATION_PAYMENT_PENDING', 'Partial cancellation requires settlement of the prepaid booking', 409);
+    }
     const priorRefundedVnd = refunds.reduce((sum, row) => {
       const status = row.state ?? row.status;
       return ACTIVE_REFUND_STATES.has(status) ? sum + safeMoney(row.amountVnd) : sum;
@@ -244,7 +246,7 @@ export function createBookingCancellationService({ connection, clock = Date.now 
 
     const lateFeeTotalVnd = perVisit.reduce((sum, item) => sum + item.lateFeeVnd, 0);
     const orderFeeRefundVnd = isPaid && isFullBookingCancel
-      ? Math.max(0, capRemainingVnd - perVisit.reduce((sum, item) => sum + item.paidBasisVnd, 0))
+      ? safeMoney(booking.checkoutSnapshot?.quote?.orderFeeVnd)
       : 0;
 
     // Allocate combo discount clawback across the cancelled visits (when cancelling multiple visits).

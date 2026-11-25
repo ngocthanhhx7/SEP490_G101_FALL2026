@@ -351,6 +351,43 @@ describe('Customer cancel booking or visit (UC-39, GBR-15, GBR-17, GBR-19)', () 
     expect(lateCancel.body.data.bookingState).toBe('DISPATCH_PENDING');
   });
 
+  test('final cancellation refunds only the saved order fee, preserving an earlier late fee', async () => {
+    const customer = await issueSession(customerId);
+    const { bookingId, visits } = await seedBooking({ comboPerVisitBps: 0, orderFeeVnd: 5000, visitSpecs: [
+      { startAt: BASE_NOW + 6 * 3600000, state: 'ASSIGNED', sitterId, baseVnd: 100000 },
+      { startAt: BASE_NOW + 72 * 3600000, state: 'SCHEDULED', baseVnd: 100000 }
+    ] });
+    const cancel = i => request(app).post('/api/v1/checkout/bookings/' + bookingId + '/cancellations')
+      .set({ ...authHeaders(customer), 'Idempotency-Key': 'late-then-free-' + i })
+      .send({ scope: 'VISIT', visitId: String(visits[i]._id) });
+    expect((await cancel(0).expect(200)).body.data.refundTotalVnd).toBe(70000);
+    expect((await cancel(1).expect(200)).body.data.refundTotalVnd).toBe(105000);
+  });
+
+  test('partial cancellation cannot leave an unpaid prepaid intent charging for a cancelled visit', async () => {
+    const customer = await issueSession(customerId);
+    const { bookingId, visits } = await seedBooking({ paymentState: 'UNPAID', visitSpecs: [
+      { startAt: BASE_NOW + 48 * 3600000, state: 'SCHEDULED', baseVnd: 100000 },
+      { startAt: BASE_NOW + 72 * 3600000, state: 'SCHEDULED', baseVnd: 100000 }
+    ] });
+    const result = await request(app).post('/api/v1/checkout/bookings/' + bookingId + '/cancellations')
+      .set({ ...authHeaders(customer), 'Idempotency-Key': 'no-stale-intent' })
+      .send({ scope: 'VISIT', visitId: String(visits[0]._id) }).expect(409);
+    expect(result.body.error.code).toBe('CANCELLATION_PAYMENT_PENDING');
+    expect((await connection.db.collection('visits').findOne({ _id: visits[0]._id })).state).toBe('SCHEDULED');
+  });
+
+  test('a paid flag without a verified receipt cannot authorize a refund', async () => {
+    const customer = await issueSession(customerId);
+    const { bookingId, bookingOid } = await seedBooking({ visitSpecs: [
+      { startAt: BASE_NOW + 48 * 3600000, state: 'SCHEDULED', baseVnd: 100000 }
+    ] });
+    await connection.db.collection('payments').deleteMany({ bookingId: bookingOid });
+    await request(app).post('/api/v1/checkout/bookings/' + bookingId + '/cancellations')
+      .set({ ...authHeaders(customer), 'Idempotency-Key': 'no-receipt-001' }).send({ scope: 'BOOKING' }).expect(409);
+    expect(await connection.db.collection('refunds').countDocuments({ bookingId: bookingOid })).toBe(0);
+  });
+
   test('ST-BKG-31: multi-visit sequential cancellation recalculates combo discount accurately and respects GBR-30 cap', async () => {
     const customerSession = await issueSession(customerId);
     const { bookingId, visits, totalVnd } = await seedBooking({
