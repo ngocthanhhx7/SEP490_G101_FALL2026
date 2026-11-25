@@ -52,17 +52,24 @@ function cancelKey(orderId) {
   return `cust-cancel-${orderId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function OrderDetail({ order, api, notice, onCancelled, onRefresh }) {
+function OrderDetail({ order, api, notice, onCancelled, onConfirmed, onRefresh }) {
   const { pathname, search } = useLocation();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState('');
   const keyRef = useRef(null);
+  const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
+  const [receiveBusy, setReceiveBusy] = useState(false);
+  const [receiveError, setReceiveError] = useState('');
+  const receiveLock = useRef(false);
+  const canConfirmReceived = order.receiveMethod === 'DELIVERY' && order.status === 'HANDED_TO_CARRIER';
 
   useEffect(() => {
-    setConfirmOpen(false);
+    setCancelDialogOpen(false);
     setCancelError('');
     keyRef.current = null;
+    setReceiveDialogOpen(false);
+    setReceiveError('');
   }, [order.id]);
 
   async function confirmCancel() {
@@ -73,10 +80,10 @@ function OrderDetail({ order, api, notice, onCancelled, onRefresh }) {
     try {
       const updated = await api.cancelOrder(order.id, { idempotencyKey: keyRef.current });
       keyRef.current = null;
-      setConfirmOpen(false);
+      setCancelDialogOpen(false);
       onCancelled?.(updated);
     } catch (failure) {
-      setConfirmOpen(false);
+      setCancelDialogOpen(false);
       if (failure?.code === 'ORDER_NOT_CANCELLABLE') {
         keyRef.current = null;
         setCancelError(productMessage('MSG156'));
@@ -89,9 +96,30 @@ function OrderDetail({ order, api, notice, onCancelled, onRefresh }) {
     }
   }
 
+  async function handleConfirmReceived() {
+    if (receiveLock.current || typeof api.confirmReceived !== 'function') return;
+    receiveLock.current = true;
+    setReceiveBusy(true);
+    setReceiveError('');
+    try {
+      const updated = await api.confirmReceived(order.id);
+      setReceiveDialogOpen(false);
+      onConfirmed?.(updated);
+    } catch (failure) {
+      setReceiveError(productErrorText(failure));
+      if (failure?.code === 'ORDER_STATE_CONFLICT') onRefresh?.();
+    } finally {
+      receiveLock.current = false;
+      setReceiveBusy(false);
+    }
+  }
+
   return <aside className="pwc-shop-panel pwc-shop-orders-panel" aria-label={`Chi tiết đơn ${order.code}`}>
     <p><Link to="/contact" state={{ helpFrom: pathname + search }}>Hỗ trợ đơn mua</Link></p>
     <h2>Đơn {order.code} <OrderStatusBadge status={order.status} /></h2>
+    {canConfirmReceived && order.autoDeliverAt && (
+      <p className="pwc-shop-hint">Tự xác nhận đã nhận vào {formatOrderDate(order.autoDeliverAt)}.</p>
+    )}
     <dl className="pwc-shop-facts">
       <dt>Ngày đặt</dt><dd>{formatOrderDate(order.createdAt)}</dd>
       <dt>Cách nhận</dt><dd>{PRODUCT_RECEIVE_LABELS[order.receiveMethod]}</dd>
@@ -118,20 +146,39 @@ function OrderDetail({ order, api, notice, onCancelled, onRefresh }) {
       <p className="pwc-shop-alert pwc-shop-alert--error" role="alert" style={{ marginTop: '.75rem' }}>{cancelError}</p>
     )}
     {order.status === 'PLACED' && <div style={{ marginTop: '1rem' }}>
-      <Button type="button" variant="danger" disabled={cancelBusy} onClick={() => { setCancelError(''); setConfirmOpen(true); }}>
+      <Button type="button" variant="danger" disabled={cancelBusy} onClick={() => { setCancelError(''); setCancelDialogOpen(true); }}>
         Huỷ đơn
       </Button>
+    </div>}
+    {canConfirmReceived && <div className="pwc-shop-actions">
+      <button type="button" className="pwc-shop-primary-button" disabled={receiveBusy}
+        onClick={() => { setReceiveError(''); setReceiveDialogOpen(true); }}>Đã nhận hàng</button>
     </div>}
     {['HANDED_TO_CARRIER', 'READY'].includes(order.status) && (
       <p className="pwc-shop-hint" role="status" style={{ marginTop: '1rem' }}>{productMessage('MSG156')}</p>
     )}
-    <Dialog open={confirmOpen} onClose={() => !cancelBusy && setConfirmOpen(false)} title="Xác nhận huỷ đơn hàng"
+    <Dialog open={cancelDialogOpen} onClose={() => !cancelBusy && setCancelDialogOpen(false)} title="Xác nhận huỷ đơn hàng"
       footer={<>
-        <Button type="button" variant="secondary" disabled={cancelBusy} onClick={() => setConfirmOpen(false)}>Quay lại</Button>
+        <Button type="button" variant="secondary" disabled={cancelBusy} onClick={() => setCancelDialogOpen(false)}>Quay lại</Button>
         <Button type="button" variant="danger" loading={cancelBusy} onClick={confirmCancel}>Xác nhận huỷ</Button>
       </>}>
       <p>{productMessage('MSG154', { code: order.code })}</p>
     </Dialog>
+    {receiveDialogOpen && <Dialog
+      open
+      onClose={() => { if (!receiveBusy) setReceiveDialogOpen(false); }}
+      title={`Xác nhận đã nhận đơn ${order.code}`}
+      description={productMessage('MSG166', { code: order.code })}
+      dismissible={!receiveBusy}
+      footer={<>
+        <Button type="button" variant="secondary" disabled={receiveBusy} onClick={() => setReceiveDialogOpen(false)}>Huỷ</Button>
+        <Button type="button" disabled={receiveBusy} onClick={handleConfirmReceived}>
+          {receiveBusy ? 'Đang xác nhận…' : 'Xác nhận đã nhận hàng'}
+        </Button>
+      </>}
+    >
+      {receiveError && <p className="pwc-shop-alert pwc-shop-alert--error" role="alert">{receiveError}</p>}
+    </Dialog>}
   </aside>;
 }
 
@@ -195,12 +242,17 @@ export function MyProductOrdersPage() {
     refreshOrders();
   }, [refreshOrders]);
 
+  const handleOrderConfirmed = useCallback((updated) => {
+    setToastMessage(productMessage('MSG167', { code: updated.code }));
+    refreshOrders();
+  }, [refreshOrders]);
+
   if (compact && requested) return <section className="pwc-shop" aria-labelledby="orders-title">
     <h1 id="orders-title" data-duplicate-title>Chi tiết đơn mua</h1>
     <Link data-page-back to={listUrl}>Về đơn mua hàng</Link>
     <Toast message={toastMessage} onClose={dismissToast} />
-    {selected?.id === requested ? <OrderDetail order={selected} api={api} notice={noticeFor(selected)}
-      onCancelled={handleOrderCancelled} onRefresh={refreshOrders} /> : requestedOrder.status === 'loading'
+    {selected?.id === requested ? <OrderDetail key={selected.id} order={selected} api={api} notice={noticeFor(selected)}
+      onCancelled={handleOrderCancelled} onConfirmed={handleOrderConfirmed} onRefresh={refreshOrders} /> : requestedOrder.status === 'loading'
       ? <Notice state="loading" title="Đang tải chi tiết đơn…" />
       : <Notice state="error" title="Chưa mở được chi tiết đơn" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}
   </section>;
@@ -238,8 +290,8 @@ export function MyProductOrdersPage() {
           </tr>)}</tbody>
         </table>
       </div>
-      {selected && <OrderDetail order={selected} api={api} notice={noticeFor(selected)}
-        onCancelled={handleOrderCancelled} onRefresh={refreshOrders} />}
+      {selected && <OrderDetail key={selected.id} order={selected} api={api} notice={noticeFor(selected)}
+        onCancelled={handleOrderCancelled} onConfirmed={handleOrderConfirmed} onRefresh={refreshOrders} />}
     </div>}
     {requested && requestedOrder.status === 'error' && <Notice state="error" title="Chưa mở được đơn hàng từ thông báo" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}
     {resource.meta?.page && (page > 1 || orders.length > 0) && <Pagination {...resource.meta.page} itemLabel="đơn hàng" onPageChange={next => {

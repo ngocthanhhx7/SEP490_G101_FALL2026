@@ -6,6 +6,7 @@ import {
   PRODUCT_RECEIVE_METHODS,
   PRODUCT_PAYMENT_METHODS,
   PRODUCT_ORDER_STATUSES,
+  PRODUCT_DELIVERED_BY,
   PRODUCT_RETURN_REASONS,
   PRODUCT_RETURN_LIMITS,
   PRODUCT_REFUSAL_REASONS,
@@ -167,9 +168,11 @@ export function productSalesModels(connection) {
         paymentDeadlineAt: { type: Date },
         payment: { type: orderPayment },
         trackingCode: { type: String, maxlength: 64 },
+        handedToCarrierAt: { type: Date },
         status: { type: String, enum: [...new Set([...PRODUCT_ORDER_STATUSES, ...COUNTER_ORDER_STATUSES])], default: 'PLACED' },
         pickupDeadlineAt: { type: Date },
         deliveredAt: { type: Date },
+        deliveredBy: { type: String, enum: PRODUCT_DELIVERED_BY },
         // Entered when the order goes back (the carrier's own words), then the shop's reason when it confirms the return.
         carrierReturnReason: { type: String, maxlength: PRODUCT_RETURN_LIMITS.carrierReasonMax },
         returnReason: { type: String, enum: PRODUCT_RETURN_REASONS },
@@ -192,6 +195,7 @@ export function productSalesModels(connection) {
         [{ counterCreatedBy: 1, idempotencyKey: 1 }, { unique: true, partialFilterExpression: { channel: COUNTER_CHANNEL } }],
         [{ channel: 1, status: 1, createdAt: 1, _id: 1 }, {}],
         [{ status: 1, receiveMethod: 1, pickupDeadlineAt: 1, _id: 1 }, {}],
+        [{ status: 1, receiveMethod: 1, handedToCarrierAt: 1, _id: 1 }, {}],
         [{ status: 1, paymentMethod: 1, paymentDeadlineAt: 1, _id: 1 }, { partialFilterExpression: { paymentMethod: 'PREPAID', paid: false } }],
         [{ 'payment.providerReferences': 1 }, { unique: true, partialFilterExpression: { 'payment.providerReferences': { $type: 'string' } } }]
       ]

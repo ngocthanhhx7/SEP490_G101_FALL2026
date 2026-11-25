@@ -102,6 +102,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   orderRouter.get('/:orderId', orders.read);
   orderRouter.post('/:orderId/payment-link', csrf, payments.paymentLink);
   orderRouter.post('/:orderId/cancel', csrf, orders.cancel);
+  orderRouter.post('/:orderId/confirm-received', csrf, orders.confirmReceived);
 
   // Order handlers read verified customer phone numbers through the same contact keys as sign-in (D-217).
   const contactCrypto = createContactCrypto({
