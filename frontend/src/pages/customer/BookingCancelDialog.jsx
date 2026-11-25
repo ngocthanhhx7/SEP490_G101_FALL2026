@@ -50,6 +50,9 @@ function formatTimeRemaining(startAt, serverNow) {
 }
 
 function cancelErrorMessage(error) {
+  if (error?.code === 'CANCELLATION_RECONCILIATION_REQUIRED') {
+    return 'Chưa thể huỷ vì giao dịch payOS chưa được xác nhận đã đóng và chưa nhận tiền. Nếu đã chuyển tiền, hãy liên hệ hỗ trợ để được đối soát.';
+  }
   if (error?.code === 'VISIT_ALREADY_STARTED') return 'Buổi chăm sóc đã tới giờ bắt đầu nên không thể huỷ.';
   if (error?.code === 'VISIT_NOT_CANCELLABLE' || error?.code === 'BOOKING_NOT_CANCELLABLE') {
     return 'Lịch đặt hoặc buổi chăm sóc này không còn ở trạng thái cho phép huỷ.';

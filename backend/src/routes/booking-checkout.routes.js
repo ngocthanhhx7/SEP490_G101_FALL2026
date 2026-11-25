@@ -30,9 +30,10 @@ export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clo
   const availability = createCheckoutAvailabilityService({ connection, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, facilityCoordinates,
     repository: env.EMPLOYEE_SCHEDULING_ENABLED === 'true' ? createEmployeeScheduleRepository({ connection, clock,
       routingProvider: createConfiguredRoutingProvider({ env, config, clock }) }) : null });
-  const service = createBookingCheckoutService({ connection, clock, selectionGuard: availability.guard, provider: provider ?? (payos ? createPayosProvider(payos) : null),
+  const paymentProvider = provider ?? (payos ? createPayosProvider(payos) : null);
+  const service = createBookingCheckoutService({ connection, clock, selectionGuard: availability.guard, provider: paymentProvider,
     webOrigin, facilityAddress: env.BOOKING_FACILITY_ADDRESS, facilityCoordinates });
-  const cancellation = createBookingCancellationService({ connection, clock });
+  const cancellation = createBookingCancellationService({ connection, clock, provider: paymentProvider });
   const session = sessionService ?? createSessionService({ connection, clock, tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
   const router = Router(), c = createBookingCheckoutController(service), cancel = createBookingCheckoutController(cancellation), csrf = requireCsrf(session);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); }, requireSession(session, { clock }), requireRoles('CUSTOMER'));

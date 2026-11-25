@@ -64,7 +64,7 @@ function allocateAmounts(totalVnd, weights) {
   return rows.map(row => Number(row.value));
 }
 
-export function createBookingCancellationService({ connection, clock = Date.now }) {
+export function createBookingCancellationService({ connection, clock = Date.now, provider }) {
   const { FinanceSourceCommand: commands, FinanceSourceEvent: events } = financeSourceModels(connection);
   const { PricingPolicy } = pricingModels(connection);
   const col = name => connection.db.collection(name);
@@ -121,6 +121,28 @@ export function createBookingCancellationService({ connection, clock = Date.now 
       fail('CANCELLATION_RECONCILIATION_REQUIRED', 'Booking requires reconciliation before cancellation', 409);
     }
     return { booking, visits, payments, refunds };
+  }
+
+  async function cancellablePaymentIntent(booking, session) {
+    const options = { session, maxTimeMS: 5000 };
+    const reconciliationRequired = () =>
+      fail('CANCELLATION_RECONCILIATION_REQUIRED', 'Payment must be reconciled before cancellation', 409);
+    if (await col('payments').findOne({ bookingId: booking._id, state: 'RECONCILIATION_REQUIRED' },
+      { ...options, projection: { _id: 1 } })) reconciliationRequired();
+    const intents = await col('paymentintents').find({ bookingId: booking._id, provider: 'PAYOS', state: 'PENDING' },
+      { ...options, projection: { providerReference: 1, amountVnd: 1, linkState: 1, linkRequestedAt: 1, checkoutUrl: 1, paymentLinkId: 1 } })
+      .limit(2).toArray();
+    if (intents.length !== 1) reconciliationRequired();
+    const [intent] = intents;
+    if (intent.linkState === undefined && intent.linkRequestedAt === undefined &&
+        intent.checkoutUrl === undefined && intent.paymentLinkId === undefined) return intent;
+    if (intent.linkState === 'CREATING' || typeof provider?.getPaymentLink !== 'function') reconciliationRequired();
+    const orderCode = Number(intent.providerReference);
+    let link;
+    try { link = await provider.getPaymentLink(orderCode); } catch { reconciliationRequired(); }
+    if (link?.orderCode !== orderCode || link.amount !== intent.amountVnd || link.amountPaid !== 0 ||
+        !['CANCELLED', 'EXPIRED', 'FAILED'].includes(link.providerStatus)) reconciliationRequired();
+    return intent;
   }
 
   async function resolveComboRule(booking, visits, session) {
@@ -319,6 +341,8 @@ export function createBookingCancellationService({ connection, clock = Date.now 
       const context = await loadBookingContext(actor, bookingId, null);
       const targetVisits = selectTargetVisits(context.booking, context.visits, input, at);
       const summary = await computeCancellation({ ...context, targetVisits, at, session: null });
+      if (context.booking.state === 'AWAITING_PAYMENT' && summary.remainingVisitCount === 0)
+        await cancellablePaymentIntent(context.booking, null);
       return {
         scope: input.scope,
         visitId: input.visitId,
@@ -350,6 +374,16 @@ export function createBookingCancellationService({ connection, clock = Date.now 
         const context = await loadBookingContext(actor, bookingId, session);
         const targetVisits = selectTargetVisits(context.booking, context.visits, input, at);
         const summary = await computeCancellation({ ...context, targetVisits, at, session });
+        if (context.booking.state === 'AWAITING_PAYMENT' && summary.remainingVisitCount === 0) {
+          const intent = await cancellablePaymentIntent(context.booking, session);
+          // Checkout claims this same document before contacting payOS. If it wins the write, a retry checks the new link state.
+          const result = await col('paymentintents').updateOne(
+            { _id: intent._id, state: 'PENDING' },
+            { $set: { state: 'CANCELLED', cancelledAt: at }, $inc: { version: 1 } },
+            { session }
+          );
+          if (result.matchedCount !== 1) fail('VERSION_CONFLICT', 'Payment changed while cancelling', 409);
+        }
 
         const targetObjectIds = targetVisits.map(row => row._id);
         const byId = new Map(summary.items.map(item => [item.visitId, item]));
@@ -393,16 +427,7 @@ export function createBookingCancellationService({ connection, clock = Date.now 
           }
         }
 
-        // 4. Close pending payOS payment intent if an unpaid PREPAY booking is fully cancelled.
-        if (context.booking.state === 'AWAITING_PAYMENT' && summary.remainingVisitCount === 0) {
-          await col('paymentintents').updateMany(
-            { bookingId: context.booking._id, state: 'PENDING' },
-            { $set: { state: 'CANCELLED', cancelledAt: at }, $inc: { version: 1 } },
-            { session }
-          );
-        }
-
-        // 5. Finalize booking state (CANCELLED if all cancelled, CLOSED if all terminal, else increment guard).
+        // 4. Finalize booking state (CANCELLED if all cancelled, CLOSED if all terminal, else increment guard).
         const savedBooking = await finalizeExceptionalBooking({
           connection,
           col,
@@ -411,7 +436,7 @@ export function createBookingCancellationService({ connection, clock = Date.now 
           at
         });
 
-        // 6. Record accounting refunds in `refunds` for each cancelled paid visit with refundVnd > 0.
+        // 5. Record accounting refunds in `refunds` for each cancelled paid visit with refundVnd > 0.
         const recordedRefundIds = [];
         if (summary.isPaid) {
           for (const item of summary.items) {
