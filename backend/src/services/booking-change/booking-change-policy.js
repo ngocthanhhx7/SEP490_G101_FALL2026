@@ -86,6 +86,7 @@ export function resultingSchedule(visits, items) {
 }
 
 export function scheduleViolation(visits) {
+  if (!visits.length) return null;
   const days = new Map();
   for (const visit of visits) {
     const day = schedulingDate(visit.startAt);
@@ -93,7 +94,8 @@ export function scheduleViolation(visits) {
     days.get(day).push(visit);
   }
   const dates = [...days.keys()];
-  if (dates.length > 1 && Date.parse(dates.at(-1)) - Date.parse(dates[0]) > 30 * DAY)
+  const lastEnd = new Date(Math.max(...visits.map(visit => +visit.endAt)) - 1);
+  if (Date.parse(schedulingDate(lastEnd)) - Date.parse(dates[0]) >= 30 * DAY)
     return { code: 'MSG20', reasonCode: 'BOOKING_TOO_LONG', message: 'Một lịch đặt kéo dài tối đa 30 ngày.' };
   if ([...days.values()].some(day => day.length > 2))
     return { code: 'MSG150', reasonCode: 'TOO_MANY_VISITS', message: 'Mỗi ngày có tối đa hai buổi thuộc lịch đặt này.' };

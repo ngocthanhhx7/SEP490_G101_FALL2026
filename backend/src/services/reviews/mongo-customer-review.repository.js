@@ -31,19 +31,35 @@ export function createMongoCustomerReviewRepository({ connection }) {
             getVisit: async () => ({ ...visit, visitId, customerId: String(visit.customerId), sitterId: visit.sitterId && String(visit.sitterId) }),
             getIdempotencyResult: identity => Command.findById(key(identity)).session(session).lean(),
             saveIdempotencyResult: value => Command.create([{ _id: key(value.identity), payloadHash: value.payloadHash, result: value.result }], { session }),
-            findReview: () => Review.findOne({ visitId, direction: 'CUSTOMER_TO_SITTER' }).session(session).lean(),
+            findReview: async () => {
+              const current = await connection.collection('bookings').findOne({ _id: visit.bookingId, customerId: visit.customerId },
+                { session, projection: { visitIds: 1 } });
+              const reviewIds = (current?.visitIds ?? []).map(String);
+              return Review.findOne({ direction: 'CUSTOMER_TO_SITTER', customerId: String(visit.customerId),
+                sitterId: String(visit.sitterId),
+                $or: [{ bookingId: String(visit.bookingId) }, { visitId: { $in: reviewIds } }] }).session(session).lean();
+            },
             async createReview(value) {
               const booking = await connection.collection('bookings').findOneAndUpdate({ _id: visit.bookingId, customerId: visit.customerId,
-                state: 'COMPLETED', visitIds: visit._id }, { $inc: { reviewGuardVersion: 1 } }, { session, returnDocument: 'after' });
+                state: { $in: ['COMPLETED', 'CLOSED', 'CANCELLED'] }, visitIds: visit._id },
+              { $inc: { reviewGuardVersion: 1 } }, { session, returnDocument: 'after' });
               const credit = await Credit.findOne({ visitId: visit._id, bookingId: visit.bookingId, employeeId: visit.sitterId, sourceVersion: visit.version }).session(session).lean();
               const completion = await Event.findOne({ bookingId: String(visit.bookingId), type: 'BookingCompleted' }).session(session).lean();
-              const incomplete = booking && await connection.collection('visits').countDocuments({ _id: { $in: booking.visitIds }, state: { $ne: 'COMPLETED' } }, { session });
+              const incomplete = booking && await connection.collection('visits').countDocuments({ _id: { $in: booking.visitIds },
+                state: { $nin: ['COMPLETED', 'CANCELLED'] } }, { session });
               const count = booking && await connection.collection('visits').countDocuments({ _id: { $in: booking.visitIds } }, { session });
+              if (booking?.completedAt && new Date(value.createdAt).getTime() > new Date(booking.completedAt).getTime() + 7 * 86400000)
+                fail('RATING_WINDOW_EXPIRED', 'Đã quá 7 ngày kể từ khi lịch đặt kết thúc.', 409);
               if (!booking || incomplete || count !== booking.visitIds.length || !credit || !completion || visit.state !== 'COMPLETED' ||
                 !visit.completedAt || credit.completedAt.getTime() !== visit.completedAt.getTime() || !visit.snapshots?.pets?.length ||
-                !booking.completedAt || new Date(value.createdAt) < booking.completedAt || new Date(value.createdAt) < visit.completedAt ||
+                !booking.completedAt || new Date(value.createdAt) < booking.completedAt ||
+                new Date(value.createdAt) < visit.completedAt ||
                 new Date(value.createdAt) < completion.at)
                 fail('VERIFIED_COMPLETION_REQUIRED', 'Whole booking and immutable employee completion source required', 409);
+              if (await Review.exists({ direction: 'CUSTOMER_TO_SITTER', customerId: String(visit.customerId),
+                sitterId: String(visit.sitterId), $or: [{ bookingId: String(booking._id) },
+                  { visitId: { $in: booking.visitIds.map(String) } }] }).session(session))
+                fail('REVIEW_ALREADY_EXISTS', 'Only one review per sitter for this booking', 409);
               const guarded = await connection.collection('visits').updateOne({ _id: visit._id, version: visit.version,
                 state: 'COMPLETED', sitterId: visit.sitterId }, { $inc: { reviewGuardVersion: 1 } }, { session });
               if (!guarded.matchedCount) fail('VERSION_CONFLICT', 'Completion source changed', 409);
@@ -51,7 +67,7 @@ export function createMongoCustomerReviewRepository({ connection }) {
               const provenance = { bookingId: String(booking._id), bookingVersion: booking.version, visitVersion: visit.version,
                 completionEventId: completion._id, creditId: String(credit._id), completedAt: visit.completedAt, reviewVersion: 0,
                 labelVersion: 'VERIFIED_CUSTOMER_SATISFACTION_V1', trainingEligible: false };
-              const [saved] = await Review.create([{ _id: value.id, visitId, customerId: value.customerId, sitterId: value.sitterId,
+              const [saved] = await Review.create([{ _id: value.id, bookingId: String(booking._id), visitId, customerId: value.customerId, sitterId: value.sitterId,
                 direction: value.direction, rating: value.rating, comment: value.comment, tags: value.tags,
                 state: 'SUBMITTED', visibility: 'ROLE_SCOPED', version: 0, createdAt: value.createdAt, verifiedSource: provenance }], { session });
               await Outcome.create([{ visitId: visit._id, sitterId: visit.sitterId, serviceId: visit.serviceId, petIds: visit.petIds,

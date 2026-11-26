@@ -20,7 +20,7 @@ export function groomingRuntimeModule({ config, connection, env = {}, clock = Da
   const pricing = createGroomingPricing({ connection, clock, shopServices, hotline: env.GROOMING_SHOP_HOTLINE?.trim() || null,
     refusalLimit: env.PRODUCT_REFUSAL_LIMIT });
   const service = createGroomingService({
-    shopServices, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, hotline: env.GROOMING_SHOP_HOTLINE, pricing,
+    shopServices, connection, clock, facilityAddress: env.BOOKING_FACILITY_ADDRESS, hotline: env.GROOMING_SHOP_HOTLINE, pricing,
     slots: createGroomingSlots({ connection, clock, shopServices, shiftSource }),
     booking: createGroomingBooking({ connection, clock, pricing, shiftSource, codes: createGroomingAppointmentCode({ connection }),
       facilityAddress: env.BOOKING_FACILITY_ADDRESS, hotline: env.GROOMING_SHOP_HOTLINE })

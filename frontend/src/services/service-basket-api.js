@@ -51,7 +51,9 @@ export function createServiceBasketApi(options) {
       const response = await request('/pricing/basket-quotes', { method: 'POST', body: { items } });
       const value = response.data;
       if (!value || !Number.isSafeInteger(value.totalVnd) || value.totalVnd < 0 || !Array.isArray(value.items) ||
-        !['baseVnd', 'surchargeVnd', 'discountVnd', 'orderFeeVnd'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0) ||
+        !['baseVnd', 'surchargeVnd', 'discountVnd', 'tierDiscountVnd'].every(key => Number.isSafeInteger(value[key]) && value[key] >= 0) ||
+        !value.tier || !['MEMBER', 'SILVER', 'GOLD'].includes(value.tier.code) ||
+        value.totalVnd !== value.baseVnd + value.surchargeVnd - value.discountVnd - value.tierDiscountVnd ||
         !Number.isFinite(Date.parse(value.expiresAt))) throw new ApiError('INVALID_RESPONSE');
       return value;
     }

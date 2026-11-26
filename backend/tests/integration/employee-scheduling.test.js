@@ -592,6 +592,11 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   const stranger = actor('CUSTOMER'); await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(stranger.userId), ...stranger });
   await rate(stranger).send(body).expect(404);
   const second = `/reviews/visits/${plan.visits[1].id}/ratings`;
+  const secondForSameSitter = await request(reviewApp).post(second).set('x-test-actor', customer.userId)
+    .set('Host', 'localhost').set('Origin', 'http://localhost').set('x-csrf-token', 'synthetic-csrf')
+    .set('Idempotency-Key', 'verified-same-sitter-second-visit').send({ rating: 5 });
+  expect(secondForSameSitter.status).toBe(409);
+  expect(secondForSameSitter.body.error.code).toBe('REVIEW_ALREADY_EXISTS');
   await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { state: 'IN_PROGRESS' } });
   await request(reviewApp).post(second).set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
     .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'unverified-rating-002').send({ rating: 5 }).expect(409);
@@ -791,6 +796,13 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('COMPLETED');
   expect(await matching.SitterVisitOutcome.countDocuments({ visitId: row._id })).toBe(0);
 
+  reviewNow = at + 8 * 86400000;
+  const afterSevenDays = await request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
+    .set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+    .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'late-customer-rating-8days')
+    .send({ rating: 4, expectedVersion: completed.version });
+  expect(afterSevenDays.status).toBe(409);
+  expect(afterSevenDays.body.error.code).toBe('REVIEW_WINDOW_EXPIRED');
   at += 60000;
   reviewNow = at;
   const rate = () => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)

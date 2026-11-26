@@ -25,6 +25,9 @@ import { assertMatchSelection } from './match-selection.service.js';
 import { captureServiceWorkflow } from '../care/workflow-snapshot.service.js';
 import { boardingCarePlan } from './boarding-care-plan.service.js';
 import { createBookingDetailsService } from './booking-details.service.js';
+import { createProductPricingEligibility } from '../product-sales/product-pricing-eligibility.service.js';
+import { assertNoUnpaidGrooming, hasUnpaidGrooming } from '../grooming/grooming-unpaid.service.js';
+import { assertBookingSpan } from './booking-span-policy.js';
 
 export function createBookingCheckoutService({ connection, clock = Date.now, provider, webOrigin, facilityAddress, facilityCoordinates, selectionGuard }) {
   const { DecisionSnapshot } = decisionSnapshotModels(connection), { Pet, CustomerAddress } = petCareModels(connection);
@@ -35,6 +38,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
   const col = name => connection.db.collection(name), oid = value => new Types.ObjectId(value), now = () => new Date(clock());
   const uow = createUnitOfWork(connection);
   const details = createBookingDetailsService({ connection, clock });
+  const tierEligibility = createProductPricingEligibility({ connection });
   function customer(actor) {
     if (actor?.state !== 'ACTIVE' || actor.synthetic === true) fail('UNAUTHENTICATED', 'Authentication required', 401);
     id(actor.userId); if (!hasRole(actor.roles, 'CUSTOMER')) fail('FORBIDDEN', 'Customer required', 403);
@@ -58,12 +62,18 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       projection: { _id: 1, state: 1, expiresAt: 1 } }).sort({ _id: -1 }).limit(20).toArray();
     const sitterIds = [...new Set(careShifts.filter(row => row.sitterId && Types.ObjectId.isValid(String(row.sitterId))).map(row => String(row.sitterId)))];
     const sitterUsers = sitterIds.length ? await col('users').find({ _id: { $in: sitterIds.map(oid) } }, { session, projection: { displayName: 1 } }).limit(200).toArray() : [];
-    const expired = booking.state === 'AWAITING_PAYMENT' && booking.paymentDeadlineAt <= now();
-    return { id: String(booking._id), state: expired ? 'PAYMENT_EXPIRED' : booking.state, version: booking.version,
+    const existingRatings = sitterIds.length ? await col('reviews').find({ direction: 'CUSTOMER_TO_SITTER',
+      customerId: String(booking.customerId), sitterId: { $in: sitterIds },
+      $or: [{ bookingId: String(booking._id) }, { visitId: { $in: (booking.visitIds ?? []).map(String) } }] },
+    { session, projection: { sitterId: 1 } }).limit(200).toArray() : [];
+    return { id: String(booking._id), state: booking.state, version: booking.version,
       paymentState: booking.paymentState, paymentMode: booking.paymentMode, totalVnd: booking.paymentSnapshot.amountVnd,
-      currency: 'VND', createdAt: booking.createdAt ?? null, paymentDeadlineAt: booking.paymentDeadlineAt, quoteId: String(booking.quoteId),
+      currency: 'VND', createdAt: booking.createdAt ?? null, completedAt: booking.completedAt ?? null,
+      ratedSitterIds: [...new Set(existingRatings.map(row => row.sitterId))],
+      paymentDeadlineAt: booking.paymentDeadlineAt, quoteId: String(booking.quoteId),
       scheduleProposals: proposals.map(row => ({ id: String(row._id), state: row.state, expiresAt: row.expiresAt })),
-      careShifts: careShifts.map(row => ({ id: String(row._id), state: row.state, version: row.version,
+      careShifts: careShifts.map(row => ({ id: String(row._id), sitterId: row.sitterId ? String(row.sitterId) : null,
+        state: row.state, version: row.version,
         startAt: row.startAt, endAt: row.endAt, checkInAt: row.checkInAt ?? null, checkOutAt: row.checkOutAt ?? null, serviceName: row.snapshots?.serviceName, sitterName: sitterUsers.find(user => String(user._id) === String(row.sitterId))?.displayName ?? null })),
       visits: visits.map(row => ({ id: String(row._id), state: row.state,
         startAt: actual.find(visit => visit.customerVisitId === String(row._id))?.startAt ?? row.startAt,
@@ -76,7 +86,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
     async options(actor) {
       customer(actor);
       const sitters = await listPreviousPetSitters(connection.db, actor.userId);
-      return { recommendationAllowed: false, facilityAddress: facilityAddress ?? null, sitters, paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
+      return { recommendationAllowed: false, facilityAddress: facilityAddress ?? null, sitters, groomingPaymentOutstanding: await hasUnpaidGrooming(connection, actor.userId), paymentWindowMinutes: 15, policyVersion: CHECKOUT_POLICY_VERSION };
     },
     async confirm(actor, body, key) {
       customer(actor); const input = bookingCheckoutInput(body);
@@ -94,14 +104,26 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         if (matchClaims.length && await commands.exists({ _id: { $in: matchClaims } }).session(session))
           fail('MATCH_ALREADY_USED', 'Recommendation already used for a booking; search again', 409);
         const at = now();
+        const ownerGuard = await col('users').findOneAndUpdate({ _id: oid(actor.userId), state: 'ACTIVE', roles: 'CUSTOMER', synthetic: { $ne: true } },
+          { $inc: { schedulingGuardVersion: 1 } }, { session, returnDocument: 'after' });
+        if (!ownerGuard) fail('FORBIDDEN', 'Current customer account required', 403);
+        await assertNoUnpaidGrooming(connection, actor.userId, session);
         const quote = await DecisionSnapshot.findOne({ _id: input.quoteId, ownerId: actor.userId, kind: 'QUOTE', expiresAt: { $gt: at } }).select('+snapshot').session(session).lean();
         if (!quote) fail('RESOURCE_NOT_FOUND', 'Quote unavailable or expired', 404);
         const result = quote.snapshot.result, selections = quote.snapshot.input?.items?.map(validatePricingSelection);
         if (!selections || !Array.isArray(result.items) || selections.length !== result.items.length || result.currency !== 'VND')
           fail('QUOTE_REVIEW_REQUIRED', 'Use a current basket quote', 409);
+        if (result.tier) {
+          const currentTier = await tierEligibility.read(actor.userId, { session, includeReason: true });
+          if (currentTier.tierCode !== result.tier.code ||
+            currentTier.discountBps !== result.tier.discountBps ||
+            currentTier.tierPolicyVersion !== result.tier.policyVersion ||
+            (currentTier.discountBlockedReason ?? null) !== (result.tier.blockedReason ?? null))
+            fail('QUOTE_CHANGED', 'Customer tier discount changed; quote again', 409);
+        }
         const money = checkoutVisitMoney(result);
         if (input.visits.length !== money.length) fail('VALIDATION_FAILED', 'Schedule every quoted visit');
-        const deadline = new Date(at.getTime() + PREPAY_WINDOW_MS), prepay = money.length > 1 || selections.some(row => row.dayCount > 1);
+        const deadline = new Date(at.getTime() + PREPAY_WINDOW_MS);
         const visible = await Setting.findOne({ key: 'SERVICE_CATALOG_VISIBLE', effectiveAt: { $lte: at } }).sort({ effectiveAt: -1 }).session(session).lean();
         if (visible?.enabled !== true) fail('SERVICE_UNAVAILABLE', 'Catalogue unavailable', 409);
         const bookingId = new Types.ObjectId(), visits = [], seenPets = new Set(), seenAddresses = new Set();
@@ -137,7 +159,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               if (!caredBefore) fail('PREFERRED_SITTER_HISTORY_REQUIRED', 'Preferred pet sitter must have previously cared for one of the chosen pets', 409);
             }
             if (!presentation?.locations?.includes(row.location)) fail('VALIDATION_FAILED', 'Service location unsupported');
-            if (row.startAt <= (prepay ? deadline : at)) fail('VALIDATION_FAILED', 'Visit must start after payment window');
+            if (row.startAt <= deadline) fail('VALIDATION_FAILED', 'Visit must start after payment window');
             if (row.location === 'HOME' && row.startAt.getTime() < at.getTime() + HOME_BOOKING_NOTICE_MS)
               fail('HOME_BOOKING_NOTICE_REQUIRED', 'At-home care must be booked at least 2 hours in advance');
             let privateAccessNotes = '', selectedAddress;
@@ -147,7 +169,11 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
               if (!address) fail('RESOURCE_NOT_FOUND', 'Owned confirmed address unavailable', 404);
               serviceAddress = address.location;
               areaCode = address.areaCode;
-              await createServiceAreaCatalog(connection).assertOpen(areaCode, session);
+              try { await createServiceAreaCatalog(connection).assertOpen(areaCode, session); }
+              catch (error) {
+                if (error.code === 'WORK_AREA_CLOSED') fail('ADDRESS_OUT_OF_SERVICE_AREA', 'Rất tiếc, chúng tôi chưa phục vụ địa chỉ này.', 422);
+                throw error;
+              }
               point = address.point;
               privateAccessNotes = address.privateAccessNotes ?? '';
               selectedAddress = address;
@@ -181,6 +207,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
                 pets: pets.map(p => ({ id: String(p._id), name: p.name, species: p.species, weightKg: p.weightKg, traits: p.traits, version: p.version })) } });
           }
         }
+        assertBookingSpan(visits);
         for (let a = 0; a < visits.length; a++) for (let b = a + 1; b < visits.length; b++) {
           if (visits[a].startAt < visits[b].endAt && visits[b].startAt < visits[a].endAt && visits[a].petIds.some(p => visits[b].petIds.some(q => String(p) === String(q))))
             fail('VISIT_SCHEDULE_OVERLAP', 'A pet cannot attend overlapping visits', 409);
@@ -223,9 +250,9 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           }
         }
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
-          originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: prepay ? 'AWAITING_PAYMENT' : 'DISPATCH_PENDING',
-          paymentMode: prepay ? 'PREPAY' : 'POSTPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },
-          ...(prepay ? { paymentDeadlineAt: deadline } : {}), version: 0, financeGuardVersion: 0, createdAt: at,
+          originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: 'AWAITING_PAYMENT',
+          paymentMode: 'PREPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },
+          paymentDeadlineAt: deadline, version: 0, financeGuardVersion: 0, createdAt: at,
           carePlanState: 'APPROVED', careVisitCount: visits.length,
           checkoutSnapshot: { quote: result, selections, customerVisits: visits, consentAt: at, policyVersion: CHECKOUT_POLICY_VERSION } };
         const shifts = boardingCarePlan(booking, 480).map(row => ({ ...row, _id: new Types.ObjectId(), bookingId,
@@ -235,7 +262,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         booking.carePlanSnapshot = { shiftMinutes: 480, approvedBy: 'SYSTEM_DISPATCH', approvedAt: at,
           allocationVersion: 'PWC-BOARDING-SHIFT-2026-10-30-v1', source: 'SYSTEM_CHECKOUT' };
         await col('bookings').insertOne(booking, { session }); await col('visits').insertMany(shifts, { session });
-        if (prepay) await col('paymentintents').insertOne({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), provider: 'PAYOS',
+        await col('paymentintents').insertOne({ _id: new Types.ObjectId(), bookingId, customerId: oid(actor.userId), provider: 'PAYOS',
           providerReference: String(randomInt(1000000000000, 200000000000000)), amountVnd: result.totalVnd, currency: 'VND',
           state: 'PENDING', version: 0, expiresAt: deadline, createdAt: at }, { session });
         await commands.create([{ _id: commandId, fingerprint, result: { bookingId: String(bookingId) }, createdAt: at },
@@ -245,7 +272,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
           actorId: actor.userId, resourceId: String(bookingId), at }], { session });
         await Notification.create([{ _id: digest(['BOOKING_CREATED', String(bookingId)]), eventId: `booking:${bookingId}`,
           recipientId: actor.userId, role: 'CUSTOMER', eventType: 'BOOKING_CREATED', title: 'Đã tiếp nhận đơn chăm sóc',
-          message: prepay ? 'Đơn đã được tạo. Vui lòng hoàn tất bước thanh toán trong thời hạn của đơn.' : 'Đơn đã được tạo. Hệ thống đang tìm người chăm sóc phù hợp.',
+          message: 'Đơn đã được tạo. Vui lòng hoàn tất thanh toán trước trong 15 phút.',
           deepLink: '/account/bookings', createdAt: at }], { session });
         return view(booking, session);
       });
@@ -263,17 +290,94 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       if (booking.state !== 'AWAITING_PAYMENT' || booking.paymentState !== 'UNPAID' || booking.paymentDeadlineAt <= now()) fail('INVALID_STATE', 'Booking is not payable', 409);
       let intent = await col('paymentintents').findOne({ bookingId: booking._id, provider: 'PAYOS', state: 'PENDING' });
       if (!intent) fail('RESOURCE_NOT_FOUND', 'Payment intent unavailable', 404);
-      if (intent.checkoutUrl) return { checkoutUrl: intent.checkoutUrl, expiresAt: intent.expiresAt };
       if (!provider || !webOrigin) fail('PAYMENT_PROVIDER_UNAVAILABLE', 'Payment link provider is unavailable', 503);
-      if (intent.linkState && intent.linkState !== 'FAILED') fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Existing provider request awaits reconciliation', 409);
-      intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id, state: 'PENDING', linkState: { $in: [null, 'FAILED'] } },
+      let claimedRetry = false;
+      if (intent.linkState === 'FAILED' && !intent.checkoutUrl && !intent.paymentLinkId) {
+        // A deterministic rejection occurred before the provider accepted the
+        // request. Unlike an uncertain result, retry may claim this attempt
+        // without a payOS lookup, but must retain the original submission
+        // marker and guard concurrent retries with an atomic state transition.
+        const failed = intent;
+        intent = await col('paymentintents').findOneAndUpdate({ _id: failed._id, state: 'PENDING',
+          linkState: 'FAILED', linkRequestedAt: failed.linkRequestedAt },
         { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
+        if (!intent) fail('COMMAND_PENDING', 'Payment link state changed while retrying', 409);
+        claimedRetry = true;
+      }
+      if (!claimedRetry && (intent.linkState || intent.checkoutUrl)) {
+        // An in-flight create may not yet be visible to payOS GET. A 404 is
+        // never permission to clear its submission markers or launch another
+        // POST while the original request can still complete.
+        if (intent.linkState === 'CREATING')
+          fail('COMMAND_PENDING', 'A link request is already running', 409);
+        if (!provider.getPaymentLink) {
+          if (intent.checkoutUrl) return { checkoutUrl: intent.checkoutUrl, expiresAt: intent.expiresAt };
+          fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider status must be checked before retrying', 409);
+        }
+        let remote;
+        try { remote = await provider.getPaymentLink(Number(intent.providerReference)); }
+        catch (error) {
+          // Only a completed/failed create can retry after a signed payOS 404.
+          // Atomically claim it directly; never erase linkRequestedAt, because
+          // JOB-03 must remember that the order code was submitted previously.
+          if (error.code === 'PAYOS_REQUEST_FAILED' && error.details?.providerHttpStatus === 404 &&
+            !intent.checkoutUrl && intent.linkState === 'RECONCILIATION_REQUIRED') {
+            intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id, state: 'PENDING',
+              linkState: 'RECONCILIATION_REQUIRED', linkRequestedAt: intent.linkRequestedAt },
+            { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
+            if (!intent) fail('COMMAND_PENDING', 'Payment link state changed while retrying', 409);
+            claimedRetry = true;
+          } else fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider state cannot be verified yet', 409);
+        }
+        if (!remote && !claimedRetry) fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider state cannot be verified yet', 409);
+        if (remote) {
+        if (remote.orderCode !== Number(intent.providerReference) || remote.amount !== intent.amountVnd ||
+          remote.amountPaid > intent.amountVnd || !Number.isSafeInteger(remote.amountPaid))
+          fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider amount differs from booking', 409);
+        if (['PAID', 'PROCESSING'].includes(remote.providerStatus) || remote.amountPaid > 0)
+          fail('COMMAND_PENDING', 'Provider payment is awaiting verified webhook', 409);
+        if (remote.providerStatus === 'PENDING') {
+          const restored = remote.checkoutUrl ?? intent.checkoutUrl;
+          if (restored) {
+            const url = new URL(restored);
+            if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/'))
+              fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider link URL is invalid', 409);
+            await col('paymentintents').updateOne({ _id: intent._id, state: 'PENDING' },
+              { $set: { linkState: 'READY', checkoutUrl: url.href, ...(remote.paymentLinkId ? { paymentLinkId: remote.paymentLinkId } : {}) } });
+            return { checkoutUrl: url.href, expiresAt: intent.expiresAt };
+          }
+          fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider has a pending link without a verified URL', 409);
+        }
+        if (!['CANCELLED', 'EXPIRED', 'FAILED'].includes(remote.providerStatus) || remote.amountPaid !== 0)
+          fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider payment status requires review', 409);
+        // Only a verified terminal, unpaid provider link may be replaced.
+        intent = await transact(async session => {
+          const current = await col('paymentintents').findOne({ _id: intent._id, state: 'PENDING' }, { session });
+          const stillAwaiting = await col('bookings').findOne({ _id: booking._id, state: 'AWAITING_PAYMENT',
+            paymentState: 'UNPAID', paymentDeadlineAt: { $gt: now() } }, { session });
+          if (!current || !stillAwaiting) fail('COMMAND_PENDING', 'Payment state changed; reload booking', 409);
+          const changed = await col('paymentintents').updateOne({ _id: current._id, state: 'PENDING' },
+            { $set: { state: 'CANCELLED', providerTerminalStatus: remote.providerStatus } }, { session });
+          if (!changed.matchedCount) fail('COMMAND_PENDING', 'Payment attempt changed', 409);
+          const next = { _id: new Types.ObjectId(), bookingId: booking._id, customerId: oid(actor.userId),
+            provider: 'PAYOS', providerReference: String(randomInt(1000000000000, 200000000000000)),
+            amountVnd: intent.amountVnd, currency: 'VND', state: 'PENDING', version: 0,
+            expiresAt: booking.paymentDeadlineAt, createdAt: now() };
+          await col('paymentintents').insertOne(next, { session });
+          return next;
+        });
+        }
+      }
+      if (!claimedRetry) intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id,
+        state: 'PENDING', linkState: { $exists: false }, linkRequestedAt: { $exists: false } },
+      { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
       if (!intent) fail('COMMAND_PENDING', 'A link request is already running', 409);
       let providerResponded = false;
       try {
         const link = await provider.createPaymentLink({ orderCode: Number(intent.providerReference), amount: intent.amountVnd,
           description: 'PAWWORLD', expiredAt: Math.floor(intent.expiresAt.getTime() / 1000),
-          returnUrl: new URL(`/services?booking=${bookingId}`, webOrigin).href, cancelUrl: new URL(`/services?booking=${bookingId}`, webOrigin).href });
+          returnUrl: new URL(`/services?booking=${bookingId}&payment=returned`, webOrigin).href,
+          cancelUrl: new URL(`/services?booking=${bookingId}&payment=cancelled`, webOrigin).href });
         providerResponded = true;
         const url = new URL(link.checkoutUrl);
         if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/') || link.orderCode !== Number(intent.providerReference) || link.amount !== intent.amountVnd || link.currency !== 'VND')

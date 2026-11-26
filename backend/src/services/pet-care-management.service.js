@@ -97,11 +97,15 @@ export function createPetCareManagement({ repository, clock = Date.now, coverage
         .lean().then(rows => rows.map(petView));
     },
     async listAddresses(ownerId, management = false) {
+      const activeCoverage = typeof coverageAreas === 'function' ? await coverageAreas() : coverageAreas;
+      const served = new Set(activeCoverage.filter(row => row.enabled !== false).map(row => row.code));
       return models.CustomerAddress.find({ ownerId, state: 'ACTIVE' })
         .select(management ? '+location +point +privateAccessNotes' : 'label areaCode version pointConfirmedAt')
         .sort({ _id: 1 })
         .limit(100)
-        .lean().then(rows => management ? rows.map(addressView) : rows);
+        .lean().then(rows => management ? rows.map(addressView) : rows.map(row => ({
+          ...row, served: served.has(row.areaCode) && Boolean(row.pointConfirmedAt)
+        })));
     },
     async createPet(ownerId, body, key) {
       if (key) {

@@ -82,7 +82,7 @@ test('return URL reads actual unpaid state; a disabled provider never creates a 
   api.paymentLink.mockRejectedValue({ code: 'PAYMENT_PROVIDER_UNAVAILABLE' });
   render(<MemoryRouter initialEntries={['/services?booking=booking']}><BookingConfirmation api={api} /></MemoryRouter>);
   await screen.findByText('Chờ thanh toán trước'); fireEvent.click(screen.getByText('Tạo link thanh toán'));
-  await screen.findByText('Chưa thể tạo link thanh toán. Đơn vẫn đang chờ thanh toán.');
+  await screen.findByText(/Không thể mở trang thanh toán ngay lúc này/);
   expect(screen.queryByText('Thanh toán qua payOS')).toBeNull(); expect(api.booking).toHaveBeenCalledWith('booking', expect.any(Object));
 });
 

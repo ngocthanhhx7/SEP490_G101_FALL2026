@@ -88,6 +88,8 @@ export function useGroomingBooking({ api, serviceId }) {
         if (error.code === 'GROOMING_PRICE_CHANGED') setQuoteRevision(value => value + 1);
       } else if (error.code === 'GROOMING_PET_REFERRAL_REQUIRED' && error.details?.petId && picked[error.details.petId]) {
         command.current = null; answer(error.details.petId, 'biteOrScratch', 'YES');
+      } else if (error.code === 'GROOMING_PAYMENT_OUTSTANDING') {
+        command.current = null; setNotice('Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.');
       } else if (isUncertainOutcome(error)) {
         setPending(true); setNotice(UNCERTAIN);
       } else {

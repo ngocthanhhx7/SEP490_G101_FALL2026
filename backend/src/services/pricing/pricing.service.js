@@ -81,7 +81,7 @@ export function createPricingService({ repository, clock = Date.now }) {
     const computed = [];
     for (const item of body.items) computed.push(await calculate(ownerId, item, true));
     const policies = computed.map(item => item.context.policy), policy = policies[0];
-    const common = ['comboPerVisitBps', 'comboMaxBps', 'orderStepVnd', 'orderStepBps', 'maxOrderTierBps'];
+    const common = ['comboPerVisitBps', 'comboMaxBps'];
     if (policies.some(p => common.some(key => (p[key] ?? 0) !== (policy[key] ?? 0))))
       fail('PRICING_REVIEW_REQUIRED', 'Incompatible basket policies', 409);
     const visits = computed.reduce((sum, item) => sum + item.input.visitCount, 0);
@@ -92,12 +92,13 @@ export function createPricingService({ repository, clock = Date.now }) {
     const gross = safe(computed.reduce((sum, item) => sum + BigInt(item.result.subtotalVnd), 0n));
     const comboBps = Math.min(visits * (policy.comboPerVisitBps ?? 0), policy.comboMaxBps ?? 0);
     const discountVnd = fee(base, comboBps), subtotalVnd = gross - discountVnd;
-    const tierBps = Math.floor(subtotalVnd / policy.orderStepVnd) * policy.orderStepBps;
-    if (tierBps > policy.maxOrderTierBps) fail('ORDER_TIER_REVIEW_REQUIRED', 'Basket requires review', 409);
-    const orderFeeVnd = fee(subtotalVnd, tierBps);
+    const tier = await repository.readTier(ownerId);
+    const tierDiscountVnd = safe(BigInt(subtotalVnd) * BigInt(tier.discountBps) / 10000n);
     const result = { currency: 'VND', kind: 'ESTIMATE', baseVnd: base, surchargeVnd: gross - base, discountVnd, comboBps,
-      subtotalVnd, orderFeeVnd, totalVnd: safe(BigInt(subtotalVnd) + BigInt(orderFeeVnd)), visitCount: visits,
-      paymentMode: visits > 1 || computed.some(item => item.input.dayCount > 1) ? 'PREPAY' : 'POSTPAY', rounding: 'HALF_UP_VND_PER_LINE',
+      subtotalVnd, tierDiscountVnd, orderFeeVnd: 0, totalVnd: subtotalVnd - tierDiscountVnd, visitCount: visits,
+      tier: { code: tier.tierCode, discountBps: tier.discountBps, policyVersion: tier.tierPolicyVersion,
+        blockedReason: tier.discountBlockedReason ?? null },
+      paymentMode: 'PREPAY', rounding: 'HALF_UP_VND_PER_LINE',
       items: computed.map(({ input, result, context }) => ({ serviceId: input.serviceId, ...result,
         serviceVersion: context.version.version, servicePolicyVersion: context.servicePolicy.version,
         servicePolicy: { title: context.servicePolicy.title, body: context.servicePolicy.body },

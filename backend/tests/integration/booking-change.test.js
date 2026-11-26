@@ -329,12 +329,12 @@ describe('UC-84 customer requests', () => {
   });
 
   test('allows an exact end-to-start boundary, up to two visits per day and a 30-day span', async () => {
-    const record = await booking([BASE + DAY, BASE + 2 * DAY, BASE + 31 * DAY]);
+    const record = await booking([BASE + DAY, BASE + 2 * DAY, BASE + 30 * DAY]);
     await submit(record, single(record.visits[1], BASE + DAY + HOUR / 2)).expect(201);
     const tooLong = await booking([BASE + DAY, BASE + 2 * DAY]);
-    await submit(tooLong, single(tooLong.visits[1], BASE + 31 * DAY)).expect(201);
+    await submit(tooLong, single(tooLong.visits[1], BASE + 30 * DAY)).expect(201);
     const thirtyOne = await booking([BASE + DAY, BASE + 2 * DAY]);
-    expect(errorCode(await submit(thirtyOne, single(thirtyOne.visits[1], BASE + 32 * DAY)).expect(422))).toBe('MSG20');
+    expect(errorCode(await submit(thirtyOne, single(thirtyOne.visits[1], BASE + 31 * DAY)).expect(422))).toBe('MSG20');
   });
 
   test('checks pet collisions across bookings and accepts a boundary that only touches', async () => {

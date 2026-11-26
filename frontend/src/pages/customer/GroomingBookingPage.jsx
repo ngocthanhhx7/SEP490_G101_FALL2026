@@ -44,16 +44,18 @@ function GroomingBooking({ api, serviceId, onAnother }) {
   }
   if (flow.booked) return <Booked appointment={flow.booked} onAnother={onAnother} />;
   const hasPets = Object.values(flow.picked).some(choice => choice.answers.biteOrScratch !== 'YES' && choice.serviceIds.length > 0);
-  return <div className="grooming-layout">
-    <fieldset className="grooming-steps" disabled={flow.busy || flow.pending} aria-label="Thông tin lịch hẹn">
+  return <>{options.groomingPaymentOutstanding && <p role="alert" className="grooming-inline">
+    Bạn còn tiền dịch vụ spa chưa thanh toán. Vui lòng thanh toán tại cửa hàng trước khi đặt lịch mới.
+  </p>}<div className="grooming-layout">
+    <fieldset className="grooming-steps" disabled={flow.busy || flow.pending || options.groomingPaymentOutstanding} aria-label="Thông tin lịch hẹn">
       <GroomingPetsSection pets={flow.pets} options={options} picked={flow.picked} onTogglePet={flow.togglePet} onToggleService={flow.toggleService} />
       <GroomingQuestionsSection pets={flow.pets} options={options} picked={flow.picked} hotline={options.shop.hotline} onAnswer={flow.answer} />
       <GroomingSlotsSection options={options} date={flow.date} time={flow.time} slots={flow.slots} hasPets={hasPets}
         onDate={flow.chooseDate} onTime={flow.chooseTime} onRetry={flow.reloadSlots} />
     </fieldset>
     <GroomingPriceSummary quote={flow.quote} priceReady={flow.priceReady} date={flow.date} slot={flow.selectedSlot} address={options.shop.address}
-      notice={flow.notice} canConfirm={flow.canConfirm} busy={flow.busy} onConfirm={flow.confirm} onRetry={flow.reloadQuote} />
-  </div>;
+      notice={flow.notice} canConfirm={flow.canConfirm && !options.groomingPaymentOutstanding} busy={flow.busy} onConfirm={flow.confirm} onRetry={flow.reloadQuote} />
+  </div></>;
 }
 
 // Customer booking of bathing and grooming at the shop (UC-58). `?serviceId=` preselects that service for each pet chosen.
