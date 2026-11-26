@@ -3,7 +3,7 @@ import { createSchedulingNotifications } from '../notifications/scheduling-notif
 const LATE_AFTER_MS = 15 * 60000;
 const VIETNAM_OFFSET_MS = 7 * 3600000;
 
-// JOB-07 / GBR-14. Staff are told once about each visit of the day not checked in 15 minutes after its start.
+// JOB-07 / GBR-29. Staff are told once about each visit of the day not checked in 15 minutes after its start.
 // The marker and the notification share a transaction, so a failed save is tried again on the next run.
 export function createLateCheckInAlerts({ repository, clock = Date.now }) {
   const { col, models, uow } = repository;
@@ -14,7 +14,7 @@ export function createLateCheckInAlerts({ repository, clock = Date.now }) {
     const day = new Date(due + VIETNAM_OFFSET_MS).toISOString().slice(0, 10);
     return { state: 'ASSIGNED', sitterId: { $type: 'objectId' }, checkInAt: null,
       startAt: { $gte: new Date(`${day}T00:00:00+07:00`), $lte: new Date(due) },
-      $expr: { $ne: [{ $ifNull: ['$lateCheckInAlert.startAt', null] }, '$startAt'] } };
+      'lateCheckInAlert.alertedAt': { $exists: false } };
   };
   return {
     async runBatch({ limit = 100 } = {}) {
@@ -29,11 +29,11 @@ export function createLateCheckInAlerts({ repository, clock = Date.now }) {
             // A check-in, cancellation or reschedule since the read removes the visit from this query.
             const visit = await col('visits').findOneAndUpdate(
               { _id: candidate._id, $and: [query(+at), { startAt: candidate.startAt }] },
-              { $set: { lateCheckInAlert: { startAt: candidate.startAt, alertedAt: at } } },
+              { $set: { lateCheckInAlert: { alertedAt: at } } },
               { session, returnDocument: 'after' });
             if (!visit) return false;
             const event = { type: 'VisitCheckInLate', visitId: String(visit._id), sitterId: String(visit.sitterId), at,
-              detail: { version: visit.version, noticeKey: visit.startAt.toISOString() } };
+              detail: { version: visit.version } };
             await models.EmployeeScheduleEvent.create([event], { session });
             await notifications.publish(event, session);
             return true;

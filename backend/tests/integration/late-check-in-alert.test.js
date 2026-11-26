@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import { createLateCheckInAlerts } from '../../src/services/employee-scheduling/late-check-in-alert.service.js';
 import { employeeSchedulingModels } from '../../src/models/employee-scheduling.model.js';
 import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
+import { createSchedulingNotifications } from '../../src/services/notifications/scheduling-notifications.service.js';
 import { createUnitOfWork } from '../../src/services/unit-of-work.service.js';
 import { normalizeNotification } from '../../src/services/notifications/notification.service.js';
 
@@ -55,10 +56,10 @@ test('JOB-07: at 15 minutes every Staff account gets one alert with the time, cu
     expect(() => normalizeNotification(notice, { userId: notice.recipientId, roles: [notice.role], state: 'ACTIVE' })).not.toThrow();
   }
   const stored = await col('visits').findOne({ _id: visit._id });
-  expect(stored).toMatchObject({ state: 'ASSIGNED', version: 2, lateCheckInAlert: { startAt: visit.startAt, alertedAt: new Date(now) } });
+  expect(stored).toMatchObject({ state: 'ASSIGNED', version: 2, lateCheckInAlert: { alertedAt: new Date(now) } });
 });
 
-test('JOB-07: concurrent and later runs never alert a visit twice, and a new start time is alerted again', async () => {
+test('JOB-07: two runs at each start time alert only once for the same rescheduled visit', async () => {
   const visit = await seed();
   const results = await Promise.all([service.runBatch(), service.runBatch()]);
   expect(results.reduce((sum, row) => sum + row.alerted, 0)).toBe(1);
@@ -68,8 +69,35 @@ test('JOB-07: concurrent and later runs never alert a visit twice, and a new sta
   expect(await col('notifications').countDocuments({})).toBe(2);
   await col('visits').updateOne({ _id: visit._id }, { $set: { startAt: new Date(START + 60 * MINUTE) } });
   now = START + 75 * MINUTE;
-  expect((await service.runBatch()).alerted).toBe(1);
-  expect(await col('notifications').countDocuments({})).toBe(4);
+  expect(await Promise.all([service.runBatch(), service.runBatch()])).toEqual([
+    { alerted: 0, failed: 0 }, { alerted: 0, failed: 0 }
+  ]);
+  const visitId = String(visit._id);
+  const notices = await col('notifications').find({ eventType: 'VisitCheckInLate', 'metadata.visitId': visitId }).toArray();
+  expect(notices.map(row => row.recipientId).sort()).toEqual([String(staff), String(staffAdmin)].sort());
+  expect(await col('employeescheduleevents').countDocuments({ type: 'VisitCheckInLate', visitId })).toBe(1);
+});
+
+test('JOB-07: a previously alerted visit keeps its alert marker after rescheduling', async () => {
+  await seed({ lateCheckInAlert: { startAt: new Date(START - 60 * MINUTE), alertedAt: new Date(START - 45 * MINUTE) } });
+  expect(await service.runBatch()).toEqual({ alerted: 0, failed: 0 });
+  expect(await col('notifications').countDocuments({})).toBe(0);
+});
+
+test('JOB-07: the notification key is stable across start times and visit versions', async () => {
+  const visit = await seed();
+  const notifications = createSchedulingNotifications({ col, clock: () => now });
+  const event = { type: 'VisitCheckInLate', visitId: String(visit._id), sitterId: String(sitter), at: new Date(now) };
+  await repository.uow.run(session => notifications.publish({
+    ...event, detail: { version: 2, noticeKey: visit.startAt.toISOString() }
+  }, session));
+  const newStart = new Date(START + 60 * MINUTE);
+  await col('visits').updateOne({ _id: visit._id }, { $set: { startAt: newStart }, $inc: { version: 1 } });
+  await repository.uow.run(session => notifications.publish({
+    ...event, detail: { version: 3, noticeKey: newStart.toISOString() }
+  }, session));
+  const notices = await col('notifications').find({ eventType: 'VisitCheckInLate' }).toArray();
+  expect(notices.map(row => row.recipientId).sort()).toEqual([String(staff), String(staffAdmin)].sort());
 });
 
 test('JOB-07: visits that are checked in, closed, without a pet sitter or from an earlier day are skipped', async () => {

@@ -72,7 +72,9 @@ export function createSchedulingNotifications({ col, clock = Date.now }) {
           : event.type === 'VisitWithdrawalRequested' ? 'withdrawalId'
           : event.type === 'DispatchReviewRequired' ? 'visitId' : 'closureId') + '=' + String(visit._id) });
     }
-    const eventId = digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId ?? event.detail?.noticeKey ?? event.detail?.version]);
+    const eventId = event.type === 'VisitCheckInLate'
+      ? digest([event.type, event.visitId])
+      : digest([event.type, event.visitId, event.offerId ?? event.detail?.proposalId ?? event.detail?.noticeKey ?? event.detail?.version]);
     const [title, defaultMessage] = messages[event.type];
     const message = event.type === 'VisitHandoverRequired' ? (lateCheckInExempt(visit)
       ? 'Buổi được giao khi còn chưa đầy 1 giờ. Hãy xác nhận ngay, trước khi check-in.'
