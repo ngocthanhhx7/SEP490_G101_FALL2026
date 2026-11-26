@@ -15,6 +15,10 @@ const MINUTE_MS = 60000;
 const NEAR_VISIT_MS = 24 * 60 * MINUTE_MS;
 const MIN_AUTOMATIC_INVITATIONS = 5;
 const RANKING_FACTORS = ['fit', 'travel', 'quality', 'reliability', 'workload'];
+const STAFF_REVIEW_CODES = ['NO_ELIGIBLE_SITTER', 'DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'STAFF_REVIEW_REQUIRED', 'INSUFFICIENT_DISPATCH_CANDIDATES',
+  'TRAVEL_REVIEW_REQUIRED', 'DAY_ORIGIN_MISSING', 'DISPATCH_SEARCH_LIMIT', 'SHIFT_START_REACHED'];
+// Another writer changed the visit first; the next run reads it again.
+const RETRY_ONLY_CODES = ['VERSION_CONFLICT', 'IDEMPOTENCY_CONFLICT'];
 const oid = value => new Types.ObjectId(value);
 
 function responseDeadline(offeredAt, startAt) {
@@ -415,8 +419,9 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       return 'invited';
     } catch (error) {
       if (error.status !== 409) throw error;
-      if (!['NO_ELIGIBLE_SITTER', 'DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'STAFF_REVIEW_REQUIRED', 'INSUFFICIENT_DISPATCH_CANDIDATES',
-        'TRAVEL_REVIEW_REQUIRED', 'DAY_ORIGIN_MISSING', 'DISPATCH_SEARCH_LIMIT', 'SHIFT_START_REACHED'].includes(error.code)) return 'review';
+      // A visit taken from a pet sitter must end with an offer or a Needs action entry (GBR-21), whatever stopped the offer.
+      const released = afterOfferRevocation || Boolean(row.withdrawalDispatch);
+      if (!STAFF_REVIEW_CODES.includes(error.code) && (!released || RETRY_ONLY_CODES.includes(error.code))) return 'review';
       const reviewCode = afterOfferRevocation && error.code === 'NO_ELIGIBLE_SITTER' ? 'STAFF_REVIEW_REQUIRED' : error.code;
       await uow.run(async session => {
         const emptyRanking = !directedSitter(row) && ['NO_ELIGIBLE_SITTER', 'STAFF_REVIEW_REQUIRED'].includes(error.code)

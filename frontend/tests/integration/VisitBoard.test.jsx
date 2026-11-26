@@ -49,6 +49,19 @@ function Harness({ api, todayTotal = 7, ...props }) {
 }
 const tabNamed = name => screen.getByRole('tab', { name });
 
+test('JOB-07: opening the board from a visit notification lists only that visit', async () => {
+  const api = board({ visitBoard: jest.fn(async params => (params.tab === 'all' ? allPage([rows.notCheckedIn]) : needsPage([]))) });
+  const visitId = 'a'.repeat(24);
+  function FromNotification() {
+    const [tab, setTab] = useState('all');
+    return <MemoryRouter><VisitBoard api={api} tab={tab} onTab={setTab} todayTotal={1} workAreas={workAreas} initialHandoverVisitId={visitId} /></MemoryRouter>;
+  }
+  render(<FromNotification />);
+  expect(await screen.findByText('Buổi chăm sóc mở từ thông báo.')).toBeInTheDocument();
+  expect(api.visitBoard).toHaveBeenCalledWith({ tab: 'all', visitId }, expect.anything());
+  expect(await screen.findByText(rows.notCheckedIn.customerName)).toBeInTheDocument();
+});
+
 describe('tabs and counts', () => {
   test('Needs action loads later pages and retains earlier rows', async () => {
     const api = board({ visitBoard: jest.fn(async params => params.cursor

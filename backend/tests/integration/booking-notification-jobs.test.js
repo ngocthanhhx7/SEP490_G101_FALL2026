@@ -8,6 +8,7 @@ import { startRuntime } from '../../src/runtime.js';
 import { startBookingNotificationsWorker } from '../../src/jobs/booking-notifications.job.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { createVisitRemindersService } from '../../src/services/employee-scheduling/visit-reminders.service.js';
+import { normalizeNotification } from '../../src/services/notifications/notification.service.js';
 import { createPaymentExpiryService } from '../../src/services/booking-proposals/payment-expiry.service.js';
 import { createBookingPaymentExpiryService } from '../../src/services/booking-proposals/booking-payment-expiry.service.js';
 
@@ -58,6 +59,23 @@ test('JOB-01: both recipients get each 120/30 minute reminder once, including co
   await a.runBatch(); await a.runBatch();
   expect(await col('notifications').countDocuments()).toBe(4);
   expect((await col('visits').findOne({ _id: visit._id })).state).toBe('ASSIGNED');
+});
+
+test('JOB-01: every stored reminder can be listed by its recipient, including an accepted assignment', async () => {
+  now = Date.parse('2027-01-05T00:40:00Z');
+  const visit = await assigned(30);
+  const assignedAt = new Date(now - 3600000);
+  await col('visits').updateOne({ _id: visit._id }, { $set: { assignedAt, assignmentVersion: 1 } });
+  await createVisitRemindersService({ connection, clock: () => now }).runBatch();
+  const rows = await col('notifications').find({}).toArray();
+  expect(rows).toHaveLength(4);
+  for (const row of rows) {
+    expect(() => normalizeNotification(row, { userId: row.recipientId, roles: [row.role], state: 'ACTIVE' })).not.toThrow();
+    // Vietnam time, HH:mm dd/mm/yyyy, without seconds.
+    expect(row.message).toBe('Buổi chăm sóc lúc 08:10 05/01/2027. Địa chỉ: Synthetic Hanoi address. Thú cưng: Synthetic pet.');
+  }
+  expect(rows.filter(row => row.role === 'PET_SITTER').map(row => row.metadata.assignedAt))
+    .toEqual([assignedAt.toISOString(), assignedAt.toISOString()]);
 });
 
 test.each(['MISSING_BOOKING', 'CANCELLED_BOOKING', 'MISSING_CUSTOMER'])('JOB-01: 100 %s visits cannot starve a valid visit, even after worker recreation', async kind => {

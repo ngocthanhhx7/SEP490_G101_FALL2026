@@ -7,7 +7,7 @@ import { fail } from '../../validators/pet-care.validator.js';
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 
 const EARLY_WINDOW_MS = 12 * 60 * 60 * 1000;
-const STAFF_REVIEW_REQUIRED = 'STAFF_REVIEW_REQUIRED';
+export const STAFF_REVIEW_REQUIRED = 'STAFF_REVIEW_REQUIRED';
 const oid = value => new Types.ObjectId(value);
 
 export function hasPendingWithdrawal(visit) {
@@ -16,7 +16,7 @@ export function hasPendingWithdrawal(visit) {
     (request.assignedAt?.getTime() ?? null) === (visit.assignedAt?.getTime() ?? null);
 }
 
-async function publishDispatchReviewRequired({ events, notifications, actorId, visitId, version, at, session }) {
+export async function publishDispatchReviewRequired({ events, notifications, actorId, visitId, version, at, session }) {
   const type = 'DispatchReviewRequired';
   const detail = { code: STAFF_REVIEW_REQUIRED, version };
   await events.create([{ type, actorId: String(actorId), visitId, at, detail }], { session });
@@ -214,7 +214,9 @@ export function createVisitWithdrawalService({ repository, clock, runCommand, re
             at,
             reasonCode,
             detail: details,
-            session
+            session,
+            // Without automatic dispatch the released visit goes straight to Staff's Needs action list.
+            needsStaffReview: !requeue
           });
           if (!released) fail('VERSION_CONFLICT', 'Visit changed', 409);
           return { visitId, mode, startAt: visit.startAt, version: released.version };
