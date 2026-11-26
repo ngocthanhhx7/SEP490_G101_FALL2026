@@ -277,7 +277,13 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       let intent = await col('paymentintents').findOne({ bookingId: booking._id, provider: 'PAYOS', state: 'PENDING' });
       if (!intent) fail('RESOURCE_NOT_FOUND', 'Payment intent unavailable', 404);
       if (!provider || !webOrigin) fail('PAYMENT_PROVIDER_UNAVAILABLE', 'Payment link provider is unavailable', 503);
+      let claimedRetry = false;
       if (intent.linkState || intent.checkoutUrl) {
+        // An in-flight create may not yet be visible to payOS GET. A 404 is
+        // never permission to clear its submission markers or launch another
+        // POST while the original request can still complete.
+        if (intent.linkState === 'CREATING')
+          fail('COMMAND_PENDING', 'A link request is already running', 409);
         if (!provider.getPaymentLink) {
           if (intent.checkoutUrl) return { checkoutUrl: intent.checkoutUrl, expiresAt: intent.expiresAt };
           fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider status must be checked before retrying', 409);
@@ -285,18 +291,19 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         let remote;
         try { remote = await provider.getPaymentLink(Number(intent.providerReference)); }
         catch (error) {
-          // An authenticated payOS 404 establishes that no link exists for this
-          // merchant order code. Reuse the same intent/reference safely.
+          // Only a completed/failed create can retry after a signed payOS 404.
+          // Atomically claim it directly; never erase linkRequestedAt, because
+          // JOB-03 must remember that the order code was submitted previously.
           if (error.code === 'PAYOS_REQUEST_FAILED' && error.details?.providerHttpStatus === 404 &&
-            !intent.checkoutUrl && ['CREATING', 'RECONCILIATION_REQUIRED'].includes(intent.linkState)) {
-            await col('paymentintents').updateOne({ _id: intent._id, state: 'PENDING',
-              linkState: intent.linkState }, { $unset: { linkState: '', linkRequestedAt: '' } });
-            intent.linkState = undefined;
+            !intent.checkoutUrl && intent.linkState === 'RECONCILIATION_REQUIRED') {
+            intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id, state: 'PENDING',
+              linkState: 'RECONCILIATION_REQUIRED', linkRequestedAt: intent.linkRequestedAt },
+            { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
+            if (!intent) fail('COMMAND_PENDING', 'Payment link state changed while retrying', 409);
+            claimedRetry = true;
           } else fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider state cannot be verified yet', 409);
         }
-        if (!remote && !intent.linkState) {
-          // Retry will claim the original providerReference below.
-        } else if (!remote) fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider state cannot be verified yet', 409);
+        if (!remote && !claimedRetry) fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider state cannot be verified yet', 409);
         if (remote) {
         if (remote.orderCode !== Number(intent.providerReference) || remote.amount !== intent.amountVnd ||
           remote.amountPaid > intent.amountVnd || !Number.isSafeInteger(remote.amountPaid))
@@ -335,8 +342,9 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         });
         }
       }
-      intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id, state: 'PENDING', linkState: { $exists: false } },
-        { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
+      if (!claimedRetry) intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id,
+        state: 'PENDING', linkState: { $exists: false }, linkRequestedAt: { $exists: false } },
+      { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
       if (!intent) fail('COMMAND_PENDING', 'A link request is already running', 409);
       try {
         const link = await provider.createPaymentLink({ orderCode: Number(intent.providerReference), amount: intent.amountVnd,

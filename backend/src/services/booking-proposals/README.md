@@ -56,3 +56,11 @@ state, version, provider reference, money and submission markers again inside
 the guarded transaction, rejects verified or reconciliation-required payments,
 then expires the booking and releases visits. Missing or ambiguous evidence
 defers expiry rather than inferring payment failure from a payOS 404.
+
+`paymentLink` never clears `linkRequestedAt` after a payOS 404. A `CREATING`
+intent is still in flight and returns `COMMAND_PENDING` on a concurrent retry:
+the original POST may complete after the status lookup. Once the first request
+has actually failed and the intent is `RECONCILIATION_REQUIRED`, a confirmed
+404 permits one atomic compare-and-set claim back to `CREATING`, retaining the
+submission marker and original provider order code. A racing retry cannot
+create another link or make JOB-03 misclassify the intent as never submitted.

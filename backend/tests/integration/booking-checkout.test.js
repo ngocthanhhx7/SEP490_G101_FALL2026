@@ -472,7 +472,102 @@ test('ST-BKG-17 retries link creation with the original order code after payOS c
   const after = await connection.collection('paymentintents').findOne({ _id: original._id });
   expect(after.providerReference).toBe(original.providerReference);
   expect(after.linkState).toBe('READY');
+  expect(after.linkRequestedAt).toBeInstanceOf(Date);
   expect(await connection.collection('paymentintents').countDocuments({ bookingId: id })).toBe(1);
+});
+
+test('ST-BKG-17 / JOB-03 keeps in-flight create markers through retry 404 and deadline expiry', async () => {
+  const q = await quote('home-care', 1), booking = await checkout.confirm(owner, input(q), 'link-inflight-404-race');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  let releaseCreate, signalStarted;
+  const started = new Promise(resolve => { signalStarted = resolve; });
+  const pendingCreate = new Promise(resolve => { releaseCreate = resolve; });
+  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const create = jest.fn(async input => {
+    signalStarted();
+    await pendingCreate;
+    return { orderCode: input.orderCode, amount: input.amount, currency: 'VND',
+      paymentLinkId: 'synthetic-delayed-link', checkoutUrl: 'https://pay.payos.vn/web/synthetic-delayed-link' };
+  });
+  const service = createBookingCheckoutService({ connection, clock: () => at.getTime(), provider: {
+    getPaymentLink: lookup, createPaymentLink: create
+  }, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
+  const first = service.paymentLink(owner, booking.id, 'link-first-still-inflight');
+  await started;
+  const intent = await connection.collection('paymentintents').findOne({ bookingId });
+  expect(intent).toMatchObject({ linkState: 'CREATING', state: 'PENDING' });
+  expect(intent.linkRequestedAt).toBeInstanceOf(Date);
+  try {
+    await expect(service.paymentLink(owner, booking.id, 'link-retry-while-inflight'))
+      .rejects.toMatchObject({ code: 'COMMAND_PENDING', status: 409 });
+    expect(lookup).not.toHaveBeenCalled();
+    const during = await connection.collection('paymentintents').findOne({ _id: intent._id });
+    expect(during.linkState).toBe('CREATING');
+    expect(during.linkRequestedAt).toEqual(intent.linkRequestedAt);
+    const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+      clock: () => intent.expiresAt.getTime() + 1000 }).runBatch();
+    expect(result).toMatchObject({ expired: 0, deferred: 1 });
+    expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('AWAITING_PAYMENT');
+    expect((await connection.collection('paymentintents').findOne({ _id: intent._id })).state).toBe('PENDING');
+  } finally {
+    releaseCreate();
+  }
+  const firstResult = await first;
+  expect(firstResult.checkoutUrl).toBe('https://pay.payos.vn/web/synthetic-delayed-link');
+  expect(create).toHaveBeenCalledTimes(1);
+  const completed = await connection.collection('paymentintents').findOne({ _id: intent._id });
+  expect(completed.linkState).toBe('READY');
+  expect(completed.linkRequestedAt).toEqual(intent.linkRequestedAt);
+  expect(completed.checkoutUrl).toBe(firstResult.checkoutUrl);
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('AWAITING_PAYMENT');
+});
+
+test('ST-BKG-17 retries a completed failed request only once and retains its prior payOS submission marker', async () => {
+  const q = await quote('home-care', 1), booking = await checkout.confirm(owner, input(q), 'link-404-cas-retry');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  const failed = createBookingCheckoutService({ connection, clock: () => at.getTime(), provider: {
+    createPaymentLink: async () => { throw { code: 'PAYOS_TIMEOUT', details: { uncertain: true } }; }
+  }, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
+  await expect(failed.paymentLink(owner, booking.id, 'initial-failed-creation')).rejects.toMatchObject({ code: 'PAYOS_TIMEOUT' });
+  const original = await connection.collection('paymentintents').findOne({ bookingId });
+  expect(original.linkState).toBe('RECONCILIATION_REQUIRED');
+  expect(original.linkRequestedAt).toBeInstanceOf(Date);
+  let release, signalStarted;
+  const started = new Promise(resolve => { signalStarted = resolve; });
+  const blockedCreate = new Promise(resolve => { release = resolve; });
+  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const create = jest.fn(async input => {
+    signalStarted();
+    await blockedCreate;
+    return { orderCode: input.orderCode, amount: input.amount, currency: 'VND',
+      paymentLinkId: 'synthetic-retried-link', checkoutUrl: 'https://pay.payos.vn/web/synthetic-retried-link' };
+  });
+  const recovered = createBookingCheckoutService({ connection, clock: () => at.getTime(), provider: {
+    getPaymentLink: lookup, createPaymentLink: create
+  }, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
+  const firstRetry = recovered.paymentLink(owner, booking.id, 'first-retry-after-404');
+  await started;
+  try {
+    await expect(recovered.paymentLink(owner, booking.id, 'second-retry-after-404'))
+      .rejects.toMatchObject({ code: 'COMMAND_PENDING', status: 409 });
+    expect(lookup).toHaveBeenCalledTimes(1);
+    const during = await connection.collection('paymentintents').findOne({ _id: original._id });
+    expect(during.linkState).toBe('CREATING');
+    expect(during.linkRequestedAt).toBeInstanceOf(Date);
+    const expiry = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+      clock: () => original.expiresAt.getTime() + 1000 }).runBatch();
+    expect(expiry).toMatchObject({ expired: 0, deferred: 1 });
+    expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('AWAITING_PAYMENT');
+  } finally {
+    release();
+  }
+  expect((await firstRetry).checkoutUrl).toBe('https://pay.payos.vn/web/synthetic-retried-link');
+  expect(create).toHaveBeenCalledTimes(1);
+  const saved = await connection.collection('paymentintents').findOne({ _id: original._id });
+  expect(saved.linkState).toBe('READY');
+  expect(saved.linkRequestedAt).toBeInstanceOf(Date);
+  expect(saved.providerReference).toBe(original.providerReference);
+  expect(await connection.collection('paymentintents').countDocuments({ bookingId })).toBe(1);
 });
 
 test('ST-BKG-14 blocks a new home booking for a handed-back grooming amount still unpaid', async () => {
