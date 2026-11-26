@@ -1,5 +1,11 @@
 # API services
 
+`sitter-application-api.js` opens a Guest intake and retains its temporary token
+in memory for document uploads and application submission. It sends both email
+and phone through the form without creating a Customer account first. The server
+binds the token to its HttpOnly intake cookie. Admin review and historical owned
+application operations retain session CSRF protection.
+
 `stock-list-api.js` validates the read-only stock list/history contracts and forwards
 search, paging, cursors and cancellation through the shared API client. It preserves
 backend counts/status and never derives a stock threshold.

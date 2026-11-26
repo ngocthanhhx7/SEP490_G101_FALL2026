@@ -103,7 +103,7 @@ export function createStaffReassignmentService({ repository, clock = Date.now, c
             ...(hadWithdrawal ? { withdrawalDecision: { decision: 'REASSIGN', reason: input.reason, at, byUserId: actor.userId } } : {}) },
           $unset: { ...Object.fromEntries(Object.keys(handover.unset).filter(key => key !== 'handoverLateCheckInExempt').map(key => [key, 1])),
             withdrawalRequest: 1, withdrawalDispatch: 1, assignedFeatureSnapshot: 1, dispatchReview: 1, dispatchPreferredFallback: 1 },
-          $inc: { version: 1 }
+          $inc: { version: 1, assignmentVersion: 1 }
         }, { session, returnDocument: 'after' });
         if (!saved) throw await changed(visitId, session);
         await col('bookings').updateOne({ _id: visit.bookingId }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });

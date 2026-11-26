@@ -133,7 +133,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
             { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt,
               ...(needsHandover && { handoverLateCheckInExempt: urgentReplacement(visit, assignedAt) }),
               ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) },
-              $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 }, $inc: { version: 1 } }, { session });
+              $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 }, $inc: { version: 1, assignmentVersion: 1 } }, { session });
           if (!assigned.matchedCount) fail('SLOT_UNAVAILABLE', 'Visit changed', 409);
           await col('bookings').updateOne({ _id: visit.bookingId }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });
           const pending = await col('visits').countDocuments({ bookingId: visit.bookingId, state: 'SCHEDULED' }, { session });

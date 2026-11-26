@@ -1,5 +1,6 @@
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
+import { digest } from '../../validators/pet-care.validator.js';
 
 const NOT_PAID_AT_PROVIDER = new Set(['EXPIRED', 'CANCELLED', 'FAILED']);
 // Checkout reserves an order code before any payOS request. Until the link
@@ -96,6 +97,16 @@ export function createBookingPaymentExpiryService({ connection, provider, clock 
           await col('financesourceevents').insertOne({ _id: `booking-payment-expired:${booking._id}`,
             type: 'BookingPaymentExpired', bookingId: String(booking._id), actorId: null,
             resourceId: String(booking._id), at: asOf }, { session });
+          // MSG67 belongs to the canonical JOB-03 transaction. A failed delivery
+          // record rolls back expiry, allowing the same worker to retry safely.
+          const eventId = `booking-payment-expired:${booking._id}`;
+          await col('notifications').updateOne({ _id: digest([eventId, String(booking.customerId)]) }, { $setOnInsert: {
+            eventId, eventType: 'BOOKING_PAYMENT_EXPIRED', recipientId: String(booking.customerId), role: 'CUSTOMER', channel: 'IN_APP',
+            title: 'Đơn đã hết hạn thanh toán',
+            message: 'This booking was not paid in 15 minutes and is no longer held. Please book again.',
+            metadata: { bookingId: String(booking._id), messageCode: 'MSG67' }, deepLink: `/account/bookings/${booking._id}`,
+            createdAt: asOf, readAt: null
+          } }, { session, upsert: true });
           return true;
         });
         if (changed) expired++;

@@ -20,6 +20,7 @@ import { assertRuntimeStorageProfile } from './config/storage-profile.js';
 import { referenceCatalogSource } from './models/reference-catalog-source.js';
 import { assertReferenceCatalogStorage } from './services/reference-catalog-storage.service.js';
 import { startVisitCompletionMonitor } from './jobs/visit-completion-monitor.job.js';
+import { startBookingNotificationsWorker } from './jobs/booking-notifications.job.js';
 import { startBookingPaymentExpiryWorker } from './jobs/booking-payment-expiry.job.js';
 
 export async function startRuntime({ env = process.env, logger = () => {}, ...appOptions } = {}) {
@@ -27,6 +28,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
   const connection = await connectDatabase(config);
   const lifecycle = { draining: false };
   let webPushWorker;
+  let visitReminderWorker;
   let server, accrualWorker, dispatchWorker, applicationMailWorker, customerTierWorker, productPickupExpiryWorker, completionMonitor, bookingChangeWorker, bookingPaymentExpiryWorker;
   try {
     const app = createApp({ ...appOptions, config, connection, lifecycle, logger, env });
@@ -42,6 +44,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
     if (app.locals.financeSources && app.locals.compensationProfile === 'LEGACY_PARTNER') accrualWorker = startEarningAccrualWorker({ service: app.locals.financeSources, logger });
     if (app.locals.employeeDispatch) dispatchWorker = startEmployeeDispatchWorker({ service: app.locals.employeeDispatch, logger });
     if (app.locals.visitCompletionMonitor) completionMonitor = startVisitCompletionMonitor({ service: app.locals.visitCompletionMonitor, logger });
+    if (app.locals.visitReminders) visitReminderWorker = startBookingNotificationsWorker({ service: app.locals.visitReminders, intervalMs: 15 * 60000, event: 'visit_reminders', logger });
     if (app.locals.webPush) webPushWorker = startWebPushWorker({ service: app.locals.webPush, logger });
     if (app.locals.bookingChange) bookingChangeWorker = startBookingChangeWorker({ service: app.locals.bookingChange, logger });
     if (app.locals.bookingPaymentExpiry) bookingPaymentExpiryWorker = startBookingPaymentExpiryWorker({ service: app.locals.bookingPaymentExpiry, logger });
@@ -54,6 +57,10 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       logger
     });
   } catch {
+    await Promise.allSettled([visitReminderWorker?.stop(), bookingPaymentExpiryWorker?.stop(), webPushWorker?.stop(),
+      productPickupExpiryWorker?.stop(), completionMonitor?.stop(), customerTierWorker?.stop(),
+      applicationMailWorker?.stop(), bookingChangeWorker?.stop(), dispatchWorker?.stop(), accrualWorker?.stop()]);
+    if (server?.listening) await new Promise(resolve => server.close(resolve));
     await connection.close();
     throw new Error('HTTP server failed to start');
   }
@@ -67,6 +74,7 @@ export async function startRuntime({ env = process.env, logger = () => {}, ...ap
       try { await new Promise((resolve, reject) => server.close(err => err ? reject(err) : resolve())); }
       finally {
         clearTimeout(timer);
+        await visitReminderWorker?.stop();
         await webPushWorker?.stop();
         await productPickupExpiryWorker?.stop();
         await completionMonitor?.stop();
