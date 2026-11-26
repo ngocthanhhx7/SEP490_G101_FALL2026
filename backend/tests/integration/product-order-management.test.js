@@ -179,6 +179,16 @@ describe('UC-94 Sale Staff dashboard', () => {
     expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1 });
   });
 
+  test('IT-FE25-UC71-18 shows Sale Staff a Low Stock count consistent with the Low Stock tab', async () => {
+    await models.Product.updateMany({}, { $set: { stockOnHand: 100, quantityHeld: 0 } });
+    await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 0 } });
+    const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
+    expect(stock.counts.LOW_STOCK).toBe(1);
+    const lowStock = (await api('saleStaff').get('/api/v1/admin/stock-levels?tab=LOW_STOCK').expect(200)).body.data;
+    expect(lowStock.total).toBe(stock.counts.LOW_STOCK);
+    expect(lowStock.items).toEqual([expect.objectContaining({ code: 'SP-0012', status: 'OUT_OF_STOCK' })]);
+  });
+
   test.each([[null, 401], ['a', 403], ['sitter', 403], ['staff', 403], ['admin', 403]])(
     'restricts dashboard access for %s to HTTP %s', async (actor, status) => {
       await api(actor).get(DASHBOARD).expect(status);
@@ -344,12 +354,14 @@ describe('handing a delivery order to the carrier', () => {
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 15, quantityHeld: 2 });
   });
 
-  test('releases the hold and reduces the real stock, and the customer sees the tracking code', async () => {
+  test('IT-FE25-UC71-12 shows reduced stock and released hold after UC-64 hands an order to the carrier', async () => {
     const order = await placeDelivery('a', 'SP-0012', 2);
     const done = await act(order, 'hand-to-carrier', { trackingCode: ' VN7290018342 ' });
     expect(done.status).toBe(200);
     expect(done.body.data).toMatchObject({ status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342' });
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 13, quantityHeld: 0 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0012' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 13, quantityHeld: 0, available: 13 });
     const mine = await api('a').get(`/api/v1/product-orders/${order.id}`).expect(200);
     expect(mine.body.data).toMatchObject({ status: 'HANDED_TO_CARRIER', trackingCode: 'VN7290018342' });
   });
@@ -452,7 +464,7 @@ describe('delivery result (UC-65, AC-04)', () => {
 });
 
 describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
-  test('AC-04 puts back only the resellable quantity of each line, once, and keeps the reasons', async () => {
+  test('IT-FE25-UC71-13 shows only resellable UC-66 returns back in stock', async () => {
     const order = await returning(await placeShipped('a', [['SP-0012', 2], ['SP-0020', 1]]));
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 13, quantityHeld: 0 });
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 31, quantityHeld: 0 });
@@ -464,6 +476,10 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
     expect(done.body.data.lines.map((line) => [line.productCode, line.quantity, line.resellableQuantity])).toEqual([['SP-0012', 2, 1], ['SP-0020', 1, 0]]);
     expect(await product('SP-0012')).toMatchObject({ stockOnHand: 14, quantityHeld: 0 });
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 31, quantityHeld: 0 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0012' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 14, quantityHeld: 0, available: 14 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0020' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 31, quantityHeld: 0, available: 31 });
     // A second confirmation changes nothing and never adds stock again.
     const again = await act(order, 'confirm-returned', await confirmBody([['SP-0012', 2], ['SP-0020', 1]]));
     expect(again.status).toBe(409);
@@ -587,7 +603,7 @@ describe('confirming a returned order (UC-66, AC-04, AC-18)', () => {
 });
 
 describe('pickup orders', () => {
-  test('are readied without touching stock, then handed over once paid in full', async () => {
+  test('IT-FE25-UC71-14 shows reduced stock and released hold after UC-67 pickup handover', async () => {
     const order = await placePickup('a', 'SP-0020', 2);
     const ready = await act(order, 'mark-ready');
     expect(ready.body.data.status).toBe('READY');
@@ -605,6 +621,8 @@ describe('pickup orders', () => {
     const handed = await act(order, 'hand-to-customer');
     expect(handed.body.data.status).toBe('PICKED_UP');
     expect(await product('SP-0020')).toMatchObject({ stockOnHand: 30, quantityHeld: 0 });
+    expect((await api('admin').get('/api/v1/admin/stock-levels').query({ search: 'SP-0020' }).expect(200)).body.data.items[0])
+      .toMatchObject({ stockOnHand: 30, quantityHeld: 0, available: 30 });
     expect((await act(order, 'hand-to-customer')).body.error.code).toBe('ORDER_STATE_CONFLICT');
   });
 

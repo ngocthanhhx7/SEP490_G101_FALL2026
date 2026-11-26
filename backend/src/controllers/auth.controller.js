@@ -129,7 +129,16 @@ export function createAuthController({
       });
     },
     createMeContactChanges: async (req, res) => {
-      if (!hasOnlyKeys(req.body, new Set(['channel', 'contact']))) {
+      if (
+        !hasOnlyKeys(req.body, new Set(['channel', 'contact'])) ||
+        !['EMAIL', 'PHONE'].includes(req.body.channel) ||
+        typeof req.body.contact !== 'string' ||
+        !req.body.contact.trim() ||
+        typeof req.auth?.userId !== 'string' ||
+        !req.auth.userId.trim() ||
+        typeof req.auth?.sessionId !== 'string' ||
+        !req.auth.sessionId.trim()
+      ) {
         throw new AppError(422, 'VALIDATION_FAILED', 'Contact change request is invalid');
       }
       const challenge = await otpService.begin({

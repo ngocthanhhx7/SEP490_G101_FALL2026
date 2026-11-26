@@ -118,7 +118,29 @@ export function createUserAdminService({ connection, User, Contact, Audit, sessi
     if (filters.role) conditions.push({ roles: filters.role });
     if (filters.state) conditions.push({ state: filters.state });
     if (filters.search) {
-      conditions.push({ displayName: new RegExp(escapeRegex(filters.search), 'i') });
+      const namePattern = new RegExp(escapeRegex(filters.search), 'i');
+      const needle = filters.search.toLowerCase();
+      const digitsNeedle = filters.search.replace(/\D/g, '');
+      const verifiedContacts = typeof Contact.find === 'function'
+        ? await Contact.find({ state: 'VERIFIED' }).select('userId channel +canonicalCiphertext').limit(5000).lean()
+        : [];
+      const matchedUserIds = [];
+      for (const item of verifiedContacts) {
+        let plain = '';
+        try { plain = String(contactCrypto.decrypt(item.canonicalCiphertext) ?? ''); } catch { plain = ''; }
+        if (!plain) continue;
+        const plainLower = plain.toLowerCase();
+        const plainDigits = plain.replace(/\D/g, '');
+        const localPhone = plain.startsWith('+84') ? '0' + plain.slice(3) : plain;
+        if (plainLower.includes(needle)
+          || localPhone.toLowerCase().includes(needle)
+          || (digitsNeedle.length >= 4 && plainDigits.includes(digitsNeedle))) {
+          matchedUserIds.push(item.userId);
+        }
+      }
+      conditions.push(matchedUserIds.length
+        ? { $or: [{ displayName: namePattern }, { _id: { $in: matchedUserIds } }] }
+        : { displayName: namePattern });
     }
     if (filters.cursor) {
       const position = cursor.decode(filters.cursor, fingerprint);
@@ -174,8 +196,29 @@ export function createUserAdminService({ connection, User, Contact, Audit, sessi
         const admin = await User.exists({ _id: actor.userId, roles: 'ADMIN', state: 'ACTIVE', synthetic: { $ne: true } }).session(session);
         if (!admin) throw new AppError(403, 'FORBIDDEN', 'Administrator permission changed');
       }
+      const targetId = new Types.ObjectId(userId);
+      if (action === 'LOCK') {
+        const currentTarget = await User.findOne({ _id: targetId, synthetic: { $ne: true } }).session(session);
+        if (!currentTarget) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Account not found');
+        if (!self && Array.isArray(currentTarget.roles) && currentTarget.roles.some(r => r === 'PET_SITTER' || r === 'ADMIN')) {
+          throw new AppError(409, 'ROLE_LOCK_FORBIDDEN', 'This account role cannot be locked from account administration');
+        }
+        if (Array.isArray(currentTarget.roles) && currentTarget.roles.includes('CUSTOMER') && typeof connection.db?.collection === 'function') {
+          const idCandidates = [targetId, String(targetId)];
+          const openBooking = await connection.db.collection('bookings').findOne({
+            customerId: { $in: idCandidates },
+            state: { $in: ['AWAITING_PAYMENT', 'PAID', 'CONFIRMED', 'DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'] }
+          }, { session });
+          if (openBooking) throw new AppError(409, 'ACCOUNT_HAS_OPEN_BOOKING', 'Customer has unfinished bookings');
+          const openOrder = await connection.db.collection('productorders').findOne({
+            customerId: { $in: idCandidates },
+            status: { $in: ['PLACED', 'PREPARING', 'READY', 'HANDED_TO_CARRIER', 'RETURNING'] }
+          }, { session });
+          if (openOrder) throw new AppError(409, 'ACCOUNT_HAS_OPEN_ORDER', 'Customer has unfinished orders');
+        }
+      }
       const user = await User.findOneAndUpdate({
-        _id: new Types.ObjectId(userId), synthetic: { $ne: true }, state: sourceState, version: expectedVersion
+        _id: targetId, synthetic: { $ne: true }, state: sourceState, version: expectedVersion
       }, { $set: { state: targetState }, $inc: { authEpoch: 1, version: 1 } }, {
         returnDocument: 'after', session
       });

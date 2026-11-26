@@ -128,7 +128,7 @@ export function createBookingDetailsService({ connection, clock = Date.now }) {
           const saved = savedTerms(visit, names, areaNames);
           const actual = visits.filter(row => row.customerVisitId === String(visit._id));
           return actual.length === 1 ? { ...saved, startAt: actual[0].startAt, endAt: actual[0].endAt } : saved;
-        }),
+        }).sort((a, b) => new Date(a.startAt) - new Date(b.startAt)),
         visits: visits.map(visit => ({
           id: String(visit._id), ...(visit.snapshots?.workflow ? { workflow: workflowProjection(visit, { customer: !includeCustomerName }) } : {}), startAt: visit.startAt ?? null, endAt: visit.endAt ?? null,
           ...previousSlotFor(visit),
