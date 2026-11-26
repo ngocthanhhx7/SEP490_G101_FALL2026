@@ -123,7 +123,7 @@ export async function releaseSuspendedSitterWork({ connection, sitterId, actorId
       session, projection: { version: 1 }
     });
     if (!visit) continue;
-    const otherOffer = await offers.exists({ visitId: visit._id, state: 'PENDING' }).session(session);
+    const otherOffer = await offers.exists({ visitId: visit._id, state: 'PENDING', deadline: { $gt: at } }).session(session);
     const clearLock = { $unset: { suspensionOfferCheck: 1 } };
     if (otherOffer) {
       await visits.updateOne(filter, clearLock, { session });

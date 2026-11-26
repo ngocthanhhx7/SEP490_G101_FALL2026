@@ -135,7 +135,7 @@ function makeApplicationService(contactCrypto, { requeueVisit } = {}) {
   });
 }
 
-async function seedScheduledVisit({ otherOffer = false } = {}) {
+async function seedScheduledVisit({ otherOffer = false, otherOfferDeadline } = {}) {
   const [admin, staff, customer] = await userModel(connection).create(
     ['ADMIN', 'STAFF', 'CUSTOMER'].map(role => ({
       displayName: role, roles: [role], state: 'ACTIVE', authEpoch: 0, version: 0
@@ -169,7 +169,11 @@ async function seedScheduledVisit({ otherOffer = false } = {}) {
   };
   const offer = await EmployeeVisitOffer.create({ ...offerData, sitterId: String(suspended.sitterId) });
   const remaining = otherSitter
-    ? await EmployeeVisitOffer.create({ ...offerData, sitterId: String(otherSitter.sitterId) })
+    ? await EmployeeVisitOffer.create({
+      ...offerData,
+      sitterId: String(otherSitter.sitterId),
+      ...(otherOfferDeadline ? { deadline: otherOfferDeadline } : {})
+    })
     : null;
   return { admin, staff, suspended, otherSitter, visit, offer, remaining };
 }
@@ -239,8 +243,11 @@ describe('UC-19 / GBR-04 / ST-CAS-12 suspending a pet sitter', () => {
     }
   });
 
-  test.each([false, true])('a paid visit keeps the other sitter’s pending offer (auto dispatch: %s)', async autoDispatch => {
-    const { admin, staff, suspended, visit, offer, remaining } = await seedScheduledVisit({ otherOffer: true });
+  test.each([false, true])('a paid visit keeps the other sitter’s pending offer with deadline at + 1 minute (auto dispatch: %s)', async autoDispatch => {
+    const { admin, staff, suspended, visit, offer, remaining } = await seedScheduledVisit({
+      otherOffer: true,
+      otherOfferDeadline: new Date(NOW + 60000)
+    });
     const { EmployeeVisitOffer, EmployeeScheduleEvent } = employeeSchedulingModels(connection);
     const runtime = schedulingRuntime(staff, autoDispatch);
     const requeueVisit = jest.fn(runtime.requeueVisit);
@@ -255,6 +262,53 @@ describe('UC-19 / GBR-04 / ST-CAS-12 suspending a pet sitter', () => {
     expect(await EmployeeScheduleEvent.countDocuments({ type: 'DispatchReviewRequired', visitId: String(visit._id) })).toBe(0);
     expect(requeueVisit).not.toHaveBeenCalled();
     expect((await runtime.readBoard()).items).toEqual([]);
+  });
+
+  test.each([
+    ['past deadline', false, new Date(NOW - 60000)],
+    ['past deadline', true, new Date(NOW - 60000)],
+    ['deadline equal to suspension time', false, new Date(NOW)],
+    ['deadline equal to suspension time', true, new Date(NOW)]
+  ])('a paid visit recovers when the only other pending offer has %s (auto dispatch: %s)', async (_label, autoDispatch, otherOfferDeadline) => {
+    const { admin, staff, suspended, visit, offer, remaining } = await seedScheduledVisit({
+      otherOffer: true,
+      otherOfferDeadline
+    });
+    const { EmployeeVisitOffer, EmployeeScheduleEvent } = employeeSchedulingModels(connection);
+    const runtime = schedulingRuntime(staff, autoDispatch);
+    const originalOtherOffer = await EmployeeVisitOffer.findById(remaining._id).lean();
+    const requeueVisit = runtime.requeueVisit && jest.fn(async (...args) => {
+      expect(await EmployeeVisitOffer.findById(offer._id).lean()).toMatchObject({ state: 'REVOKED' });
+      // Suspension itself must not mutate the other sitter's expired PENDING offer before dispatch runs.
+      expect(await EmployeeVisitOffer.findById(remaining._id).lean()).toEqual(originalOtherOffer);
+      return runtime.requeueVisit(...args);
+    });
+    expect((await runtime.readBoard()).items).toEqual([]);
+
+    await expect(suspendSitter({ admin, suspended, requeueVisit })).resolves.toMatchObject({
+      replayed: false, withdrawnOfferCount: 1, requeuedVisitCount: 1
+    });
+
+    expect(await EmployeeVisitOffer.findById(offer._id).lean()).toMatchObject({ state: 'REVOKED', version: 1 });
+    const saved = await connection.db.collection('visits').findOne({ _id: visit._id });
+    const visitId = String(visit._id);
+    const code = 'STAFF_REVIEW_REQUIRED';
+    expect(saved).toMatchObject({ state: 'SCHEDULED', sitterId: null, version: visit.version + 1, dispatchReview: { code, at: new Date(NOW) } });
+    expect((await runtime.readBoard()).items).toEqual([
+      expect.objectContaining({ id: visitId, reviewCode: code, reasons: expect.arrayContaining([expect.objectContaining({ code: 'NO_SITTER_TO_OFFER' })]) })
+    ]);
+    expect(await EmployeeScheduleEvent.find({ type: 'DispatchReviewRequired', visitId }).lean()).toEqual([
+      expect.objectContaining({ detail: { code, version: saved.version } })
+    ]);
+    expect(await connection.db.collection('notifications').countDocuments({
+      eventType: 'DispatchReviewRequired', recipientId: String(staff._id), 'metadata.visitId': visitId
+    })).toBe(1);
+    if (autoDispatch) {
+      expect(requeueVisit).toHaveBeenCalledTimes(1);
+      expect(requeueVisit.mock.calls[0].slice(0, 2)).toEqual([visitId, saved.version]);
+    } else {
+      expect(await EmployeeVisitOffer.findById(remaining._id).lean()).toEqual(originalOtherOffer);
+    }
   });
 
   test('concurrent suspensions of both invited sitters flag the visit once with auto dispatch off', async () => {
