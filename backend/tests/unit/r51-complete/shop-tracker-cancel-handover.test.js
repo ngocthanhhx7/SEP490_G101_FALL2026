@@ -117,7 +117,7 @@ describe('Product Pricing, Expiry & Receipts (SHOP-CUST-PRICE-01, SHOP-MGMT-09, 
     });
     const expiry = createProductOrderExpiryService({ connection: conn, clock: () => NOW_MS });
     const summary = await expiry.runBatch();
-    expect(summary).toEqual({ cancelled: 1, failed: 0, kept: 0 });
+    expect(summary).toEqual({ cancelled: 1, delivered: 0, failed: 0, kept: 0 });
     expect(ProductCustomerRefusal.create).toHaveBeenCalledTimes(1);
     expect(Product.updateOne).toHaveBeenCalledTimes(1);
   });

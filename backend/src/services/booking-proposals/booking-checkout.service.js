@@ -240,15 +240,6 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         // the complete visit records chronologically, retaining their own snapshots.
         visits.sort((a, b) => a.startAt - b.startAt || a.sequence - b.sequence);
         visits.forEach((visit, sequence) => { visit.sequence = sequence; });
-        if (visits.length > 0) {
-          const vnDay = dt => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(dt);
-          const firstDay = vnDay(visits[0].startAt);
-          const lastEndMs = Math.max(...visits.map(v => v.endAt.getTime() - 1));
-          const lastDay = vnDay(new Date(lastEndMs));
-          if (Date.parse(lastDay) - Date.parse(firstDay) >= 30 * 86400000) {
-            fail('MSG20', 'Booking span cannot exceed 30 days');
-          }
-        }
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: 'AWAITING_PAYMENT',
           paymentMode: 'PREPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },

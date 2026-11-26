@@ -41,10 +41,12 @@ Booking details resolve saved area codes through a bounded `_id` lookup in the e
 
 `booking-cancellation.service.js` handles customer preview and transactional cancellation of a whole booking or a single unstarted visit (`startAt > now`) under GBR-15, GBR-17 and GBR-19: late fees (30% of pre-discount visit price when `< 24h` and accepted by a pet sitter), multi-visit combo discount recalculation on remaining visits using the snapshotted `pricingPolicyVersion`, offer revocation, pending booking-change reconciliation, `finalizeExceptionalBooking`, `refunds` (`RECORDED`, `BOOKING_CANCELLATION`) with GBR-30 cap enforcement, in-app sitter notifications, and Admin read listing for booking cancellation refunds.
 
-GBR-09 checkout uses `booking-span-policy.js` to require at most 30 inclusive
-Vietnam calendar days across the first and last occupied service day. The
-checkout service enforces this after constructing each visit with its actual
-service duration; rescheduling uses the corresponding full schedule policy.
+GBR-09 checkout uses `booking-span-policy.js` to enforce a maximum 30-day
+Vietnam calendar day difference between the last occupied service day and the
+first service day (for example 01/12 to 31/12 is allowed; 01/12 to 01/01 fails
+with `MSG20`). The checkout service enforces this after constructing each visit
+with its actual service duration; rescheduling uses the corresponding full
+schedule policy.
 The booking quote and checkout apply the approved, versioned customer-tier
 discount and retain an immutable snapshot with integer-VND allocation.
 

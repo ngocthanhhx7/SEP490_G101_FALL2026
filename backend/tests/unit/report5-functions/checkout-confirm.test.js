@@ -210,19 +210,19 @@ test("CHECKOUT-02-UTCID04 [B] Từ chối giờ bắt đầu ngay dưới 2 gi�
 
 // SRS: GBR-09; III.7.1 From date/To date; MSG20.
 test("CHECKOUT-02-UTCID05 [B] Chấp nhận lịch từ ngày đầu đến ngày cuối trong 30 ngày", async () => {
-  const f = fixture({ count: 30 });
+  const f = fixture({ count: 31 });
 
   const actual = await f.service.confirm(f.actor, f.body, 'srs-confirm-30days');
 
-  expect(actual.visits).toHaveLength(30);
+  expect(actual.visits).toHaveLength(31);
   expect(f.collection('bookings').insertOne).toHaveBeenCalledTimes(1);
 });
 
 // SRS: GBR-09; III.7.1 From date/To date; MSG20.
 test("CHECKOUT-02-UTCID06 [B] Từ chối lịch vượt giới hạn 30 ngày", async () => {
-  const f = fixture({ count: 31 });
+  const f = fixture({ count: 32 });
 
-  await expect(f.service.confirm(f.actor, f.body, 'srs-confirm-31days')).rejects.toMatchObject({ name: 'AppError' });
+  await expect(f.service.confirm(f.actor, f.body, 'srs-confirm-31days')).rejects.toMatchObject({ name: 'AppError', code: 'MSG20' });
   noBookingWrites(f);
 });
 

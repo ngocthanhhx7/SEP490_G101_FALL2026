@@ -4,9 +4,10 @@ import { AppError } from '../../utils/app-error.js';
 import { hasRole } from '../../utils/roles.js';
 import { productSalesErrors } from './product-sales-errors.js';
 import { readProductOrderTabCounts } from './product-order-tab-counts.js';
+import { countLowStockProducts } from './stock-low-filter.js';
 
 export function createSaleStaffDashboardService({ connection }) {
-  const { ProductOrder } = productSalesModels(connection);
+  const { Product, ProductOrder } = productSalesModels(connection);
 
   return Object.freeze({
     async read(actor) {
@@ -16,10 +17,13 @@ export function createSaleStaffDashboardService({ connection }) {
       }
 
       try {
-        const { PREPARE, AWAITING_PICKUP, RETURNING } = await readProductOrderTabCounts(ProductOrder);
-        return { counts: { PREPARE, AWAITING_PICKUP, RETURNING } };
+        const [{ PREPARE, AWAITING_PICKUP, RETURNING }, LOW_STOCK] = await Promise.all([
+          readProductOrderTabCounts(ProductOrder),
+          countLowStockProducts(Product)
+        ]);
+        return { counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK } };
       } catch {
-        throw new AppError(503, 'SALES_DASHBOARD_SOURCE_UNAVAILABLE', 'Could not read product order counts');
+        throw new AppError(503, 'SALES_DASHBOARD_SOURCE_UNAVAILABLE', 'Could not read sale staff dashboard counts');
       }
     }
   });

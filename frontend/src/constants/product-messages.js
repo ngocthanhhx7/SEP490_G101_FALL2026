@@ -41,7 +41,9 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG125: 'Vui lòng nhập số điện thoại hoặc email.',
   MSG154: 'Huỷ đơn hàng {code}? Nếu bạn đã thanh toán, Paw World sẽ hoàn đủ số tiền.',
   MSG155: 'Đơn hàng {code} đã được huỷ.',
-  MSG156: 'Đơn này không thể huỷ nữa.'
+  MSG156: 'Đơn này không thể huỷ nữa.',
+  MSG166: 'Bạn đã nhận đủ đơn {code}? Sau khi xác nhận, đơn chuyển sang Đã giao hàng.',
+  MSG167: 'Đã xác nhận nhận đơn {code}.'
 });
 
 // Backend error code -> message key.

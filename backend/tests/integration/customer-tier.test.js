@@ -265,3 +265,19 @@ test('JOB-05 GBR-42: PAY_AT_SHOP paid in cash (without payment.paidAt) keeps pri
   expect((await job.read(cashPickup)).tier).toBe('SILVER');
   expect((await job.read(vietqrPickup)).tier).toBe('SILVER');
 });
+
+test('JOB-05 GBR-42: COD orders marked DELIVERED by CUSTOMER, STAFF or SYSTEM all count toward customer tier', async () => {
+  const clock = () => dayAt(13);
+  const { asOf } = customerTierWindow(new Date(clock()));
+  const [byCustomer, byStaff, bySystem] = await Promise.all([customer(), customer(), customer()]);
+  await Promise.all([
+    order(byCustomer, { deliveredBy: 'CUSTOMER', deliveredAt: minutesBefore(asOf, 30) }),
+    order(byStaff, { deliveredBy: 'STAFF', deliveredAt: minutesBefore(asOf, 20) }),
+    order(bySystem, { deliveredBy: 'SYSTEM', deliveredAt: minutesBefore(asOf, 10) })
+  ]);
+  const job = service({ clock });
+  expect(await job.run()).toMatchObject({ status: 'COMPLETED' });
+  expect((await job.read(byCustomer)).tier).toBe('SILVER');
+  expect((await job.read(byStaff)).tier).toBe('SILVER');
+  expect((await job.read(bySystem)).tier).toBe('SILVER');
+});

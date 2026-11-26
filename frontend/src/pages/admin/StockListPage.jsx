@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { Button, Notice, Pagination } from '../../components/ui/index.js';
 import { StockHistoryPanel } from '../../components/product/StockHistoryPanel.jsx';
@@ -9,10 +10,19 @@ import '../../components/product/product-shop.css';
 import './stock-list.css';
 
 export function StockListPage({ api }) {
-  const [tab, setTab] = useState('ALL');
+  const [params, setParams] = useSearchParams();
+  const requestedTab = params.get('tab');
+  const tab = STOCK_TABS.some(([key]) => key === requestedTab) ? requestedTab : 'ALL';
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
+  function selectTab(key) {
+    const next = new globalThis.URLSearchParams(params);
+    next.set('tab', key);
+    setParams(next, { replace: true });
+    setPage(1);
+  }
+  useEffect(() => { setPage(1); }, [tab]);
   const load = useCallback(({ signal }) => api.listStock({ tab, search, page, limit: STOCK_PAGE_SIZE }, { signal }), [api, tab, search, page]);
   const resource = useApiResource(load);
   const products = resource.data ?? [];
@@ -26,7 +36,7 @@ export function StockListPage({ api }) {
     <p className="pwc-shop-lead">Tồn thực tế, phần đơn chưa xong đang giữ và số còn bán được của từng sản phẩm.</p>
     <div className="pwc-shop-chip-row pwc-stock-tabs" role="group" aria-label="Lọc tồn kho">
       {STOCK_TABS.map(([key, label]) => <button key={key} type="button" className="pwc-shop-chip" aria-pressed={tab === key}
-        onClick={() => { setTab(key); setPage(1); }}>{label}{resource.meta?.counts ? ` (${resource.meta.counts[key]})` : ''}</button>)}
+        onClick={() => selectTab(key)}>{label}{resource.meta?.counts ? ` (${resource.meta.counts[key]})` : ''}</button>)}
     </div>
     <div className="pwc-stock-layout">
       <div className="pwc-stock-list">

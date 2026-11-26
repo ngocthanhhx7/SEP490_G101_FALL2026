@@ -125,3 +125,28 @@ test('ST-BKG-21: empty address link points to /account/addresses and sitter reco
   expect(link).toHaveAttribute('href', '/account/addresses');
   expect(mobileRoutes.some(row => row.path === '/account/sitter-recommendations' || row.id === 'M16')).toBe(false);
 });
+
+test('ST-BKG-12: allows 01/12 08:00 to 31/12 18:00 and blocks 01/12 08:00 to 01/01 07:00 with MSG20', async () => {
+  const api = apiFixture(), confirmed = jest.fn();
+  const twoVisitQuote = { ...quote, items: [{ ...quote.items[0], visitCount: 2, durationMinutes: 60 }] };
+  render(<MemoryRouter><BookingCheckoutForm quote={twoVisitQuote} services={[service]} api={api} onConfirmed={confirmed} /></MemoryRouter>);
+  await screen.findAllByText('Nhà đã xác nhận');
+  const startInputs = screen.getAllByLabelText('Bắt đầu (giờ Việt Nam)');
+  screen.getAllByLabelText('Địa chỉ đã lưu').forEach(el => fireEvent.change(el, { target: { value: 'address' } }));
+  fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ trên đơn.'));
+
+  fireEvent.change(startInputs[0], { target: { value: '2026-12-01T08:00' } });
+  fireEvent.change(startInputs[1], { target: { value: '2027-01-01T07:00' } });
+  fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+  expect(await screen.findByText('Một lịch đặt kéo dài tối đa 30 ngày.')).toBeVisible();
+  expect(api.confirm).not.toHaveBeenCalled();
+
+  fireEvent.change(startInputs[1], { target: { value: '2026-12-31T18:00' } });
+  fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ').closest('form'));
+  await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+  expect(api.confirm.mock.calls[0][0].visits.map(v => v.startAt)).toEqual([
+    '2026-12-01T08:00:00+07:00',
+    '2026-12-31T18:00:00+07:00'
+  ]);
+  expect(confirmed).toHaveBeenCalledWith({ id: 'booking' });
+});

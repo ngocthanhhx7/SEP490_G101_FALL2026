@@ -10,14 +10,15 @@ const localDate = value => {
 };
 const dayNumber = value => Date.parse(localDate(value) + 'T00:00:00Z') / DAY;
 
-// Both the first and the last occupied Vietnam calendar day count toward GBR-09.
-// End instants are exclusive: a shift ending at midnight does not occupy the next day.
+// GBR-09: Vietnam calendar day difference between the last occupied day and the first day is at most 30 days
+// (e.g. 01/12 -> 31/12 is allowed; 01/12 -> 01/01 is rejected with MSG20).
+// End instants are exclusive: a visit ending at midnight does not occupy the next day.
 export function assertBookingSpan(visits) {
   if (!Array.isArray(visits) || visits.length === 0) fail('MSG20', 'Một lịch đặt kéo dài tối đa 30 ngày.');
   const first = visits.reduce((min, row) => row.startAt < min ? row.startAt : min, visits[0].startAt);
   const last = visits.reduce((max, row) => row.endAt > max ? row.endAt : max, visits[0].endAt);
   if (!(first instanceof Date) || !(last instanceof Date) || !Number.isFinite(first.getTime()) ||
     !Number.isFinite(last.getTime()) || last <= first ||
-    dayNumber(new Date(last.getTime() - 1)) - dayNumber(first) >= 30)
+    dayNumber(new Date(last.getTime() - 1)) - dayNumber(first) > 30)
     fail('MSG20', 'Một lịch đặt kéo dài tối đa 30 ngày.');
 }
