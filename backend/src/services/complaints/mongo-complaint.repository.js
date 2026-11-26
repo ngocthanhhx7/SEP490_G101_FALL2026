@@ -65,12 +65,14 @@ function listFields(filter) {
       { case: { $eq: ['$state', 'UNDER_REVIEW'] }, then: { $cond: [{ $ifNull: ['$latestObjection.reason', false] }, 'ESCALATED', 'OPEN'] } },
       { case: { $eq: ['$state', 'CLOSED'] }, then: 'RESOLVED' }
     ], default: '$state' } },
-    displayCode: { $ifNull: ['$code', { $concat: [
-      { $cond: [{ $eq: ['$kind', 'INCIDENT'] }, 'SC-', 'KN-'] },
-      { $toUpper: { $substrBytes: [
-        { $replaceAll: { input: { $toString: '$_id' }, find: '-', replacement: '' } }, 0, 12
-      ] } }
-    ] }] }
+    displayCode: { $ifNull: ['$code', { $let: {
+      vars: { cleanId: { $toUpper: { $replaceAll: { input: { $toString: '$_id' }, find: '-', replacement: '' } } } },
+      in: { $cond: [
+        { $eq: ['$kind', 'INCIDENT'] },
+        { $concat: ['SC-', { $substrBytes: ['$$cleanId', { $max: [0, { $subtract: [{ $strLenBytes: '$$cleanId' }, 12] }] }, 12] }] },
+        { $concat: ['KN-', { $substrBytes: ['$$cleanId', 0, 12] }] }
+      ] }
+    } }] }
   };
 }
 

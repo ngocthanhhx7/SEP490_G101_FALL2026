@@ -99,3 +99,40 @@ test('ST-CAS-12 and ST-CAS-04/06: IncidentDetailsPage shows suspension proposal,
   })));
   expect(await screen.findByText(/Số tiền đề xuất đã được gửi cho Admin/)).toBeVisible();
 });
+
+test('Customer sees approved amount only when RESOLVED; Pet Sitter sees result without approved amount; neither sees pending proposal', async () => {
+  const pendingForCustomer = {
+    ...baseIncident,
+    state: 'UNDER_REVIEW',
+    customerResult: null,
+    approvedAmountVnd: null,
+    resolution: null,
+    timeline: [{ type: 'INCIDENT_REPORTED', note: 'Thú cưng bỏ ăn.', occurredAt: '2026-11-26T02:00:00.000Z' }],
+    proposal: undefined,
+    moneyDecision: undefined,
+    suspensionProposal: undefined,
+    billing: undefined
+  };
+  const { unmount } = renderPage({ get: jest.fn(async () => ({ data: pendingForCustomer })), readEvidence: jest.fn() }, 'CUSTOMER');
+  expect(await screen.findByRole('heading', { name: 'Chi tiết và xử lý sự cố' })).toBeVisible();
+  expect(screen.queryByText(/Đề xuất hoàn tiền đang chờ Admin duyệt/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Kết quả xử lý/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Đề xuất Admin tạm ngưng/)).not.toBeInTheDocument();
+  unmount();
+
+  const resolvedForCustomer = {
+    ...pendingForCustomer,
+    state: 'RESOLVED',
+    customerResult: 'Đã hỗ trợ kiểm tra sức khoẻ.',
+    approvedAmountVnd: 150000
+  };
+  const custRender = renderPage({ get: jest.fn(async () => ({ data: resolvedForCustomer })), readEvidence: jest.fn() }, 'CUSTOMER');
+  expect(await screen.findByText('Đã hỗ trợ kiểm tra sức khoẻ.')).toBeVisible();
+  expect(screen.getByText(/150\.000/)).toBeVisible();
+  custRender.unmount();
+
+  const resolvedForSitter = { ...resolvedForCustomer, approvedAmountVnd: null };
+  renderPage({ get: jest.fn(async () => ({ data: resolvedForSitter })), readEvidence: jest.fn() }, 'PET_SITTER');
+  expect(await screen.findByText('Đã hỗ trợ kiểm tra sức khoẻ.')).toBeVisible();
+  expect(screen.queryByText(/Số tiền hoàn được duyệt/)).not.toBeInTheDocument();
+});

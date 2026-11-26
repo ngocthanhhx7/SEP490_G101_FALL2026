@@ -374,7 +374,7 @@ export function IncidentDetailsPage({ api = incidentApi, imageApi, caseId: suppl
       </form>}
     </section>
 
-    {pendingProposal && <section className="incident-card" aria-labelledby="incident-pending-proposal-title">
+    {canResolve && pendingProposal && <section className="incident-card" aria-labelledby="incident-pending-proposal-title">
       <h2 id="incident-pending-proposal-title">Đề xuất hoàn tiền đang chờ Admin duyệt</h2>
       <dl className="incident-facts">
         <div><dt>Số tiền đề xuất</dt><dd><strong>{bookingMoney(item.proposal.amountVnd)}</strong></dd></div>
@@ -383,7 +383,7 @@ export function IncidentDetailsPage({ api = incidentApi, imageApi, caseId: suppl
       </dl>
     </section>}
 
-    {!pendingProposal && item.moneyDecision && <section className="incident-card" aria-labelledby="incident-money-decision-title">
+    {canResolve && !pendingProposal && item.moneyDecision && <section className="incident-card" aria-labelledby="incident-money-decision-title">
       <h2 id="incident-money-decision-title">Quyết định hoàn tiền</h2>
       {item.moneyDecision.outcome === 'REJECT'
         ? <p>Quản trị viên đã từ chối đề xuất hoàn tiền.{item.moneyDecision.reason ? ` Lý do: ${item.moneyDecision.reason}` : ''}</p>
@@ -483,7 +483,7 @@ export function IncidentDetailsPage({ api = incidentApi, imageApi, caseId: suppl
       </div>
     </form>}
 
-    <Dialog open={suspendOpen} title="Đề xuất Admin tạm ngưng người chăm sóc" onClose={() => !suspendBusy && setSuspendOpen(false)} dismissible={!suspendBusy}
+    {canResolve && <Dialog open={suspendOpen} title="Đề xuất Admin tạm ngưng người chăm sóc" onClose={() => !suspendBusy && setSuspendOpen(false)} dismissible={!suspendBusy}
       footer={<>
         <Button variant="secondary" disabled={suspendBusy} onClick={() => setSuspendOpen(false)}>Quay lại</Button>
         <Button variant="danger" loading={suspendBusy} onClick={submitSuspend}>Xác nhận gửi đề xuất</Button>
@@ -495,7 +495,7 @@ export function IncidentDetailsPage({ api = incidentApi, imageApi, caseId: suppl
           onChange={event => setSuspendReason(event.target.value)} />
       </label>
       {suspendError && <p className="incident-field__error" role="alert">{suspendError}</p>}
-    </Dialog>
+    </Dialog>}
   </section>;
 }
 

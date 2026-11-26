@@ -37,7 +37,16 @@ const MAX_NOTES = 8000;
 const MAX_EVIDENCE = 20;
 const MAX_TIMELINE = 100;
 const MEDIA_ID = /^[a-f0-9]{64}$/;
-const incidentCode = id => 'SC-' + String(id).replaceAll('-', '').slice(0, 12).toUpperCase();
+const INTERNAL_TIMELINE_TYPES = new Set([
+  'STAFF_ACTION',
+  'SUSPENSION_PROPOSED',
+  'INCIDENT_REFUND_PROPOSED',
+  'INCIDENT_REFUND_DECIDED'
+]);
+const incidentCode = id => {
+  const clean = String(id ?? '').replaceAll('-', '').toUpperCase();
+  return 'SC-' + (clean.length > 12 ? clean.slice(-12) : clean);
+};
 const fail = (status, code, message, details = {}) => {
   throw new AppError(status, code, message, details);
 };
@@ -372,30 +381,33 @@ function safeEvidence(value, allowReadUrl = false) {
   }
   return result;
 }
-function safeTimeline(value) {
+function safeTimeline(value, { operationalActor = false, resolvedVisible = false } = {}) {
   if (!Array.isArray(value)) return [];
   return value
     .slice(0, MAX_TIMELINE)
-    .map((item) =>
-      item && typeof item === 'object'
-        ? {
-            type: typeof item.type === 'string' ? item.type : 'INCIDENT_UPDATE',
-            note:
-              typeof item.note === 'string'
-                ? item.note.slice(0, 1000)
-                : typeof item.description === 'string'
-                  ? item.description.slice(0, 1000)
-                  : '',
-            occurredAt: item.occurredAt || item.recordedAt || null,
-            actorRole: ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'].includes(
-              item.actorRole
-            )
-              ? item.actorRole
-              : undefined
-          }
-        : null
-    )
-    .filter(Boolean);
+    .filter((item) => {
+      if (!item || typeof item !== 'object') return false;
+      if (operationalActor) return true;
+      const type = typeof item.type === 'string' ? item.type : 'INCIDENT_UPDATE';
+      if (INTERNAL_TIMELINE_TYPES.has(type)) return false;
+      if (type === 'INCIDENT_RESOLVED' && !resolvedVisible) return false;
+      return true;
+    })
+    .map((item) => ({
+      type: typeof item.type === 'string' ? item.type : 'INCIDENT_UPDATE',
+      note:
+        typeof item.note === 'string'
+          ? item.note.slice(0, 1000)
+          : typeof item.description === 'string'
+            ? item.description.slice(0, 1000)
+            : '',
+      occurredAt: item.occurredAt || item.recordedAt || null,
+      actorRole: ['CUSTOMER', 'PET_SITTER', 'STAFF', 'ADMIN'].includes(
+        item.actorRole
+      )
+        ? item.actorRole
+        : undefined
+    }));
 }
 function workflowPhoto(visit, mediaId) {
   const result = visit.workflowResults?.find(row => row.evidence?.some(ref => ref.mediaId === mediaId));
@@ -411,13 +423,24 @@ function customerMaySeeEvidence(visit, ref) {
 function safeCase(record, actor, visit, extras = {}) {
   if (!record || typeof record !== 'object') return null;
   const id = safeId(record.id ?? record._id, 'id');
+  const isOp = operational(actor);
+  const isCustomer = !isOp && (visit ? customerIdOf(visit) === actor.userId : hasRole(actor.roles, 'CUSTOMER'));
   const proposalPending = record.proposal?.status === 'PENDING';
   const resolvedVisible = ['RESOLVED', 'CLOSED'].includes(record.state) && !proposalPending;
   const deliveredResult = record.customerResult ?? record.resolution?.summary ?? null;
-  const approvedAmountVnd = resolvedVisible
+  const approvedAmountVnd = (isOp || isCustomer)
+    && resolvedVisible
     && record.moneyDecision?.outcome !== 'REJECT'
     && Number.isSafeInteger(record.moneyDecision?.amountVnd)
     ? record.moneyDecision.amountVnd
+    : null;
+  const publicResolution = resolvedVisible && (deliveredResult || record.resolution)
+    ? {
+        targetState: state(record.state),
+        summary: typeof deliveredResult === 'string' ? deliveredResult : '',
+        recordedAt: record.resolvedAt || record.resolution?.recordedAt || null,
+        final: record.resolution?.final === true
+      }
     : null;
   const result = {
     id,
@@ -445,42 +468,44 @@ function safeCase(record, actor, visit, extras = {}) {
     contactPreference: record.contactPreference || 'STAFF_REVIEW',
     evidenceRefs: Array.isArray(record.evidenceRefs)
       ? record.evidenceRefs
-          .filter(ref => operational(actor) || !(visit ? customerIdOf(visit) === actor.userId : hasRole(actor.roles, 'CUSTOMER'))
+          .filter(ref => isOp || !isCustomer
             || (visit && ref && customerMaySeeEvidence(visit, ref)))
           .map((item) => safeEvidence(item, false))
           .filter(Boolean)
       : [],
-    timeline: safeTimeline(record.timeline),
+    timeline: safeTimeline(record.timeline, { operationalActor: isOp, resolvedVisible }),
     createdAt: record.createdAt || record.openedAt || null,
     updatedAt: record.updatedAt || null,
-    customerResult: operational(actor)
+    customerResult: isOp
       ? (deliveredResult ?? record.proposal?.customerResult ?? null)
       : (resolvedVisible ? deliveredResult : null),
     approvedAmountVnd,
-    resolution: record.resolution
-      ? {
-          targetState:
-            record.resolution.targetState || record.resolution.state || null,
-          summary:
-            typeof record.resolution.summary === 'string'
-              ? record.resolution.summary
-              : '',
-          actionsTaken:
-            typeof record.resolution.actionsTaken === 'string'
-              ? record.resolution.actionsTaken
-              : null,
-          followUp:
-            typeof record.resolution.followUp === 'string'
-              ? record.resolution.followUp
-              : null,
-          customerContacted: record.resolution.customerContacted === true,
-          veterinaryContacted: record.resolution.veterinaryContacted === true,
-          recordedAt: record.resolution.recordedAt || null,
-          final: record.resolution.final === true
-        }
-      : null,
+    resolution: isOp
+      ? (record.resolution
+          ? {
+              targetState:
+                record.resolution.targetState || record.resolution.state || null,
+              summary:
+                typeof record.resolution.summary === 'string'
+                  ? record.resolution.summary
+                  : '',
+              actionsTaken:
+                typeof record.resolution.actionsTaken === 'string'
+                  ? record.resolution.actionsTaken
+                  : null,
+              followUp:
+                typeof record.resolution.followUp === 'string'
+                  ? record.resolution.followUp
+                  : null,
+              customerContacted: record.resolution.customerContacted === true,
+              veterinaryContacted: record.resolution.veterinaryContacted === true,
+              recordedAt: record.resolution.recordedAt || null,
+              final: record.resolution.final === true
+            }
+          : null)
+      : publicResolution,
     financialHold:
-      operational(actor) && record.financialHold
+      isOp && record.financialHold
         ? {
             state: record.financialHold.state || 'PENDING_REVIEW',
             reference: safeId(record.financialHold.reference)
@@ -1183,6 +1208,9 @@ export function createIncidentService({
           fail(409, 'INVALID_STATE', 'A refund proposal is already waiting for Admin review');
         }
         const hasMoneyProposal = resolution.chargeVisit === false || Boolean(resolution.proposal);
+        if (hasMoneyProposal && (['RESOLVED', 'CLOSED'].includes(current.state) || Boolean(current.moneyDecision))) {
+          fail(409, 'INVALID_STATE', 'Resolved incidents cannot accept new refund proposals');
+        }
         if (hasMoneyProposal && resolution.targetState === 'CLOSED') {
           fail(409, 'INVALID_STATE', 'Cannot close an incident while proposing a refund');
         }

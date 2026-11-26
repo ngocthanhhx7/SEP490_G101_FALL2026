@@ -4,7 +4,10 @@ import { APPEAL_WINDOW_MS, COMPLAINT_SCHEMA_VERSION, complaintFinalAt, complaint
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const complaintCode = id => 'KN-' + String(id).replaceAll('-', '').slice(0, 12).toUpperCase();
-export const incidentCode = id => 'SC-' + String(id).replaceAll('-', '').slice(0, 12).toUpperCase();
+export const incidentCode = id => {
+  const clean = String(id ?? '').replaceAll('-', '').toUpperCase();
+  return 'SC-' + (clean.length > 12 ? clean.slice(-12) : clean);
+};
 const iso = value => instant(value)?.toISOString() ?? null;
 
 function imageRefs(refs) {

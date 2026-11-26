@@ -383,4 +383,181 @@ describe('Part C: ST-CAS-04, ST-CAS-05, ST-CAS-06 incident refund proposals and 
     }, 'inc-waive-02').expect(409);
     expect(doubleWaive.body.error.code).toBe('VISIT_ALREADY_WAIVED');
   });
+
+  test('Role filtering: Customer and Pet Sitter never see internal proposals, decisions, staff notes, suspension proposals, or internal timeline steps', async () => {
+    const { caseId } = await seedIncident({ paidVnd: 300000, visitNetVnd: 100000 });
+
+    await post('staff', `/api/v1/cases/${caseId}/actions`, {
+      expectedVersion: 0,
+      note: 'Ghi chú xử lý nội bộ bước 1.'
+    }, 'role-filter-action-01').expect(200);
+
+    await post('staff', `/api/v1/cases/${caseId}/suspension-proposals`, {
+      expectedVersion: 1,
+      reason: 'Lý do nội bộ đề xuất tạm ngưng.'
+    }, 'role-filter-suspend-01').expect(200);
+
+    await post('staff', `/api/v1/cases/${caseId}/resolutions`, {
+      expectedVersion: 2,
+      customerResult: 'Kết quả gửi khách sau khi duyệt.',
+      staffNotes: 'Ghi chú nội bộ riêng của Staff.',
+      chargeVisit: true,
+      proposal: { amountVnd: 180000, reason: 'Lý do đề xuất hoàn tiền nội bộ', evidenceRefs: [] }
+    }, 'role-filter-propose-01').expect(200);
+
+    // Before Admin approves: neither Customer nor Pet Sitter sees proposal, internal notes, or pending result
+    for (const role of ['customer', 'sitter']) {
+      const detailRes = await request(app).get(`/api/v1/cases/${caseId}`).set('x-test-actor', role).expect(200);
+      const data = detailRes.body.data;
+      expect(data.state).toBe('UNDER_REVIEW');
+      expect(data.customerResult).toBeNull();
+      expect(data.approvedAmountVnd).toBeNull();
+      expect(data.resolution).toBeNull();
+      expect(data.proposal).toBeUndefined();
+      expect(data.moneyDecision).toBeUndefined();
+      expect(data.suspensionProposal).toBeUndefined();
+      expect(data.staffNotes).toBeUndefined();
+      expect(data.billing).toBeUndefined();
+      expect(data.visitBilling).toBeUndefined();
+      expect(data.timeline.map(row => row.type)).toEqual(['INCIDENT_REPORTED']);
+      const serialized = JSON.stringify(data);
+      expect(serialized).not.toContain('180000');
+      expect(serialized).not.toContain('180.000');
+      expect(serialized).not.toContain('Lý do đề xuất hoàn tiền nội bộ');
+      expect(serialized).not.toContain('Ghi chú xử lý nội bộ bước 1');
+      expect(serialized).not.toContain('Lý do nội bộ đề xuất tạm ngưng');
+      expect(serialized).not.toContain('Ghi chú nội bộ riêng của Staff');
+      expect(serialized).not.toContain('Kết quả gửi khách sau khi duyệt.');
+    }
+
+    // After Admin reduces and approves: Customer sees result + approvedAmountVnd; Pet Sitter sees result only (no amount); neither sees internal details
+    await post('admin', `/api/v1/complaints/${caseId}/refund-decision`, {
+      expectedVersion: 3,
+      outcome: 'REDUCE',
+      amountVnd: 140000,
+      reason: 'Lý do nội bộ của Admin khi giảm tiền.'
+    }, 'role-filter-decide-01').expect(200);
+
+    const custAfter = (await request(app).get(`/api/v1/cases/${caseId}`).set('x-test-actor', 'customer').expect(200)).body.data;
+    expect(custAfter).toMatchObject({
+      state: 'RESOLVED',
+      customerResult: 'Kết quả gửi khách sau khi duyệt.',
+      approvedAmountVnd: 140000,
+      resolution: { targetState: 'RESOLVED', summary: 'Kết quả gửi khách sau khi duyệt.' }
+    });
+    expect(custAfter.proposal).toBeUndefined();
+    expect(custAfter.moneyDecision).toBeUndefined();
+    expect(custAfter.suspensionProposal).toBeUndefined();
+    expect(custAfter.staffNotes).toBeUndefined();
+    expect(custAfter.timeline.map(row => row.type)).toEqual(['INCIDENT_REPORTED']);
+    expect(JSON.stringify(custAfter)).not.toContain('Lý do nội bộ của Admin khi giảm tiền');
+    expect(JSON.stringify(custAfter)).not.toContain('Lý do đề xuất hoàn tiền nội bộ');
+
+    const sitterAfter = (await request(app).get(`/api/v1/cases/${caseId}`).set('x-test-actor', 'sitter').expect(200)).body.data;
+    expect(sitterAfter).toMatchObject({
+      state: 'RESOLVED',
+      customerResult: 'Kết quả gửi khách sau khi duyệt.',
+      approvedAmountVnd: null,
+      resolution: { targetState: 'RESOLVED', summary: 'Kết quả gửi khách sau khi duyệt.' }
+    });
+    expect(sitterAfter.proposal).toBeUndefined();
+    expect(sitterAfter.moneyDecision).toBeUndefined();
+    expect(sitterAfter.suspensionProposal).toBeUndefined();
+    expect(sitterAfter.staffNotes).toBeUndefined();
+    expect(sitterAfter.timeline.map(row => row.type)).toEqual(['INCIDENT_REPORTED']);
+    expect(JSON.stringify(sitterAfter)).not.toContain('140000');
+    expect(JSON.stringify(sitterAfter)).not.toContain('Lý do nội bộ của Admin khi giảm tiền');
+  });
+
+  test('After Admin approves waiving a visit, re-proposing on the same RESOLVED incident returns 409 and preserves old decision history', async () => {
+    const { caseId } = await seedIncident({ paidVnd: 300000, visitNetVnd: 110000 });
+
+    await post('staff', `/api/v1/cases/${caseId}/resolutions`, {
+      expectedVersion: 0,
+      customerResult: 'Miễn tiền buổi chăm sóc do sự cố.',
+      chargeVisit: false,
+      proposal: { reason: 'Không tính tiền buổi này', evidenceRefs: [] }
+    }, 'same-case-waive-01').expect(200);
+
+    await post('admin', `/api/v1/complaints/${caseId}/refund-decision`, {
+      expectedVersion: 1,
+      outcome: 'APPROVE'
+    }, 'same-case-waive-approve').expect(200);
+
+    const staffDetail = (await request(app).get(`/api/v1/cases/${caseId}`).set('x-test-actor', 'staff').expect(200)).body.data;
+    expect(staffDetail.visitBilling).toMatchObject({ alreadyWaived: true, canWaive: false });
+
+    const repeatWaive = await post('staff', `/api/v1/cases/${caseId}/resolutions`, {
+      expectedVersion: 2,
+      customerResult: 'Đề xuất lại miễn tiền buổi.',
+      chargeVisit: false,
+      proposal: { reason: 'Thử gửi lại trên cùng sự cố', evidenceRefs: [] }
+    }, 'same-case-waive-repeat').expect(409);
+    expect(repeatWaive.body.error.code).toBe('INVALID_STATE');
+
+    const repeatExtra = await post('staff', `/api/v1/cases/${caseId}/resolutions`, {
+      expectedVersion: 2,
+      customerResult: 'Đề xuất thêm tiền.',
+      chargeVisit: true,
+      proposal: { amountVnd: 50000, reason: 'Thử gửi thêm đề xuất', evidenceRefs: [] }
+    }, 'same-case-extra-repeat').expect(409);
+    expect(repeatExtra.body.error.code).toBe('INVALID_STATE');
+
+    // Old decision history remains intact
+    const stored = await connection.db.collection('cases').findOne({ _id: new mongoose.Types.ObjectId(caseId) });
+    expect(stored.state).toBe('RESOLVED');
+    expect(stored.version).toBe(2);
+    expect(stored.proposal).toMatchObject({ status: 'APPROVED', waiveVisitCharge: true, amountVnd: 110000 });
+    expect(stored.moneyDecision).toMatchObject({ outcome: 'APPROVE', amountVnd: 110000 });
+  });
+
+  test('Two incidents created in the same second receive distinct SC- codes in both incident API and Admin refund proposal list', async () => {
+    const first = await seedIncident({ paidVnd: 300000 });
+    const second = await seedIncident({ paidVnd: 300000 });
+
+    const report1 = await post('sitter', '/api/v1/incidents', {
+      visitId: first.visitId,
+      category: 'HEALTH_OBSERVATION',
+      severity: 'HIGH',
+      urgency: 'URGENT',
+      description: 'Sự cố 1 tạo cùng giây.'
+    }, 'same-sec-inc-001').expect(201);
+    const report2 = await post('sitter', '/api/v1/incidents', {
+      visitId: second.visitId,
+      category: 'HEALTH_OBSERVATION',
+      severity: 'HIGH',
+      urgency: 'URGENT',
+      description: 'Sự cố 2 tạo cùng giây.'
+    }, 'same-sec-inc-002').expect(201);
+
+    const code1 = report1.body.data.incident.code;
+    const code2 = report2.body.data.incident.code;
+    expect(code1).toMatch(/^SC-[A-F0-9]{12}$/);
+    expect(code2).toMatch(/^SC-[A-F0-9]{12}$/);
+    expect(code1).not.toBe(code2);
+
+    // Also verify fallback code derivation on two legacy records without persisted code created in the same second
+    await post('staff', `/api/v1/cases/${first.caseId}/resolutions`, {
+      expectedVersion: 0,
+      customerResult: 'Kết quả 1.',
+      chargeVisit: true,
+      proposal: { amountVnd: 50000, reason: 'Hoàn 1', evidenceRefs: [] }
+    }, 'same-sec-prop-001').expect(200);
+    await post('staff', `/api/v1/cases/${second.caseId}/resolutions`, {
+      expectedVersion: 0,
+      customerResult: 'Kết quả 2.',
+      chargeVisit: true,
+      proposal: { amountVnd: 60000, reason: 'Hoàn 2', evidenceRefs: [] }
+    }, 'same-sec-prop-002').expect(200);
+
+    const listRes = await request(app)
+      .get('/api/v1/complaints/refund-proposals?status=PENDING')
+      .set('x-test-actor', 'admin')
+      .expect(200);
+    const row1 = listRes.body.data.items.find(item => item.id === first.caseId);
+    const row2 = listRes.body.data.items.find(item => item.id === second.caseId);
+    expect(row1?.code).toMatch(/^SC-[A-F0-9]{12}$/);
+    expect(row2?.code).toMatch(/^SC-[A-F0-9]{12}$/);
+    expect(row1.code).not.toBe(row2.code);
+  });
 });

@@ -99,7 +99,8 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
       }
     },
     async incidentRefundDecided({ eventId, record, outcome }, session) {
-      const code = record.code ?? ('SC-' + String(record.id).replaceAll('-', '').slice(0, 12).toUpperCase());
+      const cleanIncidentId = String(record.id ?? '').replaceAll('-', '').toUpperCase();
+      const code = record.code ?? ('SC-' + (cleanIncidentId.length > 12 ? cleanIncidentId.slice(-12) : cleanIncidentId));
       const to = '/cases/' + encodeURIComponent(record.id);
       const amount = record.moneyDecision?.amountVnd;
       const fmt = value => `${new Intl.NumberFormat('vi-VN').format(value)} đ`;

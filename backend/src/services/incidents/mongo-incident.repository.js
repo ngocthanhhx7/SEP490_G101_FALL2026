@@ -13,6 +13,10 @@ const oid = (value) =>
   typeof value === 'string' && /^[a-f0-9]{24}$/i.test(value)
     ? new Types.ObjectId(value)
     : fail('VALIDATION_FAILED', 422);
+const incidentCode = (value) => {
+  const clean = String(value ?? '').replaceAll('-', '').toUpperCase();
+  return 'SC-' + (clean.length > 12 ? clean.slice(-12) : clean);
+};
 const view = (row) =>
   row && {
     ...row,
@@ -85,7 +89,7 @@ export function createMongoIncidentRepository({
               const user = await col('users').findOne({ _id: oid(String(userId)) }, { session, projection: { displayName: 1 }, maxTimeMS: 2000 });
               return user?.displayName ?? null;
             },
-            isVisitAlreadyWaived: async ({ visit, caseId }) => {
+            isVisitAlreadyWaived: async ({ visit }) => {
               if (visit.state === 'CANCELLED') return true;
               const cancelRefund = await col('refunds').findOne(
                 { bookingId: visit.bookingId, visitId: visit._id, sourceType: 'BOOKING_CANCELLATION' },
@@ -97,7 +101,6 @@ export function createMongoIncidentRepository({
                   bookingId: visit.bookingId,
                   visitId: String(visit._id),
                   kind: 'INCIDENT',
-                  ...(caseId && /^[a-f0-9]{24}$/i.test(caseId) ? { _id: { $ne: oid(caseId) } } : {}),
                   'proposal.waiveVisitCharge': true,
                   'proposal.status': { $in: ['PENDING', 'APPROVED', 'REDUCED'] }
                 },
@@ -182,6 +185,7 @@ export function createMongoIncidentRepository({
                   ...record,
                   _id,
                   id: String(_id),
+                  code: incidentCode(String(_id)),
                   bookingId: visit.bookingId,
                   // Existing case holds remain pending until an explicit Admin no-impact closure.
                   financialHold: true,
