@@ -125,8 +125,8 @@ export async function planInsertion({
   if (
     !Number.isFinite(origin.end) ||
     !Number.isFinite(finish.start) ||
-    origin.end >= slot.start ||
-    finish.start <= slot.end
+    origin.end > slot.start ||
+    finish.start < slot.end
   )
     return { eligible: false, reason: 'OUTSIDE_DAY_BOUNDS' };
   // Origin/end bounds must themselves be within the same declared working window.

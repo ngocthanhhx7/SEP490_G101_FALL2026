@@ -196,26 +196,29 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
   }
 
   function normalizeDeclineReason(details) {
-    if (!details || typeof details !== 'object' || Array.isArray(details)
-      || details.reasonCode === undefined || details.reasonCode === null
-      || (typeof details.reasonCode === 'string' && !details.reasonCode.trim())) {
+    const rawCode = typeof details === 'string'
+      ? details
+      : (details && typeof details === 'object' && !Array.isArray(details) ? details.reasonCode : undefined);
+    const rawNote = details && typeof details === 'object' && !Array.isArray(details) ? details.note : undefined;
+    if (rawCode === undefined || rawCode === null || (typeof rawCode === 'string' && !rawCode.trim())) {
       fail(422, 'VALIDATION_FAILED', 'This field is required.', {
         fieldErrors: { reasonCode: 'This field is required.' },
         messageCode: 'MSG01'
       });
     }
-    if (!VISIT_WITHDRAWAL_REASONS.includes(details.reasonCode)) {
+    const reasonCode = typeof rawCode === 'string' ? rawCode.trim() : rawCode;
+    if (!VISIT_WITHDRAWAL_REASONS.includes(reasonCode)) {
       fail(422, 'VALIDATION_FAILED', 'Decline reason is invalid', {
         fieldErrors: { reasonCode: 'Decline reason is invalid' }
       });
     }
-    if (details.note !== undefined && (typeof details.note !== 'string' || details.note.trim().length > 1000)) {
+    if (rawNote !== undefined && (typeof rawNote !== 'string' || rawNote.trim().length > 1000 || /[\x00-\x1f\x7f]/.test(rawNote))) {
       fail(422, 'VALIDATION_FAILED', 'Decline note must be no more than 1000 characters', {
         fieldErrors: { note: 'Decline note must be no more than 1000 characters' }
       });
     }
-    const note = details.note?.trim();
-    return { reasonCode: details.reasonCode, ...(note ? { note } : {}) };
+    const note = rawNote?.trim();
+    return { reasonCode, ...(note ? { note } : {}) };
   }
 
   async function decide(actor, offerId, expectedVersion, idempotencyKey, decision, details) {
@@ -224,10 +227,14 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
     const expected = version(expectedVersion);
     const key = requireKey(idempotencyKey);
     if (!['ACCEPT', 'DECLINE'].includes(decision)) fail(422, 'VALIDATION_FAILED', 'Offer decision is invalid');
-    const declineDetails = decision === 'DECLINE' ? normalizeDeclineReason(details) : null;
+    const rawReasonCode = typeof details === 'string' ? details.trim()
+      : (details && typeof details === 'object' && !Array.isArray(details) ? details.reasonCode : undefined);
+    const rawNote = details && typeof details === 'object' && !Array.isArray(details) && typeof details.note === 'string'
+      ? details.note.trim() : '';
     const payload = {
       offerId: id, sitterId, expectedVersion: expected, decision,
-      ...(declineDetails ?? {})
+      ...(decision === 'DECLINE' && rawReasonCode !== undefined ? { reasonCode: rawReasonCode } : {}),
+      ...(decision === 'DECLINE' && rawNote ? { note: rawNote } : {})
     };
     return repository.runOfferCommand({ actor, sitterId, offerId: id, expectedVersion: expected,
       idempotencyKey: key, payload, execute: async transaction => {
@@ -257,6 +264,7 @@ export function createSitterOfferService({ repository, clock = Date.now } = {}) 
           return Object.freeze({ offerId: id, visitId: offer.visitId, assignmentId: saved.assignmentId ?? null,
             state: 'ASSIGNED', sitterId, version: saved.version });
         }
+        const declineDetails = normalizeDeclineReason(details);
         if (typeof transaction.declineOffer !== 'function') fail(503, 'OFFER_COMMAND_UNAVAILABLE', 'Offer command is unavailable');
         const saved = await transaction.declineOffer({ offer, sitterId, expectedVersion: expected, ...declineDetails });
         if (!saved || saved.state !== 'DECLINED') fail(503, 'OFFER_COMMAND_UNAVAILABLE', 'Offer decline was not confirmed');

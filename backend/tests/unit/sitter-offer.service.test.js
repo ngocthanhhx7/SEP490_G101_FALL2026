@@ -117,6 +117,8 @@ describe('sitter offer projections and commands', () => {
       .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED', details: { messageCode: 'MSG01' } });
     await expect(service.decline(actor, OFFER, 1, 'decline-invalid-reason', { reasonCode: 'UNKNOWN_REASON' }))
       .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
+    await expect(service.decline(actor, OFFER, 1, 'decline-free-text', 'Free text reason'))
+      .rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
     expect(repo.state.declined).toBe(false);
     await expect(service.decline(actor, OFFER, 1, 'decline-offer-1', { reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận việc riêng' }))
       .resolves.toMatchObject({ state: 'DECLINED', reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận việc riêng', messageCode: 'MSG79' });

@@ -103,23 +103,17 @@ export function createProductManagementService({ connection }) {
       throw productSalesErrors.versionConflict();
     },
     async remove(actor, productId, body) {
-      const deletedBy = requireProductManager(actor);
+      requireProductManager(actor);
       const id = parseObjectId(productId, 'productId');
-      const { version, reason } = parseDeleteProduct(body);
+      const { version } = parseDeleteProduct(body);
       return unitOfWork.run(async session => {
         const product = await Product.findOne({ _id: id, deletedAt: null }).session(session).lean();
         if (!product) throw productSalesErrors.notFound();
         if ((product.detailsVersion ?? 0) !== version) throw productSalesErrors.versionConflict();
         const hasOrders = Boolean(await ProductOrder.exists({ 'lines.productId': id }).session(session));
         const hasStock = product.stockOnHand > 0 || product.quantityHeld > 0;
-        if (hasOrders || hasStock) throw new AppError(409, 'PRODUCT_DELETE_BLOCKED',
-          'Hide this product instead: it has stock, reserved stock or order history.', { hasOrders, hasStock });
-        // Shares a write lock with order reservations and stock changes; transaction retry rechecks history.
-        const updated = await Product.updateOne({ _id: id, deletedAt: null, version: product.version ?? { $exists: false } },
-          { $set: { visible: false, deletedAt: new Date(), deletedBy, deletionReason: reason },
-            $inc: { version: 1, detailsVersion: 1 } }, { session });
-        if (updated.modifiedCount !== 1) throw productSalesErrors.versionConflict();
-        return { id: String(id), deleted: true };
+        throw new AppError(409, 'PRODUCT_DELETE_BLOCKED',
+          'Hide this product instead: product deletion is disabled.', { hasOrders, hasStock });
       });
     }
   });

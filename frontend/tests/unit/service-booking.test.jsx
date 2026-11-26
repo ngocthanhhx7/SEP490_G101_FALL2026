@@ -39,11 +39,81 @@ async function reviewAndConfirm() {
   fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ', { selector: 'button' }).closest('form'));
 }
 
+test.each([
+  ['same day', '2098-11-03T20:30', '2098-11-03T20:00'],
+  ['different days', '2098-11-05T09:00', '2098-11-03T09:00']
+])('numbers visits chronologically before review and checks availability in that order: %s', async (_label, later, earlier) => {
+  const api = fixture();
+  api.availability.mockResolvedValue({ sitters: [], complete: true });
+  const nailService = { ...service, name: 'Cắt móng', price: { unitLabel: 'lượt' }, details: { ...service.details, durationMinutes: 30 } };
+  render(<MemoryRouter><BookingFlow service={nailService} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: later } });
+  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh buổi tiếp theo' }));
+  fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: earlier } });
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  await screen.findByText('Sắp xếp người chăm sóc');
+  await waitFor(() => expect(api.availability).toHaveBeenCalledTimes(2));
+  const expected = [earlier, later].map(value => new Date(value + '+07:00').toISOString());
+  expect(api.availability.mock.calls.map(([body]) => body.visit.startAt)).toEqual(expected);
+  fireEvent.click(screen.getByText('Xem lại đơn'));
+  const labels = screen.getAllByText(/^Buổi \d+:/).map(row => row.textContent);
+  const localLabel = value => new Date(value + '+07:00').toLocaleString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'short', timeStyle: 'short'
+  });
+  expect(labels).toEqual([`Buổi 1: ${localLabel(earlier)}`, `Buổi 2: ${localLabel(later)}`]);
+  fireEvent.click(screen.getByLabelText('Tôi xác nhận lịch, báo giá và điều kiện dịch vụ.'));
+  fireEvent.submit(screen.getByText('Xác nhận đặt dịch vụ', { selector: 'button' }).closest('form'));
+  await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+  expect(api.confirm.mock.calls[0][0].visits.map(row => row.startAt)).toEqual(expected);
+});
+
 test('pending setup stays recoverable instead of rendering incomplete customer data', async () => {
   const api = fixture(); api.addresses.mockResolvedValue({ pending: true, data: null });
   render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
   expect(await screen.findByRole('alert')).toHaveTextContent('Chưa tải được thông tin đặt lịch.');
   expect(screen.queryByText('Xem báo giá')).not.toBeInTheDocument();
+});
+
+test('a reversed schedule keeps unavailable-sitter consent on the correct chronological visit', async () => {
+  const api = fixture();
+  api.availability.mockImplementation(async ({ visit }) => ({ sitters: [{ id: 'sitter', displayName: 'Sitter từng chăm',
+    eligible: !visit.startAt.startsWith('2098-11-05'), unavailableReason: 'DAY_OFF' }], complete: true }));
+  render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-05T09:00' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh buổi tiếp theo' }));
+  fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: '2098-11-03T09:00' } });
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  fireEvent.click(await screen.findByRole('radio', { name: /Sitter từng chăm/ }));
+  await reviewAndConfirm();
+  const dialog = await screen.findByRole('dialog');
+  expect(dialog).toHaveTextContent('không rảnh vào Buổi 2');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Vẫn đặt lịch' }));
+  await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(1));
+  const confirmed = api.confirm.mock.calls[0][0].visits;
+  expect(confirmed[0]).toMatchObject({ startAt: '2098-11-03T02:00:00.000Z', requestedSitterId: 'sitter' });
+  expect(confirmed[0]).not.toHaveProperty('acceptUnavailableSitter');
+  expect(confirmed[1]).toMatchObject({ startAt: '2098-11-05T02:00:00.000Z', requestedSitterId: 'sitter', acceptUnavailableSitter: true });
+});
+
+test('sorting reversed visits does not allow overlapping care times', async () => {
+  const api = fixture();
+  render(<MemoryRouter><BookingFlow service={service} api={api} onBooked={jest.fn()} /></MemoryRouter>);
+  fireEvent.click(await screen.findByLabelText('Milo · 4 kg'));
+  fireEvent.change(screen.getByLabelText('Địa chỉ đã xác nhận'), { target: { value: 'address' } });
+  fireEvent.change(screen.getByLabelText('Số buổi'), { target: { value: '2' } });
+  fireEvent.change(screen.getByLabelText('Buổi 1 (giờ Việt Nam)'), { target: { value: '2098-11-03T20:30' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Chỉnh buổi tiếp theo' }));
+  fireEvent.change(screen.getByLabelText('Buổi 2 (giờ Việt Nam)'), { target: { value: '2098-11-03T20:00' } });
+  fireEvent.submit(screen.getByText('Xem báo giá').closest('form'));
+  expect(screen.getByRole('alert')).toHaveTextContent('trùng giờ chăm sóc');
+  expect(api.quote).not.toHaveBeenCalled();
+  expect(api.confirm).not.toHaveBeenCalled();
 });
 
 test('quote policy review failure explains why no booking was created and keeps the pet selection', async () => {
