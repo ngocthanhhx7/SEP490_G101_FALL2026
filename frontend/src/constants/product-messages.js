@@ -38,7 +38,10 @@ export const PRODUCT_MESSAGES = Object.freeze({
   MSG123: 'Số giảm không được lớn hơn số có thể bán ({n}).',
   MSG124: 'Phiếu điều chỉnh {code} đã được lưu.',
   MSG92: '{name} đã nhận buổi ngày {date} lúc {time}. Khách và cả hai người chăm sóc đã được báo.',
-  MSG125: 'Vui lòng nhập số điện thoại hoặc email.'
+  MSG125: 'Vui lòng nhập số điện thoại hoặc email.',
+  MSG154: 'Huỷ đơn hàng {code}? Nếu bạn đã thanh toán, Paw World sẽ hoàn đủ số tiền.',
+  MSG155: 'Đơn hàng {code} đã được huỷ.',
+  MSG156: 'Đơn này không thể huỷ nữa.'
 });
 
 // Backend error code -> message key.
@@ -52,5 +55,6 @@ export const PRODUCT_ERROR_MESSAGE_KEYS = Object.freeze({
   ADDRESS_OUT_OF_SERVICE_AREA: 'MSG18',
   TRACKING_CODE_REQUIRED: 'MSG103',
   ORDER_NOT_PAID: 'MSG105',
+  ORDER_NOT_CANCELLABLE: 'MSG156',
   RESELLABLE_QUANTITY_INVALID: 'MSG104'
 });

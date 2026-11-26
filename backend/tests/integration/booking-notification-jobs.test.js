@@ -59,6 +59,84 @@ test('JOB-01: both recipients get each 120/30 minute reminder once, including co
   expect((await col('visits').findOne({ _id: visit._id })).state).toBe('ASSIGNED');
 });
 
+test.each([120, 30])('JOB-01: reassignment at the same start sends the %i minute reminder to B without repeating the customer reminder', async lead => {
+  const visit = await assigned(lead), replacementId = new Types.ObjectId();
+  const run = () => createVisitRemindersService({ connection, clock: () => now }).runBatch();
+  await run();
+  await col('visits').updateOne({ _id: visit._id }, { $set: { sitterId: replacementId, assignedAt: new Date(now) },
+    $inc: { version: 1, assignmentVersion: 1 } });
+  await Promise.all([run(), run()]);
+  const notifications = () => col('notifications').find({ 'metadata.visitId': String(visit._id), 'metadata.leadMinutes': lead }).toArray();
+  expect((await notifications()).filter(row => row.role === 'CUSTOMER')).toHaveLength(1);
+  expect((await notifications()).filter(row => row.recipientId === String(visit.sitterId))).toHaveLength(1);
+  expect((await notifications()).filter(row => row.recipientId === String(replacementId))).toHaveLength(1);
+  // Unrelated writes and a fresh service instance must not become a new assignment.
+  await col('visits').updateOne({ _id: visit._id }, { $inc: { version: 1 } });
+  await run();
+  expect(await notifications()).toHaveLength(3);
+});
+
+test('JOB-01: assigning A again at the same clock time creates a new sitter reminder, not a new customer reminder', async () => {
+  const visit = await assigned(120), replacementId = new Types.ObjectId();
+  const run = () => createVisitRemindersService({ connection, clock: () => now }).runBatch();
+  await col('visits').updateOne({ _id: visit._id }, { $set: { assignedAt: new Date(now), assignmentVersion: 1 } });
+  await run();
+  for (const sitterId of [replacementId, visit.sitterId]) {
+    await col('visits').updateOne({ _id: visit._id }, { $set: { sitterId, assignedAt: new Date(now) },
+      $inc: { version: 1, assignmentVersion: 1 } });
+    await run();
+  }
+  expect(await col('notifications').countDocuments({ recipientId: String(visit.sitterId) })).toBe(2);
+  expect(await col('notifications').countDocuments({ role: 'CUSTOMER' })).toBe(1);
+  expect(await col('notifications').countDocuments({ recipientId: String(replacementId) })).toBe(1);
+});
+
+test('JOB-01: legacy markers retain both delivered reminders, then notify only the replacement sitter', async () => {
+  const visit = await assigned(120);
+  const run = () => createVisitRemindersService({ connection, clock: () => now }).runBatch();
+  await run();
+  // Match the deployed v1 marker shape: startAt/notifiedAt only.
+  await col('visits').updateOne({ _id: visit._id }, { $unset: { 'startReminders.m120.sitter': '', 'startReminders.m120.customerId': '' } });
+  await run();
+  expect(await col('notifications').countDocuments()).toBe(2);
+  const replacementId = new Types.ObjectId();
+  await col('visits').updateOne({ _id: visit._id }, { $set: { sitterId: replacementId, assignedAt: new Date(now) },
+    $inc: { version: 1, assignmentVersion: 1 } });
+  await run();
+  expect(await col('notifications').countDocuments({ role: 'CUSTOMER' })).toBe(1);
+  expect(await col('notifications').countDocuments({ recipientId: String(replacementId) })).toBe(1);
+  expect(await col('notifications').countDocuments()).toBe(3);
+});
+
+test('JOB-01: a genuinely changed start creates new schedule reminders for both recipients', async () => {
+  const visit = await assigned(120);
+  const run = () => createVisitRemindersService({ connection, clock: () => now }).runBatch();
+  await run();
+  now += 60000;
+  await col('visits').updateOne({ _id: visit._id }, { $set: { startAt: new Date(now + 120 * 60000) }, $inc: { version: 1 } });
+  await run(); await run();
+  expect(await col('notifications').countDocuments({ role: 'CUSTOMER' })).toBe(2);
+  expect(await col('notifications').countDocuments({ role: 'PET_SITTER' })).toBe(2);
+});
+
+test('JOB-01: failed replacement delivery rolls back its marker, then retries without repeating the customer', async () => {
+  const visit = await assigned(120), replacementId = new Types.ObjectId();
+  const run = () => createVisitRemindersService({ connection, clock: () => now }).runBatch();
+  await run();
+  await col('visits').updateOne({ _id: visit._id }, { $set: { sitterId: replacementId, assignedAt: new Date(now) },
+    $inc: { version: 1, assignmentVersion: 1 } });
+  await connection.db.command({ collMod: 'notifications', validator: { $jsonSchema: { required: ['syntheticNeverPresent'] } } });
+  try {
+    expect(await run()).toMatchObject({ failed: 1 });
+    expect(String((await col('visits').findOne({ _id: visit._id })).startReminders.m120.sitter.recipientId)).toBe(String(visit.sitterId));
+  } finally {
+    await connection.db.command({ collMod: 'notifications', validator: {} });
+  }
+  await run(); await run();
+  expect(await col('notifications').countDocuments({ role: 'CUSTOMER' })).toBe(1);
+  expect(await col('notifications').countDocuments({ recipientId: String(replacementId) })).toBe(1);
+});
+
 test.each(['PENDING', 'CANCELLED', 'EXPIRED', 'FAILED'])('JOB-03 regression: an older %s attempt has money at payOS, so the newer unpaid link cannot expire the booking', async state => {
   const { booking, intent } = await unpaid('READY');
   const older = { ...intent, _id: new Types.ObjectId(), providerReference: String(Number(intent.providerReference) + 1), state };

@@ -40,4 +40,17 @@ export function parseOrderListQuery(query = {}) {
   return parsePageQuery(query);
 }
 
+export function parseCancelOrder(body) {
+  if (body === undefined || body === null) return {};
+  if (typeof body !== 'object' || Array.isArray(body)) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'Body is invalid');
+  }
+  requireOnlyKeys(body, ['expectedVersion']);
+  if (body.expectedVersion === undefined) return {};
+  if (!Number.isSafeInteger(body.expectedVersion) || body.expectedVersion < 0) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'expectedVersion is invalid');
+  }
+  return { expectedVersion: body.expectedVersion };
+}
+
 export { parseObjectId };

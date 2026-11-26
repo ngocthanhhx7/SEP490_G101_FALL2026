@@ -4,8 +4,15 @@
 in-app notifications for JOB-01 / GBR-47. Runtime starts it every 15 minutes when
 employee scheduling is enabled. Assigned future visits receive separate 120/30
 minute reminders for Customer and Pet Sitter. Schedule/start/version/assignee are
-rechecked in the notification transaction; per-start markers and deterministic
-notification IDs prevent duplicate delivery across ticks and server instances.
+rechecked in the notification transaction. Customer markers and notification IDs
+follow the visit/start/lead time. Sitter markers and IDs also bind the recipient,
+assignedAt and assignmentVersion, so replacing a sitter at the same time notifies
+the new assignment without repeating the customer's reminder. Acceptance and
+Staff reassignment increment assignmentVersion; unrelated visit writes do not.
+Existing visits default to assignment version zero. Legacy per-start customer
+markers remain valid, and original sitter deliveries are adopted from existing
+notifications when they predate any new assignment. Markers and notifications
+commit together, preventing duplicates across retries and server instances.
 `visit-reminder.policy.js` holds the existing pure deadline/job policy; the old
 jobs import path remains a compatibility re-export.
 
