@@ -1,4 +1,4 @@
-import { canRecoverUnpublishedAttempt, isMissingPayosLink, runPaymentLinkAttempt } from './booking-payment-attempt.js';
+import { canRecoverUnpublishedAttempt, runPaymentLinkAttempt } from './booking-payment-attempt.js';
 import { HOME_BOOKING_NOTICE_MS } from '../../constants/booking-notice.js';
 import { createServiceAreaCatalog } from '../service-area-catalog.service.js';
 import { hasPreviousPetSitter, listPreviousPetSitters } from '../customer-care-history.service.js';
@@ -297,9 +297,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         claimedRetry = true;
       }
       if (!claimedRetry && (intent.linkState || intent.checkoutUrl)) {
-        // An in-flight create may not yet be visible to payOS GET. A 404 is
-        // never permission to clear its submission markers or launch another
-        // POST while the original request can still complete.
+        // An in-flight create may not yet be visible to a payOS lookup.
         if (intent.linkState === 'CREATING' && !canRecoverUnpublishedAttempt(intent, now()))
           fail('COMMAND_PENDING', 'A link request is already running', 409);
         if (!provider.getPaymentLink) {
@@ -311,7 +309,7 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         catch (error) {
           // Reuse the same provider order code for an unpublished stale claim.
           // Preserve submission evidence and compare claim ownership on every write.
-          if (isMissingPayosLink(error) && !intent.checkoutUrl && !intent.paymentLinkId &&
+          if (error?.code === 'PAYOS_LINK_NOT_FOUND' && !intent.checkoutUrl && !intent.paymentLinkId &&
             (intent.linkState === 'RECONCILIATION_REQUIRED' || canRecoverUnpublishedAttempt(intent, now()))) {
             intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id, state: 'PENDING',
               linkState: intent.linkState, linkRequestedAt: intent.linkRequestedAt, expiresAt: { $gt: now() },
@@ -323,43 +321,43 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         }
         if (!remote && !claimedRetry) fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider state cannot be verified yet', 409);
         if (remote) {
-        if (remote.orderCode !== Number(intent.providerReference) || remote.amount !== intent.amountVnd ||
-          remote.amountPaid > intent.amountVnd || !Number.isSafeInteger(remote.amountPaid))
-          fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider amount differs from booking', 409);
-        if (['PAID', 'PROCESSING'].includes(remote.providerStatus) || remote.amountPaid > 0)
-          fail('COMMAND_PENDING', 'Provider payment is awaiting verified webhook', 409);
-        if (remote.providerStatus === 'PENDING') {
-          const restored = remote.checkoutUrl ?? intent.checkoutUrl;
-          if (restored) {
-            const url = new URL(restored);
-            if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/'))
-              fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider link URL is invalid', 409);
-            const restoredLink = await col('paymentintents').updateOne({ _id: intent._id, state: 'PENDING',
-              linkState: intent.linkState, linkRequestedAt: intent.linkRequestedAt, expiresAt: { $gt: now() } },
-            { $set: { linkState: 'READY', checkoutUrl: url.href, ...(remote.paymentLinkId ? { paymentLinkId: remote.paymentLinkId } : {}) } });
-            if (!restoredLink.matchedCount) fail('COMMAND_PENDING', 'Payment attempt changed before restoring the link', 409);
-            return { checkoutUrl: url.href, expiresAt: intent.expiresAt };
+          if (remote.orderCode !== Number(intent.providerReference) || remote.amount !== intent.amountVnd ||
+            remote.amountPaid > intent.amountVnd || !Number.isSafeInteger(remote.amountPaid))
+            fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider amount differs from booking', 409);
+          if (['PAID', 'PROCESSING'].includes(remote.providerStatus) || remote.amountPaid > 0)
+            fail('COMMAND_PENDING', 'Provider payment is awaiting verified webhook', 409);
+          if (remote.providerStatus === 'PENDING') {
+            const restored = remote.checkoutUrl ?? intent.checkoutUrl;
+            if (restored) {
+              const url = new URL(restored);
+              if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/'))
+                fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider link URL is invalid', 409);
+              const restoredLink = await col('paymentintents').updateOne({ _id: intent._id, state: 'PENDING',
+                linkState: intent.linkState, linkRequestedAt: intent.linkRequestedAt, expiresAt: { $gt: now() } },
+              { $set: { linkState: 'READY', checkoutUrl: url.href, ...(remote.paymentLinkId ? { paymentLinkId: remote.paymentLinkId } : {}) } });
+              if (!restoredLink.matchedCount) fail('COMMAND_PENDING', 'Payment attempt changed before restoring the link', 409);
+              return { checkoutUrl: url.href, expiresAt: intent.expiresAt };
+            }
+            fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider has a pending link without a verified URL', 409);
           }
-          fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider has a pending link without a verified URL', 409);
-        }
-        if (!['CANCELLED', 'EXPIRED', 'FAILED'].includes(remote.providerStatus) || remote.amountPaid !== 0)
-          fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider payment status requires review', 409);
-        // Only a verified terminal, unpaid provider link may be replaced.
-        intent = await transact(async session => {
-          const current = await col('paymentintents').findOne({ _id: intent._id, state: 'PENDING' }, { session });
-          const stillAwaiting = await col('bookings').findOne({ _id: booking._id, state: 'AWAITING_PAYMENT',
-            paymentState: 'UNPAID', paymentDeadlineAt: { $gt: now() } }, { session });
-          if (!current || !stillAwaiting) fail('COMMAND_PENDING', 'Payment state changed; reload booking', 409);
-          const changed = await col('paymentintents').updateOne({ _id: current._id, state: 'PENDING' },
-            { $set: { state: 'CANCELLED', providerTerminalStatus: remote.providerStatus } }, { session });
-          if (!changed.matchedCount) fail('COMMAND_PENDING', 'Payment attempt changed', 409);
-          const next = { _id: new Types.ObjectId(), bookingId: booking._id, customerId: oid(actor.userId),
-            provider: 'PAYOS', providerReference: String(randomInt(1000000000000, 200000000000000)),
-            amountVnd: intent.amountVnd, currency: 'VND', state: 'PENDING', version: 0,
-            expiresAt: booking.paymentDeadlineAt, createdAt: now() };
-          await col('paymentintents').insertOne(next, { session });
-          return next;
-        });
+          if (!['CANCELLED', 'EXPIRED', 'FAILED'].includes(remote.providerStatus) || remote.amountPaid !== 0)
+            fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider payment status requires review', 409);
+          // Only a verified terminal, unpaid provider link may be replaced.
+          intent = await transact(async session => {
+            const current = await col('paymentintents').findOne({ _id: intent._id, state: 'PENDING' }, { session });
+            const stillAwaiting = await col('bookings').findOne({ _id: booking._id, state: 'AWAITING_PAYMENT',
+              paymentState: 'UNPAID', paymentDeadlineAt: { $gt: now() } }, { session });
+            if (!current || !stillAwaiting) fail('COMMAND_PENDING', 'Payment state changed; reload booking', 409);
+            const changed = await col('paymentintents').updateOne({ _id: current._id, state: 'PENDING' },
+              { $set: { state: 'CANCELLED', providerTerminalStatus: remote.providerStatus } }, { session });
+            if (!changed.matchedCount) fail('COMMAND_PENDING', 'Payment attempt changed', 409);
+            const next = { _id: new Types.ObjectId(), bookingId: booking._id, customerId: oid(actor.userId),
+              provider: 'PAYOS', providerReference: String(randomInt(1000000000000, 200000000000000)),
+              amountVnd: intent.amountVnd, currency: 'VND', state: 'PENDING', version: 0,
+              expiresAt: booking.paymentDeadlineAt, createdAt: now() };
+            await col('paymentintents').insertOne(next, { session });
+            return next;
+          });
         }
       }
       if (!claimedRetry) intent = await col('paymentintents').findOneAndUpdate({ _id: intent._id,

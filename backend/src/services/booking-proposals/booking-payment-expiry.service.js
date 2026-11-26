@@ -1,4 +1,4 @@
-import { canRecoverUnpublishedAttempt, isMissingPayosLink } from './booking-payment-attempt.js';
+import { canRecoverUnpublishedAttempt } from './booking-payment-attempt.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
 import { digest } from '../../validators/pet-care.validator.js';
@@ -68,9 +68,9 @@ export function createBookingPaymentExpiryService({ connection, provider, clock 
           if (!safeRemote(intent, remote)) verified = false;
         } catch (error) {
           // The old owner can no longer publish a link after this intent is
-          // expired. A 404 is usable here only for an unpublished, stale claim.
+          // expired. Only a provider-confirmed missing link can resolve this claim.
           verified = canRecoverUnpublishedAttempt(intent, asOf) && intent.expiresAt instanceof Date
-            && intent.expiresAt <= asOf && isMissingPayosLink(error);
+            && intent.expiresAt <= asOf && error?.code === 'PAYOS_LINK_NOT_FOUND';
         }
         if (!verified) break;
       }

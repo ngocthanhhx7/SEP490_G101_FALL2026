@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { beforeAll, beforeEach, afterAll, test, expect, jest } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import mongoose from 'mongoose';
@@ -5,6 +6,7 @@ import express from 'express';
 import request from 'supertest';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 import { createBookingPaymentExpiryService } from '../../src/services/booking-proposals/booking-payment-expiry.service.js';
+import { createPayosProvider } from '../../src/services/providers/payos/payos.provider.js';
 import { bookingCheckoutRuntimeModule } from '../../src/routes/booking-checkout.routes.js';
 import { createPricingRepository } from '../../src/services/pricing/pricing.repository.js';
 import { createPricingService } from '../../src/services/pricing/pricing.service.js';
@@ -517,7 +519,7 @@ test('GBR-18 replaces a cancelled unpaid payOS link while booking is within its 
   expect(replaced.providerTerminalStatus).toBe('CANCELLED');
 });
 
-test('ST-BKG-17 retries link creation with the original order code after payOS confirms 404', async () => {
+test('ST-BKG-17 retries link creation with the original order code after payOS reports it missing', async () => {
   const q = await quote('home-care', 1), booking = await checkout.confirm(owner, input(q), 'recover-creation-error');
   const failed = createBookingCheckoutService({ connection, clock: () => at.getTime(),
     provider: { createPaymentLink: async () => { throw { code: 'PAYOS_TIMEOUT', details: { uncertain: true } }; } },
@@ -529,10 +531,10 @@ test('ST-BKG-17 retries link creation with the original order code after payOS c
   expect(original.linkState).toBe('RECONCILIATION_REQUIRED');
   const recovered = createBookingCheckoutService({ connection, clock: () => at.getTime(),
     provider: {
-      getPaymentLink: async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; },
+      getPaymentLink: async () => { throw { code: 'PAYOS_LINK_NOT_FOUND' }; },
       createPaymentLink: provider.createPaymentLink
     }, webOrigin: 'http://127.0.0.1:5188', facilityAddress: 'Synthetic facility address' });
-  const next = await recovered.paymentLink(owner, booking.id, 'link-retry-after-404');
+  const next = await recovered.paymentLink(owner, booking.id, 'link-retry-after-missing-code');
   expect(next.checkoutUrl).toContain('https://pay.payos.vn/web/');
   const after = await connection.collection('paymentintents').findOne({ _id: original._id });
   expect(after.providerReference).toBe(original.providerReference);
@@ -547,7 +549,7 @@ test('ST-BKG-17 / JOB-03 keeps in-flight create markers through retry 404 and de
   let releaseCreate, signalStarted;
   const started = new Promise(resolve => { signalStarted = resolve; });
   const pendingCreate = new Promise(resolve => { releaseCreate = resolve; });
-  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const lookup = jest.fn(async () => { throw { code: 'PAYOS_LINK_NOT_FOUND' }; });
   const create = jest.fn(async input => {
     signalStarted();
     await pendingCreate;
@@ -600,7 +602,7 @@ test('ST-BKG-17 retries a completed failed request only once and retains its pri
   let release, signalStarted;
   const started = new Promise(resolve => { signalStarted = resolve; });
   const blockedCreate = new Promise(resolve => { release = resolve; });
-  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const lookup = jest.fn(async () => { throw { code: 'PAYOS_LINK_NOT_FOUND' }; });
   const create = jest.fn(async input => {
     signalStarted();
     await blockedCreate;
@@ -743,9 +745,12 @@ test('checkout recovers a stale unpublished claim using the same payOS order cod
   const intent = await connection.collection('paymentintents').findOne({ bookingId: new mongoose.Types.ObjectId(booking.id) });
   await connection.collection('paymentintents').updateOne({ _id: intent._id },
     { $set: { linkState: 'CREATING', linkRequestedAt: at } });
+  const lookupProvider = createPayosProvider({ clientId: 'synthetic-client', apiKey: 'synthetic-api-key',
+    checksumKey: 'synthetic-checksum', fetchImpl: async () => ({ ok: true, status: 200,
+      json: async () => ({ code: '101', desc: 'Mã thanh toán không tồn tại' }) }) });
   const recovered = createBookingCheckoutService({ connection, clock: () => at.getTime() + 61_000,
     webOrigin: 'http://127.0.0.1:5188', provider: {
-      getPaymentLink: async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; },
+      getPaymentLink: lookupProvider.getPaymentLink,
       createPaymentLink: provider.createPaymentLink
     } });
   expect((await recovered.paymentLink(owner, booking.id, 'recover-stale-before-expiry')).checkoutUrl)
@@ -755,16 +760,49 @@ test('checkout recovers a stale unpublished claim using the same payOS order cod
   }));
 });
 
-test('JOB-03 expires a stale unpublished claim after deadline and a payOS 404', async () => {
+test('checkout restores a link created before a crash from a signed payOS lookup without another POST', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'restore-published-at-provider');
+  const intent = await connection.collection('paymentintents').findOne({ bookingId: new mongoose.Types.ObjectId(booking.id) });
+  await connection.collection('paymentintents').updateOne({ _id: intent._id },
+    { $set: { linkState: 'CREATING', linkRequestedAt: at } });
+  const id = '124c33293c934a85be5b7f8761a27a07';
+  const data = { amount: intent.amountVnd, amountPaid: 0, amountRemaining: intent.amountVnd,
+    id, orderCode: Number(intent.providerReference), status: 'PENDING' };
+  const checksumKey = 'synthetic-checksum';
+  const signature = createHmac('sha256', checksumKey).update(
+    Object.entries(data).map(([key, value]) => `${key}=${value}`).join('&')).digest('hex');
+  const fetchImpl = jest.fn(async () => ({ ok: true, status: 200,
+    json: async () => ({ code: '00', data, signature }) }));
+  const recovered = createBookingCheckoutService({ connection, clock: () => at.getTime() + 61_000,
+    webOrigin: 'http://127.0.0.1:5188', provider: createPayosProvider({ clientId: 'synthetic-client',
+      apiKey: 'synthetic-api-key', checksumKey, fetchImpl }) });
+
+  const link = await recovered.paymentLink(owner, booking.id, 'restore-signed-provider-link');
+
+  expect(link.checkoutUrl).toBe(`https://pay.payos.vn/web/${id}`);
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  expect(fetchImpl.mock.calls[0][1].method).toBe('GET');
+  expect(await connection.collection('paymentintents').findOne({ _id: intent._id })).toMatchObject({
+    state: 'PENDING', linkState: 'READY', paymentLinkId: id, checkoutUrl: link.checkoutUrl
+  });
+  expect((await checkout.read(owner, booking.id)).paymentState).toBe('UNPAID');
+});
+
+test('JOB-03 requires the payOS business response before expiring a stale unpublished claim', async () => {
   const q = await quote('home-care', 1);
   const booking = await checkout.confirm(owner, input(q), 'booking-expiry-crashed-claim');
   const bookingId = new mongoose.Types.ObjectId(booking.id);
   const intent = await connection.collection('paymentintents').findOne({ bookingId });
   await connection.collection('paymentintents').updateOne({ _id: intent._id },
     { $set: { linkState: 'CREATING', linkRequestedAt: at } });
-  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
-  const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
-    clock: () => intent.expiresAt.getTime() + 1000 }).runBatch();
+  const lookup = jest.fn()
+    .mockRejectedValueOnce({ code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } })
+    .mockRejectedValueOnce({ code: 'PAYOS_LINK_NOT_FOUND' });
+  const worker = createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => intent.expiresAt.getTime() + 1000 });
+  expect(await worker.runBatch()).toMatchObject({ expired: 0, deferred: 1 });
+  const result = await worker.runBatch();
   expect(result).toMatchObject({ expired: 1, deferred: 0 });
   expect(lookup).toHaveBeenCalledWith(Number(intent.providerReference));
   expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('PAYMENT_EXPIRED');

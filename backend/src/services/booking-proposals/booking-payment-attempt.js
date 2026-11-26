@@ -13,13 +13,8 @@ export async function runPaymentLinkAttempt(intent, run) {
     activeAttempts.delete(key);
   }
 }
-
 export function canRecoverUnpublishedAttempt(intent, at) {
   return intent.linkState === 'CREATING' && intent.linkRequestedAt instanceof Date
     && +at - +intent.linkRequestedAt >= RECOVERY_DELAY_MS && !activeAttempts.has(attemptKey(intent))
     && intent.checkoutUrl === undefined && intent.paymentLinkId === undefined;
-}
-
-export function isMissingPayosLink(error) {
-  return error?.code === 'PAYOS_REQUEST_FAILED' && error.details?.providerHttpStatus === 404;
 }
