@@ -14,7 +14,7 @@ import '../../components/product/product-shop.css';
 
 export function ProductDetailsPage() {
   const { productId } = useParams();
-  const { api, addLine } = useProductCart();
+  const { api, cart, addLine } = useProductCart();
   const session = useSession();
   const navigate = useNavigate();
   const load = useCallback(({ signal }) => api.getProduct(productId, { signal }), [api, productId]);
@@ -32,6 +32,9 @@ export function ProductDetailsPage() {
   const [feedback, setFeedback] = useState(null);
   useEffect(() => { setFresh(null); setQuantity(1); setFeedback(null); }, [productId]);
   const product = fresh ?? resource.data;
+  const inCart = cart?.lines?.find((item) => item.productId === product?.id)?.quantity ?? 0;
+  const remaining = product ? Math.max(0, product.available - inCart) : 0;
+  const stepperMax = product ? (inCart > 0 ? Math.max(1, remaining) : product.available) : 1;
   const price = priceResource.data?.customerId === customerId && priceResource.data?.productId === productId
     && priceResource.data?.unitPrice === product?.sellingPrice ? priceResource.data : null;
   const hasDiscount = price?.unitDiscount > 0;
@@ -87,11 +90,11 @@ export function ProductDetailsPage() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem 0' }}>
           <span id="quantity-label" style={{ fontWeight: 800 }}>Số lượng</span>
-          <QuantityStepper value={quantity} max={product.available} disabled={!product.inStock || busy} label="Số lượng"
+          <QuantityStepper value={quantity} max={stepperMax} disabled={!product.inStock || busy} label="Số lượng"
             onChange={changeQuantity} onLimit={() => setFeedback({ ok: false, text: productMessage('MSG58', { n: Math.min(99, product.available) }) })} />
         </div>
         {!product.inStock && <p className="pwc-shop-alert pwc-shop-alert--error" role="status">{productMessage('MSG98')}</p>}
-        {feedback && <p className={`pwc-shop-alert pwc-shop-alert--${feedback.ok ? 'ok' : 'error'}`} role="status">
+        {feedback && <p className={`pwc-shop-alert pwc-shop-alert--${feedback.ok ? 'ok' : 'error'}`} role={feedback.ok ? 'status' : 'alert'}>
           {feedback.text} {feedback.ok && <Link to="/customer/cart">Xem giỏ hàng</Link>}</p>}
         <button type="button" className="pwc-shop-primary-button" disabled={!product.inStock || busy} onClick={add}>
           {busy ? 'Đang thêm…' : 'Thêm vào giỏ hàng'}</button>

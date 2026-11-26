@@ -94,6 +94,10 @@ test('refuses replies that do not have the expected shape', async () => {
   await expect(bad({ services: 'x' }).options()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   await expect(bad([{ name: 'no id', species: 'DOG' }]).pets()).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   await expect(bad({ slots: [{ startAt: 'x', time: '10:00', state: 'OPEN' }] }).slots({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  await expect(bad({ slots: [{ startAt: 'x', time: '10:00', state: 'PET_ALREADY_BOOKED', conflictPetName: '' }] }).slots({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
+  await expect(bad({ slots: [{ startAt: 'x', time: '10:00', state: 'PET_ALREADY_BOOKED', conflictPetName: 'Milo' }] }).slots({})).resolves.toMatchObject({
+    slots: [{ time: '10:00', state: 'PET_ALREADY_BOOKED', conflictPetName: 'Milo' }]
+  });
   await expect(bad({ pets: [], subtotalVnd: 1.5, totalVnd: 1, tier: { discountVnd: 0 } }).quote({})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
   await expect(bad({ id: 'a', code: 'XX-1' }).book({}, 'grooming:key-4')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' });
 });

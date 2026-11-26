@@ -10,6 +10,8 @@ import { provisionFinanceSources } from '../../src/services/settlements/source-p
 import { createVisitRemindersService } from '../../src/services/employee-scheduling/visit-reminders.service.js';
 import { createPaymentExpiryService } from '../../src/services/booking-proposals/payment-expiry.service.js';
 import { createBookingPaymentExpiryService } from '../../src/services/booking-proposals/booking-payment-expiry.service.js';
+import { createMongoNotificationRepository } from '../../src/services/notifications/mongo-notification.repository.js';
+import { createNotificationService } from '../../src/services/notifications/notification.service.js';
 
 let replica, connection, runtime, now;
 const env = { NODE_ENV: 'test', PORT: '0', MONGO_DB: 'pwc_notification_jobs', AUTH_ENABLED: 'true',
@@ -203,7 +205,14 @@ test('JOB-03 / MSG67: terminal unpaid provider evidence expires booking and free
   expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('PAYMENT_EXPIRED');
   expect((await col('visits').findOne({ bookingId: booking._id })).state).toBe('CANCELLED');
   expect(await col('notifications').countDocuments()).toBe(1);
-  expect((await col('notifications').findOne({})).metadata.messageCode).toBe('MSG67');
+  const stored = await col('notifications').findOne({});
+  expect(stored.eventType).toBe('BOOKING_PAYMENT_EXPIRED');
+  expect(stored.message).toBe('Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.');
+  expect(stored.metadata).toEqual({ bookingId: String(booking._id) });
+  const inbox = createNotificationService({ repository: createMongoNotificationRepository({ connection, cursorSecret: env.SESSION_TOKEN_SECRET }) });
+  const listed = await inbox.list({ actor: { userId: String(booking.customerId), state: 'ACTIVE', roles: ['CUSTOMER'] } });
+  expect(listed.items).toHaveLength(1);
+  expect(listed.items[0].message).toBe('Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.');
 });
 test('JOB-03 rolls back booking, visits and event when MSG67 cannot be stored, then retries once', async () => {
   const { booking, intent } = await unpaid();
@@ -221,7 +230,7 @@ test('JOB-03 rolls back booking, visits and event when MSG67 cannot be stored, t
   }
   expect(await service.runBatch()).toMatchObject({ expired: 1 });
   await service.runBatch();
-  expect(await col('notifications').countDocuments({ 'metadata.messageCode': 'MSG67' })).toBe(1);
+  expect(await col('notifications').countDocuments({ eventType: 'BOOKING_PAYMENT_EXPIRED' })).toBe(1);
   expect(provider.getPaymentLink).not.toHaveBeenCalled();
 });
 test.each(['PAID', 'PENDING', 'PARTIALLY_PAID', 'UNAVAILABLE', 'WRONG_AMOUNT'])('JOB-03: %s never produces a false expiry or MSG67', async status => {
@@ -300,7 +309,7 @@ test('JOB-03 checks all replaced attempts and atomically expires only an entirel
   expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('PAYMENT_EXPIRED');
   expect((await col('paymentintents').findOne({ _id: old._id })).state).toBe('CANCELLED');
   expect((await col('paymentintents').findOne({ _id: intent._id })).state).toBe('EXPIRED');
-  expect(await col('notifications').countDocuments({ 'metadata.messageCode': 'MSG67' })).toBe(1);
+  expect(await col('notifications').countDocuments({ eventType: 'BOOKING_PAYMENT_EXPIRED' })).toBe(1);
   expect(await col('financesourceevents').countDocuments({ _id: `booking-payment-expired:${booking._id}` })).toBe(1);
 });
 
