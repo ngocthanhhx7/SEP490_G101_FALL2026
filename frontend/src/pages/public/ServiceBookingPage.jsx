@@ -53,6 +53,7 @@ function errorText(error) {
     MATCH_CHANGED: 'Hồ sơ hoặc lịch đã thay đổi. Vui lòng kiểm tra lại.',
     MATCH_ALREADY_USED: 'Yêu cầu này đã tạo đơn. Vui lòng kiểm tra đơn của bạn.',
     VISIT_SCHEDULE_OVERLAP: 'Các buổi của cùng thú cưng bị trùng giờ.',
+    MSG20: 'Một lịch đặt kéo dài tối đa 30 ngày.',
     VALIDATION_FAILED: 'Kiểm tra thời lượng, ngày giờ, địa chỉ và số buổi trước khi tiếp tục.' })[error.code]
     || apiErrorFeedback(error, 'Chưa hoàn tất được thao tác. Vui lòng thử lại.');
 }
