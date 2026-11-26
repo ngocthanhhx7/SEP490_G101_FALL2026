@@ -37,9 +37,21 @@ The catalog uses photo cards, price badges, server-owned scope lists and detail 
 
 `PublicServiceCards` and `service-cards.css` own the shared published-service cards on Home and the catalogue: fixed-ratio photographs, category/species, duration/location, description, server price and detail action. Home uses the full image URL without assuming a Figma asset directory and selects home care, walking and bathing when published. The catalogue also supports resetting filters and sorting by base price or Vietnamese name. Descriptions are shown once; complete scope remains on the detail page.
 
+`ServiceDetailsPage` renders the public service template. It uses the existing
+catalog response and the published customer-visible steps in `ServiceCareWorkflow`.
+Both booking entry points share `bookingActions`. The price section shows the
+active catalog unit price and sends the customer to booking for a personalized
+quote. Known legacy provisioning copy is summarized so an old number in policy
+prose cannot compete with the current catalog or quote. Custom policy copy,
+effective date and version remain visible. `service-detail.css` is scoped to the
+detail template. Service details begin with the hero across breakpoints. The
+mobile app shell owns the Back control and safe-area navigation.
+
 PublicSiteLayout handles cross-route Home anchors and focus. Responsive checks cover desktop and 320/390px widths; role dashboards keep their own layout.
 
 AboutPage adapts Figma 2:2724 to dog/cat care, the product storefront and the current five-member project team, without nutrition, donation or partner claims. ContactPage adapts the supplied help/contact references: searchable FAQs, category filters, expandable answers and a consented email form with optional phone. Messages use the same-origin contact API, retain input on failure and confirm only SMTP acceptance. The recipient comes from server configuration; no unrelated reference-brand contact details are copied. No contact data is saved to browser storage.
+
+`ContactPage` owns FAQ filters and the responsive page layout. `ContactMessageForm` owns field presentation and form state. The wide card and phone dialog share the same draft and submission state when the viewport changes.
 
 SignInPage adapts Figma 2:5284 to the existing OTP flow. Email and SMS use the session adapter; Vietnamese local phone numbers are normalized to +84 before submission. sign-in.css owns all login styling, while auth-public.css retains registration/application styling. Header/footer remain owned by PublicSiteLayout. The registration link opens /register; social/password sign-in is outside this OTP flow. See [verification](../../../../doc/testing/login-email-sms-refresh.md).
 

@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { useId, useMemo, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSession } from '../../contexts/SessionContext.jsx';
 import { primaryRole } from '../../utils/role-access.js';
-import { PolicyContextLinks } from './policies/PolicyLinks.jsx';
+import { CalendarDays, ChevronDown, ChevronRight, MapPin, Search, ShieldCheck, X } from 'lucide-react';
 import { Button, Dialog } from '../../components/ui/index.js';
 import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { sendContactMessage } from '../../services/contact-api.js';
+import { ContactMessageForm, useContactMessageForm } from './ContactMessageForm.jsx';
 import './contact.css';
 
 function HelpPrivacyLink() {
@@ -31,117 +32,134 @@ const sitterQuestions = [
   { topic: 'POLICY', question: 'Tôi xem hồ sơ và thu nhập ở đâu?', keywords: 'bảng lương hồ sơ tài khoản', answer: <>Mở <Link to="/account">Tài khoản</Link> để tìm thông tin hồ sơ hoặc vào <Link to="/sitter/payroll">Thu nhập</Link> để xem thông tin đang hiển thị.</> },
   privacyQuestion,
 ];
-const topics = [['BOOKING', 'Hướng dẫn đặt lịch'], ['SERVICE', 'Dịch vụ & khu vực'], ['POLICY', 'Chính sách & hỗ trợ']];
-const empty = { name: '', phone: '', email: '', topic: 'BOOKING', message: '', consent: false };
+const topics = [
+  { key: 'BOOKING', label: 'Hướng dẫn đặt lịch', sitterLabel: 'Lời mời', icon: CalendarDays, description: 'Chuẩn bị và theo dõi lịch chăm sóc.' },
+  { key: 'SERVICE', label: 'Dịch vụ & khu vực', sitterLabel: 'Ca làm & sự cố', icon: MapPin, description: 'Tìm dịch vụ phù hợp và kiểm tra khu vực phục vụ.' },
+  { key: 'POLICY', label: 'Chính sách & hỗ trợ', sitterLabel: 'Hồ sơ & hỗ trợ', icon: ShieldCheck, description: 'Thanh toán, đổi lịch, hoàn tiền và bảo mật.' },
+];
 function normalize(value) { return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase(); }
+
+function FaqItem({ item }) {
+  const id = useId();
+  const [expanded, setExpanded] = useState(false);
+  return <div className="pwc-contact-faq-item">
+    <h3><button type="button" aria-expanded={expanded} aria-controls={id + '-answer'}
+      onClick={() => setExpanded(value => !value)}>
+      <span>{item.question}</span><ChevronDown aria-hidden="true" size={20} />
+    </button></h3>
+    <div className="pwc-contact-answer" id={id + '-answer'} hidden={!expanded}>
+      <p>{item.answer}</p>
+    </div>
+  </div>;
+}
 
 export function ContactPage({ send = sendContactMessage }) {
   const compact = usePhoneApp();
   const { user } = useSession({ optional: true });
   const sitter = primaryRole(user) === 'PET_SITTER';
-  const { state } = useLocation();
-  const [params, setParams] = useSearchParams();
+  const { hash, state } = useLocation();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
   const query = params.get('q') ?? '';
   const category = params.get('topic') ?? '';
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState(empty);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState('');
-  const [failed, setFailed] = useState(false);
-  const filtered = useMemo(() => (sitter ? sitterQuestions : questions).filter(item => (!category || item.topic === category)
-    && normalize([item.question, item.keywords, topics.find(([key]) => key === item.topic)?.[1]].filter(Boolean).join(' ')).includes(normalize(query.trim()))), [category, query, sitter]);
+  const form = useContactMessageForm(send);
+  const searchInput = useRef(null);
+  const contactSection = useRef(null);
+  const filtering = Boolean(query.trim() || category);
+  const filtered = useMemo(() => {
+    const search = normalize(query.trim());
+    return (sitter ? sitterQuestions : questions).filter(item => {
+      if (category && item.topic !== category) return false;
+      const topic = topics.find(({ key }) => key === item.topic);
+      return normalize([item.question, item.keywords, topic?.label, sitter && topic?.sitterLabel].filter(Boolean).join(' ')).includes(search);
+    });
+  }, [category, query, sitter]);
+
   function filter(q, topic) {
     const next = new globalThis.URLSearchParams(params);
     if (q) next.set('q', q);
     else next.delete('q');
     if (topic) next.set('topic', topic);
     else next.delete('topic');
-    setParams(next, { replace: true, state, preventScrollReset: true });
+    navigate({ search: next.toString(), hash }, { replace: true, state, preventScrollReset: true });
   }
-  function change(event) { setForm(previous => ({ ...previous, [event.target.name]: event.target.type === 'checkbox' ? event.target.checked : event.target.value })); }
-  async function submit(event) {
-    event.preventDefault();
-    if (busy) return;
-    const payload = { ...form, name: form.name.trim(), phone: form.phone.trim(), email: form.email.trim(), message: form.message.trim() };
-    const fieldError = payload.name.length < 2 ? ['name', 'Họ và tên cần ít nhất 2 ký tự.']
-      : payload.phone && !/^[+0-9 ()-]{8,20}$/.test(payload.phone) ? ['phone', 'Kiểm tra lại số điện thoại.']
-        : payload.message.length < 10 ? ['message', 'Nội dung cần ít nhất 10 ký tự.'] : null;
-    if (fieldError) {
-      const [field, message] = fieldError;
-      setFailed(true);
-      setNotice(message);
-      event.currentTarget.elements.namedItem(field)?.focus();
-      return;
-    }
-    setBusy(true); setNotice(''); setFailed(false);
-    try {
-      await send(payload);
-      setNotice('Máy chủ email đã tiếp nhận lời nhắn. Cảm ơn bạn đã liên hệ Paw World Care.');
-      setForm(empty);
-    } catch (error) {
-      setFailed(true);
-      setNotice(error?.code === 'CONTACT_DELIVERY_UNCERTAIN'
-        ? 'Chưa xác nhận được kết quả gửi. Thư có thể đã được tiếp nhận; vui lòng kiểm tra trước khi gửi lại.'
-        : error?.status === 429 ? 'Bạn đã gửi nhiều yêu cầu. Vui lòng thử lại sau.'
-          : error?.status === 422 ? 'Kiểm tra lại thông tin liên hệ và nội dung lời nhắn.'
-            : 'Chưa thể gửi email. Vui lòng thử lại sau; nội dung của bạn vẫn được giữ trong form.');
-    } finally { setBusy(false); }
-  }
-  const messageForm = <form onSubmit={submit} className="pwc-contact-form" aria-label="Gửi lời nhắn">
-    {!compact && <><p className="pwc-contact-eyebrow">ĐỂ LẠI LỜI NHẮN</p>
-      <h2>Chúng mình có thể<br />giúp gì cho bạn?</h2></>}
-    <label>Họ và tên<input name="name" autoComplete="name" placeholder="Tên của bạn" required minLength={2} maxLength={80} value={form.name} onChange={change} /></label>
-    <div className="pwc-contact-form-pair"><label>Số điện thoại (không bắt buộc)<input name="phone" type="tel" autoComplete="tel" maxLength={20} placeholder="Số điện thoại liên hệ" value={form.phone} onChange={change} /></label>
-    <label>Email phản hồi<input name="email" type="email" autoComplete="email" placeholder="ban@email.com" required maxLength={254} value={form.email} onChange={change} /></label></div>
-    <label>Chủ đề<select name="topic" value={form.topic} onChange={change}>{topics.map(([key, label]) => <option key={key} value={key}>{label}</option>)}<option value="OTHER">Liên hệ khác</option></select></label>
-    <label>Nội dung<textarea name="message" rows={6} required minLength={10} maxLength={3000} value={form.message} onChange={change} placeholder="Bạn cần chúng mình hỗ trợ điều gì?" /></label>
-    <p className="pwc-contact-form-hint">Từ 10 đến 3.000 ký tự. Vui lòng không gửi lại trong khi đang xử lý.</p>
-    <label className="pwc-contact-consent"><input name="consent" type="checkbox" required checked={form.consent} onChange={change} />
-      <span>Tôi đồng ý để Paw World Care sử dụng thông tin đã cung cấp nhằm liên hệ và phản hồi yêu cầu này.</span></label>
-    <PolicyContextLinks context="contact" />
-    <button className="pwc-design-button" type="submit" disabled={busy}>{busy ? 'Đang gửi…' : 'Gửi lời nhắn'}</button>
-    <p className="pwc-contact-form-hint">Yêu cầu chỉ được báo tiếp nhận khi máy chủ email xác nhận. Thông tin không được lưu trong trình duyệt.</p>
-    {notice && <p role={failed ? 'alert' : 'status'}>{notice}</p>}
-  </form>;
-  return <div className={compact ? "pwc-contact-page pwc-contact-page--compact" : "pwc-contact-page"}>
+
+  const messageForm = <ContactMessageForm {...form} topics={topics} compact={compact} />;
+  return <div className={compact ? 'pwc-contact-page pwc-contact-page--compact' : 'pwc-contact-page'}>
     <section className="pwc-contact-hero" aria-labelledby="pwc-contact-heading">
-      {!compact && <img src="/assets/figma-public/home-Frame2147225474.svg" alt="" />}
-      <h1 id="pwc-contact-heading">{compact ? "Bạn cần hỗ trợ việc gì?" : <>Chúng mình có thể<br />giúp gì cho bạn?</>}</h1>
-      {!compact && <p>Tìm hướng dẫn chăm sóc, đặt lịch và hỗ trợ từ Paw World Care.</p>}
-      <label className="pwc-contact-search"><span className="pwc-visually-hidden">Tìm câu hỏi hỗ trợ</span>
-        <input type="search" maxLength={120} placeholder="Tìm câu hỏi…" value={query} onChange={event => filter(event.target.value, category)} />
-      </label>
+      <h1 id="pwc-contact-heading">{compact ? 'Bạn cần hỗ trợ việc gì?' : 'Chúng mình có thể giúp gì cho bạn?'}</h1>
+      {!compact && <p>Tìm hướng dẫn về dịch vụ, lịch hẹn và chính sách.</p>}
+      <div className="pwc-contact-search" role="search" aria-label="Tìm kiếm hỗ trợ">
+        <Search aria-hidden="true" size={20} />
+        <label className="pwc-visually-hidden" htmlFor="pwc-contact-search">Tìm câu hỏi hỗ trợ</label>
+        <input id="pwc-contact-search" ref={searchInput} type="search" maxLength={120} placeholder="Tìm câu hỏi hỗ trợ…"
+          value={query} onChange={event => filter(event.target.value, category)} aria-controls="pwc-support-results" />
+        {query && <button type="button" aria-label="Xóa từ khóa" onClick={() => {
+          filter('', category);
+          searchInput.current?.focus();
+        }}><X aria-hidden="true" size={18} /></button>}
+      </div>
       {compact && <div className="pwc-contact-entry">
-        <Link to={sitter ? "/sitter/schedule" : "/account/bookings"}>{sitter ? "Xem ca làm" : "Về lịch hẹn"}</Link>
+        <Link to={sitter ? '/sitter/schedule' : '/account/bookings'}>{sitter ? 'Xem ca làm' : 'Về lịch hẹn'}</Link>
         {!sitter && <Link to="/customer/product-orders">Về đơn mua hàng</Link>}
         <Button onClick={() => setOpen(true)}>Viết lời nhắn</Button>
       </div>}
     </section>
-    <section className="pwc-contact-help" aria-labelledby="pwc-contact-help-title">
+    <section className="pwc-contact-help pwc-contact-container" aria-labelledby="pwc-contact-help-title">
       <h2 id="pwc-contact-help-title">Danh mục hỗ trợ</h2>
-      <div className="pwc-contact-categories">{topics.map(([key, label], i) => <button type="button" key={key} aria-pressed={category === key}
-        onClick={() => filter(query, category === key ? '' : key)}>
-        <h3>{sitter ? ['Lời mời', 'Ca làm & sự cố', 'Hồ sơ & hỗ trợ'][i] : label}</h3>
-        {!sitter && <p>{['Các bước chuẩn bị và lựa chọn lượt chăm sóc phù hợp cho bé.', 'Thông tin chăm sóc chó, mèo và phạm vi phục vụ hiện hành.', 'Thanh toán, hủy lịch, hoàn tiền và bảo mật thông tin.'][i]}</p>}
-      </button>)}</div>
-      <div className="pwc-contact-faq"><h2>Câu hỏi thường gặp</h2>
-        {filtered.length ? filtered.map(item => <details key={item.question}><summary>{item.question}</summary><p>{item.answer}</p></details>)
-          : <p role="status">Chưa tìm thấy câu hỏi phù hợp. Bạn có thể gửi lời nhắn bên dưới.</p>}
-        {(query || category) && <button type="button" className="pwc-text-button" onClick={() => filter('', '')}>Xem tất cả câu hỏi</button>}
-      </div>
+      <div className="pwc-contact-categories">{topics.map(({ key, label, sitterLabel, icon: Icon, description }) =>
+        <button type="button" key={key} aria-pressed={category === key} aria-controls="pwc-support-results"
+          onClick={() => filter(query, category === key ? '' : key)}>
+          <Icon aria-hidden="true" size={24} />
+          <span className="pwc-contact-category-copy">
+            <strong>{sitter ? sitterLabel : label}</strong>
+            {!compact && !sitter && <span>{description}</span>}
+          </span>
+          <ChevronRight aria-hidden="true" size={20} />
+        </button>)}</div>
+      <section id="pwc-support-results" className="pwc-contact-faq" aria-labelledby="pwc-support-faq-title">
+        <div className="pwc-contact-faq-heading">
+          <h2 id="pwc-support-faq-title">Câu hỏi thường gặp</h2>
+          {filtering && <button type="button" className="pwc-text-button" onClick={() => {
+            filter('', '');
+            searchInput.current?.focus();
+          }}>Xem tất cả câu hỏi</button>}
+        </div>
+        <div aria-live="polite" aria-atomic="true">
+          {filtering && <p className="pwc-contact-results">
+            {filtered.length ? `${filtered.length} câu hỏi phù hợp` : 'Chưa tìm thấy câu hỏi phù hợp.'}
+          </p>}
+        </div>
+        {filtered.map(item => <FaqItem key={item.question} item={item} />)}
+        {!filtered.length && (compact
+          ? <Button variant="ghost" onClick={() => setOpen(true)}>Gửi lời nhắn</Button>
+          : <a href="#send-message" onClick={() => contactSection.current?.focus({ preventScroll: true })}>Gửi lời nhắn</a>)}
+      </section>
     </section>
-    <section className="pwc-contact-message" id="send-message" aria-label="Gửi lời nhắn">
-      {!compact && <div className="pwc-contact-message-intro"><img src="/assets/figma-public/home-Image662.webp" alt="Chú mèo trắng của PawWorld" loading="lazy" />
-        <p className="pwc-contact-eyebrow">PAW WORLD CARE Ở ĐÂY</p>
-        <h2 id="pwc-contact-form-title">Chúng mình<br />luôn lắng nghe bạn</h2>
-        <p>Bạn cần hỗ trợ về dịch vụ hoặc muốn góp ý cho dự án? Hãy để lại email để đội ngũ có thể phản hồi.</p>
-        <p>Không gửi mật khẩu, mã OTP, thông tin thẻ hoặc dữ liệu nhạy cảm. Form này dành cho câu hỏi và góp ý, không thay thế thao tác đặt hay hủy lịch.</p>
-        <Link to="/policies/privacy">Xem chính sách bảo mật</Link>
-      </div>}
-      {compact ? <>
-        <Dialog open={open} onClose={() => setOpen(false)} title="Gửi lời nhắn"
-          className="mobile-flow-dialog" dismissible={!busy}>{messageForm}</Dialog>
-      </> : messageForm}
+    <section ref={contactSection} className="pwc-contact-message" id="send-message" aria-label="Gửi lời nhắn" tabIndex={compact ? undefined : -1}>
+      {compact ? <Dialog open={open} onClose={() => setOpen(false)} title="Gửi lời nhắn"
+        className="mobile-flow-dialog" dismissible={!form.busy}>{messageForm}</Dialog>
+        : <div className="pwc-contact-container pwc-contact-message-layout">
+          <div className="pwc-contact-message-intro">
+            <h2>Chúng mình luôn lắng nghe bạn</h2>
+            <p>Hãy gửi câu hỏi về dịch vụ hoặc góp ý về trải nghiệm của bạn. Lời nhắn chỉ dùng để liên hệ hỗ trợ.</p>
+            <img src="/assets/figma-public/home-Image659.webp" alt="" width="1200" height="1200" loading="lazy" />
+            <div className="pwc-contact-privacy">
+              <ShieldCheck aria-hidden="true" size={22} />
+              <div><h3>Bảo vệ thông tin của bạn</h3>
+                <p>Vui lòng tránh gửi mật khẩu, mã OTP, thông tin thẻ hoặc dữ liệu nhạy cảm.</p>
+              </div>
+            </div>
+          </div>
+          <div className="pwc-contact-card">
+            <header>
+              <h2>Gửi lời nhắn</h2>
+              <p>Để lại email để đội ngũ có thể phản hồi.</p>
+            </header>
+            {messageForm}
+          </div>
+        </div>}
     </section>
   </div>;
 }
