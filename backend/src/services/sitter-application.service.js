@@ -672,7 +672,11 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
       if (action === 'SUSPEND' && requeueTargets.length && typeof requeueVisit === 'function') {
         for (const target of requeueTargets) {
-          await requeueVisit(target.visitId, target.version);
+          if (target.afterOfferRevocation) {
+            await requeueVisit(target.visitId, target.version, { afterOfferRevocation: true });
+          } else {
+            await requeueVisit(target.visitId, target.version);
+          }
         }
       }
       return committed;

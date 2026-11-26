@@ -7,12 +7,20 @@ import { fail } from '../../validators/pet-care.validator.js';
 import { createSchedulingNotifications } from '../notifications/scheduling-notifications.service.js';
 
 const EARLY_WINDOW_MS = 12 * 60 * 60 * 1000;
+const STAFF_REVIEW_REQUIRED = 'STAFF_REVIEW_REQUIRED';
 const oid = value => new Types.ObjectId(value);
 
 export function hasPendingWithdrawal(visit) {
   const request = visit.withdrawalRequest;
   return !!request && String(request.sitterId) === String(visit.sitterId) &&
     (request.assignedAt?.getTime() ?? null) === (visit.assignedAt?.getTime() ?? null);
+}
+
+async function publishDispatchReviewRequired({ events, notifications, actorId, visitId, version, at, session }) {
+  const type = 'DispatchReviewRequired';
+  const detail = { code: STAFF_REVIEW_REQUIRED, version };
+  await events.create([{ type, actorId: String(actorId), visitId, at, detail }], { session });
+  await notifications.publish({ type, visitId, detail }, session);
 }
 
 // Shared release path used by both early sitter withdrawal and Admin sitter suspension (UC-19, GBR-04).
@@ -27,7 +35,7 @@ export async function releaseAssignedVisitForHandover({
     sitterId: null,
     ...handover.set,
     withdrawalDispatch: { sitterId: previousSitterId },
-    ...(needsStaffReview ? { dispatchReview: { code: 'STAFF_REVIEW_REQUIRED', at } } : {})
+    ...(needsStaffReview ? { dispatchReview: { code: STAFF_REVIEW_REQUIRED, at } } : {})
   };
   const unsetFields = {
     assignedAt: 1,
@@ -61,21 +69,17 @@ export async function releaseAssignedVisitForHandover({
   await notifications.publish({ type: 'VisitWithdrawn',
     sitterId: String(previousSitterId), visitId, detail: { version: nextVersion } }, session);
   if (needsStaffReview) {
-    await events.create([{
-      type: 'DispatchReviewRequired', actorId: String(actorId),
-      visitId, at, detail: { code: 'STAFF_REVIEW_REQUIRED', version: nextVersion }
-    }], { session });
-    await notifications.publish({ type: 'DispatchReviewRequired',
-      visitId, detail: { code: 'STAFF_REVIEW_REQUIRED', version: nextVersion } }, session);
+    await publishDispatchReviewRequired({ events, notifications, actorId, visitId, version: nextVersion, at, session });
   }
   return { visitId, version: nextVersion };
 }
 
 // Called inside Admin's SUSPEND transaction (UC-19, GBR-04):
 // 1. Withdraw all PENDING offers for the suspended sitter (state -> REVOKED).
-// 2. Release all ASSIGNED visits that have not started (checkInAt: null) with handover flag so they are re-offered
+// 2. Recover SCHEDULED visits that lost their last pending offer.
+// 3. Release all ASSIGNED visits that have not started (checkInAt: null) with handover flag so they are re-offered
 //    (or flagged for Staff Needs Action when automatic dispatch is off).
-// 3. Leave IN_PROGRESS visits untouched so the pet sitter finishes them first.
+// 4. Leave IN_PROGRESS visits untouched so the pet sitter finishes them first.
 export async function releaseSuspendedSitterWork({ connection, sitterId, actorId, reason, at, session, autoRequeue = true }) {
   const sitterIdStr = String(sitterId);
   const sitterOid = oid(sitterIdStr);
@@ -94,12 +98,14 @@ export async function releaseSuspendedSitterWork({ connection, sitterId, actorId
   const models = employeeSchedulingModels(connection);
   const col = name => connection.db.collection(name);
   const notifications = createSchedulingNotifications({ col, clock: () => at.getTime() });
+  const { EmployeeVisitOffer: offers, EmployeeScheduleEvent: events } = models;
 
-  const pendingOffers = await models.EmployeeVisitOffer.find({ sitterId: sitterIdStr, state: 'PENDING' })
-    .select('_id').session(session).lean();
+  const pendingOffers = await offers.find({ sitterId: sitterIdStr, state: 'PENDING' })
+    .select('_id visitId').session(session).lean();
+  const affectedVisitIds = new Set(pendingOffers.filter(row => row.visitId).map(row => String(row.visitId)));
   let withdrawnOfferCount = 0;
   if (pendingOffers.length) {
-    const res = await models.EmployeeVisitOffer.updateMany(
+    const res = await offers.updateMany(
       { _id: { $in: pendingOffers.map(row => row._id) }, state: 'PENDING' },
       { $set: { state: 'REVOKED', decidedAt: at }, $inc: { version: 1 } },
       { session }
@@ -108,6 +114,33 @@ export async function releaseSuspendedSitterWork({ connection, sitterId, actorId
   }
 
   const visits = col('visits');
+  const requeueTargets = [];
+  for (const visitId of [...affectedVisitIds].sort()) {
+    const filter = { _id: oid(visitId), state: 'SCHEDULED', sitterId: null };
+    // Take a write lock before counting other offers so concurrent suspensions cannot
+    // each see the other's offer. Remove the lock field in this same transaction.
+    const visit = await visits.findOneAndUpdate(filter, { $set: { suspensionOfferCheck: true } }, {
+      session, projection: { version: 1 }
+    });
+    if (!visit) continue;
+    const otherOffer = await offers.exists({ visitId: visit._id, state: 'PENDING' }).session(session);
+    const clearLock = { $unset: { suspensionOfferCheck: 1 } };
+    if (otherOffer) {
+      await visits.updateOne(filter, clearLock, { session });
+      continue;
+    }
+    await visits.updateOne(filter, {
+      ...clearLock,
+      $inc: { version: 1 },
+      ...(autoRequeue ? {} : { $set: { dispatchReview: { code: STAFF_REVIEW_REQUIRED, at } } })
+    }, { session });
+    const version = (visit.version ?? 0) + 1;
+    if (!autoRequeue) {
+      await publishDispatchReviewRequired({ events, notifications, actorId, visitId, version, at, session });
+    }
+    requeueTargets.push({ visitId, version, afterOfferRevocation: true });
+  }
+
   const bookings = col('bookings');
   const assignedVisits = await visits.find({
     sitterId: sitterOid,
@@ -115,13 +148,12 @@ export async function releaseSuspendedSitterWork({ connection, sitterId, actorId
     checkInAt: null
   }, { session }).sort({ startAt: 1, _id: 1 }).toArray();
 
-  const requeueTargets = [];
   for (const visit of assignedVisits) {
     const released = await releaseAssignedVisitForHandover({
       visits,
       bookings,
-      offers: models.EmployeeVisitOffer,
-      events: models.EmployeeScheduleEvent,
+      offers,
+      events,
       notifications,
       visit,
       actorId,

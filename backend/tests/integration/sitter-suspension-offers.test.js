@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { createHash } from 'node:crypto';
+import express from 'express';
 import mongoose from 'mongoose';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
+import request from 'supertest';
 import { createSitterApplicationService } from '../../src/services/sitter-application.service.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
 import { employeeSchedulingModels } from '../../src/models/employee-scheduling.model.js';
@@ -13,6 +15,8 @@ import { createVisitWorkflowService } from '../../src/services/care/visit-workfl
 import { workflowHash } from '../../src/services/care/workflow-snapshot.service.js';
 import { createNeedsActionService } from '../../src/services/employee-scheduling/needs-action.service.js';
 import { createEmployeeScheduleRepository } from '../../src/services/employee-scheduling/employee-schedule.repository.js';
+import { provisionEmployeeScheduling } from '../../src/services/employee-scheduling/scheduling-storage.service.js';
+import { employeeSchedulingRuntimeModule } from '../../src/routes/employee-scheduling.routes.js';
 import { createBookingFinanceSourceService } from '../../src/services/settlements/booking-finance-source.service.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { digest } from '../../src/validators/pet-care.validator.js';
@@ -54,18 +58,15 @@ beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   connection = await mongoose.createConnection(replica.getUri(), { dbName: 'synthetic_sitter_suspend_offers' }).asPromise();
   const appModels = sitterApplicationModels(connection);
-  const schedModels = employeeSchedulingModels(connection);
   const payModels = payrollModels(connection);
   const User = userModel(connection);
   await provisionFinanceSources(connection);
+  await provisionEmployeeScheduling(connection);
   await Promise.all([
     User.createIndexes(),
     appModels.SitterApplication.createIndexes(),
     appModels.SitterApplicationAudit.createIndexes(),
     appModels.SitterStatus.createIndexes(),
-    schedModels.EmployeeVisitOffer.createIndexes(),
-    schedModels.EmployeeScheduleEvent.createIndexes(),
-    schedModels.EmployeeScheduleCommand.createIndexes(),
     ...Object.values(payModels).map(async (model) => {
       await model.createCollection();
       await model.createIndexes();
@@ -134,7 +135,143 @@ function makeApplicationService(contactCrypto, { requeueVisit } = {}) {
   });
 }
 
+async function seedScheduledVisit({ otherOffer = false } = {}) {
+  const [admin, staff, customer] = await userModel(connection).create(
+    ['ADMIN', 'STAFF', 'CUSTOMER'].map(role => ({
+      displayName: role, roles: [role], state: 'ACTIVE', authEpoch: 0, version: 0
+    }))
+  );
+  const suspended = await seedApprovedSitter({ email: 'scheduled-suspend@example.test', idSeed: 'scheduled' });
+  const otherSitter = otherOffer
+    ? await seedApprovedSitter({ email: 'scheduled-other@example.test', idSeed: 'other' })
+    : null;
+  const bookingId = oid();
+  const visitId = oid();
+  const startAt = new Date(NOW + 48 * 3600000);
+  const endAt = new Date(NOW + 49 * 3600000);
+  await connection.db.collection('bookings').insertOne({
+    _id: bookingId, customerId: customer._id, state: 'DISPATCH_PENDING', carePlanState: 'APPROVED',
+    paymentMode: 'PREPAY', paymentState: 'PAID', paymentSnapshot: { amountVnd: 150000 },
+    visitIds: [visitId], version: 1
+  });
+  await connection.db.collection('payments').insertOne({
+    bookingId, state: 'VERIFIED', receiptMoney: { amountVnd: 150000, currency: 'VND' }
+  });
+  const visit = {
+    _id: visitId, bookingId, customerId: customer._id, sitterId: null, state: 'SCHEDULED',
+    startAt, endAt, areaCode: 'cau-giay', version: 2, snapshots: { serviceName: 'Chăm sóc tại gia' }
+  };
+  await connection.db.collection('visits').insertOne(visit);
+  const { EmployeeVisitOffer } = employeeSchedulingModels(connection);
+  const offerData = {
+    visitId, state: 'PENDING', version: 0, offeredAt: new Date(NOW - 600000),
+    deadline: new Date(NOW + 3600000), startAt, endAt, serviceName: 'Chăm sóc tại gia', areaCode: 'cau-giay'
+  };
+  const offer = await EmployeeVisitOffer.create({ ...offerData, sitterId: String(suspended.sitterId) });
+  const remaining = otherSitter
+    ? await EmployeeVisitOffer.create({ ...offerData, sitterId: String(otherSitter.sitterId) })
+    : null;
+  return { admin, staff, suspended, otherSitter, visit, offer, remaining };
+}
+
+function schedulingRuntime(staff, autoDispatch) {
+  const module = employeeSchedulingRuntimeModule({
+    connection,
+    config: { auth: { enabled: true, tokenSecret: CURSOR_SECRET } },
+    clock: () => NOW,
+    coverageAreas: [],
+    env: { EMPLOYEE_SCHEDULING_ENABLED: 'true', EMPLOYEE_DISPATCH_AGENT_ENABLED: String(autoDispatch) },
+    sessionService: {
+      authenticate: async () => ({ userId: String(staff._id), roles: staff.roles, state: staff.state, expiresAt: NOW + 60000 }),
+      verifyCsrf: async () => false
+    }
+  });
+  const app = express();
+  app.use(module.mount, module.router);
+  return {
+    requeueVisit: module.dispatch.requeueVisit,
+    readBoard: async () => (await request(app).get(`${module.mount}/visit-board?tab=needs-action`).expect(200)).body.data
+  };
+}
+
+function suspendSitter({ admin, suspended, requeueVisit }) {
+  const service = makeApplicationService(suspended.contactCrypto, { requeueVisit });
+  return service.changeSitterStatus({
+    applicationId: String(suspended.application._id),
+    body: { action: 'SUSPEND', reason: 'Tạm ngưng người chăm sóc.', expectedVersion: 0 },
+    idempotencyKey: 'suspend-scheduled-offers-key',
+    actor: { userId: String(admin._id), roles: ['ADMIN'], state: 'ACTIVE' }
+  });
+}
+
 describe('UC-19 / GBR-04 / ST-CAS-12 suspending a pet sitter', () => {
+  test.each([false, true])('a paid visit 48 hours away recovers after losing its only offer (auto dispatch: %s)', async autoDispatch => {
+    const { admin, staff, suspended, visit, offer } = await seedScheduledVisit();
+    const { EmployeeVisitOffer, EmployeeScheduleEvent } = employeeSchedulingModels(connection);
+    const runtime = schedulingRuntime(staff, autoDispatch);
+    const requeueVisit = runtime.requeueVisit && jest.fn(async (...args) => {
+      expect(await EmployeeVisitOffer.findById(offer._id).lean()).toMatchObject({ state: 'REVOKED' });
+      return runtime.requeueVisit(...args);
+    });
+    expect((await runtime.readBoard()).items).toEqual([]);
+
+    await expect(suspendSitter({ admin, suspended, requeueVisit })).resolves.toMatchObject({
+      replayed: false, withdrawnOfferCount: 1, requeuedVisitCount: 1
+    });
+
+    expect(await EmployeeVisitOffer.findById(offer._id).lean()).toMatchObject({ state: 'REVOKED', version: 1 });
+    const saved = await connection.db.collection('visits').findOne({ _id: visit._id });
+    const visitId = String(visit._id);
+    const code = 'STAFF_REVIEW_REQUIRED';
+    expect(saved).toMatchObject({ state: 'SCHEDULED', sitterId: null, version: visit.version + 1, dispatchReview: { code, at: new Date(NOW) } });
+    expect((await runtime.readBoard()).items).toEqual([
+      expect.objectContaining({ id: visitId, reviewCode: code, reasons: expect.arrayContaining([expect.objectContaining({ code: 'NO_SITTER_TO_OFFER' })]) })
+    ]);
+    expect(await EmployeeScheduleEvent.find({ type: 'DispatchReviewRequired', visitId }).lean()).toEqual([
+      expect.objectContaining({ detail: { code, version: saved.version } })
+    ]);
+    expect(await connection.db.collection('notifications').countDocuments({
+      eventType: 'DispatchReviewRequired', recipientId: String(staff._id), 'metadata.visitId': visitId
+    })).toBe(1);
+    if (autoDispatch) {
+      expect(requeueVisit).toHaveBeenCalledTimes(1);
+      expect(requeueVisit.mock.calls[0].slice(0, 2)).toEqual([visitId, saved.version]);
+    }
+  });
+
+  test.each([false, true])('a paid visit keeps the other sitter’s pending offer (auto dispatch: %s)', async autoDispatch => {
+    const { admin, staff, suspended, visit, offer, remaining } = await seedScheduledVisit({ otherOffer: true });
+    const { EmployeeVisitOffer, EmployeeScheduleEvent } = employeeSchedulingModels(connection);
+    const runtime = schedulingRuntime(staff, autoDispatch);
+    const requeueVisit = jest.fn(runtime.requeueVisit);
+    const originalOffer = await EmployeeVisitOffer.findById(remaining._id).lean();
+
+    await expect(suspendSitter({ admin, suspended, requeueVisit: autoDispatch ? requeueVisit : undefined }))
+      .resolves.toMatchObject({ withdrawnOfferCount: 1, requeuedVisitCount: 0 });
+
+    expect(await EmployeeVisitOffer.findById(offer._id).lean()).toMatchObject({ state: 'REVOKED' });
+    expect(await EmployeeVisitOffer.findById(remaining._id).lean()).toEqual(originalOffer);
+    expect(await connection.db.collection('visits').findOne({ _id: visit._id })).toEqual(visit);
+    expect(await EmployeeScheduleEvent.countDocuments({ type: 'DispatchReviewRequired', visitId: String(visit._id) })).toBe(0);
+    expect(requeueVisit).not.toHaveBeenCalled();
+    expect((await runtime.readBoard()).items).toEqual([]);
+  });
+
+  test('concurrent suspensions of both invited sitters flag the visit once with auto dispatch off', async () => {
+    const { admin, staff, suspended, otherSitter, visit } = await seedScheduledVisit({ otherOffer: true });
+    const results = await Promise.all([
+      suspendSitter({ admin, suspended }),
+      suspendSitter({ admin, suspended: otherSitter })
+    ]);
+
+    expect(results.map(result => result.withdrawnOfferCount)).toEqual([1, 1]);
+    expect(results.map(result => result.requeuedVisitCount).sort()).toEqual([0, 1]);
+    expect(await connection.db.collection('visits').findOne({ _id: visit._id })).toMatchObject({
+      version: visit.version + 1, dispatchReview: { code: 'STAFF_REVIEW_REQUIRED' }
+    });
+    expect((await schedulingRuntime(staff, false).readBoard()).counts.needsAction).toBe(1);
+  });
+
   test('withdraws PENDING offers, releases unstarted ASSIGNED visits with handover flag and requeues them, while leaving IN_PROGRESS visits to finish', async () => {
     const db = connection.db;
     const schedModels = employeeSchedulingModels(connection);
