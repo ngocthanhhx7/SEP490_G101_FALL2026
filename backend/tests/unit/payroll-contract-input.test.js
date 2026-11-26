@@ -19,4 +19,15 @@ describe('SAL-IN-01 contractInput', () => {
     expect(code(() => contractInput(body({ contractReference: ' ' })))).toBe('VALIDATION_FAILED');
     expect(code(() => contractInput(body({ extra: true })))).toBe('VALIDATION_FAILED');
   });
+  test('ST-ONB-14 rejects endsAt on or before effectiveAt with fieldErrors.endsAt (MSG87)', () => {
+    for (const endsAt of ['2026-11-01T00:00:00Z', '2026-11-02T00:00:00Z']) {
+      let caught;
+      try { contractInput(body({ endsAt })); } catch (error) { caught = error; }
+      expect(caught).toMatchObject({
+        status: 422,
+        code: 'VALIDATION_FAILED',
+        details: { fieldErrors: { endsAt: 'Ngày kết thúc phải sau ngày bắt đầu.' } }
+      });
+    }
+  });
 });

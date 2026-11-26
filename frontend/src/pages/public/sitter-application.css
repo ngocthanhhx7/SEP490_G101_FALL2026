@@ -43,7 +43,7 @@
 .application-image-dialog img { width: 100%; max-height: 65dvh; object-fit: contain; }
 .sitter-application__upload input { width: 100%; min-width: 0; font: 400 12px/1.6 var(--pwc-font-body); color: #82768e; }
 .sitter-application__upload input::file-selector-button { padding: 8px 14px; border: 1px solid #e2d9ec; border-radius: 8px; background: white; color: #5c3283; font: 700 12px/1.6 var(--pwc-font-body); margin-right: 12px; cursor: pointer; }
-.sitter-application__error, .sitter-application__field small.sitter-application__error { color: #a52232; font-size: 12px; line-height: 1.6; }
+.sitter-application__error, .sitter-application__field small.sitter-application__error, .sitter-application__upload small.sitter-application__error { color: #a52232; font-size: 12px; line-height: 1.6; }
 .sitter-application__submit { width: 100%; min-height: 56px; border-radius: 99px; border: 0; background: #ffcd34; color: #2c0050; font-size: 16px; }
 .sitter-application__review-hint { margin: -12px 0 0; text-align: center; color: #82768e; font-size: 12px; line-height: 1.7; }
 .sitter-application__receipt { text-align: center; display: grid; gap: 16px; }

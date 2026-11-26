@@ -45,13 +45,14 @@ beforeEach(() => {
   loadPublicCatalog.mockResolvedValue({ data: { available: true, services: [{ id: 'walk', name: 'Dắt chó đi dạo' }, { id: 'visit', name: 'Ghé thăm và chơi cùng bé' }] } });
 });
 
-test('names the invalid identity side rather than the selected filename', async () => {
+test('shows MSG49 under the invalid identity side without disclosing the selected filename', async () => {
   const api = view();
   const page = await fillApplication();
   const input = page.getByLabelText(/^Mặt sau CCCD/);
   fireEvent.change(input, { target: { files: [new globalThis.File(['invalid'], 'private-filename.pdf', { type: 'application/pdf' })] } });
+  expect(await page.findByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.')).toBeVisible();
+  expect(page.queryByText(/private-filename\.pdf/)).not.toBeInTheDocument();
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
-  expect(await page.findByText(/Mặt sau CCCD phải là JPG hoặc PNG/)).toBeVisible();
   expect(api.uploadDocument).not.toHaveBeenCalled();
 });
 
@@ -132,8 +133,8 @@ test('file and required-field validation happens before any upload', async () =>
   const api = view();
   const page = await fillApplication();
   fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['fake'], 'not-supported.pdf', { type: 'application/pdf' })] } });
+  expect(await screen.findByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.')).toBeVisible();
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
-  expect(await screen.findByText('Mặt trước CCCD phải là JPG hoặc PNG, dung lượng từ 1 byte đến 5 MB.')).toBeVisible();
   expect(api.uploadDocument).not.toHaveBeenCalled();
 });
 
@@ -161,7 +162,7 @@ test('a rejected supporting image identifies that file without marking the ident
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   await waitFor(() => expect(page.getByLabelText(/^Ảnh chứng chỉ/)).toHaveFocus());
   expect(page.getByLabelText(/^Ảnh mặt trước CCCD/)).toHaveAttribute('aria-invalid', 'false');
-  expect(page.getAllByText(/Không đọc được chứng chỉ/).length).toBeGreaterThan(0);
+  expect(page.getAllByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.').length).toBeGreaterThan(0);
   expect(api.submit).not.toHaveBeenCalled();
 });
 
@@ -172,10 +173,10 @@ test('oversize pixel count blocks upload and server field errors focus their fie
   const image = page.getByRole('img', { name: 'Ảnh đã chọn: identity.png' });
   Object.defineProperties(image, { naturalWidth: { value: 3840, configurable: true }, naturalHeight: { value: 2160, configurable: true } });
   fireEvent.load(image);
-  expect(await page.findByText(/vượt 4 megapixel/)).toBeVisible();
+  expect(await page.findByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB và tối đa 4 megapixel.')).toBeVisible();
+  expect(page.queryByRole('img', { name: 'Ảnh đã chọn: identity.png' })).not.toBeInTheDocument();
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   expect(api.uploadDocument).not.toHaveBeenCalled();
-  fireEvent.click(page.getByRole('button', { name: 'Xóa identity.png' }));
   fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['replacement'], 'new.png', { type: 'image/png' })] } });
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   await waitFor(() => expect(page.getByLabelText(/^Khu vực mong muốn/)).toHaveFocus());

@@ -275,17 +275,34 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
 
     normalizeDocuments(body.documents, true);
-    const tooEarly = await Applicant.exists({
+    const pendingSelect = 'contactChannel +contactLookupKey +phoneLookupKey +identityLookupKey +activePendingContactKey +activePendingContactKeys +activePendingIdentityKey';
+    const pendingConflictField = row => {
+      if (!row) return null;
+      const keys = new Set([row.activePendingContactKey, ...(row.activePendingContactKeys ?? []), row.contactLookupKey, row.phoneLookupKey].filter(Boolean));
+      if (phone && keys.has(phone.lookupKey)) return 'phone';
+      if (keys.has(contact.lookupKey)) return contactChannel === 'PHONE' ? 'phone' : 'email';
+      if (row.activePendingIdentityKey === identityLookupKey || row.identityLookupKey === identityLookupKey) return 'identityNumber';
+      return null;
+    };
+    const tooEarly = await Applicant.findOne({
       $or: [{ contactLookupKey: { $in: contactKeys } }, { phoneLookupKey: { $in: contactKeys } }, { identityLookupKey }, ...(actor?.userId ? [{ ownerUserId: actor.userId }] : [])],
       state: 'REJECTED', reapplyAt: { $gt: new Date(now) }
-    });
-    if (tooEarly) throw new AppError(409, 'REAPPLY_NOT_AVAILABLE', 'An application cannot be submitted at this time');
-    const duplicate = await Applicant.exists({ $or: [
+    }).sort({ reapplyAt: -1 }).select('reapplyAt').lean();
+    if (tooEarly) {
+      throw new AppError(409, 'REAPPLY_NOT_AVAILABLE', 'An application cannot be submitted at this time',
+        tooEarly.reapplyAt ? { reapplyAt: tooEarly.reapplyAt.toISOString() } : {});
+    }
+    const duplicateFilter = { $or: [
       { activePendingContactKey: { $in: contactKeys } }, { activePendingIdentityKey: identityLookupKey },
       { activePendingContactKeys: { $in: contactKeys } },
       ...(actor?.userId ? [{ ownerUserId: actor.userId, state: { $in: ACTIVE_STATES } }] : [])
-    ] });
-    if (duplicate) throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time');
+    ] };
+    const duplicate = await Applicant.findOne(duplicateFilter).select(pendingSelect).lean();
+    if (duplicate) {
+      const conflictField = pendingConflictField(duplicate);
+      throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time',
+        conflictField ? { conflictField } : {});
+    }
     if (typeof privateMedia?.verifyApplicantDocuments !== 'function') {
       throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document storage is not configured');
     }
@@ -335,6 +352,13 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           trackingCodeDigest, submissionKeyDigest, submissionPayloadDigest
         }], { session });
         await applicationMail?.enqueue(created, session);
+        if (typeof connection.db?.collection === 'function') {
+          const admins = await User.find({ state: 'ACTIVE', roles: { $in: ['ADMIN'] }, synthetic: { $ne: true } })
+            .select('_id').session(session).lean();
+          await createDomainNotifications({ connection, clock }).applicationSubmitted({
+            applicationId: String(created._id), applicationCode, adminIds: admins.map(row => row._id)
+          }, session);
+        }
         await Audit.create([{
           actorRoles: [], action: 'APPLICATION_SUBMITTED', resourceId: created._id,
           occurredAt: new Date(now), state: 'PENDING', correlationId: correlationId ?? null
@@ -356,13 +380,11 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           { $set: { trackingCodeDigest } });
         return { id: replay._id.toString(), state: replay.state, submittedAt: replay.createdAt.toISOString(), applicationCode, replayed: true };
       }
-      const duplicatePending = await Applicant.exists({ $or: [
-        { activePendingContactKey: { $in: contactKeys } }, { activePendingIdentityKey: identityLookupKey },
-        { activePendingContactKeys: { $in: contactKeys } },
-      ...(actor?.userId ? [{ ownerUserId: actor.userId, state: { $in: ACTIVE_STATES } }] : [])
-      ] });
+      const duplicatePending = await Applicant.findOne(duplicateFilter).select(pendingSelect).lean();
       if (duplicatePending || error?.code === 11000) {
-        throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time');
+        const conflictField = pendingConflictField(duplicatePending);
+        throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time',
+          conflictField ? { conflictField } : {});
       }
       throw error;
     }
