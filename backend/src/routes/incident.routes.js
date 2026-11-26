@@ -112,6 +112,34 @@ export function createIncidentRouter({
   );
   router.get('/cases/:caseId/evidence/:mediaId/content', auth, read, readEvidence);
   router.post(
+    '/cases/:caseId/actions',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createCasesByCaseIdActions
+  );
+  router.post(
+    '/incidents/:incidentId/actions',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createIncidentsByIncidentIdActions
+  );
+  router.post(
+    '/cases/:caseId/suspension-proposals',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createCasesByCaseIdSuspensionProposals
+  );
+  router.post(
+    '/incidents/:incidentId/suspension-proposals',
+    auth,
+    operational,
+    csrf,
+    createIncidentController({ service }).createIncidentsByIncidentIdSuspensionProposals
+  );
+  router.post(
     '/cases/:caseId/resolutions',
     auth,
     operational,

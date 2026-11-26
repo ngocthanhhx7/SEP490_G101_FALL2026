@@ -1,6 +1,6 @@
 import { metadata } from '../utils/app-error.js';
 import { id } from '../validators/pet-care.validator.js';
-import { availabilityInput, workAreasInput, decisionInput, proposalConfirmationInput, withdrawalInput } from '../validators/employee-scheduling.validator.js';
+import { availabilityInput, workAreasInput, decisionInput, declineInput, proposalConfirmationInput, withdrawalInput } from '../validators/employee-scheduling.validator.js';
 
 export function createEmployeeSchedulingController({ repository, dispatch, carePlans, proposals, origins, visitTravelEnabled }) {
   const send = (req, res, data) => res.json({ data, meta: metadata(req) });
@@ -19,7 +19,11 @@ export function createEmployeeSchedulingController({ repository, dispatch, careP
     offer: async (req, res) => send(req, res, await dispatch.offers.detail(req.auth, req.params.id)),
     assignments: async (req, res) => send(req, res, await dispatch.offers.assignments(req.auth, req.query)),
     accept: async (req, res) => send(req, res, await dispatch.offers.accept(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),
-    decline: async (req, res) => send(req, res, await dispatch.offers.decline(req.auth, id(req.params.id), decisionInput(req.body).expectedVersion, req.get('idempotency-key'))),
+    decline: async (req, res) => {
+      const input = declineInput(req.body);
+      return send(req, res, await dispatch.offers.decline(req.auth, id(req.params.id), input.expectedVersion,
+        req.get('idempotency-key'), { reasonCode: input.reasonCode, ...(input.note ? { note: input.note } : {}) }));
+    },
     withdrawalOptions: async (req, res) => send(req, res, await dispatch.withdrawals.options(req.auth, id(req.params.id))),
     withdraw: async (req, res) => send(req, res, await dispatch.withdrawals.submit(req.auth, id(req.params.id),
       withdrawalInput(req.body), req.get('idempotency-key'))),
