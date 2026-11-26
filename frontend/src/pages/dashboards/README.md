@@ -20,5 +20,6 @@ The sitter list does not claim availability or auto-create a booking. Payroll is
 only and all financial commands remain in P41. Visuals are PROVISIONAL without Figma.
 
 `SaleStaffDashboardPage` is the Sale Staff overview (UC-94). Its three order
-counts link to matching Order Management tabs. It reads on entry, shows actual
-zero counts, and provides a retry when the read fails.
+counts link to matching Order Management tabs, and its low-stock product count
+links to Stock List on the `LOW_STOCK` tab (`/admin/stock?tab=LOW_STOCK`). It
+reads on entry, shows actual zero counts, and provides a retry when the read fails.

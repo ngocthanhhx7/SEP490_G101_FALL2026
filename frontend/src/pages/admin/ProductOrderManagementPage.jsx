@@ -4,7 +4,9 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { Notice, Button, Pagination } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
 import { MarkReturningDialog, ConfirmReturnedDialog } from '../../components/product/OrderReturnDialogs.jsx';
-import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_RETURN_REASON_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
+import {
+  PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_RETURN_REASON_LABELS, PRODUCT_TIER_LABELS, PRODUCT_DELIVERED_BY_LABELS
+} from '../../constants/product-labels.js';
 import { formatOrderDateTime, formatPhone, formatVnd, isUncertainOutcome, productErrorText, productMessage } from '../../utils/product-format.js';
 import { formatCashTime } from '../../utils/counter-sale-format.js';
 import '../../components/product/product-shop.css';
@@ -201,6 +203,9 @@ function OrderDetail({ order, busy, run, api, paymentCancelled, onRefresh, onCle
       {order.paymentMethod === 'PREPAID' && order.paymentDeadlineAt && !order.paid && order.status === 'PLACED'
         && <><dt>Hạn thanh toán</dt><dd>{formatOrderDateTime(order.paymentDeadlineAt)}</dd></>}
       {order.trackingCode && <><dt>Mã vận đơn</dt><dd>{order.trackingCode}</dd></>}
+      {order.status === 'DELIVERED' && order.deliveredBy && (
+        <><dt>Xác nhận giao</dt><dd>{PRODUCT_DELIVERED_BY_LABELS[order.deliveredBy] ?? order.deliveredBy}</dd></>
+      )}
       {order.carrierReturnReason && <><dt>Lý do của hãng</dt><dd>{order.carrierReturnReason}</dd></>}
       {order.returnReason && <><dt>Lý do hoàn về</dt><dd>{PRODUCT_RETURN_REASON_LABELS[order.returnReason] ?? order.returnReason}</dd></>}
       {order.returnNote && <><dt>Ghi chú</dt><dd>{order.returnNote}</dd></>}

@@ -17,6 +17,13 @@ const prepaid = (over = {}) => ({ id: ID, code: 'DH-0040', createdAt: '2026-11-2
   lines: [line], subtotal: 420000, shippingFee: 25000, total: 445000, ...over });
 const PAY = 'Thanh toán qua payOS';
 
+if (window.HTMLDialogElement && !window.HTMLDialogElement.prototype.showModal) {
+  window.HTMLDialogElement.prototype.showModal = function showModal() { this.setAttribute('open', ''); };
+}
+if (window.HTMLDialogElement && !window.HTMLDialogElement.prototype.close) {
+  window.HTMLDialogElement.prototype.close = function close() { this.removeAttribute('open'); };
+}
+
 function LocationProbe() {
   const location = useLocation();
   return <div data-testid="location-probe">{`${location.pathname}${location.search}|${JSON.stringify(location.state)}`}</div>;
@@ -27,6 +34,10 @@ function showOrders(ordersOrOne, { path = '/customer/product-orders', createPaym
   const api = { getCart: jest.fn().mockResolvedValue({ data: { lines: [], lineCount: 0 } }),
     listOrders: jest.fn().mockResolvedValue({ data: list, meta: { page: { page: 1, limit: 20, total: list.length, totalPages: 1 } } }),
     getOrder: jest.fn().mockImplementation((id) => Promise.resolve({ data: list.find((item) => item.id === id) ?? list[0] })),
+    confirmReceived: jest.fn().mockImplementation((id) => {
+      const target = list.find((item) => item.id === id) ?? list[0];
+      return Promise.resolve({ ...target, status: 'DELIVERED', paid: true, deliveredBy: 'CUSTOMER', autoDeliverAt: null });
+    }),
     createPaymentLink: createPaymentLink ?? jest.fn().mockRejectedValue({ code: 'PAYMENT_PROVIDER_UNAVAILABLE', status: 503 }) };
   render(<MemoryRouter initialEntries={[path]}><SessionProvider adapter={adapter}><ProductCartProvider api={api}>
     <MyProductOrdersPage api={api} /><LocationProbe /></ProductCartProvider></SessionProvider></MemoryRouter>);
@@ -137,6 +148,30 @@ describe('My Orders, payment in advance', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Đóng thông báo' }));
     expect(screen.queryByText('Đơn hàng DH-0040 đã được đặt.')).not.toBeInTheDocument();
   });
+
+  test('C: in-transit delivery shows auto-confirm date, MSG156, asks MSG166, confirms received and shows MSG167 toast', async () => {
+    const inTransit = prepaid({ paymentMethod: 'COD', paid: false, status: 'HANDED_TO_CARRIER',
+      trackingCode: 'VN-7788', autoDeliverAt: '2026-12-03T05:00:00.000Z' });
+    const api = showOrders(inTransit);
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0040' });
+    expect(within(detail).getByText('Tự xác nhận đã nhận vào 03/12/2026.')).toBeVisible();
+    expect(within(detail).getByText('Đơn này không thể huỷ nữa.')).toBeVisible();
+    expect(within(detail).queryByRole('button', { name: 'Huỷ đơn' })).not.toBeInTheDocument();
+    fireEvent.click(within(detail).getByRole('button', { name: 'Đã nhận hàng' }));
+    const dialog = screen.getByRole('dialog', { name: 'Xác nhận đã nhận đơn DH-0040' });
+    expect(within(dialog).getByText('Bạn đã nhận đủ đơn DH-0040? Sau khi xác nhận, đơn chuyển sang Đã giao hàng.')).toBeVisible();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận đã nhận hàng' }));
+    await waitFor(() => expect(api.confirmReceived).toHaveBeenCalledWith(ID));
+    const toast = await screen.findByText('Đã xác nhận nhận đơn DH-0040.');
+    expect(toast.closest('[role="status"]')).toBeVisible();
+  });
+
+  test('C: non-transit orders hide the Received button and auto-confirm hint', async () => {
+    showOrders(prepaid({ paymentMethod: 'COD', paid: true, status: 'DELIVERED', deliveredBy: 'CUSTOMER', autoDeliverAt: null }));
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0040' });
+    expect(within(detail).queryByRole('button', { name: 'Đã nhận hàng' })).not.toBeInTheDocument();
+    expect(within(detail).queryByText(/Tự xác nhận đã nhận vào/)).not.toBeInTheDocument();
+  });
 });
 
 describe('Order Management, prepaid orders', () => {
@@ -164,5 +199,16 @@ describe('Order Management, prepaid orders', () => {
     showAdmin(admin({ paid: true }));
     expect(await screen.findByRole('button', { name: 'Đã giao cho hãng vận chuyển' })).toBeEnabled();
     expect(screen.queryByRole('button', { name: 'Đã thu tiền' })).not.toBeInTheDocument();
+  });
+
+  test.each([
+    ['CUSTOMER', 'Khách hàng xác nhận'],
+    ['STAFF', 'Sale Staff xác nhận'],
+    ['SYSTEM', 'Hệ thống tự động xác nhận sau 7 ngày']
+  ])('C: Order Management shows who confirmed delivery (%s)', async (deliveredBy, label) => {
+    showAdmin(admin({ status: 'DELIVERED', paid: true, paymentMethod: 'COD', deliveredBy }));
+    const detail = await screen.findByRole('complementary', { name: 'Chi tiết đơn DH-0040' });
+    expect(within(detail).getByText('Xác nhận giao')).toBeVisible();
+    expect(within(detail).getByText(label)).toBeVisible();
   });
 });
