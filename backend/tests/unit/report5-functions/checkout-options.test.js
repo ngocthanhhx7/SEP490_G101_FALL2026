@@ -23,7 +23,10 @@ function subject() {
     users: { find: () => ({ toArray: async () => [{ _id: '222222222222222222222222', displayName: 'Người chăm sóc mẫu' }] }) },
     sitterstatuses: { find: () => ({ toArray: async () => [{ userId: '222222222222222222222222' }] }) },
   };
-  const connection = { models, db: { collection: name => collections[name] ?? { aggregate, distinct } } };
+  const connection = { models, model: name => (models[name] ??= { modelName: name,
+    collection: { countDocuments: async () => 0 } }),
+  db: { collection: name => collections[name] ?? { aggregate, distinct,
+    find: () => ({ limit: () => ({ toArray: async () => [] }) }) } } };
   const options = createBookingCheckoutService({ connection }).options;
   return { options, aggregate, distinct, sitters };
 }

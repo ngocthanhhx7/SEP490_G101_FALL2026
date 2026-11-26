@@ -140,7 +140,9 @@ function fixture({ count = 1, serviceOptions = {} } = {}) {
   models.Pet.find.mockImplementation(filter => query(matches(pet, filter) ? [pet] : []));
   models.CustomerAddress.findOne.mockImplementation(filter => query(matches(address, filter) ? address : null));
   for (const name of ['sitterpublicprofiles', 'users', 'sitterstatuses']) collection(name).findOne.mockResolvedValue({});
-  const connection = { models, model: jest.fn(() => { throw new Error('Unexpected model registration'); }),
+  const connection = { models, model: jest.fn(name => (models[name] ??= {
+    modelName: name, collection: { countDocuments: jest.fn(async () => 0) }
+  })),
     db: { collection: jest.fn(collection) }, transaction: jest.fn(async work => work(session)) };
   const provider = { createPaymentLink: jest.fn(async () => ({ checkoutUrl: 'https://pay.payos.vn/web/synthetic-link',
     orderCode: Number(intent.providerReference), amount: intent.amountVnd, currency: 'VND', paymentLinkId: 'synthetic-link' })) };

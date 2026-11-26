@@ -802,7 +802,7 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
     .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'late-customer-rating-8days')
     .send({ rating: 4, expectedVersion: completed.version });
   expect(afterSevenDays.status).toBe(409);
-  expect(afterSevenDays.body.error.code).toBe('RATING_WINDOW_EXPIRED');
+  expect(afterSevenDays.body.error.code).toBe('REVIEW_WINDOW_EXPIRED');
   at += 60000;
   reviewNow = at;
   const rate = () => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)

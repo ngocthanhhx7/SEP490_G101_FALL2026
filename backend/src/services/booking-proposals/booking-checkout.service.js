@@ -292,7 +292,19 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
       if (!intent) fail('RESOURCE_NOT_FOUND', 'Payment intent unavailable', 404);
       if (!provider || !webOrigin) fail('PAYMENT_PROVIDER_UNAVAILABLE', 'Payment link provider is unavailable', 503);
       let claimedRetry = false;
-      if (intent.linkState || intent.checkoutUrl) {
+      if (intent.linkState === 'FAILED' && !intent.checkoutUrl && !intent.paymentLinkId) {
+        // A deterministic rejection occurred before the provider accepted the
+        // request. Unlike an uncertain result, retry may claim this attempt
+        // without a payOS lookup, but must retain the original submission
+        // marker and guard concurrent retries with an atomic state transition.
+        const failed = intent;
+        intent = await col('paymentintents').findOneAndUpdate({ _id: failed._id, state: 'PENDING',
+          linkState: 'FAILED', linkRequestedAt: failed.linkRequestedAt },
+        { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
+        if (!intent) fail('COMMAND_PENDING', 'Payment link state changed while retrying', 409);
+        claimedRetry = true;
+      }
+      if (!claimedRetry && (intent.linkState || intent.checkoutUrl)) {
         // An in-flight create may not yet be visible to payOS GET. A 404 is
         // never permission to clear its submission markers or launch another
         // POST while the original request can still complete.
