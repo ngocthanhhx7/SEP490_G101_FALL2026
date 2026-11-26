@@ -727,8 +727,58 @@ test('JOB-03 defers an attempted payOS link on lookup 404 instead of assuming no
   const bookingId = new mongoose.Types.ObjectId(booking.id);
   const intent = await connection.collection('paymentintents').findOne({ bookingId });
   await connection.collection('paymentintents').updateOne({ _id: intent._id },
+    { $set: { linkState: 'RECONCILIATION_REQUIRED', linkRequestedAt: at } });
+  const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => intent.expiresAt.getTime() + 1000 }).runBatch();
+  expect(result).toMatchObject({ expired: 0, deferred: 1 });
+  expect(lookup).toHaveBeenCalledWith(Number(intent.providerReference));
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('AWAITING_PAYMENT');
+  expect((await connection.collection('paymentintents').findOne({ _id: intent._id })).state).toBe('PENDING');
+});
+
+test('checkout recovers a stale unpublished claim using the same payOS order code', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'recover-stale-unpublished-link');
+  const intent = await connection.collection('paymentintents').findOne({ bookingId: new mongoose.Types.ObjectId(booking.id) });
+  await connection.collection('paymentintents').updateOne({ _id: intent._id },
+    { $set: { linkState: 'CREATING', linkRequestedAt: at } });
+  const recovered = createBookingCheckoutService({ connection, clock: () => at.getTime() + 61_000,
+    webOrigin: 'http://127.0.0.1:5188', provider: {
+      getPaymentLink: async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; },
+      createPaymentLink: provider.createPaymentLink
+    } });
+  expect((await recovered.paymentLink(owner, booking.id, 'recover-stale-before-expiry')).checkoutUrl)
+    .toContain('https://pay.payos.vn/web/');
+  expect(provider.createPaymentLink).toHaveBeenLastCalledWith(expect.objectContaining({
+    orderCode: Number(intent.providerReference), expiredAt: Math.floor(+intent.expiresAt / 1000)
+  }));
+});
+
+test('JOB-03 expires a stale unpublished claim after deadline and a payOS 404', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-crashed-claim');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  const intent = await connection.collection('paymentintents').findOne({ bookingId });
+  await connection.collection('paymentintents').updateOne({ _id: intent._id },
     { $set: { linkState: 'CREATING', linkRequestedAt: at } });
   const lookup = jest.fn(async () => { throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } }; });
+  const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
+    clock: () => intent.expiresAt.getTime() + 1000 }).runBatch();
+  expect(result).toMatchObject({ expired: 1, deferred: 0 });
+  expect(lookup).toHaveBeenCalledWith(Number(intent.providerReference));
+  expect((await connection.collection('bookings').findOne({ _id: bookingId })).state).toBe('PAYMENT_EXPIRED');
+  expect((await connection.collection('paymentintents').findOne({ _id: intent._id })).state).toBe('EXPIRED');
+});
+
+test('JOB-03 keeps a stale unpublished claim when payOS confirms money received', async () => {
+  const q = await quote('home-care', 1);
+  const booking = await checkout.confirm(owner, input(q), 'booking-expiry-crashed-after-post');
+  const bookingId = new mongoose.Types.ObjectId(booking.id);
+  const intent = await connection.collection('paymentintents').findOne({ bookingId });
+  await connection.collection('paymentintents').updateOne({ _id: intent._id },
+    { $set: { linkState: 'CREATING', linkRequestedAt: at } });
+  const lookup = jest.fn(async orderCode => ({ orderCode, amount: intent.amountVnd, amountPaid: intent.amountVnd, providerStatus: 'PAID' }));
   const result = await createBookingPaymentExpiryService({ connection, provider: { getPaymentLink: lookup },
     clock: () => intent.expiresAt.getTime() + 1000 }).runBatch();
   expect(result).toMatchObject({ expired: 0, deferred: 1 });

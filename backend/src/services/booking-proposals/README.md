@@ -89,3 +89,11 @@ has actually failed and the intent is `RECONCILIATION_REQUIRED`, a confirmed
 404 permits one atomic compare-and-set claim back to `CREATING`, retaining the
 submission marker and original provider order code. A racing retry cannot
 create another link or make JOB-03 misclassify the intent as never submitted.
+
+A link-creation claim with no published URL or provider link ID becomes eligible
+for recovery after 60 seconds, beyond the configured payOS HTTP timeout. A
+retry first looks up the original order code. A provider 404 can retry the
+same code before the original deadline. After the deadline, JOB-03 can close
+a stale unpublished claim on 404, provided the intent and booking still
+match and no verified or unresolved receipt exists. A response can publish
+a URL only if the original claim still owns a pending intent before expiry.

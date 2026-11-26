@@ -1,3 +1,4 @@
+import { canRecoverUnpublishedAttempt, isMissingPayosLink } from './booking-payment-attempt.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { assertFinanceSourceStorage } from '../settlements/source-provisioning.js';
 import { digest } from '../../validators/pet-care.validator.js';
@@ -19,6 +20,7 @@ const safeRemote = (intent, remote) => remote?.orderCode === Number(intent.provi
   remote.amountPaid === 0 && NOT_PAID_AT_PROVIDER.has(remote.providerStatus);
 const unchanged = (before, row) => before && before.version === row.version && before.state === row.state &&
   before.providerReference === row.providerReference && before.amountVnd === row.amountVnd &&
+  before.expiresAt?.getTime() === row.expiresAt?.getTime() &&
   before.providerTerminalStatus === row.providerTerminalStatus && before.linkState === row.linkState &&
   before.linkRequestedAt?.getTime() === row.linkRequestedAt?.getTime() &&
   before.checkoutUrl === row.checkoutUrl && before.paymentLinkId === row.paymentLinkId;
@@ -64,7 +66,12 @@ export function createBookingPaymentExpiryService({ connection, provider, clock 
         try {
           const remote = await provider.getPaymentLink(Number(intent.providerReference));
           if (!safeRemote(intent, remote)) verified = false;
-        } catch { verified = false; }
+        } catch (error) {
+          // The old owner can no longer publish a link after this intent is
+          // expired. A 404 is usable here only for an unpublished, stale claim.
+          verified = canRecoverUnpublishedAttempt(intent, asOf) && intent.expiresAt instanceof Date
+            && intent.expiresAt <= asOf && isMissingPayosLink(error);
+        }
         if (!verified) break;
       }
       if (!verified) {
