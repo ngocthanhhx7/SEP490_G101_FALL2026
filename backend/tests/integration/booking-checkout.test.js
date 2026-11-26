@@ -644,18 +644,35 @@ test('ST-BKG-14 blocks a new home booking for a handed-back grooming amount stil
   await connection.db.collection('groomingappointments').deleteMany({ customerId: ownerId });
 });
 
-test('ST-BKG-12 accepts 30 occupied Vietnam calendar days and rejects 31 with MSG20', async () => {
+test('ST-BKG-12 allows 01/12 to 31/12 (30-day difference) and rejects 01/12 to 01/01 with MSG20', async () => {
   const q = await quote('home-care', 2);
   const allowed = input(q);
   allowed.visits[0].startAt = '2026-12-01T09:00:00+07:00';
-  allowed.visits[1].startAt = '2026-12-30T09:00:00+07:00';
+  allowed.visits[1].startAt = '2026-12-31T09:00:00+07:00';
   const created = await checkout.confirm(owner, allowed, 'booking-span-30-days');
   expect(created.id).toBeTruthy();
+
   const nextQuote = await quote('home-care', 2);
   const rejected = input(nextQuote);
   rejected.visits[0].startAt = '2026-12-01T09:00:00+07:00';
-  rejected.visits[1].startAt = '2026-12-31T09:00:00+07:00';
+  rejected.visits[1].startAt = '2027-01-01T09:00:00+07:00';
   await expect(checkout.confirm(owner, rejected, 'booking-span-31-days'))
+    .rejects.toMatchObject({ code: 'MSG20' });
+});
+
+test('ST-BKG-12 enforces 30-day calendar boundary regardless of time of day (01/12 08:00 -> 31/12 18:00 ok, -> 01/01 07:00 MSG20)', async () => {
+  const q = await quote('home-care', 2);
+  const allowed = input(q);
+  allowed.visits[0].startAt = '2026-12-01T08:00:00+07:00';
+  allowed.visits[1].startAt = '2026-12-31T18:00:00+07:00';
+  const created = await checkout.confirm(owner, allowed, 'booking-span-30-days-diff-hours');
+  expect(created.id).toBeTruthy();
+
+  const nextQuote = await quote('home-care', 2);
+  const rejected = input(nextQuote);
+  rejected.visits[0].startAt = '2026-12-01T08:00:00+07:00';
+  rejected.visits[1].startAt = '2027-01-01T07:00:00+07:00';
+  await expect(checkout.confirm(owner, rejected, 'booking-span-31-days-diff-hours'))
     .rejects.toMatchObject({ code: 'MSG20' });
 });
 

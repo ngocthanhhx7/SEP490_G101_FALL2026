@@ -274,3 +274,11 @@ test('monthly draft skips missing dates, accepts a visit removal and confirms th
   await waitFor(() => expect(api.confirm).toHaveBeenCalled());
   expect(api.confirm.mock.calls[0][0].visits.map(row => row.startAt)).toEqual(['2098-01-31T03:15:00.000Z', '2098-05-31T03:15:00.000Z']);
 });
+
+test('ST-BKG-12 shows MSG20 message when confirm rejects a booking longer than 30 days', async () => {
+  const api = fixture();
+  api.confirm.mockRejectedValueOnce({ status: 422, code: 'MSG20' });
+  await chooseSchedule(api);
+  await reviewAndConfirm();
+  expect(await screen.findByText('Một lịch đặt kéo dài tối đa 30 ngày.')).toBeVisible();
+});

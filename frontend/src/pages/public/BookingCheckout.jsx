@@ -81,7 +81,7 @@ export function BookingCheckoutForm({ quote, services, api, onConfirmed, recomme
           const local = new Date(date.getTime() + 7 * 3600000);
           return Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) / 86400000;
         };
-        if (vietnamDay(last) - vietnamDay(first) >= 30) {
+        if (vietnamDay(last) - vietnamDay(first) > 30) {
           setError('Một lịch đặt kéo dài tối đa 30 ngày.');
           return;
         }
