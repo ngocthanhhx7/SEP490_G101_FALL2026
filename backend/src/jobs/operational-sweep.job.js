@@ -149,8 +149,8 @@ export function calculateOfferDeadline({ offeredAt, visitStartAt } = {}) {
   const visitStart = toInstant(visitStartAt, 'visitStartAt');
   const timeToVisit = visitStart.getTime() - offered.getTime();
   if (timeToVisit <= 0) throw new TypeError('visitStartAt must be after offeredAt');
-  const lifetime = timeToVisit < DAY_MS ? 30 * MINUTE_MS : 2 * HOUR_MS;
-  return new Date(offered.getTime() + lifetime).toISOString();
+  const lifetime = timeToVisit <= DAY_MS ? 30 * MINUTE_MS : 2 * HOUR_MS;
+  return new Date(Math.min(visitStart.getTime(), offered.getTime() + lifetime)).toISOString();
 }
 
 /** True only while a pending offer is strictly before its persisted deadline. */

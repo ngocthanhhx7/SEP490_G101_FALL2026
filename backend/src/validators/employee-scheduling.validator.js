@@ -12,12 +12,37 @@ export function withdrawalInput(value) {
   const note = value.note?.trim();
   return { expectedVersion, expectedMode, reasonCode, ...(note ? { note } : {}) };
 }
+function validCalendarDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return Number.isFinite(dt.getTime()) && dt.toISOString().slice(0, 10) === value;
+}
 export function availabilityInput(value) {
   exact(value, ['zone', 'workingWindows', 'effectiveFrom', 'expectedVersion'], ['zone', 'workingWindows', 'effectiveFrom', 'expectedVersion']);
+  if (typeof value.zone !== 'string' || !['Asia/Saigon', 'Asia/Ho_Chi_Minh'].includes(value.zone)) {
+    fail('VALIDATION_FAILED', 'Supported Vietnam timezone required');
+  }
+  if (!Array.isArray(value.workingWindows)) fail('VALIDATION_FAILED', 'workingWindows must be an array');
+  for (const win of value.workingWindows) {
+    exact(win, ['weekday', 'startLocalTime', 'endLocalTime'], ['weekday', 'startLocalTime', 'endLocalTime']);
+    number(win.weekday, 1, 7, true);
+    if (typeof win.startLocalTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(win.startLocalTime)
+      || typeof win.endLocalTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(win.endLocalTime)) {
+      fail('VALIDATION_FAILED', 'Invalid working window time');
+    }
+  }
+  if (!validCalendarDate(value.effectiveFrom)) fail('VALIDATION_FAILED', 'Valid effectiveFrom calendar date required');
+  number(value.expectedVersion, 0, Number.MAX_SAFE_INTEGER, true);
   return value;
 }
 export function workAreasInput(value) {
-  exact(value, ['areas', 'expectedVersion'], ['areas', 'expectedVersion']); return value;
+  exact(value, ['areas', 'expectedVersion'], ['areas', 'expectedVersion']);
+  if (!Array.isArray(value.areas) || value.areas.some(code => typeof code !== 'string' || !code.trim())) {
+    fail('VALIDATION_FAILED', 'areas must be an array of non-empty strings');
+  }
+  number(value.expectedVersion, 0, Number.MAX_SAFE_INTEGER, true);
+  return value;
 }
 export function invitationInput(value) {
   exact(value, ['expectedVersion', 'sitterId'], ['expectedVersion']);

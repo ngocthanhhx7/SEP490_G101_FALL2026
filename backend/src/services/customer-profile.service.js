@@ -4,7 +4,7 @@ import { ACCOUNT_ROLES } from '../constants/account-roles.js';
 
 const VERSION = Number.MAX_SAFE_INTEGER;
 const USER_ID = /^[a-f\d]{24}$/i;
-const profileFields = 'displayName version createdAt updatedAt +familyAndMiddleName +givenName +birthDate +gender';
+const profileFields = 'displayName version createdAt updatedAt +familyAndMiddleName +givenName +birthDate +gender +emergencyContact';
 
 function actorId(actor, role) {
   if (actor?.state !== 'ACTIVE' || !isSingleRole(actor.roles)
@@ -32,6 +32,7 @@ function profileView(user, contacts) {
     givenName: user.givenName ?? null,
     birthDate: user.birthDate ?? null,
     gender: user.gender ?? null,
+    ...(user.emergencyContact !== undefined ? { emergencyContact: user.emergencyContact } : {}),
     contacts: Object.freeze(contacts.map(contact => Object.freeze({
       channel: contact.channel,
       maskedValue: maskContact(contact.channel, contact.value),
@@ -43,14 +44,30 @@ function profileView(user, contacts) {
   });
 }
 
-function normalizeDisplayName(value) {
-  if (typeof value !== 'string') return null;
-  const normalized = value.normalize('NFC').replace(/[\s\u00a0]+/gu, ' ').trim();
-  if (!normalized || normalized.length > 100 || /[\u0000-\u001f\u007f]/u.test(normalized)) return null;
+function normalizeNamePart(value, { min = 2, max = 50 } = {}) {
+  if (typeof value !== 'string' || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value)) return null;
+  const nfc = value.normalize('NFC');
+  if (/[^\p{L} \t\r\n\u00a0]/u.test(nfc)) return null;
+  const normalized = nfc.replace(/[\s\u00a0]+/gu, ' ').trim();
+  if (normalized.length < min || normalized.length > max) return null;
   return normalized;
 }
 
-const allowedKeys = new Set(['displayName', 'expectedVersion', 'familyAndMiddleName', 'givenName', 'birthDate', 'gender']);
+function normalizeEmergencyContact(value) {
+  if (value === null) return null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const keys = Object.keys(value);
+  if (keys.length !== 3 || keys.some(k => !['name', 'phone', 'relationship'].includes(k))) return undefined;
+  const name = normalizeNamePart(value.name, { min: 2, max: 50 });
+  const phone = typeof value.phone === 'string' ? value.phone.trim() : '';
+  const relationship = typeof value.relationship === 'string' ? value.relationship.trim() : '';
+  if (!name || !/^(?:0\d{9}|\+84\d{9})$/.test(phone) || !relationship || relationship.length > 40 || /[\x00-\x1f\x7f]/.test(relationship)) {
+    return undefined;
+  }
+  return { name, phone, relationship };
+}
+
+const allowedKeys = new Set(['displayName', 'expectedVersion', 'familyAndMiddleName', 'givenName', 'birthDate', 'gender', 'emergencyContact']);
 const genders = new Set([null, 'MALE', 'FEMALE', 'OTHER', 'UNDISCLOSED']);
 const todayInVietnam = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 
@@ -63,13 +80,13 @@ function fieldsFor(input, now) {
   const structured = Object.hasOwn(input, 'givenName') || Object.hasOwn(input, 'familyAndMiddleName');
   if (structured) {
     if (Object.hasOwn(input, 'displayName')) throw invalidProfile();
-    values.familyAndMiddleName = normalizeDisplayName(input.familyAndMiddleName);
-    values.givenName = normalizeDisplayName(input.givenName);
+    values.familyAndMiddleName = normalizeNamePart(input.familyAndMiddleName, { min: 1, max: 50 });
+    values.givenName = normalizeNamePart(input.givenName, { min: 1, max: 50 });
     if (!values.familyAndMiddleName || !values.givenName) throw invalidProfile();
-    values.displayName = normalizeDisplayName(`${values.familyAndMiddleName} ${values.givenName}`);
+    values.displayName = normalizeNamePart(`${values.familyAndMiddleName} ${values.givenName}`, { min: 2, max: 50 });
     if (!values.displayName) throw invalidProfile();
   } else if (Object.hasOwn(input, 'displayName')) {
-    values.displayName = normalizeDisplayName(input.displayName);
+    values.displayName = normalizeNamePart(input.displayName, { min: 2, max: 50 });
     if (!values.displayName) throw invalidProfile();
   }
   if (Object.hasOwn(input, 'birthDate')) {
@@ -85,6 +102,11 @@ function fieldsFor(input, now) {
   if (Object.hasOwn(input, 'gender')) {
     if (!genders.has(input.gender)) throw invalidProfile();
     values.gender = input.gender;
+  }
+  if (Object.hasOwn(input, 'emergencyContact')) {
+    const emergency = normalizeEmergencyContact(input.emergencyContact);
+    if (emergency === undefined) throw invalidProfile();
+    values.emergencyContact = emergency;
   }
   if (Object.keys(values).length === 0) throw invalidProfile();
   return values;

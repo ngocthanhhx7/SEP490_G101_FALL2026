@@ -194,10 +194,7 @@ export function createCareInstructionsService({ repository, clock = () => new Da
   async function readInstructions({ actor, visitId } = {}) {
     return inTransaction(actor, visitId, async tx => {
       const visit = await getVisit(tx, visitId);
-      const access = await authorizeRead(actor, visit, tx, visitId);
-      if (access.assigned && visit.handoverRequired === true && visit.handoverAccepted !== true) {
-        fail(403, 'HANDOVER_REQUIRED', 'Confirm the visit handover before reading the replacement snapshot');
-      }
+      await authorizeRead(actor, visit, tx, visitId);
       const record = typeof tx.getCareInstructions === 'function' ? await tx.getCareInstructions(visitId) : null;
       const history = typeof tx.listCareInstructionHistory === 'function' ? await tx.listCareInstructionHistory(visitId) : record?.history;
       return publicView({ visitId, record, history, actor, visit, now: nowValue(clock), includeHistory: role(actor, 'CUSTOMER') || operational(actor) });
@@ -290,7 +287,9 @@ export function createCareInstructionsService({ repository, clock = () => new Da
       if (!role(actor, 'PET_SITTER') || sitterIdOf(visit) !== actor.userId) fail(404, 'RESOURCE_NOT_FOUND', 'Visit not found');
       const now = nowValue(clock);
       if (instant(visit.startAt) - now > ACCESS_WINDOW_MS) fail(403, 'ACCESS_WINDOW_CLOSED', 'Access notes are available from one hour before the visit');
-      if (visit.endAt && now >= instant(visit.endAt)) fail(403, 'ACCESS_REVOKED', 'Access notes are no longer available');
+      if (visit.state === 'COMPLETED' || (visit.checkOutAt !== null && visit.checkOutAt !== undefined) || (visit.endAt && now >= instant(visit.endAt))) {
+        fail(403, 'ACCESS_REVOKED', 'Access notes are no longer available');
+      }
       if (visit.handoverRequired === true && visit.handoverAccepted !== true) fail(403, 'HANDOVER_REQUIRED', 'Confirm the visit handover before viewing access notes');
       if (typeof tx.getCareInstructions !== 'function') {
         fail(503, 'CARE_INSTRUCTIONS_UNAVAILABLE', 'Care instruction acknowledgement is unavailable');

@@ -77,10 +77,22 @@ export async function releaseAssignedVisitForHandover({
 //    (or flagged for Staff Needs Action when automatic dispatch is off).
 // 3. Leave IN_PROGRESS visits untouched so the pet sitter finishes them first.
 export async function releaseSuspendedSitterWork({ connection, sitterId, actorId, reason, at, session, autoRequeue = true }) {
-  const models = employeeSchedulingModels(connection);
-  const col = name => connection.db.collection(name);
   const sitterIdStr = String(sitterId);
   const sitterOid = oid(sitterIdStr);
+  if (typeof connection?.model !== 'function') {
+    const visitsCol = connection?.db?.collection?.('visits');
+    if (typeof visitsCol?.updateMany === 'function') {
+      const handover = flagVisitHandover(sitterOid, at, { reasonCode: 'SITTER_SUSPENDED' });
+      await visitsCol.updateMany(
+        { sitterId: sitterOid, state: 'ASSIGNED', checkInAt: null },
+        { $set: { state: 'SCHEDULED', sitterId: null, ...handover.set }, $inc: { version: 1 } },
+        { session }
+      );
+    }
+    return { withdrawnOfferCount: 0, requeueTargets: [] };
+  }
+  const models = employeeSchedulingModels(connection);
+  const col = name => connection.db.collection(name);
   const notifications = createSchedulingNotifications({ col, clock: () => at.getTime() });
 
   const pendingOffers = await models.EmployeeVisitOffer.find({ sitterId: sitterIdStr, state: 'PENDING' })
