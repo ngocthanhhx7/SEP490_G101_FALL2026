@@ -649,6 +649,18 @@ test('ST-BKG-14 blocks a new home booking for a handed-back grooming amount stil
   await connection.db.collection('groomingappointments').deleteMany({ customerId: ownerId });
 });
 
+test('ST-BKG-14 refuses a home booking at an address outside the open service areas', async () => {
+  const q = await quote();
+  await connection.collection('customeraddresses').updateOne({ _id: address._id }, { $set: { areaCode: 'SYNTHETIC_CLOSED_AREA' } });
+  try {
+    await expect(checkout.confirm(owner, input(q), 'closed-area-block-001'))
+      .rejects.toMatchObject({ code: 'ADDRESS_OUT_OF_SERVICE_AREA', status: 422 });
+    expect(await connection.collection('bookings').countDocuments()).toBe(0);
+  } finally {
+    await connection.collection('customeraddresses').updateOne({ _id: address._id }, { $set: { areaCode: 'DISTRICT_HAI_BA_TRUNG' } });
+  }
+});
+
 test('ST-BKG-12 allows 01/12 to 31/12 (30-day difference) and rejects 01/12 to 01/01 with MSG20', async () => {
   const q = await quote('home-care', 2);
   const allowed = input(q);
