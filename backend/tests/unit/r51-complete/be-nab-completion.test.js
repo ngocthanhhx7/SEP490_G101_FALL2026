@@ -405,7 +405,7 @@ describe('Backend N/A/B Matrix Completion & Explicit Function Codes', () => {
       findOne: () => { throw new Error('tx conflict'); }
     };
     const expiry = createProductOrderExpiryService({ connection: wrapConn({ ProductOrder }), clock: () => NOW_MS });
-    await expect(expiry.runBatch()).resolves.toEqual({ cancelled: 0, failed: 1, kept: 0 });
+    await expect(expiry.runBatch()).resolves.toEqual({ cancelled: 0, delivered: 0, failed: 1, kept: 0 });
   });
   test('SHOP-ELIG-01-UTCID02 [A] throws 503 PRODUCT_TIER_INVALID when stored tier is corrupted', async () => {
     const elig = createProductPricingEligibility({

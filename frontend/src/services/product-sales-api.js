@@ -5,6 +5,7 @@ const CATEGORIES = ['FOOD', 'ACCESSORY'];
 const PET_TYPES = ['DOG', 'CAT'];
 const RECEIVE_METHODS = ['DELIVERY', 'PICKUP'];
 const PAYMENT_METHODS = ['COD', 'PAY_AT_SHOP', 'PREPAID'];
+const DELIVERED_BY_VALUES = ['CUSTOMER', 'STAFF', 'SYSTEM'];
 // The only page a payment link may open: payOS's own checkout (GBR-36). Anything else is not followed.
 const PAYOS_CHECKOUT = /^https:\/\/pay\.payos\.vn\/web\//u;
 const money = (value) => Number.isSafeInteger(value) && value >= 0;
@@ -34,7 +35,9 @@ function checkOrder(order) {
     || !Array.isArray(order.lines) || !money(order.subtotal) || !money(order.shippingFee) || !money(order.total)
     || (order.tierDiscount !== undefined && (!money(order.tierDiscount) || order.tierDiscount > order.subtotal
       || order.total !== order.subtotal - order.tierDiscount + order.shippingFee))
-    || (order.paymentDeadlineAt !== undefined && order.paymentDeadlineAt !== null && !text(order.paymentDeadlineAt))) invalid();
+    || (order.paymentDeadlineAt !== undefined && order.paymentDeadlineAt !== null && !text(order.paymentDeadlineAt))
+    || (order.autoDeliverAt !== undefined && order.autoDeliverAt !== null && !text(order.autoDeliverAt))
+    || (order.deliveredBy !== undefined && order.deliveredBy !== null && !DELIVERED_BY_VALUES.includes(order.deliveredBy))) invalid();
   return order;
 }
 function notPending(response) {
@@ -115,6 +118,34 @@ export function createProductSalesApi(options) {
       const response = await request(`/product-orders?page=${page}&limit=${limit}`, { signal });
       if (!Array.isArray(response.data?.items)) invalid();
       return { ...response, data: response.data.items.map(checkOrder), meta: { ...response.meta, page: readPagination(response.data) } };
+    },
+    async cancelOrder(orderId, { expectedVersion, idempotencyKey } = {}) {
+      const body = expectedVersion !== undefined ? { expectedVersion } : {};
+      const response = notPending(await request(`/product-orders/${encodeURIComponent(orderId)}/cancel`, {
+        method: 'POST',
+        body,
+        ...(idempotencyKey ? { idempotencyKey } : {})
+      }));
+      return checkOrder(response.data);
+    },
+    async confirmReceived(orderId) {
+      const response = notPending(await request(`/product-orders/${id(orderId)}/confirm-received`, { method: 'POST', body: {} }));
+      return checkOrder(response.data);
+    },
+    // Admin "Order refunds" tab on Refund Processing (online orders marked for accounting refund).
+    async listOrderRefunds({ signal, page = 1, limit = 20 } = {}) {
+      const response = await request(`/admin/product-orders/refunds?page=${page}&limit=${limit}`, { signal });
+      if (!Array.isArray(response.data?.items)) invalid();
+      const items = response.data.items.map((item) => {
+        checkOrder(item);
+        if (item.refundMarked !== true || !money(item.refundAmountVnd)) invalid();
+        return item;
+      });
+      return {
+        ...response,
+        data: { items, total: readPagination(response.data).total },
+        meta: { ...response.meta, page: readPagination(response.data) }
+      };
     }
   };
 }

@@ -16,7 +16,7 @@ beforeEach(() => {
 beforeEach(() => {
   globalThis.fetch = jest.fn(async (url) => ({ ok: true, status: 200, json: async () => ({
     data: url === '/api/v1/dashboards/sale-staff'
-      ? { counts: { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 } }
+      ? { counts: { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0, LOW_STOCK: 0 } }
       : { unreadCount: 0, items: [] },
     meta: { schemaVersion: 1 }
   }) }));

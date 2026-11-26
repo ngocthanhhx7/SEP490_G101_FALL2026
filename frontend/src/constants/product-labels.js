@@ -26,3 +26,8 @@ export const PRODUCT_RETURN_REASON_LABELS = Object.freeze({
   CARRIER_UNDELIVERABLE: 'Hãng không giao được',
   SHOP_FAULT: 'Paw World giao sai hoặc hàng lỗi'
 });
+export const PRODUCT_DELIVERED_BY_LABELS = Object.freeze({
+  CUSTOMER: 'Khách hàng xác nhận',
+  STAFF: 'Sale Staff xác nhận',
+  SYSTEM: 'Hệ thống tự động xác nhận sau 7 ngày'
+});
