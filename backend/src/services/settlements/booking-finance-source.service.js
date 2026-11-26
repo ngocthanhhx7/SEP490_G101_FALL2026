@@ -314,6 +314,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             .map(({ kind, mediaId }) => ({ kind, mediaId })),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
           checklistItemIds: visit.snapshots?.checklistItemIds ?? null,
+          ...(!visit.snapshots?.workflow && visit.customerNote ? { customerNote: visit.customerNote } : {}),
           checklist: (visit.checklist ?? []).map(({ itemId, status, reason }) => ({ itemId, status, ...(reason ? { reason } : {}) })) };
       });
     },

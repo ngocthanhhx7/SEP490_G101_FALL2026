@@ -57,7 +57,8 @@ function ContractDialog({ data, api, onClose, onSaved }) {
     <p>{data.displayName}</p>
     <p>Ghi nhận thông tin từ hợp đồng đã ký. Hợp đồng chỉ có hiệu lực trong khoảng thời gian đã xác minh.</p>
     {message && <Notice state="error" title="Chưa lưu hợp đồng">{message}</Notice>}
-    <EmployeeContractForm employeeId={data.id} expectedVersion={data.contractVersion} busy={busy} locked={locked} onSave={save} />
+    <EmployeeContractForm employeeId={data.id} expectedVersion={data.contractVersion} preferredEmploymentType={data.application?.employmentType}
+      busy={busy} locked={locked} onSave={save} />
   </Dialog>;
 }
 

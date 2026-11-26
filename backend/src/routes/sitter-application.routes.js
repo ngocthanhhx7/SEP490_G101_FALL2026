@@ -151,6 +151,9 @@ export function sitterApplicationModule({
       .createByApplicationIdDecisions
   );
 
+  router.patch('/:applicationId/assessment', ...admin, csrf,
+    createSitterApplicationController({ service }).updateByApplicationIdAssessment);
+
   router.post(
     '/:applicationId/sitter-status',
     ...admin,

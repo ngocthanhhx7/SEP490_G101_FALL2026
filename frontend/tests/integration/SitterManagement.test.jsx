@@ -110,6 +110,21 @@ test('Admin records a contract for the selected sitter with the server version a
   expect(payroll.contract.mock.calls[0][0]).toMatchObject({ employeeId: id, expectedVersion: 3 });
   await waitFor(() => expect(api.get).toHaveBeenCalledTimes(3));
 });
+
+test('ST-ONB-04 starts with the applicant preference and still lets the Admin record a different type', async () => {
+  const api = fixture(), data = (await api.get()).data;
+  api.get.mockResolvedValue({ data: { ...data, employmentType: 'FULL_TIME', application: { ...data.application, employmentType: 'PART_TIME' } } });
+  mount(api, true, { contract: jest.fn() });
+  await screen.findByText('Kinh nghiệm mẫu');
+  fireEvent.click(screen.getByRole('button', { name: 'Năng lực và hợp đồng' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Xác minh hợp đồng đã ký' }));
+  const type = screen.getByLabelText('Hình thức làm việc');
+  expect(type).toHaveValue('PART_TIME');
+  expect(screen.getByLabelText('Lương gross/tháng (VND)')).toHaveValue('3000000');
+  fireEvent.change(type, { target: { value: 'FULL_TIME' } });
+  expect(screen.getByLabelText('Lương gross/tháng (VND)')).toHaveValue('10000000');
+});
+
 test('selected sitter reaches invitation command and cannot replace customer directed choice', async () => {
   const invite = jest.fn().mockResolvedValue({ data: { state: 'PENDING' } }), api = { invite,
     plans: async () => ({ data: { items: [] } }), queue: async () => ({ data: { items: [

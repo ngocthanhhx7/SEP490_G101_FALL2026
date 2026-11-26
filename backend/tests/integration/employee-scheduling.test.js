@@ -149,13 +149,20 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'IN_PROGRESS', checkInAt: new Date(clock()), checkOutAt: null });
   const mediaOut = await upload('synthetic-private-care-out');
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-out-before-checklist')).send({ expectedVersion: checkedIn.body.data.version, mediaId: mediaOut }).expect(409);
+  const checklist = { expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] };
+  await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-note-invalid'))
+    .send({ ...checklist, customerNote: 'x'.repeat(2001) }).expect(422);
+  const customerNote = 'Milo đã ăn hết phần ăn và uống đủ nước.';
   const saved = await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-care'))
-    .send({ expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] }).expect(200);
+    .send({ ...checklist, customerNote: ` ${customerNote} ` }).expect(200);
   current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
+  expect(current.customerNote).toBe(customerNote);
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'COMPLETED', checkOutAt: new Date(clock()) });
-  expect((await checkout.read(customer, String(row.bookingId))).state).toBe('COMPLETED');
+  const report = await checkout.read(customer, String(row.bookingId));
+  expect(report.state).toBe('COMPLETED');
+  expect(report.details.visits[0].customerNote).toBe(customerNote);
   await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
   expect(stored.size).toBe(2);
   const finalRead = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-final')).expect(200)).body.data;

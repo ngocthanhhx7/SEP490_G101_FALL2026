@@ -4,8 +4,8 @@ import { useApiResource } from '../../hooks/useApiResource.js';
 import { Button } from '../ui/index.js';
 import { FileCheck2 } from 'lucide-react';
 
-export function EmployeeContractForm({ employeeId, expectedVersion = 0, busy, locked = false, onSave, loadEmployee }) {
-  const [employmentType, setEmploymentType] = useState('FULL_TIME');
+export function EmployeeContractForm({ employeeId, expectedVersion = 0, preferredEmploymentType, busy, locked = false, onSave, loadEmployee }) {
+  const [chosenEmploymentType, setChosenEmploymentType] = useState(null);
   const [draftEmployeeId, setDraftEmployeeId] = useState(employeeId ?? '');
   const load = useCallback(async ({ signal }) => {
     if (!loadEmployee || !/^[a-f0-9]{24}$/i.test(draftEmployeeId)) return { data: null };
@@ -15,6 +15,8 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, busy, lo
   const selected = employee.data?.id === draftEmployeeId && employee.data?.permissions?.manageContract
     && Number.isSafeInteger(employee.data?.contractVersion) ? employee.data : null;
   const version = loadEmployee ? selected?.contractVersion ?? '' : expectedVersion;
+  const preference = loadEmployee ? selected?.application?.employmentType : preferredEmploymentType;
+  const employmentType = chosenEmploymentType ?? (preference === 'PART_TIME' ? 'PART_TIME' : 'FULL_TIME');
   async function submit(event) {
     event.preventDefault();
     if (busy || (!locked && loadEmployee && !selected)) return;
@@ -29,17 +31,19 @@ export function EmployeeContractForm({ employeeId, expectedVersion = 0, busy, lo
       workplaceReference: data.get('workplaceReference'),
       ...(data.get('endsAt') ? { endsAt: `${data.get('endsAt')}T00:00:00+07:00` } : {})
     };
-    if (await onSave(body)) { form.reset(); setEmploymentType('FULL_TIME'); }
+    if (await onSave(body)) { form.reset(); setChosenEmploymentType(null); }
   }
   return <form onSubmit={submit}>
     <fieldset className="payroll-form employee-contract-fields" disabled={busy || locked}>
       <legend>Thông tin hợp đồng đã ký</legend>
-      <PayrollField label="Mã nhân viên" name="employeeId" pattern="[a-fA-F0-9]{24}" maxLength={24} value={draftEmployeeId} onChange={event => setDraftEmployeeId(event.target.value.trim())} readOnly={Boolean(employeeId)} />
+      <PayrollField label="Mã nhân viên" name="employeeId" pattern="[a-fA-F0-9]{24}" maxLength={24} value={draftEmployeeId}
+        onChange={event => { setDraftEmployeeId(event.target.value.trim()); setChosenEmploymentType(null); }} readOnly={Boolean(employeeId)} />
       {loadEmployee ? <PayrollField label="Phiên bản hợp đồng hiện tại" name="expectedVersion" type="number" value={version} readOnly />
         : <PayrollField label="Phiên bản hợp đồng hiện tại" name="expectedVersion" type="number" min="0" step="1" defaultValue={expectedVersion} readOnly={Boolean(employeeId)} />}
       {loadEmployee && <p role="status">{selected ? `Nhân viên: ${selected.displayName}` : employee.status === 'loading' ? 'Đang kiểm tra hồ sơ nhân viên…' : 'Nhập mã Pet Sitter đã được duyệt để tải phiên bản hợp đồng.'}</p>}
       {loadEmployee && ['error', 'forbidden'].includes(employee.status) && <p role="alert">Không tải được hồ sơ nhân viên. <button type="button" onClick={employee.retry}>Tải lại hồ sơ</button></p>}
-      <label className="payroll-field"><span>Hình thức làm việc</span><select value={employmentType} onChange={event => setEmploymentType(event.target.value)}>
+      <label className="payroll-field"><span>Hình thức làm việc</span><select value={employmentType}
+        disabled={Boolean(loadEmployee && !selected)} onChange={event => setChosenEmploymentType(event.target.value)}>
         <option value="FULL_TIME">Toàn thời gian</option><option value="PART_TIME">Bán thời gian</option>
       </select></label>
       <PayrollField label="Lương gross/tháng (VND)" name="monthlyBaseVnd" value={employmentType === 'FULL_TIME' ? 10000000 : 3000000} readOnly />

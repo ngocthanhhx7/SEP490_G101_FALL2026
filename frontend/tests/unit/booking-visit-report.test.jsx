@@ -8,10 +8,11 @@ test('customer report lazily opens real saved checklist and bound photos, then d
   const read=jest.fn().mockResolvedValue({blob:new globalThis.Blob(['sample'],{type:'image/png'})});
   const visit={id:'visit',startAt:'2026-11-12T14:00:00Z',endAt:'2026-11-12T14:15:00Z',sitterName:'Sitter1',checkInAt:'2026-11-12T13:58:00Z',
     checklist:[{itemId:'scope',label:'Cắt móng an toàn',status:'DONE'},{itemId:'condition',label:'Kiểm tra tình trạng',status:'SKIPPED',reason:'Chủ nuôi yêu cầu kiểm tra sau'}],
-    evidence:[{kind:'CHECK_IN',mediaId:'a'.repeat(64)}]};
+    evidence:[{kind:'CHECK_IN',mediaId:'a'.repeat(64)}],customerNote:'Milo uống đủ nước.'};
   render(<BookingVisitReport visit={visit} readEvidence={read}/>);expect(read).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button',{name:'Xem báo cáo và ảnh'}));
   expect(await screen.findByText('Cắt móng an toàn')).toBeVisible();expect(screen.getByText(/Chủ nuôi yêu cầu kiểm tra sau/)).toBeVisible();
+  expect(screen.getByText('Milo uống đủ nước.')).toBeVisible();
   expect(await screen.findByRole('button',{name:'Xem trước Ảnh check-in'})).toBeVisible();
   fireEvent.click(screen.getByRole('button',{name:'Đóng'}));await waitFor(()=>expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:customer-care'));
 });

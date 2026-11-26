@@ -38,6 +38,20 @@ test('checklist requires a reason for skipped work and sends only the current vi
     items: [{ itemId: 'pet-condition', status: 'SKIPPED', reason: 'Cần bác sĩ kiểm tra theo yêu cầu chủ nuôi' }] }, expect.any(String)));
 });
 
+test('ST-BKG-08 sends the optional customer note with the checklist save', async () => {
+  const api = { execution: jest.fn().mockResolvedValue({ data: { visitId: 'visit', version: 5, state: 'IN_PROGRESS',
+    checklistItemIds: ['pet-condition'], checklist: [], customerNote: 'Ghi chú đã lưu' } }),
+  executeVisit: jest.fn().mockResolvedValue({ data: {} }) };
+  render(<VisitExecution api={api} visitId="visit" />);
+  const note = await screen.findByLabelText('Ghi chú cho khách');
+  expect(note).toHaveValue('Ghi chú đã lưu');
+  fireEvent.change(note, { target: { value: 'Milo uống đủ nước.' } });
+  fireEvent.change(screen.getByLabelText('Kiểm tra tình trạng thú cưng'), { target: { value: 'DONE' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Lưu nội dung chăm sóc' }));
+  await waitFor(() => expect(api.executeVisit).toHaveBeenCalledWith('visit', 'checklists', { expectedVersion: 5,
+    items: [{ itemId: 'pet-condition', status: 'DONE' }], customerNote: 'Milo uống đủ nước.' }, expect.any(String)));
+});
+
 test('proposal route identity changes discard prior selection and confirmation operation', async () => {
   const proposal = id => ({ id, bookingId: 'booking', version: 0, state: 'PENDING_CUSTOMER_CONFIRMATION', slots: [{ startAt: '2026-11-20T02:00:00Z', endAt: '2026-11-20T03:00:00Z' }] });
   const api = { confirmProposal: jest.fn().mockRejectedValue({ code: 'TIMEOUT' }) };

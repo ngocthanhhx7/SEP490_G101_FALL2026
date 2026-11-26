@@ -13,10 +13,11 @@ const labels = { 'service-scope': 'Thực hiện nội dung dịch vụ', 'pet-c
 const states = { ASSIGNED: 'Đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn thành', STAFF_CLOSED: 'Buổi đã được điều phối đóng', CANCELLED: 'Buổi đã hủy' };
 export function VisitExecution({ api, visitId, onChanged }) {
   const active = useRef(visitId), upload = useRef(null), input = useRef(null);
-  useEffect(() => { active.current = visitId; upload.current = null; setFile(null); setItems({}); return () => { active.current = null; }; }, [visitId]);
+  useEffect(() => { active.current = visitId; upload.current = null; setFile(null); setItems({}); setCustomerNote(null); return () => { active.current = null; }; }, [visitId]);
   const load = useCallback(({ signal }) => api.execution(visitId, { signal }), [api, visitId]);
   const resource = useApiResource(load);
   const [file, setFile] = useState(null), [items, setItems] = useState({}), [fileError, setFileError] = useState('');
+  const [customerNote, setCustomerNote] = useState(null);
   const [time, setTime] = useState(Date.now());
   useEffect(() => {
     if (!resource.data) return undefined;
@@ -27,7 +28,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
     return () => globalThis.clearInterval(timer);
   }, [resource.data]);
   function clearFile() { setFile(null); setFileError(''); upload.current = null; if (input.current) input.current.value = ''; }
-  const command = useSchedulingCommand(() => { clearFile(); setItems({}); resource.retry(); onChanged?.(); });
+  const command = useSchedulingCommand(() => { clearFile(); setItems({}); setCustomerNote(null); resource.retry(); onChanged?.(); });
   const row = resource.data, locked = command.busy || command.pending;
   const opensAt = row?.checkInOpensAt ?? (Number.isFinite(Date.parse(row?.startAt)) ? new Date(Date.parse(row.startAt) - 1800000).toISOString() : null);
   const early = row?.state === 'ASSIGNED' && opensAt && time < Date.parse(opensAt);
@@ -89,8 +90,13 @@ export function VisitExecution({ api, visitId, onChanged }) {
           <textarea maxLength={1000} value={item.reason ?? ''} onChange={event => setItems(value => ({ ...value, [id]: { ...item, reason: event.target.value } }))} />
         </label>}</div>;
       })}
+      <label>Ghi chú cho khách
+        <textarea rows={3} maxLength={2000} value={customerNote ?? row.customerNote ?? ''}
+          onChange={event => setCustomerNote(event.target.value)} />
+      </label>
       <Button disabled={!complete || locked} onClick={() => {
-        const payload = { expectedVersion: row.version, items: required.map(id => { const item = current(id); return { itemId: id, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }; }) };
+        const payload = { expectedVersion: row.version, items: required.map(id => { const item = current(id); return { itemId: id, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }; }),
+          ...(customerNote !== null ? { customerNote } : {}) };
         command.execute(key => api.executeVisit(visitId, 'checklists', payload, key));
       }}><Check size={18} />Lưu nội dung chăm sóc</Button>
     </fieldset>}

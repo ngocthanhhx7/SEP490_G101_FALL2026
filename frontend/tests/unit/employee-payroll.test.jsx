@@ -101,7 +101,8 @@ test('Admin verifies contract with explicit workplace and approved monthly gross
 
 test('Admin contract form resolves the selected employee and version instead of accepting a guessed version', async () => {
   const api = apiFixture(), employeeApi = { get: jest.fn().mockResolvedValue({ data: {
-    id: employeeId, displayName: 'Synthetic employee', contractVersion: 0, permissions: { manageContract: true }
+    id: employeeId, displayName: 'Synthetic employee', contractVersion: 0, permissions: { manageContract: true },
+    application: { employmentType: 'PART_TIME' }
   } }) };
   render(<EmployeePayrollAdminPage api={api} employeeApi={employeeApi} />);
   await screen.findByText('Không có đề nghị chờ xử lý.');
@@ -109,12 +110,15 @@ test('Admin contract form resolves the selected employee and version instead of 
   expect(form.querySelector('button[type=submit]')).toBeDisabled();
   fireEvent.change(form.elements.employeeId, { target: { value: employeeId } });
   await screen.findByText('Nhân viên: Synthetic employee');
+  expect(screen.getByLabelText('Hình thức làm việc')).toHaveValue('PART_TIME');
+  fill('Hình thức làm việc', 'FULL_TIME');
   expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveValue(0);
   expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveAttribute('readonly');
   fill('Phút làm việc mỗi tuần', '2400'); fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-30');
   fill('Mã hồ sơ hợp đồng đã ký', 'synthetic-signed'); fill('Vùng lương nơi làm việc', '1'); fill('Phường/xã và căn cứ xác định vùng', 'Synthetic workplace');
   fireEvent.submit(form);
-  await waitFor(() => expect(api.contract).toHaveBeenCalledWith(expect.objectContaining({ employeeId, expectedVersion: 0 }), expect.any(String)));
+  await waitFor(() => expect(api.contract).toHaveBeenCalledWith(expect.objectContaining({ employeeId, expectedVersion: 0,
+    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000 }), expect.any(String)));
 });
 
 test.each([{ pending: true }, { data: { id: employeeId, version: 4 } }, { data: null }])('contract transport rejects unconfirmed acknowledgement %j', async result => {

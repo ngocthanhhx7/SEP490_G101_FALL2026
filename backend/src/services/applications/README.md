@@ -10,6 +10,14 @@ Documents use the shared image decoder with a separate ApplicantDocument collect
 
 Admin approval creates the Pet Sitter User transactionally after the existing interview/signed-contract gates. `application-onboarding.service.js` resolves an approved application for LOGIN OTP; the contact becomes VERIFIED only after successful OTP proof. The existing authenticated ownership/edit adapter remains available for historical applications and approved users.
 
+UC-18 assessment is stored on `sitterapplications.assessment`. The versioned
+Admin assessment command saves the four checklist values during review or
+interview, and accepts call time and outcome during interview. A complete
+checklist is required to enter interview. Approval also requires a recorded
+call and a passing result. The assessment revision is independent of the
+application revision referenced by the signed contract. Only Admin detail
+returns assessment values. Saves use the existing transactional audit store.
+
 The authenticated intake includes applicant-visible rejectionReason and server-clock
 canReapply. Registration never decides cooldown eligibility from the device clock;
 refreshing the receipt reloads intake, then remounts the form only when allowed.

@@ -139,6 +139,11 @@ export function createSitterApplicationAdminApi({
         method: 'POST', body: { expectedVersion }, idempotencyKey: keyFactory(), signal
       });
     },
+    saveAssessment({ applicationId, expectedVersion, expectedAssessmentVersion, checklist, callAt, outcome, idempotencyKey = keyFactory(), signal }) {
+      return request(`/applications/${encodeURIComponent(applicationId)}/assessment`, {
+        method: 'PATCH', body: { expectedVersion, expectedAssessmentVersion, checklist, callAt, outcome }, idempotencyKey, signal
+      });
+    },
     decide({ applicationId, action, reason, interviewNote, expectedVersion, signal }) {
       return request(`/applications/${encodeURIComponent(applicationId)}/decisions`, {
         method: 'POST', body: { action, reason, interviewNote, expectedVersion }, idempotencyKey: keyFactory(), signal
