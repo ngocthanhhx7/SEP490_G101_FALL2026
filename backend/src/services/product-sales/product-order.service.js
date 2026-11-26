@@ -16,6 +16,11 @@ import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
 const HOUR_MS = 3_600_000;
 const customerRefundChanges = (order) => PRODUCT_PREPAID_PAYMENT_METHODS.includes(order.paymentMethod) && order.paid
   ? { refundMarked: true, refundAmountVnd: productOrderRefundAmount(order) } : {};
+const providerRefs = (order) => order?.payment?.providerReferences ?? [];
+const sameProviderReferences = (a, b) => {
+  const left = providerRefs(a), right = providerRefs(b);
+  return left.length === right.length && left.every((ref, index) => ref === right[index]);
+};
 
 export function toOrderView(doc) {
   return {
@@ -189,11 +194,23 @@ export function createProductOrderService({
       if (String(current.customerId) !== customerId) throw productSalesErrors.forbidden();
       if (key && current.status === 'CANCELLED' && current.cancelIdempotencyKey === key) return toOrderView(current);
       if (current.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(current.status);
+      if (input.expectedVersion !== undefined && current.version !== input.expectedVersion) {
+        throw productSalesErrors.versionConflict('order');
+      }
 
-      // Reconcile payOS first if a prepaid payment link was opened, so a payment that already succeeded is never lost.
-      if (current.paymentMethod === 'PREPAID' && !current.paid && current.payment?.providerReferences?.length > 0 && payments) {
+      // Always verify unpaid orders with payOS when a payment link exists (matches Sale Staff cancel):
+      // missing/failing payOS throws 503 and RECONCILE throws 409; PAID reloads the settled order before cancelling with full refund (GBR-37).
+      let checked = current;
+      if (!current.paid) {
         const outcome = await checkProductPayment(current, payments);
-        if (outcome !== 'PAID') requireUnpaidProductOutcome(outcome);
+        if (outcome === 'PAID') {
+          const settled = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).lean();
+          if (!settled || !settled.paid) throw productSalesErrors.orderStateConflict(settled?.status ?? current.status);
+          if (settled.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(settled.status);
+          checked = settled;
+        } else {
+          requireUnpaidProductOutcome(outcome);
+        }
       }
 
       const cancelled = await unitOfWork.run(async (session) => {
@@ -201,12 +218,19 @@ export function createProductOrderService({
         if (!order) throw productSalesErrors.notFound();
         if (key && order.status === 'CANCELLED' && order.cancelIdempotencyKey === key) return order;
         if (order.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(order.status);
-        if (input.expectedVersion !== undefined && order.version !== input.expectedVersion) {
+        if (order.version !== checked.version || order.paid !== checked.paid || !sameProviderReferences(order, checked)) {
           throw productSalesErrors.versionConflict('order');
         }
         const now = new Date(clock());
         const updated = await ProductOrder.findOneAndUpdate(
-          { _id: id, customerId, channel: { $ne: COUNTER_CHANNEL }, status: 'PLACED', version: order.version },
+          {
+            _id: id,
+            customerId,
+            channel: { $ne: COUNTER_CHANNEL },
+            status: 'PLACED',
+            version: checked.version,
+            paid: checked.paid
+          },
           {
             $set: {
               status: 'CANCELLED',
@@ -222,7 +246,8 @@ export function createProductOrderService({
         if (!updated) {
           const latest = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).session(session).lean();
           if (key && latest?.status === 'CANCELLED' && latest.cancelIdempotencyKey === key) return latest;
-          throw productSalesErrors.orderNotCancellable(latest?.status ?? order.status);
+          if (latest?.status && latest.status !== 'PLACED') throw productSalesErrors.orderNotCancellable(latest.status);
+          throw productSalesErrors.versionConflict('order');
         }
         for (const line of [...order.lines].sort((a, b) => String(a.productId).localeCompare(String(b.productId)))) {
           const applied = await Product.updateOne(
