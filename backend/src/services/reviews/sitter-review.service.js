@@ -194,7 +194,9 @@ export function createSitterReviewService({
       );
     if (
       decision.visibility !== 'ROLE_SCOPED' ||
-      !['SUBMITTED', 'PUBLISHED', 'WITHHELD'].includes(decision.reviewState)
+      !['SUBMITTED', 'PUBLISHED', 'WITHHELD'].includes(decision.reviewState) ||
+      !Array.isArray(decision.decisionIds) ||
+      decision.decisionIds.length === 0
     ) {
       fail(
         409,

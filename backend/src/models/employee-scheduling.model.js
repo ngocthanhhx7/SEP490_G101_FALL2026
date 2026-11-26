@@ -10,7 +10,8 @@ export function employeeSchedulingModels(connection) {
   const command = new Schema({ _id: String, fingerprint: String, result: Schema.Types.Mixed, createdAt: Date }, options);
   const offer = new Schema({ visitId: Schema.Types.ObjectId, sitterId: String, state: String, version: Number,
     offeredAt: Date, deadline: Date, startAt: Date, endAt: Date, serviceName: String, areaCode: String,
-    pets: [Schema.Types.Mixed], decidedAt: Date, originRouteRequired: Boolean,
+    pets: [Schema.Types.Mixed], decidedAt: Date, declineReasonCode: String, declineNote: String,
+    originRouteRequired: Boolean,
     featureSnapshot: { type: Schema.Types.Mixed, select: false } }, options);
   offer.index({ sitterId: 1, _id: -1 });
   offer.index({ visitId: 1, state: 1, deadline: 1 });

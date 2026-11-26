@@ -4,6 +4,10 @@ import { APPEAL_WINDOW_MS, COMPLAINT_SCHEMA_VERSION, complaintFinalAt, complaint
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const complaintCode = id => 'KN-' + String(id).replaceAll('-', '').slice(0, 12).toUpperCase();
+export const incidentCode = id => {
+  const clean = String(id ?? '').replaceAll('-', '').toUpperCase();
+  return 'SC-' + (clean.length > 12 ? clean.slice(-12) : clean);
+};
 const iso = value => instant(value)?.toISOString() ?? null;
 
 function imageRefs(refs) {
@@ -51,7 +55,8 @@ export function safeComplaint(record, actor, asOf, { customerPhone, billing } = 
     summary: result, amountVnd, recordedAt: iso(record.resultDeliveredAt ?? record.resolution?.recordedAt ?? record.decision?.recordedAt),
     ...(sitter ? { actionsTaken: record.resolution?.actionsTaken ?? null } : {})
   } : null;
-  const common = { id, kind: 'COMPLAINT', visitId, version, description,
+  const caseKind = record.kind === 'INCIDENT' ? 'INCIDENT' : 'COMPLAINT';
+  const common = { id, kind: caseKind, visitId, version, description,
     evidenceRefs: imageRefs(record.evidenceRefs), createdAt: iso(record.createdAt ?? record.openedAt),
     updatedAt: iso(record.updatedAt), response };
   if (sitter) {
@@ -63,7 +68,7 @@ export function safeComplaint(record, actor, asOf, { customerPhone, billing } = 
   const objectionCount = record.objectionCount ?? 0;
   const billState = finalAt ? null : 'ON_HOLD';
   return {
-    ...common, code: record.code ?? complaintCode(id), scope, bookingId, state, billState,
+    ...common, code: record.code ?? (caseKind === 'INCIDENT' ? incidentCode(id) : complaintCode(id)), scope, bookingId, state, billState,
     isFinal: Boolean(finalAt), finalAt: iso(finalAt), resultDeliveredAt: iso(record.resultDeliveredAt),
     customerResult: result, approvedAmountVnd: amountVnd,
     booking: record.bookingSummary ?? null, visit: record.visitSummary ?? null,
