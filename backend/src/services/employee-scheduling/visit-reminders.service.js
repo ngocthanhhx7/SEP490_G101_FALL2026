@@ -4,6 +4,7 @@ import { createUnitOfWork } from '../unit-of-work.service.js';
 import { digest } from '../../validators/pet-care.validator.js';
 
 const sameInstant = (left, right) => (left?.getTime() ?? null) === (right?.getTime() ?? null);
+const ACTIVE_BOOKING_STATES = ['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'];
 
 // JOB-01 / GBR-47. The notifier is the in-app database, not an external provider.
 export function createVisitRemindersService({ connection, clock = Date.now }) {
@@ -21,7 +22,20 @@ export function createVisitRemindersService({ connection, clock = Date.now }) {
       ] } });
     return createVisitReminderJob({ leadMinutes, clock: () => new Date(clock()), limit: 100,
       repository: { async findUpcomingVisits() {
-        const rows = await col('visits').find(query(new Date(clock())), { maxTimeMS: 5000 }).sort({ startAt: 1, _id: 1 }).limit(100).toArray();
+        // Apply booking eligibility before the batch limit. Orphaned visits or
+        // inactive bookings must not occupy every slot on every worker restart.
+        const rows = await col('visits').aggregate([
+          { $match: query(new Date(clock())) },
+          { $sort: { startAt: 1, _id: 1 } },
+          { $lookup: { from: 'bookings', localField: 'bookingId', foreignField: '_id',
+            pipeline: [
+              { $match: { state: { $in: ACTIVE_BOOKING_STATES }, customerId: { $exists: true, $nin: [null, ''] } } },
+              { $project: { _id: 1 } }
+            ], as: 'reminderBooking' } },
+          { $match: { 'reminderBooking.0': { $exists: true } } },
+          { $limit: 100 },
+          { $project: { reminderBooking: 0 } }
+        ], { maxTimeMS: 5000 }).toArray();
         return rows.map(row => ({ visitId: String(row._id), bookingId: String(row.bookingId), state: row.state,
           startAt: row.startAt.toISOString(), scheduleVersion: row.version ?? 0,
           sitterId: String(row.sitterId), customerId: row.customerId && String(row.customerId) }));
@@ -34,7 +48,7 @@ export function createVisitRemindersService({ connection, clock = Date.now }) {
           const visit = await col('visits').findOne(filter, { session });
           if (!visit) return { status: 'ALREADY_EXISTS' };
           const booking = await col('bookings').findOne({ _id: visit.bookingId }, { session });
-          if (!booking?.customerId || !['DISPATCH_PENDING', 'ASSIGNED', 'IN_PROGRESS'].includes(booking.state)) throw new Error('Visit booking is not active');
+          if (!booking?.customerId || !ACTIVE_BOOKING_STATES.includes(booking.state)) throw new Error('Visit booking is not active');
           const sent = visit.startReminders?.[`m${leadMinutes}`];
           const customerSent = sameInstant(sent?.startAt, visit.startAt);
           const assignmentVersion = visit.assignmentVersion ?? 0;

@@ -13,6 +13,10 @@ Existing visits default to assignment version zero. Legacy per-start customer
 markers remain valid, and original sitter deliveries are adopted from existing
 notifications when they predate any new assignment. Markers and notifications
 commit together, preventing duplicates across retries and server instances.
+The Mongo query joins and filters active bookings with a customer before its
+100-visit limit. Orphaned/inactive visits cannot block later valid reminders,
+including after worker recreation; no process-local cursor is required.
+The notification transaction still rechecks the booking and assignment.
 `visit-reminder.policy.js` holds the existing pure deadline/job policy; the old
 jobs import path remains a compatibility re-export.
 

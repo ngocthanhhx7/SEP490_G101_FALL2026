@@ -5,6 +5,7 @@ import { createHmac } from 'node:crypto';
 import { connectDatabase } from '../../src/config/database.js';
 import { loadConfig } from '../../src/config/environment.js';
 import { startRuntime } from '../../src/runtime.js';
+import { startBookingNotificationsWorker } from '../../src/jobs/booking-notifications.job.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { createVisitRemindersService } from '../../src/services/employee-scheduling/visit-reminders.service.js';
 import { createPaymentExpiryService } from '../../src/services/booking-proposals/payment-expiry.service.js';
@@ -57,6 +58,35 @@ test('JOB-01: both recipients get each 120/30 minute reminder once, including co
   await a.runBatch(); await a.runBatch();
   expect(await col('notifications').countDocuments()).toBe(4);
   expect((await col('visits').findOne({ _id: visit._id })).state).toBe('ASSIGNED');
+});
+
+test.each(['MISSING_BOOKING', 'CANCELLED_BOOKING', 'MISSING_CUSTOMER'])('JOB-01: 100 %s visits cannot starve a valid visit, even after worker recreation', async kind => {
+  const valid = await assigned(30);
+  const invalid = Array.from({ length: 100 }, (_, index) => ({ ...valid, _id: new Types.ObjectId(),
+    bookingId: new Types.ObjectId(), startAt: new Date(now + (index + 1) * 1000) }));
+  await col('visits').insertMany(invalid);
+  if (kind !== 'MISSING_BOOKING') await col('bookings').insertMany(invalid.map(visit => ({ _id: visit.bookingId,
+    state: kind === 'CANCELLED_BOOKING' ? 'CANCELLED' : 'ASSIGNED',
+    ...(kind === 'CANCELLED_BOOKING' ? { customerId: visit.customerId } : {}) })));
+  const firstPage = await col('visits').find({ state: 'ASSIGNED' }).sort({ startAt: 1, _id: 1 }).limit(100).toArray();
+  expect(firstPage.some(row => String(row._id) === String(valid._id))).toBe(false);
+  const service = createVisitRemindersService({ connection, clock: () => now });
+  expect(await service.runBatch()).toMatchObject({ reminded: 2, failed: 0 });
+  expect(await service.runBatch()).toMatchObject({ reminded: 0, failed: 0 });
+  expect(await col('notifications').countDocuments({ 'metadata.visitId': String(valid._id) })).toBe(4);
+
+  // Fresh eligible work must be reached by a fresh worker as well. This would
+  // still fail if progress depended only on an in-memory pagination cursor.
+  const next = await assigned(30), results = [];
+  const recreated = createVisitRemindersService({ connection, clock: () => now });
+  const worker = startBookingNotificationsWorker({ intervalMs: 60000, event: 'synthetic_visit_reminders',
+    service: { async runBatch() { const result = await recreated.runBatch(); results.push(result); return result; } } });
+  await worker.stop();
+  expect(results).toEqual([{ reminded: 2, failed: 0 }]);
+  expect(await recreated.runBatch()).toMatchObject({ reminded: 0, failed: 0 });
+  expect(await col('notifications').countDocuments({ 'metadata.visitId': String(next._id) })).toBe(4);
+  expect(await col('notifications').countDocuments({ 'metadata.visitId': String(valid._id) })).toBe(4);
+  expect(await col('visits').countDocuments({ _id: { $in: invalid.map(visit => visit._id) }, startReminders: { $exists: true } })).toBe(0);
 });
 
 test.each([120, 30])('JOB-01: reassignment at the same start sends the %i minute reminder to B without repeating the customer reminder', async lead => {
