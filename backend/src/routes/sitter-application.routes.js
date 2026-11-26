@@ -50,7 +50,8 @@ export function sitterApplicationModule({
   clock = Date.now,
   authenticatedSubmission = false,
   guestSubmission = false,
-  uploadsAvailable = false
+  uploadsAvailable = false,
+  requeueVisit
 } = {}) {
   if (!config?.auth?.enabled || !connection || !ports?.privateMedia) {
     throw new TypeError(
@@ -80,7 +81,7 @@ export function sitterApplicationModule({
     lookupSecret: config.auth.contactLookupSecret,
     cursorSecret: config.auth.tokenSecret,
     clock,
-    applicationMail, employmentDocuments
+    applicationMail, employmentDocuments, requeueVisit
   });
   const sessionService = createSessionService({
     connection,
