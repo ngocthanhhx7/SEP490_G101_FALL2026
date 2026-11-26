@@ -273,7 +273,8 @@ describe('Grooming Services (GRM-CODE-01, GRM-BOOK-01..05, GRM-SEED-01, GRM-HOLD
     const conn = wrapConn(models, {
       collection: () => ({
         findOneAndUpdate: async () => ({ _id: new Types.ObjectId(CID), state: 'ACTIVE', roles: ['CUSTOMER'] }),
-        find: () => ({ sort: () => ({ limit: () => ({ toArray: async () => [] }) }) })
+        find: () => ({ limit: () => ({ toArray: async () => [] }),
+          sort: () => ({ limit: () => ({ toArray: async () => [] }) }) })
       })
     });
     return createGroomingBooking({

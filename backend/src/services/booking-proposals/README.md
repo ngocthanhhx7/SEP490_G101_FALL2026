@@ -2,16 +2,15 @@
 
 `payment-expiry.service.js` is only a compatibility re-export of the canonical
 `booking-payment-expiry.service.js`; it has no separate worker or financial path.
-JOB-03 uses signed provider lookups for every attempt, including local CANCELLED,
-EXPIRED and FAILED records. Money received, partial payment, an open link or an
-unavailable provider defers expiry to webhook/reconciliation; a lookup alone never
-marks a booking paid. No provider means no expiry worker.
-The transaction rechecks every attempt's identity, state, version and provider
-binding, plus existing receipts and assigned visits. Replacing a link writes the
-same booking guard and increments intent versions. Batches cap attempts and defer
-over-limit bookings, rotating checked timestamps so uncertainty does not starve
-later bookings. Expiry, visit release, one domain event and one MSG67 in-app
-notification commit together. Reads use the persisted booking state.
+JOB-03 follows the finalized checkout implementation: never-submitted intents
+can expire locally; attempted links require recorded terminal-unpaid evidence
+or a signed provider lookup for each attempt. Money received, partial payment,
+open links or unavailable evidence defer expiry to webhook/reconciliation;
+a lookup alone never marks a booking paid. No provider means no expiry worker.
+The transaction rechecks intent state and provider binding, existing receipts
+and visit states. Batches cap attempts and use a stable ID cursor so deferred
+bookings cannot starve later bookings. Expiry, visit release, one domain event
+and one MSG67 in-app notification commit together. Reads use persisted state.
 
 Checkout stores customer visits and care shifts in chronological sequence. It sorts
 whole visit records after eligibility and consent checks, preserving request-indexed
@@ -64,7 +63,27 @@ discount and retain an immutable snapshot with integer-VND allocation.
 GBR-17 requires PREPAY for every newly created checkout booking, including
 one-visit bookings. Every order creates a payOS intent with the original
 15-minute deadline and stays out of dispatch until verified payment.
-`booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch
-and requires authenticated payOS proof of terminal unpaid attempts before
-atomically expiring an order and releasing its scheduled visits. Missing or
-ambiguous provider evidence defers expiry for reconciliation.
+`booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch.
+Its `_id`-ordered scan cursor advances between 50-booking batches and wraps
+after the final eligible booking. Deferred bookings remain in the eligible
+set and are retried in subsequent scan cycles; a large first page waiting on
+payOS cannot starve later expired bookings. The existing MongoDB `_id` index
+supports deterministic pagination without adding a new collection or index.
+An expired order can be finalized when *each* payOS intent is independently
+safe: a pending intent without any submission marker was never sent; a
+replaced `CANCELLED` intent with recorded terminal payOS evidence is already
+reconciled; all other attempted or legacy intents require a fresh authenticated
+payOS terminal-unpaid result. This covers a cancelled old link followed by a
+new pending intent that the Customer never opened. The service checks intent
+state, version, provider reference, money and submission markers again inside
+the guarded transaction, rejects verified or reconciliation-required payments,
+then expires the booking and releases visits. Missing or ambiguous evidence
+defers expiry rather than inferring payment failure from a payOS 404.
+
+`paymentLink` never clears `linkRequestedAt` after a payOS 404. A `CREATING`
+intent is still in flight and returns `COMMAND_PENDING` on a concurrent retry:
+the original POST may complete after the status lookup. Once the first request
+has actually failed and the intent is `RECONCILIATION_REQUIRED`, a confirmed
+404 permits one atomic compare-and-set claim back to `CREATING`, retaining the
+submission marker and original provider order code. A racing retry cannot
+create another link or make JOB-03 misclassify the intent as never submitted.

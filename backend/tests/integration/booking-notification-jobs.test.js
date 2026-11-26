@@ -40,8 +40,10 @@ async function unpaid(linkState) {
   const intent = { _id: new Types.ObjectId(), bookingId: booking._id, provider: 'PAYOS', state: 'PENDING', version: 0,
     providerReference: String(now + Math.floor(Math.random() * 100000)), amountVnd: 100000, currency: 'VND',
     expiresAt: booking.paymentDeadlineAt, ...(linkState ? { linkState } : {}) };
+  const visitId = new Types.ObjectId();
+  booking.visitIds = [visitId];
   await col('bookings').insertOne(booking); await col('paymentintents').insertOne(intent);
-  await col('visits').insertOne({ _id: new Types.ObjectId(), bookingId: booking._id, state: 'SCHEDULED', sitterId: null, version: 0 });
+  await col('visits').insertOne({ _id: visitId, bookingId: booking._id, state: 'SCHEDULED', sitterId: null, version: 0 });
   return { booking, intent };
 }
 test('JOB-01: both recipients get each 120/30 minute reminder once, including concurrent sweeps', async () => {
@@ -70,9 +72,8 @@ test.each(['PENDING', 'CANCELLED', 'EXPIRED', 'FAILED'])('JOB-03 regression: an 
   expect((await col('visits').findOne({ bookingId: booking._id })).state).toBe('SCHEDULED');
   expect(await col('notifications').countDocuments()).toBe(0);
   expect(await col('payments').countDocuments()).toBe(0);
-  expect(provider.getPaymentLink.mock.calls.map(([reference]) => reference).sort()).toEqual([
-    Number(intent.providerReference), Number(older.providerReference)
-  ].sort());
+  // Once any attempt has money, the sweep can stop without checking the rest.
+  expect(provider.getPaymentLink).toHaveBeenCalledWith(Number(older.providerReference));
 });
 test('JOB-01: unassigned, cancelled, started and more-than-two-hours-away visits do not get reminders', async () => {
   const visit = await assigned(121);
@@ -95,6 +96,25 @@ test('JOB-03 / MSG67: terminal unpaid provider evidence expires booking and free
   expect((await col('visits').findOne({ bookingId: booking._id })).state).toBe('CANCELLED');
   expect(await col('notifications').countDocuments()).toBe(1);
   expect((await col('notifications').findOne({})).metadata.messageCode).toBe('MSG67');
+});
+test('JOB-03 rolls back booking, visits and event when MSG67 cannot be stored, then retries once', async () => {
+  const { booking, intent } = await unpaid();
+  const provider = { getPaymentLink: jest.fn() };
+  const service = createBookingPaymentExpiryService({ connection, provider, clock: () => now });
+  await connection.db.command({ collMod: 'notifications', validator: { $jsonSchema: { required: ['syntheticNeverPresent'] } } });
+  try {
+    expect(await service.runBatch()).toMatchObject({ expired: 0, deferred: 1 });
+    expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('AWAITING_PAYMENT');
+    expect((await col('visits').findOne({ bookingId: booking._id })).state).toBe('SCHEDULED');
+    expect((await col('paymentintents').findOne({ _id: intent._id })).state).toBe('PENDING');
+    expect(await col('financesourceevents').countDocuments({ _id: `booking-payment-expired:${booking._id}` })).toBe(0);
+  } finally {
+    await connection.db.command({ collMod: 'notifications', validator: {} });
+  }
+  expect(await service.runBatch()).toMatchObject({ expired: 1 });
+  await service.runBatch();
+  expect(await col('notifications').countDocuments({ 'metadata.messageCode': 'MSG67' })).toBe(1);
+  expect(provider.getPaymentLink).not.toHaveBeenCalled();
 });
 test.each(['PAID', 'PENDING', 'PARTIALLY_PAID', 'UNAVAILABLE', 'WRONG_AMOUNT'])('JOB-03: %s never produces a false expiry or MSG67', async status => {
   const { booking } = await unpaid('READY');
