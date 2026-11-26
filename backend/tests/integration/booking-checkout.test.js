@@ -71,6 +71,68 @@ beforeEach(async () => {
   await connection.collection('bookings').deleteMany({});
 });
 
+test('checkout orders a reversed request chronologically in its response, saved snapshot and care shifts', async () => {
+  const q = await quote(), body = input(q);
+  const secondAddress = await connection.models.CustomerAddress.create({ ownerId: owner.userId, label: 'Other home',
+    location: 'Synthetic second address', point: { type: 'Point', coordinates: [105.85, 21.02] },
+    pointConfirmedAt: at, areaCode: address.areaCode, version: 0 });
+  body.visits[1].addressId = String(secondAddress._id);
+  const expectedTimes = body.visits.map(row => row.startAt);
+  body.visits.reverse();
+  const created = await checkout.confirm(owner, body, 'chronological-checkout');
+  expect(created.visits.map(row => row.startAt.toISOString())).toEqual(expectedTimes);
+  expect(created.visits.map(row => row.serviceAddress)).toEqual([address.location, secondAddress.location]);
+  const bookingId = new mongoose.Types.ObjectId(created.id);
+  const booking = await connection.collection('bookings').findOne({ _id: bookingId });
+  expect(booking.checkoutSnapshot.customerVisits.map(row => row.startAt.toISOString())).toEqual(expectedTimes);
+  expect(booking.checkoutSnapshot.customerVisits.map(row => row.sequence)).toEqual([0, 1]);
+  const shifts = await connection.collection('visits').find({ bookingId }).sort({ sequence: 1 }).toArray();
+  expect(shifts.map(row => row.startAt.toISOString())).toEqual(expectedTimes);
+  expect(shifts.map(row => row.customerVisitId)).toEqual(created.visits.map(row => row.id));
+  expect((await checkout.read(owner, created.id)).visits.map(row => row.id)).toEqual(created.visits.map(row => row.id));
+  expect((await checkout.confirm(owner, body, 'chronological-checkout')).visits).toEqual(created.visits);
+  expect(await connection.collection('bookings').countDocuments({ _id: bookingId })).toBe(1);
+  expect(await connection.collection('visits').countDocuments({ bookingId })).toBe(2);
+  expect(booking.paymentSnapshot.amountVnd).toBe(q.totalVnd);
+});
+
+test('reads legacy reversed schedules chronologically without rewriting their saved snapshots', async () => {
+  const q = await quote(), created = await checkout.confirm(owner, input(q), 'legacy-visit-order');
+  const bookingId = new mongoose.Types.ObjectId(created.id);
+  const saved = await connection.collection('bookings').findOne({ _id: bookingId });
+  const reversed = [...saved.checkoutSnapshot.customerVisits].reverse();
+  await connection.collection('bookings').updateOne({ _id: bookingId }, { $set: { 'checkoutSnapshot.customerVisits': reversed } });
+  const read = await checkout.read(owner, created.id);
+  expect(read.visits.map(row => row.id)).toEqual(created.visits.map(row => row.id));
+  expect(read.details.terms.map(row => row.startAt)).toEqual(created.visits.map(row => row.startAt));
+  const unchanged = await connection.collection('bookings').findOne({ _id: bookingId });
+  expect(unchanged.checkoutSnapshot.customerVisits).toEqual(reversed);
+});
+
+test('chronological numbering keeps consent errors at the original request index and preserves the chosen sitter', async () => {
+  const sitterId = oid();
+  await connection.collection('users').insertOne({ _id: sitterId, state: 'ACTIVE', roles: ['PET_SITTER'] });
+  await connection.collection('sitterstatuses').insertOne({ userId: sitterId, status: 'ACTIVE' });
+  await employeeForCheckout(sitterId, item('home-care').serviceId);
+  await connection.collection('visits').insertOne({ _id: oid(), customerId: new mongoose.Types.ObjectId(owner.userId),
+    sitterId, petIds: [pet._id], state: 'COMPLETED', startAt: new Date(at.getTime() - 172800000), endAt: new Date(at.getTime() - 169200000) });
+  const q = await quote(), body = input(q);
+  body.visits.reverse();
+  body.visits[0] = { ...body.visits[0], bookingMode: 'DIRECT', requestedSitterId: String(sitterId) };
+  await connection.collection('visits').insertOne({ _id: oid(), sitterId, state: 'ASSIGNED',
+    startAt: new Date(body.visits[0].startAt), endAt: new Date(Date.parse(body.visits[0].startAt) + 3600000),
+    location: 'HOME', addressId: address._id, snapshots: { point: address.point } });
+  await expect(checkout.confirm(owner, body, 'reversed-consent'))
+    .rejects.toMatchObject({ code: 'SITTER_AVAILABILITY_CONSENT_REQUIRED', details: { lineFields: { 0: { acceptUnavailableSitter: 'SLOT_UNAVAILABLE' } } } });
+  expect(await connection.collection('bookings').countDocuments()).toBe(0);
+  body.visits[0].acceptUnavailableSitter = true;
+  const created = await checkout.confirm(owner, body, 'reversed-consent');
+  expect(created.visits.map(row => row.requestedSitterId)).toEqual([null, String(sitterId)]);
+  const saved = await connection.collection('bookings').findOne({ _id: new mongoose.Types.ObjectId(created.id) });
+  expect(saved.checkoutSnapshot.customerVisits[0].sitterAvailabilityConsentAt).toBeUndefined();
+  expect(saved.checkoutSnapshot.customerVisits[1].sitterAvailabilityConsentAt).toEqual(at);
+});
+
 test('home-care availability and checkout share the inclusive 120-minute boundary', async () => {
   const q = await quote('home-care', 1);
   const body = input(q);

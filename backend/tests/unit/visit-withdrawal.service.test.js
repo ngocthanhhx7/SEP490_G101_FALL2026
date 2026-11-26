@@ -3,7 +3,7 @@ import { createVisitWithdrawalService } from '../../src/services/visit-withdrawa
 
 const SITTER = { userId: 'sitter-1', roles: ['PET_SITTER'], state: 'ACTIVE' };
 const now = Date.parse('2026-10-15T00:00:00.000Z');
-const startAt = now + 60 * 60 * 1000;
+const startAt = now + 12 * 60 * 60 * 1000;
 
 function repository(overrides = {}) {
   const state = { visit: { id: 'visit-1', sitterId: SITTER.userId, state: 'ASSIGNED', version: 2,
@@ -42,12 +42,12 @@ describe('sitter withdrawal boundary and operational semantics', () => {
     expect(repo.state.calls).toEqual(['withdraw', 'VisitAssignmentWithdrawn']);
   });
 
-  test('blocks 59:59 and routes the sitter to Staff', async () => {
+  test('blocks 11:59:59 and routes the sitter to Staff', async () => {
     const repo = repository();
     const service = createVisitWithdrawalService({ repository: repo, clock: () => now + 1000 });
     await expect(service.withdraw({ actor: SITTER, visitId: 'visit-1', expectedVersion: 2,
       idempotencyKey: 'withdraw-too-late', reason: 'Unexpected conflict' })).rejects.toMatchObject({
-      code: 'WITHDRAWAL_WINDOW_CLOSED', details: { route: 'STAFF', minLeadMinutes: 60 }
+      code: 'WITHDRAWAL_WINDOW_CLOSED', details: { route: 'STAFF', minLeadMinutes: 720 }
     });
     expect(repo.state.calls).toEqual([]);
   });

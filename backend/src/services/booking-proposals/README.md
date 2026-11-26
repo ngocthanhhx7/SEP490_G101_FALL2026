@@ -1,5 +1,11 @@
 # Booking proposals
 
+Checkout stores customer visits and care shifts in chronological sequence. It sorts
+whole visit records after eligibility and consent checks, preserving request-indexed
+errors, addresses, preferred sitters and price snapshots. Reads also order legacy
+customer visits by their effective start times without rewriting saved snapshots.
+The original request fingerprint remains unchanged for idempotent retries.
+
 `checkout-availability.service.js` loads an owned current quote and checks
 published employees against the shared authoritative contract, capability,
 work-area, shift, leave, occupancy and travel rules. Its bounded search is an

@@ -75,3 +75,8 @@ navigator on wide screens and a single-day timeline on phones. A time cell
 sets the draft start of the selected visit. Availability and checkout validate
 the selected schedule. The basket opens the same timetable on demand. Grooming
 uses the shared date navigator with the server-provided date range and slots.
+
+BookingFlow numbers visits from earliest to latest after validating the draft,
+before availability and confirmation. The availability request and its unavailable
+visit labels use that same ordered schedule; selecting times never changes their
+values. Overlapping visits still require correction before requesting a quote.

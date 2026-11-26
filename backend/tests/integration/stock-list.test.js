@@ -44,6 +44,41 @@ beforeAll(async () => {
 afterAll(async () => { await connection?.close(); await replica?.stop(); }, 30000);
 beforeEach(async () => { for (const model of Object.values(models)) await model.deleteMany({}); });
 
+test.each([
+  ['IT-FE25-UC71-01', 'SALE_STAFF'],
+  ['IT-FE25-UC71-02', 'ADMIN']
+])('%s allows %s to read the Stock List', async (_id, role) => {
+  await product('SP-0001');
+  const response = await get(ROOT, role).expect(200);
+  expect(response.body.data.items).toHaveLength(1);
+  expect(response.body.data.items[0].code).toBe('SP-0001');
+});
+
+test('IT-FE25-UC71-03 shows authoritative stock on hand, held and available quantities', async () => {
+  await product('SP-0001', { stockOnHand: 12, quantityHeld: 3 });
+  const item = (await get().expect(200)).body.data.items[0];
+  expect(item).toMatchObject({ code: 'SP-0001', stockOnHand: 12, quantityHeld: 3, available: 9 });
+});
+
+test('IT-FE25-UC71-04 calculates Quantity Available as Stock on Hand minus Quantity Held', async () => {
+  await product('SP-0001', { stockOnHand: 17, quantityHeld: 5 });
+  const item = (await get().expect(200)).body.data.items[0];
+  expect(item.available).toBe(item.stockOnHand - item.quantityHeld);
+});
+
+test.each([
+  ['IT-FE25-UC71-05', T + 1, 'IN_STOCK'],
+  ['IT-FE25-UC71-06', T, 'LOW_STOCK'],
+  ['IT-FE25-UC71-07', T - 1, 'LOW_STOCK'],
+  ['IT-FE25-UC71-08', 0, 'OUT_OF_STOCK']
+])('%s classifies Quantity Available %i as %s', async (_id, available, status) => {
+  const p = await product('SP-0001', { stockOnHand: available + 2, quantityHeld: 2 });
+  const all = (await get().expect(200)).body.data;
+  expect(all.items[0]).toMatchObject({ id: p.id, available, status });
+  const low = (await get().query({ tab: 'LOW_STOCK' }).expect(200)).body.data;
+  expect(low.items.map(item => item.id)).toEqual(available <= T ? [p.id] : []);
+});
+
 test('AC-34 guards both read endpoints for guests and every non-Admin role', async () => {
   const p = await product('SP-0001');
   for (const path of [ROOT, historyPath(p.id)]) {
@@ -92,7 +127,7 @@ test('D-216 searches literal name/code case-insensitively, normalizes text and p
   expect((await get(historyPath('bad-id'))).status).toBe(422);
 });
 
-test('AC-32 reads the authoritative hold created by an unfinished order, with no order in receipt history or read side effects', async () => {
+test('IT-FE25-UC71-11 shows the Quantity Held created by an unfinished UC-62 order', async () => {
   const p = await product('SP-0001', { stockOnHand: T + 3 });
   const cart = createProductCartService({ connection });
   await cart.addLine(actors.CUSTOMER, { productId: p.id, quantity: 3 });

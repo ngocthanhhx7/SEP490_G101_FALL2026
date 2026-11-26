@@ -282,6 +282,19 @@ export function createReviewService({
           'VISIT_NOT_ELIGIBLE',
           'Only an assigned completed visit can be rated'
         );
+      const completedAnchor = Date.parse(
+        visit.completedAt ?? visit.checkOutAt ?? visit.endAt
+      );
+      if (
+        Number.isFinite(completedAnchor) &&
+        nowValue(clock) - completedAnchor > 7 * 24 * 60 * 60 * 1000
+      ) {
+        fail(
+          409,
+          'REVIEW_WINDOW_EXPIRED',
+          'The 7-day rating window has expired'
+        );
+      }
       if (expected !== null && visit.version !== expected)
         fail(409, 'VERSION_CONFLICT', 'Visit changed; reload before rating');
       const existing = await callFirst(

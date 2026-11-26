@@ -79,7 +79,8 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         startAt: actual.find(visit => visit.customerVisitId === String(row._id))?.startAt ?? row.startAt,
         endAt: actual.find(visit => visit.customerVisitId === String(row._id))?.endAt ?? row.endAt,
         serviceName: row.snapshots.serviceName, petNames: (row.snapshots.pets ?? []).map(pet => pet.name).filter(value => typeof value === 'string' && value), location: row.location, serviceAddress: row.snapshots.serviceAddress,
-        requestedSitterId: row.requestedSitterId && String(row.requestedSitterId) })) };
+        requestedSitterId: row.requestedSitterId && String(row.requestedSitterId) }))
+        .sort((a, b) => new Date(a.startAt) - new Date(b.startAt)) };
   }
   return {
     async options(actor) {
@@ -235,6 +236,19 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         }
         if (Object.keys(unavailableVisits).length) throw new AppError(409, 'SITTER_AVAILABILITY_CONSENT_REQUIRED',
           'Confirm each visit outside the selected employee availability', { lineFields: unavailableVisits });
+        // Keep request indexes through eligibility/consent checks. Only then number
+        // the complete visit records chronologically, retaining their own snapshots.
+        visits.sort((a, b) => a.startAt - b.startAt || a.sequence - b.sequence);
+        visits.forEach((visit, sequence) => { visit.sequence = sequence; });
+        if (visits.length > 0) {
+          const vnDay = dt => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(dt);
+          const firstDay = vnDay(visits[0].startAt);
+          const lastEndMs = Math.max(...visits.map(v => v.endAt.getTime() - 1));
+          const lastDay = vnDay(new Date(lastEndMs));
+          if (Date.parse(lastDay) - Date.parse(firstDay) >= 30 * 86400000) {
+            fail('MSG20', 'Booking span cannot exceed 30 days');
+          }
+        }
         const booking = { _id: bookingId, customerId: oid(actor.userId), quoteId: quote._id, quoteVersion: 1,
           originalVisitCount: visits.length, visitIds: visits.map(row => row._id), state: 'AWAITING_PAYMENT',
           paymentMode: 'PREPAY', paymentState: 'UNPAID', paymentSnapshot: { amountVnd: result.totalVnd, currency: 'VND' },
@@ -346,19 +360,25 @@ export function createBookingCheckoutService({ connection, clock = Date.now, pro
         state: 'PENDING', linkState: { $exists: false }, linkRequestedAt: { $exists: false } },
       { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
       if (!intent) fail('COMMAND_PENDING', 'A link request is already running', 409);
+      let providerResponded = false;
       try {
         const link = await provider.createPaymentLink({ orderCode: Number(intent.providerReference), amount: intent.amountVnd,
           description: 'PAWWORLD', expiredAt: Math.floor(intent.expiresAt.getTime() / 1000),
           returnUrl: new URL(`/services?booking=${bookingId}&payment=returned`, webOrigin).href,
           cancelUrl: new URL(`/services?booking=${bookingId}&payment=cancelled`, webOrigin).href });
+        providerResponded = true;
         const url = new URL(link.checkoutUrl);
         if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/') || link.orderCode !== Number(intent.providerReference) || link.amount !== intent.amountVnd || link.currency !== 'VND')
           fail('PAYMENT_LINK_RECONCILIATION_REQUIRED', 'Provider link does not match intent', 502);
         await col('paymentintents').updateOne({ _id: intent._id, linkState: 'CREATING' }, { $set: { linkState: 'READY', checkoutUrl: url.href, paymentLinkId: link.paymentLinkId } });
         return { checkoutUrl: url.href, expiresAt: intent.expiresAt };
       } catch (error) {
+        const deterministicRefusal = !providerResponded && (
+          error?.details?.uncertain === false
+          || ['PAYOS_INVALID_REQUEST', 'PAYOS_CONFIGURATION_INVALID', 'PAYOS_REQUEST_REJECTED'].includes(error?.code)
+        );
         await col('paymentintents').updateOne({ _id: intent._id, linkState: 'CREATING' },
-          { $set: { linkState: 'RECONCILIATION_REQUIRED' } });
+          { $set: { linkState: deterministicRefusal ? 'FAILED' : 'RECONCILIATION_REQUIRED' } });
         throw error;
       }
     }
