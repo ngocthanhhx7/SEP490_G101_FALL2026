@@ -162,8 +162,9 @@ test('queue counts exclude counter orders and scan pending statuses instead of c
 describe('UC-94 Sale Staff dashboard', () => {
   const DASHBOARD = '/api/v1/dashboards/sale-staff';
   const NO_ORDERS = { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 };
+  const NO_COUNTS = { ...NO_ORDERS, LOW_STOCK: 0 };
 
-  test('returns only counts matching Order Management across statuses', async () => {
+  test('returns only counts matching Order Management and Stock List across statuses', async () => {
     await placeDelivery('a', 'SP-0012', 1);
     await placePickup('a', 'SP-0020', 1);
     const pickup = await placePickup('b', 'SP-0020', 1);
@@ -172,18 +173,22 @@ describe('UC-94 Sale Staff dashboard', () => {
     await placeShipped('a', [['SP-0012', 1]]);
 
     const list = await api('saleStaff').get(MANAGE + '?tab=RETURNING&limit=1').expect(200);
+    const stock = await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200);
     const { PREPARE, AWAITING_PICKUP, RETURNING } = list.body.data.counts;
+    const { LOW_STOCK } = stock.body.data.counts;
     const dashboard = await api('saleStaff').get(DASHBOARD).expect(200)
       .expect('Cache-Control', 'private, no-store');
-    expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING } });
-    expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1 });
+    expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK } });
+    expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1, LOW_STOCK });
   });
 
-  test('IT-FE25-UC71-18 shows Sale Staff a Low Stock count consistent with the Low Stock tab', async () => {
+  test('IT-FE25-UC71-18 keeps the UC-94 Low Stock count consistent with UC-71', async () => {
     await models.Product.updateMany({}, { $set: { stockOnHand: 100, quantityHeld: 0 } });
     await models.Product.updateOne({ code: 'SP-0012' }, { $set: { stockOnHand: 0 } });
     const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
     expect(stock.counts.LOW_STOCK).toBe(1);
+    const dashboard = (await api('saleStaff').get(DASHBOARD).expect(200)).body.data;
+    expect(dashboard.counts.LOW_STOCK).toBe(stock.counts.LOW_STOCK);
     const lowStock = (await api('saleStaff').get('/api/v1/admin/stock-levels?tab=LOW_STOCK').expect(200)).body.data;
     expect(lowStock.total).toBe(stock.counts.LOW_STOCK);
     expect(lowStock.items).toEqual([expect.objectContaining({ code: 'SP-0012', status: 'OUT_OF_STOCK' })]);
@@ -195,33 +200,38 @@ describe('UC-94 Sale Staff dashboard', () => {
     }
   );
 
-  test('returns zero with an empty provisioned collection', async () => {
+  test('returns zero with empty provisioned collections', async () => {
+    await models.Product.deleteMany({});
     const collections = await connection.db.listCollections({ name: models.ProductOrder.collection.name }).toArray();
     expect(collections).toHaveLength(1);
     const list = await api('saleStaff').get(MANAGE).expect(200);
     expect(list.body.data.counts).toEqual({ ...NO_ORDERS, IN_TRANSIT: 0 });
-    expect((await api('saleStaff').get(DASHBOARD).expect(200)).body.data).toEqual({ counts: NO_ORDERS });
+    expect((await api('saleStaff').get(DASHBOARD).expect(200)).body.data).toEqual({ counts: NO_COUNTS });
   });
 
-  test('returns the same zeros as Order Management before an order collection is created', async () => {
+  test('returns the same zeros as Order Management before order or product collections are created', async () => {
     const fresh = await mongoose.createConnection(replica.getUri(), {
       dbName: 'synthetic_uc94_unprovisioned', autoCreate: false, autoIndex: false, bufferCommands: false
     }).asPromise();
     try {
       const app = salesApp({ connection: fresh });
-      const filter = { name: productSalesModels(fresh).ProductOrder.collection.name };
-      expect(await fresh.db.listCollections(filter).toArray()).toEqual([]);
+      const freshModels = productSalesModels(fresh);
+      const orderFilter = { name: freshModels.ProductOrder.collection.name };
+      const productFilter = { name: freshModels.Product.collection.name };
+      expect(await fresh.db.listCollections(orderFilter).toArray()).toEqual([]);
+      expect(await fresh.db.listCollections(productFilter).toArray()).toEqual([]);
       const list = await request(app).get(MANAGE).set('x-test-actor', 'saleStaff').expect(200);
       expect(list.body.data.counts).toEqual({ ...NO_ORDERS, IN_TRANSIT: 0 });
       const dashboard = await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(200);
-      expect(dashboard.body.data).toEqual({ counts: NO_ORDERS });
-      expect(await fresh.db.listCollections(filter).toArray()).toEqual([]);
+      expect(dashboard.body.data).toEqual({ counts: NO_COUNTS });
+      expect(await fresh.db.listCollections(orderFilter).toArray()).toEqual([]);
+      expect(await fresh.db.listCollections(productFilter).toArray()).toEqual([]);
     } finally {
       await fresh.close();
     }
   });
 
-  test('returns a service error when the order count query fails', async () => {
+  test('returns a service error when the order or low-stock count query fails', async () => {
     const aggregate = jest.spyOn(models.ProductOrder, 'aggregate').mockImplementationOnce(() => {
       throw new Error('Synthetic query failure');
     });
@@ -233,12 +243,25 @@ describe('UC-94 Sale Staff dashboard', () => {
     } finally {
       aggregate.mockRestore();
     }
+
+    const countDocs = jest.spyOn(models.Product, 'countDocuments').mockImplementationOnce(() => {
+      throw new Error('Synthetic stock query failure');
+    });
+    try {
+      const response = await api('saleStaff').get(DASHBOARD).expect(503);
+      expect(response.body.error.code).toBe('SALES_DASHBOARD_SOURCE_UNAVAILABLE');
+      expect(response.body).not.toHaveProperty('data');
+      expect(JSON.stringify(response.body)).not.toContain('Synthetic stock query failure');
+    } finally {
+      countDocs.mockRestore();
+    }
   });
 
   test.each([false, true])('coexists with the common dashboard router (common first: %s)', async (commonFirst) => {
+    const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
     const app = salesApp({ connection, includeCommonDashboard: true, commonFirst });
     expect((await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(200)).body.data)
-      .toEqual({ counts: NO_ORDERS });
+      .toEqual({ counts: { ...NO_ORDERS, LOW_STOCK: stock.counts.LOW_STOCK } });
     await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'saleStaff').expect(403);
     await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'staff').expect(202);
   });
