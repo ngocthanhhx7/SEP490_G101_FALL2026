@@ -1,14 +1,15 @@
 import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
-import { createDomainNotifications } from '../notifications/domain-notifications.service.js';
 import { productSalesModels } from '../../models/product.model.js';
 import { userModel } from '../../models/user.model.js';
-import { DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS, PRODUCT_ORDER_TAB_STATUSES, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
+import {
+  DEFAULT_PRODUCT_PICKUP_DEADLINE_HOURS, PRODUCT_DELIVERY_AUTO_CONFIRM_MS, PRODUCT_ORDER_TAB_STATUSES, PRODUCT_PREPAID_PAYMENT_METHODS
+} from '../../constants/product-fields.js';
 import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
 import {
   parseManagementListQuery, parseHandToCarrier, parseNoBody, parseMarkReturning, parseConfirmReturned
 } from '../../validators/product-order-management.validator.js';
 import { parseObjectId, parseOrderListQuery } from '../../validators/product-order.validator.js';
-import { createUnitOfWork } from '../unit-of-work.service.js';
+import { createDeliveryCompletion, createOrderTransition } from './product-order-transition.js';
 import { toOrderView } from './product-order.service.js';
 import { readProductOrderTabCounts } from './product-order-tab-counts.js';
 import { productOrderRefundAmount } from './product-order-pricing.js';
@@ -69,54 +70,13 @@ function returnedLines(order, input) {
   });
 }
 
-function createOrderTransition({ connection, Product, ProductOrder, clock }) {
-  const unitOfWork = createUnitOfWork(connection);
-  const notifications = createDomainNotifications({ connection, clock });
-
-  // One guarded status change plus its stock effect, all in one transaction.
-  // The update only matches the status and version that were read, so two writers cannot both apply a change.
-  // `effects` runs after the status change, in the same transaction, for writes that must stand or fall with it.
-  return (id, { allowed, check, changes, stock, effects, expiryFilter, pickupExpired = false, paymentExpired = false }) => {
-    const filter = { _id: id, channel: { $ne: COUNTER_CHANNEL }, ...expiryFilter };
-    return unitOfWork.run(async (session) => {
-      const order = await ProductOrder.findOne(filter).session(session).lean();
-      if (!order) {
-        if (expiryFilter) return null;
-        throw productSalesErrors.notFound();
-      }
-      if (allowed && !allowed(order)) throw productSalesErrors.orderStateConflict(order.status);
-      check?.(order);
-      const result = await ProductOrder.findOneAndUpdate(
-        { ...filter, status: order.status, version: order.version },
-        { $set: changes(order), $inc: { version: 1 } },
-        { returnDocument: 'after', session }).lean();
-      if (!result) {
-        if (expiryFilter) return null;
-        throw productSalesErrors.orderStateConflict(order.status);
-      }
-      if (stock) {
-        const leaves = stock === 'LEAVE';
-        for (const line of order.lines) {
-          const applied = await Product.updateOne(
-            { _id: line.productId, quantityHeld: { $gte: line.quantity }, ...(leaves ? { stockOnHand: { $gte: line.quantity } } : {}) },
-            { $inc: { quantityHeld: -line.quantity, ...(leaves ? { stockOnHand: -line.quantity } : {}), version: 1 } },
-            { session });
-          if (applied.modifiedCount !== 1) throw productSalesErrors.orderStockMismatch(String(id));
-        }
-      }
-      await effects?.(order, session);
-      await notifications.productOrder({ order: result, previous: order, pickupExpired, paymentExpired }, session);
-      return result;
-    });
-  };
-}
-
 // The scheduler is the only caller (JOB-04). Recheck eligibility and the version selected by the batch inside
 // the transaction so a concurrent payment, handover or another worker wins at most once.
 // `payments` (route composition) asks payOS whether an overdue prepaid order was paid after all (R3 JOB-04, step 1).
 export function createProductOrderExpiryService({ connection, clock = Date.now, logger = () => {}, payments = null }) {
   const { Product, ProductOrder, ProductCustomerRefusal } = productSalesModels(connection);
   const updateOrder = createOrderTransition({ connection, Product, ProductOrder, clock });
+  const completeDelivery = createDeliveryCompletion({ updateOrder, clock });
 
   // Pick-up orders not collected by the deadline: a refusal against the customer; a paid one is marked for a refund.
   async function cancelUncollectedPickups(summary) {
@@ -189,11 +149,39 @@ export function createProductOrderExpiryService({ connection, clock = Date.now, 
     }
   }
 
+  // Delivery orders handed to the carrier 7 days ago or more that are still on the way (GBR-36, JOB-04):
+  // mark Delivered (COD becomes paid) and notify the customer. Legacy orders without handedToCarrierAt are skipped.
+  async function autoDeliverShippedOrders(summary) {
+    const cutoff = new Date(clock());
+    const handedBefore = new Date(cutoff.getTime() - PRODUCT_DELIVERY_AUTO_CONFIRM_MS);
+    const filter = {
+      status: 'HANDED_TO_CARRIER',
+      receiveMethod: 'DELIVERY',
+      channel: { $ne: COUNTER_CHANNEL },
+      handedToCarrierAt: { $lte: handedBefore }
+    };
+    const candidates = await ProductOrder.find(filter).select('_id version')
+      .sort({ handedToCarrierAt: 1, _id: 1 }).limit(PICKUP_EXPIRY_BATCH_SIZE).lean();
+    for (const candidate of candidates) {
+      try {
+        const updated = await completeDelivery(candidate._id, {
+          deliveredBy: 'SYSTEM',
+          expiryFilter: { ...filter, version: candidate.version }
+        });
+        if (updated) summary.delivered += 1;
+      } catch (error) {
+        summary.failed += 1;
+        logger({ event: 'product_delivery_auto_confirm_failed', orderId: String(candidate._id), code: error?.code ?? error?.name });
+      }
+    }
+  }
+
   return Object.freeze({
     async runBatch() {
-      const summary = { cancelled: 0, failed: 0, kept: 0 };
+      const summary = { cancelled: 0, delivered: 0, failed: 0, kept: 0 };
       await cancelUncollectedPickups(summary);
       await cancelUnpaidPrepaid(summary);
+      await autoDeliverShippedOrders(summary);
       return summary;
     }
   });
@@ -215,6 +203,7 @@ export function createProductOrderManagementService({
   const { Product, ProductOrder, ProductCustomerRefusal } = productSalesModels(connection);
   const User = userModel(connection);
   const updateOrder = createOrderTransition({ connection, Product, ProductOrder, clock });
+  const completeDelivery = createDeliveryCompletion({ updateOrder, clock });
 
   // Name and phone of each customer, by user id.
   async function customerDetails(customerIds) {
@@ -277,7 +266,7 @@ export function createProductOrderManagementService({
         allowed: (order) => order.receiveMethod === 'DELIVERY' && order.status === 'PLACED',
         // A prepaid order waits for its payment or is cancelled at the payment deadline (GBR-36, UC-64 step 1.1).
         check: (order) => { if (isUnpaidPrepaid(order)) throw productSalesErrors.orderNotPaid(); },
-        changes: () => ({ status: 'HANDED_TO_CARRIER', trackingCode }),
+        changes: () => ({ status: 'HANDED_TO_CARRIER', trackingCode, handedToCarrierAt: new Date(clock()) }),
         stock: 'LEAVE'
       });
     },
@@ -304,12 +293,11 @@ export function createProductOrderManagementService({
     },
     // Delivery orders: HANDED_TO_CARRIER -> DELIVERED. Cash on delivery is collected by the carrier, so it is now paid;
     // an advance payment stays as it was.
-    markDelivered(actor, orderId, body) {
+    async markDelivered(actor, orderId, body) {
       parseNoBody(body);
-      return transition(actor, orderId, {
-        allowed: (order) => order.receiveMethod === 'DELIVERY' && order.status === 'HANDED_TO_CARRIER',
-        changes: (order) => ({ status: 'DELIVERED', deliveredAt: new Date(clock()), ...(order.paymentMethod === 'COD' ? { paid: true } : {}) })
-      });
+      requireOrderHandler(actor);
+      const id = parseObjectId(orderId, 'orderId');
+      return viewOf(await completeDelivery(id, { deliveredBy: 'STAFF' }));
     },
     // Delivery orders: HANDED_TO_CARRIER -> BEING_RETURNED, with the carrier's reason. Stock is untouched until the return is confirmed.
     markReturning(actor, orderId, body) {

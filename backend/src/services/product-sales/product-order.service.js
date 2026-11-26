@@ -5,10 +5,14 @@ import { productSalesModels } from '../../models/product.model.js';
 import { createProductPricingEligibility } from './product-pricing-eligibility.service.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { COUNTER_CHANNEL } from '../../constants/counter-sale-fields.js';
-import { DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, PRODUCT_PREPAID_PAYMENT_METHODS } from '../../constants/product-fields.js';
+import {
+  DEFAULT_PRODUCT_PAYMENT_DEADLINE_HOURS, PRODUCT_DELIVERY_AUTO_CONFIRM_MS, PRODUCT_PREPAID_PAYMENT_METHODS
+} from '../../constants/product-fields.js';
 import { createProductOrderCodeService } from './product-order-code.service.js';
 import { parsePlaceOrder, parseIdempotencyKey, parseOrderListQuery, parseCancelOrder, parseObjectId } from '../../validators/product-order.validator.js';
+import { parseNoBody } from '../../validators/product-order-management.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
+import { createDeliveryCompletion, createOrderTransition } from './product-order-transition.js';
 import { priceProductOrder, productOrderRefundAmount, sellableQuantity } from './product-order-pricing.js';
 import { checkProductPayment, requireUnpaidProductOutcome } from './product-order-payment.service.js';
 import { productSalesErrors, requireCustomer } from './product-sales-errors.js';
@@ -38,6 +42,12 @@ export function toOrderView(doc) {
     cancelledBy: doc.cancelledBy ?? null,
     version: doc.version ?? 0,
     trackingCode: doc.trackingCode ?? null,
+    handedToCarrierAt: doc.handedToCarrierAt ?? null,
+    autoDeliverAt: doc.receiveMethod === 'DELIVERY' && doc.status === 'HANDED_TO_CARRIER' && doc.handedToCarrierAt
+      ? new Date(new Date(doc.handedToCarrierAt).getTime() + PRODUCT_DELIVERY_AUTO_CONFIRM_MS)
+      : null,
+    deliveredAt: doc.deliveredAt ?? null,
+    deliveredBy: doc.deliveredBy ?? null,
     deliveryAddress: doc.deliveryAddress
       ? { label: doc.deliveryAddress.label, location: doc.deliveryAddress.location, areaCode: doc.deliveryAddress.areaCode }
       : null,
@@ -70,7 +80,9 @@ export function createProductOrderService({
   const { Product, ProductCart, ProductOrder } = productSalesModels(connection);
   const { CustomerAddress } = petCareModels(connection);
   const unitOfWork = createUnitOfWork(connection);
-  const notifications = createDomainNotifications({ connection });
+  const notifications = createDomainNotifications({ connection, clock });
+  const updateOrder = createOrderTransition({ connection, Product, ProductOrder, clock });
+  const completeDelivery = createDeliveryCompletion({ updateOrder, clock });
   const { nextCode: nextOrderCode } = createProductOrderCodeService({ connection });
 
   async function replay(customerId, key, fingerprint) {
@@ -261,6 +273,28 @@ export function createProductOrderService({
         return updated;
       });
       return toOrderView(cancelled);
+    },
+    // Customer confirms receiving a delivery order (GBR-36): HANDED_TO_CARRIER -> DELIVERED.
+    // Re-confirming an already Delivered order is idempotent and changes nothing.
+    async confirmReceived(actor, orderId, body) {
+      const customerId = requireCustomer(actor);
+      const id = parseObjectId(orderId, 'orderId');
+      parseNoBody(body);
+      const existing = await ProductOrder.findOne({ _id: id, channel: { $ne: COUNTER_CHANNEL } }).lean();
+      if (!existing) throw productSalesErrors.notFound();
+      if (String(existing.customerId) !== customerId) throw productSalesErrors.forbidden();
+      if (existing.receiveMethod === 'DELIVERY' && existing.status === 'DELIVERED') {
+        return toOrderView(existing);
+      }
+      try {
+        return toOrderView(await completeDelivery(id, { deliveredBy: 'CUSTOMER', filter: { customerId } }));
+      } catch (error) {
+        if (error?.code === 'ORDER_STATE_CONFLICT') {
+          const latest = await ProductOrder.findOne({ _id: id, customerId, channel: { $ne: COUNTER_CHANNEL } }).lean();
+          if (latest?.receiveMethod === 'DELIVERY' && latest.status === 'DELIVERED') return toOrderView(latest);
+        }
+        throw error;
+      }
     }
   });
 }

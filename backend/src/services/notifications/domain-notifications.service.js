@@ -30,7 +30,12 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         DELIVERED: 'đã giao thành công', BEING_RETURNED: 'đang được hoàn về cửa hàng',
         RETURNED: 'đã được xác nhận hoàn trả', CANCELLED: 'đã hủy' };
       let message = `Đơn ${order.code} ${states[order.status] ?? 'vừa được cập nhật'}.`;
-      if (pickupExpired && order.status === 'CANCELLED') {
+      if (order.status === 'DELIVERED' && previous?.status !== 'DELIVERED') {
+        if (order.deliveredBy === 'CUSTOMER') return;
+        message = order.deliveredBy === 'SYSTEM'
+          ? `Đơn ${order.code} đã được tự xác nhận là đã nhận hàng sau 7 ngày vận chuyển. Nếu bạn chưa nhận được hàng, hãy liên hệ cửa hàng.`
+          : `Đơn ${order.code} đã giao thành công.`;
+      } else if (pickupExpired && order.status === 'CANCELLED') {
         message = `Đơn ${order.code} đã huỷ vì quá hạn lấy hàng.`;
       } else if (paymentExpired && order.status === 'CANCELLED') {
         message = `Đơn ${order.code} đã huỷ vì quá hạn thanh toán.`;

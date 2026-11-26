@@ -51,3 +51,14 @@ Unpaid `PAY_AT_SHOP` pick-up orders in `READY` (UC-67 branch 4.1) reuse the same
 link creation (`createPickupShopLink`), webhook receipt and settler flow while
 keeping `paymentMethod: 'PAY_AT_SHOP'` and storing VietQR receipts in
 `payment.receipts`.
+
+## Delivery completion
+
+`product-order-transition.js` provides the shared guarded order transition and
+`HANDED_TO_CARRIER -> DELIVERED` helper used by Sale Staff (`markDelivered`,
+`deliveredBy: 'STAFF'`), Customer confirmation (`confirmReceived`,
+`deliveredBy: 'CUSTOMER'`) and JOB-04 (`autoDeliverShippedOrders`,
+`deliveredBy: 'SYSTEM'`, 7 days after `handedToCarrierAt`). Cash-on-delivery
+orders become `paid: true` with `deliveredAt` in the same transaction across all
+three paths. Legacy in-transit orders without `handedToCarrierAt` are skipped by
+JOB-04.
