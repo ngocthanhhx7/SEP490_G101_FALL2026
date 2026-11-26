@@ -1,3 +1,4 @@
+import { AppError } from '../utils/app-error.js';
 import { exact, id, number, fail, instant } from './pet-care.validator.js';
 import { VISIT_WITHDRAWAL_REASONS } from '../constants/visit-withdrawal.js';
 
@@ -51,6 +52,26 @@ export function invitationInput(value) {
 }
 export function decisionInput(value) {
   exact(value, ['expectedVersion'], ['expectedVersion']); number(value.expectedVersion, 0, 1000000, true); return value;
+}
+export function declineInput(value) {
+  exact(value, ['expectedVersion', 'reasonCode', 'note'], ['expectedVersion']);
+  number(value.expectedVersion, 0, 1000000, true);
+  if (value.reasonCode === undefined || value.reasonCode === null || (typeof value.reasonCode === 'string' && !value.reasonCode.trim())) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'This field is required.', {
+      fieldErrors: { reasonCode: 'This field is required.' },
+      messageCode: 'MSG01'
+    });
+  }
+  if (!VISIT_WITHDRAWAL_REASONS.includes(value.reasonCode)) {
+    throw new AppError(422, 'VALIDATION_FAILED', 'Decline reason is invalid', {
+      fieldErrors: { reasonCode: 'Decline reason is invalid' }
+    });
+  }
+  if (value.note !== undefined && (typeof value.note !== 'string' || value.note.trim().length > 1000)) {
+    fail('VALIDATION_FAILED', 'Decline note must be no more than 1000 characters');
+  }
+  const note = value.note?.trim();
+  return { expectedVersion: value.expectedVersion, reasonCode: value.reasonCode, ...(note ? { note } : {}) };
 }
 export function proposalConfirmationInput(value) {
   exact(value, ['expectedVersion', 'selectedSlot'], ['expectedVersion', 'selectedSlot']);

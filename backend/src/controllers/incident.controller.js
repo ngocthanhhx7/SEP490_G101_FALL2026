@@ -101,6 +101,58 @@ export function createIncidentController({ service } = {}) {
         req,
         await service.detail({ actor: req.auth, caseId: req.params.caseId })
       ),
+    createCasesByCaseIdActions: async (req, res) => {
+      const input = body(req, ['expectedVersion', 'note']);
+      return send(
+        res,
+        req,
+        await service.addAction({
+          ...input,
+          actor: req.auth,
+          caseId: req.params.caseId,
+          idempotencyKey: req.get('Idempotency-Key')
+        })
+      );
+    },
+    createIncidentsByIncidentIdActions: async (req, res) => {
+      const input = body(req, ['expectedVersion', 'note']);
+      return send(
+        res,
+        req,
+        await service.addAction({
+          ...input,
+          actor: req.auth,
+          incidentId: req.params.incidentId,
+          idempotencyKey: req.get('Idempotency-Key')
+        })
+      );
+    },
+    createCasesByCaseIdSuspensionProposals: async (req, res) => {
+      const input = body(req, ['expectedVersion', 'reason']);
+      return send(
+        res,
+        req,
+        await service.proposeSuspension({
+          ...input,
+          actor: req.auth,
+          caseId: req.params.caseId,
+          idempotencyKey: req.get('Idempotency-Key')
+        })
+      );
+    },
+    createIncidentsByIncidentIdSuspensionProposals: async (req, res) => {
+      const input = body(req, ['expectedVersion', 'reason']);
+      return send(
+        res,
+        req,
+        await service.proposeSuspension({
+          ...input,
+          actor: req.auth,
+          incidentId: req.params.incidentId,
+          idempotencyKey: req.get('Idempotency-Key')
+        })
+      );
+    },
     createCasesByCaseIdResolutions: async (req, res) => {
       const input = body(req, [
         'expectedVersion',
@@ -108,6 +160,9 @@ export function createIncidentController({ service } = {}) {
         'state',
         'summary',
         'resolution',
+        'customerResult',
+        'chargeVisit',
+        'proposal',
         'actionsTaken',
         'customerContacted',
         'veterinaryContacted',
@@ -133,6 +188,9 @@ export function createIncidentController({ service } = {}) {
         'state',
         'summary',
         'resolution',
+        'customerResult',
+        'chargeVisit',
+        'proposal',
         'actionsTaken',
         'customerContacted',
         'veterinaryContacted',

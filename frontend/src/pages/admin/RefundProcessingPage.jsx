@@ -20,6 +20,10 @@ const orderStatusLabels = {
   CANCELLED: 'Đã huỷ',
   RETURNED: 'Đã hoàn hàng'
 };
+const sourceLabels = {
+  COMPLAINT: 'Khiếu nại',
+  INCIDENT: 'Sự cố'
+};
 const proposalStatusLabels = {
   PENDING: 'Chờ duyệt',
   APPROVED: 'Đã duyệt',
@@ -61,10 +65,12 @@ function EvidencePhoto({ api, mediaId, label }) {
     : <ResourceNotice resource={resource} title={resource.status === 'loading' ? 'Đang tải ảnh…' : 'Chưa tải được ảnh'} />}</li>;
 }
 
-function Evidence({ complaintId, items, label, getCsrfToken }) {
+function Evidence({ caseId, kind = 'COMPLAINT', items, label, getCsrfToken }) {
   const [visible, setVisible] = useState(false);
-  const api = useMemo(() => createPrivateImageApi({ getCsrfToken, readPath: mediaId =>
-    '/complaints/' + encodeURIComponent(complaintId) + '/evidence/' + mediaId + '/content' }), [getCsrfToken, complaintId]);
+  const api = useMemo(() => createPrivateImageApi({
+    getCsrfToken,
+    readPath: mediaId => (kind === 'INCIDENT' ? '/cases/' : '/complaints/') + encodeURIComponent(caseId) + '/evidence/' + mediaId + '/content'
+  }), [getCsrfToken, caseId, kind]);
   if (!items?.length) return null;
   return <div className="refund-processing__evidence">
     <button type="button" className="refund-processing__text-button" aria-expanded={visible}
@@ -216,12 +222,15 @@ function ProposalDetail({ item, api, getCsrfToken, onDecided, focus }) {
   const billingReady = billing?.status === 'AVAILABLE';
   const remaining = billingReady ? Math.max(0, billing.basisAmountVnd - (billing.approvedTotalVnd ?? 0)) : null;
 
+  const isIncident = item.kind === 'INCIDENT';
+  const sourceLabel = sourceLabels[item.kind] ?? 'Khiếu nại';
   return <>
     <header className="refund-processing__detail-header">
       <h2 tabIndex={-1} ref={heading}>{item.code ?? item.id}</h2>
       <StatusBadge status={proposal?.status} />
     </header>
     <dl className="refund-processing__facts">
+      <div><dt>Nguồn</dt><dd>{sourceLabel}</dd></div>
       <div><dt>Khách hàng</dt><dd>{[item.customer?.displayName, item.customer?.phone].filter(Boolean).join(' · ') || '—'}</dd></div>
       <div><dt>Lịch đặt</dt><dd>{bookingLabel || '—'}</dd></div>
       <div><dt>Khách đã trả</dt><dd>{billingReady ? bookingMoney(billing.basisAmountVnd) : 'Chưa có thanh toán được xác nhận'}</dd></div>
@@ -233,11 +242,13 @@ function ProposalDetail({ item, api, getCsrfToken, onDecided, focus }) {
     <section className="refund-processing__statement">
       <h3>Lý do và bằng chứng</h3>
       <p>{proposal?.reason || '—'}</p>
-      <Evidence complaintId={item.id} items={proposal?.evidenceRefs} label="Ảnh bằng chứng của Staff" getCsrfToken={getCsrfToken} />
-      <Evidence complaintId={item.id} items={item.evidenceRefs} label="Ảnh của khách" getCsrfToken={getCsrfToken} />
+      <Evidence caseId={item.id} kind={item.kind} items={proposal?.evidenceRefs} label="Ảnh bằng chứng của Staff" getCsrfToken={getCsrfToken} />
+      <Evidence caseId={item.id} kind={item.kind} items={item.evidenceRefs} label={isIncident ? 'Ảnh báo cáo sự cố' : 'Ảnh của khách'} getCsrfToken={getCsrfToken} />
     </section>
     <div className="refund-processing__links">
-      <Link to={'/admin/complaints?complaint=' + encodeURIComponent(item.id)}>Xem khiếu nại</Link>
+      {isIncident
+        ? <Link to={'/cases/' + encodeURIComponent(item.id)}>Xem sự cố</Link>
+        : <Link to={'/admin/complaints?complaint=' + encodeURIComponent(item.id)}>Xem khiếu nại</Link>}
       {hasBookingRoute && <Link to={'/staff/bookings/' + item.bookingId}>Xem lịch đặt</Link>}
     </div>
     {proposal?.status === 'PENDING'
@@ -402,7 +413,7 @@ export function RefundProcessingPage({ api: suppliedApi, productSalesApi: suppli
   return <section className="refund-processing" aria-labelledby="refund-processing-title">
     <header className="refund-processing__header">
       <h1 id="refund-processing-title">Hoàn tiền</h1>
-      <p>Xem và quyết định các khoản hoàn tiền từ khiếu nại, theo dõi hoàn tiền huỷ lịch đặt và hoàn tiền đơn hàng.</p>
+      <p>Xem và quyết định các khoản hoàn tiền từ sự cố, khiếu nại, theo dõi hoàn tiền huỷ lịch đặt và hoàn tiền đơn hàng.</p>
     </header>
     {message && <Notice state="success" title={message} />}
     <div className="refund-processing__tabs" role="tablist" aria-label="Trạng thái đề xuất hoàn tiền">
@@ -482,6 +493,7 @@ export function RefundProcessingPage({ api: suppliedApi, productSalesApi: suppli
               </span>
               <span className="refund-processing__muted">
                 {[
+                  sourceLabels[item.kind] ?? 'Khiếu nại',
                   item.booking?.code ?? complaintSubject(item),
                   Number.isSafeInteger(item.proposal?.amountVnd) ? 'Đề xuất ' + bookingMoney(item.proposal.amountVnd) : null,
                   item.proposal?.createdAt ? 'Gửi ' + complaintDeadline(item.proposal.createdAt) : null

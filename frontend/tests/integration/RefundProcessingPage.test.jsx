@@ -234,3 +234,31 @@ test('ST-ORD-10 shows Hoàn tiền đơn hàng tab using productSalesApi.listOrd
   expect(screen.getByText('Đã huỷ')).toBeVisible();
   expect(productSalesApi.listOrderRefunds).toHaveBeenCalledTimes(1);
 });
+
+test('UC-51 ST-CAS-04 shows incident refund proposals with Sự cố source label and links to /cases/:id', async () => {
+  const incidentItem = {
+    ...pendingItem,
+    id: 'a'.repeat(24),
+    code: 'SC-AAAAAAAAAAAA',
+    kind: 'INCIDENT',
+    state: 'UNDER_REVIEW',
+    proposal: {
+      ...pendingItem.proposal,
+      amountVnd: 200000,
+      reason: 'Chi phí khám thú y'
+    }
+  };
+  const api = {
+    refundProposals: jest.fn(async () => ({
+      data: { items: [incidentItem], proposalCounts: { PENDING: 1, DECIDED: 0 }, nextCursor: null }
+    })),
+    refundProposal: jest.fn(async () => ({ data: incidentItem })),
+    decideRefund: jest.fn(async () => ({
+      data: { state: 'RESOLVED', messageCode: 'MSG134', complaint: { ...incidentItem, state: 'RESOLVED', version: 2, moneyDecision: { outcome: 'REDUCE', amountVnd: 150000 } } }
+    }))
+  };
+  show(api);
+  expect(await screen.findByRole('heading', { name: 'SC-AAAAAAAAAAAA' })).toBeVisible();
+  expect(screen.getAllByText(/Sự cố/).length).toBeGreaterThan(0);
+  expect(screen.getByRole('link', { name: 'Xem sự cố' })).toHaveAttribute('href', `/cases/${incidentItem.id}`);
+});

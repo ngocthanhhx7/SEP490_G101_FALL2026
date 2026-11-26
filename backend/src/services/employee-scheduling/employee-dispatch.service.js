@@ -143,9 +143,9 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
             actorId: sitterId, offerId, detail: { version: visit.version + 1 } }, session);
           return { state: 'ACCEPTED', sitterId, version: accepted.version, assignmentId: String(visit._id) };
         },
-        declineOffer: async ({ expectedVersion }) => {
+        declineOffer: async ({ expectedVersion, reasonCode, note }) => {
           const saved = await models.EmployeeVisitOffer.findOneAndUpdate({ _id: offerId, sitterId, state: 'PENDING', version: expectedVersion, deadline: { $gt: new Date(clock()) } },
-            { $set: { state: 'DECLINED', decidedAt: new Date(clock()) }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
+            { $set: { state: 'DECLINED', decidedAt: new Date(clock()), declineReasonCode: reasonCode, ...(note ? { declineNote: note } : {}) }, $inc: { version: 1 } }, { session, returnDocument: 'after' }).lean();
           if (!saved) fail('VERSION_CONFLICT', 'Offer changed', 409);
           await col('visits').updateOne({ _id: saved.visitId, state: 'SCHEDULED', sitterId: null }, { $inc: { version: 1 } }, { session });
           return saved;

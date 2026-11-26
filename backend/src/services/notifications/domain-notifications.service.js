@@ -98,6 +98,32 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
           code + (final ? ' đã có kết quả cuối.' : ' đã có kết quả xử lý.'), session);
       }
     },
+    async incidentRefundDecided({ eventId, record, outcome }, session) {
+      const cleanIncidentId = String(record.id ?? '').replaceAll('-', '').toUpperCase();
+      const code = record.code ?? ('SC-' + (cleanIncidentId.length > 12 ? cleanIncidentId.slice(-12) : cleanIncidentId));
+      const to = '/cases/' + encodeURIComponent(record.id);
+      const amount = record.moneyDecision?.amountVnd;
+      const fmt = value => `${new Intl.NumberFormat('vi-VN').format(value)} đ`;
+      let staffMessage = `Quản trị viên đã duyệt đề xuất hoàn ${fmt(amount ?? 0)} cho sự cố ${code}.`;
+      if (outcome === 'REDUCE') {
+        staffMessage = `Quản trị viên đã hạ số tiền hoàn cho sự cố ${code} từ ${fmt(record.proposal?.amountVnd ?? 0)} xuống ${fmt(amount ?? 0)}.`;
+      } else if (outcome === 'REJECT') {
+        staffMessage = `Quản trị viên đã từ chối đề xuất hoàn tiền cho sự cố ${code}.${record.moneyDecision?.reason ? ' Lý do: ' + record.moneyDecision.reason : ''}`;
+      }
+      await write(eventId, 'IncidentRefundDecided', await operators(['STAFF'], to, session),
+        'Đã có quyết định về khoản hoàn sự cố', staffMessage, session);
+      const customerMessage = outcome === 'REJECT'
+        ? `Sự cố ${code} đã được giải quyết. Xem kết quả xử lý trong chi tiết sự cố.`
+        : `Sự cố ${code} đã được giải quyết với khoản hoàn tiền ${fmt(amount ?? 0)}.`;
+      if (record.customerId) {
+        await write(eventId, 'IncidentResolved', [{ id: record.customerId, role: 'CUSTOMER', to }],
+          'Sự cố đã được giải quyết', customerMessage, session);
+      }
+      if (record.sitterId) {
+        await write(eventId, 'IncidentResolved', [{ id: record.sitterId, role: 'PET_SITTER', to }],
+          'Sự cố đã được giải quyết', `Sự cố ${code} đã được giải quyết. Vui lòng xem kết quả xử lý.`, session);
+      }
+    },
     // R3 MSG122: one notice for the Admins for each receipt line that rejected goods. The event id is stable, so saving
     // the same receipt line again never writes a second notice. The link opens the receipt on the Goods Receipt page.
     async goodsReceiptRejected({ code, productId, productName, quantity, reason }, session) {
