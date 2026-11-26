@@ -26,10 +26,19 @@ test('guest sees sign-in and does not query private pets', () => {
 });
 test('customer sends service visits and owned pet to backend, then clears stale quote on edit', async () => {
   const api = setup(); renderBasket(); await fillBasket(); fireEvent.click(screen.getByText('Xem báo giá'));
-  await screen.findByText(/Thanh toán trước/);
+  await screen.findByText(/Thanh toán toàn bộ qua payOS trong 15 phút/);
   expect(api.quote).toHaveBeenCalledWith([{ serviceId, petIds: [petId], visitCount: 3, durationMinutes: 60 }]);
   fireEvent.change(screen.getByLabelText('Số lượt'), { target: { value: '4' } });
   expect(screen.queryByText('Tổng dự kiến')).toBeNull();
+});
+test('ST-BKG-01 displays the server-owned Silver discount and final total in the basket summary', async () => {
+  const api = setup();
+  api.quote.mockResolvedValue({ ...result, tier: { code: 'SILVER', discountBps: 300 },
+    tierDiscountVnd: 8730, totalVnd: 282270 });
+  renderBasket(); await fillBasket(); fireEvent.click(screen.getByText('Xem báo giá'));
+  await screen.findByText('Giảm giá hạng Silver');
+  expect(screen.getByText(/8\.730/)).toBeTruthy();
+  expect(screen.getByText(/282\.270/)).toBeTruthy();
 });
 test('quote response arriving after an edit cannot restore obsolete price', async () => {
   const api = setup(); let resolve; api.quote.mockReturnValue(new Promise(done => { resolve = done; }));

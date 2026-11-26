@@ -1,5 +1,17 @@
 # Booking proposals
 
+`payment-expiry.service.js` is only a compatibility re-export of the canonical
+`booking-payment-expiry.service.js`; it has no separate worker or financial path.
+JOB-03 follows the finalized checkout implementation: never-submitted intents
+can expire locally; attempted links require recorded terminal-unpaid evidence
+or a signed provider lookup for each attempt. Money received, partial payment,
+open links or unavailable evidence defer expiry to webhook/reconciliation;
+a lookup alone never marks a booking paid. No provider means no expiry worker.
+The transaction rechecks intent state and provider binding, existing receipts
+and visit states. Batches cap attempts and use a stable ID cursor so deferred
+bookings cannot starve later bookings. Expiry, visit release, one domain event
+and one MSG67 in-app notification commit together. Reads use persisted state.
+
 Checkout stores customer visits and care shifts in chronological sequence. It sorts
 whole visit records after eligibility and consent checks, preserving request-indexed
 errors, addresses, preferred sitters and price snapshots. Reads also order legacy
@@ -40,3 +52,49 @@ Directed availability accepts optional `directory: true, page` to read every act
 Booking details resolve saved area codes through a bounded `_id` lookup in the existing service-area registry, including closed historical areas; legacy demo labels remain a fallback. The read never changes checkout snapshots, coverage policy or financial state.
 
 `booking-cancellation.service.js` handles customer preview and transactional cancellation of a whole booking or a single unstarted visit (`startAt > now`) under GBR-15, GBR-17 and GBR-19: late fees (30% of pre-discount visit price when `< 24h` and accepted by a pet sitter), multi-visit combo discount recalculation on remaining visits using the snapshotted `pricingPolicyVersion`, offer revocation, pending booking-change reconciliation, `finalizeExceptionalBooking`, `refunds` (`RECORDED`, `BOOKING_CANCELLATION`) with GBR-30 cap enforcement, in-app sitter notifications, and Admin read listing for booking cancellation refunds.
+
+GBR-09 checkout uses `booking-span-policy.js` to enforce a maximum 30-day
+Vietnam calendar day difference between the last occupied service day and the
+first service day (for example 01/12 to 31/12 is allowed; 01/12 to 01/01 fails
+with `MSG20`). The checkout service enforces this after constructing each visit
+with its actual service duration; rescheduling uses the corresponding full
+schedule policy.
+The booking quote and checkout apply the approved, versioned customer-tier
+discount and retain an immutable snapshot with integer-VND allocation.
+
+GBR-17 requires PREPAY for every newly created checkout booking, including
+one-visit bookings. Every order creates a payOS intent with the original
+15-minute deadline and stays out of dispatch until verified payment.
+`booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch.
+Its `_id`-ordered scan cursor advances between 50-booking batches and wraps
+after the final eligible booking. Deferred bookings remain in the eligible
+set and are retried in subsequent scan cycles; a large first page waiting on
+payOS cannot starve later expired bookings. The existing MongoDB `_id` index
+supports deterministic pagination without adding a new collection or index.
+An expired order can be finalized when *each* payOS intent is independently
+safe: a pending intent without any submission marker was never sent; a
+replaced `CANCELLED` intent with recorded terminal payOS evidence is already
+reconciled; all other attempted or legacy intents require a fresh authenticated
+payOS terminal-unpaid result. This covers a cancelled old link followed by a
+new pending intent that the Customer never opened. The service checks intent
+state, version, provider reference, money and submission markers again inside
+the guarded transaction, rejects verified or reconciliation-required payments,
+then expires the booking and releases visits. Missing or ambiguous evidence
+defers expiry rather than inferring payment failure from a payOS 404.
+
+`paymentLink` preserves `linkRequestedAt` when payOS reports a missing link. A `CREATING`
+intent is still in flight and returns `COMMAND_PENDING` on a concurrent retry:
+the original POST may complete after the status lookup. Once the first request
+has actually failed and the intent is `RECONCILIATION_REQUIRED`, a confirmed
+missing-link response permits one atomic compare-and-set claim back to `CREATING`, retaining the
+submission marker and original provider order code. A racing retry cannot
+create another link or make JOB-03 misclassify the intent as never submitted.
+
+A link-creation claim with no published URL or provider link ID becomes eligible
+for recovery after 60 seconds, beyond the configured payOS HTTP timeout. A
+retry first looks up the original order code. The payOS business response
+`101` (missing payment code) permits a retry with the same code before the
+original deadline. After it, JOB-03 can close a stale unpublished claim
+on the same response, provided the intent and booking still
+match and no verified or unresolved receipt exists. A response can publish
+a URL only if the original claim still owns a pending intent before expiry.

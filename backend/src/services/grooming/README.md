@@ -18,6 +18,7 @@ frontend hides shop booking actions while disabled, retaining eligible home care
 | `grooming-pricing.service.js` | Current approved per-pet/per-service prices in the booking transaction, integer VND and floor tier discount. Common product checkout eligibility supplies approved tier version and holds. No AI pricing or invented surcharge/tax. |
 | `grooming-discount-hold.service.js` | Compatibility adapter to common checkout eligibility; no copied financial rule. |
 | `grooming-booking.service.js` | Transactional price/ownership recheck, pet guard, shared employee guards, customer cancellation (free until 2 hours before start) and embedded reservation/receipt. Owner-scoped reads hide staff identities, receipts, care evidence and payment internals. |
+| `grooming-unpaid.service.js` | GBR-11 shared Customer payment hold: refuses new home or shop bookings when a handed-back grooming appointment still has an unpaid amount. Checks authoritative recorded money under the Customer scheduling guard. |
 | `grooming-appointment-code.service.js` | Independent GR sequence; failed transactions may leave harmless gaps. |
 | `grooming-storage.service.js` | Explicit additive provisioning of appointments and counters only; runtime does not create indexes. |
 | `grooming-demo-seed.service.js` | Development-only synthetic shop fixtures, never production employment evidence. |

@@ -1,6 +1,7 @@
 import { createVisitEvidenceAccess } from '../services/care/visit-evidence-access.service.js';
 import { createVisitEvidenceQuota } from '../services/care/visit-evidence-quota.service.js';
 import express, { Router } from 'express';
+import { applicationIntakeMiddleware } from '../middlewares/application-intake.js';
 import { requireSession, requireCsrf } from '../middlewares/session.js';
 import { createSessionService } from '../services/session.service.js';
 import { createPrivateImageService } from '../services/private-image.service.js';
@@ -138,11 +139,18 @@ export function applicantDocumentRuntimeModule({ config, connection, ports, env,
   if (!config.auth?.enabled) return null;
   const documents = loadApplicantDocumentConfig(env);
   if (!documents) return null;
+  const intake = applicationIntakeMiddleware({ secret: config.auth.tokenSecret, clock, secure: config.nodeEnv === 'production' });
   const session = createSessionService({ connection, clock,
     tokenSecret: config.auth.tokenSecret, csrfSecret: config.auth.csrfSecret });
+  const account = requireSession(session, { clock }), accountCsrf = requireCsrf(session);
+  function documentOwner(req, res, next) {
+    if (!req.get('X-Application-Token')) return account(req, res, next);
+    intake.require(req, res, error => error ? next(error) : intake.documentOwner(req, res, next));
+  }
   return privateImageModule({ connection, media: ports.applicantDocuments, secret: config.auth.tokenSecret,
     imageModels: applicantDocumentModels(connection), storagePrefix: 'applicant-documents',
     name: 'applicant-documents', mount: '/api/v1/applicant-documents',
-    maxImagesPerUser: documents.maxImagesPerUser, requireAuthenticated: requireSession(session, { clock }),
-    csrf: requireCsrf(session) });
+    maxImagesPerUser: documents.maxImagesPerUser,
+    requireAuthenticated: [intake.sameOrigin, documentOwner],
+    csrf: (req, res, next) => req.applicationApplicant ? next() : accountCsrf(req, res, next), clock });
 }

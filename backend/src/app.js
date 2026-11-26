@@ -115,6 +115,7 @@ export function createApp({
     ? sitterManagementModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
+  app.locals.bookingPaymentExpiry = checkout?.paymentExpiry ?? null;
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
   const bookingChange = auth && checkout && employeeScheduling
     ? bookingChangeRuntimeModule({ ...context, sessionService: auth.sessionService,
@@ -123,6 +124,7 @@ export function createApp({
   if (bookingChange) auth.router.use(bookingChange.router);
   app.locals.bookingChange = bookingChange?.service ?? null;
   app.locals.visitCompletionMonitor = employeeScheduling?.completionMonitor ?? null;
+  app.locals.visitReminders = employeeScheduling?.visitReminders ?? null;
   const serviceAreas = serviceAreaRuntimeModule(context);
   const maps = mapsRuntimeModule(context);
   const productSales = productSalesRuntimeModules({ ...context, sessionService: auth?.sessionService });
@@ -133,7 +135,7 @@ export function createApp({
   const suppliedModules = moduleFactories.map((factory) => factory(context))
     .filter(module => module !== null && module !== undefined);
   const sitterApplications = config.auth?.enabled && !suppliedModules.some(module => module.name === 'sitter-applications')
-    ? sitterApplicationRuntimeModule(context) : null;
+    ? sitterApplicationRuntimeModule({ ...context, requeueVisit: employeeScheduling?.dispatch?.requeueVisit }) : null;
   app.locals.applicationMail = env.EMAIL_ENABLED === 'true' ? (sitterApplications ?? suppliedModules.find(module => module.name === 'sitter-applications'))?.applicationMail : null;
 
   const catalogModules = serviceCatalogRuntimeModules(context).filter(

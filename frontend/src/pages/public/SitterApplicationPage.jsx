@@ -28,6 +28,8 @@ function lines(value) {
 
 function errorMessage(error) {
   if (error?.code === 'POLICY_NOT_AVAILABLE') return 'Chính sách đăng ký đã thay đổi hoặc chưa có hiệu lực. Vui lòng tải lại trang và xác nhận chính sách hiện hành.';
+  if (error?.code === 'INTAKE_VERIFICATION_REQUIRED') return 'Phiên nộp hồ sơ đã hết hạn. Hãy tải lại biểu mẫu trước khi thử lại.';
+  if (error?.code === 'CONTACT_UNAVAILABLE') return 'Email hoặc số điện thoại đã thuộc một tài khoản. Vui lòng kiểm tra lại thông tin hoặc liên hệ PawWorld.';
   if (error?.code === 'UNAUTHENTICATED' || error?.code === 'CSRF_UNAVAILABLE') return 'Phiên đăng nhập cần được xác nhận lại. Vui lòng đăng nhập rồi mở lại hồ sơ.';
   if (error?.code === 'MEDIA_QUOTA_EXCEEDED') return 'Tài khoản đã đạt giới hạn lưu trữ 20 ảnh. Vui lòng liên hệ PawWorld để được hỗ trợ.';
   if (error?.code === 'INVALID_DOCUMENT') return 'Chọn ảnh JPG hoặc PNG hợp lệ, tối đa 5 MB.';
@@ -53,8 +55,8 @@ function errorMessage(error) {
 
 function validate({
   displayName,
-  contactChannel,
   contactValue,
+  phone,
   dateOfBirth,
   identityNumber,
   experience,
@@ -72,18 +74,13 @@ function validate({
   else if (displayName.trim().length > 100)
     errors.displayName = 'Tối đa 100 ký tự.';
   if (!contactValue.trim())
-    errors.contactValue = 'Nhập email hoặc số điện thoại.';
+    errors.contactValue = 'Nhập email.';
   else if (
-    contactChannel === 'EMAIL' &&
     !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactValue.trim())
   )
     errors.contactValue = 'Email chưa đúng định dạng.';
-  else if (
-    contactChannel === 'PHONE' &&
-    !/^\+[1-9]\d{7,14}$/.test(contactValue.trim())
-  )
-    errors.contactValue =
-      'Dùng số điện thoại dạng quốc tế, ví dụ +84912345678.';
+  if (!/^(?:0[35789]\d{8}|\+84[35789]\d{8})$/.test((phone ?? '').trim()))
+    errors.phone = 'Nhập số điện thoại Việt Nam hợp lệ, ví dụ 0912345678.';
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))
     errors.dateOfBirth = 'Chọn ngày sinh hợp lệ.';
   if (!/^[A-Z0-9]{8,20}$/.test(identityNumber.normalize('NFKC').replace(/[\s-]/g, '').toUpperCase()))
@@ -126,6 +123,7 @@ export function SitterApplicationPage({
     displayName: '',
     contactChannel: 'EMAIL',
     contactValue: '',
+    phone: '',
     dateOfBirth: '',
     identityNumber: '',
     experience: '',
@@ -177,6 +175,7 @@ export function SitterApplicationPage({
     const ids = {
       displayName: 'sitter-applicant-displayName',
       contactValue: 'sitter-applicant-contactValue',
+      phone: 'sitter-applicant-phone',
       dateOfBirth: 'sitter-applicant-dateOfBirth',
       identityNumber: 'sitter-applicant-identityNumber',
       experience: 'sitter-applicant-experience',
@@ -254,8 +253,8 @@ export function SitterApplicationPage({
       const result = await api.submit(
         {
           displayName: form.displayName.trim(),
-          contactChannel: form.contactChannel,
-          contactValue: form.contactValue.trim(),
+          email: form.contactValue.trim(),
+          phone: form.phone.trim(),
           dateOfBirth: form.dateOfBirth,
           identityNumber: form.identityNumber.trim(),
           experience: form.experience.trim(),
@@ -272,6 +271,7 @@ export function SitterApplicationPage({
         displayName: '',
         contactChannel: 'EMAIL',
         contactValue: '',
+        phone: '',
         dateOfBirth: '',
         identityNumber: '',
         experience: '',
@@ -315,7 +315,7 @@ export function SitterApplicationPage({
         <span className="sitter-application__success-icon" aria-hidden="true">{receipt.state === 'REJECTED' ? '!' : '✓'}</span>
         <p className="sitter-application__eyebrow">PawWorld · Hồ sơ của bạn</p>
         <h2 id="sitter-application-receipt-title">{labels[receipt.state] || 'Đã tiếp nhận hồ sơ'}</h2>
-        <p>Hồ sơ chỉ được cấp quyền Pet Sitter sau khi PawWorld xét duyệt. Bạn vẫn có thể sử dụng tài khoản khách hàng trong thời gian chờ.</p>
+        <p>Hồ sơ đang chờ PawWorld xét duyệt. Tài khoản Pet Sitter chỉ được tạo khi Admin duyệt hồ sơ.</p>
         {receipt.state === 'REJECTED' && <>
           <h3>Lý do từ chối</h3>
           <p>{receipt.rejectionReason || 'Chưa có nội dung lý do được cung cấp.'}</p>
@@ -324,11 +324,11 @@ export function SitterApplicationPage({
         </>}
         <div className="sitter-application__tracking">
           <span>Mã hồ sơ của bạn</span><strong>{receipt.applicationCode}</strong>
-          <small>Khi đăng nhập đúng tài khoản, bạn mở trực tiếp hồ sơ mà không cần nhập lại mã hoặc OTP.</small>
+          <small>Lưu mã này để tra cứu hồ sơ và xác minh bằng mã OTP gửi tới email đã nộp.</small>
         </div>
         <Link className="registration-submit" to="/sitter/application-status">Theo dõi hồ sơ →</Link>
         {onRefreshApplication && <Button variant="secondary" onClick={onRefreshApplication}>Cập nhật trạng thái hồ sơ</Button>}
-        <Link to="/account">Về tài khoản của tôi</Link>
+        <Link to="/">Về trang chủ</Link>
       </div>
     </section>;
   }
@@ -356,7 +356,7 @@ export function SitterApplicationPage({
         <p className="sitter-application__eyebrow">PawWorld · Pet Sitter</p>
         <h2 id="sitter-application-title">Kể chúng mình nghe về bạn</h2>
         <p>Hoàn thiện hồ sơ để bắt đầu hành trình chăm sóc những người bạn nhỏ.</p>
-        <span className="sitter-application__verified">✓ Email đã xác minh · {form.contactValue}</span>
+        <p>Nhập cả email và số điện thoại. Bạn chưa cần có tài khoản để ứng tuyển.</p>
       </header>
       {apiUnavailable && <Notice state="pending" title="Chưa mở tiếp nhận giấy tờ">Kho giấy tờ riêng tư hiện chưa sẵn sàng. Bạn có thể chuẩn bị thông tin; hồ sơ chỉ được gửi khi hệ thống tiếp nhận hoạt động.</Notice>}
       <form className="sitter-application__form" noValidate onSubmit={submit}>
@@ -365,7 +365,8 @@ export function SitterApplicationPage({
           <div className="sitter-application__section-heading"><span>01</span><h3>Thông tin cá nhân</h3><small>Cần đủ 18 tuổi để ứng tuyển</small></div>
           <div className="sitter-application__grid">
             {field('displayName', 'Họ và tên', { autoComplete: 'name', maxLength: 100, placeholder: 'Nguyễn Văn A' })}
-            {field('contactValue', 'Email', { type: 'email', readOnly: true, autoComplete: 'email' })}
+            {field('contactValue', 'Email', { type: 'email', autoComplete: 'email' })}
+            {field('phone', 'Số điện thoại', { type: 'tel', autoComplete: 'tel', placeholder: '0912345678' })}
             {field('dateOfBirth', 'Ngày sinh', { type: 'date', autoComplete: 'bday' })}
             {field('identityNumber', 'Số CCCD hoặc giấy tờ định danh', { maxLength: 24, placeholder: 'Nhập số trên giấy tờ của bạn' })}
           </div>
@@ -405,7 +406,7 @@ export function SitterApplicationPage({
             {errors.experience && <small className="sitter-application__error">{errors.experience}</small>}
           </label>
           <div className="sitter-application__section-heading"><span>03</span><h3>Giấy tờ ứng tuyển</h3></div>
-          <p className="sitter-application__file-hint">Ảnh JPG hoặc PNG, tối đa 5 MB và 4 megapixel/tệp (ví dụ 2000 × 2000 pixel), tối đa 20 ảnh/tài khoản. Giấy tờ được lưu riêng tư, chỉ bạn và người xét duyệt có quyền xem.</p>
+          <p className="sitter-application__file-hint">Ảnh JPG hoặc PNG, tối đa 5 MB và 4 megapixel/tệp (ví dụ 2000 × 2000 pixel). Giấy tờ được lưu riêng tư để xét duyệt hồ sơ.</p>
           <div className="sitter-application__upload"><label htmlFor="sitter-applicant-id-file">Ảnh mặt trước CCCD <b aria-hidden="true">*</b></label>
             <small>Ảnh rõ nét, đầy đủ thông tin trên giấy tờ</small>
             <input ref={identityInput} id="sitter-applicant-id-file" type="file" accept="image/jpeg,image/png" required aria-invalid={!!(errors.identityFile || errors.files)}

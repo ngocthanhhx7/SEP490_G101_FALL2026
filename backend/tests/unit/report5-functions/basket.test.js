@@ -48,6 +48,7 @@ function subject(context = makeContext()) {
   const createSnapshot = jest.fn(async ([document]) => [{ ...document, _id: QUOTE_ID }]);
   const repository = {
     context: jest.fn(async () => globalThis.structuredClone(context)),
+    readTier: jest.fn(async () => ({ tierCode: 'MEMBER', tierPolicyVersion: null, discountBps: 0 })),
     models: { DecisionSnapshot: { create: createSnapshot } },
   };
   // Factory chỉ inject port/clock; từng test chỉ gọi basket.
@@ -62,7 +63,7 @@ test("QUOTE-02-UTCID01 [N] Một dòng dịch vụ báo đúng giá của bookin
   const actual = await basket(OWNER, { items: [selection()] });
 
   expect(actual).toMatchObject({ baseVnd: 100000, totalVnd: 100000,
-    visitCount: 1, paymentMode: 'POSTPAY' });
+    visitCount: 1, paymentMode: 'PREPAY' });
   expect(actual.items).toHaveLength(1);
   expect(actual.items[0]).toMatchObject({ serviceId: SERVICE, totalVnd: 100000 });
 });
@@ -76,7 +77,7 @@ test("QUOTE-02-UTCID02 [N] Một dòng dịch vụ cộng đúng các phụ phí
   });
 
   expect(actual).toMatchObject({ baseVnd: 100000, surchargeVnd: 55000,
-    totalVnd: 155000, paymentMode: 'POSTPAY' });
+    totalVnd: 155000, paymentMode: 'PREPAY' });
   expect(actual.items[0].totalVnd).toBe(155000);
 });
 

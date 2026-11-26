@@ -114,6 +114,9 @@ function fixture({ count = 1, serviceOptions = {} } = {}) {
         return row ?? null;
       })
     };
+    if (name === 'users') collections[name].findOneAndUpdate.mockResolvedValue({
+      _id: oid('owner'), state: 'ACTIVE', roles: ['CUSTOMER']
+    });
     return collections[name];
   }
   const modelNames = ['DecisionSnapshot', 'Pet', 'CustomerAddress', 'PetCareCommand', 'PetTrait', 'PetBreed',
@@ -145,7 +148,9 @@ function fixture({ count = 1, serviceOptions = {} } = {}) {
   models.Pet.find.mockImplementation(filter => query(matches(pet, filter) ? [pet] : []));
   models.CustomerAddress.findOne.mockImplementation(filter => query(matches(address, filter) ? address : null));
   for (const name of ['sitterpublicprofiles', 'users', 'sitterstatuses']) collection(name).findOne.mockResolvedValue({});
-  const connection = { models, model: jest.fn(() => { throw new Error('Unexpected model registration'); }),
+  const connection = { models, model: jest.fn(name => (models[name] ??= {
+    modelName: name, collection: { countDocuments: jest.fn(async () => 0) }
+  })),
     db: { collection: jest.fn(collection) }, transaction: jest.fn(async work => work(session)) };
   const provider = { createPaymentLink: jest.fn(async () => ({ checkoutUrl: 'https://pay.payos.vn/web/synthetic-link',
     orderCode: Number(intent.providerReference), amount: intent.amountVnd, currency: 'VND', paymentLinkId: 'synthetic-link' })) };
@@ -163,13 +168,13 @@ function noBookingWrites(f) {
   expect(f.collection('paymentintents').insertOne).not.toHaveBeenCalled();
 }
 
-// SRS: UC-25 bước 3–7; III.7.1 Booking; GBR-09/17/18/20/34; approved-decisions: 1 lượt POSTPAY, >1 lượt PREPAY.
+// SRS: UC-25 bước 3–7; GBR-17: every checkout, including one visit, is PREPAY.
 test("CHECKOUT-02-UTCID01 [N] Tạo booking một lượt và giữ bản sao giá địa chỉ chính sách", async () => {
   const f = fixture();
 
   const actual = await f.service.confirm(f.actor, f.body, 'srs-confirm-normal');
 
-  expect(actual).toMatchObject({ totalVnd: 100000, paymentMode: 'POSTPAY', paymentState: 'UNPAID' });
+  expect(actual).toMatchObject({ totalVnd: 100000, paymentMode: 'PREPAY', paymentState: 'UNPAID' });
   const saved = f.collection('bookings').insertOne.mock.calls[0][0];
   const visit = f.collection('visits').insertMany.mock.calls[0][0][0];
   expect(saved.checkoutSnapshot).toMatchObject({ consentAt: new Date(NOW), quote: { totalVnd: 100000 } });
@@ -187,11 +192,11 @@ test("CHECKOUT-02-UTCID02 [A] Chưa chấp nhận chính sách trách nhiệm b�
   noBookingWrites(f);
 });
 
-// SRS: GBR-09; MSG19: tối thiểu 2 giờ; 1 lượt POSTPAY.
+// SRS: GBR-09; MSG19: tối thiểu 2 giờ; 1 lượt PREPAY.
 test("CHECKOUT-02-UTCID03 [B] Chấp nhận giờ bắt đầu đúng biên 2 giờ", async () => {
   const f = fixture(); f.body.visits[0].startAt = new Date(NOW + 2 * 3600000).toISOString();
 
-  await expect(f.service.confirm(f.actor, f.body, 'srs-confirm-2h')).resolves.toMatchObject({ paymentMode: 'POSTPAY' });
+  await expect(f.service.confirm(f.actor, f.body, 'srs-confirm-2h')).resolves.toMatchObject({ paymentMode: 'PREPAY' });
   expect(f.collection('bookings').insertOne).toHaveBeenCalledTimes(1);
 });
 
@@ -205,19 +210,19 @@ test("CHECKOUT-02-UTCID04 [B] Từ chối giờ bắt đầu ngay dưới 2 gi�
 
 // SRS: GBR-09; III.7.1 From date/To date; MSG20.
 test("CHECKOUT-02-UTCID05 [B] Chấp nhận lịch từ ngày đầu đến ngày cuối trong 30 ngày", async () => {
-  const f = fixture({ count: 30 });
+  const f = fixture({ count: 31 });
 
   const actual = await f.service.confirm(f.actor, f.body, 'srs-confirm-30days');
 
-  expect(actual.visits).toHaveLength(30);
+  expect(actual.visits).toHaveLength(31);
   expect(f.collection('bookings').insertOne).toHaveBeenCalledTimes(1);
 });
 
 // SRS: GBR-09; III.7.1 From date/To date; MSG20.
 test("CHECKOUT-02-UTCID06 [B] Từ chối lịch vượt giới hạn 30 ngày", async () => {
-  const f = fixture({ count: 31 });
+  const f = fixture({ count: 32 });
 
-  await expect(f.service.confirm(f.actor, f.body, 'srs-confirm-31days')).rejects.toMatchObject({ name: 'AppError' });
+  await expect(f.service.confirm(f.actor, f.body, 'srs-confirm-31days')).rejects.toMatchObject({ name: 'AppError', code: 'MSG20' });
   noBookingWrites(f);
 });
 

@@ -13,8 +13,8 @@ visit, and confirmation rechecks them transactionally. Optional MATCH snapshots
 prioritize advisory invitations; they never reserve or assign an employee.
 Private draft fields stay in memory; uncertain confirmation retains its key/body.
 Login uses role-specific workspaces and a validated authorized return path;
-Customer defaults to Home. Sitter intake keeps its
-verified-account application step. Catalogue and detail booking actions open
+Customer defaults to Home. Guests can submit a sitter application with both
+email and phone; account creation follows Admin approval. Catalogue and detail booking actions open
 the selected-service route, not the login screen.
 
 `SitterApplicationPage` collects Full-time/Part-time preference and previews
@@ -43,7 +43,7 @@ AboutPage adapts Figma 2:2724 to dog/cat care, the product storefront and the cu
 
 SignInPage adapts Figma 2:5284 to the existing OTP flow. Email and SMS use the session adapter; Vietnamese local phone numbers are normalized to +84 before submission. sign-in.css owns all login styling, while auth-public.css retains registration/application styling. Header/footer remain owned by PublicSiteLayout. The registration link opens /register; social/password sign-in is outside this OTP flow. See [verification](../../../../doc/testing/login-email-sms-refresh.md).
 
-RegistrationPage owns role choice and progression. CustomerRegistrationPage validates account details/consent and sends email OTP directly; SitterApplicationPage opens after the session is re-read and its intake is loaded. Sitter forms use the verified owner email, dedicated applicant-document upload adapter, policy consent and server receipts. The application-status route now uses PublicSiteLayout. See [registration flow](../../../../doc/testing/registration-sitter-flow.md).
+RegistrationPage owns role choice and progression within the shared public header/footer. CustomerRegistrationPage validates account details/consent and sends email OTP directly. SitterApplicationPage opens after loading a guest intake capability, without account registration or email OTP first. The form collects both email and phone, uses the dedicated applicant-document upload adapter, policy consent and server receipts. Switching roles keeps the public layout. The application-status route also uses PublicSiteLayout. See [registration flow](../../../../doc/testing/registration-sitter-flow.md).
 
 Application receipts show the owner's rejection reason and Vietnam-local retry
 instant. The refresh action reads the server's canReapply flag before opening a

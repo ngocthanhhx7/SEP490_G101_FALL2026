@@ -27,7 +27,7 @@ const headers = (session, key) => ({
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' }, replSet: { count: 1 } });
   const env = {
-    NODE_ENV: 'test', AUTH_ENABLED: 'true', BOOKING_CHECKOUT_ENABLED: 'true',
+    NODE_ENV: 'test', AUTH_ENABLED: 'true', BOOKING_CHECKOUT_ENABLED: 'true', RATE_LIMIT_MAX: '500',
     EMPLOYEE_SCHEDULING_ENABLED: 'true', FINANCE_SOURCES_ENABLED: 'true', EMPLOYEE_DISPATCH_AGENT_ENABLED: 'true',
     SESSION_TOKEN_SECRET: 'a'.repeat(48), SESSION_CSRF_SECRET: 'b'.repeat(48), OTP_HMAC_SECRET: 'c'.repeat(48),
     CONTACT_LOOKUP_SECRET: 'd'.repeat(48), CONTACT_ENCRYPTION_KEY: 'e'.repeat(32),
@@ -335,6 +335,19 @@ describe('UC-84 customer requests', () => {
     await submit(tooLong, single(tooLong.visits[1], BASE + 31 * DAY)).expect(201);
     const thirtyOne = await booking([BASE + DAY, BASE + 2 * DAY]);
     expect(errorCode(await submit(thirtyOne, single(thirtyOne.visits[1], BASE + 32 * DAY)).expect(422))).toBe('MSG20');
+  });
+
+  test('ST-BKG-12 rescheduling enforces the 30-day calendar boundary across explicit dates and different times of day', async () => {
+    const dec01Morning = Date.parse('2030-12-01T08:00:00+07:00');
+    const dec02Morning = Date.parse('2030-12-02T08:00:00+07:00');
+    const dec31Evening = Date.parse('2030-12-31T18:00:00+07:00');
+    const jan01Morning = Date.parse('2031-01-01T07:00:00+07:00');
+
+    const allowed = await booking([dec01Morning, dec02Morning]);
+    await submit(allowed, single(allowed.visits[1], dec31Evening)).expect(201);
+
+    const rejected = await booking([dec01Morning, dec02Morning]);
+    expect(errorCode(await submit(rejected, single(rejected.visits[1], jan01Morning)).expect(422))).toBe('MSG20');
   });
 
   test('checks pet collisions across bookings and accepts a boundary that only touches', async () => {

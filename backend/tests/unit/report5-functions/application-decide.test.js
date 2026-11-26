@@ -88,7 +88,7 @@ function fixture({ applicationState = 'INTERVIEW', sitterStatus = 'ACTIVE', pend
     };
   }
   const Applicant = model('applicants'), User = model('users'), Audit = model('audits'), SitterStatus = model('statuses');
-  const connection = { transaction: async callback => {
+  const connection = { models: { Contact: model('contacts'), OtpChallenge: {}, OtpThrottle: {}, AuthSession: {} }, transaction: async callback => {
     const session = { state: copy(committed) };
     const result = await callback(session);
     committed = session.state;

@@ -133,7 +133,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
             { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt,
               ...(needsHandover && { handoverLateCheckInExempt: urgentReplacement(visit, assignedAt) }),
               ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) },
-              $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 }, $inc: { version: 1 } }, { session });
+              $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 }, $inc: { version: 1, assignmentVersion: 1 } }, { session });
           if (!assigned.matchedCount) fail('SLOT_UNAVAILABLE', 'Visit changed', 409);
           await col('bookings').updateOne({ _id: visit.bookingId }, { $inc: { version: 1, financeGuardVersion: 1 } }, { session });
           const pending = await col('visits').countDocuments({ bookingId: visit.bookingId, state: 'SCHEDULED' }, { session });
@@ -408,7 +408,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       return result;
     }
   };
-  async function dispatchRow(row) {
+  async function dispatchRow(row, { afterOfferRevocation = false } = {}) {
     try {
       if (row.startAt <= new Date(clock())) fail('SHIFT_START_REACHED', 'No employee accepted before shift start', 409);
       await service.invite(agentActor, String(row._id), { expectedVersion: row.version }, `agent:${row._id}:${row.version}`);
@@ -417,27 +417,28 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
       if (error.status !== 409) throw error;
       if (!['NO_ELIGIBLE_SITTER', 'DIRECTED_SCHEDULE_REVIEW_REQUIRED', 'STAFF_REVIEW_REQUIRED', 'INSUFFICIENT_DISPATCH_CANDIDATES',
         'TRAVEL_REVIEW_REQUIRED', 'DAY_ORIGIN_MISSING', 'DISPATCH_SEARCH_LIMIT', 'SHIFT_START_REACHED'].includes(error.code)) return 'review';
+      const reviewCode = afterOfferRevocation && error.code === 'NO_ELIGIBLE_SITTER' ? 'STAFF_REVIEW_REQUIRED' : error.code;
       await uow.run(async session => {
         const emptyRanking = !directedSitter(row) && ['NO_ELIGIBLE_SITTER', 'STAFF_REVIEW_REQUIRED'].includes(error.code)
           ? rankingForVisit(row, {}, [], [], new Date(clock())) : null;
         const lastRanking = error.details?.dispatchRanking ?? emptyRanking;
         const updated = await col('visits').findOneAndUpdate({ _id: row._id, version: row.version, state: 'SCHEDULED', sitterId: null },
-          { $set: { dispatchReview: { code: error.code, at: new Date(clock()), retryAt: new Date(clock() + 60000),
+          { $set: { dispatchReview: { code: reviewCode, at: new Date(clock()), retryAt: new Date(clock() + 60000),
             ...(error.details?.diagnostics || row.dispatchReview?.diagnostics ? { diagnostics: error.details?.diagnostics ?? row.dispatchReview.diagnostics } : {}) },
             ...(lastRanking ? { dispatchRanking: lastRanking } : {}) } },
           { session, returnDocument: 'before' });
         if (updated) await expireOffers(row._id, new Date(clock()), session);
         if (updated && !updated.dispatchReview) await event({ type: 'DispatchReviewRequired', actorId: agentActor.userId,
-          visitId: String(row._id), detail: { code: error.code, version: row.version } }, session);
+          visitId: String(row._id), detail: { code: reviewCode, version: row.version } }, session);
       });
       return 'review';
     }
   }
 
-  async function requeueWithdrawal(visitId, version) {
+  async function requeueWithdrawal(visitId, version, options) {
     try {
       const row = await col('visits').findOne({ _id: oid(visitId), version, state: 'SCHEDULED', sitterId: null });
-      if (row && !(row.dispatchReview?.retryAt > new Date(clock()))) await dispatchRow(row);
+      if (row && !(row.dispatchReview?.retryAt > new Date(clock()))) await dispatchRow(row, options);
     } catch {
       // The visit is already requeued. The existing dispatch worker retries it.
     }
