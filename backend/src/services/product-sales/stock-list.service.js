@@ -6,11 +6,9 @@ import { parseObjectId } from '../../validators/product.validator.js';
 import { createStockHistoryService } from './stock-history.service.js';
 import { paginate } from '../pagination.service.js';
 import { productSalesErrors } from './product-sales-errors.js';
+import { STOCK_LOW_EXPRESSION, countLowStockProducts } from './stock-low-filter.js';
 
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-// $ifNull also supports pre-default legacy product records.
-const availableExpression = { $subtract: [{ $ifNull: ['$stockOnHand', 0] }, { $ifNull: ['$quantityHeld', 0] }] };
-const lowExpression = { $lte: [availableExpression, STOCK_LOW_THRESHOLD] };
 function requireStockViewer(actor) {
   if (actor?.state !== 'ACTIVE' || !Array.isArray(actor.roles)
     || typeof actor.userId !== 'string' || !/^[a-f\d]{24}$/iu.test(actor.userId)) throw productSalesErrors.unauthenticated();
@@ -32,7 +30,7 @@ export function createStockListService({ connection, cursorSecret, clock = Date.
       requireStockViewer(actor);
       const { tab, search, page, limit } = parseStockQuery(query);
       const filter = { deletedAt: null };
-      if (tab === 'LOW_STOCK') filter.$expr = lowExpression;
+      if (tab === 'LOW_STOCK') filter.$expr = STOCK_LOW_EXPRESSION;
       if (search) {
         const pattern = { $regex: escapeRegex(search), $options: 'i' };
         filter.$or = [{ name: pattern }, { code: pattern }];
@@ -40,7 +38,7 @@ export function createStockListService({ connection, cursorSecret, clock = Date.
       const [result, all, low] = await Promise.all([
         paginate(Product, { filter, sort: { code: 1, _id: 1 }, page, limit }),
         Product.countDocuments({ deletedAt: null }),
-        Product.countDocuments({ deletedAt: null, $expr: lowExpression })
+        countLowStockProducts(Product)
       ]);
       return { ...result, items: result.items.map(toStock), counts: { ALL: all, LOW_STOCK: low } };
     },
