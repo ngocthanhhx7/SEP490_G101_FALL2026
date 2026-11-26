@@ -34,7 +34,7 @@ function visitGrossVnd(visit) {
   return base + surcharge;
 }
 
-function visitInitialNetVnd(visit) {
+export function visitInitialNetVnd(visit) {
   if (Number.isSafeInteger(visit.snapshots?.employeeServiceNetVnd) && visit.snapshots.employeeServiceNetVnd >= 0) {
     return visit.snapshots.employeeServiceNetVnd;
   }

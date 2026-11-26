@@ -178,6 +178,32 @@ test('GBR-13 tells a sitter that a concurrent acceptance took the visit and refr
   expect(await screen.findByText('Buổi đã có người nhận.')).toBeInTheDocument();
   await waitFor(() => expect(api.offers.mock.calls.length).toBeGreaterThan(1));
 });
+test('ST-BKG-05: declining an offer opens an inline form, shows MSG01 without reason, and shows MSG79 on submit', async () => {
+  const api = fixture();
+  api.respond.mockResolvedValueOnce({
+    data: { state: 'DECLINED', startAt: '2026-11-03T02:00:00.000Z', reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận lịch học', messageCode: 'MSG79' }
+  });
+  render(<MemoryRouter><EmployeeInvitationsPage api={api} /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Từ chối' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi từ chối' }));
+  expect(await screen.findByText('Trường này là bắt buộc.')).toBeVisible();
+  expect(api.respond).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+  expect(screen.queryByRole('button', { name: 'Gửi từ chối' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Từ chối' }));
+  fireEvent.change(screen.getByLabelText(/Lý do/), { target: { value: 'SCHEDULE_CONFLICT' } });
+  fireEvent.change(screen.getByLabelText(/Ghi chú thêm/), { target: { value: 'Bận lịch học' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi từ chối' }));
+
+  await waitFor(() => expect(api.respond).toHaveBeenCalledWith(
+    'offer', 'declines', 2, expect.stringMatching(/^schedule:/),
+    { reasonCode: 'SCHEDULE_CONFLICT', note: 'Bận lịch học' }
+  ));
+  expect(await screen.findByText('Bạn đã từ chối buổi ngày 03/11/2026 lúc 09:00.')).toBeVisible();
+});
+
 test('customer sees the previous and replacement sitter before choosing to confirm', async () => {
   const proposal = { id: 'replacement', version: 0, state: 'PENDING_CUSTOMER_CONFIRMATION', sitterId: 'new',
     previousSitterId: 'old', previousSitter: { displayName: 'Người ban đầu' }, sitter: { displayName: 'Người thay thế' },
