@@ -198,10 +198,14 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
           if (operation === 'CHECKLIST') {
             if (visit.snapshots?.workflow) fail(409, 'WORKFLOW_TASKS_REQUIRED');
             const required = visit.snapshots?.checklistItemIds;
+            const allowedIds = Array.isArray(visit.snapshots?.checklistItems) && visit.snapshots.checklistItems.length > 0
+              ? [...new Set([...(Array.isArray(required) ? required : []), ...visit.snapshots.checklistItems.map(row => row?.itemId).filter(Boolean)])]
+              : required;
             if (!Array.isArray(required) || required.length > 100 || new Set(required).size !== required.length
-              || !Array.isArray(items) || items.length < 1 || items.length > required.length
+              || !Array.isArray(allowedIds) || allowedIds.length > 100
+              || !Array.isArray(items) || items.length < 1 || items.length > allowedIds.length
               || new Set(items.map(row => row?.itemId)).size !== items.length
-              || items.some(row => !required.includes(row?.itemId) || !['DONE', 'SKIPPED'].includes(row.status)
+              || items.some(row => !allowedIds.includes(row?.itemId) || !['DONE', 'SKIPPED'].includes(row.status)
                 || (row.status === 'SKIPPED' && (typeof row.reason !== 'string' || !row.reason.trim() || row.reason.length > 1000)))
               || (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote)))) fail(422, 'CHECKLIST_INVALID');
             fields = {
@@ -215,7 +219,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             const required = visit.snapshots?.checklistItemIds;
             assertWorkflowGate(visit, ['CHECK_IN', 'EXECUTION', 'CHECK_OUT']);
             await workflow.verifyEvidence(visit, session);
-            if (!visit.snapshots?.workflow && (!Array.isArray(required) || !Array.isArray(visit.checklist) || required.length !== visit.checklist.length
+            if (!visit.snapshots?.workflow && (!Array.isArray(required) || !Array.isArray(visit.checklist)
               || required.some(id => !visit.checklist.some(row => row.itemId === id && ['DONE', 'SKIPPED'].includes(row.status)
                 && (row.status !== 'SKIPPED' || row.reason?.trim()))))) fail(409, 'CHECKLIST_REQUIRED');
             if (!visit.snapshots?.workflow && Array.isArray(visit.checklistPhotoIds) && visit.checklistPhotoIds.length === 0
@@ -302,14 +306,33 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
       return unitOfWork.run(async session => {
         const { visit } = await visitContext(current, visitId, session, { allowCompletedSuspendedRead: true });
         if (visit.snapshots?.workflow && handoverPending(visit)) fail(409, 'HANDOVER_REQUIRED');
+        const requiredSet = new Set(visit.snapshots?.checklistItemIds ?? []);
+        const snapshotItems = Array.isArray(visit.snapshots?.checklistItems) && visit.snapshots.checklistItems.length > 0
+          ? visit.snapshots.checklistItems.slice(0, 100).map(item => ({
+            itemId: item.itemId,
+            label: typeof item.label === 'string' ? item.label : item.itemId,
+            required: item.required !== undefined ? item.required === true : requiredSet.has(item.itemId)
+          }))
+          : (visit.snapshots?.checklistItemIds ?? []).slice(0, 100).map(itemId => ({
+            itemId,
+            label: itemId,
+            required: true
+          }));
+        const hasInstructionVersion = Number.isInteger(visit.currentInstructionVersion);
+        const careInstructionsPendingAck = hasInstructionVersion
+          && (visit.acknowledgedInstructionVersion ?? 0) < visit.currentInstructionVersion;
         return { visitId, state: visit.state, version: visit.version, startAt: visit.startAt, endAt: visit.endAt,
           workflow: workflowProjection(visit),
           serviceName: visit.snapshots?.serviceName ?? null, completionAttention: visit.completionAttention?.code ?? null,
           closureOutcome: visit.closureVerification?.outcome ?? null,
+          ...(hasInstructionVersion ? {
+            careInstructionsPendingAck,
+            currentInstructionVersion: visit.currentInstructionVersion,
+            acknowledgedInstructionVersion: Number.isInteger(visit.acknowledgedInstructionVersion) ? visit.acknowledgedInstructionVersion : null
+          } : {}),
           serverNow: now(), checkInOpensAt: new Date(+visit.startAt - CHECK_IN_EARLY_MS),
           checkInClosesAt: visit.endAt, checkOutClosesAt: new Date(+visit.endAt + CHECK_OUT_GRACE_MS),
-          checklistItems: (visit.snapshots?.checklistItemIds ?? []).slice(0, 100).map(itemId => ({ itemId,
-            label: visit.snapshots?.checklistItems?.find(item => item.itemId === itemId && typeof item.label === 'string')?.label ?? itemId })),
+          checklistItems: snapshotItems,
           evidence: (visit.evidenceRefs ?? []).filter(item => ['CHECK_IN', 'CHECK_OUT'].includes(item.kind) && /^[a-f0-9]{64}$/i.test(item.mediaId)).slice(0, 2)
             .map(({ kind, mediaId }) => ({ kind, mediaId })),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,

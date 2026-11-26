@@ -131,6 +131,7 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           const needsHandover = handoverPending(visit);
           const assigned = await col('visits').updateOne({ _id: visit._id, sitterId: null, state: 'SCHEDULED', version: visit.version },
             { $set: { sitterId: oid(sitterId), state: 'ASSIGNED', assignedAt,
+              ...(Number.isInteger(visit.currentInstructionVersion) ? { acknowledgedInstructionVersion: visit.currentInstructionVersion } : {}),
               ...(needsHandover && { handoverLateCheckInExempt: urgentReplacement(visit, assignedAt) }),
               ...(accepted.featureSnapshot ? { assignedFeatureSnapshot: accepted.featureSnapshot } : {}) },
               $unset: { withdrawalDispatch: 1, withdrawalRequest: 1, dispatchPreferredFallback: 1 }, $inc: { version: 1, assignmentVersion: 1 } }, { session });

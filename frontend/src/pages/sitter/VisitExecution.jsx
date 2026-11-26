@@ -51,11 +51,15 @@ export function VisitExecution({ api, visitId, onChanged }) {
   if (resource.status === 'loading') return <p role="status">Đang tải tiến độ ca…</p>;
   if (resource.status !== 'success') return <p role="alert">Chưa tải được tiến độ ca. <button onClick={resource.retry}>Tải lại tiến độ</button></p>;
   const required = row.checklistItemIds;
-  const label = id => row.checklistItems?.find(item => item.itemId === id)?.label || labels[id] || id;
+  const allChecklistItems = row.checklistItems?.length
+    ? row.checklistItems
+    : (Array.isArray(required) ? required.map(id => ({ itemId: id, label: labels[id] || id, required: true })) : []);
+  const label = id => allChecklistItems.find(item => item.itemId === id)?.label || labels[id] || id;
   const current = id => items[id] ?? row.checklist?.find(item => item.itemId === id) ?? { itemId: id, status: '', reason: '' };
   const complete = Array.isArray(required) && required.every(id => {
     const item = current(id); return item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim();
   });
+  const checkInBlockedByInstructions = row.state === 'ASSIGNED' && row.careInstructionsPendingAck === true;
   const versioned = row.workflow?.mode === 'VERSIONED';
   const phaseComplete = phase => row.workflow?.tasks.filter(task => task.step.phase === phase).every(task => !['BLOCKED','NEEDS_REVIEW'].includes(task.status) && (!task.step.required || task.status === 'COMPLETED' || task.status === 'SKIPPED' && task.step.canSkip) && task.step.photoSlots.every(slot => task.evidence.filter(photo => photo.photoSlotId === slot.photoSlotId).length >= slot.minPhotos));
   const workflowReady = !versioned || (row.state === 'ASSIGNED' ? phaseComplete('CHECK_IN') : ['CHECK_IN','EXECUTION','CHECK_OUT'].every(phaseComplete));
@@ -80,9 +84,10 @@ export function VisitExecution({ api, visitId, onChanged }) {
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại thao tác ca</Button>}
     {versioned && <VisitWorkflowExecution row={row} api={api} visitId={visitId} onSaved={() => { resource.retry(); onChanged?.(); }} locked={locked || early || expired} />}
     {!versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked}><legend>Nội dung chăm sóc</legend>
-      {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : required.map(id => {
+      {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : allChecklistItems.map(entry => {
+        const id = entry.itemId;
         const item = current(id);
-        return <div key={id}><label>{label(id)}<select aria-label={label(id)} value={item.status}
+        return <div key={id}><label>{label(id)}{entry.required === false ? ' (Tuỳ chọn)' : ''}<select aria-label={label(id)} value={item.status}
           onChange={event => setItems(value => ({ ...value, [id]: { ...item, status: event.target.value } }))}>
           <option value="">Chưa ghi nhận</option><option value="DONE">Đã thực hiện</option><option value="SKIPPED">Không thực hiện</option>
         </select></label>{item.status === 'SKIPPED' && <label>Lý do không thực hiện: {label(id)}
@@ -90,11 +95,18 @@ export function VisitExecution({ api, visitId, onChanged }) {
         </label>}</div>;
       })}
       <Button disabled={!complete || locked} onClick={() => {
-        const payload = { expectedVersion: row.version, items: required.map(id => { const item = current(id); return { itemId: id, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }; }) };
+        const chosen = allChecklistItems
+          .map(entry => current(entry.itemId))
+          .filter(item => item.status === 'DONE' || (item.status === 'SKIPPED' && item.reason?.trim()))
+          .map(item => ({ itemId: item.itemId, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }));
+        const payload = { expectedVersion: row.version, items: chosen };
         command.execute(key => api.executeVisit(visitId, 'checklists', payload, key));
       }}><Check size={18} />Lưu nội dung chăm sóc</Button>
     </fieldset>}
     {['ASSIGNED', 'IN_PROGRESS'].includes(row.state) && <fieldset disabled={locked}><legend>Ảnh bằng chứng {row.state === 'ASSIGNED' ? 'check-in' : 'check-out'}</legend>
+      {checkInBlockedByInstructions && (
+        <p role="alert">Khách đã đổi hướng dẫn chăm sóc. Vui lòng đọc và xác nhận trước khi check-in.</p>
+      )}
       <label><Camera size={18} />Ảnh tại ca chăm sóc<input ref={input} type="file" accept="image/jpeg,image/png" capture="environment" onChange={event => {
         const selected = event.target.files?.[0] ?? null;
         upload.current = null;
@@ -105,7 +117,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
       {fileError && <p role="alert">{fileError}</p>}
       {file && <VisitEvidencePreview file={file} label="Ảnh bằng chứng đã chọn" onRemove={clearFile} disabled={locked} onInvalid={setFileError} />}
       {!api.uploadEvidence && <p role="alert">Chưa có kết nối tải ảnh bằng chứng.</p>}
-      <Button disabled={locked || !workflowReady || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !savedChecklist}
+      <Button disabled={locked || checkInBlockedByInstructions || !workflowReady || !file || !!fileError || early || expired || !api.uploadEvidence || row.state === 'IN_PROGRESS' && !savedChecklist}
         onClick={() => evidence(row.state === 'ASSIGNED' ? 'check-ins' : 'check-outs')}>
         {row.state === 'ASSIGNED' ? <LogIn size={18} /> : <LogOut size={18} />}{row.state === 'ASSIGNED' ? 'Check-in bắt đầu ca' : 'Check-out hoàn tất ca'}
       </Button>

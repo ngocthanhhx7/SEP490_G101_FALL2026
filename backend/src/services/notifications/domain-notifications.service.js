@@ -145,6 +145,31 @@ export function createDomainNotifications({ connection, clock = Date.now }) {
         ? '/account/bookings/' + bookingId + '/visits/' + visitId : '/account/bookings';
       await write(`visit:${visitId}:${version}`, `Visit${operation}`, [{ id: customerId, to }], ...labels[operation], session);
     },
+    async careInstructionsUpdated({ visitId, bookingId, sitterId, instructionVersion }, session) {
+      await col('notifications').updateOne(
+        { _id: digest([`care-instructions:${visitId}:v${instructionVersion}`, String(sitterId), 'PET_SITTER']) },
+        {
+          $setOnInsert: {
+            eventId: `care-instructions:${visitId}:v${instructionVersion}`,
+            eventType: 'CareInstructionsUpdated',
+            recipientId: String(sitterId),
+            role: 'PET_SITTER',
+            title: 'Khách đã đổi hướng dẫn chăm sóc',
+            message: `Khách hàng đã cập nhật hướng dẫn chăm sóc (phiên bản ${instructionVersion}). Vui lòng đọc và xác nhận trước khi check-in.`,
+            channel: 'IN_APP',
+            deepLink: `/sitter/visits/${visitId}`,
+            metadata: {
+              visitId: String(visitId),
+              bookingId: String(bookingId),
+              instructionVersion
+            },
+            createdAt: new Date(clock()),
+            readAt: null
+          }
+        },
+        { upsert: true, session }
+      );
+    },
     async bookingCancelled({ eventId, sitters }, session) {
       for (const row of sitters ?? []) {
         const count = row.visitIds?.length ?? 1;

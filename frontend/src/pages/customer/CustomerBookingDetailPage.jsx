@@ -150,6 +150,12 @@ function CustomerBookingDetail({ bookingId }) {
           <Button variant="secondary" className="customer-booking-detail__cancel-button"
             onClick={openBookingCancel}>Huỷ lịch đặt</Button>
         )}
+      {detailVisits.length > 0 && (
+        <Link className="pwc-button pwc-button--secondary"
+          to={'/account/bookings/' + encodeURIComponent(bookingId) + '/care-instructions'}>
+          Hướng dẫn chăm sóc
+        </Link>
+      )}
       <Link to="/contact" state={{ helpFrom: location.pathname }}>Hỗ trợ lịch hẹn</Link>
     </section>,
     beforeList: <>
