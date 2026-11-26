@@ -52,6 +52,11 @@ GBR-17 requires PREPAY for every newly created checkout booking, including
 one-visit bookings. Every order creates a payOS intent with the original
 15-minute deadline and stays out of dispatch until verified payment.
 `booking-payment-expiry.service.js` is JOB-03: it examines a bounded batch.
+Its `_id`-ordered scan cursor advances between 50-booking batches and wraps
+after the final eligible booking. Deferred bookings remain in the eligible
+set and are retried in subsequent scan cycles; a large first page waiting on
+payOS cannot starve later expired bookings. The existing MongoDB `_id` index
+supports deterministic pagination without adding a new collection or index.
 An expired order can be finalized when *each* payOS intent is independently
 safe: a pending intent without any submission marker was never sent; a
 replaced `CANCELLED` intent with recorded terminal payOS evidence is already

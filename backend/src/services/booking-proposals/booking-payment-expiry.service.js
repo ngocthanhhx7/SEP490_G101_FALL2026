@@ -29,12 +29,23 @@ export function createBookingPaymentExpiryService({ connection, provider, clock 
   if (typeof provider?.getPaymentLink !== 'function') throw new TypeError('Verified payOS lookup required');
   const transaction = createUnitOfWork(connection);
   const col = name => connection.db.collection(name);
+  // Keep a stable _id scan position across worker ticks. Deferred bookings
+  // remain eligible and are revisited after the scan wraps; they cannot block
+  // later bookings merely because the first 50 still need reconciliation.
+  let scanAfterId = null;
 
   async function runBatch() {
     await assertFinanceSourceStorage(connection);
     const asOf = new Date(clock());
-    const bookings = await col('bookings').find({ state: 'AWAITING_PAYMENT', paymentState: 'UNPAID',
-      paymentDeadlineAt: { $lte: asOf } }, { maxTimeMS: 5000 }).limit(50).toArray();
+    const eligible = { state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: { $lte: asOf } };
+    const page = afterId => col('bookings').find(afterId ? { ...eligible, _id: { $gt: afterId } } : eligible,
+      { maxTimeMS: 5000 }).sort({ _id: 1 }).limit(50).toArray();
+    let bookings = await page(scanAfterId);
+    if (!bookings.length && scanAfterId) {
+      scanAfterId = null;
+      bookings = await page(null);
+    }
+    if (bookings.length) scanAfterId = bookings[bookings.length - 1]._id;
     let expired = 0, deferred = 0;
     for (const booking of bookings) {
       const intents = await col('paymentintents').find({ bookingId: booking._id, provider: 'PAYOS' },

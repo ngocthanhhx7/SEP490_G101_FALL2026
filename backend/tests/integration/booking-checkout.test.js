@@ -717,6 +717,55 @@ test('JOB-03 defers an attempted payOS link on lookup 404 instead of assuming no
   expect((await connection.collection('paymentintents').findOne({ _id: intent._id })).state).toBe('PENDING');
 });
 
+test('JOB-03 pages beyond 50 deferred bookings and revisits deferred items after wraparound', async () => {
+  const expiryAt = new Date(at.getTime() - 60_000);
+  const bookingIds = Array.from({ length: 51 }, () => oid()).sort((a, b) => a.toHexString().localeCompare(b.toHexString()));
+  const visitIds = bookingIds.map(() => oid());
+  await connection.collection('bookings').insertMany(bookingIds.map((_id, index) => ({
+    _id, customerId: new mongoose.Types.ObjectId(owner.userId), paymentMode: 'PREPAY',
+    state: 'AWAITING_PAYMENT', paymentState: 'UNPAID', paymentDeadlineAt: expiryAt,
+    version: 0, financeGuardVersion: 0, visitIds: [visitIds[index]]
+  })));
+  await connection.collection('visits').insertMany(bookingIds.map((bookingId, index) => ({
+    _id: visitIds[index], bookingId, state: 'SCHEDULED', version: 0
+  })));
+  await connection.collection('paymentintents').insertMany(bookingIds.map((bookingId, index) => ({
+    _id: oid(), bookingId, customerId: new mongoose.Types.ObjectId(owner.userId), provider: 'PAYOS',
+    providerReference: String(1_500_000_000_000 + index), amountVnd: 100_000,
+    currency: 'VND', version: 0, expiresAt: expiryAt, state: 'PENDING',
+    ...(index < 50 ? { linkState: 'CREATING', linkRequestedAt: at } : {})
+  })));
+  let resolvedByPayos = false;
+  const provider = { getPaymentLink: jest.fn(async orderCode => {
+    if (resolvedByPayos) return { orderCode, amount: 100_000, amountPaid: 0, providerStatus: 'EXPIRED' };
+    throw { code: 'PAYOS_REQUEST_FAILED', details: { providerHttpStatus: 404 } };
+  }) };
+  const worker = createBookingPaymentExpiryService({ connection, provider,
+    clock: () => at.getTime() });
+  expect(await worker.runBatch()).toMatchObject({ checked: 50, expired: 0, deferred: 50 });
+  expect((await connection.collection('bookings').findOne({ _id: bookingIds[50] })).state).toBe('AWAITING_PAYMENT');
+  expect(await worker.runBatch()).toMatchObject({ checked: 1, expired: 1, deferred: 0 });
+  expect((await connection.collection('bookings').findOne({ _id: bookingIds[50] })).state).toBe('PAYMENT_EXPIRED');
+  expect((await connection.collection('visits').findOne({ _id: visitIds[50] })).state).toBe('CANCELLED');
+  expect((await connection.collection('paymentintents').findOne({ bookingId: bookingIds[50] })).state).toBe('EXPIRED');
+  expect(await connection.collection('financesourceevents').countDocuments({
+    _id: `booking-payment-expired:${bookingIds[50]}`
+  })).toBe(1);
+  expect(await worker.runBatch()).toMatchObject({ checked: 50, expired: 0, deferred: 50 });
+  expect(provider.getPaymentLink).toHaveBeenCalledTimes(100);
+  expect(await connection.collection('bookings').countDocuments({
+    _id: { $in: bookingIds.slice(0, 50) }, state: 'AWAITING_PAYMENT'
+  })).toBe(50);
+  // Previously deferred entries remain eligible. A later provider confirmation
+  // must finalize them rather than leaving them in a permanently skipped page.
+  resolvedByPayos = true;
+  expect(await worker.runBatch()).toMatchObject({ checked: 50, expired: 50, deferred: 0 });
+  expect(await connection.collection('bookings').countDocuments({
+    _id: { $in: bookingIds }, state: 'PAYMENT_EXPIRED'
+  })).toBe(51);
+  expect(await worker.runBatch()).toMatchObject({ checked: 0, expired: 0 });
+});
+
 test('JOB-03 never expires an unsubmitted intent if a verified payment receipt already exists', async () => {
   const q = await quote('home-care', 1);
   const booking = await checkout.confirm(owner, input(q), 'booking-expiry-local-with-receipt');
