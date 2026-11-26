@@ -136,8 +136,30 @@ fieldset.grooming-steps {
 .grooming-chips {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 0.6rem;
   margin-top: var(--pwc-space-3);
+}
+
+.grooming-slot-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.pwc-page .grooming-slot-conflict {
+  box-sizing: border-box;
+  width: 0;
+  min-width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--pwc-radius-control);
+  background: var(--pwc-error-surface);
+  color: var(--pwc-error);
+  font-size: 0.8rem;
+  line-height: 1.35;
+  overflow-wrap: break-word;
 }
 
 .grooming-chip {
