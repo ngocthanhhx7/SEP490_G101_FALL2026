@@ -132,10 +132,9 @@ test.each(['/register', '/sitter/apply'])('registration entry %s keeps PawWorld 
   show(path);
   expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
   expect(screen.getAllByRole('navigation', { name: 'Điều hướng chính' })).toHaveLength(1);
-  expect(screen.getAllByText(/2026 PawWorld. All rights reserved/)).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Khách hàng', exact: true })).toHaveAttribute('aria-pressed', String(path === '/register'));
   expect(screen.getByRole('button', { name: 'Pet Sitter', exact: true })).toHaveAttribute('aria-pressed', String(path === '/sitter/apply'));
-  expect(screen.getByText(/2026 PawWorld. All rights reserved/)).toBeVisible();
+  expect(screen.getByRole('contentinfo', { name: 'Paw World Care' })).toBeVisible();
   if (path === '/sitter/apply') {
     expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
     expect(screen.getByLabelText(/^Email/)).toBeVisible();
@@ -153,6 +152,6 @@ test.each(['/register', '/sitter/apply'])('registration entry %s keeps PawWorld 
   expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Pet Sitter', exact: true })).toHaveAttribute('aria-pressed', 'true');
   expect(screen.getAllByRole('navigation', { name: 'Điều hướng chính' })).toHaveLength(1);
-  expect(screen.getAllByText(/2026 PawWorld. All rights reserved/)).toHaveLength(1);
+  expect(screen.getAllByRole('contentinfo', { name: 'Paw World Care' })).toHaveLength(1);
   expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
 });
