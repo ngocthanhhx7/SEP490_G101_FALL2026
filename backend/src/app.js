@@ -115,6 +115,7 @@ export function createApp({
     ? sitterManagementModule({ ...context, sessionService: auth.sessionService }) : null;
   const payroll = payrollRuntimeModule(context);
   const checkout = bookingCheckoutRuntimeModule(context);
+  app.locals.bookingPaymentExpiry = checkout?.paymentExpiry ?? null;
   const employeeScheduling = employeeSchedulingRuntimeModule(context);
   const bookingChange = auth && checkout && employeeScheduling
     ? bookingChangeRuntimeModule({ ...context, sessionService: auth.sessionService,

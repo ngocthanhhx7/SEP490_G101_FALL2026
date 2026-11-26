@@ -469,7 +469,7 @@ test('GBR-12 automatic fallback sends five nearby newcomers together and recheck
   await expect(dispatch.offers.accept(workers[0], String(initial._id), 0, 'origin-removed-after-offer')).rejects.toMatchObject({ code: 'DAY_ORIGIN_MISSING' });
   await connection.collection('aisitterprofiles').updateOne({ userId: originOwner }, { $set: { starts: original.starts } });
   for (const [index, offer] of batch.entries()) {
-    await dispatch.offers.decline(workers[index], String(offer._id), 0, `newcomer-decline-${offer._id}`);
+    await dispatch.offers.decline(workers[index], String(offer._id), 0, `newcomer-decline-${offer._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
     await dispatch.runBatch({ limit: 20 });
     expect(await pending()).toHaveLength(4 - index);
   }
@@ -592,6 +592,11 @@ test('paid boarding care shifts feed actual attendance and immutable employee cr
   const stranger = actor('CUSTOMER'); await connection.collection('users').insertOne({ _id: new mongoose.Types.ObjectId(stranger.userId), ...stranger });
   await rate(stranger).send(body).expect(404);
   const second = `/reviews/visits/${plan.visits[1].id}/ratings`;
+  const secondForSameSitter = await request(reviewApp).post(second).set('x-test-actor', customer.userId)
+    .set('Host', 'localhost').set('Origin', 'http://localhost').set('x-csrf-token', 'synthetic-csrf')
+    .set('Idempotency-Key', 'verified-same-sitter-second-visit').send({ rating: 5 });
+  expect(secondForSameSitter.status).toBe(409);
+  expect(secondForSameSitter.body.error.code).toBe('REVIEW_ALREADY_EXISTS');
   await connection.collection('bookings').updateOne({ _id: row.bookingId }, { $set: { state: 'IN_PROGRESS' } });
   await request(reviewApp).post(second).set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
     .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'unverified-rating-002').send({ rating: 5 }).expect(409);
@@ -791,6 +796,13 @@ test('ranked OUTDOOR assignment retains its policy snapshot and records one veri
   expect((await connection.collection('bookings').findOne({ _id: row.bookingId })).state).toBe('COMPLETED');
   expect(await matching.SitterVisitOutcome.countDocuments({ visitId: row._id })).toBe(0);
 
+  reviewNow = at + 8 * 86400000;
+  const afterSevenDays = await request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
+    .set('x-test-actor', customer.userId).set('Host', 'localhost').set('Origin', 'http://localhost')
+    .set('x-csrf-token', 'synthetic-csrf').set('Idempotency-Key', 'late-customer-rating-8days')
+    .send({ rating: 4, expectedVersion: completed.version });
+  expect(afterSevenDays.status).toBe(409);
+  expect(afterSevenDays.body.error.code).toBe('REVIEW_WINDOW_EXPIRED');
   at += 60000;
   reviewNow = at;
   const rate = () => request(reviewApp).post(`/reviews/visits/${visitId}/ratings`)
@@ -1047,7 +1059,7 @@ test.each(['INELIGIBLE', 'DECLINED', 'EXPIRED'])('directed dispatch waits for cu
     await first(`consent-first-${row._id}`);
     const [opening] = await offers('PENDING');
     expect(opening.sitterId).toBe(workers[0].userId);
-    if (reason === 'DECLINED') await dispatch.offers.decline(workers[0], String(opening._id), 0, `consent-decline-${row._id}`);
+    if (reason === 'DECLINED') await dispatch.offers.decline(workers[0], String(opening._id), 0, `consent-decline-${row._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
     else await module.repository.models.EmployeeVisitOffer.updateOne({ _id: opening._id }, { $set: { deadline: new Date(clock()) } });
   }
   await rerun();
@@ -1066,7 +1078,7 @@ test('GBR-12 offers the top five together and GBR-13 permits exactly one winner'
   await first(`gbr12-tie-${row._id}`);
   const group = await offers('PENDING');
   expect(group.map(offer => offer.sitterId)).toEqual(workers.map(worker => worker.userId));
-  await dispatch.offers.decline(workers[0], String(group[0]._id), 0, `gbr12-tie-decline-${row._id}`);
+  await dispatch.offers.decline(workers[0], String(group[0]._id), 0, `gbr12-tie-decline-${row._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
   await rerun();
   expect(await offers('PENDING')).toHaveLength(4);
   const responses = await Promise.allSettled(group.slice(1, 3).map((offer, index) =>
@@ -1492,5 +1504,61 @@ describe('UC-38 Staff replace the pet sitter of an accepted visit', () => {
     const ended = await visit({ start: '2026-10-30T00:30:00Z' });
     await expect(module.repository.eligible(sitter.userId, ended, undefined, { allowStarted: true })).rejects.toMatchObject({ code: 'SHIFT_REVIEW_REQUIRED' });
     await expect(module.dispatch.invite(staff, String(started._id), { expectedVersion: 0, sitterId: sitter.userId }, 'uc38-invite-started')).rejects.toMatchObject({ code: 'SHIFT_START_REACHED' });
+  });
+});
+
+describe('ST-BKG-05 offer decline reason', () => {
+  test('declining without reason or with invalid code returns 422 while keeping offer open, valid reason persists and excludes sitter from automatic re-offer', async () => {
+    const { row, workers, dispatch, offers, first, rerun } = await sequentialFixture({ scores: [90, 88, 86, 84, 82, 80, 78, 76, 74, 72] });
+    await first(`st-bkg-05-first-${row._id}`);
+    const batch = await offers('PENDING');
+    expect(batch).toHaveLength(5);
+    const target = batch[0];
+    const postDecline = (body, key) => request(app)
+      .post(`/api/v1/employee-scheduling/offers/${target._id}/declines`)
+      .set('x-test-actor', target.sitterId)
+      .set('origin', 'http://127.0.0.1')
+      .set('host', '127.0.0.1')
+      .set('x-csrf-token', 'synthetic-csrf')
+      .set('idempotency-key', key)
+      .send(body);
+
+    const missing = await postDecline({ expectedVersion: 0 }, `st-bkg-05-missing-${target._id}`).expect(422);
+    expect(missing.body.error.code).toBe('VALIDATION_FAILED');
+    expect(missing.body.error.messageCode).toBe('MSG01');
+
+    const bad = await postDecline({ expectedVersion: 0, reasonCode: 'NOT_A_REASON' }, `st-bkg-05-bad-${target._id}`).expect(422);
+    expect(bad.body.error.code).toBe('VALIDATION_FAILED');
+
+    expect((await module.repository.models.EmployeeVisitOffer.findById(target._id).lean()).state).toBe('PENDING');
+
+    const ok = await postDecline(
+      { expectedVersion: 0, reasonCode: 'ILLNESS', note: 'Bị sốt nhẹ, không đi được' },
+      `st-bkg-05-ok-${target._id}`
+    ).expect(200);
+    expect(ok.body.data).toMatchObject({
+      state: 'DECLINED',
+      reasonCode: 'ILLNESS',
+      note: 'Bị sốt nhẹ, không đi được',
+      messageCode: 'MSG79'
+    });
+
+    const savedOffer = await module.repository.models.EmployeeVisitOffer.findById(target._id).lean();
+    expect(savedOffer).toMatchObject({
+      state: 'DECLINED',
+      declineReasonCode: 'ILLNESS',
+      declineNote: 'Bị sốt nhẹ, không đi được'
+    });
+    const audit = await module.repository.models.EmployeeScheduleEvent.findOne({ type: 'OfferDeclined', offerId: String(target._id) }).lean();
+    expect(audit?.detail).toMatchObject({ reasonCode: 'ILLNESS', note: 'Bị sốt nhẹ, không đi được' });
+
+    for (const remainingOffer of batch.slice(1)) {
+      const sitter = workers.find(worker => worker.userId === remainingOffer.sitterId);
+      await dispatch.offers.decline(sitter, String(remainingOffer._id), 0, `st-bkg-05-rest-${remainingOffer._id}`, { reasonCode: 'SCHEDULE_CONFLICT' });
+    }
+    await rerun();
+    const nextBatch = await offers('PENDING');
+    expect(nextBatch).toHaveLength(5);
+    expect(nextBatch.map(item => item.sitterId)).not.toContain(target.sitterId);
   });
 });

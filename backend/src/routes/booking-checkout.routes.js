@@ -9,6 +9,7 @@ import { point } from '../validators/pet-care.validator.js';
 import { createCheckoutAvailabilityService } from '../services/booking-proposals/checkout-availability.service.js';
 import { createEmployeeScheduleRepository } from '../services/employee-scheduling/employee-schedule.repository.js';
 import { createConfiguredRoutingProvider } from '../services/sitter-matching/commercial-routing.service.js';
+import { createBookingPaymentExpiryService } from '../services/booking-proposals/booking-payment-expiry.service.js';
 import { rateLimit } from 'express-rate-limit';
 
 export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clock = Date.now, sessionService, provider }) {
@@ -45,5 +46,6 @@ export function bookingCheckoutRuntimeModule({ config, connection, env = {}, clo
   router.post('/bookings/:id/payment-link', csrf, c.paymentLink);
   router.post('/bookings/:id/cancellation-preview', csrf, cancel.cancellationPreview);
   router.post('/bookings/:id/cancellations', csrf, cancel.cancelBooking);
-  return { name: 'booking-checkout', mount: '/api/v1/checkout', router, service, cancellation };
+  return { name: 'booking-checkout', mount: '/api/v1/checkout', router, service, cancellation,
+    paymentExpiry: paymentProvider?.getPaymentLink ? createBookingPaymentExpiryService({ connection, provider: paymentProvider, clock }) : null };
 }

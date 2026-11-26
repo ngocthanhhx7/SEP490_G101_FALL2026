@@ -16,6 +16,7 @@ import { createEmployeeScheduleRepository } from '../employee-scheduling/employe
 import { assertGroomingReservations } from './grooming-reservation.service.js';
 import { petCareModels } from '../../models/pet-care.model.js';
 import { payrollModels } from '../../models/payroll.model.js';
+import { assertNoUnpaidGrooming } from './grooming-unpaid.service.js';
 
 const MAX_ATTEMPTS = 4;
 const CANCEL_LEAD_MS = GROOMING_CANCEL_MIN_LEAD_MINUTES * 60000;
@@ -108,6 +109,7 @@ export function createGroomingBooking({ connection, clock = Date.now, pricing, s
       const customer = await connection.db.collection('users').findOneAndUpdate({ _id: owner, state: 'ACTIVE', roles: 'CUSTOMER', synthetic: { $ne: true } },
         { $inc: { schedulingGuardVersion: 1 } }, { session, returnDocument: 'after' });
       if (!customer) fail('FORBIDDEN', 'Current customer account required', 403);
+      await assertNoUnpaidGrooming(connection, customerId, session);
       const priced = await pricing.price(String(customerId), { pets: input.pets }, { session });
       for (const { pet } of [...priced.pets].sort((a, b) => String(a.pet._id).localeCompare(String(b.pet._id)))) {
         const guarded = await Pet.collection.updateOne({ _id: pet._id, ownerId: owner, state: 'ACTIVE', version: pet.version },

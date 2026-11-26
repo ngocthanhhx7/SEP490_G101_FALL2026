@@ -75,26 +75,8 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   cartRouter.patch('/lines/:productId', csrf, cart.setLine);
   cartRouter.delete('/lines/:productId', csrf, cart.removeLine);
 
-  const orders = createProductOrderController(createProductOrderService({
-    connection, serviceAreas: DEMO_WORK_AREAS, eligibility, clock, paymentDeadlineHours: config.paymentDeadlineHours }));
   const payos = provider ? null : loadPayosConfig(env);
   const payosProvider = provider ?? (payos ? createPayosProvider(payos) : null);
-  const orderPayments = createProductOrderPaymentService({
-    connection, clock, provider: payosProvider, webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) });
-  const payments = createProductOrderPaymentController(orderPayments);
-  const orderRouter = Router();
-  orderRouter.use(noStore, requireSession(session, { clock }), customer);
-  orderRouter.get('/', orders.list);
-  orderRouter.post('/', csrf, orders.place);
-  orderRouter.get('/:orderId', orders.read);
-  orderRouter.post('/:orderId/payment-link', csrf, payments.paymentLink);
-
-  // Order handlers read verified customer phone numbers through the same contact keys as sign-in (D-217).
-  const contactCrypto = createContactCrypto({
-    lookupSecret: config.auth.contactLookupSecret,
-    encryptionKey: config.auth.contactEncryptionKey
-  });
-  const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
   const orderSettler = payosProvider && typeof payosProvider.getPaymentLink === 'function'
     && typeof payosProvider.verifyWebhook === 'function'
     ? createProductOrderPaymentSettler({
@@ -106,12 +88,34 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
       }).handleVerifiedPayment
     })
     : null;
+  const orders = createProductOrderController(createProductOrderService({
+    connection, serviceAreas: DEMO_WORK_AREAS, eligibility, clock,
+    paymentDeadlineHours: config.paymentDeadlineHours, payments: orderSettler
+  }));
+  const orderPayments = createProductOrderPaymentService({
+    connection, clock, provider: payosProvider, webOrigin: parseWebOrigin(env.BOOKING_WEB_ORIGIN) });
+  const payments = createProductOrderPaymentController(orderPayments);
+  const orderRouter = Router();
+  orderRouter.use(noStore, requireSession(session, { clock }), customer);
+  orderRouter.get('/', orders.list);
+  orderRouter.post('/', csrf, orders.place);
+  orderRouter.get('/:orderId', orders.read);
+  orderRouter.post('/:orderId/payment-link', csrf, payments.paymentLink);
+  orderRouter.post('/:orderId/cancel', csrf, orders.cancel);
+
+  // Order handlers read verified customer phone numbers through the same contact keys as sign-in (D-217).
+  const contactCrypto = createContactCrypto({
+    lookupSecret: config.auth.contactLookupSecret,
+    encryptionKey: config.auth.contactEncryptionKey
+  });
+  const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
   const management = createProductOrderManagementController(createProductOrderManagementService({
     connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours, payments: orderSettler
   }), orderPayments);
   const managementRouter = Router();
   managementRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_ORDERS));
   managementRouter.get('/', management.list);
+  managementRouter.get('/refunds', requireRoles('ADMIN'), management.listOrderRefunds);
   managementRouter.get('/:orderId', management.read);
   managementRouter.post('/:orderId/hand-to-carrier', csrf, management.handToCarrier);
   managementRouter.post('/:orderId/mark-delivered', csrf, management.markDelivered);

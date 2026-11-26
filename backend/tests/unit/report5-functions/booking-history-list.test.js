@@ -45,11 +45,11 @@ test("BKG-HISTORY-01-UTCID02 [N] Chưa có booking trả danh sách rỗng", asy
   expect(await f.list(ACTOR)).toMatchObject({ items: [], nextCursor: null });
 });
 
-// SRS: Report 3 23/11; UC-26; GBR-17: booking chờ thanh toán quá 15 phút hiển thị PAYMENT_EXPIRED.
-test("BKG-HISTORY-01-UTCID03 [A] Quá hạn thanh toán 15 phút hiển thị PAYMENT_EXPIRED", async () => {
+// JOB-03 owns durable expiry; listing must not infer payment state from wall-clock time.
+test("BKG-HISTORY-01-UTCID03 [A] Quá hạn nhưng chưa đối soát vẫn hiển thị AWAITING_PAYMENT", async () => {
   const f = fixture({ overdue: true });
   const actual = await f.list(ACTOR);
-  expect(actual.items.find(row => row.id === '333333333333333333333333').state).toBe('PAYMENT_EXPIRED');
+  expect(actual.items.find(row => row.id === '333333333333333333333333').state).toBe('AWAITING_PAYMENT');
 });
 
 // SRS: UC-26; III.7.1.2 Booking List; GBR-01/02.
