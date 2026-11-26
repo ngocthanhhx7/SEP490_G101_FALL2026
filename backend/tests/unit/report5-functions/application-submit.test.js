@@ -87,7 +87,7 @@ function fixture({ applicationState = 'INTERVIEW', sitterStatus = 'ACTIVE', pend
     };
   }
   const Applicant = model('applicants'), User = model('users'), Audit = model('audits'), SitterStatus = model('statuses');
-  const connection = { transaction: async callback => {
+  const connection = { models: { Contact: model('contacts'), OtpChallenge: {}, OtpThrottle: {}, AuthSession: {} }, transaction: async callback => {
     const session = { state: copy(committed) };
     const result = await callback(session);
     committed = session.state;
@@ -130,12 +130,14 @@ test("APPLICATION-01-UTCID02 [N] Nộp hồ sơ kênh PHONE hợp lệ không t�
   expect(f.User.create).not.toHaveBeenCalled();
 });
 
-// SRS: UC-16; P16/P46 từ chối trường ngoài hợp đồng contactChannel/contactValue.
-test("APPLICATION-01-UTCID03 [A] Từ chối payload chứa trường email/phone ngoài hợp đồng", async () => {
+// SRS: UC-16, GBR-25/28: hồ sơ mới nhận cả email và số điện thoại, chưa tạo User.
+test("APPLICATION-01-UTCID03 [N] Nộp hồ sơ có đủ email và số điện thoại, chưa tạo tài khoản", async () => {
   const f = fixture();
   const body = { ...input(), email: 'applicant@example.test', phone: '0912345678' };
-  await expect(f.submit({ body, idempotencyKey: KEY })).rejects.toMatchObject({ status: 422, code: 'VALIDATION_FAILED' });
-  expect(f.Applicant.create).not.toHaveBeenCalled();
+  await expect(f.submit({ body, idempotencyKey: KEY })).resolves.toMatchObject({ state: 'PENDING' });
+  expect(f.state().applicants.at(-1)).toMatchObject({ contactChannel: 'EMAIL',
+    contactLookupKey: 'lookup:EMAIL:applicant@example.test', phoneLookupKey: 'lookup:PHONE:+84912345678' });
+  expect(f.User.create).not.toHaveBeenCalled();
 });
 
 // SRS: UC-16; III.5.1.1 Application Form; GBR-25/28; MSG39, tuổi tại ngày nộp.

@@ -2,9 +2,13 @@
 
 `application-status.service.js` owns the narrow applicant status projection and scoped OTP contract. `application-status-runtime.service.js` connects it to the existing application collection and OTP service.
 
-`application-intake.service.js` reads the authenticated Customer's verified email and most recent owned application. It verifies READY ApplicantDocument references against that owner and maps document registry IDs to bounded R2 content reads for Admin-reviewed documents. It does not trust client-authored object keys, grant Pet Sitter roles or set policy readiness. Submission/consent/approval transactions remain in `../sitter-application.service.js`.
+`application-intake.service.js` returns Guest intake readiness and verifies READY ApplicantDocument references against the signed intake owner. It retains the authenticated adapter for historical owned applications. Admin document reads map registry IDs to bounded R2 content. It never trusts client-authored object keys or grants roles. Submission/consent/approval transactions remain in `../sitter-application.service.js`.
 
-The runtime mounts the existing sitter application router with authenticated submission and CSRF. Its legacy factory option remains for historical Guest contracts/tests; the default application composition explicitly enables the authenticated path. Document uploads use the shared validated image service with a separate ApplicantDocument collection, bucket, namespace and 20-document owner quota; each application references at most six images. PDF is not supported by this pipeline. See [registration verification](../../../../doc/testing/registration-sitter-flow.md).
+The default runtime follows UC-16, GBR-25 and GBR-28: a Guest submits both email and phone without registering or verifying email first. `GET /api/v1/applications/intake` issues an HttpOnly SameSite intake cookie and a token returned only in the response body. Uploads and submission require that cookie plus `X-Application-Token` and same-origin checks. `guest-intake.service.js` signs this temporary document capability; it creates neither User nor AuthSession. The token stays in browser memory. It expires after two hours and is independent of login cookies.
+
+Documents use the shared image decoder with a separate ApplicantDocument collection/bucket/namespace and 20-document intake quota. Each application accepts the front/back identity images, portrait and up to five supporting images. PDF is unsupported. Email/phone are encrypted; a sparse unique multikey `activePendingContactKeys` index prevents concurrent pending applications sharing either contact. Provision indexes through `node scripts/deployment/ensure-indexes.js` before rollout. No historical application data or existing validators are rewritten at startup.
+
+Admin approval creates the Pet Sitter User transactionally after the existing interview/signed-contract gates. `application-onboarding.service.js` resolves an approved application for LOGIN OTP; the contact becomes VERIFIED only after successful OTP proof. The existing authenticated ownership/edit adapter remains available for historical applications and approved users.
 
 The authenticated intake includes applicant-visible rejectionReason and server-clock
 canReapply. Registration never decides cooldown eligibility from the device clock;
@@ -12,9 +16,9 @@ refreshing the receipt reloads intake, then remounts the form only when allowed.
 Submission still independently rechecks pending applications and cooldowns.
 
 `application-mail.service.js` enqueues one typed status email per application
-version in the same domain transaction. It stores an encrypted recipient only
-when the owner has that verified email, and rechecks it before sending. Missing
-verified email is SKIPPED. The runtime worker uses existing notificationDelivery
+version in the same domain transaction. Guest applications use the encrypted
+submitted email without pretending it is a verified account contact. Historical
+owned applications still require and recheck their verified email. The runtime worker uses existing notificationDelivery
 SMTP when EMAIL_ENABLED=true, outside domain transactions. Safe temporary
 failures retry at most three queue attempts with one operation id. Uncertain
 provider acceptance or an expired sending lease becomes UNKNOWN without blind

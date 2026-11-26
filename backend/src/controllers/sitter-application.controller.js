@@ -7,13 +7,14 @@ export function createSitterApplicationController({ service, intake } = {}) {
   return {
     getMine: async (req,res)=>respond(res,req,200,await service.getMine({actor:req.auth})),
     updateMine: async (req,res)=>respond(res,req,200,await service.updateMine({actor:req.auth,body:req.body,idempotencyKey:req.get('idempotency-key'),correlationId:req.requestId})),
-    getIntake: async (req, res) => respond(res, req, 200, await intake.getIntake({ actor: req.auth })),
+    getIntake: async (req, res) => respond(res, req, 200, await intake.getIntake({ actor: req.auth, guest: req.applicationIntake })),
     createRoot: async (req, res) => {
       const result = await service.submit({
         body: req.body,
         idempotencyKey: req.get('idempotency-key'),
         correlationId: req.requestId,
-        actor: req.auth
+        actor: req.auth,
+        applicant: req.applicationApplicant
       });
       return respond(res, req, result.replayed ? 200 : 201, result);
     },

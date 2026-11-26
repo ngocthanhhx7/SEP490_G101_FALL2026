@@ -512,6 +512,9 @@ test('GBR-18 replaces a cancelled unpaid payOS link while booking is within its 
   const next = await connection.collection('paymentintents').findOne({ bookingId: original.bookingId, state: 'PENDING' });
   expect(next.providerReference).not.toBe(original.providerReference);
   expect(next.expiresAt).toEqual(original.expiresAt);
+  const replaced = await connection.collection('paymentintents').findOne({ _id: original._id });
+  expect(replaced.state).toBe('CANCELLED');
+  expect(replaced.providerTerminalStatus).toBe('CANCELLED');
 });
 
 test('ST-BKG-17 retries link creation with the original order code after payOS confirms 404', async () => {

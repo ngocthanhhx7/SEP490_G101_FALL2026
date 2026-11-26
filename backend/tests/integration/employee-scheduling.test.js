@@ -16,6 +16,7 @@ import { requestId, errorHandler } from '../../src/middlewares/http.js';
 import { createBookingFinanceSourceService } from '../../src/services/settlements/booking-finance-source.service.js';
 import { createAiRepository } from '../../src/services/sitter-matching/matching.repository.js';
 import { createVisitTravelService } from '../../src/services/employee-scheduling/visit-travel.service.js';
+import { createVisitRemindersService } from '../../src/services/employee-scheduling/visit-reminders.service.js';
 import { edgeKey } from '../../src/services/sitter-matching/routing.service.js';
 import { createMongoCustomerReviewRepository } from '../../src/services/reviews/mongo-customer-review.repository.js';
 import { createReviewService } from '../../src/services/reviews/review.service.js';
@@ -368,6 +369,7 @@ test('confirmed assignments block incompatible area/time removal and pending inv
   await module.dispatch.offers.accept(sitter, offer.offerId, 0, 'accept-persisted');
   expect((await module.dispatch.offers.assignments(sitter)).items[0].serviceAddress).toBe('Synthetic private facility');
   expect(await module.dispatch.offers.accept(sitter, offer.offerId, 0, 'accept-persisted')).toMatchObject({ state: 'ASSIGNED' });
+  expect((await connection.collection('visits').findOne({ _id: row._id })).assignmentVersion).toBe(1);
   await expect(module.repository.areas.replaceMine({ actor: sitter, areas: [], expectedVersion: 2, idempotencyKey: 'remove-confirmed-area' })).rejects.toMatchObject({ code: 'CONFIRMED_VISIT_CONFLICT' });
   await expect(module.repository.availability.updateMine({ actor: sitter, command: { zone: 'Asia/Ho_Chi_Minh', effectiveFrom: '2026-10-30',
     workingWindows: [], expectedVersion: 2, idempotencyKey: 'remove-confirmed-time' } })).rejects.toMatchObject({ code: 'CONFIRMED_VISIT_CONFLICT' });
@@ -1341,6 +1343,26 @@ describe('UC-38 Staff replace the pet sitter of an accepted visit', () => {
   beforeAll(async () => {
     await module.repository.models.EmployeeAvailability.deleteMany({});
     await connection.collection('users').updateOne({ _id: new mongoose.Types.ObjectId(customer.userId) }, { $set: { displayName: 'Khách hàng mẫu' } });
+  });
+
+  test('JOB-01: real Staff reassignments A to B to A at the same hour notify each assignment and the customer only once', async () => {
+    const { row, holder } = await assigned(SOON), replacement = await employee(), staffUser = await newStaff();
+    const run = () => createVisitRemindersService({ connection, clock }).runBatch();
+    const reminders = () => connection.collection('notifications').find({ eventType: 'VISIT_REMINDER',
+      'metadata.visitId': String(row._id), 'metadata.leadMinutes': 120 }).toArray();
+    await run();
+    await send(row, staffUser, { expectedVersion: 0, sitterId: replacement.userId, reason: 'Cần người chăm sóc thay thế' }, `reminder-b-${row._id}`).expect(200);
+    await Promise.all([run(), run()]);
+    expect((await reminders()).filter(item => item.recipientId === replacement.userId)).toHaveLength(1);
+    const input = { expectedVersion: 1, sitterId: holder.userId, reason: 'Phân công lại người chăm sóc ban đầu' };
+    await send(row, staffUser, input, `reminder-a-${row._id}`).expect(200);
+    await send(row, staffUser, input, `reminder-a-${row._id}`).expect(200);
+    await run(); await run();
+    const stored = await visits().findOne({ _id: row._id });
+    expect(stored.startAt).toEqual(row.startAt);
+    expect(stored.assignmentVersion).toBe(2);
+    expect((await reminders()).filter(item => item.recipientId === holder.userId)).toHaveLength(2);
+    expect((await reminders()).filter(item => item.role === 'CUSTOMER')).toHaveLength(1);
   });
 
   test('roles: 401 without a session, 403 for pet sitters and customers, Staff and Admin may read', async () => {

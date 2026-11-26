@@ -1,5 +1,17 @@
 # Booking proposals
 
+`payment-expiry.service.js` is only a compatibility re-export of the canonical
+`booking-payment-expiry.service.js`; it has no separate worker or financial path.
+JOB-03 follows the finalized checkout implementation: never-submitted intents
+can expire locally; attempted links require recorded terminal-unpaid evidence
+or a signed provider lookup for each attempt. Money received, partial payment,
+open links or unavailable evidence defer expiry to webhook/reconciliation;
+a lookup alone never marks a booking paid. No provider means no expiry worker.
+The transaction rechecks intent state and provider binding, existing receipts
+and visit states. Batches cap attempts and use a stable ID cursor so deferred
+bookings cannot starve later bookings. Expiry, visit release, one domain event
+and one MSG67 in-app notification commit together. Reads use persisted state.
+
 Checkout stores customer visits and care shifts in chronological sequence. It sorts
 whole visit records after eligibility and consent checks, preserving request-indexed
 errors, addresses, preferred sitters and price snapshots. Reads also order legacy

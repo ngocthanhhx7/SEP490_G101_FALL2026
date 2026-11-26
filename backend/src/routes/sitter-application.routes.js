@@ -18,6 +18,7 @@ import { createApplicationIntakeService } from '../services/applications/applica
 import { createApplicationMailService } from '../services/applications/application-mail.service.js';
 import { loadApplicantDocumentConfig } from '../config/r2.js';
 import { createRegistrationPolicyService } from '../services/registration-policy.service.js';
+import { applicationIntakeMiddleware } from '../middlewares/application-intake.js';
 
 function requireSameOrigin(req, _res, next) {
   const origin = req.get('origin');
@@ -48,6 +49,7 @@ export function sitterApplicationModule({
   ports,
   clock = Date.now,
   authenticatedSubmission = false,
+  guestSubmission = false,
   uploadsAvailable = false
 } = {}) {
   if (!config?.auth?.enabled || !connection || !ports?.privateMedia) {
@@ -61,7 +63,7 @@ export function sitterApplicationModule({
     encryptionKey: config.auth.contactEncryptionKey
   });
   const employmentDocuments = createEmploymentDocumentService({ connection, crypto: contactCrypto, lookupSecret: config.auth.contactLookupSecret, clock });
-  const intake = authenticatedSubmission ? createApplicationIntakeService({ connection, contactCrypto,
+  const intake = authenticatedSubmission || guestSubmission ? createApplicationIntakeService({ connection, contactCrypto,
     media: ports.applicantDocuments, secret: config.auth.contactLookupSecret, uploadsAvailable, clock }) : null;
   const applicationMail = createApplicationMailService({ connection, contactCrypto, delivery: ports.notificationDelivery, clock });
   const service = createSitterApplicationService({
@@ -73,7 +75,8 @@ export function sitterApplicationModule({
     SitterStatus: models.SitterStatus,
     contactCrypto,
     privateMedia: intake ?? ports.privateMedia,
-    registrationPolicyService: authenticatedSubmission ? createRegistrationPolicyService({ connection, clock }) : undefined,
+    registrationPolicyService: authenticatedSubmission || guestSubmission ? createRegistrationPolicyService({ connection, clock }) : undefined,
+    guestSubmission,
     lookupSecret: config.auth.contactLookupSecret,
     cursorSecret: config.auth.tokenSecret,
     clock,
@@ -90,6 +93,7 @@ export function sitterApplicationModule({
     requireRoles('ADMIN')
   ];
   const csrf = requireCsrf(sessionService);
+  const guest = applicationIntakeMiddleware({ secret: config.auth.tokenSecret, clock, secure: config.nodeEnv === 'production' });
   const router = Router(), contracts = createEmploymentDocumentController(employmentDocuments);
   router.use((_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
   const contractRate = rateLimit({ windowMs: 60000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false, keyGenerator: req => req.auth.userId });
@@ -100,12 +104,13 @@ export function sitterApplicationModule({
   router.get('/:applicationId/employment-contract', ...admin, contractRate, contracts.get);
   router.post('/:applicationId/employment-contract', ...admin, csrf, contractRate, contracts.save);
   router.post('/:applicationId/employment-contract/:documentId/decisions', ...admin, csrf, contractRate, contracts.decide);
-  if (intake) router.get('/intake', requireSession(sessionService, { clock }),
+  if (intake) router.get('/intake', ...(guestSubmission ? [guest.sameOrigin, guest.open] : [requireSession(sessionService, { clock })]),
     createSitterApplicationController({ intake }).getIntake);
 
   router.post(
     '/',
     requireSameOrigin,
+    ...(guestSubmission ? [guest.require] : []),
     ...(authenticatedSubmission ? [requireSession(sessionService, { clock }), csrf] : []),
     createSitterApplicationController({ service }).createRoot
   );
@@ -165,6 +170,6 @@ export function sitterApplicationModule({
 
 export function sitterApplicationRuntimeModule(context) {
   if (!context.config.auth?.enabled) return null;
-  return sitterApplicationModule({ ...context, authenticatedSubmission: true,
+  return sitterApplicationModule({ ...context, guestSubmission: true,
     uploadsAvailable: Boolean(loadApplicantDocumentConfig(context.env)) });
 }

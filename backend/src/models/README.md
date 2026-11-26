@@ -1,5 +1,12 @@
 # Persistence models
 
+SitterApplication retains the existing collection and primary contact fields.
+Guest intake adds encrypted phone/lookup fields and a sparse unique multikey
+`activePendingContactKeys` index for both pending contacts. Approval/rejection
+releases these pending keys; no account contact is marked VERIFIED until OTP.
+The deployment index command provisions the additive index before rollout;
+runtime does not backfill historical applications or replace native validators.
+
 `product.model.js` also registers `StockAdjustment` in `stockadjustments`: immutable
 DC number/code, product and recorder snapshots, type, quantity, reason, timestamps
 and private idempotency key/fingerprint. Unique indexes guard code, number and

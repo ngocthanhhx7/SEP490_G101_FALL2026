@@ -2,6 +2,12 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route } from 'react-router-dom';
 import { App } from '../../src/app/App.jsx';
 import { registrationPolicyReadiness } from '../../src/contexts/PublicPolicyContext.jsx';
+import { sitterApplicationApi } from '../../src/services/sitter-application-api.js';
+
+jest.mock('../../src/services/sitter-application-api.js', () => ({
+  ...jest.requireActual('../../src/services/sitter-application-api.js'),
+  sitterApplicationApi: { loadIntake: jest.fn(async () => ({ data: { uploadsAvailable: true, application: null } })) }
+}));
 
 const unresolved = { resolve: () => new Promise(() => {}) };
 function show(path, props = {}) {
@@ -122,11 +128,31 @@ test('actual Customer profile route loads its runtime API and appears in role na
 });
 
 
-test.each(['/register', '/sitter/apply'])('registration entry %s keeps PawWorld header, footer and role choices', path => {
+test.each(['/register', '/sitter/apply'])('registration entry %s keeps PawWorld header, footer and role choices', async path => {
   show(path);
   expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Khách hàng', exact: true })).toBeVisible();
-  expect(screen.getByRole('button', { name: 'Pet Sitter', exact: true })).toBeVisible();
+  expect(screen.getAllByRole('navigation', { name: 'Điều hướng chính' })).toHaveLength(1);
+  expect(screen.getAllByText(/2026 PawWorld. All rights reserved/)).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Khách hàng', exact: true })).toHaveAttribute('aria-pressed', String(path === '/register'));
+  expect(screen.getByRole('button', { name: 'Pet Sitter', exact: true })).toHaveAttribute('aria-pressed', String(path === '/sitter/apply'));
   expect(screen.getByText(/2026 PawWorld. All rights reserved/)).toBeVisible();
-  if (path === '/sitter/apply') expect(screen.getByText(/Xác minh email để tiếp tục hồ sơ/)).toBeVisible();
+  if (path === '/sitter/apply') {
+    expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
+    expect(screen.getByLabelText(/^Email/)).toBeVisible();
+    expect(screen.getByLabelText(/^Số điện thoại/)).toBeVisible();
+    expect(sitterApplicationApi.loadIntake).toHaveBeenCalled();
+    expect(screen.getByText(/Bạn có thể ứng tuyển khi chưa có tài khoản/)).toBeVisible();
+  }
+
+  fireEvent.click(screen.getByRole('button', { name: 'Khách hàng', exact: true }));
+  expect(await screen.findByRole('list', { name: 'Các bước đăng ký' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Khách hàng', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.queryByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Pet Sitter', exact: true }));
+  expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Pet Sitter', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getAllByRole('navigation', { name: 'Điều hướng chính' })).toHaveLength(1);
+  expect(screen.getAllByText(/2026 PawWorld. All rights reserved/)).toHaveLength(1);
+  expect(screen.getByRole('navigation', { name: 'Điều hướng chính' })).toBeVisible();
 });
