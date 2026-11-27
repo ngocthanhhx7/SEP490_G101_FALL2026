@@ -41,12 +41,16 @@ import { createCounterCatalogService } from '../services/product-sales/counter-c
 import { createProductPricingEligibility } from '../services/product-sales/product-pricing-eligibility.service.js';
 import { createProductCustomerPriceController } from '../controllers/product-customer-price.controller.js';
 import { createProductCustomerPriceService } from '../services/product-sales/product-customer-price.service.js';
+import { createFaultyProductClaimController } from '../controllers/faulty-product-claim.controller.js';
+import { createFaultyProductClaimService } from '../services/product-sales/faulty-product-claim.service.js';
+import { loadR2Config } from '../config/r2.js';
+import { createPrivateImageService } from '../services/private-image.service.js';
 
 const noStore = (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); };
 
 // Disabled unless PRODUCT_SALES_ENABLED=true; needs authentication because cart and orders are Customer-only.
 // `provider` lets tests replace payOS; otherwise it comes from the PAYOS_* settings (null when payOS is off).
-export function productSalesRuntimeModules({ config, connection, env = {}, clock = Date.now, sessionService, provider }) {
+export function productSalesRuntimeModules({ config, connection, ports, env = {}, clock = Date.now, sessionService, provider }) {
   if (env.PRODUCT_SALES_ENABLED !== undefined && !['true', 'false'].includes(env.PRODUCT_SALES_ENABLED)) {
     throw new TypeError('Invalid PRODUCT_SALES_ENABLED');
   }
@@ -110,6 +114,25 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     encryptionKey: config.auth.contactEncryptionKey
   });
   const phones = createCustomerPhoneDirectory({ connection, contactCrypto });
+  const r2 = loadR2Config(env);
+  const privateImages = r2 && ports?.privateMedia
+    ? createPrivateImageService({
+      connection,
+      media: ports.privateMedia,
+      secret: config.auth.tokenSecret,
+      maxImagesPerUser: r2.maxImagesPerUser
+    })
+    : null;
+  const faultyClaims = createFaultyProductClaimController(createFaultyProductClaimService({
+    connection,
+    phones,
+    readImage: privateImages?.readScoped,
+    clock
+  }));
+  orderRouter.get('/:orderId/faulty-claim-eligibility', faultyClaims.eligibility);
+  orderRouter.post('/:orderId/faulty-claims', csrf, faultyClaims.submit);
+  orderRouter.get('/faulty-claims/:claimId/photos/:photoId', faultyClaims.readPhoto);
+
   const management = createProductOrderManagementController(createProductOrderManagementService({
     connection, phones, clock, pickupDeadlineHours: config.pickupDeadlineHours, payments: orderSettler
   }), orderPayments);
@@ -206,6 +229,15 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
   adjustmentRouter.get('/', adjustments.list);
   adjustmentRouter.post('/', csrf, adjustments.create);
 
+  const faultyClaimsRouter = Router();
+  faultyClaimsRouter.use(noStore, requireSession(session, { clock }), requireRoles(...PRODUCT_PERMISSIONS.HANDLE_FAULTY_CLAIMS));
+  faultyClaimsRouter.get('/', faultyClaims.list);
+  faultyClaimsRouter.get('/:claimId', faultyClaims.read);
+  faultyClaimsRouter.get('/:claimId/photos/:photoId', faultyClaims.readPhoto);
+  faultyClaimsRouter.post('/:claimId/inspect', csrf, faultyClaims.inspect);
+  faultyClaimsRouter.post('/:claimId/decide', requireRoles(...PRODUCT_PERMISSIONS.DECIDE_FAULTY_CLAIMS), csrf, faultyClaims.decide);
+  faultyClaimsRouter.post('/:claimId/exchange-sent', csrf, faultyClaims.exchangeSent);
+
   return [
     { name: 'products', mount: '/api/v1/products', router: catalogRouter },
     { name: 'product-cart', mount: '/api/v1/product-cart', router: cartRouter },
@@ -217,6 +249,7 @@ export function productSalesRuntimeModules({ config, connection, env = {}, clock
     { name: 'admin-counter-orders', mount: '/api/v1/admin/counter-orders', router: counterRouter },
     { name: 'admin-goods-receipts', mount: '/api/v1/admin/goods-receipts', router: receiptRouter },
     { name: 'admin-stock-levels', mount: '/api/v1/admin/stock-levels', router: stockRouter },
-    { name: 'admin-stock-adjustments', mount: '/api/v1/admin/stock-adjustments', router: adjustmentRouter }
+    { name: 'admin-stock-adjustments', mount: '/api/v1/admin/stock-adjustments', router: adjustmentRouter },
+    { name: 'admin-faulty-product-claims', mount: '/api/v1/admin/faulty-product-claims', router: faultyClaimsRouter }
   ];
 }

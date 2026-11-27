@@ -62,3 +62,13 @@ keeping `paymentMethod: 'PAY_AT_SHOP'` and storing VietQR receipts in
 orders become `paid: true` with `deliveredAt` in the same transaction across all
 three paths. Legacy in-transit orders without `handedToCarrierAt` are skipped by
 JOB-04.
+
+## Faulty product claims
+
+`faulty-product-claim.service.js` handles post-delivery/pick-up faulty or
+wrong-product claims within the `FAULTY_PRODUCT_REPORT_DAYS` window (default 7
+days), Sale Staff inspection, Admin exchange/refund/reject decisions (read-only
+`sellingPriceWhenOrdered * quantity` refund paid outside PWC), and single-step
+`EXCHANGE_SENT` stock deduction without creating `StockAdjustment`.
+`stock-history.service.js` merges `EXCHANGE_SENT` claims as `FAULTY_EXCHANGE`
+entries alongside goods receipts and stock adjustments.

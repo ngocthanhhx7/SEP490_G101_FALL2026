@@ -98,6 +98,14 @@ import { StockListPage } from '../pages/admin/StockListPage.jsx';
 import { createStockListApi } from '../services/stock-list-api.js';
 import { StockAdjustmentPage } from '../pages/admin/StockAdjustmentPage.jsx';
 import { createStockAdjustmentApi } from '../services/stock-adjustment-api.js';
+import { FaultyProductClaimsPage } from '../pages/admin/FaultyProductClaimsPage.jsx';
+import { createFaultyProductClaimApi } from '../services/faulty-product-claim-api.js';
+
+function FaultyProductClaimsRoute() {
+  const { getCsrfToken, user } = useSession();
+  const api = useMemo(() => createFaultyProductClaimApi({ getCsrfToken }), [getCsrfToken]);
+  return <FaultyProductClaimsPage key={user?.id} api={api} />;
+}
 
 function StockAdjustmentRoute() {
   const { getCsrfToken, user } = useSession();
@@ -242,6 +250,7 @@ const navigationByRole = {
     ['Hồ sơ ứng tuyển', '/admin/sitter-applications', 'Nhân sự & hồ sơ'],
     ['Duyệt hồ sơ công khai', '/staff/sitter-profiles', 'Nhân sự & hồ sơ'],
     ['Đơn hàng sản phẩm', '/admin/product-orders', 'Bán hàng'],
+    ['Khiếu nại sản phẩm', '/admin/faulty-product-claims', 'Bán hàng'],
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
     ['Sản phẩm', '/admin/products', 'Cửa hàng'],
     ['Nhà cung cấp', '/admin/suppliers', 'Cửa hàng'],
@@ -287,6 +296,7 @@ const navigationByRole = {
     ['Tổng quan', '/sale-staff/dashboard', 'Bán hàng'],
     ['Bán tại quầy', '/admin/counter-sale', 'Bán hàng'],
     ['Đơn hàng', '/admin/product-orders', 'Bán hàng'],
+    ['Khiếu nại sản phẩm', '/admin/faulty-product-claims', 'Bán hàng'],
     ['Nhập hàng', '/admin/goods-receipts', 'Bán hàng'],
     ['Tồn kho', '/admin/stock', 'Bán hàng']
   ],
@@ -401,6 +411,7 @@ export function AppRoutes({
       <Route element={<RequireSession roles={['ADMIN', 'SALE_STAFF']} />}>
         <Route element={<AccountWorkspace />}>
           <Route path="admin/product-orders" element={<ProductOrderManagementRoute />} />
+          <Route path="admin/faulty-product-claims" element={<FaultyProductClaimsRoute />} />
           <Route path="admin/counter-sale" element={<CounterSaleRoute />} />
           <Route path="admin/goods-receipts" element={<GoodsReceiptRoute />} />
           <Route path="admin/stock" element={<StockListRoute />} />

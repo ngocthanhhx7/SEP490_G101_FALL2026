@@ -33,12 +33,14 @@ export function StockHistoryPanel({ product, api }) {
     </dl>
     {result?.items.length > 0 && <ol className="pwc-stock-events">{result.items.map(item => <li key={`${item.kind}:${item.id}`}>
       <div className="pwc-stock-event-heading"><strong>{item.referenceCode}</strong>
-        <strong className={`pwc-stock-delta${item.kind === 'STOCK_ADJUSTMENT' && item.quantityChange < 0 ? ' is-negative' : ''}`}>
-          {item.kind === 'STOCK_ADJUSTMENT' ? formatAdjustmentDelta(item.quantityChange) : formatStockDelta(item.quantityChange)}</strong></div>
+        <strong className={`pwc-stock-delta${item.quantityChange < 0 ? ' is-negative' : ''}`}>
+          {item.kind === 'GOODS_RECEIPT' ? formatStockDelta(item.quantityChange) : formatAdjustmentDelta(item.quantityChange)}</strong></div>
       {item.kind === 'GOODS_RECEIPT' ? <><p>{STOCK_HISTORY_KINDS[item.kind]}</p>
         <p><time dateTime={item.receivedOn}>{formatDay(item.receivedOn)}</time></p><p>{item.supplierName}</p></>
-        : <><p>Điều chỉnh: {adjustmentReasonText(item.reason)}</p>
-          <p><time dateTime={item.occurredAt}>{formatOrderDate(item.occurredAt)}</time></p><p>{item.recorderName}</p></>}
+        : item.kind === 'FAULTY_EXCHANGE' ? <><p>{STOCK_HISTORY_KINDS[item.kind]} · {item.referenceCode}</p>
+          <p><time dateTime={item.occurredAt}>{formatOrderDate(item.occurredAt)}</time></p><p>{item.recorderName}</p></>
+          : <><p>Điều chỉnh: {adjustmentReasonText(item.reason)}</p>
+            <p><time dateTime={item.occurredAt}>{formatOrderDate(item.occurredAt)}</time></p><p>{item.recorderName}</p></>}
     </li>)}</ol>}
     {loading && <Notice state="loading" title="Đang tải lịch sử…" />}
     {failed && <Notice state="error" title={STOCK_FAILURE_TEXT}
