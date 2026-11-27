@@ -58,6 +58,7 @@ export function productErrorText(error, { available } = {}) {
   if (key) return productMessage(key, { n: available ?? 0 });
   if (error?.code === 'UNAUTHENTICATED') return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
   if (error?.code === 'PRODUCT_UNAVAILABLE' || error?.code === 'RESOURCE_NOT_FOUND') return 'Sản phẩm này không còn được bán.';
+  if (error?.code === 'PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE') return 'Tổng tiền quá lớn. Vui lòng giảm số lượng.';
   if (error?.code === 'CART_FULL') return 'Giỏ hàng có quá nhiều sản phẩm khác nhau.';
   if (error?.code === 'ADDRESS_NOT_FOUND') return 'Không tìm thấy địa chỉ đã chọn. Vui lòng chọn lại.';
   if (error?.code === 'IDEMPOTENCY_CONFLICT') return 'Yêu cầu đặt hàng đã thay đổi. Vui lòng thử lại.';

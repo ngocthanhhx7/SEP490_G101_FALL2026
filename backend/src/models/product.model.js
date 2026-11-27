@@ -297,9 +297,9 @@ export function productSalesModels(connection) {
         productId: { type: oid, required: true },
         productCode: { type: String, required: true, maxlength: 20 },
         productName: { type: String, required: true, maxlength: 200 },
-        orderedQuantity: { ...integer(1, 99), required: true },
+        orderedQuantity: { ...integer(1), required: true },
         unitPriceVnd: { ...integer(), required: true },
-        quantity: { ...integer(1, 99), required: true },
+        quantity: { ...integer(1), required: true },
         problemType: { type: String, enum: FAULTY_CLAIM_PROBLEM_TYPES, required: true },
         description: { type: String, default: '', maxlength: FAULTY_CLAIM_LIMITS.descriptionMax },
         photoIds: {

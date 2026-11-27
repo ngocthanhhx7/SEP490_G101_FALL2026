@@ -214,7 +214,9 @@ applied across pages. Cart quantities must be positive safe integers. Adding
 checks the current quantity plus the requested increment against sellable stock
 and serializes the cart read/update in a retryable transaction. Setting a line
 checks the requested quantity against sellable stock. Either operation accepts
-an exact match and rejects a larger quantity with a stock conflict.
+an exact match and rejects a larger quantity with a stock conflict. Both writes
+roll back if the resulting cart amount cannot be represented as an exact
+integer VND amount (`422 PRODUCT_ORDER_AMOUNT_OUT_OF_RANGE`).
 Concurrent order retries with one key return the committed winner even when that
 winner already emptied the cart. The frontend discards mutation responses from
 an invalidated/different session.

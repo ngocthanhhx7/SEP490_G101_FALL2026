@@ -54,7 +54,7 @@ export function parseSubmitFaultyClaim(body) {
   only(body, ['productId', 'quantity', 'problemType', 'description', 'photoIds']);
   const productId = parseClaimObjectId(body.productId, 'productId');
   const quantity = body.quantity;
-  if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 99) {
+  if (!Number.isSafeInteger(quantity) || quantity < 1) {
     invalid('quantity is invalid', { quantity: 'Số lượng không hợp lệ.' });
   }
   if (typeof body.problemType !== 'string' || !FAULTY_CLAIM_PROBLEM_TYPES.includes(body.problemType)) {
