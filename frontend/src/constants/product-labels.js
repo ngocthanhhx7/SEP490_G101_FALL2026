@@ -6,7 +6,7 @@ export const PRODUCT_RECEIVE_LABELS = Object.freeze({ DELIVERY: 'Giao tận nơi
 export const PRODUCT_PAYMENT_LABELS = Object.freeze({
   COD: { title: 'Thanh toán khi nhận hàng', hint: 'Trả tiền mặt cho người giao hàng' },
   PAY_AT_SHOP: { title: 'Trả tại cửa hàng', hint: 'Trả khi lấy hàng tại cửa hàng' },
-  PREPAID: { title: 'Thanh toán trước', hint: 'Đã thanh toán trước khi giao hàng' }
+  PREPAID: { title: 'Thanh toán trước qua payOS', hint: 'Quét mã VietQR trên trang payOS ngay sau khi đặt hàng' }
 });
 export const PRODUCT_ORDER_STATUS_LABELS = Object.freeze({
   PLACED: 'Đã đặt hàng',
@@ -25,4 +25,9 @@ export const PRODUCT_RETURN_REASON_LABELS = Object.freeze({
   CUSTOMER_REFUSED: 'Khách từ chối nhận',
   CARRIER_UNDELIVERABLE: 'Hãng không giao được',
   SHOP_FAULT: 'Paw World giao sai hoặc hàng lỗi'
+});
+export const PRODUCT_DELIVERED_BY_LABELS = Object.freeze({
+  CUSTOMER: 'Khách hàng xác nhận',
+  STAFF: 'Sale Staff xác nhận',
+  SYSTEM: 'Hệ thống tự động xác nhận sau 7 ngày'
 });

@@ -203,3 +203,34 @@ test('payroll overview is Admin-only and privately cached', async () => {
   expect(response.headers['cache-control']).toContain('no-store');
   expect(response.body.data.summary).toMatchObject({ total:expect.any(Number),prepared:expect.any(Number),awaitingPaymentVnd:expect.any(Number),pendingAdvances:expect.any(Number) });
 });
+
+test('ST-ONB-14 returns structured contract date validation details without blocking newer versions', async () => {
+  await connection.collection('users').updateOne(
+    { _id: new mongoose.Types.ObjectId(sitter.userId) },
+    { $set: { displayName: 'Synthetic Sitter' } }
+  );
+  const latest = await service.models.EmploymentContract.findOne({ employeeId: sitter.userId }).sort({ version: -1 }).lean();
+  const priorConflict = await request(app).post('/api/v1/payroll/contracts')
+    .set('x-test-actor', 'admin').set('X-CSRF-Token', 'test-csrf')
+    .set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
+    .set('Idempotency-Key', 'st-onb-14-prior-date')
+    .send({ ...contract(), expectedVersion: latest.version, signedAt: '2026-10-30T00:00:00Z', effectiveAt: latest.effectiveAt.toISOString() })
+    .expect(422);
+  expect(priorConflict.body.error).toMatchObject({
+    code: 'VALIDATION_FAILED',
+    reasonCode: 'CONTRACT_EFFECTIVE_DATE_NOT_AFTER_PRIOR',
+    sitterName: 'Synthetic Sitter',
+    effectiveAt: latest.effectiveAt.toISOString()
+  });
+  const reversed = await request(app).post('/api/v1/payroll/contracts')
+    .set('x-test-actor', 'admin').set('X-CSRF-Token', 'test-csrf')
+    .set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
+    .set('Idempotency-Key', 'st-onb-14-reversed-end')
+    .send({ ...contract(), expectedVersion: latest.version, signedAt: '2026-10-30T00:00:00Z',
+      effectiveAt: '2026-11-02T00:00:00Z', endsAt: '2026-11-01T00:00:00Z' })
+    .expect(422);
+  expect(reversed.body.error).toMatchObject({
+    code: 'VALIDATION_FAILED',
+    fieldErrors: { endsAt: 'Ngày kết thúc phải sau ngày bắt đầu.' }
+  });
+});

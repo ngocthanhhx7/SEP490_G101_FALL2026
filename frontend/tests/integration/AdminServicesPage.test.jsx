@@ -39,7 +39,7 @@ test('Admin sees catalog versions and submits a new effective-dated service vers
       effectiveAt: expect.stringMatching(/Z$/)
     })
   })));
-  expect(await screen.findByText('Máy chủ đã ghi nhận phiên bản dịch vụ mới.')).toBeVisible();
+  expect(await screen.findByText('Đã lưu phiên bản dịch vụ mới.')).toBeVisible();
 });
 
 test('Staff can read published service policy but receives no editing controls', async () => {

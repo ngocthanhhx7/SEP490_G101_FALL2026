@@ -24,11 +24,20 @@ test('contact search and categories filter the actual expandable support answers
   fireEvent.click(screen.getByRole('button', { name: /Chính sách & hỗ trợ/ }));
   expect(screen.queryByText('Paw World Care hỗ trợ chó hay mèo?')).not.toBeInTheDocument();
   expect(screen.getByText('Thông tin cá nhân của tôi được xử lý thế nào?')).toBeVisible();
+  const toggle = screen.getByRole('button', { name: 'Thông tin cá nhân của tôi được xử lý thế nào?' });
+  const answer = document.getElementById(toggle.getAttribute('aria-controls'));
+  expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  expect(answer).not.toBeVisible();
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(answer).toBeVisible();
+  fireEvent.click(toggle);
+  expect(answer).not.toBeVisible();
 });
 function fillForm() {
-  fireEvent.change(screen.getByLabelText('Họ và tên'), { target: { value: 'Synthetic Visitor' } });
-  fireEvent.change(screen.getByLabelText('Email phản hồi'), { target: { value: 'visitor@example.test' } });
-  fireEvent.change(screen.getByLabelText('Nội dung'), { target: { value: 'Please explain the available pet care services.' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Họ và tên' }), { target: { value: 'Synthetic Visitor' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email phản hồi' }), { target: { value: 'visitor@example.test' } });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Nội dung' }), { target: { value: 'Please explain the available pet care services.' } });
   fireEvent.click(screen.getByRole('checkbox'));
 }
 test('contact sends consented details, prevents duplicate in-flight submits, and clears only after acceptance', async () => {
@@ -40,14 +49,27 @@ test('contact sends consented details, prevents duplicate in-flight submits, and
   expect(send).toHaveBeenCalledWith(expect.objectContaining({ consent: true, phone: '', email: 'visitor@example.test' }));
   expect(screen.getByRole('button', { name: 'Đang gửi…' })).toBeDisabled();
   accept({ status: 'ACCEPTED' });
-  expect(await screen.findByRole('status')).toHaveTextContent('Máy chủ email đã tiếp nhận');
-  expect(screen.getByLabelText('Nội dung')).toHaveValue('');
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Máy chủ email đã tiếp nhận'));
+  expect(screen.getByRole('textbox', { name: 'Nội dung' })).toHaveValue('');
 });
 test('contact retains the message when delivery is uncertain', async () => {
   render(<MemoryRouter><ContactPage send={async () => { throw new ApiError('CONTACT_DELIVERY_UNCERTAIN'); }} /></MemoryRouter>);
   fillForm(); fireEvent.submit(screen.getByRole('form', { name: 'Gửi lời nhắn' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Thư có thể đã được tiếp nhận');
-  expect(screen.getByLabelText('Nội dung')).not.toHaveValue('');
+  expect(screen.getByRole('textbox', { name: 'Nội dung' })).not.toHaveValue('');
+});
+test('contact keeps form values and focuses a malformed optional phone before sending', () => {
+  const send = jest.fn();
+  render(<MemoryRouter><ContactPage send={send} /></MemoryRouter>);
+  fillForm();
+  const phone = screen.getByLabelText('Số điện thoại (không bắt buộc)');
+  fireEvent.change(phone, { target: { value: '  invalid  ' } });
+  fireEvent.submit(screen.getByRole('form', { name: 'Gửi lời nhắn' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Kiểm tra lại số điện thoại');
+  expect(phone).toHaveAccessibleDescription('Kiểm tra lại số điện thoại.');
+  expect(phone).toHaveFocus();
+  expect(phone).toHaveValue('  invalid  ');
+  expect(send).not.toHaveBeenCalled();
 });
 test('contact adapter never reports success on network loss or malformed provider receipt', async () => {
   const original = globalThis.fetch;

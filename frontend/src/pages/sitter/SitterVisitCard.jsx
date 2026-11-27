@@ -27,6 +27,8 @@ export function SitterVisitCard({ visit, back, primary = false }) {
       </span>
     </div>}
     {visit.petNames?.length > 0 && <div className="sitter-visit-card__meta"><PawPrint size={17} aria-hidden="true" /><span>{visit.petNames.join(', ')}</span></div>}
+    {visit.state === 'ASSIGNED' && visit.handoverPending === true &&
+      <Link className="sitter-workspace-link" to={'/sitter/visits/' + visit.id + '/handover'}>Cần xác nhận bàn giao</Link>}
     <div className="sitter-visit-card__footer">
       {place && <span className="sitter-visit-card__place">{place}</span>}
       <Link className={primary ? 'pwc-compact-cta' : 'sitter-workspace-link'} to={'/sitter/visits/' + visit.id} state={{ mobileBack: back }}>

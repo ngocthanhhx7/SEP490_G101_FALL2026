@@ -28,4 +28,6 @@ values are reflected. Existing 422 codes and domain guards remain authoritative.
 
 `sitter-capability.validator.js` bounds verified skill DTOs; `sitter-origin.validator.js` checks an employee day pin and same-day future interval. Authorization, contracts and concurrency stay in services.
 
+`sitter-application-assessment.validator.js` validates both revisions, the four explicit booleans, zoned interview call time and interview outcome.
+
 `service-workflow.validator.js` bounds step/slot/field definitions, rejects unknown client fields, enforces publish branch coverage and prohibits unsafe skip rules. Applicability uses only enumerated values.

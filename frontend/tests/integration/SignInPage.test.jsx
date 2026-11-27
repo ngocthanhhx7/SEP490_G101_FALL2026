@@ -211,3 +211,26 @@ test.each([
   fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
   expect(await screen.findByRole('alert')).toHaveTextContent(message);
 });
+
+test('UC-05: shows MSG07 remaining tries, MSG09 lockout time and MSG10 hourly limit on sign-in', async () => {
+  renderPage({
+    resolve: async () => ({ status: 'guest' }),
+    requestLoginOtp: jest.fn()
+      .mockResolvedValueOnce({ challengeId: 'challenge', resendAfterSeconds: 0 })
+      .mockRejectedValueOnce({ code: 'OTP_RATE_LIMITED', status: 429, reason: 'HOURLY_LIMIT', retryAfterAt: '2026-11-24T04:45:00.000Z' }),
+    login: jest.fn()
+      .mockRejectedValueOnce({ code: 'OTP_INCORRECT', status: 400, remainingAttempts: 3 })
+      .mockRejectedValueOnce({ code: 'OTP_RATE_LIMITED', status: 429, reason: 'TOO_MANY_WRONG_CODES', retryAfterAt: '2026-11-24T03:20:00.000Z' })
+  });
+  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'person@example.test' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi mã OTP' }));
+  fireEvent.change(await screen.findByLabelText('Mã OTP 6 chữ số'), { target: { value: '123456' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Mã không đúng. Bạn còn 3 lần thử.');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & đăng nhập' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Bạn đã nhập sai quá nhiều lần. Vui lòng thử lại sau 10:20.');
+
+  fireEvent.click(screen.getByRole('button', { name: 'Gửi lại mã' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Bạn đã yêu cầu quá nhiều mã. Vui lòng thử lại sau 11:45.');
+});

@@ -1,4 +1,5 @@
 import { createReferenceCatalogFacade } from './reference-catalog.service.js';
+import { lateCheckInExemptExpression } from './care/visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { AppError } from '../utils/app-error.js';
 import { hasRole } from '../utils/roles.js';
@@ -20,6 +21,8 @@ const isDemo = user => Boolean(user.fixtureKey);
 
 const STAFF_BATCH_SIZE = 100;
 const METRIC_WINDOW_MS = 30 * 86400000;
+const DAY_OFF_LOOKAHEAD_DAYS = 30;
+const ISO_DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 const LATE_THRESHOLD_MS = 5 * 60000;
 const WITHDRAWAL_EVENTS_COLLECTION = 'employeescheduleevents';
 const WITHDRAWAL_EVENT_TYPES = ['VisitWithdrawn', 'VisitWithdrawalRequested'];
@@ -160,7 +163,8 @@ export function createSitterManagementService({ connection, cursorSecret, contac
           sitterId: { $in: ids }, state: { $ne: 'SUPERSEDED' }, startAt: { $type: 'date' },
           checkInAt: { $type: 'date', $gte: from, $lte: asOf }
         } }, { $group: { _id: { $toString: '$sitterId' }, count: { $sum: {
-          $cond: [{ $gt: [{ $subtract: ['$checkInAt', '$startAt'] }, LATE_THRESHOLD_MS] }, 1, 0]
+          $cond: [{ $and: [{ $gt: [{ $subtract: ['$checkInAt', '$startAt'] }, LATE_THRESHOLD_MS] },
+            { $not: [lateCheckInExemptExpression()] }] }, 1, 0]
         } } } }], session);
         for (const record of checkedIn) late.set(record._id, record.count);
       }
@@ -189,6 +193,35 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       { $group: { _id: '$sitterId', windows: { $first: '$workingWindows' } } }
     ], session);
     return new Map(revisions.map(record => [record._id, normalizeWorkingWindows(record.windows ?? [])]));
+  }
+
+  async function staffUpcomingDaysOff(page, asOf, session) {
+    const sitterIds = page.map(item => item.id);
+    if (!sitterIds.length) return new Map();
+    const today = dayKey(asOf);
+    const limitDay = dayKey(new Date(new Date(today + 'T00:00:00+07:00').getTime() + DAY_OFF_LOOKAHEAD_DAYS * 86400000));
+    const objectIds = sitterIds.filter(value => /^[a-f0-9]{24}$/i.test(value)).map(oid);
+    const availabilities = await aggregate('employeeavailabilities', [
+      { $match: { _id: { $in: sitterIds } } },
+      { $project: fields(['dayOffDates']) }
+    ], session);
+    const capabilities = objectIds.length ? await aggregate('aisitterprofiles', [
+      { $match: { userId: { $in: objectIds } } },
+      { $project: fields(['userId', 'dayOffDates']) }
+    ], session) : [];
+    const collected = new Map(sitterIds.map(sitterId => [sitterId, new Set()]));
+    const addDates = (sitterId, dates) => {
+      const bucket = collected.get(sitterId);
+      if (!bucket || !Array.isArray(dates)) return;
+      for (const value of dates) {
+        if (typeof value === 'string' && ISO_DATE_ONLY.test(value) && value >= today && value <= limitDay) {
+          bucket.add(value);
+        }
+      }
+    };
+    for (const record of availabilities) addDates(String(record._id), record.dayOffDates);
+    for (const record of capabilities) addDates(id(record.userId), record.dayOffDates);
+    return new Map([...collected.entries()].map(([sitterId, set]) => [sitterId, [...set].sort()]));
   }
 
   async function staffList(actor, query, now) {
@@ -244,8 +277,15 @@ export function createSitterManagementService({ connection, cursorSecret, contac
       } finally { await population.close(); }
       const page = best.slice(0, query.limit);
       const hours = await staffWorkingHours(page, asOf, session);
+      const daysOff = await staffUpcomingDaysOff(page, asOf, session);
       return {
-        items: page.map(item => ({ ...item, workingWindows: hours.get(item.id) ?? [], shift: null, approvedLeave: null })),
+        items: page.map(item => ({
+          ...item,
+          workingWindows: hours.get(item.id) ?? [],
+          upcomingDaysOff: daysOff.get(item.id) ?? [],
+          shift: null,
+          approvedLeave: null
+        })),
         total, asOf: asOf.toISOString(), areas: await createServiceAreaCatalog(connection).list({ session }), withdrawalsAvailable,
         tabCounts,
         nextCursor: best.length > page.length

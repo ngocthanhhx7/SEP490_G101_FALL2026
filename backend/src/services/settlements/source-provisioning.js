@@ -10,8 +10,11 @@ const primaryIndexes = [
   ['taxassessments', { bookingId: 1 }, { name: 'one_confirmed_booking_assessment', unique: true, partialFilterExpression: { state: 'CONFIRMED' } }],
   ['paymentintents', { providerReference: 1 }, { name: 'payment_intent_provider_reference', unique: true }]
 ];
-const lookupIndexes = ['cases', 'refunds', 'visits'].map(name =>
-  [name, { bookingId: 1 }, { name: 'booking_source_lookup' }]);
+const lookupIndexes = [
+  ...['cases', 'refunds', 'visits'].map(name => [name, { bookingId: 1 }, { name: 'booking_source_lookup' }]),
+  ['payments', { bookingId: 1, state: 1 }, { name: 'booking_receipt_state' }],
+  ['paymentintents', { bookingId: 1, provider: 1, state: 1 }, { name: 'booking_payment_intent_state' }]
+];
 // Shared with the read-only metadata inspector; provisioning remains explicit.
 export const financeSourceIndexes = [...primaryIndexes, ...lookupIndexes];
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApiResource } from './useApiResource.js';
 import { apiErrorFeedback } from '../utils/api-error-feedback.js';
 import { isUncertainOutcome } from '../utils/product-format.js';
+import { GROOMING_DEBT_BLOCKS_BOOKING } from '../constants/booking-messages.js';
 import { MSG64 } from '../constants/grooming-messages.js';
 import { orderReady, quotePets, slotPets } from '../utils/grooming-booking.js';
 
@@ -88,6 +89,8 @@ export function useGroomingBooking({ api, serviceId }) {
         if (error.code === 'GROOMING_PRICE_CHANGED') setQuoteRevision(value => value + 1);
       } else if (error.code === 'GROOMING_PET_REFERRAL_REQUIRED' && error.details?.petId && picked[error.details.petId]) {
         command.current = null; answer(error.details.petId, 'biteOrScratch', 'YES');
+      } else if (error.code === 'GROOMING_PAYMENT_OUTSTANDING') {
+        command.current = null; setNotice(GROOMING_DEBT_BLOCKS_BOOKING);
       } else if (isUncertainOutcome(error)) {
         setPending(true); setNotice(UNCERTAIN);
       } else {

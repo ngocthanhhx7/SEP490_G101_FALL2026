@@ -101,7 +101,8 @@ test('Admin verifies contract with explicit workplace and approved monthly gross
 
 test('Admin contract form resolves the selected employee and version instead of accepting a guessed version', async () => {
   const api = apiFixture(), employeeApi = { get: jest.fn().mockResolvedValue({ data: {
-    id: employeeId, displayName: 'Synthetic employee', contractVersion: 0, permissions: { manageContract: true }
+    id: employeeId, displayName: 'Synthetic employee', contractVersion: 0, permissions: { manageContract: true },
+    application: { employmentType: 'PART_TIME' }
   } }) };
   render(<EmployeePayrollAdminPage api={api} employeeApi={employeeApi} />);
   await screen.findByText('Không có đề nghị chờ xử lý.');
@@ -109,12 +110,15 @@ test('Admin contract form resolves the selected employee and version instead of 
   expect(form.querySelector('button[type=submit]')).toBeDisabled();
   fireEvent.change(form.elements.employeeId, { target: { value: employeeId } });
   await screen.findByText('Nhân viên: Synthetic employee');
+  expect(screen.getByLabelText('Hình thức làm việc')).toHaveValue('PART_TIME');
+  fill('Hình thức làm việc', 'FULL_TIME');
   expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveValue(0);
   expect(screen.getByLabelText('Phiên bản hợp đồng hiện tại')).toHaveAttribute('readonly');
   fill('Phút làm việc mỗi tuần', '2400'); fill('Ngày ký', '2026-10-01'); fill('Ngày hiệu lực', '2026-10-30');
   fill('Mã hồ sơ hợp đồng đã ký', 'synthetic-signed'); fill('Vùng lương nơi làm việc', '1'); fill('Phường/xã và căn cứ xác định vùng', 'Synthetic workplace');
   fireEvent.submit(form);
-  await waitFor(() => expect(api.contract).toHaveBeenCalledWith(expect.objectContaining({ employeeId, expectedVersion: 0 }), expect.any(String)));
+  await waitFor(() => expect(api.contract).toHaveBeenCalledWith(expect.objectContaining({ employeeId, expectedVersion: 0,
+    employmentType: 'FULL_TIME', monthlyBaseVnd: 10000000 }), expect.any(String)));
 });
 
 test.each([{ pending: true }, { data: { id: employeeId, version: 4 } }, { data: null }])('contract transport rejects unconfirmed acknowledgement %j', async result => {
@@ -216,4 +220,25 @@ test('Admin payment dialog preserves unknown payment payload and key and prevent
   fireEvent.click(screen.getByRole('button',{name:'Kiểm tra lại cùng yêu cầu'}));
   await waitFor(()=>expect(api.advanceDecision).toHaveBeenCalledTimes(2));
   expect(api.advanceDecision.mock.calls[0]).toEqual(api.advanceDecision.mock.calls[1]);
+});
+
+test('ST-BKG-37 and ST-BKG-38 show MSG66 toast on advance submit and clear Vietnamese error for second advance in same month', async () => {
+  const api = apiFixture();
+  api.submit.mockResolvedValueOnce({ id: 'adv-1' }).mockRejectedValueOnce({ code: 'ADVANCE_MONTH_ALREADY_USED', status: 409 });
+  render(<EmployeePayrollPage api={api} />);
+  await screen.findByText('Bán thời gian');
+  fill('Số tiền (VND)', '500000');
+  fill('Tháng đối trừ thỏa thuận', '2026-11');
+  fill('Mã thỏa thuận đối trừ', 'agreed-1');
+  fill('Lý do đề nghị', 'Synthetic first advance');
+  fireEvent.click(screen.getByText('Gửi đề nghị'));
+  expect(await screen.findByText('Đề nghị của bạn đã được gửi cho Admin.')).toBeVisible();
+
+  fill('Số tiền (VND)', '300000');
+  fill('Tháng đối trừ thỏa thuận', '2026-11');
+  fill('Mã thỏa thuận đối trừ', 'agreed-2');
+  fill('Lý do đề nghị', 'Synthetic second advance');
+  fireEvent.click(screen.getByText('Gửi đề nghị'));
+  expect(await screen.findByText('Tháng này bạn đã có một đề nghị tạm ứng. Mỗi tháng chỉ gửi được một đề nghị.')).toBeVisible();
+  expect(screen.queryByText(/ADVANCE_MONTH_ALREADY_USED/)).toBeNull();
 });

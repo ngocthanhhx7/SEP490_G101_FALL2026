@@ -18,7 +18,7 @@ function show(role, { status = 200, paymentMode = 'PREPAY' } = {}) {
           terms: [{ serviceName: 'Dắt chó đi dạo', startAt: '2026-11-02T17:00:00Z', endAt: '2026-11-02T17:30:00Z',
             petNames: ['Milo'], serviceAddress: 'Địa chỉ lúc đặt', areaName: 'Khu vực Thanh Xuân', requestedSitterName: 'Lê Văn Minh',
             careRequirements: ['Milo hay kéo dây'] }],
-          visits: [{ id: 'first', startAt: '2026-11-02T17:00:00Z', endAt: '2026-11-02T17:30:00Z', sitterName: 'Lê Văn Minh', state: 'COMPLETED' },
+          visits: [{ id: 'c'.repeat(24), startAt: '2026-11-02T17:00:00Z', endAt: '2026-11-02T17:30:00Z', sitterName: 'Lê Văn Minh', state: 'COMPLETED' },
             { id: 'next', startAt: '2026-11-12T00:00:00Z', endAt: '2026-11-12T00:30:00Z', state: 'SCHEDULED' }],
           price: { visitCount: 2, visitPricesVnd: [90000], discountVnd: 9000, totalVnd: 171000 }
         } } } };
@@ -62,4 +62,12 @@ test('UC-27 / GBR-02: Pet Sitter cannot open or fetch Staff detail', async () =>
   show('PET_SITTER');
   expect(await screen.findByRole('heading', { name: 'Không có quyền truy cập' })).toBeVisible();
   expect(globalThis.fetch).not.toHaveBeenCalled();
+});
+
+test('UC-78 keeps the Staff visit table free of customer tracking actions', async () => {
+  show('STAFF');
+  const table = within(await screen.findByRole('table', { name: 'Các buổi chăm sóc' }));
+  expect(table.getAllByRole('columnheader').map(header => header.textContent))
+    .toEqual(['Ngày', 'Giờ', 'Người chăm sóc', 'Trạng thái', 'Báo cáo']);
+  expect(table.queryByRole('link', { name: 'Theo dõi buổi' })).toBeNull();
 });

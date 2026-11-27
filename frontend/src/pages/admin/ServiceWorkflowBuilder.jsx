@@ -69,7 +69,7 @@ export function ServiceWorkflowBuilder({ service, request }) {
       <header>
         <h3>{service.name}</h3>
         <p>
-          {row.published ? `Đang áp dụng phiên bản ${row.published.revision}` : 'Chưa publish quy trình'} · Bản nháp có
+          {row.published ? `Đang áp dụng phiên bản ${row.published.revision}` : 'Chưa áp dụng quy trình'} · Bản nháp có
           thể chỉnh sửa
         </p>
       </header>
@@ -77,8 +77,8 @@ export function ServiceWorkflowBuilder({ service, request }) {
         Tải lại quy trình
       </Button>
       <p>
-        Publish áp dụng cho booking mới. Lịch đã xác nhận giữ nguyên snapshot. Các bước an toàn và ảnh tiếp nhận/bàn
-        giao không được bỏ qua.
+        Áp dụng cho lịch đặt mới. Lịch đặt đã xác nhận giữ nguyên thông tin đã lưu. Các bước an toàn và ảnh tiếp nhận,
+        bàn giao là bắt buộc.
       </p>
       <fieldset disabled={locked}>
         <legend>Bản nháp quy trình</legend>
@@ -151,7 +151,7 @@ export function ServiceWorkflowBuilder({ service, request }) {
                     ['CONFIRMATION', 'Xác nhận'],
                     ['PHOTO', 'Ảnh'],
                     ['NOTE', 'Ghi chú'],
-                    ['CHECKLIST', 'Checklist'],
+                    ['CHECKLIST', 'Danh sách việc'],
                     ['STRUCTURED', 'Dữ liệu có cấu trúc']
                   ].map(([key, label]) => (
                     <option key={key} value={key}>
@@ -412,10 +412,10 @@ export function ServiceWorkflowBuilder({ service, request }) {
             Kiểm tra bản nháp
           </Button>
           <Button disabled={editing !== null || !row.draft} onClick={() => mutate('publications')}>
-            Publish cho booking mới
+            Áp dụng cho lịch đặt mới
           </Button>
           <Button variant="ghost" disabled={!row.published} onClick={() => mutate('retirements')}>
-            Ngừng dùng cho booking mới
+            Ngừng dùng cho lịch đặt mới
           </Button>
         </div>
       </fieldset>
@@ -426,7 +426,7 @@ export function ServiceWorkflowBuilder({ service, request }) {
         </Button>
       )}
       <Button variant="ghost" onClick={() => setPreview(!preview)}>
-        Xem trước cho Pet Sitter
+        Xem trước cho pet sitter
       </Button>
       {preview && (
         <ol>
@@ -445,12 +445,12 @@ export function ServiceWorkflowBuilder({ service, request }) {
           ))}
         </ol>
       )}
-      <h4>Lịch sử xuất bản</h4>
+      <h4>Lịch sử áp dụng</h4>
       {historyError && <p role="alert">Chưa tải được lịch sử. Thử lại trang phiên bản cũ hơn.</p>}
       {(history?.history ?? row.history).map((item) => (
         <article key={item.revision}>
           <p>
-            Phiên bản {item.revision} · {item.action === 'PUBLISHED' ? 'Đã xuất bản' : 'Đã ngừng dùng'}
+            Phiên bản {item.revision} · {item.action === 'PUBLISHED' ? 'Đã áp dụng' : 'Đã ngừng dùng'}
           </p>
           <Button
             variant="ghost"

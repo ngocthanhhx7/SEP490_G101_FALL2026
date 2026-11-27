@@ -47,8 +47,10 @@ describe('P23 operational sweep', () => {
   test('publishes the agreed cadences and offer deadlines', () => {
     expect(OPERATIONAL_SWEEP_TASKS['offer-expiry'].cadenceMs).toBe(5 * 60_000);
     expect(OPERATIONAL_SWEEP_TASKS['visit-reminders'].cadenceMs).toBe(15 * 60_000);
-    expect(calculateOfferDeadline({ offeredAt: AS_OF, visitStartAt: '2026-10-15T04:00:00.000Z' }))
+    expect(calculateOfferDeadline({ offeredAt: AS_OF, visitStartAt: '2026-10-15T04:00:01.000Z' }))
       .toBe('2026-10-14T06:00:00.000Z');
+    expect(calculateOfferDeadline({ offeredAt: AS_OF, visitStartAt: '2026-10-15T04:00:00.000Z' }))
+      .toBe('2026-10-14T04:30:00.000Z');
     expect(calculateOfferDeadline({ offeredAt: AS_OF, visitStartAt: '2026-10-14T10:00:00.000Z' }))
       .toBe('2026-10-14T04:30:00.000Z');
     expect(canAcceptOfferAt({ state: 'PENDING', deadline: '2026-10-14T04:00:01.000Z', asOf: AS_OF })).toBe(true);

@@ -5,6 +5,7 @@ import { payrollModels } from '../../models/payroll.model.js';
 import { sitterApplicationModels } from '../../models/sitter-application.model.js';
 import { userModel } from '../../models/user.model.js';
 import { contractInput, advanceInput, advanceDecisionInput, statementDecisionInput, payrollAssessmentInput, payrollPageInput } from '../../validators/payroll.validator.js';
+import { AppError } from '../../utils/app-error.js';
 import { fail, id } from '../../validators/pet-care.validator.js';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { calculateEmployeePayroll } from './payroll-calculation.service.js';
@@ -122,7 +123,13 @@ export function createPayrollService({ connection, policy, clock = () => new Dat
         if (!user || !application) fail('APPROVED_EMPLOYEE_REQUIRED', 'Approved employee required', 409);
         const prior = await models.EmploymentContract.findOne({ employeeId: input.employeeId }).sort({ version: -1 }).session(session).lean();
         if ((prior?.version ?? 0) !== input.expectedVersion) fail('VERSION_CONFLICT', 'Contract changed', 409);
-        if (prior && input.effectiveAt <= prior.effectiveAt) fail('VALIDATION_FAILED', 'Contract versions must progress in time');
+        if (prior && input.effectiveAt <= prior.effectiveAt) {
+          throw new AppError(422, 'VALIDATION_FAILED', 'Contract versions must progress in time', {
+            reasonCode: 'CONTRACT_EFFECTIVE_DATE_NOT_AFTER_PRIOR',
+            sitterName: user.displayName,
+            effectiveAt: prior.effectiveAt.toISOString()
+          });
+        }
         const shopReservations = await groomingOccupancy({ connection, sitterIds: [input.employeeId], from: input.effectiveAt, session });
         if (shopReservations.some(row => input.employmentType !== 'FULL_TIME' || input.endsAt && row.endAt > input.endsAt
           || prior && input.weeklyMinutes < prior.weeklyMinutes))

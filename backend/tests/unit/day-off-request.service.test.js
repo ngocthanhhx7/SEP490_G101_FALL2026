@@ -76,6 +76,7 @@ function request(service, overrides = {}) {
     actor: activeSitter,
     startDate: '2026-10-20',
     endDate: '2026-10-22',
+    reason: 'Personal leave',
     expectedVersion: 7,
     idempotencyKey: 'request-key-1',
     ...overrides

@@ -153,42 +153,6 @@ function ProductForm({ product, api, onSaved, onReload, onRefresh, onBusy }) {
   </aside>;
 }
 
-function DeleteProductDialog({ product, api, onClose, onChanged }) {
-  const [reason, setReason] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState(null);
-  const lock = useRef(false);
-  const uncertain = failure?.uncertain;
-  async function submit(hide = false) {
-    if (lock.current || uncertain) return;
-    lock.current = true; setBusy(true); setFailure(null);
-    try {
-      if (hide) await api.updateProduct(product.id, { version: product.version, visible: false });
-      else await api.deleteProduct(product.id, { version: product.version, reason: reason.trim() });
-      onChanged(hide ? 'Đã ẩn sản phẩm khỏi cửa hàng.' : 'Đã xóa sản phẩm và lưu lại lý do.');
-    } catch (error) {
-      setFailure({ blocked: error.code === 'PRODUCT_DELETE_BLOCKED',
-        uncertain: !error.status || error.status >= 500 || error.code === 'INVALID_RESPONSE' || error.code === 'VERSION_CONFLICT',
-        text: error.code === 'PRODUCT_DELETE_BLOCKED'
-          ? 'Không thể xóa vì sản phẩm có tồn kho, hàng đang giữ hoặc lịch sử đơn hàng. Bạn có thể ẩn sản phẩm khỏi cửa hàng.'
-          : error.status === 422 ? 'Nhập lý do đầy đủ từ 20 đến 1.000 ký tự, không dùng ký tự điều khiển.' : failureText(error) });
-    } finally { lock.current = false; setBusy(false); }
-  }
-  return <Dialog open title={`Xóa sản phẩm ${product.code}`} intent="destructive" dismissible={!busy}
-    onClose={onClose} description={product.name} footer={<>
-      <Button variant="secondary" disabled={busy} onClick={onClose}>{uncertain ? 'Đóng và tải lại' : 'Hủy'}</Button>
-      {failure?.blocked && product.visible && <Button disabled={busy} onClick={() => submit(true)}>Ẩn khỏi cửa hàng</Button>}
-      {!failure?.blocked && <Button variant="danger" disabled={busy || uncertain || reason.trim().length < 20}
-        onClick={() => submit()}>Xác nhận xóa</Button>}
-    </>}>
-    <p>Chỉ xóa sản phẩm không còn tồn kho, hàng đang giữ và chưa từng có đơn hàng. Mã sản phẩm và lý do được lưu để tra cứu.</p>
-    <label className="pwc-shop-label" htmlFor="pm-delete-reason">Lý do xóa (20–1.000 ký tự)</label>
-    <textarea id="pm-delete-reason" className="pwc-shop-field" rows={4} maxLength={1000} value={reason}
-      disabled={busy || uncertain} onChange={event => setReason(event.target.value)} />
-    {failure && <p role="alert" className="pwc-shop-alert pwc-shop-alert--error">{failure.text}</p>}
-  </Dialog>;
-}
-
 // Product Management for Admin. The backend owns the code, the stock and every rule; this page only asks for them.
 export function ProductManagementPage({ api }) {
   const [searchText, setSearchText] = useState('');
@@ -198,7 +162,6 @@ export function ProductManagementPage({ api }) {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState(null);
-  const [deleting, setDeleting] = useState(null);
   const [editorBusy, setEditorBusy] = useState(false);
 
   useEffect(() => {
@@ -244,7 +207,7 @@ export function ProductManagementPage({ api }) {
     {resource.meta?.summary && <section className="pwc-pm-overview" aria-label="Tổng quan sản phẩm">
       <dl className="pwc-pm-metrics">{[['total', 'Tổng sản phẩm'], ['visible', 'Đang hiện'], ['hidden', 'Đang ẩn'], ['outOfStock', 'Hết hàng']].map(([key, label]) =>
         <div key={key}><dt>{label}</dt><dd>{resource.meta.summary[key].toLocaleString('vi-VN')}</dd></div>)}</dl>
-      <p className="pwc-shop-hint">Toàn bộ sản phẩm chưa xóa, không phụ thuộc bộ lọc. Hết hàng khi tồn kho trừ hàng đang giữ không còn khả dụng.</p>
+      <p className="pwc-shop-hint">Toàn bộ sản phẩm trong danh mục, không phụ thuộc bộ lọc. Hết hàng khi tồn kho trừ hàng đang giữ không còn khả dụng.</p>
     </section>}
     <div className="pwc-pm-filters">
       <input type="search" className="pwc-shop-search" value={searchText} maxLength={100}
@@ -280,9 +243,7 @@ export function ProductManagementPage({ api }) {
               <td><strong>{formatVnd(product.sellingPrice)}</strong></td>
               <td><span className={`pwc-shop-status ${product.visible ? 'pwc-shop-status--done' : 'pwc-shop-status--muted'}`}>{product.visible ? 'Đang hiện' : 'Đang ẩn'}</span></td>
               <td><button type="button" className="pwc-shop-link-button" aria-label={`Sửa sản phẩm ${product.code}`}
-                onClick={() => { setEditing({ product }); setNotice(null); }}>Sửa</button>
-                <button type="button" className="pwc-shop-link-button pwc-pm-delete" aria-label={`Xóa sản phẩm ${product.code}`}
-                  onClick={() => setDeleting(product)}>Xóa</button></td>
+                onClick={() => { setEditing({ product }); setNotice(null); }}>Sửa</button></td>
             </tr>)}</tbody>
           </table>
         </div>}
@@ -291,9 +252,6 @@ export function ProductManagementPage({ api }) {
       </div>
       {editing && <Dialog open className="pwc-pm-editor-dialog" title={editing.product ? `Sửa sản phẩm ${editing.product.code}` : 'Thêm sản phẩm'} dismissible={!editorBusy} onClose={() => setEditing(null)}><ProductForm key={editing.product ? `${editing.product.id}:${editing.product.version}` : 'new'} product={editing.product}
         api={api} onBusy={setEditorBusy} onSaved={saved} onReload={reload} onRefresh={resource.retry} /></Dialog>}
-      {deleting && <DeleteProductDialog key={deleting.id} product={deleting} api={api}
-        onClose={() => { setDeleting(null); resource.retry(); }}
-        onChanged={text => { setDeleting(null); setEditing(null); setNotice({ kind: 'ok', text }); setPage(1); resource.retry(); }} />}
     </div>
   </section>;
 }

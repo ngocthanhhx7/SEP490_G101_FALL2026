@@ -6,13 +6,14 @@ import { VisitTravel } from '../../components/common/VisitTravel.jsx';
 import { AssignedCare } from './AssignedCare.jsx';
 import { VisitExecution } from './VisitExecution.jsx';
 import { VisitWithdrawalDialog } from './VisitWithdrawalDialog.jsx';
-import { Button } from '../../components/ui/index.js';
+import { Button, Notice } from '../../components/ui/index.js';
 import './sitter-workspace.css';
 
 export function SitterVisitPage({ api, visitId }) {
   const load = useCallback(({ signal }) => api.assignedVisitSummary(visitId, { signal }), [api, visitId]);
   const visit = useApiResource(load);
   const [withdrawal, setWithdrawal] = useState(false);
+  const [executionReloadKey, setExecutionReloadKey] = useState(0);
   const row = visit.data;
   if (visit.status === 'loading') return <p role="status">Đang tải buổi chăm sóc…</p>;
   if (!row) return <section className="pwc-mobile-screen">
@@ -31,9 +32,14 @@ export function SitterVisitPage({ api, visitId }) {
     <p>{new Date(row.startAt).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })} · Giờ Việt Nam</p>
     {row.serviceAddress && <p>{row.serviceAddress}</p>}
     {directions && <a href={directions} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="sitter-workspace-link">Chỉ đường bằng Google Maps</a>}</div>
-    {['ASSIGNED','IN_PROGRESS'].includes(row.state) && <AssignedCare api={api} visitId={visitId} />}
+    {row.handoverPending === true && <Notice state="warning" title="Bạn cần xác nhận bàn giao trước khi check-in."
+      action={<Link className="sitter-workspace-link" to={'/sitter/visits/' + visitId + '/handover'}>Xác nhận bàn giao</Link>} />}
+    {['ASSIGNED','IN_PROGRESS'].includes(row.state) && !row.handoverPending && (
+      <AssignedCare api={api} visitId={visitId} defaultOpen onAcknowledged={() => setExecutionReloadKey(value => value + 1)} />
+    )}
     {row.state === 'ASSIGNED' && <VisitTravel api={api} visitId={visitId} employee startAt={row.startAt} endAt={row.endAt} />}
-    <VisitExecution api={api} visitId={visitId} onChanged={visit.retry} />
+    <p><Link to="/contact" state={{ helpFrom: '/sitter/visits/' + visitId }}>Hỗ trợ công việc</Link></p>
+    <VisitExecution key={visitId + ':' + executionReloadKey} api={api} visitId={visitId} onChanged={visit.retry} />
     {row.state === 'ASSIGNED' && <Button variant="secondary" onClick={() => setWithdrawal(true)}>Kiểm tra điều kiện rút khỏi buổi</Button>}
     {withdrawal && <VisitWithdrawalDialog visitId={visitId} api={api} onClose={() => setWithdrawal(false)}
       onSuccess={() => { setWithdrawal(false); visit.retry(); }} />}

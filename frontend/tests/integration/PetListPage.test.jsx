@@ -106,7 +106,7 @@ test('keeps the same create attempt after an ambiguous HTTP 500 response', async
   fireEvent.change(screen.getByRole('combobox', { name: /Loài/ }), { target: { value: 'DOG' } });
   fireEvent.click(screen.getByRole('button', { name: 'Lưu hồ sơ' }));
 
-  expect(await screen.findByRole('status', { name: 'Đang chờ máy chủ xác nhận' })).toBeVisible();
+  expect(await screen.findByRole('status', { name: 'Đang chờ xác nhận' })).toBeVisible();
   expect(api.createPet).toHaveBeenCalledTimes(1);
   fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra bằng cùng yêu cầu' }));
   await waitFor(() => expect(api.createPet).toHaveBeenCalledTimes(2));
@@ -127,7 +127,7 @@ test('asks for confirmation and uses the soft-archive route only after confirmat
   renderPage(api);
   fireEvent.click(await screen.findByRole('button', { name: 'Lưu trữ' }));
   expect(screen.getByRole('alertdialog', { name: 'Lưu trữ hồ sơ thú cưng?' })).toBeVisible();
-  expect(screen.getByText(/snapshot đã xác nhận được giữ nguyên/)).toBeVisible();
+  expect(screen.getByText(/các lịch đặt đã xác nhận vẫn giữ nguyên thông tin đã lưu/i)).toBeVisible();
   expect(api.archivePet).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận lưu trữ' }));
 
@@ -152,7 +152,7 @@ test.each([
 test('renders an accepted list request as pending rather than an empty list', async () => {
   const api = { listPets: jest.fn().mockResolvedValue(listResult([], { status: 202, pending: true })) };
   renderPage(api);
-  expect(await screen.findByRole('status', { name: 'Máy chủ chưa xác nhận danh sách' })).toBeVisible();
+  expect(await screen.findByRole('status', { name: 'Đang chờ xác nhận danh sách' })).toBeVisible();
   expect(screen.queryByText('Bạn chưa có hồ sơ thú cưng')).not.toBeInTheDocument();
 });
 

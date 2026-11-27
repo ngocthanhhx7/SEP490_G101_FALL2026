@@ -59,3 +59,13 @@ test('never lets an id escape the cart line path', async () => {
   await expect(api(fetchImpl).removeCartLine('p/1')).rejects.toMatchObject({ code: 'INVALID_API_PATH' });
   expect(fetchImpl).not.toHaveBeenCalled();
 });
+
+test('confirms a received delivery order with CSRF and validates deliveredBy', async () => {
+  const delivered = { ...order, receiveMethod: 'DELIVERY', paymentMethod: 'COD', paid: true, status: 'DELIVERED', deliveredBy: 'CUSTOMER' };
+  const fetchImpl = jest.fn().mockResolvedValue(reply(200, envelope(delivered)));
+  expect(await api(fetchImpl).confirmReceived('o1')).toEqual(delivered);
+  const [path, init] = fetchImpl.mock.calls[0];
+  expect(path).toBe('/api/v1/product-orders/o1/confirm-received');
+  expect(init.method).toBe('POST');
+  expect(init.headers.get('X-CSRF-Token')).toBe('csrf-token');
+});

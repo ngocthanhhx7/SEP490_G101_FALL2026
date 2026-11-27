@@ -16,11 +16,18 @@ function checkQuote(data) {
   return data;
 }
 function checkSlots(data) {
-  if (!data || !Array.isArray(data.slots) || data.slots.some(row => !text(row?.startAt) || !text(row.time) || !['AVAILABLE', 'FULL'].includes(row.state))) invalid();
+  if (!data || !Array.isArray(data.slots) || data.slots.some(row => !text(row?.startAt) || !text(row.time)
+    || !['AVAILABLE', 'FULL', 'PET_ALREADY_BOOKED'].includes(row.state)
+    || (row.state === 'PET_ALREADY_BOOKED' && row.conflictPetName !== undefined && !text(row.conflictPetName)))) invalid();
   return data;
 }
 function checkAppointment(data) {
   if (!data || !text(data.id) || !/^GR-\d{4,}$/u.test(data.code ?? '') || !text(data.slot?.startAt) || !text(data.slot.localDate) || !count(data.pricing?.totalVnd)) invalid();
+  return data;
+}
+function checkAppointmentList(data) {
+  if (!data || !Array.isArray(data.items) || !count(data.total) || !count(data.page) || !count(data.limit)) invalid();
+  data.items.forEach(checkAppointment);
   return data;
 }
 
@@ -65,6 +72,19 @@ export function createGroomingBookingApi({ getCsrfToken = () => null, fetchImpl 
     },
     async slots(body, { signal } = {}) { return checkSlots((await call('/grooming/slots', { method: 'POST', body, signal })).data); },
     async quote(body, { signal } = {}) { return checkQuote((await call('/grooming/quotes', { method: 'POST', body, signal })).data); },
-    async book(body, idempotencyKey) { return checkAppointment((await call('/grooming/appointments', { method: 'POST', body, idempotencyKey })).data); }
+    async book(body, idempotencyKey) { return checkAppointment((await call('/grooming/appointments', { method: 'POST', body, idempotencyKey })).data); },
+    async listAppointments({ upcoming, status, page, limit, signal } = {}) {
+      const pairs = [];
+      if (upcoming !== undefined) pairs.push(`upcoming=${encodeURIComponent(String(Boolean(upcoming)))}`);
+      if (status) pairs.push(`status=${encodeURIComponent(status)}`);
+      if (page !== undefined) pairs.push(`page=${encodeURIComponent(String(page))}`);
+      if (limit !== undefined) pairs.push(`limit=${encodeURIComponent(String(limit))}`);
+      const query = pairs.join('&');
+      return checkAppointmentList((await call(`/grooming/appointments${query ? `?${query}` : ''}`, { signal })).data);
+    },
+    async cancelAppointment(id) {
+      if (!text(id)) invalid();
+      return checkAppointment((await call(`/grooming/appointments/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: {} })).data);
+    }
   };
 }

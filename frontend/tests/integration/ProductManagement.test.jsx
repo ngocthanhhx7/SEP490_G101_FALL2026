@@ -36,38 +36,14 @@ const fillNew = ({ name = 'Vòng cổ', category = 'ACCESSORY', petType = 'DOG',
 };
 
 describe('Product Management list', () => {
-  test('shows database overview and requires a complete deletion reason', async () => {
+  test('ST-GRN-06 shows database overview and offers edit/hide only with no delete button', async () => {
     const api = fakeApi();
     render(<ProductManagementPage api={api} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Xóa sản phẩm SP-0012' }));
+    await screen.findByText('Dây dắt chó');
     expect(screen.getByRole('columnheader', { name: 'Hành động' })).toBeVisible();
     expect(screen.getByRole('region', { name: 'Tổng quan sản phẩm' })).toHaveTextContent('Hết hàng');
-    const dialog = screen.getByRole('alertdialog');
-    expect(within(dialog).getByRole('button', { name: 'Xác nhận xóa' })).toBeDisabled();
-    fireEvent.change(within(dialog).getByLabelText('Lý do xóa (20–1.000 ký tự)'), { target: { value: 'Ngừng bán sản phẩm theo quyết định của cửa hàng.' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Xác nhận xóa' }));
-    await waitFor(() => expect(api.deleteProduct).toHaveBeenCalledWith('p12', { version: 0, reason: 'Ngừng bán sản phẩm theo quyết định của cửa hàng.' }));
-    expect(await screen.findByText('Đã xóa sản phẩm và lưu lại lý do.')).toBeVisible();
-  });
-  test('offers hiding a blocked product and never claims a rejected deletion succeeded', async () => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockRejectedValue(new ApiError('PRODUCT_DELETE_BLOCKED', 409)) });
-    render(<ProductManagementPage api={api} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Xóa sản phẩm SP-0012' }));
-    fireEvent.change(screen.getByLabelText('Lý do xóa (20–1.000 ký tự)'), { target: { value: 'Không kinh doanh mặt hàng này nữa tại cửa hàng.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xóa' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Ẩn khỏi cửa hàng' }));
-    await waitFor(() => expect(api.updateProduct).toHaveBeenCalledWith('p12', { version: 0, visible: false }));
-    expect(await screen.findByText('Đã ẩn sản phẩm khỏi cửa hàng.')).toBeVisible();
-  });
-  test.each([['NETWORK_ERROR', 0], ['INTERNAL_ERROR', 500]])('an uncertain %s deletion response locks retries until reloading', async (code, status) => {
-    const api = fakeApi({ deleteProduct: jest.fn().mockRejectedValue(new ApiError(code, status)) });
-    render(<ProductManagementPage api={api} />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Xóa sản phẩm SP-0012' }));
-    fireEvent.change(screen.getByLabelText('Lý do xóa (20–1.000 ký tự)'), { target: { value: 'Không kinh doanh mặt hàng này nữa tại cửa hàng.' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận xóa' }));
-    await screen.findByRole('button', { name: 'Đóng và tải lại' });
-    expect(screen.getByRole('button', { name: 'Xác nhận xóa' })).toBeDisabled();
-    expect(api.deleteProduct).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /Xóa sản phẩm/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Xóa$/ })).toBeNull();
   });
   test('lists every product with its category, pet type, price and whether it shows on the shop', async () => {
     const api = fakeApi();
