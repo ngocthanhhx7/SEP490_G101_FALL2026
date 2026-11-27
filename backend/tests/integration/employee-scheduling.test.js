@@ -144,15 +144,27 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   const checkedIn = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
   const repeated = await request(server).post(`${endpoint}/check-ins`).set(headers(sitter, 'synthetic-check-in-care')).send(input).expect(200);
   expect(repeated.body.data).toEqual(checkedIn.body.data);
+  expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({
+    state: 'IN_PROGRESS', version: checkedIn.body.data.version, checkInAt: new Date(clock()),
+    evidenceRefs: [{ mediaId: mediaIn }]
+  });
   const checkout = createBookingCheckoutService({ connection, clock });
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'IN_PROGRESS', checkInAt: new Date(clock()), checkOutAt: null });
   const mediaOut = await upload('synthetic-private-care-out');
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-out-before-checklist')).send({ expectedVersion: checkedIn.body.data.version, mediaId: mediaOut }).expect(409);
   const saved = await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-care'))
     .send({ expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] }).expect(200);
+  expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({
+    state: 'IN_PROGRESS', version: saved.body.data.version,
+    checklist: [{ itemId: 'pet-condition', status: 'DONE' }]
+  });
   current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
+  expect(await connection.collection('visits').findOne({ _id: row._id })).toMatchObject({
+    state: 'COMPLETED', version: saved.body.data.version + 1, checkInAt: new Date(clock()), checkOutAt: new Date(clock()),
+    evidenceRefs: [{ mediaId: mediaIn }, { mediaId: mediaOut }]
+  });
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'COMPLETED', checkOutAt: new Date(clock()) });
   expect((await checkout.read(customer, String(row.bookingId))).state).toBe('COMPLETED');
   await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
