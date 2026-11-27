@@ -70,7 +70,7 @@ test('shows loading, empty, forbidden, error and pending states', async () => {
   errorView.unmount();
 
   renderPage({ list: jest.fn().mockResolvedValue(response([], null, true)) });
-  expect(await screen.findByRole('heading', { name: 'Đang chờ máy chủ xác nhận danh sách' })).toBeVisible();
+  expect(await screen.findByRole('heading', { name: 'Đang chờ xác nhận danh sách' })).toBeVisible();
 });
 
 test('keeps its API resource stable while the page form changes', async () => {
@@ -121,13 +121,13 @@ test('asks before changing an address used by an open booking and retries with e
   const formDialog = within(screen.getByRole('dialog', { name: 'Sửa địa chỉ' }));
   fireEvent.change(formDialog.getByLabelText(/Địa chỉ phục vụ/), { target: { value: '28 Example Street' } });
   fireEvent.click(formDialog.getByRole('button', { name: 'Lưu địa chỉ' }));
-  expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng booking đang mở' })).toBeVisible();
-  expect(screen.getByText(/booking hiện có tiếp tục dùng snapshot/i)).toBeVisible();
+  expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng lịch đặt đang mở' })).toBeVisible();
+  expect(screen.getByText(/lịch đặt hiện có vẫn dùng địa chỉ và hướng dẫn đã lưu khi xác nhận/i)).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
   const editDialogAfterBack = within(screen.getByRole('dialog', { name: 'Sửa địa chỉ' }));
   expect(editDialogAfterBack.getByLabelText(/Địa chỉ phục vụ/)).toHaveValue('28 Example Street');
   fireEvent.click(editDialogAfterBack.getByRole('button', { name: 'Lưu địa chỉ' }));
-  expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng booking đang mở' })).toBeVisible();
+  expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng lịch đặt đang mở' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận và tiếp tục' }));
   await waitFor(() => expect(adapter.update).toHaveBeenCalledTimes(3));
   expect(adapter.update).toHaveBeenNthCalledWith(1, CUSTOMER_ADDRESS, expect.objectContaining({ expectedVersion: 4 }));
@@ -149,7 +149,7 @@ test('archives softly after explicit booking impact confirmation and exposes def
   fireEvent.click(await screen.findByRole('button', { name: 'Ẩn địa chỉ' }));
   const archiveDialog = screen.getByRole('alertdialog', { name: 'Ẩn địa chỉ này?' });
   fireEvent.click(within(archiveDialog).getByRole('button', { name: 'Ẩn địa chỉ' }));
-  expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng booking đang mở' })).toBeVisible();
+  expect(await screen.findByRole('alertdialog', { name: 'Xác nhận ảnh hưởng lịch đặt đang mở' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Xác nhận và tiếp tục' }));
   await waitFor(() => expect(adapter.archive).toHaveBeenCalledTimes(2));
   expect(adapter.archive).toHaveBeenNthCalledWith(2, CUSTOMER_ADDRESS,

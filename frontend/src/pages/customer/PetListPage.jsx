@@ -10,7 +10,7 @@ const SPECIES_LABELS = { DOG: 'Chó', CAT: 'Mèo' };
 
 function messageForError(error, action) {
   if (error?.code === 'CSRF_NOT_READY') {
-    return 'Phiên Customer và mã bảo vệ yêu cầu chưa được nối với máy chủ. Chưa có thay đổi nào được gửi.';
+    return 'Phiên bảo mật chưa sẵn sàng. Vui lòng tải lại trang rồi thử lại.';
   }
   if (error?.code === 'IDEMPOTENCY_KEY_UNAVAILABLE') {
     return 'Trình duyệt chưa tạo được mã an toàn cho yêu cầu. Chưa có thay đổi nào được gửi.';
@@ -23,8 +23,8 @@ function messageForError(error, action) {
   }
   if (error?.status === 422 || error?.code === 'VALIDATION_FAILED') {
     return action === 'create'
-      ? 'Máy chủ chưa chấp nhận tên hoặc loài. Kiểm tra lại hai thông tin rồi thử lại.'
-      : 'Máy chủ chưa thể lưu trữ hồ sơ này. Tải lại danh sách rồi thử lại.';
+      ? 'Tên hoặc loài chưa hợp lệ. Kiểm tra lại thông tin rồi thử lại.'
+      : 'Chưa thể lưu trữ hồ sơ này. Tải lại danh sách rồi thử lại.';
   }
   return action === 'load'
     ? 'Chưa tải được danh sách. Kiểm tra kết nối rồi thử lại.'
@@ -122,7 +122,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
       if (controller.signal.aborted) return;
       if (result.pending) {
         setMoreState('pending');
-        setMoreError('Máy chủ chưa xác nhận trang tiếp theo. Danh sách hiện có vẫn được giữ nguyên.');
+        setMoreError('Chưa xác nhận được trang tiếp theo. Danh sách hiện có vẫn được giữ nguyên.');
         return;
       }
       setMorePets(current => mergePets(current, result.data));
@@ -164,7 +164,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
       setCreateOpen(false);
       setDraft({ name: '', species: '' });
       setDraftErrors({});
-      setFeedback({ state: 'success', title: 'Đã tạo hồ sơ', message: 'Máy chủ đã xác nhận hồ sơ thú cưng.' });
+      setFeedback({ state: 'success', title: 'Đã tạo hồ sơ', message: 'Đã lưu hồ sơ thú cưng mới.' });
       resource.retry();
     } catch (error) {
       if (isUnknownOutcome(error)) {
@@ -233,7 +233,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
       const result = await api.archivePet({ ...attempt, petId: archivePet.id });
       if (result.pending) {
         setArchiveState('pending');
-        setArchiveError('Máy chủ chưa xác nhận việc lưu trữ. Có thể kiểm tra lại bằng chính yêu cầu này.');
+        setArchiveError('Chưa xác nhận được việc lưu trữ. Có thể kiểm tra lại bằng cùng yêu cầu.');
         return;
       }
       archiveAttempt.current = null;
@@ -241,7 +241,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
       setArchiveDialogOpen(false);
       setArchivePet(null);
       setFeedback({ state: 'success', title: 'Đã lưu trữ hồ sơ',
-        message: 'Máy chủ đã xác nhận. Lịch sử đặt dịch vụ và snapshot trước đây vẫn được giữ nguyên.' });
+        message: 'Hồ sơ đã được lưu trữ. Các lịch đặt đã xác nhận vẫn giữ nguyên thông tin đã lưu.' });
       resource.retry();
     } catch (error) {
       if (isUnknownOutcome(error)) {
@@ -322,7 +322,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
           <option value="CAT">Mèo</option>
         </Select>
         <p className="pet-list__form-hint">Ảnh, giống, tuổi, cân nặng, sức khỏe và vaccine đều không bắt buộc để tạo hồ sơ.</p>
-        {createState === 'pending' && <Notice state="pending" title="Đang chờ máy chủ xác nhận">
+        {createState === 'pending' && <Notice state="pending" title="Đang chờ xác nhận">
           <p>Hồ sơ chưa được xác nhận. Khi gửi lại, ứng dụng sẽ dùng đúng nội dung và mã thao tác trước đó.</p>
           <div className="pet-list__notice-action">
             <Button variant="secondary" onClick={retryCreate}>Kiểm tra bằng cùng yêu cầu</Button>
@@ -341,7 +341,7 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
     <section className="pet-list__results" aria-label="Danh sách hồ sơ thú cưng"
       aria-busy={resource.status === 'loading' || moreState === 'loading'}>
       {resource.status === 'loading' && <Notice state="loading" title="Đang tải hồ sơ">
-        <p>Đang tải danh sách thú cưng từ máy chủ.</p>
+        <p>Đang tải danh sách thú cưng.</p>
       </Notice>}
       {resource.status === 'empty' && <Notice state="empty" title="Bạn chưa có hồ sơ thú cưng">
         <p>Tạo hồ sơ đầu tiên bằng tên và loài. Trường còn thiếu không được xem là thông tin an toàn.</p>
@@ -352,10 +352,10 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
         <div className="pet-list__notice-action"><Button variant="secondary" onClick={resource.retry}>Tải lại</Button></div>
       </Notice>}
       {resource.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem danh sách này">
-        <p>Máy chủ từ chối yêu cầu. Danh sách hồ sơ không được hiển thị.</p>
+        <p>Bạn không có quyền xem danh sách hồ sơ này.</p>
         <div className="pet-list__notice-action"><Button variant="secondary" onClick={resource.retry}>Kiểm tra lại quyền truy cập</Button></div>
       </Notice>}
-      {resource.status === 'pending' && <Notice state="pending" title="Máy chủ chưa xác nhận danh sách">
+      {resource.status === 'pending' && <Notice state="pending" title="Đang chờ xác nhận danh sách">
         <p>Chưa thể xác định có hồ sơ nào hay không. Tải lại để kiểm tra trạng thái hiện tại.</p>
         <div className="pet-list__notice-action"><Button variant="secondary" onClick={resource.retry}>Tải lại danh sách</Button></div>
       </Notice>}
@@ -396,10 +396,10 @@ export function PetListPage({ api = petApi, detailsPath = (petId) => `/account/p
     </section>
 
     <Dialog open={archiveDialogOpen} onClose={closeArchive} title="Lưu trữ hồ sơ thú cưng?"
-      description={archivePet ? `Hồ sơ ${archivePet.name} sẽ được lưu trữ khỏi danh sách đang hoạt động. Dữ liệu lịch sử và snapshot đã xác nhận được giữ nguyên.` : undefined}
+      description={archivePet ? `Hồ sơ ${archivePet.name} sẽ chuyển sang lưu trữ. Các lịch đặt đã xác nhận vẫn giữ nguyên thông tin đã lưu.` : undefined}
       intent="destructive">
       {archiveError && <Notice state={archiveState === 'pending' ? 'pending' : archiveState === 'forbidden' ? 'forbidden' : 'error'}
-        title={archiveState === 'pending' ? 'Đang chờ máy chủ xác nhận' : 'Chưa lưu trữ được hồ sơ'}>
+        title={archiveState === 'pending' ? 'Đang chờ xác nhận' : 'Chưa lưu trữ được hồ sơ'}>
         <p>{archiveError}</p>
       </Notice>}
       <div className="pet-list__form-actions">
