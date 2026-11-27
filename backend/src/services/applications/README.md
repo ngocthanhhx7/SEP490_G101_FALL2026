@@ -13,7 +13,10 @@ Admin approval creates the Pet Sitter User transactionally after the existing in
 The authenticated intake includes applicant-visible rejectionReason and server-clock
 canReapply. Registration never decides cooldown eligibility from the device clock;
 refreshing the receipt reloads intake, then remounts the form only when allowed.
-Submission still independently rechecks pending applications and cooldowns.
+Submission independently rechecks pending applications and cooldowns. Unverified
+callers and accounts without access to the matching record receive the same
+generic conflict. A guest retry must still own the submitted documents and
+recovers the original receipt only. Current status requires OTP or account access.
 
 `application-mail.service.js` enqueues one typed status email per application
 version in the same domain transaction. Guest applications use the encrypted

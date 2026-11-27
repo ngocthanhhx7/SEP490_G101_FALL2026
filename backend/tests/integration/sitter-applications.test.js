@@ -164,14 +164,43 @@ describe('P16 public sitter application submission', () => {
     expect(await sitterApplicationModels(connection).SitterApplicationAudit.countDocuments({ action: 'APPLICATION_SUBMITTED' })).toBe(1);
   });
 
-  test('blocks duplicate pending contact and identity without disclosing which value matched', async () => {
+  test('ST-ONB-01 creates an in-app notification for active Admins with the application code and detail link', async () => {
+    await User.create({
+      _id: ADMIN_ID, displayName: 'Admin One', roles: ['ADMIN'],
+      state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
+    });
+    const instance = app();
+    const first = await submit(instance, applicationBody(), 'submit-notify-admin-01').expect(201);
+    await submit(instance, applicationBody(), 'submit-notify-admin-01').expect(200);
+    const notices = await connection.db.collection('notifications').find({
+      recipientId: ADMIN_ID, eventType: 'ApplicationSubmitted'
+    }).toArray();
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toMatchObject({
+      recipientId: ADMIN_ID,
+      role: 'ADMIN',
+      channel: 'IN_APP',
+      deepLink: `/admin/sitter-applications/${first.body.data.id}`
+    });
+    expect(notices[0].message).toContain(first.body.data.applicationCode);
+  });
+
+  test('ST-ONB-09 blocks duplicate pending phone, email and identity with the same unverified response', async () => {
     const application = app();
-    await submit(application, applicationBody()).expect(201);
-    const sameContact = await submit(application, applicationBody({ identityNumber: '987654321098' }), 'submit-key-0002').expect(409);
-    expect(sameContact.body.error.code).toBe('APPLICATION_ALREADY_PENDING');
-    const sameIdentity = await submit(application, applicationBody({ contactValue: 'second@example.test' }), 'submit-key-0003').expect(409);
-    expect(sameIdentity.body.error.code).toBe('APPLICATION_ALREADY_PENDING');
-    expect(JSON.stringify(sameContact.body)).not.toMatch(/sitter@example|012345678901|987654321098/i);
+    await submit(application, applicationBody({ email: 'sitter@example.test', phone: '0912345678' })).expect(201);
+    const samePhone = await submit(application, applicationBody({
+      email: 'other1@example.test', phone: '0912345678', identityNumber: '987654321098'
+    }), 'submit-key-phone').expect(409);
+    expect(samePhone.body.error).toEqual({ code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time' });
+    const sameEmail = await submit(application, applicationBody({
+      email: 'sitter@example.test', phone: '0987654321', identityNumber: '987654321098'
+    }), 'submit-key-email').expect(409);
+    expect(sameEmail.body.error).toEqual(samePhone.body.error);
+    const sameIdentity = await submit(application, applicationBody({
+      email: 'other2@example.test', phone: '0987654321', identityNumber: '012345678901'
+    }), 'submit-key-id').expect(409);
+    expect(sameIdentity.body.error).toEqual(samePhone.body.error);
+    expect(JSON.stringify(sameEmail.body)).not.toMatch(/sitter@example|0912345678|012345678901|987654321098/i);
     expect(await User.countDocuments({})).toBe(0);
   });
 
@@ -184,7 +213,7 @@ describe('P16 public sitter application submission', () => {
     expect(await sitterApplicationModels(connection).SitterApplication.countDocuments({ state: 'PENDING' })).toBe(1);
   });
 
-  test('enforces the rejection waiting period and permits a new submission at the exact eligible instant', async () => {
+  test('ST-ONB-13 enforces the rejection waiting period without exposing dates to an unverified caller', async () => {
     const application = app();
     const submitted = await submit(application, applicationBody()).expect(201);
     const admin = await login('ADMIN');
@@ -194,7 +223,10 @@ describe('P16 public sitter application submission', () => {
       .set('Idempotency-Key', 'decision-reject-0001')
       .send({ action: 'REJECT', reason: 'Cần bổ sung hồ sơ kinh nghiệm.', expectedVersion: 2 }).expect(200);
     const eligibleAt = clockNow + 30 * 24 * 60 * 60 * 1000;
-    await submit(application, applicationBody(), 'submit-key-after-reject').expect(409);
+    const tooEarly = await submit(application, applicationBody(), 'submit-key-after-reject').expect(409);
+    expect(tooEarly.body.error).toEqual({
+      code: 'APPLICATION_SUBMISSION_UNAVAILABLE', message: 'An application cannot be submitted at this time'
+    });
     clockNow = eligibleAt;
     const newApplication = await submit(application, applicationBody(), 'submit-key-after-wait').expect(201);
     expect(newApplication.body.data.id).not.toBe(submitted.body.data.id);
