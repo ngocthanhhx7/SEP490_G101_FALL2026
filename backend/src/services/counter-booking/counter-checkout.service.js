@@ -176,12 +176,35 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
     if (!record || record.snapshot.staffId !== staffOnly(actor)) fail('RESOURCE_NOT_FOUND', 'Counter preview expired or unavailable', 404);
     return record.snapshot;
   }
+  const payosCheckoutUrl = raw => {
+    if (!raw) return null;
+    try {
+      const url = new URL(raw);
+      return url.origin === 'https://pay.payos.vn' && url.pathname.startsWith('/web/') ? url.href : null;
+    } catch { return null; }
+  };
+  const matchesRemoteIntent = (intent, remote) => Boolean(
+    remote && remote.orderCode === Number(intent.providerReference) && Number.isSafeInteger(remote.orderCode)
+    && remote.amount === intent.amountVnd && Number.isSafeInteger(remote.amountPaid)
+    && remote.amountPaid >= 0 && remote.amountPaid <= intent.amountVnd
+  );
+  const linkMarkersMatch = (left, right) =>
+    (left.linkState ?? undefined) === (right.linkState ?? undefined) &&
+    (left.linkRequestedAt?.getTime() ?? null) === (right.linkRequestedAt?.getTime() ?? null) &&
+    (left.checkoutUrl ?? undefined) === (right.checkoutUrl ?? undefined) &&
+    (left.paymentLinkId ?? undefined) === (right.paymentLinkId ?? undefined);
+  const claimFilterFor = (intent, extra = {}) => ({
+    _id: intent._id, state: 'PENDING',
+    ...(intent.linkState ? { linkState: intent.linkState } : { linkState: { $exists: false } }),
+    linkRequestedAt: intent.linkRequestedAt, expiresAt: { $gt: now() }, ...extra
+  });
   async function releasePending(intent, state) {
     return uow.run(async session => {
       const current = await col('paymentintents').findOne({
         _id: intent._id, kind: 'COUNTER_BOOKING', state: 'PENDING', version: intent.version
       }, { session });
       if (!current) return (await Command.findById(intent.counterReceiptId).session(session).lean())?.result;
+      if (!linkMarkersMatch(current, intent)) return null;
       const receipt = await Command.findById(intent.counterReceiptId).session(session).lean();
       if (receipt?.result.status !== 'PENDING') return receipt?.result;
       const cancelledAt = now();
@@ -215,72 +238,29 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
     });
   }
   async function verifyUnpaidAndRelease(intent, state) {
-    // linkState === 'CREATING' without a checkoutUrl/paymentLinkId means we submitted (or crashed)
-    // before the provider could respond. If the recovery delay has passed we can confirm the link
-    // was never created by asking payOS. A PAYOS_LINK_NOT_FOUND error then means it is safe to
-    // expire/cancel the intent directly — no live charge exists.
-    const wasSubmitted = intent.linkState === 'CREATING' && !intent.checkoutUrl && !intent.paymentLinkId;
-    if (wasSubmitted) {
-      if (!provider?.getPaymentLink) return null;
-      if (!canRecoverUnpublishedAttempt(intent, now())) return null; // too soon — recovery delay not elapsed
-      let remote;
-      try { remote = await provider.getPaymentLink(Number(intent.providerReference)); }
-      catch (error) {
-        // PAYOS_LINK_NOT_FOUND confirms the link was never created → safe to release
-        if (error?.code === 'PAYOS_LINK_NOT_FOUND') return releasePending(intent, state);
-        return null;
-      }
-      const matches = () => remote.orderCode === Number(intent.providerReference) &&
-        remote.amount === intent.amountVnd && remote.amountPaid === 0;
-      if (!matches()) return null;
-      if (!['CANCELLED', 'EXPIRED', 'FAILED'].includes(remote.providerStatus)) {
-        if (!provider.cancelPaymentLink || remote.providerStatus !== 'PENDING') return null;
-        try { remote = await provider.cancelPaymentLink(Number(intent.providerReference),
-          state === 'CANCELLED' ? 'Counter staff cancelled booking' : 'Counter booking expired'); }
-        catch { return null; }
-        if (!matches() || remote.providerStatus !== 'CANCELLED') return null;
-      }
-      return releasePending(intent, state);
+    const hasSubmission = Boolean(intent.linkState || intent.linkRequestedAt || intent.checkoutUrl || intent.paymentLinkId);
+    if (!hasSubmission) return releasePending(intent, state);
+    if (!provider?.getPaymentLink) return null;
+    const effectiveState = intent.linkState ?? 'CREATING';
+    if (effectiveState === 'CREATING' && !intent.checkoutUrl && !intent.paymentLinkId &&
+      !canRecoverUnpublishedAttempt({ ...intent, linkState: effectiveState }, now())) return null;
+    let remote;
+    try { remote = await provider.getPaymentLink(Number(intent.providerReference)); }
+    catch (error) {
+      const confirmedAbsent = error?.code === 'PAYOS_LINK_NOT_FOUND' && !intent.checkoutUrl && !intent.paymentLinkId && (
+        ['FAILED', 'RECONCILIATION_REQUIRED'].includes(intent.linkState) ||
+        canRecoverUnpublishedAttempt({ ...intent, linkState: effectiveState }, now())
+      );
+      return confirmedAbsent ? releasePending(intent, state) : null;
     }
-    // Legacy bare linkRequestedAt path (no linkState) — treat the same as CREATING for lookup
-    if (intent.linkRequestedAt && !intent.linkState) {
-      if (!provider?.getPaymentLink) return null;
-      let remote;
-      try { remote = await provider.getPaymentLink(Number(intent.providerReference)); }
-      catch (error) {
-        if (error?.code === 'PAYOS_LINK_NOT_FOUND' && !intent.checkoutUrl && !intent.paymentLinkId
-          && canRecoverUnpublishedAttempt({ ...intent, linkState: 'CREATING' }, now()))
-          return releasePending(intent, state);
-        return null;
-      }
-      const matches = () => remote.orderCode === Number(intent.providerReference) &&
-        remote.amount === intent.amountVnd && remote.amountPaid === 0;
-      if (!matches()) return null;
-      if (!['CANCELLED', 'EXPIRED', 'FAILED'].includes(remote.providerStatus)) {
-        if (!provider.cancelPaymentLink || remote.providerStatus !== 'PENDING') return null;
-        try { remote = await provider.cancelPaymentLink(Number(intent.providerReference),
-          state === 'CANCELLED' ? 'Counter staff cancelled booking' : 'Counter booking expired'); }
-        catch { return null; }
-        if (!matches() || remote.providerStatus !== 'CANCELLED') return null;
-      }
-    } else if (intent.checkoutUrl || intent.paymentLinkId) {
-      // Link was successfully published — must look it up before releasing
-      if (!provider?.getPaymentLink) return null;
-      let remote;
-      try { remote = await provider.getPaymentLink(Number(intent.providerReference)); }
+    if (!matchesRemoteIntent(intent, remote) || remote.amountPaid !== 0) return null;
+    if (!['CANCELLED', 'EXPIRED', 'FAILED'].includes(remote.providerStatus)) {
+      if (!provider.cancelPaymentLink || remote.providerStatus !== 'PENDING') return null;
+      try { remote = await provider.cancelPaymentLink(Number(intent.providerReference),
+        state === 'CANCELLED' ? 'Counter staff cancelled booking' : 'Counter booking expired'); }
       catch { return null; }
-      const matches = () => remote.orderCode === Number(intent.providerReference) &&
-        remote.amount === intent.amountVnd && remote.amountPaid === 0;
-      if (!matches()) return null;
-      if (!['CANCELLED', 'EXPIRED', 'FAILED'].includes(remote.providerStatus)) {
-        if (!provider.cancelPaymentLink || remote.providerStatus !== 'PENDING') return null;
-        try { remote = await provider.cancelPaymentLink(Number(intent.providerReference),
-          state === 'CANCELLED' ? 'Counter staff cancelled booking' : 'Counter booking expired'); }
-        catch { return null; }
-        if (!matches() || remote.providerStatus !== 'CANCELLED') return null;
-      }
+      if (!matchesRemoteIntent(intent, remote) || remote.amountPaid !== 0 || remote.providerStatus !== 'CANCELLED') return null;
     }
-    // No link was ever requested → safe to release directly
     return releasePending(intent, state);
   }
   async function qrView(result) {
@@ -299,23 +279,59 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
     }
     if (intent.checkoutUrl) return view;
     if (!provider || !webOrigin) return view;
-    // If a previous attempt set linkState to CREATING but no checkoutUrl was saved, the process may
-    // have crashed before payOS responded. Allow recovery after RECOVERY_DELAY_MS using the same
-    // order code (canRecoverUnpublishedAttempt confirms no live attempt is in progress).
-    const canRetryUnpublished = intent.linkState === 'CREATING' && !intent.checkoutUrl && !intent.paymentLinkId
-      && canRecoverUnpublishedAttempt(intent, now());
-    if (intent.linkState === 'CREATING' && !canRetryUnpublished) {
-      // A live in-flight attempt is already running — wait for it
-      return view;
+
+    const unpublished = { checkoutUrl: { $exists: false }, paymentLinkId: { $exists: false } };
+    let claimed = null;
+    if (intent.linkState === 'FAILED' && !intent.checkoutUrl && !intent.paymentLinkId) {
+      claimed = await intents.findOneAndUpdate(
+        { _id: intent._id, state: 'PENDING', linkState: 'FAILED', linkRequestedAt: intent.linkRequestedAt, expiresAt: { $gt: now() }, ...unpublished },
+        { $set: { linkState: 'CREATING', linkRequestedAt: now() } },
+        { returnDocument: 'after' }
+      );
+      if (!claimed) return view;
+    } else if (intent.linkState || intent.linkRequestedAt) {
+      // Check existing payOS order state before attempting another createPaymentLink call.
+      const effectiveState = intent.linkState ?? 'CREATING';
+      if (effectiveState === 'CREATING' && !canRecoverUnpublishedAttempt({ ...intent, linkState: effectiveState }, now()))
+        return view;
+      if (!provider.getPaymentLink) return view;
+      let remote;
+      try { remote = await provider.getPaymentLink(Number(intent.providerReference)); }
+      catch (error) {
+        const canRetry = error?.code === 'PAYOS_LINK_NOT_FOUND' && !intent.checkoutUrl && !intent.paymentLinkId &&
+          (intent.linkState === 'RECONCILIATION_REQUIRED' || canRecoverUnpublishedAttempt({ ...intent, linkState: effectiveState }, now()));
+        if (!canRetry) return view;
+        claimed = await intents.findOneAndUpdate(
+          claimFilterFor(intent, unpublished),
+          { $set: { linkState: 'CREATING', linkRequestedAt: now() } },
+          { returnDocument: 'after' }
+        );
+        if (!claimed) return view;
+      }
+      if (!claimed && remote) {
+        if (!matchesRemoteIntent(intent, remote)) return view;
+        if (['PAID', 'PROCESSING'].includes(remote.providerStatus) || remote.amountPaid > 0)
+          return { ...view, checkoutUrl: null };
+        if (remote.providerStatus === 'PENDING') {
+          const href = payosCheckoutUrl(remote.checkoutUrl ?? intent.checkoutUrl);
+          if (!href) return view;
+          const restored = await intents.updateOne(claimFilterFor(intent),
+            { $set: { linkState: 'READY', checkoutUrl: href, ...(remote.paymentLinkId ? { paymentLinkId: remote.paymentLinkId } : {}) } });
+          return restored.matchedCount ? { ...view, checkoutUrl: href } : view;
+        }
+        return view;
+      }
     }
-    // Claim a new attempt: use $exists: false for the first attempt, or allow overwrite on recovery
-    const claimFilter = canRetryUnpublished
-      ? { _id: intent._id, state: 'PENDING', linkState: 'CREATING', linkRequestedAt: intent.linkRequestedAt,
-          checkoutUrl: { $exists: false }, paymentLinkId: { $exists: false }, expiresAt: { $gt: now() } }
-      : { _id: intent._id, state: 'PENDING', linkState: { $exists: false }, expiresAt: { $gt: now() } };
-    const claimed = await intents.findOneAndUpdate(claimFilter,
-      { $set: { linkState: 'CREATING', linkRequestedAt: now() } }, { returnDocument: 'after' });
-    if (!claimed) return view; // another concurrent call claimed it first
+
+    if (!claimed) {
+      claimed = await intents.findOneAndUpdate(
+        { _id: intent._id, state: 'PENDING', linkState: { $exists: false }, linkRequestedAt: { $exists: false }, expiresAt: { $gt: now() } },
+        { $set: { linkState: 'CREATING', linkRequestedAt: now() } },
+        { returnDocument: 'after' }
+      );
+      if (!claimed) return view;
+    }
+
     return runPaymentLinkAttempt(claimed, async () => {
       let providerResponded = false;
       try {
@@ -323,18 +339,24 @@ export function createCounterCheckout({ connection, clock = Date.now, pricing, c
           description: 'PAWWORLD', returnUrl: new URL('/sale-staff/counter-booking', webOrigin).href,
           cancelUrl: new URL('/sale-staff/counter-booking', webOrigin).href, expiredAt: Math.floor(+claimed.expiresAt / 1000) });
         providerResponded = true;
-        const url = new URL(link.checkoutUrl);
-        if (url.origin !== 'https://pay.payos.vn' || !url.pathname.startsWith('/web/') || link.amount !== claimed.amountVnd ||
-          link.orderCode !== Number(claimed.providerReference)) return view;
-        await intents.updateOne({ _id: claimed._id, state: 'PENDING', linkState: 'CREATING', linkRequestedAt: claimed.linkRequestedAt },
-          { $set: { linkState: 'READY', checkoutUrl: url.href, paymentLinkId: link.paymentLinkId } });
-        return { ...view, checkoutUrl: url.href };
+        const href = payosCheckoutUrl(link.checkoutUrl);
+        if (!href || link.amount !== claimed.amountVnd || link.orderCode !== Number(claimed.providerReference) ||
+          (link.currency !== undefined && link.currency !== 'VND')) return view;
+        const saved = await intents.updateOne(
+          { _id: claimed._id, state: 'PENDING', linkState: 'CREATING', linkRequestedAt: claimed.linkRequestedAt, expiresAt: { $gt: now() } },
+          { $set: { linkState: 'READY', checkoutUrl: href, paymentLinkId: link.paymentLinkId } }
+        );
+        return saved.matchedCount ? { ...view, checkoutUrl: href } : view;
       } catch (error) {
-        // If payOS definitively says the link was never created, we can safely retry next call
-        if (!providerResponded && error?.code === 'PAYOS_LINK_NOT_FOUND' && canRetryUnpublished)
-          await intents.updateOne({ _id: claimed._id, state: 'PENDING', linkState: 'CREATING', linkRequestedAt: claimed.linkRequestedAt },
-            { $set: { linkState: 'CREATING' } }); // keep CREATING so next call retries again after delay
-        return view; // same intent is recoverable; no duplicate link creation
+        const deterministicRefusal = !providerResponded && (
+          error?.details?.uncertain === false ||
+          ['PAYOS_INVALID_REQUEST', 'PAYOS_CONFIGURATION_INVALID', 'PAYOS_REQUEST_REJECTED'].includes(error?.code)
+        );
+        await intents.updateOne(
+          { _id: claimed._id, state: 'PENDING', linkState: 'CREATING', linkRequestedAt: claimed.linkRequestedAt },
+          { $set: { linkState: deterministicRefusal ? 'FAILED' : 'RECONCILIATION_REQUIRED' } }
+        );
+        return view; // same intent is recoverable by signed provider lookup; no duplicate link creation
       }
     });
   }

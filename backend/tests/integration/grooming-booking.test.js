@@ -683,52 +683,84 @@ describe('VietQR link recovery and expiry regression', () => {
         $unset: { checkoutUrl: '', paymentLinkId: '' } }
     );
 
-    // Recovery provider: getPaymentLink → PAYOS_LINK_NOT_FOUND, then createPaymentLink succeeds
-    let createCalls = 0;
+    // Recovery provider: getPaymentLink is called FIRST → PAYOS_LINK_NOT_FOUND, then createPaymentLink succeeds
+    const calls = [];
     const recoveryProvider = {
       createPaymentLink: async input => {
-        createCalls++;
+        calls.push('create');
         return { orderCode: input.orderCode, amount: input.amount,
           checkoutUrl: 'https://pay.payos.vn/web/recovered-link', paymentLinkId: 'recovered' };
       },
-      getPaymentLink: async () => { throw Object.assign(new Error('not found'), { code: 'PAYOS_LINK_NOT_FOUND' }); }
+      getPaymentLink: async () => {
+        calls.push('lookup');
+        throw Object.assign(new Error('not found'), { code: 'PAYOS_LINK_NOT_FOUND' });
+      }
     };
     const counter = makeCounter(() => tick, recoveryProvider);
     const status = await counter.status(actors.ADMIN, pending.receiptId);
     expect(status.checkoutUrl).toBe('https://pay.payos.vn/web/recovered-link');
-    expect(createCalls).toBe(1);
+    expect(calls).toEqual(['lookup', 'create']);
     const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
     expect(intent.linkState).toBe('READY');
   });
 
-  test('JOB-CT-02: link created but response lost — qrView recovers via PAYOS_LINK_NOT_FOUND then creates new', async () => {
-    // Checkout with stub, then wipe checkoutUrl to simulate the process dying before saving the URL.
+  test('JOB-CT-02: link created at payOS but response lost — status restores old link via lookup without calling create again', async () => {
+    // 1. Timeout/lost response leaves intent in RECONCILIATION_REQUIRED (link exists remotely at payOS).
+    // 2. Subsequent status() call (even after recovery delay) looks up payOS first, restores old link,
+    //    and does NOT send another createPaymentLink call (which would be rejected for duplicate orderCode).
     await sitter();
     let tick = NOW;
-    const stubCounter = makeCounter(() => tick, checkoutStub);
+    let createCalls = 0, lookupCalls = 0;
+    const lostResponseProvider = {
+      createPaymentLink: async () => {
+        createCalls++;
+        throw Object.assign(new Error('timeout after payOS created link'), { code: 'PAYOS_TIMEOUT', details: { uncertain: true } });
+      }
+    };
+    const stubCounter = makeCounter(() => tick, lostResponseProvider);
     const date = addDays(TODAY, 1), petId = String(pets.Bo._id);
     const preview = await stubCounter.preview(actors.ADMIN, { customerId: actors.CUSTOMER.userId,
       date, slot: '09:00', paymentMethod: 'COUNTER_VIETQR',
       lines: [{ serviceId: sid('pet-bathing'), location: 'FACILITY', petIds: [petId] }],
       pickup: { enabled: false }, answers: [{ petId, biteOrScratch: 'NO', skinCondition: 'NO' }] });
     const pending = await stubCounter.checkout(actors.ADMIN, { previewId: preview.previewId }, 'response-lost-test');
+    expect(pending.checkoutUrl).toBeUndefined();
+    expect(createCalls).toBe(1);
+    const during = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(during.linkState).toBe('RECONCILIATION_REQUIRED');
 
-    // Inject crash state: CREATING with no checkoutUrl, old enough for recovery
+    // Advance past recovery delay and also test stale CREATING crash state -> lookup must run first either way
+    tick += 70000;
+    const existingUrl = 'https://pay.payos.vn/web/existing-order-link';
+    const counter = makeCounter(() => tick, {
+      getPaymentLink: async orderCode => {
+        lookupCalls++;
+        expect(orderCode).toBe(Number(during.providerReference));
+        return { orderCode, amount: pending.totalVnd, amountPaid: 0, providerStatus: 'PENDING',
+          checkoutUrl: existingUrl, paymentLinkId: 'existing-link-id' };
+      },
+      createPaymentLink: async () => {
+        createCalls++;
+        throw Object.assign(new Error('Đơn hàng đã tồn tại'), { code: 'PAYOS_REQUEST_REJECTED', details: { uncertain: false } });
+      }
+    });
+    const status = await counter.status(actors.ADMIN, pending.receiptId);
+    expect(status.checkoutUrl).toBe(existingUrl);
+    expect(lookupCalls).toBe(1);
+    expect(createCalls).toBe(1); // No extra create call sent on recovery!
+    const after = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
+    expect(after).toMatchObject({ linkState: 'READY', checkoutUrl: existingUrl, paymentLinkId: 'existing-link-id' });
+
+    // Same guarantee when process crashed mid-flight leaving stale linkState: 'CREATING' > 60s old
     await db.collection('paymentintents').updateOne(
-      { _id: new mongoose.Types.ObjectId(pending.intentId) },
+      { _id: after._id },
       { $set: { linkState: 'CREATING', linkRequestedAt: new Date(tick - 70000) },
         $unset: { checkoutUrl: '', paymentLinkId: '' } }
     );
-
-    const counter = makeCounter(() => tick, {
-      createPaymentLink: async input => ({ orderCode: input.orderCode, amount: input.amount,
-        checkoutUrl: 'https://pay.payos.vn/web/reissued', paymentLinkId: 'reissued' }),
-      getPaymentLink: async () => { throw Object.assign(new Error('not found'), { code: 'PAYOS_LINK_NOT_FOUND' }); }
-    });
-    const status = await counter.status(actors.ADMIN, pending.receiptId);
-    expect(status.checkoutUrl).toBe('https://pay.payos.vn/web/reissued');
-    const intent = await db.collection('paymentintents').findOne({ _id: new mongoose.Types.ObjectId(pending.intentId) });
-    expect(intent.linkState).toBe('READY');
+    const crashedStatus = await counter.status(actors.ADMIN, pending.receiptId);
+    expect(crashedStatus.checkoutUrl).toBe(existingUrl);
+    expect(lookupCalls).toBe(2);
+    expect(createCalls).toBe(1);
   });
 
   test('JOB-CT-03: expiry with no link ever requested — expireBatch releases booking and spa without calling payOS', async () => {
