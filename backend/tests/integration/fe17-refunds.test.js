@@ -187,12 +187,18 @@ describe('FE-17 UC-51 - Process Refund', () => {
     const fixture = createFixture();
     const proposal = await propose(fixture, 'fe17-proposal-21');
     const path = `/api/v1/refunds/${proposal.body.data.id}/decisions`;
-    await fixture.api('ADMIN', 'post', path).set('Idempotency-Key', 'fe17-decision-21').send({ decision: 'APPROVE', reason: 'Approve once', expectedVersion: 0 }).expect(200);
+    const originalKey = 'fe17-decision-21';
+    const originalPayload = { decision: 'APPROVE', reason: 'Approve once', expectedVersion: 0 };
+    const first = await fixture.api('ADMIN', 'post', path).set('Idempotency-Key', originalKey).send(originalPayload).expect(200);
     const replay = await fixture.api('ADMIN', 'post', path).set('Idempotency-Key', 'fe17-decision-21-replay')
       .send({ decision: 'APPROVE', reason: 'Approve twice', expectedVersion: 0 });
     expect(replay.status).toBe(409);
     expect(replay.body.error.code).toBe('INVALID_STATE');
+    const originalReplay = await fixture.api('ADMIN', 'post', path).set('Idempotency-Key', originalKey)
+      .send(originalPayload).expect(200);
+    expect(originalReplay.body.data).toEqual(first.body.data);
     expect(fixture.state().ledger).toHaveLength(1);
+    expect(fixture.state().events).toHaveLength(2);
   });
 
   test('IT-FE17-UC51-22 records the external accounting transfer separately', async () => {
