@@ -85,7 +85,8 @@ function buildPayrollHarness(overrides = {}) {
 
   makeModel('EmploymentContract', {
     collection: { name: 'employmentcontracts' },
-    findOne: jest.fn(() => chainDoc(state.contract))
+    findOne: jest.fn(() => chainDoc(state.contract)),
+    create: jest.fn()
   });
 
   makeModel('SalaryAdvance', {
@@ -205,6 +206,21 @@ const validAdvanceBody = {
   settlementPeriod: '2026-11',
   settlementConsentReference: 'CONSENT-2026-11-01'
 };
+
+test.each([
+  ['FULL_TIME', 10_000_000, 2400],
+  ['PART_TIME', 3_000_000, 1200]
+])('%s WEEKLY contract is rejected before writing', async (employmentType, monthlyBaseVnd, weeklyMinutes) => {
+  const { service, connection } = buildPayrollHarness();
+  await expect(service.recordContract(adminActor, {
+    employeeId: SITTER_ID, expectedVersion: 0, employmentType, monthlyBaseVnd, weeklyMinutes,
+    salaryBasis: 'GROSS', payCycle: 'WEEKLY',
+    signedAt: '2026-11-01T00:00:00Z', effectiveAt: '2026-11-01T00:00:00Z',
+    contractReference: 'synthetic-signed-contract', workplaceRegion: 1, workplaceReference: 'synthetic-workplace'
+  }, 'synthetic-weekly-contract')).rejects.toMatchObject({ code: 'VALIDATION_FAILED', status: 422 });
+  expect(connection.transaction).not.toHaveBeenCalled();
+  expect(service.models.EmploymentContract.create).not.toHaveBeenCalled();
+});
 
 describe('PAYROLL-04 submitAdvance & PAYROLL-05 decideAdvance', () => {
   test('PAYROLL-04-UTCID01 [N] submits valid salary advance within 50% monthly base cap', async () => {

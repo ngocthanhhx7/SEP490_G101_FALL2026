@@ -6,7 +6,15 @@ const body = (over = {}) => ({ employeeId: id, expectedVersion: 0, employmentTyp
 
 describe('SAL-IN-01 contractInput', () => {
   test('accepts and normalizes a full-time contract', () => { const result = contractInput(body()); expect(result.contractReference).toBe('C-1'); expect(result.signedAt).toEqual(new Date('2026-11-01T00:00:00Z')); });
-  test('accepts valid part-time contract', () => expect(contractInput(body({ employmentType: 'PART_TIME', monthlyBaseVnd: 3000000, payCycle: 'WEEKLY' })).employmentType).toBe('PART_TIME'));
+  test.each([
+    ['FULL_TIME', 10000000, 2400],
+    ['PART_TIME', 3000000, 1200]
+  ])('%s accepts MONTHLY and rejects WEEKLY with the same weekly work minutes', (employmentType, monthlyBaseVnd, weeklyMinutes) => {
+    const terms = { employmentType, monthlyBaseVnd, weeklyMinutes };
+    expect(contractInput(body(terms))).toMatchObject({ ...terms, payCycle: 'MONTHLY' });
+    expect(() => contractInput(body({ ...terms, payCycle: 'WEEKLY' })))
+      .toThrow('Pet sitter contracts require monthly pay');
+  });
   test.each([undefined, null, -1, 1.5, '0', 1000001])('rejects invalid expectedVersion %p', expectedVersion => expect(code(() => contractInput(body({ expectedVersion })))).toBe('VALIDATION_FAILED'));
   test.each([0, -1, 1.5, '10000000'])('rejects invalid money %p', monthlyBaseVnd => expect(code(() => contractInput(body({ monthlyBaseVnd })))).toBe('VALIDATION_FAILED'));
   test.each([0, 2881, 1.5, '2400'])('rejects invalid weekly minutes %p', weeklyMinutes => expect(code(() => contractInput(body({ weeklyMinutes })))).toBe('VALIDATION_FAILED'));

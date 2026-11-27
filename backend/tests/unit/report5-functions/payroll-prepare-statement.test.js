@@ -28,22 +28,22 @@ const STATEMENT = '444444444444444444444444';
 const NOW = new Date('2026-11-13T03:00:00Z');
 const KEY = 'synthetic-payroll-001';
 
-function assessment({ weekly = false, crossMonth = false, future = false } = {}) {
+function assessment({ partial = false, crossMonth = false, future = false } = {}) {
   return { employeeId: EMPLOYEE,
     periodStart: crossMonth ? '2026-10-26T00:00:00+07:00'
-      : weekly ? '2026-11-02T00:00:00+07:00' : '2026-10-01T00:00:00+07:00',
+      : partial ? '2026-11-02T00:00:00+07:00' : '2026-10-01T00:00:00+07:00',
     periodEnd: future ? '2026-12-01T00:00:00+07:00' : crossMonth ? '2026-11-02T00:00:00+07:00'
-      : weekly ? '2026-11-09T00:00:00+07:00' : '2026-11-01T00:00:00+07:00',
+      : partial ? '2026-11-09T00:00:00+07:00' : '2026-11-01T00:00:00+07:00',
     dueAt: future ? '2026-12-02T00:00:00+07:00' : crossMonth ? '2026-11-03T00:00:00+07:00'
-      : weekly ? '2026-11-10T00:00:00+07:00' : '2026-11-02T00:00:00+07:00',
-    scheduledMonthMinutes: 9600, paidPeriodMinutes: weekly || crossMonth ? 2400 : 9600,
+      : partial ? '2026-11-30T00:00:00+07:00' : '2026-11-02T00:00:00+07:00',
+    scheduledMonthMinutes: 9600, paidPeriodMinutes: partial || crossMonth ? 2400 : 9600,
     kpiTargetMinutes: 0, seriousViolationConfirmed: false, includeMonthlyBonus: false,
     overtimeVnd: 0, employeeInsuranceVnd: 0, incomeTaxVnd: 0, otherLawfulDeductionsVnd: 0,
     assessmentReference: 'synthetic-assessment', deductionConsentReference: 'synthetic-consent',
     advanceRepayments: [] };
 }
 
-function fixture({ weekly = false, seedStatus, previewAssessment = assessment() } = {}) {
+function fixture({ employmentType = 'FULL_TIME', payCycle = 'MONTHLY', seedStatus, previewAssessment = assessment() } = {}) {
   let committed = { statements: [], events: [], commands: new Map(), claims: new Map(), guards: new Map() };
   if (seedStatus) committed.statements.push({ _id: STATEMENT, employeeId: EMPLOYEE,
     periodStart: new Date('2026-09-30T17:00:00Z'), periodEnd: new Date('2026-10-31T17:00:00Z'),
@@ -65,8 +65,8 @@ function fixture({ weekly = false, seedStatus, previewAssessment = assessment() 
     });
   }
   const contract = { _id: '555555555555555555555555', employeeId: EMPLOYEE, version: 1,
-    employmentType: weekly ? 'PART_TIME' : 'FULL_TIME', salaryBasis: 'GROSS',
-    monthlyBaseVnd: weekly ? 3000000 : 10000000, payCycle: weekly ? 'WEEKLY' : 'MONTHLY',
+    employmentType, salaryBasis: 'GROSS',
+    monthlyBaseVnd: employmentType === 'PART_TIME' ? 3000000 : 10000000, payCycle,
     effectiveAt: new Date('2026-01-01T00:00:00Z'), monthlyAllowanceVnd: 0 };
   // Constructor chỉ cấp ID, các writes/query đều tác động state của transaction double.
   class StatementModel { constructor() { this._id = STATEMENT; } }
@@ -131,20 +131,31 @@ test("PAYROLL-01-UTCID01 [N] Lập bảng kê tháng full-time sau khi kỳ kế
 });
 
 // SRS: UC-75 Preconditions / Normal 1; GBR-44.
-test("PAYROLL-01-UTCID02 [N] Lập bảng kê tuần part-time sau khi kỳ kết thúc", async () => {
-  const f = fixture({ weekly: true });
-  const actual = await f.service.prepareStatement(ADMIN, assessment({ weekly: true }), KEY);
-  expect(actual.payCycle).toBe('WEEKLY');
+test.each([['FULL_TIME', 2500000], ['PART_TIME', 750000]])(
+  'PAYROLL-01-UTCID02 prorates MONTHLY payroll for %s with a partial month', async (employmentType, baseVnd) => {
+  const f = fixture({ employmentType });
+  const actual = await f.service.prepareStatement(ADMIN, assessment({ partial: true }), KEY);
+  expect(actual).toMatchObject({ payCycle: 'MONTHLY', breakdown: { baseVnd } });
   expect(actual.periodStart.toISOString()).toBe('2026-11-01T17:00:00.000Z');
   expect(actual.periodEnd.toISOString()).toBe('2026-11-08T17:00:00.000Z');
   expect(f.state().statements).toHaveLength(1);
-  // Chỉ cadence/period; công thức part-time legacy chưa được xác nhận đúng SRS.
+});
+
+test.each(['FULL_TIME', 'PART_TIME'])('%s legacy WEEKLY contract cannot create a statement', async (employmentType) => {
+  const f = fixture({ employmentType, payCycle: 'WEEKLY' });
+  const input = { ...assessment({ partial: true }), dueAt: '2026-11-10T00:00:00+07:00' };
+  await expect(f.service.prepareStatement(ADMIN, input, KEY))
+    .rejects.toMatchObject({ code: 'PAYROLL_CONTRACT_CYCLE_REVIEW_REQUIRED', status: 409 });
+  expect(f.models.PayrollStatement.create).not.toHaveBeenCalled();
+  expect(f.state().statements).toEqual([]);
+  expect(f.state().commands.size).toBe(0);
+  expect(f.state().guards.size).toBe(0);
 });
 
 // SRS: Report 3 23/11; UC-75/76; GBR-31/44: kỳ đánh giá không vắt qua ranh giới hai tháng.
 test("PAYROLL-01-UTCID03 [A] Từ chối kỳ đánh giá vắt qua ranh giới hai tháng", async () => {
-  const f = fixture({ weekly: true, previewAssessment: assessment({ weekly: true, crossMonth: true }) });
-  await expect(f.service.prepareStatement(ADMIN, assessment({ weekly: true, crossMonth: true }), KEY)).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  const f = fixture({ employmentType: 'PART_TIME' });
+  await expect(f.service.prepareStatement(ADMIN, assessment({ crossMonth: true }), KEY)).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   expect(f.models.PayrollStatement.create).not.toHaveBeenCalled();
 });
 

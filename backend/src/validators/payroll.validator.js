@@ -37,7 +37,8 @@ export function payrollAdjustmentDecisionInput(value) {
 export function contractInput(value) {
   const required = ['employeeId', 'expectedVersion', 'employmentType', 'salaryBasis', 'monthlyBaseVnd', 'payCycle', 'weeklyMinutes', 'signedAt', 'effectiveAt', 'contractReference', 'workplaceRegion', 'workplaceReference'];
   exact(value, [...required, 'endsAt'], required); id(value.employeeId); number(value.expectedVersion, 0, 1000000, true);
-  if (!['FULL_TIME', 'PART_TIME'].includes(value.employmentType) || !['GROSS', 'NET'].includes(value.salaryBasis) || !['MONTHLY', 'WEEKLY'].includes(value.payCycle)) fail('VALIDATION_FAILED', 'Invalid contract');
+  if (!['FULL_TIME', 'PART_TIME'].includes(value.employmentType) || !['GROSS', 'NET'].includes(value.salaryBasis)) fail('VALIDATION_FAILED', 'Invalid contract');
+  if (value.payCycle !== 'MONTHLY') fail('VALIDATION_FAILED', 'Pet sitter contracts require monthly pay');
   number(value.monthlyBaseVnd, 1, Number.MAX_SAFE_INTEGER, true); number(value.weeklyMinutes, 1, 2880, true); number(value.workplaceRegion, 1, 4, true);
   const signedAt = new Date(instant(value.signedAt)), effectiveAt = new Date(instant(value.effectiveAt));
   const endsAt = value.endsAt ? new Date(instant(value.endsAt)) : undefined;
@@ -47,7 +48,7 @@ export function contractInput(value) {
     });
   }
   if (signedAt > effectiveAt) fail('VALIDATION_FAILED', 'Invalid contract dates');
-  if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.payCycle !== 'MONTHLY' || value.weeklyMinutes < 2400)) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
+  if (value.employmentType === 'FULL_TIME' && (value.monthlyBaseVnd !== 10000000 || value.weeklyMinutes < 2400)) fail('VALIDATION_FAILED', 'Full-time agreement mismatch');
   if (value.employmentType === 'PART_TIME' && value.monthlyBaseVnd !== 3000000) fail('VALIDATION_FAILED', 'Part-time agreement mismatch');
   return { ...value, signedAt, effectiveAt, ...(endsAt ? { endsAt } : {}), contractReference: text(value.contractReference, 160), workplaceReference: text(value.workplaceReference, 160) };
 }
