@@ -1,0 +1,159 @@
+.faulty-claims {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.faulty-claims__header {
+  margin-bottom: 1rem;
+}
+
+.faulty-claims__header h1 {
+  margin: 0 0 0.35rem;
+}
+
+.faulty-claims__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.faulty-claims__tab {
+  border: 1px solid var(--pwc-border, #d1d5db);
+  background: var(--pwc-surface, #fff);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 500;
+}
+
+.faulty-claims__tab.is-active {
+  background: var(--pwc-primary, #1f6f54);
+  border-color: var(--pwc-primary, #1f6f54);
+  color: #fff;
+}
+
+.faulty-claims__grid {
+  display: grid;
+  grid-template-columns: minmax(340px, 1.1fr) minmax(340px, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+@media (max-width: 920px) {
+  .faulty-claims__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.faulty-claims__panel {
+  background: var(--pwc-surface, #fff);
+  border: 1px solid var(--pwc-border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+
+.faulty-claims__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.faulty-claims__table th,
+.faulty-claims__table td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--pwc-border, #e5e7eb);
+  font-size: 0.92rem;
+}
+
+.faulty-claims__table tr.is-selected {
+  background: var(--pwc-primary-soft, #eef7f3);
+}
+
+.faulty-claims__facts {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 0.45rem 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.faulty-claims__facts dt {
+  color: var(--pwc-muted, #6b7280);
+  font-size: 0.9rem;
+}
+
+.faulty-claims__facts dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.faulty-claims__photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.faulty-claims__photos img {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--pwc-border, #e5e7eb);
+}
+
+.faulty-claims__badge {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.faulty-claims__badge--warn {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.faulty-claims__badge--done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.faulty-claims__badge--danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.faulty-claims__section {
+  border-top: 1px solid var(--pwc-border, #e5e7eb);
+  margin-top: 1rem;
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.faulty-claims__section textarea {
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--pwc-border, #d1d5db);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.faulty-claims__error {
+  color: #b91c1c;
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+.faulty-claims__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}

@@ -38,7 +38,7 @@ test.each(['/sign-in', '/register', '/sitter/apply', '/products'])('GBR-01 Sale 
   expect(await screen.findByRole('heading', { name: 'Tổng quan' })).toBeVisible();
   const sidebar = screen.getByRole('complementary');
   expect(within(sidebar).getByText('Bán hàng')).toBeVisible();
-  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đơn hàng', 'Nhập hàng', 'Tồn kho']);
+  expect(within(sidebar).getAllByRole('link').map(link => link.textContent)).toEqual(['Tổng quan', 'Bán tại quầy', 'Đơn hàng', 'Khiếu nại sản phẩm', 'Nhập hàng', 'Tồn kho']);
 });
 
 test('Sale Staff opens the counter workspace', async () => {

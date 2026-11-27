@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { usePhoneApp } from '../../hooks/usePhoneApp.js';
 import { useApiResource } from '../../hooks/useApiResource.js';
 import { useProductCart } from '../../hooks/useProductCart.js';
+import { useSession } from '../../contexts/SessionContext.jsx';
 import { Notice, Button, Dialog, Pagination, Toast } from '../../components/ui/index.js';
 import { OrderStatusBadge } from '../../components/product/OrderStatusBadge.jsx';
+import { ReportFaultyProductDialog } from '../../components/product/ReportFaultyProductDialog.jsx';
+import { createFaultyProductClaimApi } from '../../services/faulty-product-claim-api.js';
+import { createPrivateImageApi } from '../../services/private-image-api.js';
 import { PRODUCT_RECEIVE_LABELS, PRODUCT_PAYMENT_LABELS, PRODUCT_TIER_LABELS } from '../../constants/product-labels.js';
 import { formatOrderDate, formatOrderDateTime, formatVnd, productErrorText, productMessage } from '../../utils/product-format.js';
 import '../../components/product/product-shop.css';
@@ -52,7 +56,7 @@ function cancelKey(orderId) {
   return `cust-cancel-${orderId}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function OrderDetail({ order, api, notice, onCancelled, onConfirmed, onRefresh }) {
+function OrderDetail({ order, api, claimApi, imageApi, notice, onCancelled, onConfirmed, onClaimSubmitted, onRefresh }) {
   const { pathname, search } = useLocation();
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
@@ -61,8 +65,10 @@ function OrderDetail({ order, api, notice, onCancelled, onConfirmed, onRefresh }
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
   const [receiveBusy, setReceiveBusy] = useState(false);
   const [receiveError, setReceiveError] = useState('');
+  const [claimDialogOpen, setClaimDialogOpen] = useState(false);
   const receiveLock = useRef(false);
   const canConfirmReceived = order.receiveMethod === 'DELIVERY' && order.status === 'HANDED_TO_CARRIER';
+  const canReportFaulty = ['DELIVERED', 'PICKED_UP'].includes(order.status);
 
   useEffect(() => {
     setCancelDialogOpen(false);
@@ -70,6 +76,7 @@ function OrderDetail({ order, api, notice, onCancelled, onConfirmed, onRefresh }
     keyRef.current = null;
     setReceiveDialogOpen(false);
     setReceiveError('');
+    setClaimDialogOpen(false);
   }, [order.id]);
 
   async function confirmCancel() {
@@ -154,9 +161,25 @@ function OrderDetail({ order, api, notice, onCancelled, onConfirmed, onRefresh }
       <button type="button" className="pwc-shop-primary-button" disabled={receiveBusy}
         onClick={() => { setReceiveError(''); setReceiveDialogOpen(true); }}>Đã nhận hàng</button>
     </div>}
+    {canReportFaulty && <div className="pwc-shop-actions" style={{ marginTop: '1rem' }}>
+      <Button type="button" variant="secondary" onClick={() => setClaimDialogOpen(true)}>
+        Báo sản phẩm lỗi
+      </Button>
+    </div>}
     {['HANDED_TO_CARRIER', 'READY'].includes(order.status) && (
       <p className="pwc-shop-hint" role="status" style={{ marginTop: '1rem' }}>{productMessage('MSG156')}</p>
     )}
+    <ReportFaultyProductDialog
+      open={claimDialogOpen}
+      order={order}
+      claimApi={claimApi}
+      imageApi={imageApi}
+      onClose={() => setClaimDialogOpen(false)}
+      onSubmitted={claim => {
+        setClaimDialogOpen(false);
+        onClaimSubmitted?.(claim);
+      }}
+    />
     <Dialog open={cancelDialogOpen} onClose={() => !cancelBusy && setCancelDialogOpen(false)} title="Xác nhận huỷ đơn hàng"
       footer={<>
         <Button type="button" variant="secondary" disabled={cancelBusy} onClick={() => setCancelDialogOpen(false)}>Quay lại</Button>
@@ -184,6 +207,9 @@ function OrderDetail({ order, api, notice, onCancelled, onConfirmed, onRefresh }
 
 export function MyProductOrdersPage() {
   const { api } = useProductCart();
+  const { getCsrfToken } = useSession();
+  const claimApi = useMemo(() => createFaultyProductClaimApi({ getCsrfToken }), [getCsrfToken]);
+  const imageApi = useMemo(() => createPrivateImageApi({ getCsrfToken }), [getCsrfToken]);
   const compact = usePhoneApp();
   const location = useLocation();
   const navigate = useNavigate();
@@ -247,12 +273,17 @@ export function MyProductOrdersPage() {
     refreshOrders();
   }, [refreshOrders]);
 
+  const handleClaimSubmitted = useCallback(() => {
+    setToastMessage(productMessage('MSG62'));
+    refreshOrders();
+  }, [refreshOrders]);
+
   if (compact && requested) return <section className="pwc-shop" aria-labelledby="orders-title">
     <h1 id="orders-title" data-duplicate-title>Chi tiết đơn mua</h1>
     <Link data-page-back to={listUrl}>Về đơn mua hàng</Link>
     <Toast message={toastMessage} onClose={dismissToast} />
-    {selected?.id === requested ? <OrderDetail key={selected.id} order={selected} api={api} notice={noticeFor(selected)}
-      onCancelled={handleOrderCancelled} onConfirmed={handleOrderConfirmed} onRefresh={refreshOrders} /> : requestedOrder.status === 'loading'
+    {selected?.id === requested ? <OrderDetail key={selected.id} order={selected} api={api} claimApi={claimApi} imageApi={imageApi} notice={noticeFor(selected)}
+      onCancelled={handleOrderCancelled} onConfirmed={handleOrderConfirmed} onClaimSubmitted={handleClaimSubmitted} onRefresh={refreshOrders} /> : requestedOrder.status === 'loading'
       ? <Notice state="loading" title="Đang tải chi tiết đơn…" />
       : <Notice state="error" title="Chưa mở được chi tiết đơn" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}
   </section>;
@@ -290,8 +321,8 @@ export function MyProductOrdersPage() {
           </tr>)}</tbody>
         </table>
       </div>
-      {selected && <OrderDetail key={selected.id} order={selected} api={api} notice={noticeFor(selected)}
-        onCancelled={handleOrderCancelled} onConfirmed={handleOrderConfirmed} onRefresh={refreshOrders} />}
+      {selected && <OrderDetail key={selected.id} order={selected} api={api} claimApi={claimApi} imageApi={imageApi} notice={noticeFor(selected)}
+        onCancelled={handleOrderCancelled} onConfirmed={handleOrderConfirmed} onClaimSubmitted={handleClaimSubmitted} onRefresh={refreshOrders} />}
     </div>}
     {requested && requestedOrder.status === 'error' && <Notice state="error" title="Chưa mở được đơn hàng từ thông báo" action={<Button onClick={requestedOrder.retry}>Thử lại</Button>} />}
     {resource.meta?.page && (page > 1 || orders.length > 0) && <Pagination {...resource.meta.page} itemLabel="đơn hàng" onPageChange={next => {

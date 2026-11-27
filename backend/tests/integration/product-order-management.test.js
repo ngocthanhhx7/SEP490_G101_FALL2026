@@ -162,7 +162,7 @@ test('queue counts exclude counter orders and scan pending statuses instead of c
 describe('UC-94 Sale Staff dashboard', () => {
   const DASHBOARD = '/api/v1/dashboards/sale-staff';
   const NO_ORDERS = { PREPARE: 0, AWAITING_PICKUP: 0, RETURNING: 0 };
-  const NO_COUNTS = { ...NO_ORDERS, LOW_STOCK: 0 };
+  const NO_COUNTS = { ...NO_ORDERS, LOW_STOCK: 0, CLAIMS_TO_CHECK: 0 };
 
   test('returns only counts matching Order Management and Stock List across statuses', async () => {
     await placeDelivery('a', 'SP-0012', 1);
@@ -178,8 +178,8 @@ describe('UC-94 Sale Staff dashboard', () => {
     const { LOW_STOCK } = stock.body.data.counts;
     const dashboard = await api('saleStaff').get(DASHBOARD).expect(200)
       .expect('Cache-Control', 'private, no-store');
-    expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK } });
-    expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1, LOW_STOCK });
+    expect(dashboard.body.data).toEqual({ counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK, CLAIMS_TO_CHECK: 0 } });
+    expect(dashboard.body.data.counts).toEqual({ PREPARE: 2, AWAITING_PICKUP: 1, RETURNING: 1, LOW_STOCK, CLAIMS_TO_CHECK: 0 });
   });
 
   test('IT-FE25-UC71-18 keeps the UC-94 Low Stock count consistent with UC-71', async () => {
@@ -261,7 +261,7 @@ describe('UC-94 Sale Staff dashboard', () => {
     const stock = (await api('saleStaff').get('/api/v1/admin/stock-levels').expect(200)).body.data;
     const app = salesApp({ connection, includeCommonDashboard: true, commonFirst });
     expect((await request(app).get(DASHBOARD).set('x-test-actor', 'saleStaff').expect(200)).body.data)
-      .toEqual({ counts: { ...NO_ORDERS, LOW_STOCK: stock.counts.LOW_STOCK } });
+      .toEqual({ counts: { ...NO_ORDERS, LOW_STOCK: stock.counts.LOW_STOCK, CLAIMS_TO_CHECK: 0 } });
     await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'saleStaff').expect(403);
     await request(app).get('/api/v1/dashboards/staff').set('x-test-actor', 'staff').expect(202);
   });

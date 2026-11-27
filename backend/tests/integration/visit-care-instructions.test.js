@@ -395,10 +395,21 @@ test.each(['legacy', 'versioned'])('ST-BKG-26 full flow: customer edits, sitter 
       items: [...defaults, { itemId: optionalCustom.itemId, status: 'DONE' }]
     })
     .expect(200);
+  let versionAfterNote = partial.body.data.version;
+  if (versioned) {
+    const note = await request(app).patch(`/api/v1/visits/${visitId}/checklists`)
+      .set(authHeaders(sitterSession, 'synthetic-versioned-care-note'))
+      .send({ expectedVersion: versionAfterNote, customerNote: 'Milo đã uống nước.' }).expect(200);
+    versionAfterNote = note.body.data.version;
+    const progress = await request(app).get(`/api/v1/visits/${visitId}/execution`)
+      .set(authHeaders(sitterSession)).expect(200);
+    expect(progress.body.data).toMatchObject({ customerNote: 'Milo đã uống nước.',
+      checklist: [{ itemId: optionalCustom.itemId, status: 'DONE' }] });
+  }
   const blocked = await request(app)
     .post(`/api/v1/visits/${visitId}/check-outs`)
     .set(authHeaders(sitterSession, 'checkout-blocked-01'))
-    .send({ expectedVersion: partial.body.data.version, mediaId: checkOutMedia })
+    .send({ expectedVersion: versionAfterNote, mediaId: checkOutMedia })
     .expect(409);
   expect(blocked.body.error.code).toBe('CHECKLIST_REQUIRED');
 
@@ -406,10 +417,17 @@ test.each(['legacy', 'versioned'])('ST-BKG-26 full flow: customer edits, sitter 
     .patch(`/api/v1/visits/${visitId}/checklists`)
     .set(authHeaders(sitterSession, 'checklist-complete-01'))
     .send({
-      expectedVersion: partial.body.data.version,
+      expectedVersion: versionAfterNote,
       items: [...defaults, { itemId: requiredCustom.itemId, status: 'DONE' }]
     })
     .expect(200);
+
+  if (versioned) {
+    const progress = await request(app).get(`/api/v1/visits/${visitId}/execution`)
+      .set(authHeaders(sitterSession)).expect(200);
+    expect(progress.body.data).toMatchObject({ customerNote: 'Milo đã uống nước.',
+      checklist: [{ itemId: requiredCustom.itemId, status: 'DONE' }] });
+  }
 
   const checkedOut = await request(app)
     .post(`/api/v1/visits/${visitId}/check-outs`)
