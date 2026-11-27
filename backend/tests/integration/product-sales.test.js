@@ -312,13 +312,16 @@ describe('cart', () => {
     expect(added.map(response => response.status)).toEqual([201, 201]);
     expect((await api('a').get('/api/v1/product-cart')).body.data.lines[0].quantity).toBe(3);
   });
-  test('IT-FE21-UC55-07 adds one in-stock product from the Product List to the Customer cart', async () => {
+  test('IT-FE23-UC61-01 / IT-FE21-UC55-07 adds an in-stock product with its current details and price', async () => {
     await api().get('/api/v1/product-cart').expect(401);
     await api('admin').get('/api/v1/product-cart').expect(403);
     const added = await addToCart('a', 'SP-0012', 1);
     expect(added.status).toBe(201);
-    expect(added.body.data).toMatchObject({ lineCount: 1, subtotal: 250000, deliveryFee: 25000,
-      lines: [expect.objectContaining({ productId: await idOf('SP-0012'), quantity: 1 })] });
+    expect(added.body.data).toMatchObject({
+      lineCount: 1, subtotal: 250000, deliveryFee: 25000,
+      lines: [{ productId: await idOf('SP-0012'), code: 'SP-0012', name: 'Thức ăn hạt cho chó trưởng thành, túi 2 kg',
+        unitPrice: 250000, quantity: 1, lineTotal: 250000 }]
+    });
     expect((await product('SP-0012')).quantityHeld).toBe(0);
   });
 
@@ -350,11 +353,12 @@ describe('cart', () => {
     expect(await models.ProductCart.countDocuments()).toBe(0);
   });
 
-  test('changes and removes lines', async () => {
+  test('IT-FE23-UC61-02 changes or removes a cart line and recalculates totals', async () => {
     await addToCart('a', 'SP-0012', 1);
     const productId = await idOf('SP-0012');
     const changed = await api('a').patch(`/api/v1/product-cart/lines/${productId}`).send({ quantity: 3 }).expect(200);
-    expect(changed.body.data.lines[0].quantity).toBe(3);
+    expect(changed.body.data).toMatchObject({ lineCount: 1, subtotal: 750000, total: 750000,
+      lines: [{ quantity: 3, lineTotal: 750000 }] });
     await api('a').patch(`/api/v1/product-cart/lines/${productId}`).send({ quantity: 99 }).expect(409);
     const removed = await api('a').delete(`/api/v1/product-cart/lines/${productId}`).expect(200);
     expect(removed.body.data.lineCount).toBe(0);
@@ -397,7 +401,7 @@ describe('placing an order', () => {
     expect(await models.ProductOrder.countDocuments()).toBe(1);
     expect((await product('SP-0012')).quantityHeld).toBe(2);
   });
-  test('holds stock, snapshots prices, adds the flat delivery fee and empties the cart', async () => {
+  test('IT-FE23-UC62-01 creates an order and holds the ordered quantities', async () => {
     await addToCart('a', 'SP-0012', 2); await addToCart('a', 'SP-0031', 1);
     const placed = await placeDelivery('a', addressA._id);
     expect(placed.status).toBe(201);
@@ -436,7 +440,7 @@ describe('placing an order', () => {
     expect(other.body.error.code).toBe('IDEMPOTENCY_CONFLICT');
   });
 
-  test('validates the cart, the address and the service area', async () => {
+  test('IT-FE23-UC62-03 validates the delivery service area and calculates its shipping fee', async () => {
     expect((await placeDelivery('a', addressA._id)).body.error.code).toBe('CART_EMPTY');
     await addToCart('a', 'SP-0012', 1);
     const noAddress = await api('a').post('/api/v1/product-orders').set('Idempotency-Key', idem())
@@ -448,6 +452,9 @@ describe('placing an order', () => {
     await api('a').post('/api/v1/product-orders').set('Idempotency-Key', idem())
       .send({ receiveMethod: 'DELIVERY', paymentMethod: 'PAY_AT_SHOP', addressId: String(addressA._id) }).expect(422);
     expect((await product('SP-0012')).quantityHeld).toBe(0);
+    const placed = await placeDelivery('a', addressA._id).expect(201);
+    expect(placed.body.data).toMatchObject({ shippingFee: 25000, total: 275000,
+      deliveryAddress: { areaCode: 'DISTRICT_THANH_XUAN' } });
   });
 
   test('creates no order and holds nothing when one line no longer fits', async () => {
@@ -480,17 +487,25 @@ describe('placing an order', () => {
 });
 
 describe('reading orders', () => {
-  test('a Customer sees only their own orders', async () => {
+  test('IT-FE23-UC63-01 returns the Customer order list and complete owned order details', async () => {
     await addToCart('a', 'SP-0012', 1);
     const placed = await placePickup('a');
     await addToCart('b', 'SP-0020', 1); await placePickup('b');
     const mine = await api('a').get('/api/v1/product-orders').expect(200);
     expect(mine.body.data.items).toHaveLength(1);
+    const detail = await api('a').get(`/api/v1/product-orders/${placed.body.data.id}`).expect(200);
+    expect(detail.body.data).toMatchObject({ id: placed.body.data.id, code: placed.body.data.code,
+      status: 'PLACED', paymentMethod: 'PAY_AT_SHOP', paid: false,
+      lines: [{ productCode: 'SP-0012', quantity: 1 }] });
     await api('b').get(`/api/v1/product-orders/${placed.body.data.id}`).expect(404);
     await api().get('/api/v1/product-orders').expect(401);
     await api('admin').get('/api/v1/product-orders').expect(403);
   });
 });
+
+test.todo('IT-FE23-UC62-04 creates a payOS payment link for a prepaid product order (covered separately from the FE23 cart fixtures)');
+test.todo('IT-FE23-UC62-05 verifies and records a payOS product-order webhook exactly once (covered separately from the FE23 cart fixtures)');
+test.todo('IT-FE23-UC62-06 cancels an overdue unpaid prepaid order and releases its hold (expiry job not run by this suite)');
 
 describe('feature flag', () => {
   test('mounts nothing unless explicitly enabled and rejects invalid values', () => {
