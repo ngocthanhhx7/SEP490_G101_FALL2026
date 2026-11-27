@@ -1,12 +1,16 @@
 import express from 'express';
 import request from 'supertest';
 import { beforeEach, describe, expect, test } from '@jest/globals';
+import { createComplaintRouter } from '../../src/routes/complaint.routes.js';
 import { createReviewRouter } from '../../src/routes/review.routes.js';
+import { createComplaintService } from '../../src/services/complaints/complaint.service.js';
 import { createReviewService } from '../../src/services/reviews/review.service.js';
 
 const customer = { userId: 'customer-fe18', state: 'ACTIVE', roles: ['CUSTOMER'], expiresAt: Date.now() + 3600000 };
+const staff = { userId: 'staff-fe18', state: 'ACTIVE', roles: ['STAFF'], expiresAt: Date.now() + 3600000 };
 const sessionPort = {
-  authenticate: async req => req.get('x-test-role') === 'CUSTOMER' ? customer : null,
+  authenticate: async req => req.get('x-test-role') === 'CUSTOMER' ? customer
+    : req.get('x-test-role') === 'STAFF' ? staff : null,
   verifyCsrf: async (_actor, token) => token === 'synthetic-csrf'
 };
 const visits = new Map([['visit-fe18', {
@@ -27,10 +31,44 @@ const repository = {
   }
 };
 
+const complaintBooking = { id: 'booking-fe18', customerId: customer.userId, state: 'COMPLETED', version: 2 };
+const complaintVisit = { id: 'complaint-visit-fe18', bookingId: complaintBooking.id, customerId: customer.userId,
+  sitterId: 'sitter-fe18', state: 'COMPLETED', version: 1, completedAt: new Date('2026-11-20T00:00:00.000Z') };
+const complaintState = { records: [], events: [], commands: new Map(), holds: [] };
+const complaintTx = {
+  getBooking: async id => id === complaintBooking.id ? complaintBooking : null,
+  getVisit: async id => id === complaintVisit.id ? complaintVisit : null,
+  getVisits: async () => [complaintVisit],
+  bookingComplaints: async () => complaintState.records,
+  bookingIncidents: async () => [],
+  getComplaint: async id => complaintState.records.find(record => record.id === id) ?? null,
+  assertEvidence: async () => undefined,
+  changeHold: async (_booking, complaintId) => complaintState.holds.push(complaintId),
+  createComplaint: async record => { complaintState.records.push(record); return record; },
+  guardBooking: async booking => booking,
+  updateComplaint: async ({ complaintId, expectedVersion, changes }) => {
+    const index = complaintState.records.findIndex(record => record.id === complaintId && record.version === expectedVersion);
+    if (index < 0) return null;
+    complaintState.records[index] = { ...complaintState.records[index], ...changes, version: expectedVersion + 1 };
+    return complaintState.records[index];
+  },
+  getIdempotencyResult: async identity => complaintState.commands.get(JSON.stringify(identity)) ?? null,
+  saveIdempotencyResult: async ({ identity, payloadHash, result }) =>
+    complaintState.commands.set(JSON.stringify(identity), { payloadHash, result }),
+  recordEvent: async ({ event }) => complaintState.events.push(event)
+};
+const complaintRepository = { run: async work => work(complaintTx) };
+
 const app = express();
 app.use(express.json());
 app.use('/api/v1/reviews', createReviewRouter({
   service: createReviewService({ repository, clock: () => new Date('2026-11-25T00:00:00.000Z') }),
+  sessionService: sessionPort,
+  allowedOrigins: ['http://localhost']
+}));
+app.use('/api/v1/complaints', createComplaintRouter({
+  service: createComplaintService({ repository: complaintRepository,
+    clock: () => new Date('2026-11-25T00:00:00.000Z') }),
   sessionService: sessionPort,
   allowedOrigins: ['http://localhost']
 }));
@@ -39,6 +77,17 @@ app.use((error, _req, res, _next) => res.status(error.status ?? 500).json({ erro
 const csrf = key => request(app).post('/api/v1/reviews/visits/visit-fe18/ratings')
   .set('x-test-role', 'CUSTOMER').set('Origin', 'http://localhost').set('Host', 'localhost')
   .set('X-CSRF-Token', 'synthetic-csrf').set('Idempotency-Key', key);
+
+const complaintRequest = (role, path, key) => request(app).post(`/api/v1/complaints${path}`)
+  .set('x-test-role', role).set('Origin', 'http://localhost').set('Host', 'localhost')
+  .set('X-CSRF-Token', 'synthetic-csrf').set('Idempotency-Key', key);
+
+function resetComplaintState() {
+  complaintState.records.length = 0;
+  complaintState.events.length = 0;
+  complaintState.commands.clear();
+  complaintState.holds.length = 0;
+}
 
 describe('FE-18 UC-87 - Rate Visit', () => {
   beforeEach(() => reviews.clear());
@@ -65,7 +114,17 @@ describe('FE-18 UC-87 - Rate Visit', () => {
 });
 
 describe('FE-18 UC-52 - Submit Complaint', () => {
-  test.todo('IT-FE18-UC52-01 submits a timely completed-Visit complaint and notifies Staff');
+  beforeEach(resetComplaintState);
+  test('IT-FE18-UC52-01 submits a timely completed-Visit complaint and notifies Staff', async () => {
+    const response = await complaintRequest('CUSTOMER', `/visits/${complaintVisit.id}`, 'fe18-complaint-01')
+      .send({ expectedVersion: 1, description: 'Complaint for the completed Visit' }).expect(201);
+    expect(response.body.data).toMatchObject({ visitId: complaintVisit.id, state: 'OPEN', version: 0 });
+    expect(complaintState.records).toHaveLength(1);
+    expect(complaintState.records[0]).toMatchObject({ bookingId: complaintBooking.id,
+      visitId: complaintVisit.id, customerId: customer.userId, state: 'OPEN', billState: 'ON_HOLD' });
+    expect(complaintState.holds).toEqual([response.body.data.complaintId]);
+    expect(complaintState.events).toEqual(['ComplaintOpened']);
+  });
   test.todo('IT-FE18-UC52-02 submits a complaint for a Staff-closed Visit within seven days');
   test.todo('IT-FE18-UC52-03 rejects a complaint after the seven-day window');
   test.todo('IT-FE18-UC52-04 submits a whole-Booking complaint within seven days');
@@ -82,9 +141,28 @@ describe('FE-18 UC-52 - Submit Complaint', () => {
 });
 
 describe('FE-18 UC-53 - Handle Complaint', () => {
+  beforeEach(resetComplaintState);
   test.todo('IT-FE18-UC53-01 Staff opens an Open complaint with related records');
   test.todo('IT-FE18-UC53-02 Staff searches complaints by complaint, Booking, or Customer');
-  test.todo('IT-FE18-UC53-03 Staff resolves a complaint without a refund proposal');
+  test('IT-FE18-UC53-03 Staff resolves a complaint without a refund proposal', async () => {
+    const opened = await complaintRequest('CUSTOMER', `/visits/${complaintVisit.id}`, 'fe18-complaint-53-03')
+      .send({ expectedVersion: 1, description: 'Complaint that Staff can resolve' }).expect(201);
+    const complaintId = opened.body.data.complaintId;
+    expect(complaintState.records[0]).toMatchObject({ state: 'OPEN', version: 0 });
+
+    await complaintRequest('CUSTOMER', `/${complaintId}/resolution`, 'fe18-resolution-denied')
+      .send({ expectedVersion: 0, handlingNotes: 'Private handling', customerResult: 'Resolved' }).expect(403);
+    expect(complaintState.records[0]).toMatchObject({ state: 'OPEN', version: 0 });
+
+    const resolved = await complaintRequest('STAFF', `/${complaintId}/resolution`, 'fe18-resolution-53-03')
+      .send({ expectedVersion: 0, handlingNotes: 'Verified the Visit evidence',
+        customerResult: 'The complaint was handled without a refund' }).expect(200);
+    expect(resolved.body.data).toMatchObject({ complaintId, state: 'RESOLVED', version: 1,
+      complaint: { state: 'RESOLVED', customerResult: 'The complaint was handled without a refund' } });
+    expect(complaintState.records[0]).toMatchObject({ state: 'RESOLVED', version: 1,
+      handlingNotes: 'Verified the Visit evidence' });
+    expect(complaintState.events).toEqual(['ComplaintOpened', 'ComplaintResolved']);
+  });
   test.todo('IT-FE18-UC53-04 Staff proposes a valid refund and keeps the complaint Open');
   test.todo('IT-FE18-UC53-05 rejects a refund above the Customer payment total');
   test.todo('IT-FE18-UC53-06 Admin approves the full proposed refund');
