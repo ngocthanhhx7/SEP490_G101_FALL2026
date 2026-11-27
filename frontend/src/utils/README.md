@@ -26,3 +26,5 @@ Reusable pure formatting and data helpers belong here, including `catalog-format
 `booking-presentation.js` owns shared Customer-readable booking labels, status explanations and Vietnam date/VND formatting. Unknown states remain explicit; formatting does not change server status, payment or totals.
 
 `shop-grooming.js` recognizes shop grooming services (location `FACILITY` and category Vệ sinh or Làm đẹp) and returns the booking buttons for a service. `grooming-booking.js` holds the pure helpers of the grooming booking page: date and appointment labels, the seven-day window, and which pets and answers go into slots, price and booking.
+
+`contract-error-feedback.js` formats contract date validation messages (MSG87 end-after-start text and prior-contract start-date conflict notice in Vietnam timezone) without calling APIs or deciding eligibility.

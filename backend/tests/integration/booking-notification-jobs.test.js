@@ -8,8 +8,11 @@ import { startRuntime } from '../../src/runtime.js';
 import { startBookingNotificationsWorker } from '../../src/jobs/booking-notifications.job.js';
 import { provisionFinanceSources } from '../../src/services/settlements/source-provisioning.js';
 import { createVisitRemindersService } from '../../src/services/employee-scheduling/visit-reminders.service.js';
+import { normalizeNotification } from '../../src/services/notifications/notification.service.js';
 import { createPaymentExpiryService } from '../../src/services/booking-proposals/payment-expiry.service.js';
 import { createBookingPaymentExpiryService } from '../../src/services/booking-proposals/booking-payment-expiry.service.js';
+import { createMongoNotificationRepository } from '../../src/services/notifications/mongo-notification.repository.js';
+import { createNotificationService } from '../../src/services/notifications/notification.service.js';
 
 let replica, connection, runtime, now;
 const env = { NODE_ENV: 'test', PORT: '0', MONGO_DB: 'pwc_notification_jobs', AUTH_ENABLED: 'true',
@@ -58,6 +61,23 @@ test('JOB-01: both recipients get each 120/30 minute reminder once, including co
   await a.runBatch(); await a.runBatch();
   expect(await col('notifications').countDocuments()).toBe(4);
   expect((await col('visits').findOne({ _id: visit._id })).state).toBe('ASSIGNED');
+});
+
+test('JOB-01: every stored reminder can be listed by its recipient, including an accepted assignment', async () => {
+  now = Date.parse('2027-01-05T00:40:00Z');
+  const visit = await assigned(30);
+  const assignedAt = new Date(now - 3600000);
+  await col('visits').updateOne({ _id: visit._id }, { $set: { assignedAt, assignmentVersion: 1 } });
+  await createVisitRemindersService({ connection, clock: () => now }).runBatch();
+  const rows = await col('notifications').find({}).toArray();
+  expect(rows).toHaveLength(4);
+  for (const row of rows) {
+    expect(() => normalizeNotification(row, { userId: row.recipientId, roles: [row.role], state: 'ACTIVE' })).not.toThrow();
+    // Vietnam time, HH:mm dd/mm/yyyy, without seconds.
+    expect(row.message).toBe('Buổi chăm sóc lúc 08:10 05/01/2027. Địa chỉ: Synthetic Hanoi address. Thú cưng: Synthetic pet.');
+  }
+  expect(rows.filter(row => row.role === 'PET_SITTER').map(row => row.metadata.assignedAt))
+    .toEqual([assignedAt.toISOString(), assignedAt.toISOString()]);
 });
 
 test.each(['MISSING_BOOKING', 'CANCELLED_BOOKING', 'MISSING_CUSTOMER'])('JOB-01: 100 %s visits cannot starve a valid visit, even after worker recreation', async kind => {
@@ -203,7 +223,14 @@ test('JOB-03 / MSG67: terminal unpaid provider evidence expires booking and free
   expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('PAYMENT_EXPIRED');
   expect((await col('visits').findOne({ bookingId: booking._id })).state).toBe('CANCELLED');
   expect(await col('notifications').countDocuments()).toBe(1);
-  expect((await col('notifications').findOne({})).metadata.messageCode).toBe('MSG67');
+  const stored = await col('notifications').findOne({});
+  expect(stored.eventType).toBe('BOOKING_PAYMENT_EXPIRED');
+  expect(stored.message).toBe('Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.');
+  expect(stored.metadata).toEqual({ bookingId: String(booking._id) });
+  const inbox = createNotificationService({ repository: createMongoNotificationRepository({ connection, cursorSecret: env.SESSION_TOKEN_SECRET }) });
+  const listed = await inbox.list({ actor: { userId: String(booking.customerId), state: 'ACTIVE', roles: ['CUSTOMER'] } });
+  expect(listed.items).toHaveLength(1);
+  expect(listed.items[0].message).toBe('Lịch đặt chưa được thanh toán trong 15 phút nên không còn được giữ. Vui lòng đặt lại.');
 });
 test('JOB-03 rolls back booking, visits and event when MSG67 cannot be stored, then retries once', async () => {
   const { booking, intent } = await unpaid();
@@ -221,7 +248,7 @@ test('JOB-03 rolls back booking, visits and event when MSG67 cannot be stored, t
   }
   expect(await service.runBatch()).toMatchObject({ expired: 1 });
   await service.runBatch();
-  expect(await col('notifications').countDocuments({ 'metadata.messageCode': 'MSG67' })).toBe(1);
+  expect(await col('notifications').countDocuments({ eventType: 'BOOKING_PAYMENT_EXPIRED' })).toBe(1);
   expect(provider.getPaymentLink).not.toHaveBeenCalled();
 });
 test.each(['PAID', 'PENDING', 'PARTIALLY_PAID', 'UNAVAILABLE', 'WRONG_AMOUNT'])('JOB-03: %s never produces a false expiry or MSG67', async status => {
@@ -300,7 +327,7 @@ test('JOB-03 checks all replaced attempts and atomically expires only an entirel
   expect((await col('bookings').findOne({ _id: booking._id })).state).toBe('PAYMENT_EXPIRED');
   expect((await col('paymentintents').findOne({ _id: old._id })).state).toBe('CANCELLED');
   expect((await col('paymentintents').findOne({ _id: intent._id })).state).toBe('EXPIRED');
-  expect(await col('notifications').countDocuments({ 'metadata.messageCode': 'MSG67' })).toBe(1);
+  expect(await col('notifications').countDocuments({ eventType: 'BOOKING_PAYMENT_EXPIRED' })).toBe(1);
   expect(await col('financesourceevents').countDocuments({ _id: `booking-payment-expired:${booking._id}` })).toBe(1);
 });
 

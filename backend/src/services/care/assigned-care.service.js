@@ -1,4 +1,5 @@
 import { handoverPending } from './visit-handover-policy.service.js';
+import { extractVisitCareInstructions } from './visit-care-instructions.service.js';
 import { Types } from 'mongoose';
 import { id, fail, exact, digest } from '../../validators/pet-care.validator.js';
 import { schedulingKey } from '../../validators/employee-scheduling.validator.js';
@@ -14,15 +15,33 @@ export function createAssignedCareService({ repository, clock = Date.now }) {
     if (!visit || !booking) fail('RESOURCE_NOT_FOUND', 'Assigned care unavailable', 404);
     if (handoverPending(visit)) fail('HANDOVER_REQUIRED', 'Confirmed handover required', 403);
     if (visit.snapshots?.care?.schemaVersion !== 1) fail('CARE_SNAPSHOT_UNAVAILABLE', 'Legacy visit requires an authorized care snapshot', 503);
-    return visit;
+    return { visit, booking };
   }
   const fingerprint = visit => digest(visit.snapshots.care);
+  const instructionPendingAck = visit =>
+    Number.isInteger(visit.currentInstructionVersion)
+    && (visit.acknowledgedInstructionVersion ?? 0) < visit.currentInstructionVersion;
   return {
     async get(actor, visitId) {
       return uow.run(async session => {
-        const visit = await load(actor, visitId, session), care = visit.snapshots.care;
-        return { visitId, version: fingerprint(visit), source: 'OWNER_DECLARED_AT_CHECKOUT', capturedAt: care.capturedAt,
-          pets: care.pets, acknowledged: visit.careAcknowledgement?.sitterId === actor.userId && visit.careAcknowledgement.version === fingerprint(visit),
+        const { visit, booking } = await load(actor, visitId, session), care = visit.snapshots.care;
+        const instructions = extractVisitCareInstructions(visit, booking.checkoutSnapshot?.consentAt ?? null);
+        const version = fingerprint(visit);
+        const digestAcked = visit.careAcknowledgement?.sitterId === actor.userId && visit.careAcknowledgement.version === version;
+        const pendingAck = instructionPendingAck(visit);
+        return { visitId, version, source: visit.careInstructions ? 'CUSTOMER_CONFIRMED_VERSION' : 'OWNER_DECLARED_AT_CHECKOUT',
+          capturedAt: care.capturedAt,
+          pets: care.pets,
+          acknowledged: digestAcked && !pendingAck,
+          careInstructions: {
+            version: instructions.version,
+            confirmedAt: instructions.confirmedAt,
+            acknowledgedAt: pendingAck ? null : (instructions.acknowledgedAt ?? (digestAcked ? visit.careAcknowledgement?.acknowledgedAt : null) ?? null),
+            updatedAfterAssigned: instructions.updatedAfterAssigned,
+            requiresAcknowledgement: pendingAck,
+            pets: instructions.pets,
+            tasks: instructions.tasks
+          },
           accessOpensAt: new Date(visit.startAt.getTime() - 3600000), accessExpiresAt: visit.endAt };
       });
     },
@@ -30,7 +49,7 @@ export function createAssignedCareService({ repository, clock = Date.now }) {
       exact(body, ['version'], ['version']); schedulingKey(key);
       if (typeof body.version !== 'string' || !/^[a-f0-9]{64}$/.test(body.version)) fail('VALIDATION_FAILED', 'Snapshot version required');
       return uow.run(async session => {
-        const visit = await load(actor, visitId, session);
+        const { visit } = await load(actor, visitId, session);
         await repository.employeeGuard(actor.userId, session, actor.authEpoch);
         if (body.version !== fingerprint(visit)) fail('VERSION_CONFLICT', 'Care snapshot changed', 409);
         const commandId = digest([actor.userId, 'CARE_ACK', visitId, key]), hash = digest(body);
@@ -40,10 +59,27 @@ export function createAssignedCareService({ repository, clock = Date.now }) {
           return previous.result;
         }
         const acknowledgedAt = new Date(clock());
+        const setFields = {
+          careAcknowledgement: { sitterId: actor.userId, version: body.version, acknowledgedAt },
+          ...(Number.isInteger(visit.currentInstructionVersion)
+            ? {
+              acknowledgedInstructionVersion: visit.currentInstructionVersion,
+              ...(visit.careInstructions ? {
+                'careInstructions.acknowledgedBySitterId': actor.userId,
+                'careInstructions.acknowledgedAt': acknowledgedAt
+              } : {})
+            }
+            : {})
+        };
         const saved = await col('visits').updateOne({ _id: visit._id, sitterId: visit.sitterId, version: visit.version, state: visit.state },
-          { $set: { careAcknowledgement: { sitterId: actor.userId, version: body.version, acknowledgedAt } } }, { session });
+          { $set: setFields }, { session });
         if (!saved.matchedCount) fail('VERSION_CONFLICT', 'Assignment changed', 409);
-        const result = { acknowledged: true, version: body.version, acknowledgedAt };
+        const result = {
+          acknowledged: true,
+          version: body.version,
+          acknowledgedAt,
+          ...(Number.isInteger(visit.currentInstructionVersion) ? { instructionVersion: visit.currentInstructionVersion } : {})
+        };
         await models.EmployeeScheduleCommand.create([{ _id: commandId, fingerprint: hash, result, createdAt: acknowledgedAt }], { session });
         await models.EmployeeScheduleEvent.create([{ type: 'CareSnapshotAcknowledged', actorId: actor.userId, visitId, at: acknowledgedAt }], { session });
         return result;
@@ -51,9 +87,9 @@ export function createAssignedCareService({ repository, clock = Date.now }) {
     },
     async accessNotes(actor, visitId) {
       return uow.run(async session => {
-        const visit = await load(actor, visitId, session);
+        const { visit } = await load(actor, visitId, session);
         if (clock() < visit.startAt.getTime() - 3600000 || clock() >= visit.endAt.getTime()) fail('ACCESS_WINDOW_CLOSED', 'Access note window closed', 403);
-        if (visit.careAcknowledgement?.sitterId !== actor.userId || visit.careAcknowledgement.version !== fingerprint(visit))
+        if (instructionPendingAck(visit) || visit.careAcknowledgement?.sitterId !== actor.userId || visit.careAcknowledgement.version !== fingerprint(visit))
           fail('CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED', 'Acknowledge current care snapshot', 403);
         return { visitId, privateAccessNotes: visit.snapshots.care.privateAccessNotes ?? '', expiresAt: visit.endAt };
       });

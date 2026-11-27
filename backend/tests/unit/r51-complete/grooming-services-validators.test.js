@@ -475,7 +475,8 @@ describe('Grooming Services (GRM-CODE-01, GRM-BOOK-01..05, GRM-SEED-01, GRM-HOLD
   test('GRM-SLOTS-01-UTCID01 [N] lists AVAILABLE and FULL slots within booking window and rejects out-of-window date', async () => {
     const models = {
       Pet: { find: () => chain([{ _id: new Types.ObjectId(PID), ownerId: CID, state: 'ACTIVE', species: 'DOG', weightKg: 5, traits: [] }]) },
-      PetBreed: {}, VaccinationRecord: {}, CustomerAddress: {}
+      PetBreed: {}, VaccinationRecord: {}, CustomerAddress: {},
+      GroomingAppointment: { find: () => chain([]) }, GroomingCounter: {}
     };
     const slotsSvc = createGroomingSlots({
       connection: wrapConn(models),

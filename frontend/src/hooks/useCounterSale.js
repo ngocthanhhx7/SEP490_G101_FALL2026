@@ -15,6 +15,7 @@ export function useCounterSale({ api, orderId, selectOrder, paymentCancelled = f
   const [contact, setContact] = useState(''), [customer, setCustomer] = useState(null), [lookupText, setLookupText] = useState('');
   const [lookupBusy, setLookupBusy] = useState(false), [busy, setBusy] = useState(false), [uncertain, setUncertain] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [lineNotices, setLineNotices] = useState({});
   const [paymentWay, setPaymentWay] = useState('CASH');
   const [vietqrLink, setVietqrLink] = useState(null);
   const [vietqrError, setVietqrError] = useState('');
@@ -61,8 +62,18 @@ export function useCounterSale({ api, orderId, selectOrder, paymentCancelled = f
     ? 'loading' : previewState;
   const locked = busy || uncertain || Boolean(orderId);
   const errorText = useCallback(error => productErrorText(error, { available: error.available }), []);
+  const clearLineNotice = id => setLineNotices(old => {
+    if (!old[id]) return old;
+    const next = { ...old };
+    delete next[id];
+    return next;
+  });
   function limit(line) {
-    setNotice({ kind: 'error', text: line.quantity >= COUNTER_LIMITS.quantity ? 'Mỗi dòng tối đa 99 sản phẩm.' : productMessage('MSG58', { n: line.available }) });
+    const text = line.quantity >= COUNTER_LIMITS.quantity
+      ? 'Mỗi dòng tối đa 99 sản phẩm.'
+      : productMessage('MSG58', { n: line.available });
+    setNotice(null);
+    setLineNotices(old => ({ ...old, [line.productId]: text }));
   }
   function add(product) {
     if (locked || lock.current) return;
@@ -71,11 +82,23 @@ export function useCounterSale({ api, orderId, selectOrder, paymentCancelled = f
     if (!found && lines.length >= COUNTER_LIMITS.lines) { setNotice({ kind: 'error', text: 'Mỗi đơn tối đa 30 sản phẩm khác nhau.' }); return; }
     if (product.available < 1) return;
     setNotice(null);
+    clearLineNotice(product.id);
     setLines(old => found ? old.map(line => line.productId === product.id ? { ...line, quantity: line.quantity + 1, available: product.available } : line)
       : [...old, { productId: product.id, productCode: product.code, productName: product.name, available: product.available, quantity: 1 }]);
   }
-  function change(line, quantity) { if (!locked && !lock.current) { setNotice(null); setLines(old => old.map(item => item.productId === line.productId ? { ...item, quantity } : item)); } }
-  function remove(id) { if (!locked && !lock.current) setLines(old => old.filter(line => line.productId !== id)); }
+  function change(line, quantity) {
+    if (!locked && !lock.current) {
+      setNotice(null);
+      clearLineNotice(line.productId);
+      setLines(old => old.map(item => item.productId === line.productId ? { ...item, quantity } : item));
+    }
+  }
+  function remove(id) {
+    if (!locked && !lock.current) {
+      clearLineNotice(id);
+      setLines(old => old.filter(line => line.productId !== id));
+    }
+  }
   function changeContact(value) {
     if (locked || lock.current) return;
     lookupGeneration.current++; lookupController.current?.abort(); setLookupBusy(false); setContact(value); setCustomer(null); setLookupText('');
@@ -94,7 +117,7 @@ export function useCounterSale({ api, orderId, selectOrder, paymentCancelled = f
   }
   async function create() {
     if (lock.current || lookupBusy || (!command.current && (!lines.length || currentPreviewState !== 'success' || orderId))) return;
-    lock.current = true; setBusy(true); setNotice(null);
+    lock.current = true; setBusy(true); setNotice(null); setLineNotices({});
     lookupGeneration.current++; lookupController.current?.abort();
     if (!command.current) command.current = { body: { lines: payloadLines(lines), ...(customer ? { customerId: customer.id } : {}) }, key: globalThis.crypto.randomUUID() };
     try {
@@ -106,7 +129,11 @@ export function useCounterSale({ api, orderId, selectOrder, paymentCancelled = f
       setUncertain(isUncertainOutcome(error));
       if (!isUncertainOutcome(error)) command.current = null;
       if (error.code === 'COUNTER_CUSTOMER_UNAVAILABLE') { setCustomer(null); setLookupText('Khách đã chọn không còn khả dụng. Vui lòng tìm lại hoặc bán không gắn khách.'); }
-      setNotice({ kind: 'error', text: errorText(error) });
+      if (error.code === 'PRODUCT_QUANTITY_EXCEEDS_AVAILABLE' && error.productId && lines.some(line => line.productId === error.productId)) {
+        setLineNotices(old => ({ ...old, [error.productId]: errorText(error) }));
+      } else {
+        setNotice({ kind: 'error', text: errorText(error) });
+      }
       if (!isUncertainOutcome(error)) setRevision(v => v + 1);
     } finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
@@ -204,10 +231,10 @@ export function useCounterSale({ api, orderId, selectOrder, paymentCancelled = f
   function newDraft() {
     if (lock.current || uncertain) return;
     lookupGeneration.current++; lookupController.current?.abort(); setLookupBusy(false);
-    setLines([]); setPreview(null); setContact(''); setCustomer(null); setLookupText(''); setOrder(null);
+    setLines([]); setLineNotices({}); setPreview(null); setContact(''); setCustomer(null); setLookupText(''); setOrder(null);
     setPaymentWay('CASH'); setVietqrLink(null); setVietqrError(''); selectOrder(null);
   }
-  return { lines, preview, previewState: currentPreviewState, order: activeOrder, readState, revision, contact, customer, lookupText, lookupBusy, busy, uncertain, notice, locked,
+  return { lines, lineNotices, preview, previewState: currentPreviewState, order: activeOrder, readState, revision, contact, customer, lookupText, lookupBusy, busy, uncertain, notice, locked,
     paymentWay: effectiveWay, vietqrLink: activeVietqrLink, vietqrFailed, vietqrNotice,
     add, change, remove, limit, changeContact, lookup, create, changePaymentWay, createPaymentLink, checkPayment, act, newDraft,
     retry: () => { setRevision(v => v + 1); setReadRevision(v => v + 1); } };

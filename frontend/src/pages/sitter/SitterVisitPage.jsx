@@ -13,6 +13,7 @@ export function SitterVisitPage({ api, visitId }) {
   const load = useCallback(({ signal }) => api.assignedVisitSummary(visitId, { signal }), [api, visitId]);
   const visit = useApiResource(load);
   const [withdrawal, setWithdrawal] = useState(false);
+  const [executionReloadKey, setExecutionReloadKey] = useState(0);
   const row = visit.data;
   if (visit.status === 'loading') return <p role="status">Đang tải buổi chăm sóc…</p>;
   if (!row) return <section className="pwc-mobile-screen">
@@ -33,10 +34,12 @@ export function SitterVisitPage({ api, visitId }) {
     {directions && <a href={directions} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" className="sitter-workspace-link">Chỉ đường bằng Google Maps</a>}</div>
     {row.handoverPending === true && <Notice state="warning" title="Bạn cần xác nhận bàn giao trước khi check-in."
       action={<Link className="sitter-workspace-link" to={'/sitter/visits/' + visitId + '/handover'}>Xác nhận bàn giao</Link>} />}
-    {['ASSIGNED','IN_PROGRESS'].includes(row.state) && !row.handoverPending && <AssignedCare api={api} visitId={visitId} />}
+    {['ASSIGNED','IN_PROGRESS'].includes(row.state) && !row.handoverPending && (
+      <AssignedCare api={api} visitId={visitId} defaultOpen onAcknowledged={() => setExecutionReloadKey(value => value + 1)} />
+    )}
     {row.state === 'ASSIGNED' && <VisitTravel api={api} visitId={visitId} employee startAt={row.startAt} endAt={row.endAt} />}
     <p><Link to="/contact" state={{ helpFrom: '/sitter/visits/' + visitId }}>Hỗ trợ công việc</Link></p>
-    <VisitExecution api={api} visitId={visitId} onChanged={visit.retry} />
+    <VisitExecution key={visitId + ':' + executionReloadKey} api={api} visitId={visitId} onChanged={visit.retry} />
     {row.state === 'ASSIGNED' && <Button variant="secondary" onClick={() => setWithdrawal(true)}>Kiểm tra điều kiện rút khỏi buổi</Button>}
     {withdrawal && <VisitWithdrawalDialog visitId={visitId} api={api} onClose={() => setWithdrawal(false)}
       onSuccess={() => { setWithdrawal(false); visit.retry(); }} />}

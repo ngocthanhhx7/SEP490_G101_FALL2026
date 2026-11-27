@@ -39,7 +39,7 @@ test('navigates cursor stack, resets on service switch and keeps current latestV
   fireEvent.change(screen.getByLabelText(/Đơn vị áp dụng/), { target: { value: 'giờ' } });
   fireEvent.change(screen.getByLabelText(/Lý do thay đổi/), { target: { value: 'Synthetic update' } });
   fireEvent.submit(screen.getByRole('button', { name: 'Lưu phiên bản giá' }).closest('form'));
-  await screen.findByText('Máy chủ đã ghi nhận phiên bản giá mới.');
+  await screen.findByText('Đã lưu phiên bản giá mới.');
   expect(api.mock.calls.find(([, options]) => options?.method === 'POST')[1].body.expectedVersion).toBe(10);
   expect(screen.getByText('Trang 1')).toBeInTheDocument();
 });

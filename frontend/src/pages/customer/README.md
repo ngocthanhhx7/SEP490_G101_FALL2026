@@ -51,8 +51,10 @@ old `/pets` and `/addresses` contracts are not the current management source.
 
 `RecommendationCheckout.jsx` bridges supported home-care shortlist selections to
 the ordinary quote/checkout API with a MATCH reference. Specialized clinic,
-distance and boarding plans retain Staff review. `VerifiedVisitRating.jsx` uses
-the verified completed-visit command and preserves uncertain retry payloads.
+distance and boarding plans retain Staff review. `BookingSitterRatings.jsx` shows one
+rating button per pet sitter who finished a visit while the server returns a
+`ratingDeadlineAt` for the booking, and opens `VerifiedVisitRating.jsx` in a dialog.
+That form uses the verified completed-visit command and preserves uncertain retry payloads.
 
 `SitterRecommendationsPage` displays an advisory shortlist from shared owned
 pets/confirmed addresses; it never sets prices or sends offers.
