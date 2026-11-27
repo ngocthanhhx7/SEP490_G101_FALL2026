@@ -97,13 +97,13 @@ describe('FE-16 UC-49/UC-50 - Payment Processing', () => {
 
   test.todo('IT-FE16-UC49-10 retries JOB-03 when payOS is unavailable during expiry reconciliation');
 
-  test('IT-FE16-UC49-11 applies only one result when webhook and expiry reconciliation race', async () => {
+  test('IT-FE16-UC49-11 applies one result when webhook and verified-payment handlers run concurrently in memory', async () => {
     const fixture = createFixture();
-    const [webhookResult, jobResult] = await Promise.all([
+    const [webhookResult, verifiedPaymentResult] = await Promise.all([
       fixture.webhook.handleWebhook({ data: fixture.receipt }),
       fixture.webhook.handleVerifiedPayment(fixture.receipt)
     ]);
-    expect([webhookResult.status, jobResult.status].sort()).toEqual(['DUPLICATE', 'PAYMENT_VERIFIED']);
+    expect([webhookResult.status, verifiedPaymentResult.status].sort()).toEqual(['DUPLICATE', 'PAYMENT_VERIFIED']);
     expect(fixture.state.payments).toHaveLength(1);
     expect(fixture.state.intent.bookingState).toBe('CONFIRMED');
   });
