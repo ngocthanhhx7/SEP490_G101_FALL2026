@@ -407,9 +407,12 @@ export function createEmployeeDispatchService({ repository, clock = Date.now, ra
           await employeeGuard(input.sitterId, session);
           const eligibility = await eligible(input.sitterId, visit, session, { allowOutsideWorkingHours: true });
           const contract = await repository.contractAt(input.sitterId, visit.startAt, visit.endAt, session);
-          const directAssign = contract.employmentType === 'FULL_TIME' && eligibility.workingHoursCovered === true;
-          if (input.expectedAction && input.expectedAction !== (directAssign ? 'DIRECT_ASSIGN' : 'INVITE'))
+          const canDirectAssign = contract.employmentType === 'FULL_TIME' && eligibility.workingHoursCovered === true;
+          if (input.expectedAction && input.expectedAction !== (canDirectAssign ? 'DIRECT_ASSIGN' : 'INVITE'))
             fail('ACTION_CHANGED', 'Assignment conditions changed; reload candidates before confirming', 409);
+          // Only direct-assign when Staff explicitly confirms DIRECT_ASSIGN; legacy payloads without
+          // expectedAction preserve invitation behavior instead of unexpectedly assigning directly.
+          const directAssign = canDirectAssign && input.expectedAction === 'DIRECT_ASSIGN';
           manualOutsideHoursInvitation = contract.employmentType === 'FULL_TIME' && !eligibility.workingHoursCovered;
           if (directAssign) {
             const assignedAt = new Date(clock());
