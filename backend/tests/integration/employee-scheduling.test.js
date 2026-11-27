@@ -209,6 +209,15 @@ test('versioned visit notes are saved by the assigned sitter and visible only in
   expect(staffDetails.details.visits[0]).not.toHaveProperty('customerNote');
   await save(sitter, 'synthetic-versioned-note-clear', { expectedVersion: saved.body.data.version, customerNote: '' }).expect(200);
   expect((await checkout.read(customer, String(row.bookingId))).details.visits[0]).not.toHaveProperty('customerNote');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    startAt: new Date(clock() - 4 * 3600000), endAt: new Date(clock() - 2 * 3600000 - 1),
+    checkInAt: new Date(clock() - 4 * 3600000)
+  } });
+  const expired = await save(sitter, 'synthetic-versioned-note-expired', {
+    expectedVersion: saved.body.data.version + 1, customerNote: 'Synthetic late note'
+  }).expect(409);
+  expect(expired.body.error.code).toBe('WORKFLOW_WINDOW_CLOSED');
+  expect((await connection.collection('visits').findOne({ _id: row._id })).customerNote).toBe('');
 });
 
 test('execution read exposes timing and bound evidence while excluding private notes and money', async () => {

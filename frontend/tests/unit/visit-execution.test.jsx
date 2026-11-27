@@ -70,6 +70,22 @@ test('sitter saves a customer note independently of versioned workflow tasks', a
     { expectedVersion: 5, customerNote: 'Milo uống đủ nước.' }, expect.any(String)));
 });
 
+test('the note field and save action are locked after the versioned execution window', async () => {
+  const api = {
+    execution: jest.fn().mockResolvedValue({ data: {
+      visitId: 'visit', version: 5, state: 'IN_PROGRESS', checklist: [],
+      workflow: { mode: 'VERSIONED', title: 'Quy trình chăm sóc', tasks: [], completed: 0 },
+      serverNow: '2026-11-27T08:00:01Z', checkOutClosesAt: '2026-11-27T08:00:00Z',
+      customerNote: 'Ghi chú đã lưu'
+    } }),
+    executeVisit: jest.fn()
+  };
+  render(<VisitExecution api={api} visitId="visit" />);
+  expect(await screen.findByLabelText('Ghi chú cho khách')).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Lưu ghi chú' })).toBeDisabled();
+  expect(api.executeVisit).not.toHaveBeenCalled();
+});
+
 test('proposal route identity changes discard prior selection and confirmation operation', async () => {
   const proposal = id => ({ id, bookingId: 'booking', version: 0, state: 'PENDING_CUSTOMER_CONFIRMATION', slots: [{ startAt: '2026-11-20T02:00:00Z', endAt: '2026-11-20T03:00:00Z' }] });
   const api = { confirmProposal: jest.fn().mockRejectedValue({ code: 'TIMEOUT' }) };

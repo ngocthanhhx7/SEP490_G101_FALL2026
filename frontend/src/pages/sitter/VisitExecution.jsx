@@ -18,18 +18,21 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const resource = useApiResource(load);
   const [file, setFile] = useState(null), [items, setItems] = useState({}), [fileError, setFileError] = useState('');
   const [customerNote, setCustomerNote] = useState(null);
-  const [time, setTime] = useState(Date.now());
+  const [clockReading, setClockReading] = useState(null);
   useEffect(() => {
     if (!resource.data) return undefined;
     const receivedAt = globalThis.performance.now(), server = Date.parse(resource.data.serverNow);
     const base = Number.isFinite(server) ? server : Date.now();
-    const update = () => setTime(base + globalThis.performance.now() - receivedAt);
+    const update = () => setClockReading({ row: resource.data, time: base + globalThis.performance.now() - receivedAt });
     update(); const timer = globalThis.setInterval(update, 1000);
     return () => globalThis.clearInterval(timer);
   }, [resource.data]);
   function clearFile() { setFile(null); setFileError(''); upload.current = null; if (input.current) input.current.value = ''; }
   const command = useSchedulingCommand(() => { clearFile(); setItems({}); setCustomerNote(null); resource.retry(); onChanged?.(); });
   const row = resource.data, locked = command.busy || command.pending;
+  const serverTime = Date.parse(row?.serverNow);
+  const time = clockReading && clockReading.row === row ? clockReading.time
+    : Number.isFinite(serverTime) ? serverTime : Date.now();
   const opensAt = row?.checkInOpensAt ?? (Number.isFinite(Date.parse(row?.startAt)) ? new Date(Date.parse(row.startAt) - 1800000).toISOString() : null);
   const early = row?.state === 'ASSIGNED' && opensAt && time < Date.parse(opensAt);
   const expiresAt = row?.state === 'ASSIGNED' ? row?.checkInClosesAt ?? row?.endAt : row?.checkOutClosesAt;
@@ -63,7 +66,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const savedChecklist = versioned || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
   const noteField = <label>Ghi chú cho khách
-    <textarea rows={3} maxLength={2000} value={customerNote ?? row.customerNote ?? ''}
+    <textarea rows={3} maxLength={2000} disabled={expired} value={customerNote ?? row.customerNote ?? ''}
       onChange={event => setCustomerNote(event.target.value)} />
   </label>;
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
@@ -84,7 +87,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
     {command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại thao tác ca</Button>}
     {versioned && <VisitWorkflowExecution row={row} api={api} visitId={visitId} onSaved={() => { resource.retry(); onChanged?.(); }} locked={locked || early || expired} />}
-    {versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked}>
+    {versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked || expired}>
       <legend>Báo cáo chăm sóc</legend>
       {noteField}
       <Button disabled={customerNote === null || customerNote === (row.customerNote ?? '')} onClick={() => {
@@ -102,7 +105,7 @@ export function VisitExecution({ api, visitId, onChanged }) {
         </label>}</div>;
       })}
       {noteField}
-      <Button disabled={!complete || locked} onClick={() => {
+      <Button disabled={!complete || locked || (expired && customerNote !== null)} onClick={() => {
         const payload = { expectedVersion: row.version, items: required.map(id => { const item = current(id); return { itemId: id, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {}) }; }),
           ...(customerNote !== null ? { customerNote } : {}) };
         command.execute(key => api.executeVisit(visitId, 'checklists', payload, key));

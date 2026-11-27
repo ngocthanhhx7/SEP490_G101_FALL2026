@@ -196,6 +196,10 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         } else {
           if (visit.state !== 'IN_PROGRESS' || !(visit.checkInAt instanceof Date)) fail(409, 'INVALID_STATE');
           if (operation === 'CHECKLIST') {
+            if (customerNote !== undefined && (!(visit.endAt instanceof Date)
+              || at.getTime() > visit.endAt.getTime() + CHECK_OUT_GRACE_MS || at < visit.checkInAt)) {
+              fail(409, 'WORKFLOW_WINDOW_CLOSED');
+            }
             const versioned = Boolean(visit.snapshots?.workflow);
             if (versioned && (items !== undefined || customerNote === undefined)) fail(409, 'WORKFLOW_TASKS_REQUIRED');
             if (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000
