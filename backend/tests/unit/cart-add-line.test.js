@@ -8,8 +8,8 @@ describe('CART-IN-01 parseAddCartLine', () => {
   test('accepts a valid product id and quantity one', () => {
     expect(parseAddCartLine({ productId: id, quantity: 1 })).toEqual({ productId: id, quantity: 1 });
   });
-  test('accepts the quantity upper boundary 99', () => {
-    expect(parseAddCartLine({ productId: id, quantity: 99 })).toEqual({ productId: id, quantity: 99 });
+  test.each([100, 150, Number.MAX_SAFE_INTEGER])('CART-IN-01-UTCID07 accepts safe integer quantity %p', (quantity) => {
+    expect(parseAddCartLine({ productId: id, quantity })).toEqual({ productId: id, quantity });
   });
   test.each([undefined, null, '', 'nope', 1])('rejects missing or malformed productId %p', (productId) => {
     expect(code(() => parseAddCartLine({ productId, quantity: 1 }))).toBe('VALIDATION_FAILED');
@@ -23,8 +23,9 @@ describe('CART-IN-01 parseAddCartLine', () => {
   test.each([0, -1])('rejects zero or negative quantity %p', (quantity) => {
     expect(code(() => parseAddCartLine({ productId: id, quantity }))).toBe('VALIDATION_FAILED');
   });
-  test('rejects quantity 100 above the line limit', () => {
-    expect(code(() => parseAddCartLine({ productId: id, quantity: 100 }))).toBe('VALIDATION_FAILED');
+  test('rejects an unsafe integer', () => {
+    const quantity = Number.MAX_SAFE_INTEGER + 1;
+    expect(code(() => parseAddCartLine({ productId: id, quantity }))).toBe('VALIDATION_FAILED');
   });
   test('rejects a client-supplied price', () => {
     expect(code(() => parseAddCartLine({ productId: id, quantity: 1, price: 1 }))).toBe('VALIDATION_FAILED');

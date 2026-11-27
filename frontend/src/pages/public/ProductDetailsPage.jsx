@@ -91,7 +91,7 @@ export function ProductDetailsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', margin: '1rem 0' }}>
           <span id="quantity-label" style={{ fontWeight: 800 }}>Số lượng</span>
           <QuantityStepper value={quantity} max={stepperMax} disabled={!product.inStock || busy} label="Số lượng"
-            onChange={changeQuantity} onLimit={() => setFeedback({ ok: false, text: productMessage('MSG58', { n: Math.min(99, product.available) }) })} />
+            onChange={changeQuantity} onLimit={() => setFeedback({ ok: false, text: productMessage('MSG58', { n: product.available }) })} />
         </div>
         {!product.inStock && <p className="pwc-shop-alert pwc-shop-alert--error" role="status">{productMessage('MSG98')}</p>}
         {feedback && <p className={`pwc-shop-alert pwc-shop-alert--${feedback.ok ? 'ok' : 'error'}`} role={feedback.ok ? 'status' : 'alert'}>

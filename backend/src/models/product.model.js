@@ -27,18 +27,18 @@ import {
 
 const cartLine = sub({
   productId: { type: oid, required: true },
-  quantity: { ...integer(1, 99), required: true }
+  quantity: { ...integer(1), required: true }
 });
 const orderLine = sub({
   productId: { type: oid, required: true },
   productCode: { type: String, required: true, maxlength: 20 },
   productName: { type: String, required: true, maxlength: 200 },
-  quantity: { ...integer(1, 99), required: true },
+  quantity: { ...integer(1), required: true },
   // Price at the moment of ordering; later price changes never touch placed orders (GBR-35).
   sellingPriceWhenOrdered: { ...integer(), required: true },
   unitDiscount: { ...integer(), default: 0 },
   // Set when a returned order is confirmed: how many of this line go back on sale (0 to quantity).
-  resellableQuantity: { ...integer(0, 99) }
+  resellableQuantity: { ...integer() }
 });
 // One product of a goods receipt. The code and name are copied when the receipt is saved, like an order line.
 const receiptLine = sub({
@@ -297,9 +297,9 @@ export function productSalesModels(connection) {
         productId: { type: oid, required: true },
         productCode: { type: String, required: true, maxlength: 20 },
         productName: { type: String, required: true, maxlength: 200 },
-        orderedQuantity: { ...integer(1, 99), required: true },
+        orderedQuantity: { ...integer(1), required: true },
         unitPriceVnd: { ...integer(), required: true },
-        quantity: { ...integer(1, 99), required: true },
+        quantity: { ...integer(1), required: true },
         problemType: { type: String, enum: FAULTY_CLAIM_PROBLEM_TYPES, required: true },
         description: { type: String, default: '', maxlength: FAULTY_CLAIM_LIMITS.descriptionMax },
         photoIds: {
