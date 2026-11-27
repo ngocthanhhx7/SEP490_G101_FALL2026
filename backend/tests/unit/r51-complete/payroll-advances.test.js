@@ -107,8 +107,9 @@ function buildPayrollHarness(overrides = {}) {
       const next = state.updatedAdvance ?? {
         ...state.advanceRecord,
         ...(update.$set ?? {}),
-        version: (state.advanceRecord?.version ?? 0) + 1
+        version: (state.advanceRecord?.version ?? 0) + update.$inc.version
       };
+      state.advanceRecord = next;
       return chainDoc(next);
     })
   });
@@ -193,7 +194,7 @@ function buildPayrollHarness(overrides = {}) {
     cursorSecret: 'a'.repeat(32)
   });
 
-  return { service, state };
+  return { service, state, connection };
 }
 
 const sitterActor = { userId: SITTER_ID, state: 'ACTIVE', roles: ['PET_SITTER'] };
@@ -285,17 +286,47 @@ describe('PAYROLL-04 submitAdvance & PAYROLL-05 decideAdvance', () => {
     expect(res).toMatchObject({ id: ADVANCE_ID, status: 'WITHDRAWN', version: 1 });
   });
 
-  test('PAYROLL-05-UTCID02 [N] allows ADMIN to APPROVE submitted advance within active contract cap', async () => {
-    const { service } = buildPayrollHarness({
+  test.each([
+    ['APPROVE', {}], ['APPROVE', { reason: null }], ['APPROVE', { reason: '' }],
+    ['APPROVE', { reason: '   ' }], ['REJECT', {}]
+  ])('SAL-IN-03-UTCID01 rejects %s with blank or missing reason %p before any writes', async (action, input) => {
+    const { service, state, connection } = buildPayrollHarness({
+      monthGuard: { _id: SITTER_ID + ':2026-11', version: 2, pendingId: new Types.ObjectId(ADVANCE_ID) }
+    });
+    await expect(service.decideAdvance(adminActor, ADVANCE_ID, { action, expectedVersion: 0, ...input }, 'synthetic-decision-01'))
+      .rejects.toMatchObject({ code: 'VALIDATION_FAILED', status: 422 });
+    expect(state.advanceRecord).toMatchObject({ status: 'SUBMITTED', version: 0 });
+    expect(state.advanceRecord).not.toHaveProperty('decisionReason');
+    expect(service.models.SalaryAdvance.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(service.models.PayrollMonthGuard.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(service.models.PayrollEvent.create).not.toHaveBeenCalled();
+    expect(service.models.PayrollCommand.create).not.toHaveBeenCalled();
+    expect(connection.transaction).not.toHaveBeenCalled();
+  });
+
+  test('SAL-IN-03-UTCID01 allows ADMIN to APPROVE a submitted advance and saves the reason once', async () => {
+    const { service, state } = buildPayrollHarness({
       monthGuard: { _id: `${SITTER_ID}:2026-11`, version: 2, pendingId: new Types.ObjectId(ADVANCE_ID) }
     });
     const res = await service.decideAdvance(
       adminActor,
       ADVANCE_ID,
-      { action: 'APPROVE', expectedVersion: 0, reason: 'Đủ điều kiện hợp đồng tháng 11' },
+      { action: 'APPROVE', expectedVersion: 0, reason: '  Đủ điều kiện hợp đồng tháng 11  ' },
       'dec-key-0002'
     );
-    expect(res).toMatchObject({ id: ADVANCE_ID, status: 'APPROVED', version: 1 });
+    const decision = { status: 'APPROVED', version: 1, decisionReason: 'Đủ điều kiện hợp đồng tháng 11' };
+    expect(res).toMatchObject({ id: ADVANCE_ID, ...decision });
+    expect(state.advanceRecord).toMatchObject(decision);
+    expect(service.models.SalaryAdvance.findOneAndUpdate).toHaveBeenCalledTimes(1);
+    expect(service.models.SalaryAdvance.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: ADVANCE_ID, version: 0 },
+      { $set: expect.objectContaining({ status: 'APPROVED', decisionReason: decision.decisionReason }), $inc: { version: 1 } },
+      expect.objectContaining({ returnDocument: 'after' })
+    );
+    expect(service.models.PayrollEvent.create).toHaveBeenCalledWith(
+      [expect.objectContaining({ type: 'ADVANCE_APPROVE', reason: decision.decisionReason })],
+      expect.any(Object)
+    );
   });
 
   test('PAYROLL-05-UTCID03 [N] allows ADMIN to REJECT submitted advance with decisionReason', async () => {

@@ -16,6 +16,31 @@ const apiFixture = () => ({ own: jest.fn().mockResolvedValue({ contracts: [contr
   contract: jest.fn().mockResolvedValue({}), prepare: jest.fn().mockResolvedValue({}) });
 const fill = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 
+test.each([
+  ['APPROVE', 'Lý do duyệt'],
+  ['REJECT', 'Lý do từ chối']
+])('SAL-IN-03-UTCID01 Admin must give a reason to %s a salary advance', async (action, label) => {
+  const api = apiFixture();
+  api.advances.mockResolvedValue({ items: [{ id: 'pending-advance', employeeId, amountVnd: 100000,
+    status: 'SUBMITTED', version: 2, reason: 'Synthetic advance request' }] });
+  render(<EmployeePayrollAdminPage api={api} />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Xem / xử lý' }));
+  fireEvent.change(screen.getByLabelText('Quyết định'), { target: { value: action } });
+  const reason = screen.getByLabelText(label);
+  const save = screen.getByRole('button', { name: 'Lưu quyết định' });
+  expect(reason).toBeRequired();
+  fireEvent.click(save);
+  fill(label, '   ');
+  expect(reason).toBeInvalid();
+  fireEvent.click(save);
+  expect(api.advanceDecision).not.toHaveBeenCalled();
+  fill(label, 'Synthetic decision reason');
+  fireEvent.click(save);
+  await waitFor(() => expect(api.advanceDecision).toHaveBeenCalledWith('pending-advance', {
+    action, expectedVersion: 2, reason: 'Synthetic decision reason'
+  }, expect.any(String)));
+});
+
 test('Admin can void an approved unpaid salary only with reason and explicit no-payment attestation', async () => {
   const api = apiFixture(); api.statementDecision = jest.fn().mockResolvedValue({});
   api.statements.mockResolvedValue({ items: [{ id: 'approved-salary', employeeId, version: 1, status: 'APPROVED',
@@ -145,7 +170,7 @@ test('Admin payroll freezes an uncertain contract and retries the same payload a
 
 test('API uses payroll endpoints and preserves CSRF/idempotency transport contract', async () => {
   const request = jest.fn().mockResolvedValue({ data: { id: employeeId,version:3,status:'APPROVED' } }); const api = createEmployeePayrollApi(request);
-  const body = { action: 'APPROVE', expectedVersion: 2 };
+  const body = { action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic approval reason' };
   expect(await api.advanceDecision(employeeId, body, 'stable-operation')).toEqual({ id: employeeId,version:3,status:'APPROVED' });
   expect(request).toHaveBeenCalledWith(`/payroll/advances/${employeeId}/decisions`, { method: 'POST', body, idempotencyKey: 'stable-operation' });
 });

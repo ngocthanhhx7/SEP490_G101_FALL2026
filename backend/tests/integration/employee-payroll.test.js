@@ -48,7 +48,10 @@ test('advance cap, independent role checks, approval/payment retry and monthly u
   await expect(service.submitAdvance(sitter, { ...advance(), amountVnd: 1500001 }, 'over-cap-advance')).rejects.toMatchObject({ code: 'ADVANCE_LIMIT_EXCEEDED' });
   const saved = (await service.own(sitter)).advances.find(a => a.status === 'SUBMITTED');
   await expect(service.decideAdvance(other, saved.id, { action: 'WITHDRAW', expectedVersion: 0 }, 'foreign-withdraw')).rejects.toMatchObject({ code: 'RESOURCE_NOT_FOUND' });
-  await service.decideAdvance(admin, saved.id, { action: 'APPROVE', expectedVersion: 0 }, 'approve-advance-001');
+  const body = { action: 'APPROVE', expectedVersion: 0, reason: '  Synthetic approval reason  ' };
+  const approved = await service.decideAdvance(admin, saved.id, body, 'approve-advance-001');
+  expect(approved).toMatchObject({ status: 'APPROVED', version: 1, decisionReason: 'Synthetic approval reason' });
+  expect(await service.decideAdvance(admin, saved.id, body, 'approve-advance-001')).toEqual(approved);
   await expect(service.submitAdvance(sitter, advance(), 'after-approval-001')).rejects.toMatchObject({ code: 'ADVANCE_MONTH_ALREADY_USED' });
   await expect(service.decideAdvance(sitter, saved.id, { action: 'RECORD_PAYMENT', expectedVersion: 1, transferReference: 'synthetic-bank-reference' }, 'payment-advance-001')).rejects.toMatchObject({ code: 'FORBIDDEN' });
   const paid = await service.decideAdvance(admin, saved.id, { action: 'RECORD_PAYMENT', expectedVersion: 1, transferReference: 'synthetic-bank-reference' }, 'payment-advance-001');
