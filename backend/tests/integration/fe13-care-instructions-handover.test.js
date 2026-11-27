@@ -86,7 +86,7 @@ describe('FE-13 Care Instructions and Handover integration contracts', () => {
 
   test('IT-FE13-UC41-05: handover confirmation requires instruction acknowledgement', async () => {
     const { handover } = fixture();
-    await expect(handover.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+    await expect(handover.confirm({ actor: actor(CURRENT, ['STAFF']), visitId: VISIT,
       replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 1, idempotencyKey: 'handover-no-ack' }))
       .rejects.toMatchObject({ status: 409, code: 'CARE_INSTRUCTIONS_NOT_ACKNOWLEDGED' });
   });
@@ -95,7 +95,7 @@ describe('FE-13 Care Instructions and Handover integration contracts', () => {
     const { care, handover, state } = fixture();
     await care.acknowledgeInstructions({ actor: actor(REPLACEMENT, ['PET_SITTER']), visitId: VISIT,
       instructionVersion: 1, idempotencyKey: 'replacement-ack' });
-    await expect(handover.confirm({ actor: actor(CUSTOMER, ['CUSTOMER']), visitId: VISIT,
+    await expect(handover.confirm({ actor: actor(CURRENT, ['STAFF']), visitId: VISIT,
       replacementSitterId: REPLACEMENT, expectedVersion: 7, instructionVersion: 1, idempotencyKey: 'handover-confirm' }))
       .resolves.toMatchObject({ state: 'CONFIRMED', replacementSitterId: REPLACEMENT, accessGranted: true });
     expect(state.visit).toMatchObject({ sitterId: REPLACEMENT, handoverAccepted: true });
