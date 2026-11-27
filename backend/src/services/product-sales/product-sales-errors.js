@@ -38,6 +38,8 @@ export const productSalesErrors = Object.freeze({
   trackingCodeRequired: () => new AppError(422, 'TRACKING_CODE_REQUIRED', 'Please enter the tracking code.'),
   // MSG105
   orderNotPaid: () => new AppError(409, 'ORDER_NOT_PAID', 'This order is not paid in full yet. Please take the payment first.'),
+  // MSG156
+  orderNotCancellable: (status) => new AppError(409, 'ORDER_NOT_CANCELLABLE', 'This order can no longer be cancelled.', { status }),
   orderStateConflict: (status) => new AppError(409, 'ORDER_STATE_CONFLICT', 'This order cannot be changed in its current state.', { status }),
   orderStockMismatch: (orderId) => new AppError(409, 'ORDER_STOCK_MISMATCH', 'The stock of this order does not match; nothing was changed.', { orderId }),
   idempotencyConflict: () => new AppError(409, 'IDEMPOTENCY_CONFLICT', 'The key was already used for a different order.'),

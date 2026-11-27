@@ -4,6 +4,14 @@ export function createProductOrderController(service) {
   return {
     place: controllerAction(201, (req) => service.place(req.auth, req.body, req.get('Idempotency-Key'))),
     list: controllerAction(200, (req) => service.list(req.auth, req.query)),
-    read: controllerAction(200, (req) => service.read(req.auth, req.params.orderId))
+    read: controllerAction(200, (req) => service.read(req.auth, req.params.orderId)),
+    cancel: controllerAction(200, (req) => service.cancel(req.auth, req.params.orderId, req.body, req.get('Idempotency-Key'))),
+    confirmReceived: controllerAction(200, (req) => service.confirmReceived(req.auth, req.params.orderId, req.body))
+  };
+}
+
+export function createProductOrderPaymentController(service) {
+  return {
+    paymentLink: controllerAction(200, (req) => service.createLink(req.auth, req.params.orderId))
   };
 }

@@ -75,7 +75,7 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
       const response = await apiRequest('/service-prices/admin/' + selected.id, { method: 'POST', body });
       if (response.pending) setFeedback({ state: 'pending', text: 'Yêu cầu đang xử lý. Tải lại để xác nhận.' });
       else {
-        setFeedback({ state: 'success', text: 'Máy chủ đã ghi nhận phiên bản giá mới.' });
+        setFeedback({ state: 'success', text: 'Đã lưu phiên bản giá mới.' });
         setAmountText(''); setUnitLabel(''); setReason(''); setEffectiveAt(localDateTime());
         resetHistory();
       }
@@ -100,14 +100,13 @@ export function AdminServicePricesPage({ apiRequest: suppliedRequest }) {
       <BrandLogo className="admin-price-logo" />
       <p className="admin-price-eyebrow">QUẢN TRỊ GIÁ</p>
       <h1>Cấu hình giá dịch vụ</h1>
-      <p>Giá được lưu bằng VND nguyên và có thời điểm hiệu lực. Giá mới không sửa snapshot của booking đã tạo.</p>
-      <span className="admin-price-provisional">Đề xuất · Figma chưa đối chiếu</span>
+      <p>Giá lưu bằng VND nguyên theo thời điểm hiệu lực. Giá mới không đổi giá của lịch đặt đã tạo.</p>
     </header>
     {feedback && <Notice state={feedback.state} title={feedback.state === 'success' ? 'Đã lưu' : 'Chưa hoàn tất'}>{feedback.text}</Notice>}
     <section id="price-content" className="admin-price-layout">
       <aside className="admin-price-service-list">
         <div className="admin-price-section-heading"><p className="admin-price-eyebrow">DỊCH VỤ</p><Button variant="secondary" onClick={servicesResource.retry}>Tải lại</Button></div>
-        {servicesResource.status === 'loading' && <Notice state="loading" title="Đang tải dịch vụ">Đang lấy danh mục từ máy chủ.</Notice>}
+        {servicesResource.status === 'loading' && <Notice state="loading" title="Đang tải dịch vụ">Đang tải danh mục dịch vụ.</Notice>}
         {servicesResource.status === 'error' && <Notice state="error" title="Không tải được dịch vụ"
           action={<Button variant="secondary" onClick={servicesResource.retry}>Thử lại</Button>}>Kiểm tra kết nối rồi thử lại.</Notice>}
         {servicesResource.status === 'forbidden' && <Notice state="forbidden" title="Không có quyền xem">Yêu cầu này không được phép.</Notice>}

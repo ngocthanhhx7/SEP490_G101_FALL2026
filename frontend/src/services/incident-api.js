@@ -1,4 +1,5 @@
 import { ApiError, createApiClient } from './api-client.js';
+import { createPrivateImageApi } from './private-image-api.js';
 
 const ID = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/;
 const STATES = new Set(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'CLOSED']);
@@ -30,6 +31,16 @@ export function createIncidentApi({ request, fetchImpl, getCsrfToken, onUnauthor
     return defaultRequest(...args);
   };
   const api = {
+    readEvidence({ caseId, mediaId, signal }) {
+      const casePath = encodeURIComponent(id(caseId, 'caseId'));
+      return createPrivateImageApi({ fetchImpl, onUnauthorized, timeoutMs,
+        readPath: imageId => `/cases/${casePath}/evidence/${imageId}/content`
+      }).read(mediaId, { signal });
+    },
+    async config({ signal } = {}) {
+      const result = await send('/incidents/config', { signal });
+      return result?.data ?? { hotline: null };
+    },
     async report(input = {}) {
       const visitId = id(input.visitId, 'visitId');
       if (input.expectedVersion !== undefined) version(input.expectedVersion);
@@ -65,12 +76,39 @@ export function createIncidentApi({ request, fetchImpl, getCsrfToken, onUnauthor
       const caseId = id(input.caseId ?? input.incidentId, 'caseId');
       return view(await send(`/cases/${caseId}`, { signal: input.signal }), caseId);
     },
+    async addAction(input = {}) {
+      const caseId = id(input.caseId ?? input.incidentId, 'caseId');
+      version(input.expectedVersion);
+      const note = text(input.note, 'note');
+      const result = await send(`/cases/${caseId}/actions`, {
+        method: 'POST',
+        body: { note },
+        expectedVersion: input.expectedVersion,
+        idempotencyKey: key(() => input.idempotencyKey ?? createIdempotencyKey())
+      });
+      return view(result, caseId);
+    },
+    async proposeSuspension(input = {}) {
+      const caseId = id(input.caseId ?? input.incidentId, 'caseId');
+      version(input.expectedVersion);
+      const body = {};
+      if (input.reason !== undefined && input.reason !== null && String(input.reason).trim()) {
+        body.reason = text(input.reason, 'reason');
+      }
+      const result = await send(`/cases/${caseId}/suspension-proposals`, {
+        method: 'POST',
+        body,
+        expectedVersion: input.expectedVersion,
+        idempotencyKey: key(() => input.idempotencyKey ?? createIdempotencyKey())
+      });
+      return view(result, caseId);
+    },
     async resolve(caseIdOrOptions, options = {}) {
       const input = typeof caseIdOrOptions === 'object' && caseIdOrOptions !== null ? caseIdOrOptions : { ...options, caseId: caseIdOrOptions };
       const caseId = id(input.caseId ?? input.incidentId, 'caseId'); version(input.expectedVersion);
-      text(input.summary ?? input.resolution, 'summary');
-      const body = { summary: input.summary ?? input.resolution, targetState: input.targetState ?? input.state ?? 'RESOLVED' };
-      for (const field of ['actionsTaken', 'customerContacted', 'veterinaryContacted', 'followUp', 'staffNotes', 'financialDecision']) {
+      const summary = text(input.customerResult ?? input.summary ?? input.resolution, 'summary');
+      const body = { summary, targetState: input.targetState ?? input.state ?? 'RESOLVED' };
+      for (const field of ['customerResult', 'chargeVisit', 'proposal', 'actionsTaken', 'customerContacted', 'veterinaryContacted', 'followUp', 'staffNotes', 'financialDecision']) {
         if (input[field] !== undefined) body[field] = input[field];
       }
       const result = await send(`/cases/${caseId}/resolutions`, { method: 'POST', body, expectedVersion: input.expectedVersion, idempotencyKey: key(() => input.idempotencyKey ?? createIdempotencyKey()) });

@@ -16,6 +16,7 @@ import { financeSourceModels } from '../../src/models/finance-source.model.js';
 import { sitterApplicationModels } from '../../src/models/sitter-application.model.js';
 import { createComplaintService } from '../../src/services/complaints/complaint.service.js';
 import { createMongoComplaintRepository } from '../../src/services/complaints/mongo-complaint.repository.js';
+import { createBookingRefundBilling } from '../../src/services/complaints/booking-refund-billing.service.js';
 import { payrollModels } from '../../src/models/payroll.model.js';
 
 let replica, connection, service, webhook, booking, visits, actors, admin, customer, complaints, images, at, models;
@@ -448,9 +449,10 @@ test.each([
   expect(notifications.find(notification => notification.recipientId === customer.userId)?.deepLink).toBe(customerLink);
   const staffLink = '/staff/complaints?complaint=' + opened.complaintId;
   const adminLink = '/admin/complaints?complaint=' + opened.complaintId;
+  const adminRefundLink = '/admin/refunds?complaint=' + opened.complaintId;
   expect(notifications.filter(notification => notification.recipientId === staff.userId)
     .every(notification => notification.deepLink === staffLink)).toBe(true);
-  expect(notifications.find(notification => notification.recipientId === admin.userId)?.deepLink).toBe(adminLink);
+  expect(notifications.find(notification => notification.recipientId === admin.userId)?.deepLink).toBe(adminRefundLink);
 
   if (outcome === 'APPROVE') {
     const disputed = await csrf(customerApi.post(path + '/objections'), 'reject-result')
@@ -524,4 +526,188 @@ test.each(['AWAITING_PAYMENT', 'OVERDUE'])('GBR-26 complaint hold preserves %s b
       .toMatchObject({ hasUnfinalizedComplaints: true, billState: 'ON_HOLD' });
     expect(await col('bookings').findOne({ _id: booking._id }, { session })).toMatchObject({ state, paymentDeadlineAt });
   });
+});
+
+test('ST-CAS-10 real billing port calculates paid/refunded/remaining, allows reason-only proposals, records ACCOUNTING_REFUND idempotently, and lists PENDING/DECIDED tabs', async () => {
+  await payAndAssign(); await finish(0); await finish(1);
+  // Pre-existing cancellation refund of 100,000 VND on a 300,000 VND verified payment -> 200,000 VND remaining
+  await col('refunds').insertOne({
+    _id: oid(), bookingId: booking._id, sourceType: 'CANCELLATION', amountVnd: 100000,
+    currency: 'VND', state: 'RECORDED', recordedAt: at
+  });
+  const staff = { ...admin, userId: String(oid()), roles: ['STAFF'] };
+  await col('users').insertMany([
+    { _id: new mongoose.Types.ObjectId(staff.userId), roles: ['STAFF'], state: 'ACTIVE', displayName: 'Nhân viên Xử lý' },
+    { _id: new mongoose.Types.ObjectId(admin.userId), roles: ['ADMIN'], state: 'ACTIVE', displayName: 'Quản trị viên' }
+  ]);
+  const realComplaints = complaintServiceWithFixture(createBookingRefundBilling({ connection }));
+  const staffApi = complaintApp(realComplaints, staff);
+  const adminApi = complaintApp(realComplaints, admin);
+  const customerApi = complaintApp(realComplaints, customer);
+
+  const opened = await realComplaints.submit({
+    actor: customer, visitId: String(visits[0]._id), expectedVersion: 3,
+    idempotencyKey: 'st-cas-10-open', description: 'Chó về nhà còn ướt.'
+  });
+  const path = '/api/v1/complaints/' + opened.complaintId;
+
+  // Staff sees paid = 300,000, refunded = 100,000, remaining = 200,000
+  const detail = await staffApi.get(path).expect(200);
+  expect(detail.body.data.billing).toMatchObject({
+    status: 'AVAILABLE', basis: 'ISSUED', basisAmountVnd: 300000, approvedTotalVnd: 100000, remainingVnd: 200000, paidInFull: true
+  });
+
+  // Missing reason -> MSG01
+  const noReason = await csrf(staffApi.post(path + '/resolution'), 'st-cas-10-no-reason').send({
+    expectedVersion: 0, handlingNotes: 'Đã trao đổi.', customerResult: 'Xin lỗi khách.',
+    proposal: { amountVnd: 50000, reason: '   ', evidenceRefs: [] }
+  });
+  expect(noReason.status).toBe(422);
+  expect(noReason.body.error).toMatchObject({ messageCode: 'MSG01' });
+
+  // Over remaining cap -> MSG44
+  const overCap = await csrf(staffApi.post(path + '/resolution'), 'st-cas-10-over-cap').send({
+    expectedVersion: 0, handlingNotes: 'Đã trao đổi.', customerResult: 'Xin lỗi khách.',
+    proposal: { amountVnd: 200001, reason: 'Đề xuất vượt trần.', evidenceRefs: [] }
+  });
+  expect(overCap.status).toBe(422);
+  expect(overCap.body.error).toMatchObject({ code: 'REFUND_CAP_EXCEEDED', messageCode: 'MSG44', remainingVnd: 200000 });
+
+  // Valid proposal with reason and NO evidence files -> MSG147, stays OPEN
+  const proposed = await csrf(staffApi.post(path + '/resolution'), 'st-cas-10-propose').send({
+    expectedVersion: 0, handlingNotes: 'Đã xác minh với sitter.', customerResult: 'Hoàn một phần phí buổi chăm sóc.',
+    proposal: { amountVnd: 150000, reason: 'Hoàn 50% do dịch vụ chưa đạt.', evidenceRefs: [] }
+  });
+  expect(proposed.status).toBe(200);
+  expect(proposed.body.data).toMatchObject({ state: 'OPEN', messageCode: 'MSG147' });
+
+  // Admin Refund Processing PENDING tab lists the proposal with counts and proposerName
+  const pendingList = await adminApi.get('/api/v1/complaints/refund-proposals?status=PENDING').expect(200);
+  expect(pendingList.body.data.proposalCounts).toEqual({ PENDING: 1, DECIDED: 0 });
+  expect(pendingList.body.data.items).toHaveLength(1);
+  expect(pendingList.body.data.items[0].proposal).toMatchObject({
+    status: 'PENDING', amountVnd: 150000, createdByName: 'Nhân viên Xử lý'
+  });
+
+  // Admin reduces amount to 120,000 -> MSG134, writes RECORDED refund once (idempotent)
+  const decisionPayload = { expectedVersion: 1, outcome: 'REDUCE', amountVnd: 120000 };
+  const decided = await csrf(adminApi.post(path + '/refund-decision'), 'st-cas-10-decide').send(decisionPayload);
+  expect(decided.status).toBe(200);
+  expect(decided.body.data).toMatchObject({
+    state: 'RESOLVED', messageCode: 'MSG134',
+    complaint: { moneyDecision: { outcome: 'REDUCE', amountVnd: 120000 } }
+  });
+  const replayed = await csrf(adminApi.post(path + '/refund-decision'), 'st-cas-10-decide').send(decisionPayload);
+  expect(replayed.body.data).toEqual(decided.body.data);
+
+  const complaintRefunds = await col('refunds').find({ bookingId: booking._id, sourceType: 'COMPLAINT' }).toArray();
+  expect(complaintRefunds).toHaveLength(1);
+  expect(complaintRefunds[0]).toMatchObject({
+    _id: 'complaint:' + opened.complaintId + ':v2',
+    amountVnd: 120000, currency: 'VND', state: 'RECORDED', disposition: 'ACCOUNTING_REFUND'
+  });
+
+  // Customer sees result with lowered amount; DECIDED tab counts updated
+  expect((await customerApi.get(path).expect(200)).body.data).toMatchObject({
+    state: 'RESOLVED', customerResult: 'Hoàn một phần phí buổi chăm sóc.', approvedAmountVnd: 120000
+  });
+  const decidedList = await adminApi.get('/api/v1/complaints/refund-proposals?status=DECIDED').expect(200);
+  expect(decidedList.body.data.proposalCounts).toEqual({ PENDING: 0, DECIDED: 1 });
+  expect(decidedList.body.data.items).toHaveLength(1);
+
+  // Remaining cap on the booking is now 300,000 - 100,000 - 120,000 = 80,000
+  const afterBilling = await createBookingRefundBilling({ connection }).read({ bookingId: String(booking._id) });
+  expect(afterBilling).toMatchObject({ basisAmountVnd: 300000, approvedTotalVnd: 220000, billTotalVnd: 80000 });
+
+  // Customer disagrees, Admin adjusts down to 90,000 -> old refund REPLACED, new refund 90,000 RECORDED
+  await csrf(customerApi.post(path + '/objections'), 'st-cas-10-object').send({ expectedVersion: 2, reason: 'Chưa hài lòng.' }).expect(200);
+  await csrf(adminApi.post(path + '/decision'), 'st-cas-10-final').send({
+    expectedVersion: 3, customerResult: 'Kết quả cuối cùng.', amountVnd: 90000
+  }).expect(200);
+  const allComplaintRefunds = await col('refunds').find({ bookingId: booking._id, sourceType: 'COMPLAINT' }).toArray();
+  expect(allComplaintRefunds.find(r => r._id === 'complaint:' + opened.complaintId + ':v2')?.state).toBe('REPLACED');
+  expect(allComplaintRefunds.find(r => r._id === 'complaint:' + opened.complaintId + ':v4')).toMatchObject({
+    amountVnd: 90000, state: 'RECORDED'
+  });
+  const finalBilling = await createBookingRefundBilling({ connection }).read({ bookingId: String(booking._id) });
+  expect(finalBilling).toMatchObject({ basisAmountVnd: 300000, approvedTotalVnd: 190000, billTotalVnd: 110000 });
+});
+
+test('ST-CAS-10 unpaid booking returns BILLING_SOURCE_UNAVAILABLE and REJECT writes no refund with MSG135', async () => {
+  await payAndAssign(); await finish(0); await finish(1);
+  const realComplaints = complaintServiceWithFixture(createBookingRefundBilling({ connection }));
+  const staff = { ...admin, userId: String(oid()), roles: ['STAFF'] };
+  await col('users').insertMany([
+    { _id: new mongoose.Types.ObjectId(staff.userId), roles: ['STAFF'], state: 'ACTIVE', displayName: 'Staff' },
+    { _id: new mongoose.Types.ObjectId(admin.userId), roles: ['ADMIN'], state: 'ACTIVE', displayName: 'Admin' }
+  ]);
+  const staffApi = complaintApp(realComplaints, staff);
+  const adminApi = complaintApp(realComplaints, admin);
+  const opened = await realComplaints.submit({
+    actor: customer, visitId: String(visits[0]._id), expectedVersion: 3,
+    idempotencyKey: 'st-cas-10-reject-open', description: 'Khiếu nại thử từ chối.'
+  });
+  const path = '/api/v1/complaints/' + opened.complaintId;
+  await csrf(staffApi.post(path + '/resolution'), 'st-cas-10-reject-prop').send({
+    expectedVersion: 0, handlingNotes: 'Ghi chú.', customerResult: 'Kết quả.',
+    proposal: { amountVnd: 50000, reason: 'Đề xuất thử.', evidenceRefs: [] }
+  }).expect(200);
+  const rejected = await csrf(adminApi.post(path + '/refund-decision'), 'st-cas-10-reject-dec').send({
+    expectedVersion: 1, outcome: 'REJECT', reason: 'Không đủ căn cứ hoàn tiền.'
+  });
+  expect(rejected.status).toBe(200);
+  expect(rejected.body.data).toMatchObject({ state: 'RESOLVED', messageCode: 'MSG135' });
+  expect(await col('refunds').countDocuments({ bookingId: booking._id })).toBe(0);
+
+  // Remove verified payment -> billing unavailable
+  await col('payments').deleteMany({ bookingId: booking._id });
+  const unpaidDetail = await staffApi.get(path).expect(200);
+  expect(unpaidDetail.body.data.billing).toMatchObject({ status: 'UNAVAILABLE', code: 'BILLING_SOURCE_UNAVAILABLE' });
+});
+
+test('ST-CAS-11 extends visit complaint deadline to 7 days after incident result and enforces MSG41 after 7 days', async () => {
+  await payAndAssign(); await finish(0); await finish(1);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const completedAt = visits[0].completedAt ?? at;
+  // Move clock to 9 days after visit finished -> expired without incident
+  at = new Date(+completedAt + 9 * dayMs);
+  const freshCustomer = { ...customer, expiresAt: +at + 86400000 };
+  const customerApi = complaintApp(complaints, freshCustomer);
+  const eligPath = '/api/v1/complaints/eligibility/bookings/' + String(booking._id);
+
+  const expiredBefore = await customerApi.get(eligPath).expect(200);
+  expect(expiredBefore.body.data.visits[0].eligibility).toMatchObject({
+    eligible: false, reason: 'COMPLAINT_WINDOW_EXPIRED', messageCode: 'MSG41'
+  });
+
+  // Incident resolved today (stored with string visitId like mongo-incident.repository.js) -> eligible again
+  const incidentId = oid();
+  await col('cases').insertOne({
+    _id: incidentId, kind: 'INCIDENT', bookingId: booking._id, visitId: String(visits[0]._id),
+    state: 'RESOLVED', resolvedAt: at.toISOString(), updatedAt: at.toISOString(), version: 1
+  });
+  const eligAfter = await customerApi.get(eligPath).expect(200);
+  expect(eligAfter.body.data.visits[0]).toMatchObject({
+    canSubmit: true,
+    eligibility: { eligible: true, deadlineSource: 'INCIDENT_RESULT', deadlineAt: new Date(+at + 7 * dayMs).toISOString() }
+  });
+  const submitted = await csrf(customerApi.post('/api/v1/complaints'), 'st-cas-11-submit').send({
+    scope: 'VISIT', bookingId: String(booking._id), visitId: String(visits[0]._id),
+    description: 'Không đồng ý kết quả xử lý sự cố.'
+  });
+  expect(submitted.status).toBe(201);
+  expect(submitted.body.data).toMatchObject({ state: 'OPEN', messageCode: 'MSG128' });
+
+  // Second visit finished 9 days ago, incident resolved 8 days ago -> expired (MSG41)
+  const eightDaysAgo = new Date(+at - 8 * dayMs);
+  await col('cases').insertOne({
+    _id: oid(), kind: 'INCIDENT', bookingId: booking._id, visitId: String(visits[1]._id),
+    state: 'RESOLVED', resolvedAt: eightDaysAgo.toISOString(), updatedAt: eightDaysAgo.toISOString(), version: 1
+  });
+  const lateSubmit = await csrf(customerApi.post('/api/v1/complaints'), 'st-cas-11-late').send({
+    scope: 'VISIT', bookingId: String(booking._id), visitId: String(visits[1]._id),
+    description: 'Gửi sau 8 ngày từ kết quả sự cố.'
+  });
+  expect(lateSubmit.status).toBe(409);
+  expect(lateSubmit.body.error).toMatchObject({ code: 'COMPLAINT_WINDOW_EXPIRED', messageCode: 'MSG41' });
 });

@@ -47,26 +47,45 @@ function enforceEligibility(eligibility) {
   conflict(reason, messageCode ? { messageCode } : undefined);
 }
 
-function deadline(at, asOf, open, ineligible) {
+function deadline(at, asOf, open, ineligible, deadlineSource = null) {
   if (ineligible) return { eligible: false, reason: ineligible, deadlineAt: null };
   if (!at) return { eligible: false, reason: 'COMPLAINT_UNAVAILABLE', deadlineAt: null };
   const deadlineAt = new Date(+at + COMPLAINT_WINDOW_MS).toISOString();
-  if (asOf < at) return { eligible: false, reason: 'VISIT_NOT_COMPLETE', deadlineAt };
+  const source = deadlineSource ? { deadlineSource } : {};
+  if (asOf < at) return { eligible: false, reason: 'VISIT_NOT_COMPLETE', deadlineAt, ...source };
   if (+asOf > Date.parse(deadlineAt)) {
-    return { eligible: false, reason: 'COMPLAINT_WINDOW_EXPIRED', messageCode: 'MSG41', deadlineAt };
+    return { eligible: false, reason: 'COMPLAINT_WINDOW_EXPIRED', messageCode: 'MSG41', deadlineAt, ...source };
   }
-  if (open) return { eligible: false, reason: 'COMPLAINT_ALREADY_OPEN', messageCode: 'MSG42', deadlineAt };
-  return { eligible: true, reason: null, deadlineAt };
+  if (open) return { eligible: false, reason: 'COMPLAINT_ALREADY_OPEN', messageCode: 'MSG42', deadlineAt, ...source };
+  return { eligible: true, reason: null, deadlineAt, ...source };
 }
 
 function isOpen(records, visitId, asOf) {
   return records.some(record => (record.visitId ?? null) === visitId && !complaintFinalAt(record, asOf));
 }
 
-function visitEligibility(visit, records, asOf) {
+function incidentResultAt(incident) {
+  if (!incident || !['RESOLVED', 'CLOSED'].includes(incident.state)) return null;
+  if (incident.proposal?.status === 'PENDING') return null;
+  return instant(incident.resultDeliveredAt ?? incident.resolvedAt
+    ?? incident.resolution?.resolvedAt ?? incident.resolution?.recordedAt ?? incident.closedAt);
+}
+
+function visitEligibility(visit, records, asOf, incidents = []) {
   const completion = visitCompletion(visit);
-  return deadline(completion?.at, asOf, isOpen(records, visit.id, asOf),
-    isHomeCare(visit) && completion?.done ? null : 'VISIT_NOT_ELIGIBLE');
+  if (!isHomeCare(visit) || !completion?.done) {
+    return deadline(completion?.at, asOf, isOpen(records, visit.id, asOf), 'VISIT_NOT_ELIGIBLE');
+  }
+  const incidentTimes = incidents
+    .filter(item => String(item.visitId) === visit.id)
+    .map(incidentResultAt)
+    .filter(Boolean);
+  const latestIncidentAt = incidentTimes.length ? new Date(Math.max(...incidentTimes.map(Number))) : null;
+  const fromIncident = Boolean(latestIncidentAt && (!completion.at || +latestIncidentAt > +completion.at));
+  const anchorAt = fromIncident ? latestIncidentAt : completion.at;
+  const deadlineSource = fromIncident ? 'INCIDENT_RESULT'
+    : visit.state === 'STAFF_CLOSED' ? 'VISIT_CLOSED' : 'VISIT_END';
+  return deadline(anchorAt, asOf, isOpen(records, visit.id, asOf), null, deadlineSource);
 }
 
 function checkCap(basis, amountVnd) {
@@ -130,8 +149,8 @@ export function createComplaintService({ repository, billing, readImage, clock =
     return booking;
   }
 
-  async function loadCase(tx, actor, complaintIdValue) {
-    const record = await tx.getComplaint(complaintIdValue);
+  async function loadCase(tx, actor, complaintIdValue, { includeIncident = false } = {}) {
+    const record = await tx.getComplaint(complaintIdValue, { includeIncident });
     if (!record) notFound();
     const visit = record.visitId ? await tx.getVisit(record.visitId) : null;
     if (record.visitId && (!visit || visit.bookingId !== record.bookingId)) notFound();
@@ -181,7 +200,8 @@ export function createComplaintService({ repository, billing, readImage, clock =
       if (prior) return prior;
       if (expected !== null && (visit ?? booking).version !== expected) conflict('VERSION_CONFLICT');
       const records = await tx.bookingComplaints(booking.id);
-      const eligibility = visit ? visitEligibility(visit, records, asOf)
+      const incidents = visit ? (await tx.bookingIncidents?.(booking.id) ?? []) : [];
+      const eligibility = visit ? visitEligibility(visit, records, asOf, incidents)
         : await bookingEligibility(tx, booking, await tx.getVisits(booking), records, asOf);
       enforceEligibility(eligibility);
       await tx.assertEvidence(payload.evidenceRefs, actor.userId);
@@ -206,12 +226,13 @@ export function createComplaintService({ repository, billing, readImage, clock =
       if (booking.customerId !== actor.userId) notFound();
       const visits = await tx.getVisits(booking);
       const records = await tx.bookingComplaints(booking.id);
+      const incidents = await tx.bookingIncidents?.(booking.id) ?? [];
       const whole = await bookingEligibility(tx, booking, visits, records, asOf);
       return {
         booking: bookingSummary(booking, visits), wholeBooking: { ...whole, aboveVisitTable: whole.eligible
           && visits.every(visit => !visitCompletion(visit)?.done) },
         visits: visits.map(visit => {
-          const entry = visitEligibility(visit, records, asOf);
+          const entry = visitEligibility(visit, records, asOf, incidents);
           return { ...visitSummary(visit), ...(visit.customerVisitId ? { customerVisitId: String(visit.customerVisitId) } : {}),
             eligibility: entry, canSubmit: entry.eligible
             || (entry.reason === 'COMPLAINT_ALREADY_OPEN' && whole.eligible) };
@@ -224,13 +245,16 @@ export function createComplaintService({ repository, billing, readImage, clock =
     authenticate(actor, now());
     if (proposalOnly) authorizeRole(actor, 'ADMIN');
     return run(async tx => {
-      const { record, booking, visit } = await loadCase(tx, actor, complaintId(id));
+      const { record, booking, visit } = await loadCase(tx, actor, complaintId(id), { includeIncident: proposalOnly });
       if (proposalOnly && !record.proposal) notFound();
       const details = { ...record, bookingSummary: bookingSummary(booking, visit ? [visit] : await tx.getVisits(booking)),
         visitSummary: visitSummary(visit) };
       const options = {};
       if (hasRole(actor.roles, 'STAFF')) {
         details.customerName = await tx.getCustomerName(booking.customerId);
+        if (record.proposal?.createdBy) {
+          details.proposerName = await tx.getCustomerName(record.proposal.createdBy);
+        }
         options.customerPhone = await tx.getPhone(booking.customerId);
         try {
           const basis = await readBasis(tx, booking.id, record.moneyDecision?.amountVnd ?? 0);
@@ -261,7 +285,7 @@ export function createComplaintService({ repository, billing, readImage, clock =
     }
   }
 
-  async function mutate(command, role, operation, normalize, transition) {
+  async function mutate(command, role, operation, normalize, transition, { includeIncident = false } = {}) {
     const { actor, complaintId: id, expectedVersion, idempotencyKey, ...input } = command;
     authenticate(actor, now());
     authorizeRole(actor, role);
@@ -270,7 +294,7 @@ export function createComplaintService({ repository, billing, readImage, clock =
     const identity = { actorRef: actor.userId, resourceRef: caseId, operation, key: commandKey(idempotencyKey) };
     return run(async tx => {
       const asOf = now();
-      const { record, booking } = await loadCase(tx, actor, caseId);
+      const { record, booking } = await loadCase(tx, actor, caseId, { includeIncident });
       const previous = await tx.getIdempotencyResult(identity);
       if (previous && previous.payloadHash === legacyCommandFingerprint(input, caseId, expected, operation)) return previous.result;
       const payload = normalize(input);
@@ -279,12 +303,16 @@ export function createComplaintService({ repository, billing, readImage, clock =
       if (prior) return prior;
       if (expected === null || (record.version ?? 0) !== expected) conflict('VERSION_CONFLICT');
       const guardedBooking = await tx.guardBooking(booking);
-      const { changes, event, messageCode } = await transition({ tx, record, booking: guardedBooking, actor, payload, asOf });
+      const { changes, event, messageCode, timelineEntry } = await transition({ tx, record, booking: guardedBooking, actor, payload, asOf });
+      const isIncident = record.kind === 'INCIDENT';
       const saved = await tx.updateComplaint({
         complaintId: caseId, expectedVersion: expected,
-        changes: { state: complaintState(record), objectionCount: record.objectionCount ?? 0, ...changes,
-          complaintSchemaVersion: COMPLAINT_SCHEMA_VERSION,
-          updatedAt: asOf, billState: changes.finalAt ? null : 'ON_HOLD' }
+        ...(isIncident ? { kind: 'INCIDENT', timelineEntry } : {}),
+        changes: isIncident
+          ? { ...changes, updatedAt: asOf.toISOString() }
+          : { state: complaintState(record), objectionCount: record.objectionCount ?? 0, ...changes,
+            complaintSchemaVersion: COMPLAINT_SCHEMA_VERSION,
+            updatedAt: asOf, billState: changes.finalAt ? null : 'ON_HOLD' }
       });
       return commitEvent(tx, { identity, fingerprint, record: saved, actor, asOf, event, messageCode });
     });
@@ -327,9 +355,13 @@ export function createComplaintService({ repository, billing, readImage, clock =
     checkCap(basis, amountVnd);
     if (typeof billing.applyAdjustment !== 'function') unavailable();
     const disposition = basis.paidInFull ? 'ACCOUNTING_REFUND' : 'BILL_CREDIT';
-    const ref = 'complaint:' + record.id + ':v' + (record.version + 1);
-    const applied = await billing.applyAdjustment({ session: tx.session, bookingId: booking.id, complaintId: record.id,
-      basis, amountVnd, priorAmountVnd, disposition, ref, actorId: actor.userId, at: asOf });
+    const isIncident = record.kind === 'INCIDENT';
+    const ref = (isIncident ? 'incident:' : 'complaint:') + record.id + ':v' + (record.version + 1);
+    const applied = await billing.applyAdjustment({
+      session: tx.session, bookingId: booking.id,
+      complaintId: record.id, sourceId: record.id, sourceType: isIncident ? 'INCIDENT' : 'COMPLAINT',
+      basis, amountVnd, priorAmountVnd, disposition, ref, actorId: actor.userId, at: asOf
+    });
     if (applied?.applied !== true) unavailable();
     return { amountVnd, disposition, ref, decidedBy: actor.userId, decidedAt: asOf };
   }
@@ -338,16 +370,58 @@ export function createComplaintService({ repository, billing, readImage, clock =
     return mutate(command, 'ADMIN', 'COMPLAINT_REFUND_DECIDE', normalizeRefundDecision,
       async ({ tx, record, booking, actor, payload, asOf }) => {
         const { proposal } = record;
-        if (complaintState(record) !== 'OPEN' || proposal?.status !== 'PENDING') conflict();
+        const isIncident = record.kind === 'INCIDENT';
+        if (isIncident) {
+          if (!['OPEN', 'UNDER_REVIEW'].includes(record.state) || proposal?.status !== 'PENDING') conflict();
+        } else if (complaintState(record) !== 'OPEN' || proposal?.status !== 'PENDING') {
+          conflict();
+        }
         const { outcome, reason } = payload;
         if (outcome === 'REDUCE' && payload.amountVnd >= proposal.amountVnd) invalid('amountVnd', 'Enter an amount lower than proposed');
         const amountVnd = outcome === 'APPROVE' ? proposal.amountVnd : payload.amountVnd;
         const payment = outcome === 'REJECT' ? { amountVnd: null, decidedAt: asOf, decidedBy: actor.userId }
           : await applyMoney(tx, booking, record, asOf, actor, amountVnd, 0);
         const status = { APPROVE: 'APPROVED', REDUCE: 'REDUCED', REJECT: 'REJECTED' }[outcome];
+        if (isIncident) {
+          const fmt = value => `${new Intl.NumberFormat('vi-VN').format(value)} đ`;
+          const note = outcome === 'REJECT'
+            ? `Admin từ chối đề xuất hoàn tiền.${reason ? ' Lý do: ' + reason : ''}`
+            : outcome === 'REDUCE'
+              ? `Admin hạ số tiền hoàn từ ${fmt(proposal.amountVnd)} xuống ${fmt(amountVnd)}.`
+              : `Admin duyệt hoàn ${fmt(amountVnd)}.`;
+          const isoNow = asOf.toISOString();
+          return {
+            changes: {
+              state: 'RESOLVED',
+              customerResult: proposal.customerResult,
+              resolvedAt: isoNow,
+              resultDeliveredAt: asOf,
+              proposal: { ...proposal, status },
+              moneyDecision: { ...payment, outcome, reason },
+              resolution: {
+                ...(record.resolution ?? {}),
+                state: 'RESOLVED',
+                targetState: 'RESOLVED',
+                summary: proposal.customerResult,
+                recordedAt: isoNow,
+                resolvedAt: isoNow
+              }
+            },
+            timelineEntry: {
+              type: 'INCIDENT_REFUND_DECIDED',
+              note,
+              occurredAt: isoNow,
+              actorId: actor.userId,
+              actorRole: actor.roles[0]
+            },
+            event: 'IncidentRefundDecided',
+            messageCode: outcome === 'REJECT' ? 'MSG135' : 'MSG134'
+          };
+        }
         return { changes: { ...publish(proposal.customerResult, asOf), proposal: { ...proposal, status },
-          moneyDecision: { ...payment, outcome, reason } }, event: 'ComplaintRefundDecided' };
-      });
+          moneyDecision: { ...payment, outcome, reason } }, event: 'ComplaintRefundDecided',
+          messageCode: outcome === 'REJECT' ? 'MSG135' : 'MSG134' };
+      }, { includeIncident: true });
   }
 
   function object(command) {

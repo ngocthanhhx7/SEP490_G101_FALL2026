@@ -1,3 +1,4 @@
+import { handoverPending } from './visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { createUnitOfWork } from '../unit-of-work.service.js';
 import { digest } from '../../validators/pet-care.validator.js';
@@ -36,7 +37,7 @@ export function createVisitWorkflowService({ connection, clock = Date.now }) {
     const customer = actor.roles.includes('CUSTOMER') && String(booking?.customerId) === actor.userId;
     if (!visit || !booking || (!staff && !sitter && !customer))
       workflowFail('RESOURCE_NOT_FOUND', 'Visit unavailable', 404);
-    if (sitter && visit.handoverRequired && visit.handoverAccepted !== true)
+    if (sitter && handoverPending(visit))
       workflowFail('HANDOVER_REQUIRED', 'Confirm handover first', 409);
     if (writing) {
       if (
@@ -45,7 +46,7 @@ export function createVisitWorkflowService({ connection, clock = Date.now }) {
         !['ASSIGNED', 'IN_PROGRESS', 'DISPATCH_PENDING'].includes(booking.state)
       )
         workflowFail('FORBIDDEN', 'Current assigned employee required', 403);
-      if (visit.handoverRequired && visit.handoverAccepted !== true)
+      if (handoverPending(visit))
         workflowFail('HANDOVER_REQUIRED', 'Confirm handover first', 409);
       const care = visit.snapshots?.care;
       if (
@@ -65,8 +66,11 @@ export function createVisitWorkflowService({ connection, clock = Date.now }) {
         { $inc: { workflowGuardVersion: 1 } },
         { session }
       );
+      const allowedStatuses = visit.state === 'IN_PROGRESS' && visit.checkInAt instanceof Date
+        ? ['ACTIVE', 'SUSPENDED']
+        : ['ACTIVE'];
       const status = await col('sitterstatuses').updateOne(
-        { userId, status: 'ACTIVE' },
+        { userId, status: { $in: allowedStatuses } },
         { $inc: { schedulingGuardVersion: 1 } },
         { session }
       );

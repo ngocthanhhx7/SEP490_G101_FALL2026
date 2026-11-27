@@ -23,6 +23,9 @@ function view({ adapter = { resolve: async () => ({ status: 'authenticated', use
 async function fillApplication() {
   const region = await screen.findByRole('region', { name: 'Kể chúng mình nghe về bạn' });
   const page = within(region);
+  fireEvent.change(page.getByLabelText(/^Họ và tên/), { target: { value: user.displayName } });
+  fireEvent.change(page.getByLabelText(/^Email/), { target: { value: 'sitter@example.test' } });
+  fireEvent.change(page.getByLabelText(/^Số điện thoại/), { target: { value: '0912345678' } });
   fireEvent.click(page.getByRole('radio', { name: 'Bán thời gian (Part-time)' }));
   fireEvent.change(page.getByLabelText(/^Ngày sinh/), { target: { value: '1998-04-12' } });
   fireEvent.change(page.getByLabelText(/^Số CCCD/), { target: { value: 'TEST12345678' } });
@@ -42,42 +45,38 @@ beforeEach(() => {
   loadPublicCatalog.mockResolvedValue({ data: { available: true, services: [{ id: 'walk', name: 'Dắt chó đi dạo' }, { id: 'visit', name: 'Ghé thăm và chơi cùng bé' }] } });
 });
 
-test('names the invalid identity side rather than the selected filename', async () => {
+test('shows MSG49 under the invalid identity side without disclosing the selected filename', async () => {
   const api = view();
   const page = await fillApplication();
   const input = page.getByLabelText(/^Mặt sau CCCD/);
   fireEvent.change(input, { target: { files: [new globalThis.File(['invalid'], 'private-filename.pdf', { type: 'application/pdf' })] } });
+  expect(await page.findByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.')).toBeVisible();
+  expect(page.queryByText(/private-filename\.pdf/)).not.toBeInTheDocument();
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
-  expect(await page.findByText(/Mặt sau CCCD phải là JPG hoặc PNG/)).toBeVisible();
   expect(api.uploadDocument).not.toHaveBeenCalled();
 });
 
-test('guest sitter registers and verifies email before opening the private application form', async () => {
+test('Guest opens the application directly without registering an account or verifying email first', async () => {
   const adapter = { resolve: jest.fn().mockResolvedValueOnce({ status: 'guest' }).mockResolvedValue({ status: 'authenticated', user }) };
   const registrationApi = { requestOtp: jest.fn(async () => ({ challengeId: 'synthetic-challenge', resendAfterSeconds: 60, expiresInSeconds: 300 })),
     verifyAndRegister: jest.fn(async () => ({ authenticated: true, user })) };
   const api = view({ adapter, registrationApi });
-  await screen.findByRole('heading', { name: 'Đăng ký tài khoản mới' });
-  expect(api.loadIntake).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByLabelText('Họ và tên của bạn'), { target: { value: user.displayName } });
-  fireEvent.change(screen.getByRole('textbox', { name: 'Email' }), { target: { value: 'sitter@example.test' } });
-  fireEvent.click(screen.getByRole('checkbox'));
-  fireEvent.click(screen.getByRole('button', { name: 'Đăng ký', exact: true }));
-  fireEvent.change(await screen.findByRole('textbox', { name: 'Mã OTP gồm 6 chữ số' }), { target: { value: '004201' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Xác thực & hoàn tất đăng ký' }));
   expect(await screen.findByRole('heading', { name: 'Kể chúng mình nghe về bạn' })).toBeVisible();
-  expect(screen.getByLabelText(/^Email/)).toHaveAttribute('readonly');
+  expect(screen.getByLabelText(/^Email/)).not.toHaveAttribute('readonly');
+  expect(screen.getByLabelText(/^Số điện thoại/)).toBeRequired();
+  expect(registrationApi.requestOtp).not.toHaveBeenCalled();
+  expect(registrationApi.verifyAndRegister).not.toHaveBeenCalled();
   expect(api.loadIntake).toHaveBeenCalled();
 });
 
-test('uses the verified email, selected services and private upload references to submit once', async () => {
+test('uses both submitted contacts, selected services and private upload references to submit once', async () => {
   const api = view();
   const page = await fillApplication();
   fireEvent.click(page.getByRole('checkbox', { name: 'Ghé thăm và chơi cùng bé' }));
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   expect(await screen.findByRole('heading', { name: 'Đã tiếp nhận hồ sơ' })).toBeVisible();
   expect(api.submit).toHaveBeenCalledTimes(1);
-  expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ employmentType: 'PART_TIME', contactChannel: 'EMAIL', contactValue: 'sitter@example.test',
+  expect(api.submit).toHaveBeenCalledWith(expect.objectContaining({ employmentType: 'PART_TIME', email: 'sitter@example.test', phone: '0912345678',
     requestedServices: ['Dắt chó đi dạo', 'Ghé thăm và chơi cùng bé'], documents: ['IDENTITY_FRONT','IDENTITY_BACK','PORTRAIT'].map(documentType=>({documentId:'synthetic-doc-id',storageRef:'synthetic-storage-ref',documentType})) }), { key: 'synthetic-application-key' });
   expect(screen.getByText('synthetic-secret-receipt-code')).toBeVisible();
   expect(screen.getByRole('link', { name: 'Theo dõi hồ sơ →' })).toHaveAttribute('href', '/sitter/application-status');
@@ -134,8 +133,8 @@ test('file and required-field validation happens before any upload', async () =>
   const api = view();
   const page = await fillApplication();
   fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['fake'], 'not-supported.pdf', { type: 'application/pdf' })] } });
+  expect(await screen.findByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.')).toBeVisible();
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
-  expect(await screen.findByText('Mặt trước CCCD phải là JPG hoặc PNG, dung lượng từ 1 byte đến 5 MB.')).toBeVisible();
   expect(api.uploadDocument).not.toHaveBeenCalled();
 });
 
@@ -163,7 +162,7 @@ test('a rejected supporting image identifies that file without marking the ident
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   await waitFor(() => expect(page.getByLabelText(/^Ảnh chứng chỉ/)).toHaveFocus());
   expect(page.getByLabelText(/^Ảnh mặt trước CCCD/)).toHaveAttribute('aria-invalid', 'false');
-  expect(page.getAllByText(/Không đọc được chứng chỉ/).length).toBeGreaterThan(0);
+  expect(page.getAllByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB.').length).toBeGreaterThan(0);
   expect(api.submit).not.toHaveBeenCalled();
 });
 
@@ -174,10 +173,10 @@ test('oversize pixel count blocks upload and server field errors focus their fie
   const image = page.getByRole('img', { name: 'Ảnh đã chọn: identity.png' });
   Object.defineProperties(image, { naturalWidth: { value: 3840, configurable: true }, naturalHeight: { value: 2160, configurable: true } });
   fireEvent.load(image);
-  expect(await page.findByText(/vượt 4 megapixel/)).toBeVisible();
+  expect(await page.findByText('Mỗi tệp phải là ảnh JPG hoặc PNG, tối đa 5 MB và tối đa 4 megapixel.')).toBeVisible();
+  expect(page.queryByRole('img', { name: 'Ảnh đã chọn: identity.png' })).not.toBeInTheDocument();
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   expect(api.uploadDocument).not.toHaveBeenCalled();
-  fireEvent.click(page.getByRole('button', { name: 'Xóa identity.png' }));
   fireEvent.change(page.getByLabelText(/^Ảnh mặt trước CCCD/), { target: { files: [new globalThis.File(['replacement'], 'new.png', { type: 'image/png' })] } });
   fireEvent.click(page.getByRole('button', { name: 'Gửi hồ sơ ứng tuyển →' }));
   await waitFor(() => expect(page.getByLabelText(/^Khu vực mong muốn/)).toHaveFocus());

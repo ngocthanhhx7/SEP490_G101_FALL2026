@@ -1,3 +1,4 @@
+import { handoverPending } from './visit-handover-policy.service.js';
 import { Types } from 'mongoose';
 import { digest } from '../../validators/pet-care.validator.js';
 import { workflowHash, workflowTasks } from './workflow-snapshot.service.js';
@@ -18,9 +19,11 @@ export function createVisitEvidenceQuota({ connection, clock = Date.now }) {
     if (!['ASSIGNED', 'IN_PROGRESS'].includes(visit.state) ||
       !(visit.startAt instanceof Date) || !(visit.endAt instanceof Date) ||
       at < +visit.startAt - 30 * 60 * 1000 || at > end + (arriving ? 0 : 2 * 60 * 60 * 1000) ||
-      (visit.handoverRequired && !visit.handoverAccepted))
+      handoverPending(visit))
       workflowFail('INVALID_STATE', 'Visit cannot accept uploads now', 409);
-    const active = await col('sitterstatuses').findOne({ userId: sitterId, status: 'ACTIVE' }, { session, maxTimeMS: 2000 });
+    const inProgressStarted = visit.state === 'IN_PROGRESS' && visit.checkInAt instanceof Date;
+    const allowedStatuses = inProgressStarted ? ['ACTIVE', 'SUSPENDED'] : ['ACTIVE'];
+    const active = await col('sitterstatuses').findOne({ userId: sitterId, status: { $in: allowedStatuses } }, { session, maxTimeMS: 2000 });
     const booking = await col('bookings').findOne({
       _id: visit.bookingId, visitIds: visit._id, state: { $in: ['ASSIGNED', 'DISPATCH_PENDING', 'IN_PROGRESS'] }
     }, { session, projection: { _id: 1 }, maxTimeMS: 2000 });

@@ -24,11 +24,17 @@
 .customer-home__filters form > * { min-width: 0; }
 .customer-home__visits { list-style: none; margin: 0; padding: 0; }
 .customer-home__visits li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto 32px; align-items: center; gap: 12px; padding: 18px 0; border-bottom: 1px solid #eeecf1; font-size: 13px; }
+.customer-home__visits li.customer-home__grooming-item { grid-template-columns: 40px minmax(0, 1fr) auto auto; align-items: start; }
 .customer-home__visit-icon { display: grid; place-items: center; width: 40px; height: 40px; background: #eef6f4; color: #388878; border-radius: 6px; }
+.customer-home__visit-icon--grooming { background: #fdf5df; color: #8c6a12; }
+.customer-home__grooming-body { min-width: 0; }
+.customer-home__grooming-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 0; color: #675d70; font-size: 12px; }
+.customer-home__grooming-actions { display: flex; align-items: center; }
 .customer-home__visits time { display: block; margin-top: 5px; color: #766d80; font-size: 12px; }
 .customer-home__visits a { display: grid; place-items: center; width: 32px; height: 40px; color: #705193; }
 .customer-home__status { color: #72617d; font-size: 12px; padding: 5px 8px; background: #f3eff8; border-radius: 4px; }
 .customer-home__status--COMPLETED { color: #287e6d; background: #eaf6f0; }
+.customer-home__status--BOOKED { color: #4a346e; background: #f3eff8; }
 .customer-home__empty { display: grid; justify-items: center; text-align: center; padding: 28px 16px 40px; color: #998aa9; }
 .customer-home__empty h3 { font-size: 16px; margin: 12px 0 8px; color: #544261; }
 .customer-home__empty p { font-size: 13px; margin: 0 0 18px; color: #7b7185; max-width: 340px; }
@@ -40,7 +46,9 @@
  .pwc-customer-account .customer-home__welcome img { display: none; }
  .customer-home__welcome h2 { font-size: 18px; } .customer-home__filters form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
  .customer-home__visits li { grid-template-columns: 36px minmax(0, 1fr) 32px; }
+ .customer-home__visits li.customer-home__grooming-item { grid-template-columns: 36px minmax(0, 1fr); }
  .customer-home__status { grid-column: 2; justify-self: start; } .customer-home__visits a { grid-column: 3; grid-row: 1 / span 2; }
+ .customer-home__grooming-actions { grid-column: 2; justify-self: start; }
  .customer-home__summary > div { display: grid; gap: 6px; padding-right: 12px; }
 }
 @media (max-width: 400px) { .customer-home__welcome img { display: none; } .customer-home__pagination { flex-wrap: wrap; } }

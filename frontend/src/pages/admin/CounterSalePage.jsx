@@ -9,8 +9,9 @@ import './counter-sale.css';
 
 export function CounterSalePage({ api }) {
   const [params, setParams] = useSearchParams(), orderId = params.get('order');
+  const paymentCancelled = params.get('cancel') === 'true' || ['CANCELLED', 'FAILED'].includes((params.get('status') ?? '').toUpperCase());
   const selectOrder = useCallback(id => setParams(id ? { order: id } : {}, { replace: true }), [setParams]);
-  const sale = useCounterSale({ api, orderId, selectOrder });
+  const sale = useCounterSale({ api, orderId, selectOrder, paymentCancelled });
   return <section className="pwc-shop counter-sale" aria-labelledby="counter-sale-title">
     <h1 id="counter-sale-title">Bán tại quầy</h1>
     <p className="pwc-shop-lead">Tra sản phẩm, tạo đơn cho khách tại quầy và thu tiền.</p>

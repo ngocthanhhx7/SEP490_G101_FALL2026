@@ -19,8 +19,11 @@ export function ApplicationImagePreview({ file, onRemove, disabled, onValidation
       <img src={url} alt={`Ảnh đã chọn: ${file.name}`} onLoad={event => {
         const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
         setDimensions({ width, height });
-        onValidation?.(width * height > 4_000_000 ? `${documentLabel} có kích thước ${width} × ${height}, vượt 4 megapixel. Giảm kích thước ảnh trước khi gửi.` : null);
-      }} onError={() => { setInvalid(true); onValidation?.(`Không đọc được ${documentLabel.toLowerCase()}. Chọn ảnh JPG hoặc PNG khác.`); }} />
+        onValidation?.(
+          width * height > 4_000_000 ? `${documentLabel} có kích thước ${width} × ${height}, vượt 4 megapixel. Giảm kích thước ảnh trước khi gửi.` : null,
+          width * height > 4_000_000 ? 'dimensions' : null
+        );
+      }} onError={() => { setInvalid(true); onValidation?.(`Không đọc được ${documentLabel.toLowerCase()}. Chọn ảnh JPG hoặc PNG khác.`, 'unreadable'); }} />
       <Eye size={18} aria-hidden="true" />
     </button>}
     <div><strong>{file.name}</strong><small>{(file.size / 1024 / 1024).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} MB</small>

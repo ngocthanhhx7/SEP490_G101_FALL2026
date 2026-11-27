@@ -43,7 +43,7 @@ export function createEmploymentDocumentService({ connection, crypto, lookupSecr
   return {
     async get(actor, applicationId) {
       admin(actor); id(applicationId);
-      const application = await Application.findById(applicationId).select('+applicantParticularsCiphertext +identityLookupKey +contactCiphertext').lean();
+      const application = await Application.findById(applicationId).select('+applicantParticularsCiphertext +identityLookupKey +contactCiphertext +phoneCiphertext').lean();
       if (!application) fail('RESOURCE_NOT_FOUND', 'Application unavailable', 404);
       const rows = await Document.find({ applicationId }).sort({ revision: -1 }).limit(20).select('+encryptedTerms +archiveReference').lean();
       await payrollModels(connection).PayrollEvent.create({ actorId: actor.userId, resourceId: applicationId, type: 'CONTRACT_READ', at: new Date(clock()) });

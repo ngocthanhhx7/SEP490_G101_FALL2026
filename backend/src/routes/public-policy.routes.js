@@ -11,9 +11,11 @@ export function publicPolicyModule({ connection, clock = Date.now } = {}) {
       : null;
   const service = createPublicPolicyCatalog({ PolicyVersion, clock });
   const router = Router();
+  const controller = createPublicPolicyController({ service });
   router.get(
     '/public-policies',
-    createPublicPolicyController({ service }).getPublicPolicies
+    controller.getPublicPolicies
   );
+  router.get('/public-policies/:slug/:version', controller.getPublicPolicyVersion);
   return { name: 'public-policy', mount: '/api/v1/public', router };
 }

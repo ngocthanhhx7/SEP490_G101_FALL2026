@@ -134,7 +134,7 @@ test('report renders only the authorized projected tasks and legacy is explicit'
   const { rerender } = render(<CareWorkflowReport workflow={workflow} />);
   expect(screen.getByLabelText('Kết quả quy trình chăm sóc')).toHaveTextContent('Milo');
   rerender(<CareWorkflowReport workflow={{ mode: 'LEGACY' }} />);
-  expect(screen.getByText(/Ca legacy/)).toBeInTheDocument();
+  expect(screen.getByText('Buổi này dùng danh sách việc đã lưu.')).toBeInTheDocument();
 });
 test('staff review sends reason/current version and never fabricates completion', async () => {
   const api = {

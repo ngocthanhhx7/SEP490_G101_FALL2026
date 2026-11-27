@@ -3,7 +3,8 @@ import {
   OperationsTable,
   OperationsBadge,
 } from '../../components/common/OperationsWorkspace.jsx';
-import { Dialog } from '../../components/ui/index.js';
+import { Dialog, Notice } from '../../components/ui/index.js';
+import { CONTRACT_END_AFTER_START_MESSAGE, formatContractStartDateConflict } from '../../utils/contract-error-feedback.js';
 import { AutomaticPayrollForm } from '../../components/payroll/AutomaticPayrollForm.jsx';
 import { useCallback, useRef, useState } from 'react';
 import { usePayrollWorkspace } from '../../hooks/usePayrollWorkspace.js';
@@ -21,6 +22,7 @@ import {
   PayrollAdjustmentDecision,
 } from '../../components/payroll/PayrollAdjustmentForms.jsx';
 import { EmployeeContractForm } from '../../components/payroll/EmployeeContractForm.jsx';
+import './employee-payroll-admin.css';
 
 const employeeField = {
   label: 'Mã nhân viên',
@@ -147,8 +149,12 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
   const contractBody = useRef(null);
   const [contractLocked, setContractLocked] = useState(false),
     [contractRevision, setContractRevision] = useState(0);
+  const [contractNotice, setContractNotice] = useState(null);
+  const [contractFieldErrors, setContractFieldErrors] = useState({});
   const saveContract = async (body) => {
     contractBody.current ??= body;
+    setContractNotice(null);
+    setContractFieldErrors({});
     const saved = await state.command('contract', contractBody.current, async (key) => {
       try {
         return await api.contract(contractBody.current, key);
@@ -162,12 +168,20 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
           contractBody.current = null;
           if (error.code === 'VERSION_CONFLICT') setContractRevision((value) => value + 1);
         }
+        if (error.fieldErrors?.endsAt) {
+          setContractFieldErrors({ endsAt: CONTRACT_END_AFTER_START_MESSAGE });
+        } else {
+          const startConflict = formatContractStartDateConflict(error);
+          if (startConflict) setContractNotice(startConflict);
+        }
         throw error;
       }
     });
     if (saved) {
       contractBody.current = null;
       setContractLocked(false);
+      setContractNotice(null);
+      setContractFieldErrors({});
       setContractRevision((value) => value + 1);
     }
     return saved;
@@ -215,7 +229,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
     </OperationsBadge>
   );
   return (
-    <section className="ops-workspace payroll-workspace">
+    <section className="ops-workspace payroll-workspace payroll-admin-page">
       <header>
         <div>
           <h1>Quản lý lương</h1>
@@ -245,10 +259,13 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
       <section className="ops-builder">
         <details>
           <summary>Xác minh hợp đồng cũ / thay đổi hợp đồng</summary>
+          {contractNotice && <Notice state="error" title="Chưa lưu hợp đồng">{contractNotice}</Notice>}
           <EmployeeContractForm
             key={contractRevision}
             busy={state.busy}
             locked={contractLocked}
+            fieldErrors={contractFieldErrors}
+            onClearFieldError={field => setContractFieldErrors(current => ({ ...current, [field]: undefined }))}
             onSave={saveContract}
             loadEmployee={employeeApi ? loadEmployee : undefined}
           />
@@ -482,7 +499,7 @@ export function EmployeePayrollAdminPage({ api, employeeApi }) {
                 ? 'Đối chiếu tạm ứng'
                 : 'Chi tiết điều chỉnh'
           }
-          className="ops-dialog"
+          className="ops-dialog payroll-admin-dialog"
           dismissible={!state.busy && !uncertain}
           onClose={() => setSelected(null)}
         >

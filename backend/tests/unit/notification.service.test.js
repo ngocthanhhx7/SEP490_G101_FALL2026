@@ -63,6 +63,33 @@ describe('notification service', () => {
     await expect(service.list({ actor: { userId: 'x', state: 'EXPIRED', roles: ['CUSTOMER'] } })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
     await expect(service.publish({ eventId: 'event-1', eventType: 'SYSTEM', title: 'Title', message: 'Message', deepLink: 'https://evil.example', recipients: [actor.userId] })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
   });
+
+  test('ST-BKG-15 tolerates legacy stored metadata with messageCode or Date values and logs a warning', async () => {
+    const logger = { warn: jest.fn() };
+    const assignedAt = new Date('2026-11-26T01:30:00.000Z');
+    const repository = makeRepository({
+      list: jest.fn(async () => ({
+        items: [
+          row({ id: 'legacy-code', eventType: 'BOOKING_PAYMENT_EXPIRED', metadata: { bookingId: 'b-1', messageCode: 'MSG67' } }),
+          row({ id: 'legacy-date', eventType: 'VISIT_REMINDER', metadata: { visitId: 'v-1', assignedAt } }),
+          row({ id: 'malformed-link', deepLink: 'https://evil.example' })
+        ],
+        nextCursor: null,
+        unreadCount: 2
+      }))
+    });
+    const service = createNotificationService({ repository, clock: () => new Date('2026-10-15T01:00:00.000Z'), logger });
+    const result = await service.list({ actor });
+    expect(result.items).toEqual([
+      expect.objectContaining({ id: 'legacy-code', metadata: { bookingId: 'b-1' } }),
+      expect.objectContaining({ id: 'legacy-date', metadata: { visitId: 'v-1', assignedAt: '2026-11-26T01:30:00.000Z' } })
+    ]);
+    expect(logger.warn).toHaveBeenCalled();
+    await expect(service.publish({
+      eventId: 'reject-message-code', eventType: 'BOOKING_PAYMENT_EXPIRED', title: 'Hết hạn', message: 'MSG',
+      recipients: [{ recipientId: actor.userId, role: 'CUSTOMER' }], metadata: { bookingId: 'b-1', messageCode: 'MSG67' }
+    })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
 });
 
 describe('notification service mark all read (UC-88)', () => {

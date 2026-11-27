@@ -83,10 +83,13 @@ export function createHandoverService({ repository, clock = () => new Date() } =
     return visit;
   }
 
-  function authorize(actor, visit, { confirm = false } = {}) {
+  function authorize(actor, visit, { confirm = false, replacementId = null } = {}) {
     if (isOperational(actor)) return;
-    if (hasRole(actor, 'CUSTOMER') && customerIdOf(visit) === actor.userId) return;
-    if (!confirm && hasRole(actor, 'PET_SITTER') && sitterIdOf(visit) === actor.userId) return;
+    if (!confirm && hasRole(actor, 'CUSTOMER') && customerIdOf(visit) === actor.userId) return;
+    if (hasRole(actor, 'PET_SITTER') && (sitterIdOf(visit) === actor.userId || (confirm && replacementId === actor.userId))) return;
+    if (confirm && hasRole(actor, 'CUSTOMER') && customerIdOf(visit) === actor.userId) {
+      fail(403, 'FORBIDDEN', 'Only the assigned Pet Sitter or Staff can confirm handover');
+    }
     fail(404, 'RESOURCE_NOT_FOUND', 'Visit not found');
   }
 
@@ -100,7 +103,7 @@ export function createHandoverService({ repository, clock = () => new Date() } =
     const fingerprint = createHash('sha256').update(JSON.stringify({ visitId, replacementId, expected, instructions, note })).digest('hex');
     return run(actor, visitId, async tx => {
       const visit = await loadVisit(tx, visitId);
-      authorize(actor, visit, { confirm: true });
+      authorize(actor, visit, { confirm: true, replacementId });
       if (visit.version !== expected) fail(409, 'VERSION_CONFLICT', 'Visit changed; reload before confirming handover');
       if (visit.state && ['COMPLETED', 'CANCELLED', 'STAFF_CLOSED'].includes(visit.state)) fail(409, 'INVALID_STATE', 'Visit no longer accepts a handover');
       const identity = { actorRef: actor.userId, operation: 'VISIT_HANDOVER_CONFIRM', resourceRef: visitId, key: idempotency };
@@ -121,7 +124,9 @@ export function createHandoverService({ repository, clock = () => new Date() } =
         if (typeof tx.saveIdempotencyResult === 'function') await tx.saveIdempotencyResult({ identity, payloadHash: fingerprint, result: replay });
         return replay;
       }
-      if (sitterIdOf(visit) === replacementId) fail(409, 'REPLACEMENT_NOT_ELIGIBLE', 'The replacement sitter must differ from the current sitter');
+      if (sitterIdOf(visit) === replacementId && visit.handoverRequired !== true) {
+        fail(409, 'REPLACEMENT_NOT_ELIGIBLE', 'The replacement sitter must differ from the current sitter');
+      }
       const assignment = typeof tx.getReplacementAssignment === 'function'
         ? await tx.getReplacementAssignment({ visitId, sitterId: replacementId }) : null;
       if (!assignment || idOf(assignment.sitterId ?? assignment.userId) !== replacementId

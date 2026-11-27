@@ -16,6 +16,18 @@ export function createSystemSettingsController({ service } = {}) {
           body: req.body,
           actor: req.auth
         })
+      ),
+    getFaultyProductReportDays: async (req, res) =>
+      respond(res, req, 200, await service.currentFaultyProductReportDays()),
+    updateFaultyProductReportDays: async (req, res) =>
+      respond(
+        res,
+        req,
+        200,
+        await service.updateFaultyProductReportDays({
+          body: req.body,
+          actor: req.auth
+        })
       )
   };
 }

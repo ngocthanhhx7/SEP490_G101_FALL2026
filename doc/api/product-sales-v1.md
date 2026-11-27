@@ -62,11 +62,13 @@ JOB-04 cancels ready pickup orders at or after their stored deadline when the wo
 401 and other signed-in roles receive 403. The route returns
 `Cache-Control: private, no-store`.
 
-The `data` object is `{ counts: { PREPARE, AWAITING_PICKUP, RETURNING } }`.
-The counts use the same status aggregation as the Order Management list and
-are independent of search and pagination. Before the first order, all three
-counts are zero even if MongoDB has yet to create the order collection.
-An order count query failure returns `503 SALES_DASHBOARD_SOURCE_UNAVAILABLE`.
+The `data` object is `{ counts: { PREPARE, AWAITING_PICKUP, RETURNING, LOW_STOCK } }`.
+The order counts use the same status aggregation as the Order Management list
+and are independent of search and pagination; `LOW_STOCK` uses the same
+available-stock expression and threshold as Stock List (UC-71), including out-of-stock
+products. Before the first order or product, all counts are zero even if MongoDB
+has yet to create the collections.
+A count query failure returns `503 SALES_DASHBOARD_SOURCE_UNAVAILABLE`.
 Disabling product sales yields `404 RESOURCE_NOT_FOUND`.
 
 ## Product Management (Admin)

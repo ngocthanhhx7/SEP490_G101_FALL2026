@@ -58,10 +58,25 @@ function CustomerBasket({ services, session, compact }) {
     <div className="pwc-basket-actions"><button type="button" disabled={rows.length >= 20} onClick={add}><Plus size={18} />Thêm dịch vụ</button>
       <button type="submit" disabled={!rows.length || status === 'loading'}><Calculator size={18} />{status === 'loading' ? 'Đang tính…' : 'Xem báo giá'}</button></div>
     {status === 'error' && <p role="alert">Chưa thể báo giá. Kiểm tra hồ sơ, số lượt và điều kiện dịch vụ rồi thử lại.</p>}
-    {result && <div className="pwc-basket-total" role="status"><dl>{[
-      ['Tiền dịch vụ', result.baseVnd], ['Phụ phí đặc điểm', result.surchargeVnd], ['Giảm combo', -result.discountVnd], ['Phí bậc giá', result.orderFeeVnd], ['Tổng dự kiến', result.totalVnd]
-    ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
-      <p>{result.paymentMode === 'PREPAY' ? 'Thanh toán trước khi thực hiện.' : 'Thanh toán sau khi hoàn tất.'} Báo giá có hiệu lực đến {new Date(result.expiresAt).toLocaleTimeString('vi-VN')}.</p>
+    {result && <div className="pwc-basket-total" role="status">
+      <h3>Tóm tắt và giá</h3>
+      {result.items.map((item, index) => <div key={index}>
+        <strong>{services.find(service => service.id === item.serviceId)?.name ?? `Dịch vụ ${index + 1}`}</strong>
+        <dl>
+          <div><dt>Giá một buổi (gồm phụ phí áp dụng)</dt><dd>{item.subtotalVnd % item.visitCount === 0
+            ? money(item.subtotalVnd / item.visitCount)
+            : `${money(Math.floor(item.subtotalVnd / item.visitCount))} – ${money(Math.ceil(item.subtotalVnd / item.visitCount))}`}</dd></div>
+          <div><dt>Số buổi</dt><dd>{item.visitCount}</dd></div>
+          <div><dt>Thành tiền</dt><dd>{money(item.subtotalVnd)}</dd></div>
+        </dl>
+      </div>)}
+      <dl>{[
+        ['Tạm tính', result.baseVnd + result.surchargeVnd],
+        ['Giảm nhiều buổi', -result.discountVnd],
+        [`Giảm giá hạng ${({ MEMBER: 'Member', SILVER: 'Silver', GOLD: 'Gold' })[result.tier?.code] ?? ''}`, -(result.tierDiscountVnd ?? 0)],
+        ['Tổng thanh toán', result.totalVnd]
+      ].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{money(value)}</dd></div>)}</dl>
+      <p>Thanh toán toàn bộ qua payOS trong 15 phút sau khi đặt lịch. Báo giá có hiệu lực đến {new Date(result.expiresAt).toLocaleTimeString('vi-VN')}.</p>
       {compact && result.items?.length > 0 && <Button type="button" onClick={() => setCheckout(true)}>Chọn lịch cho các buổi</Button>}
     </div>}
   </form>{result?.items?.length > 0 && <div hidden={compact && !checkout}>

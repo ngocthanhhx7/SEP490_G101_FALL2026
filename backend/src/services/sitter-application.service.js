@@ -8,6 +8,9 @@ import { AppError } from '../utils/app-error.js';
 import { isSingleRole } from '../utils/roles.js';
 import { identityModels } from '../models/identity.model.js';
 import { createDomainNotifications } from './notifications/domain-notifications.service.js';
+import { releaseSuspendedSitterWork } from './employee-scheduling/visit-withdrawal.service.js';
+import { APPLICATION_CHECKS } from '../constants/sitter-application-assessment.js';
+import { validateApplicationAssessment } from '../validators/sitter-application-assessment.validator.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REAPPLY_DELAY_MS = 30 * DAY_MS;
@@ -16,6 +19,14 @@ const ALLOWED_STATES = new Set(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVE
 const ACTIVE_STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW'];
 const PAGE_LIMIT = 50;
 const SEARCH_CANDIDATE_LIMIT = 500;
+
+const checklistComplete = assessment => APPLICATION_CHECKS.every(check => assessment?.checklist?.[check] === true);
+
+function requireApplicationChecklist(assessment) {
+  if (!checklistComplete(assessment)) {
+    throw new AppError(409, 'APPLICATION_CHECKLIST_REQUIRED', 'Complete all four application checks');
+  }
+}
 
 function invalid(message = 'Application request is invalid') {
   const field = ['displayName', 'contactValue', 'dateOfBirth', 'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'employmentType']
@@ -159,7 +170,7 @@ function maskContact(channel, value) {
 
 const LIST_SERVICE_AREAS = DEMO_WORK_AREAS.filter(area => area.level !== 'CITY')
   .map(area => ({ id: area.code, name: area.label }));
-const LIST_FIELDS = 'displayName contactChannel ageEligible employmentType requestedServices workAreas state reapplyAt createdAt updatedAt version +contactCiphertext +submissionKeyDigest';
+const LIST_FIELDS = 'displayName contactChannel ageEligible employmentType requestedServices workAreas state reapplyAt createdAt updatedAt version +contactCiphertext +phoneCiphertext +submissionKeyDigest';
 
 function receiptCode(secret, submissionKeyDigest) {
   return createHmac('sha256', secret).update(`application-receipt\0${submissionKeyDigest}`).digest('base64url');
@@ -207,7 +218,8 @@ function applicationView(application, contactValue, { includePrivate = false } =
 }
 
 export function createSitterApplicationService({ connection, Applicant, User, Audit, DownloadQuota, SitterStatus,
-  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, employmentDocuments, clock = Date.now }) {
+  contactCrypto, privateMedia, lookupSecret, cursorSecret, registrationPolicyService, applicationMail, employmentDocuments,
+  guestSubmission = false, requeueVisit, clock = Date.now }) {
   if (typeof employmentDocuments?.activate !== 'function' || !connection?.transaction || !Applicant || !User || !Audit || !DownloadQuota || !SitterStatus
     || typeof contactCrypto?.lookup !== 'function' || typeof contactCrypto?.encrypt !== 'function'
     || typeof contactCrypto?.decrypt !== 'function' || typeof lookupSecret !== 'string'
@@ -217,16 +229,34 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
   }
   const cursors = cursorCodec(cursorSecret);
 
-  async function submit({ body, idempotencyKey, correlationId, actor }) {
+  const submissionUnavailable = () => new AppError(409, 'APPLICATION_SUBMISSION_UNAVAILABLE',
+    'An application cannot be submitted at this time');
+
+  async function canReadSubmissionRecord(actor, record) {
+    if (!actor?.userId || !record?._id) return false;
+    try {
+      const { filter } = await ownerContext(actor);
+      return Boolean(await Applicant.exists({ ...filter, _id: record._id }));
+    } catch (error) {
+      if (error.code === 'FORBIDDEN') return false;
+      throw error;
+    }
+  }
+
+  async function submit({ body, idempotencyKey, correlationId, actor, applicant }) {
     if (!body || typeof body !== 'object' || Array.isArray(body)
       || Object.keys(body).some(key => !['displayName', 'contactChannel', 'contactValue', 'dateOfBirth',
-        'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'policyVersions', 'employmentType'].includes(key))) invalid();
+        'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'policyVersions', 'employmentType', 'email', 'phone'].includes(key))) invalid();
+    const dualContact = guestSubmission || body.email !== undefined || body.phone !== undefined;
+    if (guestSubmission && (!applicant?.userId || actor?.userId)) throw new AppError(403, 'FORBIDDEN', 'Guest intake required');
     const employmentType = body.employmentType;
     if (employmentType !== undefined && !['FULL_TIME', 'PART_TIME'].includes(employmentType)) invalid('employmentType is invalid');
     const displayName = safeText(body.displayName, { max: 100, field: 'displayName' });
-    const contactChannel = body.contactChannel;
-    const contactValue = canonicalizeContact(contactChannel, body.contactValue);
+    const contactChannel = dualContact ? 'EMAIL' : body.contactChannel;
+    const contactValue = canonicalizeContact(contactChannel, dualContact ? body.email : body.contactValue);
     const contact = contactCrypto.lookup(contactChannel, contactValue);
+    const phone = dualContact ? contactCrypto.lookup('PHONE', canonicalizeContact('PHONE', normalizeVietnamPhone(body.phone) ?? body.phone)) : null;
+    const contactKeys = [contact.lookupKey, ...(phone ? [phone.lookupKey] : [])];
     const identityValue = canonicalIdentity(body.identityNumber);
     const identityLookupKey = hash(lookupSecret, `applicant-identity\0${identityValue}`);
     const experience = safeText(body.experience, { min: 10, max: 2000, field: 'experience' });
@@ -243,6 +273,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     const trackingCodeDigest = hash(lookupSecret, `application-tracking\0${applicationCode}`);
     const normalizedPayload = {
       displayName, contactChannel, contactLookupKey: contact.lookupKey, identityLookupKey,
+      ...(phone ? { phoneLookupKey: phone.lookupKey } : {}),
       dateOfBirth: body.dateOfBirth, experience, requestedServices, workAreas,
       ...(employmentType ? { employmentType } : {}),
       ...(registrationPolicyService ? { policyVersions: body.policyVersions } : {}),
@@ -250,56 +281,99 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     };
     const submissionPayloadDigest = hashPayload(lookupSecret, normalizedPayload);
 
-    const priorSubmission = await Applicant.findOne({ submissionKeyDigest }).select('+submissionPayloadDigest').lean();
-    if (priorSubmission) {
-      if (priorSubmission.ownerUserId && priorSubmission.ownerUserId.toString() !== actor?.userId) {
-        throw new AppError(403, 'FORBIDDEN', 'Application does not belong to this applicant');
+    async function verifySubmittedDocuments() {
+      if (typeof privateMedia?.verifyApplicantDocuments !== 'function') {
+        throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document storage is not configured');
       }
-      if (!sameDigest(priorSubmission.submissionPayloadDigest, submissionPayloadDigest)) {
-        throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
+      const verifiedDocuments = await privateMedia.verifyApplicantDocuments({
+        documents, contactLookupKey: contact.lookupKey, identityLookupKey, actor, applicant
+      });
+      if (!Array.isArray(verifiedDocuments) || verifiedDocuments.length !== documents.length
+        || verifiedDocuments.some(document => !documents.some(input => input.documentId === document.documentId
+          && input.documentType === document.documentType && input.storageRef === document.storageRef))) {
+        throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document references could not be verified');
       }
-      // A matching original request can restore omitted particulars, never guessed historical data.
-      if (actor?.userId && String(priorSubmission.ownerUserId) === actor.userId) await Applicant.updateOne({ _id: priorSubmission._id, applicantParticularsCiphertext: { $exists: false } },
-        { $set: { applicantParticularsCiphertext: contactCrypto.encrypt(JSON.stringify({ dateOfBirth: body.dateOfBirth, identityNumber: identityValue })) } });
-      await Applicant.updateOne({ _id: priorSubmission._id, trackingCodeDigest: { $exists: false } },
-        { $set: { trackingCodeDigest } });
-      return { id: priorSubmission._id.toString(), state: priorSubmission.state,
-        submittedAt: priorSubmission.createdAt.toISOString(), applicationCode, replayed: true };
+      return verifiedDocuments;
     }
 
+    async function replaySubmission(record) {
+      const canRead = await canReadSubmissionRecord(actor, record);
+      if (!canRead && (actor?.userId || record.ownerUserId)) throw submissionUnavailable();
+      if (!sameDigest(record.submissionPayloadDigest, submissionPayloadDigest)) {
+        if (!canRead) throw submissionUnavailable();
+        throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
+      }
+      if (!canRead) await verifySubmittedDocuments();
+
+      // Restore an omitted snapshot only from its authenticated owner's original request.
+      if (String(record.ownerUserId) === actor?.userId) {
+        await Applicant.updateOne({ _id: record._id, applicantParticularsCiphertext: { $exists: false } },
+          { $set: { applicantParticularsCiphertext: contactCrypto.encrypt(JSON.stringify({ dateOfBirth: body.dateOfBirth, identityNumber: identityValue })) } });
+      }
+      await Applicant.updateOne({ _id: record._id, trackingCodeDigest: { $exists: false } },
+        { $set: { trackingCodeDigest } });
+      return { id: record._id.toString(), state: canRead ? record.state : 'PENDING',
+        submittedAt: record.createdAt.toISOString(), applicationCode, replayed: true };
+    }
+
+    const priorSubmission = await Applicant.findOne({ submissionKeyDigest }).select('+submissionPayloadDigest').lean();
+    if (priorSubmission) return replaySubmission(priorSubmission);
+
     normalizeDocuments(body.documents, true);
-    const tooEarly = await Applicant.exists({
-      $or: [{ contactLookupKey: contact.lookupKey }, { identityLookupKey }, ...(actor?.userId ? [{ ownerUserId: actor.userId }] : [])],
+    const pendingSelect = 'contactChannel +contactLookupKey +phoneLookupKey +identityLookupKey +activePendingContactKey +activePendingContactKeys +activePendingIdentityKey';
+    const pendingConflictField = row => {
+      if (!row) return null;
+      const keys = new Set([row.activePendingContactKey, ...(row.activePendingContactKeys ?? []), row.contactLookupKey, row.phoneLookupKey].filter(Boolean));
+      if (phone && keys.has(phone.lookupKey)) return 'phone';
+      if (keys.has(contact.lookupKey)) return contactChannel === 'PHONE' ? 'phone' : 'email';
+      if (row.activePendingIdentityKey === identityLookupKey || row.identityLookupKey === identityLookupKey) return 'identityNumber';
+      return null;
+    };
+    async function pendingConflict(record) {
+      if (!(await canReadSubmissionRecord(actor, record))) return submissionUnavailable();
+      const conflictField = pendingConflictField(record);
+      return new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time',
+        conflictField ? { conflictField } : {});
+    }
+
+    const tooEarly = await Applicant.findOne({
+      $or: [{ contactLookupKey: { $in: contactKeys } }, { phoneLookupKey: { $in: contactKeys } }, { identityLookupKey }, ...(actor?.userId ? [{ ownerUserId: actor.userId }] : [])],
       state: 'REJECTED', reapplyAt: { $gt: new Date(now) }
-    });
-    if (tooEarly) throw new AppError(409, 'REAPPLY_NOT_AVAILABLE', 'An application cannot be submitted at this time');
-    const duplicate = await Applicant.exists({ $or: [
-      { activePendingContactKey: contact.lookupKey }, { activePendingIdentityKey: identityLookupKey },
+    }).sort({ reapplyAt: -1 }).select('reapplyAt').lean();
+    if (tooEarly) {
+      if (!(await canReadSubmissionRecord(actor, tooEarly))) throw submissionUnavailable();
+      throw new AppError(409, 'REAPPLY_NOT_AVAILABLE', 'An application cannot be submitted at this time',
+        tooEarly.reapplyAt ? { reapplyAt: tooEarly.reapplyAt.toISOString() } : {});
+    }
+    const duplicateFilter = { $or: [
+      { activePendingContactKey: { $in: contactKeys } }, { activePendingIdentityKey: identityLookupKey },
+      { activePendingContactKeys: { $in: contactKeys } },
       ...(actor?.userId ? [{ ownerUserId: actor.userId, state: { $in: ACTIVE_STATES } }] : [])
-    ] });
-    if (duplicate) throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time');
-    if (typeof privateMedia?.verifyApplicantDocuments !== 'function') {
-      throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document storage is not configured');
-    }
-    const verifiedDocuments = await privateMedia.verifyApplicantDocuments({
-      documents, contactLookupKey: contact.lookupKey, identityLookupKey, actor
-    });
-    if (!Array.isArray(verifiedDocuments) || verifiedDocuments.length !== documents.length
-      || verifiedDocuments.some(document => !documents.some(input => input.documentId === document.documentId
-        && input.documentType === document.documentType && input.storageRef === document.storageRef))) {
-      throw new AppError(503, 'PROVIDER_UNAVAILABLE', 'Private document references could not be verified');
-    }
+    ] };
+    const duplicate = await Applicant.findOne(duplicateFilter).select(pendingSelect).lean();
+    if (duplicate) throw await pendingConflict(duplicate);
+    const verifiedDocuments = await verifySubmittedDocuments();
 
     try {
       const application = await connection.transaction(async session => {
         const policyConsents = registrationPolicyService
           ? await registrationPolicyService.validateAndBuildReceipt({ policyVersions: body.policyVersions, session, now }) : [];
+        if (dualContact && await identityModels(connection).Contact.exists({ lookupKey: { $in: contactKeys }, state: 'VERIFIED' }).session(session))
+          throw submissionUnavailable();
+        if (dualContact && await Applicant.exists({ state: 'APPROVED', provisionedUserId: { $ne: null },
+          $or: [{ contactLookupKey: { $in: contactKeys } }, { phoneLookupKey: { $in: contactKeys } }, { identityLookupKey }] }).session(session))
+          throw submissionUnavailable();
         if (actor?.userId) {
           const { Contact } = identityModels(connection);
           const verified = await Contact.exists({ userId: actor.userId, channel: contactChannel,
             lookupKey: contact.lookupKey, state: 'VERIFIED' }).session(session);
           const owner = await User.exists({ _id: actor.userId, state: 'ACTIVE', roles: ['CUSTOMER'], synthetic: false }).session(session);
           if (!verified || !owner) throw new AppError(403, 'FORBIDDEN', 'Applicant account or contact is no longer eligible');
+        } else if (typeof connection.db?.collection === 'function') {
+          const existingContact = await connection.db.collection('contacts')?.findOne?.({
+            channel: contactChannel, lookupKey: contact.lookupKey, state: 'VERIFIED'
+          }, { session });
+          if (existingContact) throw submissionUnavailable();
         }
         const [created] = await Applicant.create([{
           ownerUserId: actor?.userId ?? null,
@@ -307,6 +381,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           policyConsents,
           displayName, contactChannel, contactCiphertext: contactCrypto.encrypt(contact.canonicalValue),
           contactLookupKey: contact.lookupKey, identityLookupKey,
+          ...(phone ? { phoneCiphertext: contactCrypto.encrypt(phone.canonicalValue), phoneLookupKey: phone.lookupKey,
+            activePendingContactKeys: contactKeys } : {}),
           applicantParticularsCiphertext: contactCrypto.encrypt(JSON.stringify({ dateOfBirth: body.dateOfBirth, identityNumber: identityValue })),
           activePendingContactKey: contact.lookupKey, activePendingIdentityKey: identityLookupKey,
           ageEligible: true, ageCheckedAt: new Date(now), experience, requestedServices, workAreas,
@@ -315,6 +391,13 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           trackingCodeDigest, submissionKeyDigest, submissionPayloadDigest
         }], { session });
         await applicationMail?.enqueue(created, session);
+        if (typeof connection.db?.collection === 'function') {
+          const admins = await User.find({ state: 'ACTIVE', roles: { $in: ['ADMIN'] }, synthetic: { $ne: true } })
+            .select('_id').session(session).lean();
+          await createDomainNotifications({ connection, clock }).applicationSubmitted({
+            applicationId: String(created._id), applicationCode, adminIds: admins.map(row => row._id)
+          }, session);
+        }
         await Audit.create([{
           actorRoles: [], action: 'APPLICATION_SUBMITTED', resourceId: created._id,
           occurredAt: new Date(now), state: 'PENDING', correlationId: correlationId ?? null
@@ -325,24 +408,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         submittedAt: application.createdAt.toISOString(), applicationCode, replayed: false };
     } catch (error) {
       const replay = await Applicant.findOne({ submissionKeyDigest }).select('+submissionPayloadDigest').lean();
-      if (replay) {
-        if (replay.ownerUserId && replay.ownerUserId.toString() !== actor?.userId) {
-          throw new AppError(403, 'FORBIDDEN', 'Application does not belong to this applicant');
-        }
-        if (!sameDigest(replay.submissionPayloadDigest, submissionPayloadDigest)) {
-          throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This submission key was already used');
-        }
-        await Applicant.updateOne({ _id: replay._id, trackingCodeDigest: { $exists: false } },
-          { $set: { trackingCodeDigest } });
-        return { id: replay._id.toString(), state: replay.state, submittedAt: replay.createdAt.toISOString(), applicationCode, replayed: true };
-      }
-      const duplicatePending = await Applicant.exists({ $or: [
-        { activePendingContactKey: contact.lookupKey }, { activePendingIdentityKey: identityLookupKey },
-      ...(actor?.userId ? [{ ownerUserId: actor.userId, state: { $in: ACTIVE_STATES } }] : [])
-      ] });
-      if (duplicatePending || error?.code === 11000) {
-        throw new AppError(409, 'APPLICATION_ALREADY_PENDING', 'An application cannot be submitted at this time');
-      }
+      if (replay) return replaySubmission(replay);
+      const duplicatePending = await Applicant.findOne(duplicateFilter).select(pendingSelect).lean();
+      if (duplicatePending || error?.code === 11000) throw await pendingConflict(duplicatePending);
       throw error;
     }
   }
@@ -400,7 +468,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         const code = row.submissionKeyDigest ? receiptCode(lookupSecret, row.submissionKeyDigest) : null;
         const matches = row.displayName.normalize('NFC').toLocaleLowerCase('vi').includes(term)
           || code?.toLowerCase().includes(term)
-          || (phoneTerm && row.contactChannel === 'PHONE' && phoneMatches(contactCrypto.decrypt(row.contactCiphertext), phoneTerm));
+          || (phoneTerm && row.contactChannel === 'PHONE' && phoneMatches(contactCrypto.decrypt(row.contactCiphertext), phoneTerm))
+          || (phoneTerm && row.phoneCiphertext && phoneMatches(contactCrypto.decrypt(row.phoneCiphertext), phoneTerm));
         if (matches) rows.push(row);
         if (rows.length > limit) break;
       }
@@ -421,7 +490,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       return {
         id: row._id.toString(), displayName: row.displayName,
         applicationCode: row.submissionKeyDigest ? receiptCode(lookupSecret, row.submissionKeyDigest) : null,
-        phoneNumber: row.contactChannel === 'PHONE' ? contactValue : null,
+        phoneNumber: row.phoneCiphertext ? contactCrypto.decrypt(row.phoneCiphertext) : row.contactChannel === 'PHONE' ? contactValue : null,
         contact: { channel: row.contactChannel, maskedValue: maskContact(row.contactChannel, contactValue) },
         ageEligible: row.ageEligible, employmentType: row.employmentType ?? null,
         requestedServices: [...row.requestedServices], workAreas: [...row.workAreas],
@@ -441,13 +510,15 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     assertAdmin(actor);
     if (!Types.ObjectId.isValid(applicationId)) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
     const id = new Types.ObjectId(applicationId);
-    const application = await Applicant.findById(id).select('+contactCiphertext').lean();
+    const application = await Applicant.findById(id).select('+contactCiphertext +phoneCiphertext').lean();
     if (!application) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
     const now = clock();
     await Audit.create({ actorId: new Types.ObjectId(actor.userId), actorRoles: [...actor.roles],
       action: 'APPLICATION_VIEWED', resourceId: id, occurredAt: new Date(now), state: application.state,
       correlationId: correlationId ?? null });
     const result = applicationView(application, contactCrypto.decrypt(application.contactCiphertext), { includePrivate: true });
+    result.assessment = application.assessment ?? null;
+    if (application.phoneCiphertext) result.phoneNumber = contactCrypto.decrypt(application.phoneCiphertext);
     const transitions = await Audit.find({ resourceId: id, action: { $in: ['APPLICATION_REVIEW_STARTED', 'APPLICATION_DECIDED'] } })
       .sort({ occurredAt: 1, _id: 1 }).select('state occurredAt').lean();
     result.timeline = [{ state: 'PENDING', occurredAt: application.createdAt.toISOString() },
@@ -472,6 +543,51 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     return changeToReview({ applicationId, expectedVersion, idempotencyKey, actor, correlationId });
   }
 
+  async function saveAssessment({ applicationId, body, idempotencyKey, actor, correlationId }) {
+    assertAdmin(actor);
+    if (!Types.ObjectId.isValid(applicationId)) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
+    const { expectedVersion, expectedAssessmentVersion, ...assessment } = validateApplicationAssessment(body);
+    const id = new Types.ObjectId(applicationId), key = validateIdempotencyKey(idempotencyKey);
+    const idempotencyDigest = hash(lookupSecret, `application-assessment\0${actor.userId}\0${id}\0${key}`);
+    const payloadDigest = hashPayload(lookupSecret, { expectedVersion, expectedAssessmentVersion, ...assessment });
+    const allowedStates = assessment.callAt || assessment.outcome ? ['INTERVIEW'] : ['UNDER_REVIEW', 'INTERVIEW'];
+    const version = expectedAssessmentVersion + 1;
+    async function replay(session) {
+      const row = await Audit.findOne({ resourceId: id, idempotencyDigest }).select('+payloadDigest').session(session ?? null).lean();
+      if (!row) return null;
+      if (!sameDigest(row.payloadDigest, payloadDigest)) throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This assessment key was already used');
+      return { id: applicationId, state: row.state, version: expectedVersion, assessmentVersion: row.resultVersion, replayed: true };
+    }
+    try {
+      return await connection.transaction(async session => {
+        const previous = await replay(session);
+        if (previous) return previous;
+        const current = await Applicant.findById(id).select('state version assessment.version').session(session).lean();
+        if (!current) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
+        if (current.version !== expectedVersion || (current.assessment?.version ?? 0) !== expectedAssessmentVersion) {
+          throw new AppError(409, 'VERSION_CONFLICT', 'Application assessment changed');
+        }
+        if (!allowedStates.includes(current.state)) throw new AppError(409, 'APPLICATION_STAGE_REQUIRED', 'Assessment is unavailable at this stage');
+        // The signed contract references the application version. Assessment has an independent revision.
+        const saved = await Applicant.findOneAndUpdate({
+          _id: id, state: current.state, version: expectedVersion,
+          'assessment.version': expectedAssessmentVersion || { $exists: false }
+        }, { $set: { assessment: { ...assessment, version } } }, { session, returnDocument: 'after' });
+        if (!saved) throw new AppError(409, 'VERSION_CONFLICT', 'Application assessment changed');
+        await Audit.create([{
+          actorId: actor.userId, actorRoles: actor.roles, action: 'APPLICATION_ASSESSMENT_SAVED', resourceId: id,
+          state: saved.state, occurredAt: new Date(clock()), idempotencyDigest, payloadDigest, resultVersion: version,
+          correlationId: correlationId ?? null
+        }], { session });
+        return { id: applicationId, state: saved.state, version: saved.version, assessmentVersion: version, replayed: false };
+      });
+    } catch (error) {
+      const previous = await replay();
+      if (previous) return previous;
+      throw error;
+    }
+  }
+
   async function changeToReview({ applicationId, expectedVersion, idempotencyKey, actor, correlationId, targetState = 'UNDER_REVIEW' }) {
     if (!Types.ObjectId.isValid(applicationId)) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) invalid('expectedVersion is invalid');
@@ -487,6 +603,10 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
     try {
       return await connection.transaction(async session => {
+        if (targetState === 'INTERVIEW') {
+          const current = await Applicant.findOne({ _id: id, state: 'UNDER_REVIEW', version: expectedVersion }).session(session).lean();
+          if (current) requireApplicationChecklist(current.assessment);
+        }
         const application = await Applicant.findOneAndUpdate({ _id: id, state: targetState === 'INTERVIEW' ? 'UNDER_REVIEW' : 'PENDING', version: expectedVersion },
           { $set: { state: targetState }, $inc: { version: 1 } }, { returnDocument: 'after', session }).select('+contactCiphertext');
         if (!application) {
@@ -536,7 +656,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     try {
       return await connection.transaction(async session => {
         const current = await Applicant.findOne({ _id: id, state: { $in: ACTIVE_STATES }, version: expectedVersion })
-          .select('+contactLookupKey +contactCiphertext').session(session).lean();
+          .select('+contactLookupKey +contactCiphertext +phoneLookupKey').session(session).lean();
         if (!current) {
           const found = await Applicant.exists({ _id: id }).session(session);
           if (!found) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
@@ -545,6 +665,10 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         if (current.state !== 'INTERVIEW') throw new AppError(409, 'APPLICATION_STAGE_REQUIRED', 'Complete review and interview before a decision');
         let user = null;
         if (action === 'APPROVE') {
+          requireApplicationChecklist(current.assessment);
+          if (!current.assessment.callAt || current.assessment.outcome !== 'PASSED') {
+            throw new AppError(409, 'APPLICATION_INTERVIEW_REQUIRED', 'Record the interview call time and a passing result');
+          }
           if (current.ownerUserId) {
             const { Contact } = identityModels(connection);
             const verifiedContact = await Contact.exists({ userId: current.ownerUserId, channel: current.contactChannel,
@@ -554,6 +678,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
               { $set: { roles: ['PET_SITTER'] }, $inc: { authEpoch: 1, version: 1 } }, { returnDocument: 'after', session });
             if (!user) throw new AppError(409, 'CONTACT_UNAVAILABLE', 'Applicant account is no longer eligible');
           } else {
+            if (await identityModels(connection).Contact.exists({ lookupKey: { $in: [current.contactLookupKey, current.phoneLookupKey].filter(Boolean) }, state: 'VERIFIED' }).session(session))
+              throw submissionUnavailable();
             [user] = await User.create([{
               displayName: current.displayName, roles: ['PET_SITTER'], state: 'ACTIVE', authEpoch: 0, version: 0, synthetic: false
             }], { session });
@@ -569,7 +695,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         const application = await Applicant.findOneAndUpdate({ _id: id, state: { $in: ACTIVE_STATES }, version: expectedVersion }, {
           $set: { state, interviewNote, decisionReason: reason, rejectedAt, reapplyAt,
             provisionedUserId: user?._id ?? null },
-          $unset: { activePendingContactKey: 1, activePendingIdentityKey: 1, activePendingOwnerUserId: 1 },
+          $unset: { activePendingContactKey: 1, activePendingContactKeys: 1, activePendingIdentityKey: 1, activePendingOwnerUserId: 1 },
           $inc: { version: 1 }
         }, { returnDocument: 'after', session });
         if (!application) throw new AppError(409, 'VERSION_CONFLICT', 'Application changed before the decision was applied');
@@ -626,8 +752,9 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
 
     const expectedStatus = action === 'SUSPEND' ? 'ACTIVE' : 'SUSPENDED';
     const nextStatus = action === 'SUSPEND' ? 'SUSPENDED' : 'ACTIVE';
+    let requeueTargets = [];
     try {
-      return await connection.transaction(async session => {
+      const committed = await connection.transaction(async session => {
         const application = await Applicant.findOne({ _id: id, state: 'APPROVED', provisionedUserId: { $ne: null } })
           .session(session).lean();
         if (!application) {
@@ -647,9 +774,32 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
           idempotencyDigest, payloadDigest, resultVersion: status.version, resultUserId: status.userId,
           correlationId: correlationId ?? null
         }], { session });
+        const released = action === 'SUSPEND'
+          ? await releaseSuspendedSitterWork({
+            connection,
+            sitterId: status.userId,
+            actorId: actor.userId,
+            reason,
+            at: new Date(now),
+            session,
+            autoRequeue: typeof requeueVisit === 'function'
+          })
+          : null;
+        requeueTargets = released?.requeueTargets ?? [];
         return { applicationId: id.toString(), userId: status.userId.toString(),
-          status: status.status, version: status.version, replayed: false };
+          status: status.status, version: status.version, replayed: false,
+          ...(released ? { withdrawnOfferCount: released.withdrawnOfferCount, requeuedVisitCount: released.requeueTargets.length } : {}) };
       }, { readPreference: 'primary', readConcern: { level: 'snapshot' }, writeConcern: { w: 'majority' } });
+      if (action === 'SUSPEND' && requeueTargets.length && typeof requeueVisit === 'function') {
+        for (const target of requeueTargets) {
+          if (target.afterOfferRevocation) {
+            await requeueVisit(target.visitId, target.version, { afterOfferRevocation: true });
+          } else {
+            await requeueVisit(target.visitId, target.version);
+          }
+        }
+      }
+      return committed;
     } catch (error) {
       const replay = await Audit.findOne({ resourceId: id, idempotencyDigest })
         .select('+idempotencyDigest +payloadDigest').lean();
@@ -719,7 +869,8 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     if (!user || !isSingleRole(user.roles) || !['CUSTOMER','PET_SITTER'].includes(user.roles[0])) throw new AppError(403,'FORBIDDEN','Current applicant account required');
     if(session){const locked=await connection.collection('users').findOneAndUpdate({_id:user._id,state:'ACTIVE',synthetic:false,authEpoch:user.authEpoch,roles:user.roles},{$inc:{applicationGuard:1}},{session,returnDocument:'after'});if(!locked)throw new AppError(403,'FORBIDDEN','Current applicant account required');}
     const contacts = await identityModels(connection).Contact.find({userId:actor.userId,state:'VERIFIED'}).select('+lookupKey').session(session ?? null).lean();
-    const filter = {$or:[{ownerUserId:actor.userId},{ownerUserId:null,contactLookupKey:{$in:contacts.map(row=>row.lookupKey)}}]};
+    const filter = {$or:[{ownerUserId:actor.userId},{provisionedUserId:actor.userId,state:'APPROVED'},
+      {ownerUserId:null,provisionedUserId:null,contactLookupKey:{$in:contacts.map(row=>row.lookupKey)}}]};
     return {filter,contacts};
   }
   async function getMine({actor}) {
@@ -781,5 +932,5 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     assertAdmin(input.actor);
     return changeToReview({ ...input, targetState: 'INTERVIEW' });
   }
-  return Object.freeze({ getMine, updateMine, submit, list, get, startReview, startInterview, decide, changeSitterStatus, readDocument });
+  return Object.freeze({ getMine, updateMine, submit, list, get, startReview, startInterview, saveAssessment, decide, changeSitterStatus, readDocument });
 }

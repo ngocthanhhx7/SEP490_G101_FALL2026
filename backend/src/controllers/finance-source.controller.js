@@ -1,10 +1,10 @@
 import { metadata } from '../utils/app-error.js';
 import { validateFinanceSourceInput } from '../validators/finance-source.validator.js';
 
-export function createFinanceSourceController({ service, webhook }) {
+export function createFinanceSourceController({ service, webhook, bookingCancellation }) {
   const visitCommand = method => async (req, res) => {
     const input = validateFinanceSourceInput(req.body, method === 'updateChecklist'
-      ? ['expectedVersion', 'items'] : ['expectedVersion', 'mediaId']);
+      ? ['expectedVersion', 'items', 'customerNote'] : ['expectedVersion', 'mediaId']);
     const data = await service[method]({ ...input, visitId: req.params.id, actor: req.auth,
       idempotencyKey: req.get('Idempotency-Key') });
     res.status(200).json({ data, meta: metadata(req) });
@@ -28,6 +28,10 @@ export function createFinanceSourceController({ service, webhook }) {
     },
     payment: async (req, res) => {
       const data = await webhook.handleWebhook(req.body);
+      res.status(200).json({ data, meta: metadata(req) });
+    },
+    adminBookingRefunds: async (req, res) => {
+      const data = await bookingCancellation.listBookingRefunds(req.auth, req.query);
       res.status(200).json({ data, meta: metadata(req) });
     }
   });
