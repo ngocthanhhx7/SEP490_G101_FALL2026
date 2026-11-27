@@ -1,4 +1,5 @@
 import { employmentTerms } from '../fixtures/employment-terms.js';
+import { assessmentInput } from '../fixtures/application-assessment.js';
 import { afterAll, beforeAll, beforeEach, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -144,6 +145,8 @@ test('registration → private upload → application → scoped OTP status → 
     .send({ action: 'APPROVE', expectedVersion: 0, reason: 'Synthetic premature decision' }).expect(409)
     .expect(res => expect(res.body.error.code).toBe('APPLICATION_STAGE_REQUIRED'));
   for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    if (stage === 'interview') await request(app).patch(`/api/v1/applications/${created.body.data.id}/assessment`).set(adminHeaders)
+      .set('Idempotency-Key', 'synthetic-review-assessment').send(assessmentInput(1, 0)).expect(200);
     await request(app).post(`/api/v1/applications/${created.body.data.id}/${stage}`).set(adminHeaders)
       .set('Idempotency-Key', `synthetic-stage-${stage}`).send({ expectedVersion }).expect(200);
   }
@@ -163,6 +166,10 @@ test('registration → private upload → application → scoped OTP status → 
     terms:employmentTerms({employeeName:'Ứng viên kiểm thử',identityNumber:'TEST12345678',plannedSigningOn:signedOn,effectiveOn})}).expect(201)).body.data;
   await request(app).post(`${contractRoot}/${contract.id}/decisions`).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-issue'}).send({action:'ISSUE',termsHash:contract.termsHash}).expect(200);
   await request(app).post(`${contractRoot}/${contract.id}/decisions`).set({...adminHeaders,'Idempotency-Key':'synthetic-intake-sign'}).send({action:'SIGN',termsHash:contract.termsHash,signedOn,archiveReference:'Synthetic physical archive',bothPartiesSigned:true}).expect(200);
+  await request(app).patch(`/api/v1/applications/${created.body.data.id}/assessment`).set(adminHeaders)
+    .set('Idempotency-Key', 'synthetic-passed-interview').send(assessmentInput(2, 1, {
+      callAt: new Date(clockNow).toISOString(), outcome: 'PASSED'
+    })).expect(200);
   await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...adminHeaders, 'Idempotency-Key': 'synthetic-approve-0001' })
     .send({ action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic review completed' }).expect(200)
     .expect(res => expect(res.body.data.userId).toBe(owner.id));
@@ -247,8 +254,11 @@ test('owner cooldown survives verified email and identity changes after rejectio
   const sessions = createSessionService({ connection, clock: () => clockNow, tokenSecret: env.SESSION_TOKEN_SECRET, csrfSecret: env.SESSION_CSRF_SECRET });
   let issued;
   await connection.transaction(async session => { issued = await sessions.issueInTransaction(admin, session); });
+  const adminHeaders = { ...base, Cookie: `pwc_session=${issued.token}`, 'X-CSRF-Token': issued.csrfToken };
   for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) {
-    await request(app).post(`/api/v1/applications/${created.body.data.id}/${stage}`).set({ ...base, Cookie: `pwc_session=${issued.token}`, 'X-CSRF-Token': issued.csrfToken })
+    if (stage === 'interview') await request(app).patch(`/api/v1/applications/${created.body.data.id}/assessment`).set(adminHeaders)
+      .set('Idempotency-Key', 'synthetic-owner-assessment').send(assessmentInput(1, 0)).expect(200);
+    await request(app).post(`/api/v1/applications/${created.body.data.id}/${stage}`).set(adminHeaders)
       .set('Idempotency-Key', `synthetic-stage-${stage}`).send({ expectedVersion }).expect(200);
   }
   await request(app).post(`/api/v1/applications/${created.body.data.id}/decisions`).set({ ...base, Cookie: `pwc_session=${issued.token}`,

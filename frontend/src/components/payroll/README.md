@@ -12,6 +12,10 @@ Template v2 shows only the approved minimum 40/20 weekly hours and self-registra
 
 The contract editor prefers saved terms, then private profile prefill, then safe generic defaults. Admin can edit suggestions; resource refresh does not overwrite mounted uncontrolled inputs. Prefill hints never sign/issue/save by themselves and are not stored in browser storage.
 
+`EmployeeContractForm` starts from the applicant's work preference in sitter
+details and after employee lookup in Payroll Admin. The Admin can select the
+type of the signed contract before saving.
+
 Field validation reports safe field names/reasons only (no entered values). The
 editor retains inputs, links errors to their controls and allows a watermarked
 DRAFT print for checking; printing never issues, signs or activates a contract.

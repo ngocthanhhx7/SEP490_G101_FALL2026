@@ -1,4 +1,5 @@
 import { employmentTerms } from '../fixtures/employment-terms.js';
+import { assessmentInput, completeChecklist } from '../fixtures/application-assessment.js';
 import { afterAll, beforeAll, beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { MongoMemoryReplSet } from 'mongodb-memory-server-core';
 import request from 'supertest';
@@ -69,10 +70,20 @@ function submit(appInstance, body, key = 'submit-key-0001') {
 
 async function advanceToInterview(instance, admin, applicationId) {
   for (const [path, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    if (path === 'interview') await saveAssessment(instance, admin, applicationId, assessmentInput(1, 0));
     await request(instance).post(`/api/v1/applications/${applicationId}/${path}`)
       .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .set('Idempotency-Key', `stage-${path}-${applicationId}`).send({ expectedVersion }).expect(200);
   }
+  await saveAssessment(instance, admin, applicationId, assessmentInput(2, 1, {
+    callAt: new Date(clockNow).toISOString(), outcome: 'PASSED'
+  }));
+}
+
+function saveAssessment(instance, admin, applicationId, input) {
+  return request(instance).patch(`/api/v1/applications/${applicationId}/assessment`)
+    .set('Cookie', admin.cookie).set('X-CSRF-Token', admin.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
+    .set('Idempotency-Key', `assessment-${applicationId}-${input.expectedAssessmentVersion}`).send(input).expect(200);
 }
 
 async function signedContract(instance, admin, applicationId) {
@@ -82,6 +93,47 @@ async function signedContract(instance, admin, applicationId) {
   await post(`${root}/${draft.id}/decisions`).set('Idempotency-Key','synthetic-contract-issue').send({action:'ISSUE',termsHash:draft.termsHash}).expect(200);
   await post(`${root}/${draft.id}/decisions`).set('Idempotency-Key','synthetic-contract-sign').send({action:'SIGN',termsHash:draft.termsHash,signedOn:'2026-10-14',archiveReference:'Synthetic signed physical archive',bothPartiesSigned:true}).expect(200);
 }
+
+test('UC-18: saved checks and a passed interview gate approval without invalidating a signed contract', async () => {
+  const instance = app();
+  const { id } = (await submit(instance, applicationBody()).expect(201)).body.data;
+  const admin = await login('ADMIN'), customer = await login('CUSTOMER');
+  const root = `/api/v1/applications/${id}`;
+  const command = (method, path, key, session = admin) => request(instance)[method](root + path)
+    .set('Cookie', session.cookie).set('X-CSRF-Token', session.csrf).set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
+    .set('Idempotency-Key', key);
+  const save = (key, payload) => command('patch', '/assessment', key).send(payload);
+  const interview = () => command('post', '/interview', 'assessment-start-interview').send({ expectedVersion: 1 });
+  const approve = () => command('post', '/decisions', 'assessment-approve')
+    .send({ expectedVersion: 2, action: 'APPROVE', reason: 'Synthetic assessment passed' });
+
+  await command('post', '/review', 'assessment-start-review').send({ expectedVersion: 0 }).expect(200);
+  await interview().expect(409).expect(res => expect(res.body.error.code).toBe('APPLICATION_CHECKLIST_REQUIRED'));
+  await command('patch', '/assessment', 'assessment-forbidden', customer).send(assessmentInput(1, 0)).expect(403);
+  await save('assessment-malformed', assessmentInput(1, 0, { checklist: { ...completeChecklist, adult: 'true' } })).expect(422);
+  await save('assessment-invalid-stage', assessmentInput(1, 0, { outcome: 'PASSED' })).expect(409);
+  const partial = assessmentInput(1, 0, { checklist: { ...completeChecklist, portrait: false } });
+  await save('assessment-partial', partial).expect(200);
+  await save('assessment-partial', partial).expect(200).expect(res => expect(res.body.data.replayed).toBe(true));
+  await save('assessment-stale', assessmentInput(1, 0)).expect(409);
+  await interview().expect(409);
+  await save('assessment-checks', assessmentInput(1, 1)).expect(200);
+  await interview().expect(200);
+
+  await signedContract(instance, admin, id);
+  await approve().expect(409).expect(res => expect(res.body.error.code).toBe('APPLICATION_INTERVIEW_REQUIRED'));
+  const callAt = new Date(clockNow).toISOString();
+  await save('assessment-invalid-time', assessmentInput(2, 2, { callAt: '2026-02-30T09:00:00+07:00', outcome: 'PASSED' })).expect(422);
+  await save('assessment-not-passed', assessmentInput(2, 2, { callAt, outcome: 'NOT_PASSED' })).expect(200);
+  await approve().expect(409).expect(res => expect(res.body.error.code).toBe('APPLICATION_INTERVIEW_REQUIRED'));
+  await save('assessment-passed', assessmentInput(2, 3, { callAt, outcome: 'PASSED' })).expect(200);
+  await request(instance).get(root).set('Cookie', admin.cookie).expect(200).expect(res => {
+    expect(res.body.data.version).toBe(2);
+    expect(res.body.data.assessment).toEqual({ checklist: completeChecklist, callAt, outcome: 'PASSED', version: 4 });
+  });
+  await request(instance).get(root).set('Cookie', customer.cookie).expect(403);
+  await approve().expect(200).expect(res => expect(res.body.data.state).toBe('APPROVED'));
+});
 
 beforeAll(async () => {
   replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.34' },
@@ -503,6 +555,7 @@ describe('P46 composed applicant status runtime', () => {
       .set('Origin', 'http://127.0.0.1').set('Host', '127.0.0.1')
       .send({ expectedVersion: version });
     await transition('review', 0, 'review-interview-1').expect(200);
+    await saveAssessment(f.instance, admin, f.receipt.id, assessmentInput(1, 0));
     await transition('interview', 1, 'interview-step-1').expect(200);
     await transition('interview', 1, 'interview-step-1').expect(200);
     await transition('interview', 1, 'interview-step-2').expect(409);

@@ -9,6 +9,7 @@ import { publicPolicyVersionModel } from '../../src/models/public-policy-version
 import { userModel } from '../../src/models/user.model.js';
 import { createSessionService } from '../../src/services/session.service.js';
 import { employmentTerms } from '../fixtures/employment-terms.js';
+import { assessmentInput } from '../fixtures/application-assessment.js';
 import { createApplicationMailService } from '../../src/services/applications/application-mail.service.js';
 import { createContactCrypto } from '../../src/services/contact-crypto.service.js';
 
@@ -81,8 +82,11 @@ test('UC-16 / GBR-25 / GBR-28: Guest applies, Admin approves, then the new Sitte
   const admin = { ...base, Cookie: `pwc_session=${session.token}`, 'X-CSRF-Token': session.csrfToken };
   const root = `/api/v1/applications/${created.id}`;
   await request(app).get(root).set(admin).expect(200).expect(res => expect(res.body.data.phoneNumber).toBe('+84912345678'));
-  for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) await request(app).post(`${root}/${stage}`).set(admin)
-    .set('Idempotency-Key', `synthetic-${stage}`).send({ expectedVersion }).expect(200);
+  for (const [stage, expectedVersion] of [['review', 0], ['interview', 1]]) {
+    if (stage === 'interview') await request(app).patch(`${root}/assessment`).set(admin)
+      .set('Idempotency-Key', 'synthetic-review-assessment').send(assessmentInput(1, 0)).expect(200);
+    await request(app).post(`${root}/${stage}`).set(admin).set('Idempotency-Key', `synthetic-${stage}`).send({ expectedVersion }).expect(200);
+  }
   const signedOn = new Date(now + 7 * 3600000).toISOString().slice(0, 10);
   const effectiveOn = new Date(now + 86400000 + 7 * 3600000).toISOString().slice(0, 10);
   const contract = (await request(app).post(`${root}/employment-contract`).set(admin).set('Idempotency-Key', 'synthetic-contract')
@@ -91,6 +95,10 @@ test('UC-16 / GBR-25 / GBR-28: Guest applies, Admin approves, then the new Sitte
   await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'synthetic-issue').send({ action: 'ISSUE', termsHash: contract.termsHash }).expect(200);
   await request(app).post(decisionPath).set(admin).set('Idempotency-Key', 'synthetic-sign').send({ action: 'SIGN', termsHash: contract.termsHash,
     signedOn, archiveReference: 'Synthetic archive', bothPartiesSigned: true }).expect(200);
+  await request(app).patch(`${root}/assessment`).set(admin)
+    .set('Idempotency-Key', 'synthetic-passed-interview').send(assessmentInput(2, 1, {
+      callAt: new Date(now).toISOString(), outcome: 'PASSED'
+    })).expect(200);
   const approved = (await request(app).post(`${root}/decisions`).set(admin).set('Idempotency-Key', 'synthetic-approve')
     .send({ action: 'APPROVE', expectedVersion: 2, reason: 'Synthetic review passed' }).expect(200)).body.data;
   expect(await col('users').countDocuments()).toBe(2);

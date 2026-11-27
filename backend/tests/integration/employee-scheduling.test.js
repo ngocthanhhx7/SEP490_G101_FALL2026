@@ -31,6 +31,7 @@ import { privateImageModule } from '../../src/routes/private-image.routes.js';
 import { privateImageModels } from '../../src/models/private-image.model.js';
 import { createPrivateImageService } from '../../src/services/private-image.service.js';
 import { requireSession, requireCsrf } from '../../src/middlewares/session.js';
+import { createBookingDetailsService } from '../../src/services/booking-proposals/booking-details.service.js';
 import { createBookingCheckoutService } from '../../src/services/booking-proposals/booking-checkout.service.js';
 import { reasonsOfVisit } from '../../src/services/employee-scheduling/needs-action.service.js';
 import { finalizeExceptionalBooking } from '../../src/services/employee-scheduling/booking-terminal.service.js';
@@ -151,13 +152,20 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'IN_PROGRESS', checkInAt: new Date(clock()), checkOutAt: null });
   const mediaOut = await upload('synthetic-private-care-out');
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-out-before-checklist')).send({ expectedVersion: checkedIn.body.data.version, mediaId: mediaOut }).expect(409);
+  const checklist = { expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] };
+  await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-note-invalid'))
+    .send({ ...checklist, customerNote: 'x'.repeat(2001) }).expect(422);
+  const customerNote = 'Milo đã ăn hết phần ăn và uống đủ nước.';
   const saved = await request(server).patch(`${endpoint}/checklists`).set(headers(sitter, 'synthetic-checklist-care'))
-    .send({ expectedVersion: checkedIn.body.data.version, items: [{ itemId: 'pet-condition', status: 'DONE' }] }).expect(200);
+    .send({ ...checklist, customerNote: ` ${customerNote} ` }).expect(200);
   current = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-care')).expect(200)).body.data;
   expect(current.checklist).toEqual([{ itemId: 'pet-condition', status: 'DONE' }]);
+  expect(current.customerNote).toBe(customerNote);
   await request(server).post(`${endpoint}/check-outs`).set(headers(sitter, 'synthetic-check-out-care')).send({ expectedVersion: saved.body.data.version, mediaId: mediaOut }).expect(200);
   expect((await checkout.read(customer, String(row.bookingId))).careShifts[0]).toMatchObject({ state: 'COMPLETED', checkOutAt: new Date(clock()) });
-  expect((await checkout.read(customer, String(row.bookingId))).state).toBe('COMPLETED');
+  const report = await checkout.read(customer, String(row.bookingId));
+  expect(report.state).toBe('COMPLETED');
+  expect(report.details.visits[0].customerNote).toBe(customerNote);
   await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
   expect(stored.size).toBe(2);
   const finalRead = (await request(server).get(`${endpoint}/execution`).set(headers(sitter, 'synthetic-read-final')).expect(200)).body.data;
@@ -167,6 +175,49 @@ test('customer confirmation to sitter acceptance, private evidence, checklist an
   await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(customer,'synthetic-customer-image')).expect(200).expect('Cache-Control','private, no-store');
   await request(server).get(images.mount+'/'+mediaIn+'/content').set(headers(staff,'synthetic-no-staff-image')).expect(404);
   expect(await connection.collection('caremediabindings').countDocuments({ visitId: String(row._id) })).toBe(2);
+});
+
+test('versioned visit notes are saved by the assigned sitter and visible only in the owning customer report', async () => {
+  const sitter = await employee(), otherSitter = await employee();
+  const row = await visit({ start: '2026-10-30T02:50:00Z' });
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    state: 'IN_PROGRESS', sitterId: new mongoose.Types.ObjectId(sitter.userId), checkInAt: new Date(clock()),
+    'snapshots.workflow': { definition: { title: 'Synthetic workflow', steps: [] }, revision: 1, hash: 'synthetic' }
+  } });
+  const finance = financeSourceRuntime({ connection, config: { auth: { enabled: true, tokenSecret: 'synthetic-cursor-secret-at-least-32-chars' } },
+    env: { FINANCE_SOURCES_ENABLED: 'true' }, sessionService, clock });
+  const server = express(); server.use(express.json(), requestId);
+  server.use('/api/v1', finance.router); server.use(errorHandler(() => {}));
+  const url = `/api/v1/visits/${row._id}`;
+  const save = (who, key, payload) => request(server).patch(url + '/checklists')
+    .set({ 'x-test-actor': who.userId, 'x-csrf-token': 'synthetic-csrf', 'Idempotency-Key': key, Host: 'localhost', Origin: 'http://localhost' })
+    .send(payload);
+  const customerNote = 'Đã thay nước sạch cho Milo.';
+  const payload = { expectedVersion: 0, customerNote: ` ${customerNote} ` };
+  await save(otherSitter, 'synthetic-versioned-note-denied', payload).expect(404);
+  await save(sitter, 'synthetic-versioned-note-invalid', { ...payload, customerNote: 'x'.repeat(2001) }).expect(422);
+  await save(sitter, 'synthetic-versioned-note-checklist', { ...payload, items: [{ itemId: 'service-scope', status: 'DONE' }] }).expect(409);
+  const saved = await save(sitter, 'synthetic-versioned-note-save', payload).expect(200);
+  const repeated = await save(sitter, 'synthetic-versioned-note-save', payload).expect(200);
+  expect(repeated.body.data).toEqual(saved.body.data);
+  const execution = await request(server).get(url + '/execution').set('x-test-actor', sitter.userId).expect(200);
+  expect(execution.body.data).toMatchObject({ customerNote, checklist: [], workflow: { mode: 'VERSIONED' } });
+  const checkout = createBookingCheckoutService({ connection, clock });
+  expect((await checkout.read(customer, String(row.bookingId))).details.visits[0]).toMatchObject({ customerNote, workflow: { mode: 'VERSIONED' } });
+  await expect(checkout.read(actor('CUSTOMER'), String(row.bookingId))).rejects.toMatchObject({ status: 404 });
+  const staffDetails = await createBookingDetailsService({ connection, clock }).readStaff(staff, String(row.bookingId));
+  expect(staffDetails.details.visits[0]).not.toHaveProperty('customerNote');
+  await save(sitter, 'synthetic-versioned-note-clear', { expectedVersion: saved.body.data.version, customerNote: '' }).expect(200);
+  expect((await checkout.read(customer, String(row.bookingId))).details.visits[0]).not.toHaveProperty('customerNote');
+  await connection.collection('visits').updateOne({ _id: row._id }, { $set: {
+    startAt: new Date(clock() - 4 * 3600000), endAt: new Date(clock() - 2 * 3600000 - 1),
+    checkInAt: new Date(clock() - 4 * 3600000)
+  } });
+  const expired = await save(sitter, 'synthetic-versioned-note-expired', {
+    expectedVersion: saved.body.data.version + 1, customerNote: 'Synthetic late note'
+  }).expect(409);
+  expect(expired.body.error.code).toBe('WORKFLOW_WINDOW_CLOSED');
+  expect((await connection.collection('visits').findOne({ _id: row._id })).customerNote).toBe('');
 });
 
 test('execution read exposes timing and bound evidence while excluding private notes and money', async () => {

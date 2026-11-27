@@ -9,6 +9,8 @@ import { isSingleRole } from '../utils/roles.js';
 import { identityModels } from '../models/identity.model.js';
 import { createDomainNotifications } from './notifications/domain-notifications.service.js';
 import { releaseSuspendedSitterWork } from './employee-scheduling/visit-withdrawal.service.js';
+import { APPLICATION_CHECKS } from '../constants/sitter-application-assessment.js';
+import { validateApplicationAssessment } from '../validators/sitter-application-assessment.validator.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const REAPPLY_DELAY_MS = 30 * DAY_MS;
@@ -17,6 +19,14 @@ const ALLOWED_STATES = new Set(['PENDING', 'UNDER_REVIEW', 'INTERVIEW', 'APPROVE
 const ACTIVE_STATES = ['PENDING', 'UNDER_REVIEW', 'INTERVIEW'];
 const PAGE_LIMIT = 50;
 const SEARCH_CANDIDATE_LIMIT = 500;
+
+const checklistComplete = assessment => APPLICATION_CHECKS.every(check => assessment?.checklist?.[check] === true);
+
+function requireApplicationChecklist(assessment) {
+  if (!checklistComplete(assessment)) {
+    throw new AppError(409, 'APPLICATION_CHECKLIST_REQUIRED', 'Complete all four application checks');
+  }
+}
 
 function invalid(message = 'Application request is invalid') {
   const field = ['displayName', 'contactValue', 'dateOfBirth', 'identityNumber', 'experience', 'requestedServices', 'workAreas', 'documents', 'employmentType']
@@ -507,6 +517,7 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
       action: 'APPLICATION_VIEWED', resourceId: id, occurredAt: new Date(now), state: application.state,
       correlationId: correlationId ?? null });
     const result = applicationView(application, contactCrypto.decrypt(application.contactCiphertext), { includePrivate: true });
+    result.assessment = application.assessment ?? null;
     if (application.phoneCiphertext) result.phoneNumber = contactCrypto.decrypt(application.phoneCiphertext);
     const transitions = await Audit.find({ resourceId: id, action: { $in: ['APPLICATION_REVIEW_STARTED', 'APPLICATION_DECIDED'] } })
       .sort({ occurredAt: 1, _id: 1 }).select('state occurredAt').lean();
@@ -532,6 +543,51 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     return changeToReview({ applicationId, expectedVersion, idempotencyKey, actor, correlationId });
   }
 
+  async function saveAssessment({ applicationId, body, idempotencyKey, actor, correlationId }) {
+    assertAdmin(actor);
+    if (!Types.ObjectId.isValid(applicationId)) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
+    const { expectedVersion, expectedAssessmentVersion, ...assessment } = validateApplicationAssessment(body);
+    const id = new Types.ObjectId(applicationId), key = validateIdempotencyKey(idempotencyKey);
+    const idempotencyDigest = hash(lookupSecret, `application-assessment\0${actor.userId}\0${id}\0${key}`);
+    const payloadDigest = hashPayload(lookupSecret, { expectedVersion, expectedAssessmentVersion, ...assessment });
+    const allowedStates = assessment.callAt || assessment.outcome ? ['INTERVIEW'] : ['UNDER_REVIEW', 'INTERVIEW'];
+    const version = expectedAssessmentVersion + 1;
+    async function replay(session) {
+      const row = await Audit.findOne({ resourceId: id, idempotencyDigest }).select('+payloadDigest').session(session ?? null).lean();
+      if (!row) return null;
+      if (!sameDigest(row.payloadDigest, payloadDigest)) throw new AppError(409, 'IDEMPOTENCY_CONFLICT', 'This assessment key was already used');
+      return { id: applicationId, state: row.state, version: expectedVersion, assessmentVersion: row.resultVersion, replayed: true };
+    }
+    try {
+      return await connection.transaction(async session => {
+        const previous = await replay(session);
+        if (previous) return previous;
+        const current = await Applicant.findById(id).select('state version assessment.version').session(session).lean();
+        if (!current) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
+        if (current.version !== expectedVersion || (current.assessment?.version ?? 0) !== expectedAssessmentVersion) {
+          throw new AppError(409, 'VERSION_CONFLICT', 'Application assessment changed');
+        }
+        if (!allowedStates.includes(current.state)) throw new AppError(409, 'APPLICATION_STAGE_REQUIRED', 'Assessment is unavailable at this stage');
+        // The signed contract references the application version. Assessment has an independent revision.
+        const saved = await Applicant.findOneAndUpdate({
+          _id: id, state: current.state, version: expectedVersion,
+          'assessment.version': expectedAssessmentVersion || { $exists: false }
+        }, { $set: { assessment: { ...assessment, version } } }, { session, returnDocument: 'after' });
+        if (!saved) throw new AppError(409, 'VERSION_CONFLICT', 'Application assessment changed');
+        await Audit.create([{
+          actorId: actor.userId, actorRoles: actor.roles, action: 'APPLICATION_ASSESSMENT_SAVED', resourceId: id,
+          state: saved.state, occurredAt: new Date(clock()), idempotencyDigest, payloadDigest, resultVersion: version,
+          correlationId: correlationId ?? null
+        }], { session });
+        return { id: applicationId, state: saved.state, version: saved.version, assessmentVersion: version, replayed: false };
+      });
+    } catch (error) {
+      const previous = await replay();
+      if (previous) return previous;
+      throw error;
+    }
+  }
+
   async function changeToReview({ applicationId, expectedVersion, idempotencyKey, actor, correlationId, targetState = 'UNDER_REVIEW' }) {
     if (!Types.ObjectId.isValid(applicationId)) throw new AppError(404, 'RESOURCE_NOT_FOUND', 'Application not found');
     if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0) invalid('expectedVersion is invalid');
@@ -547,6 +603,10 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     }
     try {
       return await connection.transaction(async session => {
+        if (targetState === 'INTERVIEW') {
+          const current = await Applicant.findOne({ _id: id, state: 'UNDER_REVIEW', version: expectedVersion }).session(session).lean();
+          if (current) requireApplicationChecklist(current.assessment);
+        }
         const application = await Applicant.findOneAndUpdate({ _id: id, state: targetState === 'INTERVIEW' ? 'UNDER_REVIEW' : 'PENDING', version: expectedVersion },
           { $set: { state: targetState }, $inc: { version: 1 } }, { returnDocument: 'after', session }).select('+contactCiphertext');
         if (!application) {
@@ -605,6 +665,10 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
         if (current.state !== 'INTERVIEW') throw new AppError(409, 'APPLICATION_STAGE_REQUIRED', 'Complete review and interview before a decision');
         let user = null;
         if (action === 'APPROVE') {
+          requireApplicationChecklist(current.assessment);
+          if (!current.assessment.callAt || current.assessment.outcome !== 'PASSED') {
+            throw new AppError(409, 'APPLICATION_INTERVIEW_REQUIRED', 'Record the interview call time and a passing result');
+          }
           if (current.ownerUserId) {
             const { Contact } = identityModels(connection);
             const verifiedContact = await Contact.exists({ userId: current.ownerUserId, channel: current.contactChannel,
@@ -868,5 +932,5 @@ export function createSitterApplicationService({ connection, Applicant, User, Au
     assertAdmin(input.actor);
     return changeToReview({ ...input, targetState: 'INTERVIEW' });
   }
-  return Object.freeze({ getMine, updateMine, submit, list, get, startReview, startInterview, decide, changeSitterStatus, readDocument });
+  return Object.freeze({ getMine, updateMine, submit, list, get, startReview, startInterview, saveAssessment, decide, changeSitterStatus, readDocument });
 }

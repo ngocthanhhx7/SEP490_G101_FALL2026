@@ -13,22 +13,31 @@ const labels = { 'service-scope': 'Thực hiện nội dung dịch vụ', 'pet-c
 const states = { ASSIGNED: 'Đã nhận ca', IN_PROGRESS: 'Đang chăm sóc', COMPLETED: 'Đã hoàn thành', STAFF_CLOSED: 'Buổi đã được điều phối đóng', CANCELLED: 'Buổi đã hủy' };
 export function VisitExecution({ api, visitId, onChanged }) {
   const active = useRef(visitId), upload = useRef(null), input = useRef(null);
-  useEffect(() => { active.current = visitId; upload.current = null; setFile(null); setItems({}); return () => { active.current = null; }; }, [visitId]);
+  useEffect(() => { active.current = visitId; upload.current = null; setFile(null); setItems({}); setCustomerNote(null); return () => { active.current = null; }; }, [visitId]);
   const load = useCallback(({ signal }) => api.execution(visitId, { signal }), [api, visitId]);
   const resource = useApiResource(load);
   const [file, setFile] = useState(null), [items, setItems] = useState({}), [fileError, setFileError] = useState('');
-  const [time, setTime] = useState(Date.now());
+  const [customerNote, setCustomerNote] = useState(null);
+  const [clockReading, setClockReading] = useState(null);
   useEffect(() => {
     if (!resource.data) return undefined;
     const receivedAt = globalThis.performance.now(), server = Date.parse(resource.data.serverNow);
     const base = Number.isFinite(server) ? server : Date.now();
-    const update = () => setTime(base + globalThis.performance.now() - receivedAt);
+    const update = () => setClockReading({ row: resource.data, time: base + globalThis.performance.now() - receivedAt });
     update(); const timer = globalThis.setInterval(update, 1000);
     return () => globalThis.clearInterval(timer);
   }, [resource.data]);
   function clearFile() { setFile(null); setFileError(''); upload.current = null; if (input.current) input.current.value = ''; }
-  const command = useSchedulingCommand(() => { clearFile(); setItems({}); resource.retry(); onChanged?.(); });
+  const command = useSchedulingCommand(result => {
+    if (!result?.noteOnly) { clearFile(); setItems({}); }
+    if (result?.noteOnly || resource.data?.workflow?.mode !== 'VERSIONED') setCustomerNote(null);
+    resource.retry();
+    onChanged?.();
+  });
   const row = resource.data, locked = command.busy || command.pending;
+  const serverTime = Date.parse(row?.serverNow);
+  const time = clockReading && clockReading.row === row ? clockReading.time
+    : Number.isFinite(serverTime) ? serverTime : Date.now();
   const opensAt = row?.checkInOpensAt ?? (Number.isFinite(Date.parse(row?.startAt)) ? new Date(Date.parse(row.startAt) - 1800000).toISOString() : null);
   const early = row?.state === 'ASSIGNED' && opensAt && time < Date.parse(opensAt);
   const expiresAt = row?.state === 'ASSIGNED' ? row?.checkInClosesAt ?? row?.endAt : row?.checkOutClosesAt;
@@ -67,6 +76,10 @@ export function VisitExecution({ api, visitId, onChanged }) {
   const workflowReady = !versioned || (row.state === 'ASSIGNED' ? phaseComplete('CHECK_IN') : ['CHECK_IN','EXECUTION','CHECK_OUT'].every(phaseComplete));
   const savedChecklist = versioned && !allChecklistItems.length || Array.isArray(required) && required.every(id => row.checklist?.some(item =>
     item.itemId === id && (item.status === 'DONE' || item.status === 'SKIPPED' && item.reason?.trim())));
+  const noteField = <label>Ghi chú cho khách
+    <textarea rows={3} maxLength={2000} disabled={expired} value={customerNote ?? row.customerNote ?? ''}
+      onChange={event => setCustomerNote(event.target.value)} />
+  </label>;
   return <section className="visit-execution" aria-label="Thực hiện ca chăm sóc">
     <CareProgressSteps steps={['Đã nhận ca', 'Check-in', 'Chăm sóc', 'Check-out']} current={row.state === 'ASSIGNED' ? 1 : row.state === 'IN_PROGRESS' ? 2 : 3} complete={row.state === 'COMPLETED'} />
     {row.workflow?.mode === 'LEGACY' && <p>Buổi này dùng danh sách việc đã lưu.</p>}
@@ -85,6 +98,16 @@ export function VisitExecution({ api, visitId, onChanged }) {
     {command.message && <p role="status">{command.message}</p>}
     {command.pending && <Button disabled={command.busy} onClick={command.retry}>Kiểm tra lại thao tác ca</Button>}
     {versioned && <VisitWorkflowExecution row={row} api={api} visitId={visitId} onSaved={() => { resource.retry(); onChanged?.(); }} locked={locked || early || expired} />}
+    {versioned && row.state === 'IN_PROGRESS' && <fieldset disabled={locked || expired}>
+      <legend>Báo cáo chăm sóc</legend>
+      {noteField}
+      <Button disabled={customerNote === null || customerNote === (row.customerNote ?? '')} onClick={() => {
+        command.execute(async key => ({
+          ...await api.executeVisit(visitId, 'checklists', { expectedVersion: row.version, customerNote }, key),
+          noteOnly: true
+        }));
+      }}>Lưu ghi chú</Button>
+    </fieldset>}
     {row.state === 'IN_PROGRESS' && (!versioned || allChecklistItems.length > 0) && <fieldset disabled={locked}><legend>{versioned ? 'Việc bổ sung' : 'Nội dung chăm sóc'}</legend>
       {!Array.isArray(required) ? <p role="alert">Thiếu nội dung bàn giao. Cần điều phối kiểm tra trước khi hoàn tất ca.</p> : allChecklistItems.map(entry => {
         const id = entry.itemId;
@@ -96,10 +119,11 @@ export function VisitExecution({ api, visitId, onChanged }) {
           <textarea maxLength={1000} value={item.reason ?? ''} onChange={event => setItems(value => ({ ...value, [id]: { ...item, reason: event.target.value } }))} />
         </label>}</div>;
       })}
-      <Button disabled={!complete || !chosenChecklist.length || locked} onClick={() => {
+      {!versioned && noteField}
+      <Button disabled={!complete || !chosenChecklist.length || locked || (!versioned && expired && customerNote !== null)} onClick={() => {
         const payload = { expectedVersion: row.version, items: chosenChecklist.map(item => ({
           itemId: item.itemId, status: item.status, ...(item.status === 'SKIPPED' ? { reason: item.reason } : {})
-        })) };
+        })), ...(!versioned && customerNote !== null ? { customerNote } : {}) };
         command.execute(key => api.executeVisit(visitId, 'checklists', payload, key));
       }}><Check size={18} />Lưu nội dung chăm sóc</Button>
     </fieldset>}

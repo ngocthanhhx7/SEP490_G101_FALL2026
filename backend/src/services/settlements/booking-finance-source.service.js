@@ -197,25 +197,35 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
         } else {
           if (visit.state !== 'IN_PROGRESS' || !(visit.checkInAt instanceof Date)) fail(409, 'INVALID_STATE');
           if (operation === 'CHECKLIST') {
+            const hasNote = customerNote !== undefined;
+            if (hasNote && (!(visit.endAt instanceof Date)
+              || at.getTime() > visit.endAt.getTime() + CHECK_OUT_GRACE_MS || at < visit.checkInAt)) {
+              fail(409, 'WORKFLOW_WINDOW_CLOSED');
+            }
             const versioned = Boolean(visit.snapshots?.workflow);
-            const checklistItems = versioned ? additionalCareChecklist(visit) : visit.snapshots?.checklistItems;
-            if (versioned && !checklistItems.length) fail(409, 'WORKFLOW_TASKS_REQUIRED');
-            const required = versioned ? checklistItems.filter(item => item.required).map(item => item.itemId) : visit.snapshots?.checklistItemIds;
-            const allowedIds = checklistItems?.length
-              ? [...new Set([...(Array.isArray(required) ? required : []), ...checklistItems.map(row => row?.itemId).filter(Boolean)])]
-              : required;
-            if (!Array.isArray(required) || required.length > 100 || new Set(required).size !== required.length
-              || !Array.isArray(allowedIds) || allowedIds.length > 100
-              || !Array.isArray(items) || items.length < 1 || items.length > allowedIds.length
-              || new Set(items.map(row => row?.itemId)).size !== items.length
-              || items.some(row => !allowedIds.includes(row?.itemId) || !['DONE', 'SKIPPED'].includes(row.status)
-                || (row.status === 'SKIPPED' && (typeof row.reason !== 'string' || !row.reason.trim() || row.reason.length > 1000)))
-              || (customerNote !== undefined && (typeof customerNote !== 'string' || customerNote.length > 2000 || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote)))) fail(422, 'CHECKLIST_INVALID');
-            fields = {
-              checklist: items.map(row => ({ itemId: row.itemId, status: row.status,
-                ...(row.status === 'SKIPPED' ? { reason: row.reason.trim() } : {}) })),
-              ...(customerNote !== undefined ? { customerNote: customerNote.trim() } : {})
-            };
+            const noteOnly = versioned && hasNote && items === undefined;
+            if (hasNote && (typeof customerNote !== 'string' || customerNote.length > 2000
+              || /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/u.test(customerNote))) fail(422, 'CHECKLIST_INVALID');
+            fields = hasNote ? { customerNote: customerNote.trim() } : {};
+            if (!noteOnly) {
+              const checklistItems = versioned ? additionalCareChecklist(visit) : visit.snapshots?.checklistItems;
+              if (versioned && !checklistItems.length) fail(409, 'WORKFLOW_TASKS_REQUIRED');
+              const required = versioned ? checklistItems.filter(item => item.required).map(item => item.itemId)
+                : visit.snapshots?.checklistItemIds;
+              const allowedIds = checklistItems?.length
+                ? [...new Set([...(Array.isArray(required) ? required : []), ...checklistItems.map(row => row?.itemId).filter(Boolean)])]
+                : required;
+              if (!Array.isArray(required) || required.length > 100 || new Set(required).size !== required.length
+                || !Array.isArray(allowedIds) || allowedIds.length > 100
+                || !Array.isArray(items) || items.length < 1 || items.length > allowedIds.length
+                || new Set(items.map(row => row?.itemId)).size !== items.length
+                || items.some(row => !allowedIds.includes(row?.itemId) || !['DONE', 'SKIPPED'].includes(row.status)
+                  || (row.status === 'SKIPPED' && (typeof row.reason !== 'string' || !row.reason.trim() || row.reason.length > 1000)))) {
+                fail(422, 'CHECKLIST_INVALID');
+              }
+              fields.checklist = items.map(row => ({ itemId: row.itemId, status: row.status,
+                ...(row.status === 'SKIPPED' ? { reason: row.reason.trim() } : {}) }));
+            }
           } else {
             if (!(visit.endAt instanceof Date) || at.getTime() > visit.endAt.getTime() + CHECK_OUT_GRACE_MS
               || at < visit.checkInAt) fail(409, 'CHECK_OUT_DEADLINE_PASSED');
@@ -346,6 +356,7 @@ export function createBookingFinanceSourceService({ connection, clock = () => ne
             .map(({ kind, mediaId }) => ({ kind, mediaId })),
           checkInAt: visit.checkInAt ?? null, checkOutAt: visit.checkOutAt ?? null,
           checklistItemIds,
+          ...(visit.customerNote ? { customerNote: visit.customerNote } : {}),
           checklist: (visit.checklist ?? []).map(({ itemId, status, reason }) => ({ itemId, status, ...(reason ? { reason } : {}) })) };
       });
     },
